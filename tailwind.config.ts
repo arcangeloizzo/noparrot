@@ -52,45 +52,92 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
-				sidebar: {
-					DEFAULT: 'hsl(var(--sidebar-background))',
-					foreground: 'hsl(var(--sidebar-foreground))',
-					primary: 'hsl(var(--sidebar-primary))',
-					'primary-foreground': 'hsl(var(--sidebar-primary-foreground))',
-					accent: 'hsl(var(--sidebar-accent))',
-					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
-					border: 'hsl(var(--sidebar-border))',
-					ring: 'hsl(var(--sidebar-ring))'
-				}
+				// NOPARROT Brand Colors
+				'primary-blue': 'hsl(var(--primary-blue))',
+				'dark-blue': 'hsl(var(--dark-blue))',
+				'light-blue': 'hsl(var(--light-blue))',
+				'light-gray': 'hsl(var(--light-gray))',
+				'brand-pink': 'hsl(var(--brand-pink))',
+				'brand-yellow': 'hsl(var(--brand-yellow))',
+				// Trust Score Colors
+				'trust-low': 'hsl(var(--brand-pink))',
+				'trust-medium': 'hsl(var(--brand-yellow))',
+				'trust-high': 'hsl(180 49% 50%)',
+			},
+			spacing: {
+				'1': 'var(--space-1)',
+				'2': 'var(--space-2)',
+				'3': 'var(--space-3)',
+				'4': 'var(--space-4)',
+				'6': 'var(--space-6)',
+				'8': 'var(--space-8)',
+				'safe-bottom': 'calc(var(--space-4) + var(--safe-area-bottom))',
+				'280': '280px', // Custom width for buttons
+			},
+			width: {
+				'280': '280px',
+			},
+			fontFamily: {
+				'inter': 'var(--font-inter)',
 			},
 			borderRadius: {
-				lg: 'var(--radius)',
-				md: 'calc(var(--radius) - 2px)',
-				sm: 'calc(var(--radius) - 4px)'
+				'sm': 'var(--radius-sm)',
+				'md': 'var(--radius-md)',
+				'lg': 'var(--radius-lg)',
+				'full': 'var(--radius-full)',
+			},
+			boxShadow: {
+				'card': 'var(--shadow-card)',
+				'sm': 'var(--shadow-sm)',
+				'md': 'var(--shadow-md)',
+				'lg': 'var(--shadow-lg)',
 			},
 			keyframes: {
 				'accordion-down': {
-					from: {
-						height: '0'
-					},
-					to: {
-						height: 'var(--radix-accordion-content-height)'
-					}
+					from: { height: '0' },
+					to: { height: 'var(--radix-accordion-content-height)' }
 				},
 				'accordion-up': {
-					from: {
-						height: 'var(--radix-accordion-content-height)'
-					},
-					to: {
-						height: '0'
-					}
+					from: { height: 'var(--radix-accordion-content-height)' },
+					to: { height: '0' }
+				},
+				'logo-scale-in': {
+					'0%': { transform: 'scale(1) translateY(0)' },
+					'100%': { transform: 'scale(0.55) translateY(-40px)' }
+				},
+				'fade-slide-up': {
+					'0%': { opacity: '0', transform: 'translateY(20px)' },
+					'100%': { opacity: '1', transform: 'translateY(0)' }
+				},
+				'shake': {
+					'0%, 100%': { transform: 'translateX(0)' },
+					'25%': { transform: 'translateX(-4px)' },
+					'75%': { transform: 'translateX(4px)' }
+				},
+				'bounce-check': {
+					'0%': { transform: 'scale(0)' },
+					'50%': { transform: 'scale(1.2)' },
+					'100%': { transform: 'scale(1)' }
+				},
+				'mint-flash': {
+					'0%': { backgroundColor: 'transparent' },
+					'50%': { backgroundColor: 'rgba(72, 187, 120, 0.2)' },
+					'100%': { backgroundColor: 'transparent' }
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'logo-scale-in': 'logo-scale-in 900ms cubic-bezier(0.4, 0, 0.2, 1)',
+				'fade-slide-up': 'fade-slide-up 700ms cubic-bezier(0.4, 0, 0.2, 1)',
+				'shake': 'shake 0.3s ease-in-out',
+				'bounce-check': 'bounce-check 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+				'mint-flash': 'mint-flash 0.5s ease-out',
 			}
 		}
 	},
-	plugins: [require("tailwindcss-animate")],
+	plugins: [
+		require("tailwindcss-animate"),
+		require("@tailwindcss/line-clamp")
+	],
 } satisfies Config;

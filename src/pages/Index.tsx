@@ -1,14 +1,28 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState, useEffect } from "react";
+import { OnboardingFlow } from "./OnboardingFlow";
+import { Feed } from "./Feed";
 
 const Index = () => {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
-  );
+  const [isOnboarded, setIsOnboarded] = useState(false);
+
+  useEffect(() => {
+    // Check if user has completed onboarding
+    const hasOnboarded = localStorage.getItem("noparrot-onboarded");
+    if (hasOnboarded) {
+      setIsOnboarded(true);
+    }
+  }, []);
+
+  const handleOnboardingComplete = () => {
+    localStorage.setItem("noparrot-onboarded", "true");
+    setIsOnboarded(true);
+  };
+
+  if (!isOnboarded) {
+    return <OnboardingFlow onComplete={handleOnboardingComplete} />;
+  }
+
+  return <Feed />;
 };
 
 export default Index;
