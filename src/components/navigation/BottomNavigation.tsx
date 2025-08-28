@@ -23,7 +23,7 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
     { id: "search", icon: SearchIcon, label: "Search" },
     { id: "saved", icon: BookmarkIcon, label: "Saved" },
     { id: "notifications", icon: BellIcon, label: "Notifications" },
-    { id: "profile", icon: null, label: "", isAvatar: true },
+    { id: "profile", icon: null, label: "Profile", isAvatar: true },
   ];
 
   return (
