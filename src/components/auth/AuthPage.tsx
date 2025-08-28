@@ -25,7 +25,7 @@ export const AuthPage = ({ mode, onSubmit, onBack, onToggleMode }: AuthPageProps
   };
 
   const handleSocialLogin = () => {
-    navigate('/feed');
+    navigate('/');
   };
 
   const isSignup = mode === "signup";
