@@ -19,7 +19,7 @@ export const TRUST_SCORE_COLORS = {
 // Logo constants (using actual PNG assets)
 export const LOGO_BASE = "/lovable-uploads/f6970c06-9fd9-4430-b863-07384bbb05ce.png";
 export const LOGO_BASE_DARK = "/lovable-uploads/f6970c06-9fd9-4430-b863-07384bbb05ce.png";
-export const LOGO_EXTENDED = "/lovable-uploads/2e463915-3b37-49f7-88b3-19a37a0538f2.png";
+export const LOGO_EXTENDED = "/lovable-uploads/0bf9714b-07aa-4070-8a61-c1fdcc5b253c.png";
 export const LOGO_EXTENDED_DARK = "/lovable-uploads/2e463915-3b37-49f7-88b3-19a37a0538f2.png";
 
 // Navigation Feature Flags
