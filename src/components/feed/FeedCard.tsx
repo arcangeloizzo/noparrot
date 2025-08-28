@@ -128,6 +128,11 @@ export const FeedCard = ({
                     <span className="text-xs text-muted-foreground">{formatTimeAgo(post.minutesAgo)}</span>
                   </div>
                 </div>
+                {post.stance && (
+                  <span className={`${getStanceColor(post.stance)} text-xs px-2 py-1 rounded-full font-medium`}>
+                    {post.stance}
+                  </span>
+                )}
               </div>
 
               {/* Comment */}
@@ -197,29 +202,22 @@ export const FeedCard = ({
                   </button>
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  {post.stance && (
-                    <span className={`${getStanceColor(post.stance)} text-xs px-2 py-1 rounded-full font-medium`}>
-                      {post.stance}
-                    </span>
-                  )}
-                  <div className="flex items-center space-x-1">
-                    <button
-                      onClick={() => setShowTooltip(!showTooltip)}
-                      className={cn(
-                        "text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap",
-                        trustClass
-                      )}
-                    >
-                      {trustLabel}
-                    </button>
-                    <button
-                      onClick={() => setShowTooltip(!showTooltip)}
-                      className="p-0.5 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                    >
-                      <InfoIcon className="w-3 h-3" />
-                    </button>
-                  </div>
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={() => setShowTooltip(!showTooltip)}
+                    className={cn(
+                      "text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap",
+                      trustClass
+                    )}
+                  >
+                    {trustLabel}
+                  </button>
+                  <button
+                    onClick={() => setShowTooltip(!showTooltip)}
+                    className="p-0.5 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                  >
+                    <InfoIcon className="w-3 h-3" />
+                  </button>
                 </div>
               </div>
 
