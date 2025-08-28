@@ -55,6 +55,11 @@ export const Feed = () => {
     setShowComposer(true);
   };
 
+  const handleLogoClick = () => {
+    localStorage.removeItem("noparrot-onboarded");
+    window.location.reload();
+  };
+
   // Render different pages based on active tab
   if (activeNavTab === "search") {
     return (
@@ -114,7 +119,7 @@ export const Feed = () => {
         <div className="sticky top-0 bg-background/80 backdrop-blur-sm z-50 border-b border-border/50">
           <div className="px-4 py-3 space-y-4">
             <div className="flex justify-center">
-              <Logo variant="extended" size="md" />
+              <Logo variant="extended" size="md" onClick={handleLogoClick} />
             </div>
             <div className="flex justify-center">
               <FeedToggle activeTab={activeTab} onTabChange={setActiveTab} />

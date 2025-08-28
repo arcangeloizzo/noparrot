@@ -7,9 +7,10 @@ interface LogoProps {
   variant?: "icon" | "wordmark" | "extended";
   dark?: boolean;
   id?: string;
+  onClick?: () => void;
 }
 
-export const Logo = ({ className, size = "md", variant = "icon", dark = false, id }: LogoProps) => {
+export const Logo = ({ className, size = "md", variant = "icon", dark = false, id, onClick }: LogoProps) => {
   const sizeClasses = {
     sm: "w-6 h-6",
     md: "w-8 h-8", 
@@ -24,20 +25,26 @@ export const Logo = ({ className, size = "md", variant = "icon", dark = false, i
     xl: "h-10"
   };
 
+  const clickableClasses = onClick ? "cursor-pointer hover:opacity-80 transition-opacity" : "";
+
   if (variant === "icon") {
     return (
       <img 
         id={id}
         src={LOGO_BASE} 
         alt="NOPARROT" 
-        className={cn(sizeClasses[size], className)}
+        className={cn(sizeClasses[size], clickableClasses, className)}
+        onClick={onClick}
       />
     );
   }
 
   if (variant === "wordmark") {
     return (
-      <div className={cn("font-semibold text-foreground", className)}>
+      <div 
+        className={cn("font-semibold text-foreground", clickableClasses, className)}
+        onClick={onClick}
+      >
         <span className="text-muted-foreground">NO</span>
         <span className="text-primary-blue">PARROT</span>
       </div>
@@ -50,13 +57,17 @@ export const Logo = ({ className, size = "md", variant = "icon", dark = false, i
         id={id}
         src={LOGO_EXTENDED} 
         alt="NOPARROT" 
-        className={cn(heightClasses[size], "w-auto", className)}
+        className={cn(heightClasses[size], "w-auto", clickableClasses, className)}
+        onClick={onClick}
       />
     );
   }
 
   return (
-    <div className={cn("flex items-center space-x-2", className)}>
+    <div 
+      className={cn("flex items-center space-x-2", clickableClasses, className)}
+      onClick={onClick}
+    >
       <img 
         src={LOGO_BASE} 
         alt="NOPARROT" 
