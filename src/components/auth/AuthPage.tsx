@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,7 @@ interface AuthPageProps {
 }
 
 export const AuthPage = ({ mode, onSubmit, onBack, onToggleMode }: AuthPageProps) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -20,6 +22,10 @@ export const AuthPage = ({ mode, onSubmit, onBack, onToggleMode }: AuthPageProps
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(email, password);
+  };
+
+  const handleSocialLogin = () => {
+    navigate('/feed');
   };
 
   const isSignup = mode === "signup";
@@ -116,6 +122,7 @@ export const AuthPage = ({ mode, onSubmit, onBack, onToggleMode }: AuthPageProps
                 <div className="space-y-2">
                   <Button 
                     variant="outline" 
+                    onClick={handleSocialLogin}
                     className="w-full bg-black hover:bg-black/90 text-white border-black rounded-md h-11"
                   >
                     <AppleIcon className="w-5 h-5 mr-2" />
@@ -124,6 +131,7 @@ export const AuthPage = ({ mode, onSubmit, onBack, onToggleMode }: AuthPageProps
 
                   <Button 
                     variant="outline" 
+                    onClick={handleSocialLogin}
                     className="w-full bg-white hover:bg-gray-50 text-gray-700 border-gray-300 rounded-md h-11"
                   >
                     <GoogleIcon className="w-5 h-5 mr-2" />
@@ -132,6 +140,7 @@ export const AuthPage = ({ mode, onSubmit, onBack, onToggleMode }: AuthPageProps
 
                   <Button 
                     variant="outline" 
+                    onClick={handleSocialLogin}
                     className="w-full bg-[#0A66C2] hover:bg-[#0A66C2]/90 text-white border-[#0A66C2] rounded-md h-11"
                   >
                     <LinkedInIcon className="w-4 h-4 mr-2" />

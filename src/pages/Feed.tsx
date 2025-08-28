@@ -5,6 +5,10 @@ import { FeedCard } from "@/components/feed/FeedCard";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 import { FloatingActionButton } from "@/components/fab/FloatingActionButton";
+import { ComposerModal } from "@/components/composer/ComposerModal";
+import { Search } from "./Search";
+import { Saved } from "./Saved";
+import { Notifications } from "./Notifications";
 import { mockPosts, generateMorePosts } from "@/data/mockData";
 
 export const Feed = () => {
@@ -13,6 +17,7 @@ export const Feed = () => {
   const [posts, setPosts] = useState(mockPosts);
   const [scrollY, setScrollY] = useState(0);
   const [showProfileSheet, setShowProfileSheet] = useState(false);
+  const [showComposer, setShowComposer] = useState(false);
 
   useEffect(() => {
     // Add more posts for demo
@@ -27,46 +32,77 @@ export const Feed = () => {
 
   // Calculate card scales and offsets based on scroll
   const getCardProps = (index: number) => {
-    const cardHeight = 240; // Approximate card height
+    const cardHeight = 280; // Approximate card height
     const scrollOffset = scrollY;
     const cardTop = index * (cardHeight + 16); // Card height + margin
+    const viewportCenter = scrollOffset + window.innerHeight / 3; // Focus area
     
-    // Distance from viewport top
-    const distanceFromTop = cardTop - scrollOffset;
+    // Distance from center of viewport
+    const distanceFromCenter = Math.abs(cardTop - viewportCenter);
     
-    // Scale and offset based on position
-    if (distanceFromTop <= 0) {
-      return { scale: 1, offset: 0 }; // Active card
-    } else if (distanceFromTop <= cardHeight) {
-      return { scale: 0.94, offset: 8 }; // First upcoming card
-    } else if (distanceFromTop <= cardHeight * 2) {
-      return { scale: 0.88, offset: 16 }; // Second upcoming card
-    } else {
-      return { scale: 0.85, offset: 24 }; // Further cards
+    // Only apply scaling when card is in viewport
+    if (distanceFromCenter <= cardHeight) {
+      const normalizedDistance = distanceFromCenter / cardHeight;
+      const scale = 1 - (normalizedDistance * 0.12); // Scale from 1 to 0.88
+      const offset = normalizedDistance * 16; // Offset from 0 to 16px
+      return { scale: Math.max(0.88, scale), offset: Math.min(16, offset) };
     }
+    
+    return { scale: 0.88, offset: 16 }; // Off-screen cards
   };
 
   const handleCreatePost = () => {
-    // TODO: Open compose modal
-    console.log("Open compose modal");
+    setShowComposer(true);
   };
 
-  if (activeNavTab !== "home") {
+  // Render different pages based on active tab
+  if (activeNavTab === "search") {
     return (
-      <div className="min-h-screen bg-background pb-20">
-        <div className="mobile-container">
-          <div className="flex items-center justify-center min-h-screen">
-            <div className="text-center space-y-4">
-              <h2 className="text-xl font-semibold text-foreground capitalize">
-                {activeNavTab}
-              </h2>
-              <p className="text-muted-foreground">
-                This section is coming soon...
-              </p>
-            </div>
-          </div>
-        </div>
-        <BottomNavigation activeTab={activeNavTab} onTabChange={setActiveNavTab} />
+      <div className="pb-20">
+        <Search />
+        <BottomNavigation 
+          activeTab={activeNavTab} 
+          onTabChange={setActiveNavTab}
+          onProfileClick={() => setShowProfileSheet(true)}
+        />
+        <ProfileSideSheet 
+          isOpen={showProfileSheet}
+          onClose={() => setShowProfileSheet(false)}
+        />
+      </div>
+    );
+  }
+
+  if (activeNavTab === "saved") {
+    return (
+      <div className="pb-20">
+        <Saved />
+        <BottomNavigation 
+          activeTab={activeNavTab} 
+          onTabChange={setActiveNavTab}
+          onProfileClick={() => setShowProfileSheet(true)}
+        />
+        <ProfileSideSheet 
+          isOpen={showProfileSheet}
+          onClose={() => setShowProfileSheet(false)}
+        />
+      </div>
+    );
+  }
+
+  if (activeNavTab === "notifications") {
+    return (
+      <div className="pb-20">
+        <Notifications />
+        <BottomNavigation 
+          activeTab={activeNavTab} 
+          onTabChange={setActiveNavTab}
+          onProfileClick={() => setShowProfileSheet(true)}
+        />
+        <ProfileSideSheet 
+          isOpen={showProfileSheet}
+          onClose={() => setShowProfileSheet(false)}
+        />
       </div>
     );
   }
@@ -75,7 +111,7 @@ export const Feed = () => {
     <div className="min-h-screen bg-background pb-20">
       <div className="mobile-container">
         {/* Header */}
-        <div className="sticky top-0 bg-background/80 backdrop-blur-sm z-10 border-b border-border/50">
+        <div className="sticky top-0 bg-background/80 backdrop-blur-sm z-50 border-b border-border/50">
           <div className="px-4 py-3 space-y-4">
             <div className="flex justify-center">
               <Logo variant="extended" size="md" />
@@ -124,6 +160,12 @@ export const Feed = () => {
       <ProfileSideSheet 
         isOpen={showProfileSheet}
         onClose={() => setShowProfileSheet(false)}
+      />
+
+      {/* Composer Modal */}
+      <ComposerModal
+        isOpen={showComposer}
+        onClose={() => setShowComposer(false)}
       />
     </div>
   );

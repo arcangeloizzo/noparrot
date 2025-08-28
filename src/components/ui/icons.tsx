@@ -241,6 +241,119 @@ export const LinkedInIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// Additional Icons
+export const TrendingUpIcon = ({ className }: { className?: string }) => (
+  <svg 
+    className={className} 
+    width="24" 
+    height="24" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+  >
+    <polyline points="23,6 13.5,15.5 8.5,10.5 1,18"/>
+    <polyline points="17,6 23,6 23,12"/>
+  </svg>
+);
+
+export const HashIcon = ({ className }: { className?: string }) => (
+  <svg 
+    className={className} 
+    width="24" 
+    height="24" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+  >
+    <line x1="4" y1="9" x2="20" y2="9"/>
+    <line x1="4" y1="15" x2="20" y2="15"/>
+    <line x1="10" y1="3" x2="8" y2="21"/>
+    <line x1="16" y1="3" x2="14" y2="21"/>
+  </svg>
+);
+
+export const GridIcon = ({ className }: { className?: string }) => (
+  <svg 
+    className={className} 
+    width="24" 
+    height="24" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+  >
+    <rect x="3" y="3" width="7" height="7"/>
+    <rect x="14" y="3" width="7" height="7"/>
+    <rect x="14" y="14" width="7" height="7"/>
+    <rect x="3" y="14" width="7" height="7"/>
+  </svg>
+);
+
+export const ListIcon = ({ className }: { className?: string }) => (
+  <svg 
+    className={className} 
+    width="24" 
+    height="24" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+  >
+    <line x1="8" y1="6" x2="21" y2="6"/>
+    <line x1="8" y1="12" x2="21" y2="12"/>
+    <line x1="8" y1="18" x2="21" y2="18"/>
+    <line x1="3" y1="6" x2="3.01" y2="6"/>
+    <line x1="3" y1="12" x2="3.01" y2="12"/>
+    <line x1="3" y1="18" x2="3.01" y2="18"/>
+  </svg>
+);
+
+export const UserPlusIcon = ({ className }: { className?: string }) => (
+  <svg 
+    className={className} 
+    width="24" 
+    height="24" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+  >
+    <path d="M16 21V19C16 17.9391 15.5786 16.9217 14.8284 16.1716C14.0783 15.4214 13.0609 15 12 15H5C3.93913 15 2.92172 15.4214 2.17157 16.1716C1.42143 16.9217 1 17.9391 1 19V21"/>
+    <circle cx="8.5" cy="7" r="4"/>
+    <line x1="20" y1="8" x2="20" y2="14"/>
+    <line x1="23" y1="11" x2="17" y2="11"/>
+  </svg>
+);
+
+export const AtSignIcon = ({ className }: { className?: string }) => (
+  <svg 
+    className={className} 
+    width="24" 
+    height="24" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke="currentColor" 
+    strokeWidth="2" 
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+  >
+    <circle cx="12" cy="12" r="4"/>
+    <path d="M16 8V13C16 13.5304 16.2107 14.0391 16.5858 14.4142C16.9609 14.7893 17.4696 15 18 15C18.5304 15 19.0391 14.7893 19.4142 14.4142C19.7893 14.0391 20 13.5304 20 13V12C20 7.58172 16.4183 4 12 4C7.58172 4 4 7.58172 4 12C4 16.4183 7.58172 20 12 20C13.6418 20 15.1618 19.5 16.4 18.6"/>
+  </svg>
+);
+
 // Reaction Icons (using emoji)
 export const reactions = {
   heart: "❤️",

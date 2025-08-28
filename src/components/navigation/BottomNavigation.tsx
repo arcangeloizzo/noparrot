@@ -12,7 +12,7 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
   const getAvatarContent = () => {
     const initials = "AI";
     return (
-      <div className="w-6 h-6 bg-primary-blue rounded-full flex items-center justify-center text-white text-xs font-semibold">
+      <div className="w-7 h-7 bg-primary-blue rounded-full flex items-center justify-center text-white text-xs font-semibold">
         {initials}
       </div>
     );
@@ -27,7 +27,7 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border/50 safe-bottom">
+    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border/50 safe-bottom z-40">
       <div className="mobile-container">
         <div className="flex items-center justify-around py-2">
           {tabs.map(({ id, icon: Icon, label, isAvatar }) => (
@@ -55,7 +55,7 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
                   {getAvatarContent()}
                 </div>
               ) : (
-                Icon && <Icon className={cn("w-6 h-6", activeTab === id && "text-primary-blue")} />
+                Icon && <Icon className={cn("w-7 h-7", activeTab === id && "text-primary-blue")} />
               )}
               {label && <span className="text-xs font-medium">{label}</span>}
             </button>

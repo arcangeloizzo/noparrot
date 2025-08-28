@@ -70,6 +70,14 @@
     /* Typography */
     --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
     
+    /* Trust Score Colors */
+    --trust-low: 203 48% 15%; /* #20303A */
+    --trust-low-text: 180 49% 84%; /* #BFE9E9 */
+    --trust-medium: 203 48% 18%; /* #16364A */
+    --trust-medium-text: 180 49% 84%; /* #BFE9E9 */
+    --trust-high: 203 48% 22%; /* #0E3C62 */
+    --trust-high-text: 180 49% 84%; /* #BFE9E9 */
+
     /* Mobile-specific */
     --safe-area-bottom: env(safe-area-inset-bottom, 0px);
     --mobile-width: 375px;

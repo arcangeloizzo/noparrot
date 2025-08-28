@@ -60,9 +60,12 @@ export default {
 				'brand-pink': 'hsl(var(--brand-pink))',
 				'brand-yellow': 'hsl(var(--brand-yellow))',
 				// Trust Score Colors
-				'trust-low': 'hsl(var(--brand-pink))',
-				'trust-medium': 'hsl(var(--brand-yellow))',
-				'trust-high': 'hsl(180 49% 50%)',
+				'trust-low': 'hsl(var(--trust-low))',
+				'trust-low-text': 'hsl(var(--trust-low-text))',
+				'trust-medium': 'hsl(var(--trust-medium))',
+				'trust-medium-text': 'hsl(var(--trust-medium-text))',
+				'trust-high': 'hsl(var(--trust-high))',
+				'trust-high-text': 'hsl(var(--trust-high-text))',
 			},
 			spacing: {
 				'1': 'var(--space-1)',

@@ -8,12 +8,12 @@ export const BRAND_COLORS = {
   BRAND_YELLOW: '#FFD464',
 } as const;
 
-// Trust Score Colors
+// Trust Score Colors (now using Tailwind classes)
 export const TRUST_SCORE_COLORS = {
-  BASSO: { bg: '#20303A', text: '#BFE9E9' },
-  MEDIO: { bg: '#16364A', text: '#BFE9E9' },
-  ALTO: { bg: '#0E3C62', text: '#BFE9E9' },
-  NONE: { bg: '#6B7280', text: '#9CA3AF' },
+  BASSO: "bg-trust-low text-trust-low-text",
+  MEDIO: "bg-trust-medium text-trust-medium-text",
+  ALTO: "bg-trust-high text-trust-high-text",
+  NONE: "bg-muted text-muted-foreground"
 } as const;
 
 // Logo constants (using actual PNG assets)

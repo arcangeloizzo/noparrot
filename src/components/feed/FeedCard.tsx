@@ -59,7 +59,7 @@ export const FeedCard = ({
     );
   };
 
-  const getTrustScoreStyle = (trust: string | null) => {
+  const getTrustScoreClass = (trust: string | null) => {
     if (!trust) return TRUST_SCORE_COLORS.NONE;
     return TRUST_SCORE_COLORS[trust as keyof typeof TRUST_SCORE_COLORS] || TRUST_SCORE_COLORS.NONE;
   };
@@ -96,7 +96,7 @@ export const FeedCard = ({
     onLongPress?.();
   };
 
-  const trustStyle = getTrustScoreStyle(post.trust);
+  const trustClass = getTrustScoreClass(post.trust);
   const trustLabel = post.sources.length === 0 ? "Nessuna Fonte" : post.trust || "Nessuna Fonte";
 
   return (
@@ -115,7 +115,7 @@ export const FeedCard = ({
         >
           <div className="bg-card rounded-lg shadow-card border border-border/50 mx-4 relative z-10">
             {/* Main Content Grid */}
-            <div className="grid grid-cols-[1fr_96px] gap-4 p-4">
+            <div className="grid grid-cols-[1fr_auto] gap-4 p-4">
               {/* Left Column - Main Content */}
               <div className="space-y-3">
             {/* User Row */}
@@ -179,7 +179,6 @@ export const FeedCard = ({
               <div className="flex items-center space-x-1">
                 <button 
                   onClick={() => setIsLiked(!isLiked)}
-                  onPointerDown={handleLongPress}
                   className="p-1 text-muted-foreground hover:text-primary-blue transition-colors"
                 >
                   <HeartIcon className="w-5 h-5" filled={isLiked} />
@@ -204,40 +203,34 @@ export const FeedCard = ({
               </div>
 
               {/* Right Column - Meta */}
-              <div className="meta-col flex flex-col justify-end">
-                <div className="ts-wrap relative self-end" style={{ transform: 'translateY(-2px)' }}>
-              <div className="flex items-center space-x-1">
-                <button
-                  onClick={() => setShowTooltip(!showTooltip)}
-                  className={cn(
-                    "text-xs px-2 py-1 rounded-full font-medium relative",
-                    "transition-colors duration-200"
-                  )}
-                  style={{ 
-                    backgroundColor: trustStyle.bg, 
-                    color: trustStyle.text 
-                  }}
-                >
-                  {trustLabel}
-                </button>
-                <button
-                  onClick={() => setShowTooltip(!showTooltip)}
-                  className="p-0.5 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <InfoIcon className="w-3 h-3" />
-                </button>
-              </div>
+              <div className="meta-col flex flex-col justify-end min-w-0">
+                <div className="ts-wrap relative flex items-center justify-end space-x-1" style={{ transform: 'translateY(-2px)' }}>
+                  <button
+                    onClick={() => setShowTooltip(!showTooltip)}
+                    className={cn(
+                      "text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap",
+                      trustClass
+                    )}
+                  >
+                    {trustLabel}
+                  </button>
+                  <button
+                    onClick={() => setShowTooltip(!showTooltip)}
+                    className="p-0.5 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                  >
+                    <InfoIcon className="w-3 h-3" />
+                  </button>
+                </div>
 
-              {/* Tooltip */}
-              {showTooltip && (
-                <div className="absolute bottom-full right-0 mb-2 w-64 p-3 bg-popover border rounded-lg shadow-lg text-xs text-popover-foreground z-50">
-                  <div className="relative">
-                    {post.sources.length === 0 ? TOOLTIPS.NO_SOURCES : TOOLTIPS.TRUST_SCORE}
-                    <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover"></div>
+                {/* Tooltip */}
+                {showTooltip && (
+                  <div className="absolute bottom-full right-0 mb-2 w-64 p-3 bg-popover border rounded-lg shadow-lg text-xs text-popover-foreground z-50">
+                    <div className="relative">
+                      {post.sources.length === 0 ? TOOLTIPS.NO_SOURCES : TOOLTIPS.TRUST_SCORE}
+                      <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover"></div>
+                    </div>
                   </div>
-                </div>
-              )}
-                </div>
+                )}
               </div>
             </div>
           </div>
