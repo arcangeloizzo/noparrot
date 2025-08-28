@@ -17,10 +17,10 @@ export const TRUST_SCORE_COLORS = {
 } as const;
 
 // Logo constants (using actual PNG assets)
-export const LOGO_BASE = "/src/assets/parrot-logo.png";
-export const LOGO_BASE_DARK = "/src/assets/parrot-logo.png";
-export const LOGO_EXTENDED = "/src/assets/parrot-logo.png";
-export const LOGO_EXTENDED_DARK = "/src/assets/parrot-logo.png";
+export const LOGO_BASE = "/lovable-uploads/4e2d113e-0ba6-45d9-8efe-2022612746f6.png";
+export const LOGO_BASE_DARK = "/lovable-uploads/4e2d113e-0ba6-45d9-8efe-2022612746f6.png";
+export const LOGO_EXTENDED = "/lovable-uploads/4e2d113e-0ba6-45d9-8efe-2022612746f6.png";
+export const LOGO_EXTENDED_DARK = "/lovable-uploads/4e2d113e-0ba6-45d9-8efe-2022612746f6.png";
 
 // Navigation Feature Flags
 export const NAV_PROFILE_AS_HOME = false; // Changed: keep Home icon, replace Profile icon with avatar
