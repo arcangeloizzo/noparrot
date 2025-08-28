@@ -61,6 +61,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         onSubmit={handleAuthSubmit}
         onBack={handleBack}
         onToggleMode={handleToggleAuthMode}
+        onComplete={onComplete}
       />
     );
   }

@@ -66,6 +66,9 @@ export default {
 				'trust-medium-text': 'hsl(var(--trust-medium-text))',
 				'trust-high': 'hsl(var(--trust-high))',
 				'trust-high-text': 'hsl(var(--trust-high-text))',
+				// Custom logo colors
+				'logo-no': '#bbe6e4',
+				'logo-parrot': '#0a77ed',
 			},
 			spacing: {
 				'1': 'var(--space-1)',

@@ -11,9 +11,10 @@ interface AuthPageProps {
   onSubmit: (email: string, password: string) => void;
   onBack: () => void;
   onToggleMode: () => void;
+  onComplete: () => void;
 }
 
-export const AuthPage = ({ mode, onSubmit, onBack, onToggleMode }: AuthPageProps) => {
+export const AuthPage = ({ mode, onSubmit, onBack, onToggleMode, onComplete }: AuthPageProps) => {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,7 +26,8 @@ export const AuthPage = ({ mode, onSubmit, onBack, onToggleMode }: AuthPageProps
   };
 
   const handleSocialLogin = () => {
-    navigate('/');
+    localStorage.setItem("noparrot-onboarded", "true");
+    onComplete();
   };
 
   const isSignup = mode === "signup";

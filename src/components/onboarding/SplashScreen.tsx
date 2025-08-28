@@ -44,7 +44,10 @@ export const SplashScreen = ({ onComplete }: SplashScreenProps) => {
             phase >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
           } ${phase >= 3 ? '-translate-y-8' : ''}`}
         >
-          <Logo id="introWordmark" variant="extended" size="lg" />
+          <div id="introWordmark" className="font-inter text-3xl font-semibold">
+            <span style={{ color: '#bbe6e4' }}>NO</span>
+            <span style={{ color: '#0a77ed' }}>PARROT</span>
+          </div>
         </div>
 
         {/* Claim and Button */}
