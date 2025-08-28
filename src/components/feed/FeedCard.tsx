@@ -128,30 +128,6 @@ export const FeedCard = ({
                     <span className="text-xs text-muted-foreground">{formatTimeAgo(post.minutesAgo)}</span>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  {post.stance && (
-                    <span className={`${getStanceColor(post.stance)} text-xs px-2 py-1 rounded-full font-medium`}>
-                      {post.stance}
-                    </span>
-                  )}
-                  <div className="flex items-center space-x-1">
-                    <button
-                      onClick={() => setShowTooltip(!showTooltip)}
-                      className={cn(
-                        "text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap",
-                        trustClass
-                      )}
-                    >
-                      {trustLabel}
-                    </button>
-                    <button
-                      onClick={() => setShowTooltip(!showTooltip)}
-                      className="p-0.5 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                    >
-                      <InfoIcon className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
               </div>
 
               {/* Comment */}
@@ -194,30 +170,57 @@ export const FeedCard = ({
               )}
 
               {/* Action Row */}
-              <div className="flex items-center space-x-4 pt-1">
-                <div className="flex items-center space-x-1">
+              <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-1">
+                    <button 
+                      onClick={() => setIsLiked(!isLiked)}
+                      className="p-1 text-muted-foreground hover:text-primary-blue transition-colors"
+                    >
+                      <HeartIcon className="w-5 h-5" filled={isLiked} />
+                    </button>
+                    <span className="text-xs text-muted-foreground">{post.reactions.heart}</span>
+                  </div>
+
+                  <div className="flex items-center space-x-1">
+                    <button className="p-1 text-muted-foreground hover:text-primary-blue transition-colors">
+                      <MessageCircleIcon className="w-5 h-5" />
+                    </button>
+                    <span className="text-xs text-muted-foreground">{post.reactions.comments}</span>
+                  </div>
+
                   <button 
-                    onClick={() => setIsLiked(!isLiked)}
+                    onClick={() => setIsBookmarked(!isBookmarked)}
                     className="p-1 text-muted-foreground hover:text-primary-blue transition-colors"
                   >
-                    <HeartIcon className="w-5 h-5" filled={isLiked} />
+                    <BookmarkIcon className="w-5 h-5" filled={isBookmarked} />
                   </button>
-                  <span className="text-xs text-muted-foreground">{post.reactions.heart}</span>
                 </div>
 
-                <div className="flex items-center space-x-1">
-                  <button className="p-1 text-muted-foreground hover:text-primary-blue transition-colors">
-                    <MessageCircleIcon className="w-5 h-5" />
-                  </button>
-                  <span className="text-xs text-muted-foreground">{post.reactions.comments}</span>
+                <div className="flex items-center space-x-2">
+                  {post.stance && (
+                    <span className={`${getStanceColor(post.stance)} text-xs px-2 py-1 rounded-full font-medium`}>
+                      {post.stance}
+                    </span>
+                  )}
+                  <div className="flex items-center space-x-1">
+                    <button
+                      onClick={() => setShowTooltip(!showTooltip)}
+                      className={cn(
+                        "text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap",
+                        trustClass
+                      )}
+                    >
+                      {trustLabel}
+                    </button>
+                    <button
+                      onClick={() => setShowTooltip(!showTooltip)}
+                      className="p-0.5 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                    >
+                      <InfoIcon className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
-
-                <button 
-                  onClick={() => setIsBookmarked(!isBookmarked)}
-                  className="p-1 text-muted-foreground hover:text-primary-blue transition-colors ml-auto"
-                >
-                  <BookmarkIcon className="w-5 h-5" filled={isBookmarked} />
-                </button>
               </div>
 
               {/* Tooltip */}
