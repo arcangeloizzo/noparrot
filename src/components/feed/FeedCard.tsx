@@ -115,123 +115,120 @@ export const FeedCard = ({
         >
           <div className="bg-card rounded-lg shadow-card border border-border/50 mx-4 relative z-10">
             {/* Main Content Grid */}
-            <div className="grid grid-cols-[1fr_auto] gap-4 p-4">
-              {/* Left Column - Main Content */}
-              <div className="space-y-3">
-            {/* User Row */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 rounded-full overflow-hidden">
-                  {getAvatarContent()}
+            <div className="p-4">
+              {/* User Row */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 rounded-full overflow-hidden">
+                    {getAvatarContent()}
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className="font-medium text-card-foreground">{post.authorName}</span>
+                    <span className="text-xs text-muted-foreground">·</span>
+                    <span className="text-xs text-muted-foreground">{formatTimeAgo(post.minutesAgo)}</span>
+                  </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <span className="font-medium text-card-foreground">{post.authorName}</span>
-                  <span className="text-xs text-muted-foreground">·</span>
-                  <span className="text-xs text-muted-foreground">{formatTimeAgo(post.minutesAgo)}</span>
+                  {post.stance && (
+                    <span className={`${getStanceColor(post.stance)} text-xs px-2 py-1 rounded-full font-medium`}>
+                      {post.stance}
+                    </span>
+                  )}
+                  <div className="flex items-center space-x-1">
+                    <button
+                      onClick={() => setShowTooltip(!showTooltip)}
+                      className={cn(
+                        "text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap",
+                        trustClass
+                      )}
+                    >
+                      {trustLabel}
+                    </button>
+                    <button
+                      onClick={() => setShowTooltip(!showTooltip)}
+                      className="p-0.5 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+                    >
+                      <InfoIcon className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
               </div>
-              {post.stance && (
-                <span className={`${getStanceColor(post.stance)} text-xs px-2 py-1 rounded-full font-medium`}>
-                  {post.stance}
-                </span>
+
+              {/* Comment */}
+              <p className="text-card-foreground text-sm leading-relaxed line-clamp-3 mb-3">
+                {post.userComment}
+              </p>
+
+              {/* Topic Tag */}
+              {post.topicTag && (
+                <div className="mb-3">
+                  <span className="bg-secondary text-secondary-foreground text-xs px-2 py-1 rounded-full font-medium w-fit">
+                    {post.topicTag}
+                  </span>
+                </div>
               )}
-            </div>
 
-            {/* Comment */}
-            <p className="text-card-foreground text-sm leading-relaxed line-clamp-3">
-              {post.userComment}
-            </p>
+              {/* Article Content */}
+              {post.sharedTitle && (
+                <div className="space-y-3 mb-3">
+                  <h3 className="font-semibold text-card-foreground text-sm line-clamp-2">
+                    {post.sharedTitle}
+                  </h3>
+                  
+                  {post.previewImg && (
+                    <div className="w-full aspect-video bg-muted rounded-md overflow-hidden">
+                      <img 
+                        src={post.previewImg} 
+                        alt="Article preview" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
 
-            {/* Topic Tag */}
-            {post.topicTag && (
-              <span className="bg-secondary text-secondary-foreground text-xs px-2 py-1 rounded-full font-medium w-fit">
-                {post.topicTag}
-              </span>
-            )}
+                  {post.url && (
+                    <p className="text-xs text-muted-foreground opacity-70">
+                      {post.url}
+                    </p>
+                  )}
+                </div>
+              )}
 
-            {/* Article Content */}
-            {post.sharedTitle && (
-              <div className="space-y-3">
-                <h3 className="font-semibold text-card-foreground text-sm line-clamp-2">
-                  {post.sharedTitle}
-                </h3>
-                
-                {post.previewImg && (
-                  <div className="w-full aspect-video bg-muted rounded-md overflow-hidden">
-                    <img 
-                      src={post.previewImg} 
-                      alt="Article preview" 
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )}
-
-                {post.url && (
-                  <p className="text-xs text-muted-foreground opacity-70">
-                    {post.url}
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Action Row */}
-            <div className="flex items-center space-x-4 pt-1">
-              <div className="flex items-center space-x-1">
-                <button 
-                  onClick={() => setIsLiked(!isLiked)}
-                  className="p-1 text-muted-foreground hover:text-primary-blue transition-colors"
-                >
-                  <HeartIcon className="w-5 h-5" filled={isLiked} />
-                </button>
-                <span className="text-xs text-muted-foreground">{post.reactions.heart}</span>
-              </div>
-
-              <div className="flex items-center space-x-1">
-                <button className="p-1 text-muted-foreground hover:text-primary-blue transition-colors">
-                  <MessageCircleIcon className="w-5 h-5" />
-                </button>
-                <span className="text-xs text-muted-foreground">{post.reactions.comments}</span>
-              </div>
-
-              <button 
-                onClick={() => setIsBookmarked(!isBookmarked)}
-                className="p-1 text-muted-foreground hover:text-primary-blue transition-colors ml-auto"
-              >
-                <BookmarkIcon className="w-5 h-5" filled={isBookmarked} />
-              </button>
-            </div>
-              </div>
-
-              {/* Right Column - Meta */}
-              <div className="meta-col flex flex-col justify-end min-w-0">
-                <div className="ts-wrap relative flex items-center justify-end space-x-1" style={{ transform: 'translateY(-2px)' }}>
-                  <button
-                    onClick={() => setShowTooltip(!showTooltip)}
-                    className={cn(
-                      "text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap",
-                      trustClass
-                    )}
+              {/* Action Row */}
+              <div className="flex items-center space-x-4 pt-1">
+                <div className="flex items-center space-x-1">
+                  <button 
+                    onClick={() => setIsLiked(!isLiked)}
+                    className="p-1 text-muted-foreground hover:text-primary-blue transition-colors"
                   >
-                    {trustLabel}
+                    <HeartIcon className="w-5 h-5" filled={isLiked} />
                   </button>
-                  <button
-                    onClick={() => setShowTooltip(!showTooltip)}
-                    className="p-0.5 text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-                  >
-                    <InfoIcon className="w-3 h-3" />
-                  </button>
+                  <span className="text-xs text-muted-foreground">{post.reactions.heart}</span>
                 </div>
 
-                {/* Tooltip */}
-                {showTooltip && (
-                  <div className="absolute bottom-full right-0 mb-2 w-64 p-3 bg-popover border rounded-lg shadow-lg text-xs text-popover-foreground z-50">
-                    <div className="relative">
-                      {post.sources.length === 0 ? TOOLTIPS.NO_SOURCES : TOOLTIPS.TRUST_SCORE}
-                      <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover"></div>
-                    </div>
-                  </div>
-                )}
+                <div className="flex items-center space-x-1">
+                  <button className="p-1 text-muted-foreground hover:text-primary-blue transition-colors">
+                    <MessageCircleIcon className="w-5 h-5" />
+                  </button>
+                  <span className="text-xs text-muted-foreground">{post.reactions.comments}</span>
+                </div>
+
+                <button 
+                  onClick={() => setIsBookmarked(!isBookmarked)}
+                  className="p-1 text-muted-foreground hover:text-primary-blue transition-colors ml-auto"
+                >
+                  <BookmarkIcon className="w-5 h-5" filled={isBookmarked} />
+                </button>
               </div>
+
+              {/* Tooltip */}
+              {showTooltip && (
+                <div className="absolute bottom-full right-0 mb-2 w-64 p-3 bg-popover border rounded-lg shadow-lg text-xs text-popover-foreground z-50">
+                  <div className="relative">
+                    {post.sources.length === 0 ? TOOLTIPS.NO_SOURCES : TOOLTIPS.TRUST_SCORE}
+                    <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover"></div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

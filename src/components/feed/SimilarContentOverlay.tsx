@@ -70,14 +70,11 @@ export const SimilarContentOverlay = ({ isOpen, onClose, originalPost }: Similar
             {filteredPosts.map((post, index) => (
               <div 
                 key={post.id}
-                className="transform scale-90 origin-top"
-                style={{ 
-                  marginBottom: '-24px' // Compress spacing for mini cards
-                }}
+                className="mb-4"
               >
                 <FeedCard
                   post={post}
-                  scale={0.9}
+                  scale={1}
                   offset={0}
                 />
               </div>
