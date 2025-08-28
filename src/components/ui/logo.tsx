@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { LOGO_BASE, LOGO_BASE_DARK, LOGO_EXTENDED, LOGO_EXTENDED_DARK } from "@/config/brand";
+import { LOGO_BASE, LOGO_EXTENDED } from "@/config/brand";
 
 interface LogoProps {
   className?: string;
@@ -28,7 +28,7 @@ export const Logo = ({ className, size = "md", variant = "icon", dark = false, i
     return (
       <img 
         id={id}
-        src={dark ? LOGO_BASE_DARK : LOGO_BASE} 
+        src={LOGO_BASE} 
         alt="NOPARROT" 
         className={cn(sizeClasses[size], className)}
       />
@@ -48,7 +48,7 @@ export const Logo = ({ className, size = "md", variant = "icon", dark = false, i
     return (
       <img 
         id={id}
-        src={dark ? LOGO_EXTENDED_DARK : LOGO_EXTENDED} 
+        src={LOGO_EXTENDED} 
         alt="NOPARROT" 
         className={cn(heightClasses[size], "w-auto", className)}
       />
@@ -58,7 +58,7 @@ export const Logo = ({ className, size = "md", variant = "icon", dark = false, i
   return (
     <div className={cn("flex items-center space-x-2", className)}>
       <img 
-        src={dark ? LOGO_BASE_DARK : LOGO_BASE} 
+        src={LOGO_BASE} 
         alt="NOPARROT" 
         className={sizeClasses[size]}
       />

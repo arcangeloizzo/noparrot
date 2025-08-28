@@ -18,18 +18,12 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
     );
   };
 
-  const tabs = NAV_PROFILE_AS_HOME ? [
-    { id: "home", icon: null, label: "Home", isAvatar: true },
-    { id: "search", icon: SearchIcon, label: "Search" },
-    { id: "saved", icon: BookmarkIcon, label: "Saved" },
-    { id: "notifications", icon: BellIcon, label: "Notifications" },
-    { id: "profile", icon: UserIcon, label: "Profile" },
-  ] : [
+  const tabs = [
     { id: "home", icon: HomeIcon, label: "Home" },
     { id: "search", icon: SearchIcon, label: "Search" },
     { id: "saved", icon: BookmarkIcon, label: "Saved" },
     { id: "notifications", icon: BellIcon, label: "Notifications" },
-    { id: "profile", icon: UserIcon, label: "Profile" },
+    { id: "profile", icon: null, label: "", isAvatar: true },
   ];
 
   return (
@@ -40,7 +34,7 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
             <button
               key={id}
               onClick={() => {
-                if (NAV_PROFILE_AS_HOME && id === "home") {
+                if (id === "profile") {
                   onProfileClick?.();
                 } else {
                   onTabChange(id);
@@ -48,22 +42,22 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
               }}
               className={cn(
                 "flex flex-col items-center space-y-1 p-2 transition-colors relative",
-                activeTab === id 
+                activeTab === id && !isAvatar
                   ? "text-primary-blue" 
-                  : "text-muted-foreground hover:text-foreground"
+                  : isAvatar ? "text-foreground" : "text-muted-foreground hover:text-foreground"
               )}
             >
               {isAvatar ? (
                 <div className={cn(
                   "relative",
-                  activeTab === id && "ring-2 ring-primary-blue rounded-full"
+                  activeTab === "profile" && "ring-2 ring-primary-blue rounded-full"
                 )}>
                   {getAvatarContent()}
                 </div>
               ) : (
-                Icon && <Icon className="w-6 h-6" />
+                Icon && <Icon className={cn("w-6 h-6", activeTab === id && "text-primary-blue")} />
               )}
-              <span className="text-xs font-medium">{label}</span>
+              {label && <span className="text-xs font-medium">{label}</span>}
             </button>
           ))}
         </div>

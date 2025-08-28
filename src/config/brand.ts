@@ -16,17 +16,14 @@ export const TRUST_SCORE_COLORS = {
   NONE: { bg: '#6B7280', text: '#9CA3AF' },
 } as const;
 
-// Logo Data URIs (from uploaded assets)
-export const LOGO_BASE = "data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='50' cy='50' r='45' fill='%230A7AFF'/%3E%3Ccircle cx='35' cy='35' r='12' fill='white'/%3E%3Ccircle cx='35' cy='35' r='6' fill='%231F3347'/%3E%3Cpath d='M20 60 Q30 50 40 60' fill='%231F3347'/%3E%3C/svg%3E";
-
-export const LOGO_BASE_DARK = "data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23BFE9E9'/%3E%3Ccircle cx='35' cy='35' r='12' fill='white'/%3E%3Ccircle cx='35' cy='35' r='6' fill='%231F3347'/%3E%3Cpath d='M20 60 Q30 50 40 60' fill='%231F3347'/%3E%3C/svg%3E";
-
-export const LOGO_EXTENDED = "data:image/svg+xml,%3Csvg viewBox='0 0 200 50' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='25' cy='25' r='20' fill='%230A7AFF'/%3E%3Ccircle cx='18' cy='18' r='6' fill='white'/%3E%3Ccircle cx='18' cy='18' r='3' fill='%231F3347'/%3E%3Cpath d='M10 30 Q15 25 20 30' fill='%231F3347'/%3E%3Ctext x='55' y='32' font-family='Inter' font-weight='600' font-size='18' fill='%231F3347'%3ENO%3C/text%3E%3Ctext x='85' y='32' font-family='Inter' font-weight='600' font-size='18' fill='%230A7AFF'%3EPARROT%3C/text%3E%3C/svg%3E";
-
-export const LOGO_EXTENDED_DARK = "data:image/svg+xml,%3Csvg viewBox='0 0 200 50' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='25' cy='25' r='20' fill='%23BFE9E9'/%3E%3Ccircle cx='18' cy='18' r='6' fill='white'/%3E%3Ccircle cx='18' cy='18' r='3' fill='%231F3347'/%3E%3Cpath d='M10 30 Q15 25 20 30' fill='%231F3347'/%3E%3Ctext x='55' y='32' font-family='Inter' font-weight='600' font-size='18' fill='%23BFE9E9'%3ENO%3C/text%3E%3Ctext x='85' y='32' font-family='Inter' font-weight='600' font-size='18' fill='%23BFE9E9'%3EPARROT%3C/text%3E%3C/svg%3E";
+// Logo constants (using actual PNG assets)
+export const LOGO_BASE = "/src/assets/parrot-logo.png";
+export const LOGO_BASE_DARK = "/src/assets/parrot-logo.png";
+export const LOGO_EXTENDED = "/src/assets/parrot-logo.png";
+export const LOGO_EXTENDED_DARK = "/src/assets/parrot-logo.png";
 
 // Navigation Feature Flags
-export const NAV_PROFILE_AS_HOME = true;
+export const NAV_PROFILE_AS_HOME = false; // Changed: keep Home icon, replace Profile icon with avatar
 
 // Tooltips
 export const TOOLTIPS = {

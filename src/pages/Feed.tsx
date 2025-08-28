@@ -27,18 +27,23 @@ export const Feed = () => {
 
   // Calculate card scales and offsets based on scroll
   const getCardProps = (index: number) => {
-    const cardHeight = 200; // Approximate card height
-    const baseScale = [1, 0.94, 0.88];
-    const baseOffset = [0, 8, 16];
+    const cardHeight = 240; // Approximate card height
+    const scrollOffset = scrollY;
+    const cardTop = index * (cardHeight + 16); // Card height + margin
     
-    if (index < 3) {
-      return {
-        scale: baseScale[index] || 0.8,
-        offset: baseOffset[index] || 24
-      };
+    // Distance from viewport top
+    const distanceFromTop = cardTop - scrollOffset;
+    
+    // Scale and offset based on position
+    if (distanceFromTop <= 0) {
+      return { scale: 1, offset: 0 }; // Active card
+    } else if (distanceFromTop <= cardHeight) {
+      return { scale: 0.94, offset: 8 }; // First upcoming card
+    } else if (distanceFromTop <= cardHeight * 2) {
+      return { scale: 0.88, offset: 16 }; // Second upcoming card
+    } else {
+      return { scale: 0.85, offset: 24 }; // Further cards
     }
-    
-    return { scale: 0.8, offset: 24 };
   };
 
   const handleCreatePost = () => {

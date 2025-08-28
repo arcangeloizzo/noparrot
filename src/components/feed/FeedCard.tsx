@@ -1,9 +1,13 @@
 import { useState } from "react";
-import { HeartIcon, MessageCircleIcon, BookmarkIcon, InfoIcon, EyeOffIcon } from "@/components/ui/icons";
+import { HeartIcon, MessageCircleIcon, BookmarkIcon, InfoIcon } from "@/components/ui/icons";
 import { reactions } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { TRUST_SCORE_COLORS, TOOLTIPS } from "@/config/brand";
 import { MockPost } from "@/data/mockData";
+import { SwipeGestureHandler } from "./SwipeGestureHandler";
+import { ArticleReader } from "./ArticleReader";
+import { ComprehensionTest } from "./ComprehensionTest";
+import { SimilarContentOverlay } from "./SimilarContentOverlay";
 
 interface FeedCardProps {
   post: MockPost;
@@ -26,8 +30,10 @@ export const FeedCard = ({
   const [showTooltip, setShowTooltip] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
-  const [swipeProgress, setSwipeProgress] = useState(0);
   const [isHiding, setIsHiding] = useState(false);
+  const [showReader, setShowReader] = useState(false);
+  const [showTest, setShowTest] = useState(false);
+  const [showSimilarContent, setShowSimilarContent] = useState(false);
 
   // Generate avatar with initials if no image
   const getAvatarContent = () => {
@@ -74,50 +80,44 @@ export const FeedCard = ({
     return `${days}g`;
   };
 
+  const handleSwipeLeft = () => {
+    setShowReader(true);
+  };
+
+  const handleSwipeRight = () => {
+    setIsHiding(true);
+    setTimeout(() => {
+      onSwipeRight?.();
+    }, 300);
+  };
+
   const handleLongPress = () => {
-    const timer = setTimeout(() => {
-      onLongPress?.();
-    }, 600);
-    
-    const handleEnd = () => {
-      clearTimeout(timer);
-      document.removeEventListener('pointerup', handleEnd);
-      document.removeEventListener('pointercancel', handleEnd);
-    };
-    
-    document.addEventListener('pointerup', handleEnd);
-    document.addEventListener('pointercancel', handleEnd);
+    setShowSimilarContent(true);
+    onLongPress?.();
   };
 
   const trustStyle = getTrustScoreStyle(post.trust);
   const trustLabel = post.sources.length === 0 ? "Nessuna Fonte" : post.trust || "Nessuna Fonte";
 
   return (
-    <div 
-      className={cn("relative transition-all duration-300", isHiding && "opacity-0 scale-95")}
-      style={{
-        transform: `scale(${scale}) translateY(${offset}px)`,
-        transformOrigin: 'top center'
-      }}
-    >
-      {/* Swipe Background */}
-      {swipeProgress > 0 && (
-        <div className={cn(
-          "absolute inset-0 flex items-center justify-center rounded-lg z-0",
-          swipeProgress > 0 ? "bg-red-50" : "bg-blue-50"
-        )}>
-          <div className="flex items-center space-x-2 text-gray-600">
-            <EyeOffIcon className="w-5 h-5" />
-            <span className="font-medium">Nascondi</span>
-          </div>
-        </div>
-      )}
-
-      <div className="bg-card rounded-lg shadow-card border border-border/50 mx-4 relative z-10">
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-[1fr_96px] gap-4 p-4">
-          {/* Left Column - Main Content */}
-          <div className="space-y-3">
+    <>
+      <SwipeGestureHandler
+        onSwipeLeft={handleSwipeLeft}
+        onSwipeRight={handleSwipeRight}
+        onLongPress={handleLongPress}
+      >
+        <div 
+          className={cn("relative transition-all duration-300", isHiding && "opacity-0 scale-95")}
+          style={{
+            transform: `scale(${scale}) translateY(${offset}px)`,
+            transformOrigin: 'top center'
+          }}
+        >
+          <div className="bg-card rounded-lg shadow-card border border-border/50 mx-4 relative z-10">
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-[1fr_96px] gap-4 p-4">
+              {/* Left Column - Main Content */}
+              <div className="space-y-3">
             {/* User Row */}
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
@@ -201,11 +201,11 @@ export const FeedCard = ({
                 <BookmarkIcon className="w-5 h-5" filled={isBookmarked} />
               </button>
             </div>
-          </div>
+              </div>
 
-          {/* Right Column - Meta */}
-          <div className="meta-col flex flex-col justify-end">
-            <div className="ts-wrap relative self-end" style={{ transform: 'translateY(-2px)' }}>
+              {/* Right Column - Meta */}
+              <div className="meta-col flex flex-col justify-end">
+                <div className="ts-wrap relative self-end" style={{ transform: 'translateY(-2px)' }}>
               <div className="flex items-center space-x-1">
                 <button
                   onClick={() => setShowTooltip(!showTooltip)}
@@ -237,10 +237,12 @@ export const FeedCard = ({
                   </div>
                 </div>
               )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </SwipeGestureHandler>
 
       {/* Extended Reactions Palette */}
       {showReactions && (
@@ -259,6 +261,32 @@ export const FeedCard = ({
           ))}
         </div>
       )}
-    </div>
+
+      {/* Article Reader Modal */}
+      <ArticleReader
+        post={post}
+        isOpen={showReader}
+        onClose={() => setShowReader(false)}
+        onProceedToTest={() => {
+          setShowReader(false);
+          setShowTest(true);
+        }}
+      />
+
+      {/* Comprehension Test Modal */}
+      <ComprehensionTest
+        post={post}
+        isOpen={showTest}
+        onClose={() => setShowTest(false)}
+        onComplete={() => setShowTest(false)}
+      />
+
+      {/* Similar Content Overlay */}
+      <SimilarContentOverlay
+        isOpen={showSimilarContent}
+        onClose={() => setShowSimilarContent(false)}
+        originalPost={post}
+      />
+    </>
   );
 };
