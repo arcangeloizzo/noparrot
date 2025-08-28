@@ -2,17 +2,17 @@
 
 export interface MockPost {
   id: string;
-  user: {
-    name: string;
-    avatar?: string;
-  };
-  status: "Shared" | "Refuted" | "No Source";
-  comment: string;
-  topic?: string;
-  title?: string;
-  previewImage?: string;
-  sourceUrl?: string;
-  trustScore?: "LOW" | "MEDIUM" | "HIGH" | "No Sources";
+  authorName: string;
+  avatar?: string;
+  minutesAgo: number;
+  topicTag?: string;
+  userComment: string;
+  sharedTitle?: string;
+  previewImg?: string;
+  url?: string;
+  sources: string[];
+  trust: "BASSO" | "MEDIO" | "ALTO" | null;
+  stance: "Condiviso" | "Confutato" | null;
   reactions: {
     heart: number;
     comments: number;
@@ -28,29 +28,31 @@ export interface MockPost {
 export const mockPosts: MockPost[] = [
   {
     id: "1",
-    user: { name: "Alessandro Viola" },
-    status: "Shared",
-    comment: "This data is truly concerning. CO2 levels in our atmosphere have reached 420 ppm, which is far from a temporary issue anymore.",
-    topic: "Climate",
-    title: "Climate data shows CO2 levels reach new record high",
-    previewImage: "https://images.unsplash.com/photo-1569163139394-de4e5f43e4e3?w=800&h=450&fit=crop",
-    sourceUrl: "nasa.gov/climate",
-    trustScore: "HIGH",
+    authorName: "Alessandro Viola",
+    minutesAgo: 15,
+    userComment: "Questi dati sono davvero preoccupanti. I livelli di CO2 nella nostra atmosfera hanno raggiunto 420 ppm, non è più un problema temporaneo.",
+    topicTag: "Clima",
+    sharedTitle: "I dati climatici mostrano che i livelli di CO2 raggiungono un nuovo record",
+    previewImg: "https://images.unsplash.com/photo-1569163139394-de4e5f43e4e3?w=800&h=450&fit=crop",
+    url: "nasa.gov/climate",
+    sources: ["nasa.gov", "climate.gov"],
+    trust: "ALTO",
+    stance: "Condiviso",
     reactions: { heart: 24, comments: 8 },
     isBookmarked: false,
     questions: [
       {
-        question: "What CO2 level was mentioned in the article?",
+        question: "Quale livello di CO2 è stato menzionato nell'articolo?",
         options: ["380 ppm", "420 ppm", "450 ppm"],
         correct: 1
       },
       {
-        question: "What is the main concern about current CO2 levels?",
-        options: ["They are temporary", "They reached a new record", "They are decreasing"],
+        question: "Qual è la principale preoccupazione sui livelli attuali di CO2?",
+        options: ["Sono temporanei", "Hanno raggiunto un nuovo record", "Stanno diminuendo"],
         correct: 1
       },
       {
-        question: "Which organization provided this climate data?",
+        question: "Quale organizzazione ha fornito questi dati climatici?",
         options: ["NASA", "EPA", "NOAA"],
         correct: 0
       }
@@ -58,86 +60,92 @@ export const mockPosts: MockPost[] = [
   },
   {
     id: "2",
-    user: { name: "Maria Rossi" },
-    status: "Refuted",
-    comment: "This claim about electric cars being worse for the environment has been debunked multiple times. The lifecycle analysis clearly shows EVs have lower emissions.",
-    topic: "Technology",
-    title: "Study claims electric vehicles worse for environment than gas cars",
-    previewImage: "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=800&h=450&fit=crop",
-    sourceUrl: "carbontrust.org/insights",
-    trustScore: "MEDIUM",
+    authorName: "Maria Rossi",
+    minutesAgo: 32,
+    userComment: "Questa affermazione sulle auto elettriche peggiori per l'ambiente è stata smentita più volte. L'analisi del ciclo di vita mostra chiaramente che i veicoli elettrici hanno emissioni inferiori.",
+    topicTag: "Tecnologia",
+    sharedTitle: "Studio afferma che i veicoli elettrici sono peggiori per l'ambiente rispetto alle auto a benzina",
+    previewImg: "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=800&h=450&fit=crop",
+    url: "carbontrust.org/insights",
+    sources: ["carbontrust.org"],
+    trust: "MEDIO",
+    stance: "Confutato",
     reactions: { heart: 18, comments: 12 },
     isBookmarked: true,
     questions: [
       {
-        question: "What does lifecycle analysis show about EVs?",
-        options: ["Higher emissions", "Lower emissions", "Same emissions"],
+        question: "Cosa mostra l'analisi del ciclo di vita sui veicoli elettrici?",
+        options: ["Emissioni più alte", "Emissioni più basse", "Stesse emissioni"],
         correct: 1
       },
       {
-        question: "How many times has this claim been debunked?",
-        options: ["Once", "Multiple times", "Never"],
+        question: "Quante volte è stata smentita questa affermazione?",
+        options: ["Una volta", "Più volte", "Mai"],
         correct: 1
       },
       {
-        question: "What type of analysis was mentioned?",
-        options: ["Cost analysis", "Lifecycle analysis", "Performance analysis"],
+        question: "Che tipo di analisi è stata menzionata?",
+        options: ["Analisi dei costi", "Analisi del ciclo di vita", "Analisi delle prestazioni"],
         correct: 1
       }
     ]
   },
   {
     id: "3",
-    user: { name: "Luca Bianchi" },
-    status: "No Source",
-    comment: "Just heard that drinking lemon water in the morning boosts metabolism by 30%. Anyone else tried this?",
-    topic: "Health",
-    trustScore: "No Sources",
+    authorName: "Luca Bianchi",
+    minutesAgo: 47,
+    userComment: "Ho sentito dire che bere acqua e limone al mattino aumenta il metabolismo del 30%. Qualcun altro l'ha provato?",
+    topicTag: "Salute",
+    sources: [],
+    trust: null,
+    stance: null,
     reactions: { heart: 5, comments: 15 },
     isBookmarked: false,
     questions: [
       {
-        question: "What percentage metabolism boost was claimed?",
+        question: "Quale percentuale di aumento del metabolismo è stata affermata?",
         options: ["20%", "30%", "40%"],
         correct: 1
       },
       {
-        question: "What beverage was mentioned?",
-        options: ["Green tea", "Lemon water", "Coffee"],
+        question: "Quale bevanda è stata menzionata?",
+        options: ["Tè verde", "Acqua e limone", "Caffè"],
         correct: 1
       },
       {
-        question: "What time of day was specified?",
-        options: ["Morning", "Afternoon", "Evening"],
+        question: "In quale momento della giornata è stato specificato?",
+        options: ["Mattino", "Pomeriggio", "Sera"],
         correct: 0
       }
     ]
   },
   {
     id: "4",
-    user: { name: "Sofia Chen" },
-    status: "Shared",
-    comment: "This breakthrough in quantum computing could revolutionize cybersecurity. IBM's 1000-qubit processor is a major milestone.",
-    topic: "Technology",
-    title: "IBM unveils 1000-qubit quantum processor breakthrough",
-    previewImage: "https://images.unsplash.com/photo-1518709268805-4e9042af2ac1?w=800&h=450&fit=crop",
-    sourceUrl: "ibm.com/quantum",
-    trustScore: "HIGH",
+    authorName: "Sofia Chen",
+    minutesAgo: 72,
+    userComment: "Questa svolta nel quantum computing potrebbe rivoluzionare la cybersecurity. Il processore da 1000 qubit di IBM è una pietra miliare importante.",
+    topicTag: "Tecnologia",
+    sharedTitle: "IBM svela il processore quantistico da 1000 qubit",
+    previewImg: "https://images.unsplash.com/photo-1518709268805-4e9042af2ac1?w=800&h=450&fit=crop",
+    url: "ibm.com/quantum",
+    sources: ["ibm.com", "nature.com"],
+    trust: "ALTO",
+    stance: "Condiviso",
     reactions: { heart: 42, comments: 7 },
     isBookmarked: false,
     questions: [
       {
-        question: "How many qubits does IBM's new processor have?",
+        question: "Quanti qubit ha il nuovo processore IBM?",
         options: ["500", "1000", "1500"],
         correct: 1
       },
       {
-        question: "What field could this breakthrough revolutionize?",
-        options: ["Healthcare", "Cybersecurity", "Transportation"],
+        question: "Quale campo potrebbe essere rivoluzionato da questa svolta?",
+        options: ["Sanità", "Cybersecurity", "Trasporti"],
         correct: 1
       },
       {
-        question: "Which company made this breakthrough?",
+        question: "Quale azienda ha fatto questa svolta?",
         options: ["Google", "IBM", "Microsoft"],
         correct: 1
       }
@@ -145,57 +153,61 @@ export const mockPosts: MockPost[] = [
   },
   {
     id: "5",
-    user: { name: "Marco Verdi" },
-    status: "Refuted",
-    comment: "This article misrepresents the vaccine data. The actual efficacy rates from peer-reviewed studies show completely different results.",
-    topic: "Health",
-    title: "Local news claims COVID vaccine only 12% effective",
-    previewImage: "https://images.unsplash.com/photo-1584515933487-779824d29309?w=800&h=450&fit=crop",
-    sourceUrl: "localnews.com/health",
-    trustScore: "LOW",
+    authorName: "Marco Verdi",
+    minutesAgo: 95,
+    userComment: "Questo articolo travisa i dati sui vaccini. I tassi di efficacia reali degli studi peer-reviewed mostrano risultati completamente diversi.",
+    topicTag: "Salute",
+    sharedTitle: "Notizie locali affermano che il vaccino COVID è efficace solo al 12%",
+    previewImg: "https://images.unsplash.com/photo-1584515933487-779824d29309?w=800&h=450&fit=crop",
+    url: "localnews.com/health",
+    sources: ["localnews.com"],
+    trust: "BASSO",
+    stance: "Confutato",
     reactions: { heart: 8, comments: 23 },
     isBookmarked: true,
     questions: [
       {
-        question: "What efficacy rate did the local news claim?",
+        question: "Quale tasso di efficacia hanno riportato le notizie locali?",
         options: ["12%", "22%", "32%"],
         correct: 0
       },
       {
-        question: "What type of studies show different results?",
-        options: ["Clinical studies", "Peer-reviewed studies", "Lab studies"],
+        question: "Che tipo di studi mostrano risultati diversi?",
+        options: ["Studi clinici", "Studi peer-reviewed", "Studi di laboratorio"],
         correct: 1
       },
       {
-        question: "How does the user describe the article?",
-        options: ["Accurate", "Misrepresents data", "Well-researched"],
+        question: "Come descrive l'utente l'articolo?",
+        options: ["Accurato", "Travisa i dati", "Ben documentato"],
         correct: 1
       }
     ]
   },
   {
     id: "6",
-    user: { name: "Elena Fuentes" },
-    status: "No Source",
-    comment: "My grandmother always said eating carrots improves night vision. Is there any truth to this old saying?",
-    topic: "Health",
-    trustScore: "No Sources",
+    authorName: "Elena Fuentes",
+    minutesAgo: 128,
+    userComment: "Mia nonna diceva sempre che mangiare carote migliora la vista notturna. C'è qualche verità in questo vecchio detto?",
+    topicTag: "Salute",
+    sources: [],
+    trust: null,
+    stance: null,
     reactions: { heart: 12, comments: 18 },
     isBookmarked: false,
     questions: [
       {
-        question: "What food was mentioned for improving vision?",
-        options: ["Carrots", "Spinach", "Blueberries"],
+        question: "Quale cibo è stato menzionato per migliorare la vista?",
+        options: ["Carote", "Spinaci", "Mirtilli"],
         correct: 0
       },
       {
-        question: "What type of vision was specifically mentioned?",
-        options: ["Day vision", "Night vision", "Color vision"],
+        question: "Che tipo di vista è stata specificatamente menzionata?",
+        options: ["Vista diurna", "Vista notturna", "Vista dei colori"],
         correct: 1
       },
       {
-        question: "Who originally told the user this information?",
-        options: ["Grandmother", "Doctor", "Teacher"],
+        question: "Chi ha originariamente detto queste informazioni all'utente?",
+        options: ["Nonna", "Dottore", "Insegnante"],
         correct: 0
       }
     ]
@@ -205,36 +217,38 @@ export const mockPosts: MockPost[] = [
 // Generate more posts dynamically
 export const generateMorePosts = (count: number): MockPost[] => {
   const names = ["Anna Lombardi", "Giuseppe Romano", "Francesca Ricci", "Matteo Ferrari", "Giulia Esposito"];
-  const topics = ["Politics", "Science", "Environment", "Technology", "Society"];
-  const statuses: ("Shared" | "Refuted" | "No Source")[] = ["Shared", "Refuted", "No Source"];
-  const trustScores: ("LOW" | "MEDIUM" | "HIGH" | "No Sources")[] = ["LOW", "MEDIUM", "HIGH", "No Sources"];
+  const topics = ["Politica", "Scienza", "Ambiente", "Tecnologia", "Società"];
+  const stances: ("Condiviso" | "Confutato" | null)[] = ["Condiviso", "Confutato", null];
+  const trustScores: ("BASSO" | "MEDIO" | "ALTO" | null)[] = ["BASSO", "MEDIO", "ALTO", null];
   
   return Array.from({ length: count }, (_, i) => ({
     id: (mockPosts.length + i + 1).toString(),
-    user: { name: names[i % names.length] },
-    status: statuses[i % statuses.length],
-    comment: `This is a generated post comment discussing important topics. Post number ${i + 1}.`,
-    topic: topics[i % topics.length],
-    title: Math.random() > 0.3 ? `Generated Article Title ${i + 1}` : undefined,
-    previewImage: Math.random() > 0.4 ? `https://images.unsplash.com/photo-${1500000000000 + i}?w=800&h=450&fit=crop` : undefined,
-    sourceUrl: Math.random() > 0.3 ? `example.com/article-${i}` : undefined,
-    trustScore: trustScores[i % trustScores.length],
+    authorName: names[i % names.length],
+    minutesAgo: Math.floor(Math.random() * 240) + 5,
+    userComment: `Questo è un commento di post generato che discute argomenti importanti. Post numero ${i + 1}.`,
+    topicTag: topics[i % topics.length],
+    sharedTitle: Math.random() > 0.3 ? `Titolo Articolo Generato ${i + 1}` : undefined,
+    previewImg: Math.random() > 0.4 ? `https://images.unsplash.com/photo-${1500000000000 + i}?w=800&h=450&fit=crop` : undefined,
+    url: Math.random() > 0.3 ? `example.com/article-${i}` : undefined,
+    sources: Math.random() > 0.4 ? [`source${i}.com`] : [],
+    trust: trustScores[i % trustScores.length],
+    stance: stances[i % stances.length],
     reactions: { heart: Math.floor(Math.random() * 50), comments: Math.floor(Math.random() * 25) },
     isBookmarked: Math.random() > 0.8,
     questions: [
       {
-        question: `Sample question ${i + 1}?`,
-        options: ["Option A", "Option B", "Option C"],
+        question: `Domanda di esempio ${i + 1}?`,
+        options: ["Opzione A", "Opzione B", "Opzione C"],
         correct: Math.floor(Math.random() * 3)
       },
       {
-        question: `Another question ${i + 1}?`,
-        options: ["Choice 1", "Choice 2", "Choice 3"],
+        question: `Altra domanda ${i + 1}?`,
+        options: ["Scelta 1", "Scelta 2", "Scelta 3"],
         correct: Math.floor(Math.random() * 3)
       },
       {
-        question: `Specific question ${i + 1}?`,
-        options: ["Answer X", "Answer Y", "Answer Z"],
+        question: `Domanda specifica ${i + 1}?`,
+        options: ["Risposta X", "Risposta Y", "Risposta Z"],
         correct: Math.floor(Math.random() * 3)
       }
     ]

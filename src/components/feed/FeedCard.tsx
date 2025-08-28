@@ -1,28 +1,12 @@
 import { useState } from "react";
-import { HeartIcon, MessageCircleIcon, BookmarkIcon, InfoIcon } from "@/components/ui/icons";
+import { HeartIcon, MessageCircleIcon, BookmarkIcon, InfoIcon, EyeOffIcon } from "@/components/ui/icons";
 import { reactions } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
+import { TRUST_SCORE_COLORS, TOOLTIPS } from "@/config/brand";
+import { MockPost } from "@/data/mockData";
 
 interface FeedCardProps {
-  post: {
-    id: string;
-    user: {
-      name: string;
-      avatar?: string;
-    };
-    status: "Shared" | "Refuted" | "No Source";
-    comment: string;
-    topic?: string;
-    title?: string;
-    previewImage?: string;
-    sourceUrl?: string;
-    trustScore?: "LOW" | "MEDIUM" | "HIGH" | "No Sources";
-    reactions: {
-      heart: number;
-      comments: number;
-    };
-    isBookmarked: boolean;
-  };
+  post: MockPost;
   scale?: number;
   offset?: number;
   onSwipeLeft?: () => void;
@@ -39,141 +23,242 @@ export const FeedCard = ({
   onLongPress 
 }: FeedCardProps) => {
   const [showReactions, setShowReactions] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
+  const [swipeProgress, setSwipeProgress] = useState(0);
+  const [isHiding, setIsHiding] = useState(false);
 
   // Generate avatar with initials if no image
   const getAvatarContent = () => {
-    if (post.user.avatar) {
-      return <img src={post.user.avatar} alt={post.user.name} className="w-full h-full object-cover" />;
+    if (post.avatar) {
+      return <img src={post.avatar} alt={post.authorName} className="w-full h-full object-cover" />;
     }
     
-    const initials = post.user.name.split(' ').map(n => n[0]).join('').toUpperCase();
-    const colors = ['bg-primary-blue', 'bg-brand-pink', 'bg-brand-yellow', 'bg-light-blue'];
-    const colorIndex = post.user.name.length % colors.length;
+    const initials = post.authorName.split(' ').map(n => n[0]).join('').toUpperCase();
+    const hashCode = post.authorName.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    const colors = ['#0A7AFF', '#E41E52', '#FFD464', '#BFE9E9'];
+    const color = colors[Math.abs(hashCode) % colors.length];
     
     return (
-      <div className={`w-full h-full ${colors[colorIndex]} flex items-center justify-center text-white text-sm font-semibold`}>
+      <div 
+        className="w-full h-full flex items-center justify-center text-white text-sm font-semibold"
+        style={{ backgroundColor: color }}
+      >
         {initials}
       </div>
     );
   };
 
-  const getTrustScoreColor = (score: string) => {
-    switch (score) {
-      case "HIGH": return "bg-trust-high text-white";
-      case "MEDIUM": return "bg-trust-medium text-dark-blue";
-      case "LOW": return "bg-trust-low text-white";
+  const getTrustScoreStyle = (trust: string | null) => {
+    if (!trust) return TRUST_SCORE_COLORS.NONE;
+    return TRUST_SCORE_COLORS[trust as keyof typeof TRUST_SCORE_COLORS] || TRUST_SCORE_COLORS.NONE;
+  };
+
+  const getStanceColor = (stance: string | null) => {
+    switch (stance) {
+      case "Condiviso": return "bg-trust-high text-white";
+      case "Confutato": return "bg-trust-low text-white"; 
       default: return "bg-muted text-muted-foreground";
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "Shared": return "bg-trust-high text-white";
-      case "Refuted": return "bg-trust-low text-white";
-      default: return "bg-muted text-muted-foreground";
-    }
+  const formatTimeAgo = (minutes: number) => {
+    if (minutes < 60) return `${minutes}m`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h`;
+    const days = Math.floor(hours / 24);
+    return `${days}g`;
   };
+
+  const handleLongPress = () => {
+    const timer = setTimeout(() => {
+      onLongPress?.();
+    }, 600);
+    
+    const handleEnd = () => {
+      clearTimeout(timer);
+      document.removeEventListener('pointerup', handleEnd);
+      document.removeEventListener('pointercancel', handleEnd);
+    };
+    
+    document.addEventListener('pointerup', handleEnd);
+    document.addEventListener('pointercancel', handleEnd);
+  };
+
+  const trustStyle = getTrustScoreStyle(post.trust);
+  const trustLabel = post.sources.length === 0 ? "Nessuna Fonte" : post.trust || "Nessuna Fonte";
 
   return (
     <div 
-      className="relative"
+      className={cn("relative transition-all duration-300", isHiding && "opacity-0 scale-95")}
       style={{
         transform: `scale(${scale}) translateY(${offset}px)`,
         transformOrigin: 'top center'
       }}
     >
-      <div className="bg-card rounded-lg shadow-card border border-border/50 p-4 space-y-3 mx-4">
-        {/* User Row */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-full overflow-hidden">
-              {getAvatarContent()}
-            </div>
-            <span className="font-medium text-card-foreground">{post.user.name}</span>
+      {/* Swipe Background */}
+      {swipeProgress > 0 && (
+        <div className={cn(
+          "absolute inset-0 flex items-center justify-center rounded-lg z-0",
+          swipeProgress > 0 ? "bg-red-50" : "bg-blue-50"
+        )}>
+          <div className="flex items-center space-x-2 text-gray-600">
+            <EyeOffIcon className="w-5 h-5" />
+            <span className="font-medium">Nascondi</span>
           </div>
-          <span className={`${getStatusColor(post.status)} text-xs px-2 py-1 rounded-full font-medium`}>
-            {post.status}
-          </span>
         </div>
+      )}
 
-        {/* Comment */}
-        <p className="text-card-foreground text-sm leading-relaxed line-clamp-3">
-          {post.comment}
-        </p>
-
-        {/* Topic Tag */}
-        {post.topic && (
-          <span className="bg-secondary text-secondary-foreground text-xs px-2 py-1 rounded-full font-medium w-fit">
-            {post.topic}
-          </span>
-        )}
-
-        {/* Article Content */}
-        {post.title && (
+      <div className="bg-card rounded-lg shadow-card border border-border/50 mx-4 relative z-10">
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-[1fr_96px] gap-4 p-4">
+          {/* Left Column - Main Content */}
           <div className="space-y-3">
-            <h3 className="font-semibold text-card-foreground text-sm line-clamp-2">
-              {post.title}
-            </h3>
-            
-            {post.previewImage && (
-              <div className="w-full aspect-video bg-muted rounded-md overflow-hidden">
-                <img 
-                  src={post.previewImage} 
-                  alt="Article preview" 
-                  className="w-full h-full object-cover"
-                />
+            {/* User Row */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 rounded-full overflow-hidden">
+                  {getAvatarContent()}
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="font-medium text-card-foreground">{post.authorName}</span>
+                  <span className="text-xs text-muted-foreground">·</span>
+                  <span className="text-xs text-muted-foreground">{formatTimeAgo(post.minutesAgo)}</span>
+                </div>
+              </div>
+              {post.stance && (
+                <span className={`${getStanceColor(post.stance)} text-xs px-2 py-1 rounded-full font-medium`}>
+                  {post.stance}
+                </span>
+              )}
+            </div>
+
+            {/* Comment */}
+            <p className="text-card-foreground text-sm leading-relaxed line-clamp-3">
+              {post.userComment}
+            </p>
+
+            {/* Topic Tag */}
+            {post.topicTag && (
+              <span className="bg-secondary text-secondary-foreground text-xs px-2 py-1 rounded-full font-medium w-fit">
+                {post.topicTag}
+              </span>
+            )}
+
+            {/* Article Content */}
+            {post.sharedTitle && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-card-foreground text-sm line-clamp-2">
+                  {post.sharedTitle}
+                </h3>
+                
+                {post.previewImg && (
+                  <div className="w-full aspect-video bg-muted rounded-md overflow-hidden">
+                    <img 
+                      src={post.previewImg} 
+                      alt="Article preview" 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+
+                {post.url && (
+                  <p className="text-xs text-muted-foreground opacity-70">
+                    {post.url}
+                  </p>
+                )}
               </div>
             )}
 
-            <div className="flex items-center justify-between">
-              {post.sourceUrl && (
-                <p className="text-xs text-muted-foreground opacity-70">
-                  {post.sourceUrl}
-                </p>
+            {/* Action Row */}
+            <div className="flex items-center space-x-4 pt-1">
+              <div className="flex items-center space-x-1">
+                <button 
+                  onClick={() => setIsLiked(!isLiked)}
+                  onPointerDown={handleLongPress}
+                  className="p-1 text-muted-foreground hover:text-primary-blue transition-colors"
+                >
+                  <HeartIcon className="w-5 h-5" filled={isLiked} />
+                </button>
+                <span className="text-xs text-muted-foreground">{post.reactions.heart}</span>
+              </div>
+
+              <div className="flex items-center space-x-1">
+                <button className="p-1 text-muted-foreground hover:text-primary-blue transition-colors">
+                  <MessageCircleIcon className="w-5 h-5" />
+                </button>
+                <span className="text-xs text-muted-foreground">{post.reactions.comments}</span>
+              </div>
+
+              <button 
+                onClick={() => setIsBookmarked(!isBookmarked)}
+                className="p-1 text-muted-foreground hover:text-primary-blue transition-colors ml-auto"
+              >
+                <BookmarkIcon className="w-5 h-5" filled={isBookmarked} />
+              </button>
+            </div>
+          </div>
+
+          {/* Right Column - Meta */}
+          <div className="meta-col flex flex-col justify-end">
+            <div className="ts-wrap relative self-end" style={{ transform: 'translateY(-2px)' }}>
+              <div className="flex items-center space-x-1">
+                <button
+                  onClick={() => setShowTooltip(!showTooltip)}
+                  className={cn(
+                    "text-xs px-2 py-1 rounded-full font-medium relative",
+                    "transition-colors duration-200"
+                  )}
+                  style={{ 
+                    backgroundColor: trustStyle.bg, 
+                    color: trustStyle.text 
+                  }}
+                >
+                  {trustLabel}
+                </button>
+                <button
+                  onClick={() => setShowTooltip(!showTooltip)}
+                  className="p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <InfoIcon className="w-3 h-3" />
+                </button>
+              </div>
+
+              {/* Tooltip */}
+              {showTooltip && (
+                <div className="absolute bottom-full right-0 mb-2 w-64 p-3 bg-popover border rounded-lg shadow-lg text-xs text-popover-foreground z-50">
+                  <div className="relative">
+                    {post.sources.length === 0 ? TOOLTIPS.NO_SOURCES : TOOLTIPS.TRUST_SCORE}
+                    <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover"></div>
+                  </div>
+                </div>
               )}
             </div>
           </div>
-        )}
-
-        {/* Trust Score - positioned between URL and actions */}
-        <div className="flex justify-end">
-          <div className="flex items-center space-x-1">
-            <span className={`${getTrustScoreColor(post.trustScore || "No Sources")} text-xs px-2 py-1 rounded-full font-medium`}>
-              {post.trustScore || "No Sources"}
-            </span>
-            <InfoIcon className="w-3 h-3 text-muted-foreground" />
-          </div>
-        </div>
-
-        {/* Action Row */}
-        <div className="flex items-center space-x-4 pt-1">
-          <div className="flex items-center space-x-1">
-            <button 
-              onClick={() => setIsLiked(!isLiked)}
-              className="p-1 text-muted-foreground hover:text-primary-blue transition-colors"
-            >
-              <HeartIcon className="w-5 h-5" filled={isLiked} />
-            </button>
-            <span className="text-xs text-muted-foreground">{post.reactions.heart}</span>
-          </div>
-
-          <div className="flex items-center space-x-1">
-            <button className="p-1 text-muted-foreground hover:text-primary-blue transition-colors">
-              <MessageCircleIcon className="w-5 h-5" />
-            </button>
-            <span className="text-xs text-muted-foreground">{post.reactions.comments}</span>
-          </div>
-
-          <button 
-            onClick={() => setIsBookmarked(!isBookmarked)}
-            className="p-1 text-muted-foreground hover:text-primary-blue transition-colors ml-auto"
-          >
-            <BookmarkIcon className="w-5 h-5" filled={isBookmarked} />
-          </button>
         </div>
       </div>
+
+      {/* Extended Reactions Palette */}
+      {showReactions && (
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-popover border rounded-lg shadow-lg p-2 flex space-x-2 z-50">
+          {Object.entries(reactions).map(([key, emoji]) => (
+            <button
+              key={key}
+              onClick={() => {
+                setShowReactions(false);
+                setIsLiked(true);
+              }}
+              className="text-xl hover:scale-110 transition-transform p-1"
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

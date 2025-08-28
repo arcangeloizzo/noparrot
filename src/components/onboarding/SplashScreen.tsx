@@ -35,7 +35,7 @@ export const SplashScreen = ({ onComplete }: SplashScreenProps) => {
             phase >= 1 ? 'transform scale-[0.55] -translate-y-10' : ''
           } ${phase >= 3 ? '-translate-y-16' : ''}`}
         >
-          <Logo size="xl" className="w-24 h-24" />
+          <Logo id="introLogoMark" variant="icon" size="xl" className="w-24 h-24" />
         </div>
 
         {/* Wordmark */}
@@ -44,14 +44,12 @@ export const SplashScreen = ({ onComplete }: SplashScreenProps) => {
             phase >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
           } ${phase >= 3 ? '-translate-y-8' : ''}`}
         >
-          <div className="text-3xl font-semibold tracking-tight">
-            <span className="text-light-blue">NO</span>
-            <span className="text-primary-blue">PARROT</span>
-          </div>
+          <Logo id="introWordmark" variant="extended" size="lg" />
         </div>
 
         {/* Claim and Button */}
         <div 
+          id="introClaim"
           className={`transition-all duration-500 ease-out text-center space-y-6 ${
             phase >= 3 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
           }`}

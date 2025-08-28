@@ -3,6 +3,7 @@ import { Logo } from "@/components/ui/logo";
 import { FeedToggle } from "@/components/feed/FeedToggle";
 import { FeedCard } from "@/components/feed/FeedCard";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
+import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 import { FloatingActionButton } from "@/components/fab/FloatingActionButton";
 import { mockPosts, generateMorePosts } from "@/data/mockData";
 
@@ -11,6 +12,7 @@ export const Feed = () => {
   const [activeNavTab, setActiveNavTab] = useState("home");
   const [posts, setPosts] = useState(mockPosts);
   const [scrollY, setScrollY] = useState(0);
+  const [showProfileSheet, setShowProfileSheet] = useState(false);
 
   useEffect(() => {
     // Add more posts for demo
@@ -71,9 +73,11 @@ export const Feed = () => {
         <div className="sticky top-0 bg-background/80 backdrop-blur-sm z-10 border-b border-border/50">
           <div className="px-4 py-3 space-y-4">
             <div className="flex justify-center">
-              <Logo variant="wordmark" className="text-lg" />
+              <Logo variant="extended" size="md" />
             </div>
-            <FeedToggle activeTab={activeTab} onTabChange={setActiveTab} />
+            <div className="flex justify-center">
+              <FeedToggle activeTab={activeTab} onTabChange={setActiveTab} />
+            </div>
           </div>
         </div>
 
@@ -105,7 +109,17 @@ export const Feed = () => {
       <FloatingActionButton onClick={handleCreatePost} />
 
       {/* Bottom Navigation */}
-      <BottomNavigation activeTab={activeNavTab} onTabChange={setActiveNavTab} />
+      <BottomNavigation 
+        activeTab={activeNavTab} 
+        onTabChange={setActiveNavTab}
+        onProfileClick={() => setShowProfileSheet(true)}
+      />
+
+      {/* Profile Side Sheet */}
+      <ProfileSideSheet 
+        isOpen={showProfileSheet}
+        onClose={() => setShowProfileSheet(false)}
+      />
     </div>
   );
 };
