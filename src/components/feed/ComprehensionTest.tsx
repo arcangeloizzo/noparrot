@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MockPost } from "@/data/mockData";
@@ -98,30 +97,30 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
 
   if (isComplete) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <Card className="bg-surface-elevated rounded-3xl w-[90vw] max-h-[84vh] p-6 text-center border border-border">
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+        <div className="bg-gray-900 rounded-2xl w-[90vw] max-h-[84vh] p-6 text-center border border-gray-700">
           <div className="mb-6">
-            <div className="w-16 h-16 bg-semantic-success/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Check className="w-8 h-8 text-semantic-success" />
+            <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-8 h-8 text-green-500" />
             </div>
-            <h2 className="text-xl font-semibold mb-2 text-text-primary">Test Superato!</h2>
-            <p className="text-text-secondary">
+            <h2 className="text-xl font-semibold mb-2 text-white">Test Superato!</h2>
+            <p className="text-gray-300">
               Hai dimostrato di aver compreso l'articolo.
             </p>
           </div>
           
           <div className="space-y-3">
-            <Button onClick={onComplete} className="w-full bg-[#3B82F6] hover:bg-[#2563EB] text-white">
+            <Button onClick={onComplete} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
               Condividi
             </Button>
-            <Button onClick={onComplete} className="w-full bg-[#F97316] hover:bg-[#EA580C] text-white">
+            <Button onClick={onComplete} className="w-full bg-orange-600 hover:bg-orange-700 text-white">
               Confuta
             </Button>
-            <Button onClick={onComplete} className="w-full bg-[#6366F1] hover:bg-[#4F46E5] text-white">
+            <Button onClick={onComplete} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
               Invia ad un amico
             </Button>
           </div>
-        </Card>
+        </div>
       </div>
     );
   }
@@ -129,18 +128,18 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
   const question = questions[currentQuestion];
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <Card className="bg-surface-elevated rounded-3xl w-[90vw] h-[84vh] flex flex-col border border-border">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+      <div className="bg-gray-900 rounded-2xl w-[90vw] h-[84vh] flex flex-col border border-gray-700">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <h2 className="font-semibold text-text-primary">
+        <div className="flex items-center justify-between p-4 border-b border-gray-700">
+          <h2 className="font-semibold text-white">
             Test di Comprensione ({currentQuestion + 1}/{questions.length})
           </h2>
           <Button
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="h-8 w-8 p-0 text-text-secondary hover:text-text-primary"
+            className="h-8 w-8 p-0 text-gray-400 hover:text-white"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -150,13 +149,14 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
         <div className="p-4 flex-1 overflow-y-auto">
           <div className={cn(
             "mb-6 p-4 rounded-lg border-2 transition-all duration-300",
-            showResult === 'correct' && "bg-semantic-success/10 border-semantic-success animate-mint-flash",
-            showResult === 'wrong' && "bg-semantic-error/10 border-semantic-error animate-shake"
+            showResult === 'correct' && "bg-green-500/10 border-green-500 animate-mint-flash",
+            showResult === 'wrong' && "bg-red-500/10 border-red-500 animate-shake",
+            !showResult && "bg-gray-800 border-gray-700"
           )}>
-            <h3 className="font-medium mb-4 flex items-center text-text-primary">
+            <h3 className="font-medium mb-4 flex items-center text-white">
               {question.question}
               {showResult === 'correct' && (
-                <Check className="w-5 h-5 text-semantic-success ml-2 animate-bounce-check" />
+                <Check className="w-5 h-5 text-green-500 ml-2 animate-bounce-check" />
               )}
             </h3>
             
@@ -167,7 +167,7 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
                   variant="outline"
                   onClick={() => handleAnswer(index)}
                   disabled={showResult !== null}
-                  className="w-full justify-start bg-surface-primary hover:bg-surface-secondary text-text-primary border-border"
+                  className="w-full justify-start bg-gray-800 hover:bg-gray-700 text-white border-gray-600 hover:border-gray-500"
                 >
                   {option}
                 </Button>
@@ -176,13 +176,13 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
           </div>
 
           {attempts[currentQuestion] > 0 && showResult !== 'correct' && (
-            <p className="text-sm text-semantic-error mb-4">
+            <p className="text-sm text-red-400 mb-4">
               Tentativo {attempts[currentQuestion]}/2. 
               {attempts[currentQuestion] === 1 && " Riprova."}
             </p>
           )}
         </div>
-      </Card>
+      </div>
     </div>
   );
 };

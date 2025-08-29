@@ -228,7 +228,7 @@ export const generateMorePosts = (count: number): MockPost[] => {
     userComment: `Questo è un commento di post generato che discute argomenti importanti. Post numero ${i + 1}.`,
     topicTag: topics[i % topics.length],
     sharedTitle: Math.random() > 0.3 ? `Titolo Articolo Generato ${i + 1}` : undefined,
-    previewImg: Math.random() > 0.4 ? `https://images.unsplash.com/photo-${1500000000000 + i}?w=800&h=450&fit=crop` : undefined,
+    previewImg: `https://images.unsplash.com/photo-${1500000000000 + i}?w=800&h=450&fit=crop`,
     url: Math.random() > 0.3 ? `example.com/article-${i}` : undefined,
     sources: Math.random() > 0.4 ? [`source${i}.com`] : [],
     trust: trustScores[i % trustScores.length],
