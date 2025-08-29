@@ -5,9 +5,6 @@ import { cn } from "@/lib/utils";
 import { TRUST_SCORE_COLORS, TOOLTIPS } from "@/config/brand";
 import { MockPost } from "@/data/mockData";
 import { SwipeGestureHandler } from "./SwipeGestureHandler";
-import { ArticleReader } from "./ArticleReader";
-import { ComprehensionTest } from "./ComprehensionTest";
-
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FeedCardProps {
@@ -29,8 +26,6 @@ export const FeedCard = ({
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
   const [isHiding, setIsHiding] = useState(false);
-  const [showReader, setShowReader] = useState(false);
-  const [showTest, setShowTest] = useState(false);
 
   // Generate avatar with initials if no image
   const getAvatarContent = () => {
@@ -78,7 +73,7 @@ export const FeedCard = ({
   };
 
   const handleSwipeLeft = () => {
-    setShowReader(true);
+    onSwipeLeft?.();
   };
 
   const handleSwipeRight = () => {
@@ -253,25 +248,6 @@ export const FeedCard = ({
           ))}
         </div>
       )}
-
-      {/* Article Reader Modal */}
-      <ArticleReader
-        post={post}
-        isOpen={showReader}
-        onClose={() => setShowReader(false)}
-        onProceedToTest={() => {
-          setShowReader(false);
-          setShowTest(true);
-        }}
-      />
-
-      {/* Comprehension Test Modal */}
-      <ComprehensionTest
-        post={post}
-        isOpen={showTest}
-        onClose={() => setShowTest(false)}
-        onComplete={() => setShowTest(false)}
-      />
 
     </>
   );

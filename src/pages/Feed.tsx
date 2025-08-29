@@ -7,6 +7,8 @@ import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 import { FloatingActionButton } from "@/components/fab/FloatingActionButton";
 import { ComposerModal } from "@/components/composer/ComposerModal";
 import { SimilarContentOverlay } from "@/components/feed/SimilarContentOverlay";
+import { ArticleReader } from "@/components/feed/ArticleReader";
+import { ComprehensionTest } from "@/components/feed/ComprehensionTest";
 import { Search } from "./Search";
 import { Saved } from "./Saved";
 import { Notifications } from "./Notifications";
@@ -21,6 +23,10 @@ export const Feed = () => {
   const [showComposer, setShowComposer] = useState(false);
   const [showSimilarContent, setShowSimilarContent] = useState(false);
   const [selectedPost, setSelectedPost] = useState<MockPost | null>(null);
+  const [showReader, setShowReader] = useState(false);
+  const [showTest, setShowTest] = useState(false);
+  const [readerPost, setReaderPost] = useState<MockPost | null>(null);
+  const [testPost, setTestPost] = useState<MockPost | null>(null);
   const [, forceUpdate] = useState({});
 
   useEffect(() => {
@@ -38,9 +44,9 @@ export const Feed = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Block background scroll when overlay is open
+  // Block background scroll when any modal is open
   useEffect(() => {
-    if (showSimilarContent) {
+    if (showSimilarContent || showReader || showTest) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -49,7 +55,7 @@ export const Feed = () => {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showSimilarContent]);
+  }, [showSimilarContent, showReader, showTest]);
 
   // Improved card stack animation with precise positioning
   const getCardProps = (index: number) => {
@@ -118,6 +124,38 @@ export const Feed = () => {
     setSelectedPost(null);
   };
 
+  const handleRemovePost = (postId: string) => {
+    setPosts(prev => prev.filter(post => post.id !== postId));
+  };
+
+  const handleOpenReader = (post: MockPost) => {
+    setReaderPost(post);
+    setShowReader(true);
+  };
+
+  const handleCloseReader = () => {
+    setShowReader(false);
+    setReaderPost(null);
+  };
+
+  const handleProceedToTest = () => {
+    setShowReader(false);
+    setTestPost(readerPost);
+    setShowTest(true);
+  };
+
+  const handleCloseTest = () => {
+    setShowTest(false);
+    setTestPost(null);
+    setReaderPost(null);
+  };
+
+  const handleCompleteTest = () => {
+    setShowTest(false);
+    setTestPost(null);
+    setReaderPost(null);
+  };
+
   // Render different pages based on active tab
   if (activeNavTab === "search") {
     return (
@@ -174,7 +212,7 @@ export const Feed = () => {
     <div className="min-h-screen bg-background pb-20">
       <div className="mobile-container">
         {/* Header */}
-        <div className="sticky top-0 bg-background/80 backdrop-blur-sm z-50 border-b border-border/50">
+        <div className="sticky top-0 bg-background z-50 border-b border-border/50">
           <div className="px-4 py-3 space-y-4">
             <div className="flex justify-center">
               <img 
@@ -208,6 +246,8 @@ export const Feed = () => {
                 <FeedCard
                   post={post}
                   onLongPress={() => handleShowSimilarContent(post)}
+                  onSwipeLeft={() => handleOpenReader(post)}
+                  onSwipeRight={() => handleRemovePost(post.id)}
                 />
               </div>
             );
@@ -250,6 +290,26 @@ export const Feed = () => {
           isOpen={showSimilarContent}
           onClose={handleCloseSimilarContent}
           originalPost={selectedPost}
+        />
+      )}
+
+      {/* Article Reader Modal */}
+      {readerPost && (
+        <ArticleReader
+          post={readerPost}
+          isOpen={showReader}
+          onClose={handleCloseReader}
+          onProceedToTest={handleProceedToTest}
+        />
+      )}
+
+      {/* Comprehension Test Modal */}
+      {testPost && (
+        <ComprehensionTest
+          post={testPost}
+          isOpen={showTest}
+          onClose={handleCloseTest}
+          onComplete={handleCompleteTest}
         />
       )}
     </div>

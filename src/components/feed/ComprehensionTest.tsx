@@ -98,8 +98,8 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
 
   if (isComplete) {
     return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <Card className="bg-white rounded-lg max-w-sm w-full p-6 text-center">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <Card className="bg-white rounded-3xl w-[90vw] max-h-[84vh] p-6 text-center">
           <div className="mb-6">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Check className="w-8 h-8 text-green-600" />
@@ -129,8 +129,8 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
   const question = questions[currentQuestion];
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="bg-white rounded-lg max-w-sm w-full">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <Card className="bg-white rounded-3xl w-[90vw] h-[84vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="font-semibold">
@@ -147,7 +147,7 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
         </div>
 
         {/* Question */}
-        <div className="p-4">
+        <div className="p-4 flex-1 overflow-y-auto">
           <div className={cn(
             "mb-6 p-4 rounded-lg border-2 transition-all duration-300",
             showResult === 'correct' && "bg-green-50 border-green-200 animate-mint-flash",
