@@ -8,6 +8,7 @@ import { SwipeGestureHandler } from "./SwipeGestureHandler";
 import { ArticleReader } from "./ArticleReader";
 import { ComprehensionTest } from "./ComprehensionTest";
 import { SimilarContentOverlay } from "./SimilarContentOverlay";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FeedCardProps {
   post: MockPost;
@@ -28,6 +29,7 @@ export const FeedCard = ({
 }: FeedCardProps) => {
   const [showReactions, setShowReactions] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
+  const isMobile = useIsMobile();
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
   const [isHiding, setIsHiding] = useState(false);
@@ -221,7 +223,10 @@ export const FeedCard = ({
 
                   {/* Tooltip */}
                   {showTooltip && (
-                    <div className="absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 w-64 p-3 bg-popover border rounded-lg shadow-lg backdrop-blur-sm text-xs text-popover-foreground z-[200]">
+                    <div className={cn(
+                      "absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-popover border rounded-lg shadow-lg backdrop-blur-sm text-xs text-popover-foreground z-[200]",
+                      isMobile ? "w-[calc(100vw-3rem)] p-2" : "w-64 p-3"
+                    )}>
                       <div className="relative">
                         {post.sources.length === 0 ? TOOLTIPS.NO_SOURCES : TOOLTIPS.TRUST_SCORE}
                         <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover"></div>
