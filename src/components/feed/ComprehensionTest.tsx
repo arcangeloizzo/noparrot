@@ -116,6 +116,12 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
             <Button onClick={onComplete} className="w-full bg-orange-600 hover:bg-orange-700 text-white">
               Confuta
             </Button>
+            <button 
+              onClick={onComplete} 
+              className="w-full text-center text-indigo-400 hover:text-indigo-300 transition-colors py-3 cursor-pointer"
+            >
+              Invia ad un amico
+            </button>
           </div>
         </div>
       </div>
