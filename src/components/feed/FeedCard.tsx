@@ -202,7 +202,7 @@ export const FeedCard = ({
                   </button>
                 </div>
 
-                <div className="flex items-center space-x-1">
+                <div className="relative flex items-center space-x-1">
                   <button
                     onClick={() => setShowTooltip(!showTooltip)}
                     className={cn(
@@ -218,18 +218,19 @@ export const FeedCard = ({
                   >
                     <InfoIcon className="w-3 h-3" />
                   </button>
+
+                  {/* Tooltip */}
+                  {showTooltip && (
+                    <div className="absolute right-full mr-2 top-0 w-64 p-3 bg-popover border rounded-lg shadow-lg text-xs text-popover-foreground z-[100]">
+                      <div className="relative">
+                        {post.sources.length === 0 ? TOOLTIPS.NO_SOURCES : TOOLTIPS.TRUST_SCORE}
+                        <div className="absolute top-3 left-full w-0 h-0 border-t-4 border-b-4 border-l-4 border-transparent border-l-popover"></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Tooltip */}
-              {showTooltip && (
-                <div className="absolute bottom-full mb-2 right-4 w-64 p-3 bg-popover border rounded-lg shadow-lg text-xs text-popover-foreground z-[100]">
-                  <div className="relative">
-                    {post.sources.length === 0 ? TOOLTIPS.NO_SOURCES : TOOLTIPS.TRUST_SCORE}
-                    <div className="absolute top-full right-6 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover"></div>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
