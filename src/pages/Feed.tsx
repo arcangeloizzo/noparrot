@@ -165,7 +165,7 @@ export const Feed = () => {
         </div>
 
         {/* Feed Cards */}
-        <div className="pt-6 space-y-4 relative">
+        <div className="pt-6 space-y-2 relative">
           {posts.map((post, index) => {
             const { scale, offset } = getCardProps(index);
             
