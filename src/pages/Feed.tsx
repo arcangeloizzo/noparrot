@@ -216,7 +216,7 @@ export const Feed = () => {
           <div className="px-4 py-3 space-y-4">
             <div className="flex justify-center">
               <img 
-                src="/lovable-uploads/feed-logo.png"
+                src="/lovable-uploads/f6970c06-9fd9-4430-b863-07384bbb05ce.png"
                 alt="NOPARROT"
                 className="h-8 w-auto cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={handleLogoClick}
