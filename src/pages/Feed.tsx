@@ -119,7 +119,12 @@ export const Feed = () => {
         <div className="sticky top-0 bg-background/80 backdrop-blur-sm z-50 border-b border-border/50">
           <div className="px-4 py-3 space-y-4">
             <div className="flex justify-center">
-              <Logo variant="extended" size="md" onClick={handleLogoClick} />
+              <img 
+                src="/lovable-uploads/4e2d113e-0ba6-45d9-8efe-2022612746f6.png"
+                alt="NOPARROT"
+                className="h-8 w-auto cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={handleLogoClick}
+              />
             </div>
             <div className="flex justify-center">
               <FeedToggle activeTab={activeTab} onTabChange={setActiveTab} />

@@ -15,7 +15,11 @@ export const FloatingActionButton = ({ onClick }: FloatingActionButtonProps) => 
         left: 'auto'
       }}
     >
-      <Logo variant="icon" size="sm" className="w-6 h-6" />
+      <img 
+        src="/lovable-uploads/f6970c06-9fd9-4430-b863-07384bbb05ce.png"
+        alt="NOPARROT"
+        className="w-6 h-6"
+      />
     </button>
   );
 };
