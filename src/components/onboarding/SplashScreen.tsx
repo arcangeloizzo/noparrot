@@ -10,14 +10,14 @@ export const SplashScreen = ({ onComplete }: SplashScreenProps) => {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
-    // Phase 0: Initial state
+    // Phase 0: Initial state (2 seconds with large logo)
     // Phase 1: Logo scales and moves up (900ms)
     // Phase 2: Wordmark appears with fade and slide-up (700ms) 
     // Phase 3: Both shift up, reveal claim and button (500ms delay)
 
-    const timer1 = setTimeout(() => setPhase(1), 100);
-    const timer2 = setTimeout(() => setPhase(2), 1000);
-    const timer3 = setTimeout(() => setPhase(3), 2200);
+    const timer1 = setTimeout(() => setPhase(1), 2000);
+    const timer2 = setTimeout(() => setPhase(2), 2900);
+    const timer3 = setTimeout(() => setPhase(3), 4100);
 
     return () => {
       clearTimeout(timer1);
@@ -35,7 +35,7 @@ export const SplashScreen = ({ onComplete }: SplashScreenProps) => {
             phase >= 1 ? 'transform scale-[0.55] -translate-y-10' : ''
           } ${phase >= 3 ? '-translate-y-16' : ''}`}
         >
-          <Logo id="introLogoMark" variant="icon" size="xl" className="w-24 h-24" />
+          <Logo id="introLogoMark" variant="icon" size="xl" className="w-48 h-48" />
         </div>
 
         {/* Wordmark */}
