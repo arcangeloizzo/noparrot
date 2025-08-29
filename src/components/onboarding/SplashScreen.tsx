@@ -10,62 +10,60 @@ export const SplashScreen = ({ onComplete }: SplashScreenProps) => {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
-    // Phase 0: Initial state (2 seconds with large logo)
-    // Phase 1: Logo scales and moves up (900ms)
-    // Phase 2: Wordmark appears with fade and slide-up (700ms) 
-    // Phase 3: Both shift up, reveal claim and button (500ms delay)
+    // Phase 0: Giant logo centered (2 seconds)
+    // Phase 1: Logo reduces + wordmark appears simultaneously (800ms)
+    // Phase 2: Combined element moves up + claim and button appear (600ms)
 
     const timer1 = setTimeout(() => setPhase(1), 2000);
-    const timer2 = setTimeout(() => setPhase(2), 2900);
-    const timer3 = setTimeout(() => setPhase(3), 4100);
+    const timer2 = setTimeout(() => setPhase(2), 2800);
 
     return () => {
       clearTimeout(timer1);
       clearTimeout(timer2);
-      clearTimeout(timer3);
     };
   }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-blue to-dark-blue/80 flex flex-col items-center justify-center px-6 text-white">
-      <div className="flex flex-col items-center space-y-6">
-        {/* Logo Container */}
+      <div className="flex flex-col items-center">
+        {/* Combined Logo + Wordmark Container */}
         <div 
-          className={`transition-transform duration-[900ms] ease-in-out ${
-            phase >= 1 ? 'transform scale-[0.55] -translate-y-10' : ''
-          } ${phase >= 3 ? '-translate-y-16' : ''}`}
+          className={`flex flex-col items-center transition-all duration-800 ease-in-out ${
+            phase >= 1 ? 'scale-50' : 'scale-100'
+          } ${phase >= 2 ? '-translate-y-20' : 'translate-y-0'}`}
         >
-          <Logo id="introLogoMark" variant="icon" size="xl" className="w-48 h-48" />
-        </div>
-
-        {/* Wordmark */}
-        <div 
-          className={`transition-all duration-700 ease-out ${
-            phase >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
-          } ${phase >= 3 ? '-translate-y-8' : ''}`}
-        >
-          <div id="introWordmark" className="font-inter text-3xl font-semibold">
-            <span style={{ color: '#bbe6e4' }}>NO</span>
-            <span style={{ color: '#0a77ed' }}>PARROT</span>
+          {/* Logo */}
+          <Logo id="introLogoMark" variant="icon" size="xl" className="w-96 h-96" />
+          
+          {/* Wordmark */}
+          <div 
+            className={`transition-all duration-800 ease-out mt-2 ${
+              phase >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
+            }`}
+          >
+            <div id="introWordmark" className="font-inter text-3xl font-semibold">
+              <span style={{ color: '#bbe6e4' }}>NO</span>
+              <span style={{ color: '#0a77ed' }}>PARROT</span>
+            </div>
           </div>
         </div>
 
         {/* Claim and Button */}
         <div 
           id="introClaim"
-          className={`transition-all duration-500 ease-out text-center space-y-6 ${
-            phase >= 3 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
+          className={`transition-all duration-600 ease-out text-center space-y-6 ${
+            phase >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
           }`}
         >
           <p className="text-lg text-light-blue/90 font-medium">
-            Read. Understand. Then share.
+            Leggi. Comprendi. Poi condividi.
           </p>
           
           <Button 
             onClick={onComplete}
             className="bg-primary-blue hover:bg-primary-blue/90 text-white font-semibold px-8 py-3 rounded-full w-280 h-11"
           >
-            Get Started
+            Inizia
           </Button>
         </div>
       </div>
