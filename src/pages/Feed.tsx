@@ -43,12 +43,12 @@ export const Feed = () => {
     // Only apply scaling when card is in viewport (expanded range)
     if (distanceFromCenter <= cardHeight * 1.5) {
       const normalizedDistance = distanceFromCenter / (cardHeight * 1.5);
-      const scale = 1 - (normalizedDistance * 0.02); // Much less aggressive scaling (2% instead of 5%)
-      const offset = normalizedDistance * 4; // Reduced offset
-      return { scale: Math.max(0.98, scale), offset: Math.min(4, offset) };
+      const scale = 1 - (normalizedDistance * 0.04); // More visible scaling (4% difference)
+      const offset = normalizedDistance * 6; // Slightly more offset for visible effect
+      return { scale: Math.max(0.96, scale), offset: Math.min(6, offset) };
     }
     
-    return { scale: 0.98, offset: 4 }; // Off-screen cards with minimal shrinkage
+    return { scale: 0.96, offset: 6 }; // Off-screen cards with more noticeable shrinkage
   };
 
   const handleCreatePost = () => {
