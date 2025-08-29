@@ -51,15 +51,15 @@ export const ArticleReader = ({ post, isOpen, onClose, onProceedToTest }: Articl
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-3xl w-[90vw] h-[84vh] flex flex-col">
+      <div className="bg-surface-elevated rounded-3xl w-[90vw] h-[84vh] flex flex-col border border-border">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="font-semibold text-lg">Articolo</h2>
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h2 className="font-semibold text-lg text-text-primary">Articolo</h2>
           <Button
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="h-8 w-8 p-0"
+            className="h-8 w-8 p-0 text-text-secondary hover:text-text-primary"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -67,16 +67,16 @@ export const ArticleReader = ({ post, isOpen, onClose, onProceedToTest }: Articl
 
         {/* Timer/Progress */}
         {!canProceed && (
-          <div className="p-4 bg-blue-50 border-b">
+          <div className="p-4 bg-surface-secondary border-b border-border">
             <div className="flex items-center justify-between text-sm">
-              <span>Tempo rimanente: {timeLeft}s</span>
-              <span className="text-muted-foreground">
+              <span className="text-text-primary">Tempo rimanente: {timeLeft}s</span>
+              <span className="text-text-secondary">
                 o scorri fino alla fine
               </span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+            <div className="w-full bg-surface-primary rounded-full h-2 mt-2">
               <div 
-                className="bg-primary-blue h-2 rounded-full transition-all duration-1000"
+                className="bg-brand-primary h-2 rounded-full transition-all duration-1000"
                 style={{ width: `${((10 - timeLeft) / 10) * 100}%` }}
               />
             </div>
@@ -88,7 +88,7 @@ export const ArticleReader = ({ post, isOpen, onClose, onProceedToTest }: Articl
           className="flex-1 p-4 overflow-y-auto"
           onScroll={handleScroll}
         >
-          <h3 className="font-semibold text-lg mb-3">
+          <h3 className="font-semibold text-lg mb-3 text-text-primary">
             {post.sharedTitle || "Articolo condiviso"}
           </h3>
           
@@ -100,7 +100,7 @@ export const ArticleReader = ({ post, isOpen, onClose, onProceedToTest }: Articl
             />
           )}
 
-          <div className="space-y-4 text-sm text-gray-700 leading-relaxed">
+          <div className="space-y-4 text-sm text-text-secondary leading-relaxed">
             <p>
               Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod 
               tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim 
@@ -131,11 +131,11 @@ export const ArticleReader = ({ post, isOpen, onClose, onProceedToTest }: Articl
         </div>
 
         {/* Action Button */}
-        <div className="p-4 border-t">
+        <div className="p-4 border-t border-border">
           <Button
             onClick={onProceedToTest}
             disabled={!canProceed}
-            className="w-full"
+            className="w-full bg-brand-primary hover:bg-brand-primary/90 text-white disabled:bg-surface-secondary disabled:text-text-secondary"
           >
             {canProceed ? "Procedi al Test" : `Attendi ${timeLeft}s`}
           </Button>

@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from "react";
 import { EyeOffIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
+import { SwipeOverlay } from "./SwipeOverlay";
 
 interface SwipeGestureHandlerProps {
   children: React.ReactNode;
@@ -20,9 +21,12 @@ export const SwipeGestureHandler = ({
   const [dragState, setDragState] = useState({
     isDragging: false,
     startX: 0,
+    startY: 0,
     currentX: 0,
-    direction: null as 'left' | 'right' | null
+    currentY: 0,
+    direction: null as 'left' | 'right' | 'down' | null
   });
+  const [showSwipeOverlay, setShowSwipeOverlay] = useState(false);
   
   const longPressTimer = useRef<NodeJS.Timeout>();
   const elementRef = useRef<HTMLDivElement>(null);
@@ -33,7 +37,9 @@ export const SwipeGestureHandler = ({
     setDragState({
       isDragging: true,
       startX: e.clientX,
+      startY: e.clientY,
       currentX: e.clientX,
+      currentY: e.clientY,
       direction: null
     });
 
@@ -51,19 +57,34 @@ export const SwipeGestureHandler = ({
     if (!dragState.isDragging || disabled) return;
 
     const deltaX = e.clientX - dragState.startX;
-    const direction = deltaX > 0 ? 'right' : 'left';
+    const deltaY = e.clientY - dragState.startY;
+    let direction: 'left' | 'right' | 'down' | null = null;
+    
+    if (Math.abs(deltaY) > Math.abs(deltaX) && deltaY > 0) {
+      direction = 'down';
+    } else if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      direction = deltaX > 0 ? 'right' : 'left';
+    }
     
     setDragState(prev => ({
       ...prev,
       currentX: e.clientX,
+      currentY: e.clientY,
       direction
     }));
 
+    // Show overlay for downward swipe
+    if (direction === 'down' && deltaY > 30) {
+      setShowSwipeOverlay(true);
+    } else {
+      setShowSwipeOverlay(false);
+    }
+
     // Clear long press if we start dragging
-    if (Math.abs(deltaX) > 10 && longPressTimer.current) {
+    if ((Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) && longPressTimer.current) {
       clearTimeout(longPressTimer.current);
     }
-  }, [dragState.isDragging, dragState.startX, disabled]);
+  }, [dragState.isDragging, dragState.startX, dragState.startY, disabled]);
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     if (!dragState.isDragging || disabled) return;
@@ -74,9 +95,16 @@ export const SwipeGestureHandler = ({
     }
 
     const deltaX = e.clientX - dragState.startX;
+    const deltaY = e.clientY - dragState.startY;
     const threshold = window.innerWidth * 0.3; // 30% threshold
     
-    if (Math.abs(deltaX) > threshold) {
+    // Check for downward swipe to hide content
+    if (deltaY > 100 && Math.abs(deltaY) > Math.abs(deltaX)) {
+      console.log('Hide content triggered');
+      setShowSwipeOverlay(false);
+    }
+    // Check horizontal swipes
+    else if (Math.abs(deltaX) > threshold && Math.abs(deltaX) > Math.abs(deltaY)) {
       if (deltaX > 0) {
         onSwipeRight?.(); // Right swipe (hide)
       } else {
@@ -87,16 +115,21 @@ export const SwipeGestureHandler = ({
     setDragState({
       isDragging: false,
       startX: 0,
+      startY: 0,
       currentX: 0,
+      currentY: 0,
       direction: null
     });
+    setShowSwipeOverlay(false);
 
     e.currentTarget.releasePointerCapture(e.pointerId);
   }, [dragState.isDragging, dragState.startX, onSwipeLeft, onSwipeRight, disabled]);
 
   // Calculate transform and opacity based on drag
   const deltaX = dragState.currentX - dragState.startX;
+  const deltaY = dragState.currentY - dragState.startY;
   const progress = Math.min(Math.abs(deltaX) / (window.innerWidth * 0.3), 1);
+  const swipeProgress = Math.min(Math.max(deltaY, 0) / 150, 1);
   const rotation = dragState.direction === 'right' ? progress * 2 : 0;
   const opacity = 1 - (progress * 0.15);
 
@@ -141,6 +174,13 @@ export const SwipeGestureHandler = ({
       >
         {children}
       </div>
+      
+      {/* Swipe overlay for hide content */}
+      <SwipeOverlay
+        isVisible={showSwipeOverlay}
+        dragProgress={swipeProgress}
+        onHideContent={() => console.log('Hide content')}
+      />
     </div>
   );
 };

@@ -104,7 +104,7 @@ export const FeedCard = ({
             {/* Main Content Grid */}
             <div className="p-5">
               {/* User Row */}
-              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-3">
                     <div className="w-9 h-9 rounded-full overflow-hidden">
                       {getAvatarContent()}
@@ -116,7 +116,7 @@ export const FeedCard = ({
                     </div>
                   </div>
                 {post.stance && (
-                  <span className={`${getStanceColor(post.stance)} text-xs px-3 py-1.5 rounded-full font-semibold`}>
+                  <span className={`${getStanceColor(post.stance)} text-xs px-3 py-1.5 rounded-full font-semibold ml-3`}>
                     {post.stance}
                   </span>
                 )}
@@ -209,12 +209,12 @@ export const FeedCard = ({
                   {/* Tooltip */}
                   {showTooltip && (
                     <div className={cn(
-                      "absolute bottom-full mb-2 bg-popover border rounded-lg shadow-lg backdrop-blur-sm text-xs text-popover-foreground z-[200]",
+                      "absolute bottom-full mb-2 bg-popover border rounded-lg shadow-lg backdrop-blur-sm text-xs text-popover-foreground z-[200] max-w-[280px]",
                       isMobile 
-                        ? "right-0 w-72 max-w-[calc(100vw-1rem)] p-2 mr-2" 
+                        ? "right-0 w-72 max-w-[calc(100vw-2rem)] p-2 mr-2" 
                         : "left-1/2 transform -translate-x-1/2 w-64 p-3"
                     )}>
-                      <div className="relative">
+                      <div className="relative whitespace-normal">
                         {post.sources.length === 0 ? TOOLTIPS.NO_SOURCES : TOOLTIPS.TRUST_SCORE}
                         <div className={cn(
                           "absolute top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover",

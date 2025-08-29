@@ -99,25 +99,25 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
   if (isComplete) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <Card className="bg-white rounded-3xl w-[90vw] max-h-[84vh] p-6 text-center">
+        <Card className="bg-surface-elevated rounded-3xl w-[90vw] max-h-[84vh] p-6 text-center border border-border">
           <div className="mb-6">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Check className="w-8 h-8 text-green-600" />
+            <div className="w-16 h-16 bg-semantic-success/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-8 h-8 text-semantic-success" />
             </div>
-            <h2 className="text-xl font-semibold mb-2">Test Superato!</h2>
-            <p className="text-muted-foreground">
+            <h2 className="text-xl font-semibold mb-2 text-text-primary">Test Superato!</h2>
+            <p className="text-text-secondary">
               Hai dimostrato di aver compreso l'articolo.
             </p>
           </div>
           
           <div className="space-y-3">
-            <Button onClick={onComplete} className="w-full">
+            <Button onClick={onComplete} className="w-full bg-[#3B82F6] hover:bg-[#2563EB] text-white">
               Condividi
             </Button>
-            <Button variant="outline" onClick={onComplete} className="w-full">
+            <Button onClick={onComplete} className="w-full bg-[#F97316] hover:bg-[#EA580C] text-white">
               Confuta
             </Button>
-            <Button variant="ghost" onClick={onComplete} className="w-full">
+            <Button onClick={onComplete} className="w-full bg-[#6366F1] hover:bg-[#4F46E5] text-white">
               Invia ad un amico
             </Button>
           </div>
@@ -130,17 +130,17 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <Card className="bg-white rounded-3xl w-[90vw] h-[84vh] flex flex-col">
+      <Card className="bg-surface-elevated rounded-3xl w-[90vw] h-[84vh] flex flex-col border border-border">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="font-semibold">
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h2 className="font-semibold text-text-primary">
             Test di Comprensione ({currentQuestion + 1}/{questions.length})
           </h2>
           <Button
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="h-8 w-8 p-0"
+            className="h-8 w-8 p-0 text-text-secondary hover:text-text-primary"
           >
             <X className="h-4 w-4" />
           </Button>
@@ -150,13 +150,13 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
         <div className="p-4 flex-1 overflow-y-auto">
           <div className={cn(
             "mb-6 p-4 rounded-lg border-2 transition-all duration-300",
-            showResult === 'correct' && "bg-green-50 border-green-200 animate-mint-flash",
-            showResult === 'wrong' && "bg-red-50 border-red-200 animate-shake"
+            showResult === 'correct' && "bg-semantic-success/10 border-semantic-success animate-mint-flash",
+            showResult === 'wrong' && "bg-semantic-error/10 border-semantic-error animate-shake"
           )}>
-            <h3 className="font-medium mb-4 flex items-center">
+            <h3 className="font-medium mb-4 flex items-center text-text-primary">
               {question.question}
               {showResult === 'correct' && (
-                <Check className="w-5 h-5 text-green-600 ml-2 animate-bounce-check" />
+                <Check className="w-5 h-5 text-semantic-success ml-2 animate-bounce-check" />
               )}
             </h3>
             
@@ -167,7 +167,7 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
                   variant="outline"
                   onClick={() => handleAnswer(index)}
                   disabled={showResult !== null}
-                  className="w-full justify-start"
+                  className="w-full justify-start bg-surface-primary hover:bg-surface-secondary text-text-primary border-border"
                 >
                   {option}
                 </Button>
@@ -176,7 +176,7 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
           </div>
 
           {attempts[currentQuestion] > 0 && showResult !== 'correct' && (
-            <p className="text-sm text-red-600 mb-4">
+            <p className="text-sm text-semantic-error mb-4">
               Tentativo {attempts[currentQuestion]}/2. 
               {attempts[currentQuestion] === 1 && " Riprova."}
             </p>
