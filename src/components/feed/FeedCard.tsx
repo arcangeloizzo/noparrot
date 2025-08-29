@@ -107,10 +107,10 @@ export const FeedCard = ({
         onLongPress={handleLongPress}
       >
         <div 
-          className={cn("relative transition-all duration-300", isHiding && "opacity-0 scale-95")}
+          className={cn("relative transition-all duration-500 ease-out", isHiding && "opacity-0 scale-95")}
           style={{
             transform: `scale(${scale}) translateY(${offset}px)`,
-            transformOrigin: 'top center'
+            transformOrigin: 'center center'
           }}
         >
           <div className="bg-card rounded-lg shadow-card border border-border/50 mx-4 relative z-10">
@@ -223,10 +223,10 @@ export const FeedCard = ({
 
               {/* Tooltip */}
               {showTooltip && (
-                <div className="absolute bottom-full right-4 mb-2 w-64 p-3 bg-popover border rounded-lg shadow-lg text-xs text-popover-foreground z-50">
+                <div className="absolute -top-2 right-0 -translate-y-full w-64 p-3 bg-popover border rounded-lg shadow-lg text-xs text-popover-foreground z-[60]">
                   <div className="relative">
                     {post.sources.length === 0 ? TOOLTIPS.NO_SOURCES : TOOLTIPS.TRUST_SCORE}
-                    <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover"></div>
+                    <div className="absolute top-full right-6 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover"></div>
                   </div>
                 </div>
               )}

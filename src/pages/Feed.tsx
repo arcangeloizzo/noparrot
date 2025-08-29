@@ -30,25 +30,51 @@ export const Feed = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Calculate card scales and offsets based on scroll
+  // Calculate card scales and offsets based on scroll position
   const getCardProps = (index: number) => {
-    const cardHeight = 280; // Approximate card height
-    const scrollOffset = scrollY;
-    const cardTop = index * (cardHeight + 16); // Card height + margin
-    const viewportCenter = scrollOffset + window.innerHeight * 0.6; // Focus area moved lower
+    const cardHeight = 300; // Card height including margin
+    const cardSpacing = 16; // Space between cards
+    const cardTotalHeight = cardHeight + cardSpacing;
     
-    // Distance from center of viewport
-    const distanceFromCenter = Math.abs(cardTop - viewportCenter);
+    // Calculate which card should be "in focus" (closest to viewport center)
+    const viewportCenter = scrollY + window.innerHeight * 0.4; // Focus point
+    const cardCenter = index * cardTotalHeight + cardHeight / 2;
     
-    // Only apply scaling when card is in viewport (expanded range)
-    if (distanceFromCenter <= cardHeight * 1.5) {
-      const normalizedDistance = distanceFromCenter / (cardHeight * 1.5);
-      const scale = 1 - (normalizedDistance * 0.04); // More visible scaling (4% difference)
-      const offset = normalizedDistance * 6; // Slightly more offset for visible effect
-      return { scale: Math.max(0.96, scale), offset: Math.min(6, offset) };
+    // Calculate the relative position from the focused card
+    const distanceFromFocus = (cardCenter - viewportCenter) / cardTotalHeight;
+    const relativePosition = Math.round(distanceFromFocus);
+    
+    // Progressive scaling based on position relative to focused card
+    let scale = 1.0;
+    let translateY = 0;
+    
+    if (relativePosition === 0) {
+      // Main card (in focus)
+      scale = 1.0;
+      translateY = 0;
+    } else if (relativePosition === 1) {
+      // First card below
+      scale = 0.92;
+      translateY = -8;
+    } else if (relativePosition === 2) {
+      // Second card below
+      scale = 0.85;
+      translateY = -16;
+    } else if (relativePosition >= 3) {
+      // Third+ cards below
+      scale = 0.80;
+      translateY = -24;
+    } else if (relativePosition === -1) {
+      // First card above
+      scale = 0.95;
+      translateY = 4;
+    } else {
+      // Cards far above
+      scale = 0.90;
+      translateY = 8;
     }
     
-    return { scale: 0.96, offset: 6 }; // Off-screen cards with more noticeable shrinkage
+    return { scale, offset: translateY };
   };
 
   const handleCreatePost = () => {
