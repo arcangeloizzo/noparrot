@@ -224,12 +224,17 @@ export const FeedCard = ({
                   {/* Tooltip */}
                   {showTooltip && (
                     <div className={cn(
-                      "absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-popover border rounded-lg shadow-lg backdrop-blur-sm text-xs text-popover-foreground z-[200]",
-                      isMobile ? "w-[calc(100vw-3rem)] p-2" : "w-64 p-3"
+                      "absolute bottom-full mb-2 bg-popover border rounded-lg shadow-lg backdrop-blur-sm text-xs text-popover-foreground z-[200]",
+                      isMobile 
+                        ? "right-0 w-72 max-w-[calc(100vw-1rem)] p-2 mr-2" 
+                        : "left-1/2 transform -translate-x-1/2 w-64 p-3"
                     )}>
                       <div className="relative">
                         {post.sources.length === 0 ? TOOLTIPS.NO_SOURCES : TOOLTIPS.TRUST_SCORE}
-                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover"></div>
+                        <div className={cn(
+                          "absolute top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover",
+                          isMobile ? "right-4" : "left-1/2 transform -translate-x-1/2"
+                        )}></div>
                       </div>
                     </div>
                   )}
