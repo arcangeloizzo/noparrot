@@ -12,7 +12,7 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
   const getAvatarContent = () => {
     const initials = "AI";
     return (
-      <div className="w-7 h-7 bg-primary-blue rounded-full flex items-center justify-center text-white text-xs font-semibold">
+      <div className="w-8 h-8 bg-primary-blue rounded-full flex items-center justify-center text-white text-sm font-semibold">
         {initials}
       </div>
     );
@@ -27,9 +27,9 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border/50 safe-bottom z-40">
+    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border safe-bottom z-40">
       <div className="mobile-container">
-        <div className="flex items-center justify-around py-2">
+        <div className="flex items-center justify-around py-3">
           {tabs.map(({ id, icon: Icon, label, isAvatar }) => (
             <button
               key={id}
@@ -41,7 +41,7 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
                 }
               }}
               className={cn(
-                "flex flex-col items-center space-y-1 p-2 transition-colors relative",
+                "flex flex-col items-center space-y-1.5 p-2 transition-colors relative",
                 activeTab === id && !isAvatar
                   ? "text-primary-blue" 
                   : isAvatar ? "text-foreground" : "text-muted-foreground hover:text-foreground"
@@ -55,9 +55,9 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
                   {getAvatarContent()}
                 </div>
               ) : (
-                Icon && <Icon className={cn("w-7 h-7", activeTab === id && "text-primary-blue")} />
+                Icon && <Icon className={cn("w-8 h-8", activeTab === id && "text-primary-blue")} />
               )}
-              {label && <span className="text-xs font-medium">{label}</span>}
+              {label && <span className="text-xs font-semibold">{label}</span>}
             </button>
           ))}
         </div>

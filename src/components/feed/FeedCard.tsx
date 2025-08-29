@@ -100,37 +100,37 @@ export const FeedCard = ({
         <div 
           className={cn("relative transition-all duration-500 ease-out", isHiding && "opacity-0 scale-95")}
         >
-          <div className="bg-card rounded-lg shadow-card border border-border/50 mx-4 relative z-10">
+          <div className="bg-card rounded-xl shadow-card border border-border mx-4 relative z-10">
             {/* Main Content Grid */}
-            <div className="p-4">
+            <div className="p-5">
               {/* User Row */}
               <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-full overflow-hidden">
-                    {getAvatarContent()}
+                  <div className="flex items-center space-x-3">
+                    <div className="w-9 h-9 rounded-full overflow-hidden">
+                      {getAvatarContent()}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-semibold text-card-foreground">{post.authorName}</span>
+                      <span className="text-xs text-muted-foreground">·</span>
+                      <span className="text-xs text-muted-foreground">{formatTimeAgo(post.minutesAgo)}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <span className="font-medium text-card-foreground">{post.authorName}</span>
-                    <span className="text-xs text-muted-foreground">·</span>
-                    <span className="text-xs text-muted-foreground">{formatTimeAgo(post.minutesAgo)}</span>
-                  </div>
-                </div>
                 {post.stance && (
-                  <span className={`${getStanceColor(post.stance)} text-xs px-2 py-1 rounded-full font-medium`}>
+                  <span className={`${getStanceColor(post.stance)} text-xs px-3 py-1.5 rounded-full font-semibold`}>
                     {post.stance}
                   </span>
                 )}
               </div>
 
               {/* Comment */}
-              <p className="text-card-foreground text-sm leading-relaxed line-clamp-3 mb-3">
+              <p className="text-card-foreground text-sm leading-relaxed line-clamp-3 mb-4">
                 {post.userComment}
               </p>
 
               {/* Topic Tag */}
               {post.topicTag && (
-                <div className="mb-3">
-                  <span className="bg-secondary text-secondary-foreground text-xs px-2 py-1 rounded-full font-medium w-fit">
+                <div className="mb-4">
+                  <span className="bg-secondary text-secondary-foreground text-xs px-3 py-1.5 rounded-full font-semibold w-fit">
                     {post.topicTag}
                   </span>
                 </div>
@@ -139,12 +139,12 @@ export const FeedCard = ({
               {/* Article Content */}
               {post.sharedTitle && (
                 <div className="space-y-3 mb-3">
-                  <h3 className="font-semibold text-card-foreground text-sm line-clamp-2">
+                  <h3 className="font-bold text-card-foreground text-base line-clamp-2">
                     {post.sharedTitle}
                   </h3>
                   
                   {post.previewImg && (
-                    <div className="w-full aspect-video bg-muted rounded-md overflow-hidden">
+                    <div className="w-full aspect-video bg-muted rounded-lg overflow-hidden">
                       <img 
                         src={post.previewImg} 
                         alt="Article preview" 
@@ -193,7 +193,7 @@ export const FeedCard = ({
                   <button
                     onClick={() => setShowTooltip(!showTooltip)}
                     className={cn(
-                      "text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap",
+                      "text-xs px-3 py-1.5 rounded-full font-semibold whitespace-nowrap border-2 border-transparent",
                       trustClass
                     )}
                   >

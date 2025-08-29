@@ -14,27 +14,27 @@
     --brand-pink: 342 74% 52%; /* #E41E52 */
     --brand-yellow: 47 100% 69%; /* #FFD464 */
     
-    /* System Colors */
-    --background: 0 0% 100%;
-    --foreground: 203 48% 20%;
-    --card: 0 0% 100%;
-    --card-foreground: 203 48% 20%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 203 48% 20%;
+    /* System Colors - Dark Mode First */
+    --background: 220 13% 9%; /* #161A1D */
+    --foreground: 0 0% 100%;
+    --card: 220 13% 11%; /* #1A1E22 */
+    --card-foreground: 0 0% 100%;
+    --popover: 220 13% 8%; /* #141719 */
+    --popover-foreground: 0 0% 100%;
     
-    /* Semantic Mappings */
+    /* Semantic Mappings - Dark Mode First */
     --primary: var(--primary-blue);
     --primary-foreground: 0 0% 100%;
-    --secondary: var(--light-gray);
-    --secondary-foreground: var(--dark-blue);
-    --muted: var(--light-gray);
-    --muted-foreground: 220 9% 46%;
+    --secondary: 220 13% 15%; /* #232830 */
+    --secondary-foreground: 220 9% 80%;
+    --muted: 220 13% 13%; /* #1F2328 */
+    --muted-foreground: 220 9% 65%;
     --accent: var(--light-blue);
     --accent-foreground: var(--dark-blue);
     --destructive: var(--brand-pink);
     --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
+    --border: 220 13% 18%; /* #272B30 */
+    --input: 220 13% 15%; /* #232830 */
     --ring: var(--primary-blue);
     
     /* Gradient Tokens */
@@ -42,11 +42,11 @@
     --gradient-dark: radial-gradient(circle at center, hsl(var(--dark-blue)), hsl(203 48% 12%));
     --gradient-subtle: linear-gradient(180deg, hsl(var(--light-gray)), hsl(0 0% 100%));
     
-    /* Shadow Tokens */
-    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.06);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
-    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+    /* Shadow Tokens - Enhanced for Dark Mode */
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
+    --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
     
     /* Animation Tokens */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -61,22 +61,22 @@
     --space-6: 24px;
     --space-8: 32px;
     
-    /* Border Radius Tokens */
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 16px;
-    --radius-full: 24px;
+    /* Border Radius Tokens - More Rounded */
+    --radius-sm: 10px;
+    --radius-md: 16px;
+    --radius-lg: 20px;
+    --radius-full: 28px;
     
     /* Typography */
     --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
     
-    /* Trust Score Colors */
-    --trust-low: 203 48% 15%; /* #20303A */
-    --trust-low-text: 180 49% 84%; /* #BFE9E9 */
-    --trust-medium: 203 48% 18%; /* #16364A */
-    --trust-medium-text: 180 49% 84%; /* #BFE9E9 */
-    --trust-high: 203 48% 22%; /* #0E3C62 */
-    --trust-high-text: 180 49% 84%; /* #BFE9E9 */
+    /* Trust Score Colors - Enhanced Contrast */
+    --trust-low: 0 60% 45%; /* #CC4C4C */
+    --trust-low-text: 0 0% 100%;
+    --trust-medium: 40 95% 55%; /* #F5B041 */
+    --trust-medium-text: 40 100% 15%;
+    --trust-high: 140 60% 45%; /* #4CAF50 */
+    --trust-high-text: 0 0% 100%;
 
     /* Mobile-specific */
     --safe-area-bottom: env(safe-area-inset-bottom, 0px);

@@ -53,9 +53,9 @@ export const ComposerModal = ({ isOpen, onClose }: ComposerModalProps) => {
       />
       
       {/* Modal */}
-      <div className="relative w-full max-w-[340px] mx-4 bg-card rounded-3xl shadow-lg border border-border/50 max-h-[80vh] flex flex-col">
+      <div className="relative w-full max-w-[340px] mx-4 bg-card rounded-3xl shadow-lg border border-border max-h-[80vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border/50">
+        <div className="flex items-center justify-between p-5 border-b border-border">
           <div className="flex items-center space-x-3">
             <button
               onClick={onClose}
@@ -84,7 +84,7 @@ export const ComposerModal = ({ isOpen, onClose }: ComposerModalProps) => {
         </div>
 
         {/* Content */}
-        <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+        <div className="flex-1 p-5 space-y-5 overflow-y-auto">
           {/* Text Area */}
           <textarea
             value={content}
@@ -114,18 +114,18 @@ export const ComposerModal = ({ isOpen, onClose }: ComposerModalProps) => {
                 value={newSource}
                 onChange={(e) => setNewSource(e.target.value)}
                 placeholder="https://example.com"
-                className="flex-1 px-3 py-2 bg-muted rounded-lg border-0 focus:ring-2 focus:ring-primary-blue focus:outline-none text-sm"
+                className="flex-1 px-4 py-3 bg-input rounded-lg border border-border focus:ring-2 focus:ring-primary-blue focus:outline-none text-sm"
                 onKeyPress={(e) => e.key === 'Enter' && addSource()}
               />
               <button
                 onClick={addSource}
                 disabled={!newSource.trim()}
-                className={cn(
-                  "px-3 py-2 rounded-lg transition-colors",
-                  newSource.trim()
-                    ? "bg-primary-blue text-white hover:bg-primary-blue/90"
-                    : "bg-muted text-muted-foreground cursor-not-allowed"
-                )}
+                  className={cn(
+                    "px-4 py-3 rounded-lg transition-colors",
+                    newSource.trim()
+                      ? "bg-primary-blue text-white hover:bg-primary-blue/90"
+                      : "bg-muted text-muted-foreground cursor-not-allowed"
+                  )}
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -156,7 +156,7 @@ export const ComposerModal = ({ isOpen, onClose }: ComposerModalProps) => {
         </div>
 
         {/* Bottom Toolbar */}
-        <div className="flex items-center justify-between p-4 border-t border-border/50">
+        <div className="flex items-center justify-between p-5 border-t border-border">
           <div className="flex items-center space-x-4">
             <button className="p-2 text-muted-foreground hover:text-primary-blue transition-colors">
               <FileText className="w-5 h-5" />
