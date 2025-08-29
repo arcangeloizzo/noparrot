@@ -223,7 +223,7 @@ export const FeedCard = ({
 
               {/* Tooltip */}
               {showTooltip && (
-                <div className="fixed top-20 right-4 w-64 p-3 bg-popover border rounded-lg shadow-lg text-xs text-popover-foreground z-[100]">
+                <div className="absolute bottom-full mb-2 right-4 w-64 p-3 bg-popover border rounded-lg shadow-lg text-xs text-popover-foreground z-[100]">
                   <div className="relative">
                     {post.sources.length === 0 ? TOOLTIPS.NO_SOURCES : TOOLTIPS.TRUST_SCORE}
                     <div className="absolute top-full right-6 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-popover"></div>
