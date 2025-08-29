@@ -74,8 +74,6 @@ export const SimilarContentOverlay = ({ isOpen, onClose, originalPost }: Similar
               >
                 <FeedCard
                   post={post}
-                  scale={1}
-                  offset={0}
                 />
               </div>
             ))}

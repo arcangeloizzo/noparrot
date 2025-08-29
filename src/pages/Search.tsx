@@ -70,7 +70,6 @@ export const Search = () => {
                 <FeedCard
                   key={post.id}
                   post={post}
-                  scale={0.95}
                 />
               ))}
             </div>

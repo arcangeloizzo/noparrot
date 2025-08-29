@@ -18,6 +18,7 @@ export const Feed = () => {
   const [scrollY, setScrollY] = useState(0);
   const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
+  const [, forceUpdate] = useState({});
 
   useEffect(() => {
     // Add more posts for demo
@@ -25,36 +26,61 @@ export const Feed = () => {
   }, []);
 
   useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY);
-    window.addEventListener('scroll', handleScroll);
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+      // Force re-render to recalculate card positions
+      forceUpdate({});
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // New card animation logic: cards scale up as they enter the transition zone
+  // Improved card stack animation with precise positioning
   const getCardProps = (index: number) => {
-    const cardHeight = 280;
-    const cardSpacing = 16;
-    const cardTop = index * (cardHeight + cardSpacing);
+    // Use actual card element for precise positioning if available
+    const cardElement = document.querySelector(`[data-card-index="${index}"]`);
     
-    // Define the transition zone in the upper half of the viewport
-    const transitionZoneTop = scrollY + window.innerHeight * 0.3;
-    const transitionZoneBottom = scrollY + window.innerHeight * 0.7;
-    
-    // Calculate if card is in transition zone
-    const cardPosition = cardTop + cardHeight / 2; // Center of the card
-    
-    let scale = 0.85; // Default scale for cards not in focus
-    
-    if (cardPosition >= transitionZoneTop && cardPosition <= transitionZoneBottom) {
-      // Card is in the transition zone - scale up based on position
-      const progress = (transitionZoneBottom - cardPosition) / (transitionZoneBottom - transitionZoneTop);
-      scale = 0.85 + (progress * 0.15); // Scale from 0.85 to 1.0
-    } else if (cardPosition < transitionZoneTop) {
-      // Card is above transition zone - full scale
-      scale = 1.0;
+    if (!cardElement) {
+      // Fallback for initial render
+      return { scale: 0.9, offset: 0 };
     }
     
-    return { scale, offset: 0 }; // No translateY to maintain card distances
+    const rect = cardElement.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    
+    // Define a smaller, more precise transition zone (center 40% of viewport)
+    const focusZoneTop = viewportHeight * 0.3;
+    const focusZoneBottom = viewportHeight * 0.7;
+    const focusZoneCenter = viewportHeight * 0.5;
+    
+    const cardCenter = rect.top + rect.height / 2;
+    
+    let scale = 0.85;
+    let offset = 0;
+    
+    if (cardCenter >= focusZoneTop && cardCenter <= focusZoneBottom) {
+      // Card is in focus zone - create smooth transition
+      const distanceFromCenter = Math.abs(cardCenter - focusZoneCenter);
+      const maxDistance = (focusZoneBottom - focusZoneTop) / 2;
+      const progress = 1 - (distanceFromCenter / maxDistance);
+      
+      // Smooth scale transition: cards in center get scale 1.0, edges get 0.9
+      scale = 0.9 + (progress * 0.1);
+      
+      // Add subtle vertical offset for stack effect
+      const offsetMultiplier = cardCenter > focusZoneCenter ? 1 : -1;
+      offset = (1 - progress) * 8 * offsetMultiplier;
+    } else if (cardCenter < focusZoneTop) {
+      // Cards above focus zone - slightly larger
+      scale = 0.95;
+      offset = -4;
+    } else {
+      // Cards below focus zone - smaller with downward offset
+      scale = 0.85;
+      offset = 6;
+    }
+    
+    return { scale, offset };
   };
 
   const handleCreatePost = () => {
@@ -144,12 +170,19 @@ export const Feed = () => {
             const { scale, offset } = getCardProps(index);
             
             return (
-              <FeedCard
+              <div
                 key={post.id}
-                post={post}
-                scale={scale}
-                offset={offset}
-              />
+                data-card-index={index}
+                style={{
+                  transform: `scale(${scale}) translateY(${offset}px)`,
+                  transition: 'transform 0.2s ease-out',
+                  transformOrigin: 'center center'
+                }}
+              >
+                <FeedCard
+                  post={post}
+                />
+              </div>
             );
           })}
         </div>

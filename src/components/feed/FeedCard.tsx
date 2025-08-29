@@ -12,8 +12,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FeedCardProps {
   post: MockPost;
-  scale?: number;
-  offset?: number;
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
   onLongPress?: () => void;
@@ -21,8 +19,6 @@ interface FeedCardProps {
 
 export const FeedCard = ({ 
   post, 
-  scale = 1, 
-  offset = 0,
   onSwipeLeft,
   onSwipeRight, 
   onLongPress 
@@ -110,10 +106,6 @@ export const FeedCard = ({
       >
         <div 
           className={cn("relative transition-all duration-500 ease-out", isHiding && "opacity-0 scale-95")}
-          style={{
-            transform: `scale(${scale}) translateY(${offset}px)`,
-            transformOrigin: 'center center'
-          }}
         >
           <div className="bg-card rounded-lg shadow-card border border-border/50 mx-4 relative z-10">
             {/* Main Content Grid */}
