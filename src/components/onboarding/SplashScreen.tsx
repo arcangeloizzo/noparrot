@@ -25,23 +25,23 @@ export const SplashScreen = ({ onComplete }: SplashScreenProps) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-blue to-dark-blue/80 flex items-center justify-center px-6 text-white">
-      <div className="flex flex-col items-center">
+      <div className="flex flex-col items-center justify-center">
         {/* Combined Logo + Wordmark Container */}
         <div 
           className={`flex flex-col items-center transition-all duration-800 ease-in-out ${
             phase >= 1 ? 'scale-50' : 'scale-100'
-          } ${phase >= 2 ? '-translate-y-12' : 'translate-y-0'}`}
+          } ${phase >= 2 ? '-translate-y-8' : 'translate-y-0'}`}
         >
           {/* Logo */}
           <Logo id="introLogoMark" variant="icon" size="xl" className="w-96 h-96" />
           
           {/* Wordmark */}
           <div 
-            className={`transition-all duration-800 ease-out mt-1 ${
+            className={`transition-all duration-800 ease-out ${
               phase >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
             }`}
           >
-            <div id="introWordmark" className="font-inter text-5xl font-semibold">
+            <div id="introWordmark" className="font-inter text-7xl font-semibold">
               <span style={{ color: '#bbe6e4' }}>NO</span>
               <span style={{ color: '#0a77ed' }}>PARROT</span>
             </div>
@@ -51,7 +51,7 @@ export const SplashScreen = ({ onComplete }: SplashScreenProps) => {
         {/* Claim and Button */}
         <div 
           id="introClaim"
-          className={`transition-all duration-600 ease-out text-center space-y-4 mt-8 ${
+          className={`transition-all duration-600 ease-out text-center space-y-4 mt-14 ${
             phase >= 2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
           }`}
         >
