@@ -30,12 +30,12 @@ export const SimilarContentOverlay = ({ isOpen, onClose, originalPost }: Similar
     : similarPosts.filter(post => post.sources.length > 0);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end justify-center z-50">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       {/* Backdrop blur */}
       <div className="absolute inset-0 backdrop-blur-sm" onClick={onClose} />
       
       {/* Overlay content */}
-      <div className="bg-light-gray rounded-t-3xl w-full max-w-sm h-[84vh] relative overflow-hidden">
+      <div className="bg-light-gray rounded-3xl w-[90vw] h-[84vh] relative overflow-hidden">
         {/* Header */}
         <div className="sticky top-0 bg-light-gray/95 backdrop-blur-sm border-b border-gray-200 p-4">
           <div className="flex items-center justify-between mb-4">

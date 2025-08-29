@@ -6,10 +6,11 @@ import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 import { FloatingActionButton } from "@/components/fab/FloatingActionButton";
 import { ComposerModal } from "@/components/composer/ComposerModal";
+import { SimilarContentOverlay } from "@/components/feed/SimilarContentOverlay";
 import { Search } from "./Search";
 import { Saved } from "./Saved";
 import { Notifications } from "./Notifications";
-import { mockPosts, generateMorePosts } from "@/data/mockData";
+import { mockPosts, generateMorePosts, MockPost } from "@/data/mockData";
 
 export const Feed = () => {
   const [activeTab, setActiveTab] = useState<"following" | "foryou">("following");
@@ -18,6 +19,8 @@ export const Feed = () => {
   const [scrollY, setScrollY] = useState(0);
   const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
+  const [showSimilarContent, setShowSimilarContent] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<MockPost | null>(null);
   const [, forceUpdate] = useState({});
 
   useEffect(() => {
@@ -34,6 +37,19 @@ export const Feed = () => {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Block background scroll when overlay is open
+  useEffect(() => {
+    if (showSimilarContent) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showSimilarContent]);
 
   // Improved card stack animation with precise positioning
   const getCardProps = (index: number) => {
@@ -90,6 +106,16 @@ export const Feed = () => {
   const handleLogoClick = () => {
     localStorage.removeItem("noparrot-onboarded");
     window.location.reload();
+  };
+
+  const handleShowSimilarContent = (post: MockPost) => {
+    setSelectedPost(post);
+    setShowSimilarContent(true);
+  };
+
+  const handleCloseSimilarContent = () => {
+    setShowSimilarContent(false);
+    setSelectedPost(null);
   };
 
   // Render different pages based on active tab
@@ -181,6 +207,7 @@ export const Feed = () => {
               >
                 <FeedCard
                   post={post}
+                  onLongPress={() => handleShowSimilarContent(post)}
                 />
               </div>
             );
@@ -216,6 +243,15 @@ export const Feed = () => {
         isOpen={showComposer}
         onClose={() => setShowComposer(false)}
       />
+
+      {/* Similar Content Overlay */}
+      {selectedPost && (
+        <SimilarContentOverlay
+          isOpen={showSimilarContent}
+          onClose={handleCloseSimilarContent}
+          originalPost={selectedPost}
+        />
+      )}
     </div>
   );
 };

@@ -7,7 +7,7 @@ import { MockPost } from "@/data/mockData";
 import { SwipeGestureHandler } from "./SwipeGestureHandler";
 import { ArticleReader } from "./ArticleReader";
 import { ComprehensionTest } from "./ComprehensionTest";
-import { SimilarContentOverlay } from "./SimilarContentOverlay";
+
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface FeedCardProps {
@@ -31,7 +31,6 @@ export const FeedCard = ({
   const [isHiding, setIsHiding] = useState(false);
   const [showReader, setShowReader] = useState(false);
   const [showTest, setShowTest] = useState(false);
-  const [showSimilarContent, setShowSimilarContent] = useState(false);
 
   // Generate avatar with initials if no image
   const getAvatarContent = () => {
@@ -90,7 +89,6 @@ export const FeedCard = ({
   };
 
   const handleLongPress = () => {
-    setShowSimilarContent(true);
     onLongPress?.();
   };
 
@@ -275,12 +273,6 @@ export const FeedCard = ({
         onComplete={() => setShowTest(false)}
       />
 
-      {/* Similar Content Overlay */}
-      <SimilarContentOverlay
-        isOpen={showSimilarContent}
-        onClose={() => setShowSimilarContent(false)}
-        originalPost={post}
-      />
     </>
   );
 };
