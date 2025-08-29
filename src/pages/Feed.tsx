@@ -30,51 +30,31 @@ export const Feed = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Calculate card scales and offsets based on scroll position
+  // New card animation logic: cards scale up as they enter the transition zone
   const getCardProps = (index: number) => {
-    const cardHeight = 300; // Card height including margin
-    const cardSpacing = 16; // Space between cards
-    const cardTotalHeight = cardHeight + cardSpacing;
+    const cardHeight = 280;
+    const cardSpacing = 16;
+    const cardTop = index * (cardHeight + cardSpacing);
     
-    // Calculate which card should be "in focus" (closest to viewport center)
-    const viewportCenter = scrollY + window.innerHeight * 0.4; // Focus point
-    const cardCenter = index * cardTotalHeight + cardHeight / 2;
+    // Define the transition zone in the upper half of the viewport
+    const transitionZoneTop = scrollY + window.innerHeight * 0.3;
+    const transitionZoneBottom = scrollY + window.innerHeight * 0.7;
     
-    // Calculate the relative position from the focused card
-    const distanceFromFocus = (cardCenter - viewportCenter) / cardTotalHeight;
-    const relativePosition = Math.round(distanceFromFocus);
+    // Calculate if card is in transition zone
+    const cardPosition = cardTop + cardHeight / 2; // Center of the card
     
-    // Progressive scaling based on position relative to focused card
-    let scale = 1.0;
-    let translateY = 0;
+    let scale = 0.85; // Default scale for cards not in focus
     
-    if (relativePosition === 0) {
-      // Main card (in focus)
+    if (cardPosition >= transitionZoneTop && cardPosition <= transitionZoneBottom) {
+      // Card is in the transition zone - scale up based on position
+      const progress = (transitionZoneBottom - cardPosition) / (transitionZoneBottom - transitionZoneTop);
+      scale = 0.85 + (progress * 0.15); // Scale from 0.85 to 1.0
+    } else if (cardPosition < transitionZoneTop) {
+      // Card is above transition zone - full scale
       scale = 1.0;
-      translateY = 0;
-    } else if (relativePosition === 1) {
-      // First card below
-      scale = 0.92;
-      translateY = -8;
-    } else if (relativePosition === 2) {
-      // Second card below
-      scale = 0.85;
-      translateY = -16;
-    } else if (relativePosition >= 3) {
-      // Third+ cards below
-      scale = 0.80;
-      translateY = -24;
-    } else if (relativePosition === -1) {
-      // First card above
-      scale = 0.95;
-      translateY = 4;
-    } else {
-      // Cards far above
-      scale = 0.90;
-      translateY = 8;
     }
     
-    return { scale, offset: translateY };
+    return { scale, offset: 0 }; // No translateY to maintain card distances
   };
 
   const handleCreatePost = () => {
