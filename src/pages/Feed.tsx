@@ -35,20 +35,20 @@ export const Feed = () => {
     const cardHeight = 280; // Approximate card height
     const scrollOffset = scrollY;
     const cardTop = index * (cardHeight + 16); // Card height + margin
-    const viewportCenter = scrollOffset + window.innerHeight / 3; // Focus area
+    const viewportCenter = scrollOffset + window.innerHeight * 0.6; // Focus area moved lower
     
     // Distance from center of viewport
     const distanceFromCenter = Math.abs(cardTop - viewportCenter);
     
-    // Only apply scaling when card is in viewport
-    if (distanceFromCenter <= cardHeight) {
-      const normalizedDistance = distanceFromCenter / cardHeight;
-      const scale = 1 - (normalizedDistance * 0.05); // Scale from 1 to 0.95 (less aggressive)
-      const offset = normalizedDistance * 8; // Offset from 0 to 8px (less aggressive)
-      return { scale: Math.max(0.95, scale), offset: Math.min(8, offset) };
+    // Only apply scaling when card is in viewport (expanded range)
+    if (distanceFromCenter <= cardHeight * 1.5) {
+      const normalizedDistance = distanceFromCenter / (cardHeight * 1.5);
+      const scale = 1 - (normalizedDistance * 0.02); // Much less aggressive scaling (2% instead of 5%)
+      const offset = normalizedDistance * 4; // Reduced offset
+      return { scale: Math.max(0.98, scale), offset: Math.min(4, offset) };
     }
     
-    return { scale: 0.95, offset: 8 }; // Off-screen cards (less shrinkage)
+    return { scale: 0.98, offset: 4 }; // Off-screen cards with minimal shrinkage
   };
 
   const handleCreatePost = () => {
