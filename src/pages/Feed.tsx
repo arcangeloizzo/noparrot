@@ -7,8 +7,9 @@ import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 import { FloatingActionButton } from "@/components/fab/FloatingActionButton";
 import { ComposerModal } from "@/components/composer/ComposerModal";
 import { SimilarContentOverlay } from "@/components/feed/SimilarContentOverlay";
-import { ArticleReader } from "@/components/feed/ArticleReader";
-import { ComprehensionTest } from "@/components/feed/ComprehensionTest";
+import { CGProvider } from "@/lib/comprehension-gate";
+import { GateQueueManager } from "@/lib/comprehension-gate-extended";
+import { GateQueueModal } from "@/components/composer/GateQueueModal";
 import { Search } from "./Search";
 import { Saved } from "./Saved";
 import { Notifications } from "./Notifications";
@@ -23,81 +24,59 @@ export const Feed = () => {
   const [showComposer, setShowComposer] = useState(false);
   const [showSimilarContent, setShowSimilarContent] = useState(false);
   const [selectedPost, setSelectedPost] = useState<MockPost | null>(null);
-  const [showReader, setShowReader] = useState(false);
-  const [showTest, setShowTest] = useState(false);
-  const [readerPost, setReaderPost] = useState<MockPost | null>(null);
-  const [testPost, setTestPost] = useState<MockPost | null>(null);
+  const [showGate, setShowGate] = useState(false);
+  const [gateManager, setGateManager] = useState<GateQueueManager | null>(null);
   const [, forceUpdate] = useState({});
 
   useEffect(() => {
-    // Add more posts for demo
     setPosts([...mockPosts, ...generateMorePosts(15)]);
   }, []);
 
   useEffect(() => {
     const handleScroll = () => {
       setScrollY(window.scrollY);
-      // Force re-render to recalculate card positions
       forceUpdate({});
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Block background scroll when any modal is open
   useEffect(() => {
-    if (showSimilarContent || showReader || showTest) {
+    if (showSimilarContent || showGate) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
     }
-    
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showSimilarContent, showReader, showTest]);
+  }, [showSimilarContent, showGate]);
 
-  // Improved card stack animation with precise positioning
   const getCardProps = (index: number) => {
-    // Use actual card element for precise positioning if available
     const cardElement = document.querySelector(`[data-card-index="${index}"]`);
-    
-    if (!cardElement) {
-      // Fallback for initial render
-      return { scale: 0.9, offset: 0 };
-    }
+    if (!cardElement) return { scale: 0.9, offset: 0 };
     
     const rect = cardElement.getBoundingClientRect();
     const viewportHeight = window.innerHeight;
-    
-    // Define a smaller, more precise transition zone (center 40% of viewport)
     const focusZoneTop = viewportHeight * 0.3;
     const focusZoneBottom = viewportHeight * 0.7;
     const focusZoneCenter = viewportHeight * 0.5;
-    
     const cardCenter = rect.top + rect.height / 2;
     
     let scale = 0.85;
     let offset = 0;
     
     if (cardCenter >= focusZoneTop && cardCenter <= focusZoneBottom) {
-      // Card is in focus zone - create smooth transition
       const distanceFromCenter = Math.abs(cardCenter - focusZoneCenter);
       const maxDistance = (focusZoneBottom - focusZoneTop) / 2;
       const progress = 1 - (distanceFromCenter / maxDistance);
-      
-      // Smooth scale transition: cards in center get scale 1.0, edges get 0.9
       scale = 0.9 + (progress * 0.1);
-      
-      // Add subtle vertical offset for stack effect
       const offsetMultiplier = cardCenter > focusZoneCenter ? 1 : -1;
       offset = (1 - progress) * 8 * offsetMultiplier;
     } else if (cardCenter < focusZoneTop) {
-      // Cards above focus zone - slightly larger
       scale = 0.95;
       offset = -4;
     } else {
-      // Cards below focus zone - smaller with downward offset
       scale = 0.85;
       offset = 6;
     }
@@ -105,10 +84,7 @@ export const Feed = () => {
     return { scale, offset };
   };
 
-  const handleCreatePost = () => {
-    setShowComposer(true);
-  };
-
+  const handleCreatePost = () => setShowComposer(true);
   const handleLogoClick = () => {
     localStorage.removeItem("noparrot-onboarded");
     window.location.reload();
@@ -129,34 +105,26 @@ export const Feed = () => {
   };
 
   const handleOpenReader = (post: MockPost) => {
-    setReaderPost(post);
-    setShowReader(true);
+    setSelectedPost(post);
+    const sources = post.sharedTitle ? [post.sharedTitle] : ['https://example.com/article'];
+    const manager = new GateQueueManager(sources, () => {});
+    setGateManager(manager);
+    setShowGate(true);
   };
 
-  const handleCloseReader = () => {
-    setShowReader(false);
-    setReaderPost(null);
+  const handleCloseGate = () => {
+    setShowGate(false);
+    setSelectedPost(null);
+    setGateManager(null);
   };
 
-  const handleProceedToTest = () => {
-    setShowReader(false);
-    setTestPost(readerPost);
-    setShowTest(true);
+  const handleCompleteGate = () => {
+    setShowGate(false);
+    setSelectedPost(null);
+    setGateManager(null);
   };
 
-  const handleCloseTest = () => {
-    setShowTest(false);
-    setTestPost(null);
-    setReaderPost(null);
-  };
-
-  const handleCompleteTest = () => {
-    setShowTest(false);
-    setTestPost(null);
-    setReaderPost(null);
-  };
-
-  // Render different pages based on active tab
+  // Navigation pages
   if (activeNavTab === "search") {
     return (
       <div className="pb-20">
@@ -253,38 +221,25 @@ export const Feed = () => {
             );
           })}
         </div>
-
-        {/* Load More Trigger */}
-        <div className="p-8 text-center">
-          <div className="text-sm text-muted-foreground">
-            Scroll to load more posts...
-          </div>
-        </div>
       </div>
 
-      {/* Floating Action Button */}
       <FloatingActionButton onClick={handleCreatePost} />
-
-      {/* Bottom Navigation */}
       <BottomNavigation 
         activeTab={activeNavTab} 
         onTabChange={setActiveNavTab}
         onProfileClick={() => setShowProfileSheet(true)}
       />
 
-      {/* Profile Side Sheet */}
       <ProfileSideSheet 
         isOpen={showProfileSheet}
         onClose={() => setShowProfileSheet(false)}
       />
 
-      {/* Composer Modal */}
       <ComposerModal
         isOpen={showComposer}
         onClose={() => setShowComposer(false)}
       />
 
-      {/* Similar Content Overlay */}
       {selectedPost && (
         <SimilarContentOverlay
           isOpen={showSimilarContent}
@@ -293,25 +248,22 @@ export const Feed = () => {
         />
       )}
 
-      {/* Article Reader Modal */}
-      {readerPost && (
-        <ArticleReader
-          post={readerPost}
-          isOpen={showReader}
-          onClose={handleCloseReader}
-          onProceedToTest={handleProceedToTest}
-        />
-      )}
-
-      {/* Comprehension Test Modal */}
-      {testPost && (
-        <ComprehensionTest
-          post={testPost}
-          isOpen={showTest}
-          onClose={handleCloseTest}
-          onComplete={handleCompleteTest}
+      {showGate && gateManager && (
+        <GateQueueModal
+          isOpen={showGate}
+          onClose={handleCloseGate}
+          onComplete={handleCompleteGate}
+          queueManager={gateManager}
         />
       )}
     </div>
   );
 };
+
+const FeedWithGate = () => (
+  <CGProvider policy={{ minReadSeconds: 10, minScrollRatio: 0.8 }}>
+    <Feed />
+  </CGProvider>
+);
+
+export default FeedWithGate;
