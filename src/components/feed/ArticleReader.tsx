@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, Share, MessageSquare, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MockPost } from "@/data/mockData";
 
@@ -7,10 +7,10 @@ interface ArticleReaderProps {
   post: MockPost;
   isOpen: boolean;
   onClose: () => void;
-  onProceedToTest: () => void;
+  onStartGate: (action: string) => void;
 }
 
-export const ArticleReader = ({ post, isOpen, onClose, onProceedToTest }: ArticleReaderProps) => {
+export const ArticleReader = ({ post, isOpen, onClose, onStartGate }: ArticleReaderProps) => {
   const [timeLeft, setTimeLeft] = useState(10);
   const [canProceed, setCanProceed] = useState(false);
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
@@ -130,15 +130,46 @@ export const ArticleReader = ({ post, isOpen, onClose, onProceedToTest }: Articl
           </div>
         </div>
 
-        {/* Action Button */}
-        <div className="p-4 border-t border-gray-700">
-          <Button
-            onClick={onProceedToTest}
-            disabled={!canProceed}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-700 disabled:text-gray-400"
-          >
-            {canProceed ? "Procedi al Test" : `Attendi ${timeLeft}s`}
-          </Button>
+        {/* Action Buttons */}
+        <div className="p-4 border-t border-gray-700 space-y-3">
+          {canProceed ? (
+            <>
+              <Button
+                onClick={() => onStartGate("Condividi")}
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-2"
+              >
+                <Share className="h-4 w-4" />
+                Condividi
+              </Button>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  onClick={() => onStartGate("Confuta")}
+                  variant="outline"
+                  className="flex items-center gap-2 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Confuta
+                </Button>
+                
+                <Button
+                  onClick={() => onStartGate("Invia ad un amico")}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <Send className="h-4 w-4" />
+                  Invia
+                </Button>
+              </div>
+            </>
+          ) : (
+            <Button
+              disabled
+              className="w-full bg-gray-700 text-gray-400 cursor-not-allowed"
+            >
+              Attendi {timeLeft}s o scorri fino alla fine
+            </Button>
+          )}
         </div>
       </div>
     </div>

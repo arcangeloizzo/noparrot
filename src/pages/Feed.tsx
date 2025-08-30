@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Logo } from "@/components/ui/logo";
 import { FeedToggle } from "@/components/feed/FeedToggle";
 import { FeedCard } from "@/components/feed/FeedCard";
+import { ArticleReader } from "@/components/feed/ArticleReader";
+import { PostTestActionsModal } from "@/components/feed/PostTestActionsModal";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 import { FloatingActionButton } from "@/components/fab/FloatingActionButton";
@@ -14,6 +16,7 @@ import { Search } from "./Search";
 import { Saved } from "./Saved";
 import { Notifications } from "./Notifications";
 import { mockPosts, generateMorePosts, MockPost } from "@/data/mockData";
+import { useToast } from "@/hooks/use-toast";
 
 export const Feed = () => {
   const [activeTab, setActiveTab] = useState<"following" | "foryou">("following");
@@ -24,9 +27,13 @@ export const Feed = () => {
   const [showComposer, setShowComposer] = useState(false);
   const [showSimilarContent, setShowSimilarContent] = useState(false);
   const [selectedPost, setSelectedPost] = useState<MockPost | null>(null);
+  const [showArticleReader, setShowArticleReader] = useState(false);
   const [showGate, setShowGate] = useState(false);
+  const [showPostTestActions, setShowPostTestActions] = useState(false);
+  const [pendingAction, setPendingAction] = useState<string>("");
   const [gateManager, setGateManager] = useState<GateQueueManager | null>(null);
   const [, forceUpdate] = useState({});
+  const { toast } = useToast();
 
   useEffect(() => {
     setPosts([...mockPosts, ...generateMorePosts(15)]);
@@ -42,7 +49,7 @@ export const Feed = () => {
   }, []);
 
   useEffect(() => {
-    if (showSimilarContent || showGate) {
+    if (showSimilarContent || showGate || showArticleReader || showPostTestActions) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -50,7 +57,7 @@ export const Feed = () => {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showSimilarContent, showGate]);
+  }, [showSimilarContent, showGate, showArticleReader, showPostTestActions]);
 
   const getCardProps = (index: number) => {
     const cardElement = document.querySelector(`[data-card-index="${index}"]`);
@@ -106,22 +113,43 @@ export const Feed = () => {
 
   const handleOpenReader = (post: MockPost) => {
     setSelectedPost(post);
-    const sources = post.sharedTitle ? [post.sharedTitle] : ['https://example.com/article'];
-    const manager = new GateQueueManager(sources, () => {});
-    setGateManager(manager);
-    setShowGate(true);
+    setShowArticleReader(true);
+  };
+
+  const handleCloseArticleReader = () => {
+    setShowArticleReader(false);
+    setSelectedPost(null);
+  };
+
+  const handleStartGate = (action: string) => {
+    setPendingAction(action);
+    setShowArticleReader(false);
+    
+    if (selectedPost) {
+      const sources = selectedPost.sharedTitle ? [selectedPost.sharedTitle] : ['https://example.com/article'];
+      const manager = new GateQueueManager(sources, () => {});
+      setGateManager(manager);
+      setShowGate(true);
+    }
   };
 
   const handleCloseGate = () => {
     setShowGate(false);
     setSelectedPost(null);
     setGateManager(null);
+    setPendingAction("");
   };
 
   const handleCompleteGate = () => {
     setShowGate(false);
-    setSelectedPost(null);
     setGateManager(null);
+    setShowPostTestActions(true);
+  };
+
+  const handleClosePostTestActions = () => {
+    setShowPostTestActions(false);
+    setSelectedPost(null);
+    setPendingAction("");
   };
 
   // Navigation pages
@@ -248,12 +276,29 @@ export const Feed = () => {
         />
       )}
 
+      {selectedPost && (
+        <ArticleReader
+          post={selectedPost}
+          isOpen={showArticleReader}
+          onClose={handleCloseArticleReader}
+          onStartGate={handleStartGate}
+        />
+      )}
+
       {showGate && gateManager && (
         <GateQueueModal
           isOpen={showGate}
           onClose={handleCloseGate}
           onComplete={handleCompleteGate}
           queueManager={gateManager}
+        />
+      )}
+
+      {selectedPost && (
+        <PostTestActionsModal
+          post={selectedPost}
+          isOpen={showPostTestActions}
+          onClose={handleClosePostTestActions}
         />
       )}
     </div>

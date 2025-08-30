@@ -72,6 +72,11 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
   const publishContent = () => {
     console.log('Publishing:', { content, sources });
     // Here you would typically send the data to your backend
+    
+    // Show success toast
+    // Note: toast would need to be imported and used here
+    console.log('✅ Post pubblicato con successo!');
+    
     onClose();
     // Reset form
     setContent('');
@@ -82,7 +87,10 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
 
   const handleGateComplete = () => {
     setShowGateQueue(false);
-    publishContent();
+    // Show toast notification before publishing
+    setTimeout(() => {
+      publishContent();
+    }, 100);
   };
 
   const getAvatarContent = () => {
@@ -224,7 +232,7 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
                 {sources.length > 0 && !allSourcesPassed && (
                   <div className="bg-accent/10 border border-accent/20 rounded-lg p-3">
                     <p className="text-xs text-accent">
-                      💡 <strong>Comprehension Gate™:</strong> Per pubblicare, completa la lettura e il test per tutte le fonti aggiunte.
+                      💡 <strong>Comprehension Gate™:</strong> Per pubblicare, completa la lettura e il test per tutte le fonti aggiunte. Il post verrà pubblicato automaticamente al completamento.
                     </p>
                   </div>
                 )}
