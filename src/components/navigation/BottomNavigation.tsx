@@ -29,7 +29,7 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
   return (
     <nav className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md z-40">
       {/* Apple Control Center Style Navigation */}
-      <div className="mx-6 mb-6 glass-elevated rounded-[20px] px-2 py-2">
+      <div className="mx-6 mb-6 bg-background/90 backdrop-blur-xl border border-border/20 rounded-[20px] px-2 py-2 shadow-lg">
         <div className="flex justify-around items-center">
           {tabs.map(({ id, icon: Icon, label, isAvatar }) => (
             <button
@@ -62,7 +62,7 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
                     ? "scale-110" 
                     : "hover:scale-105"
                 )}>
-                  <div className="text-xs font-semibold text-primary-foreground">
+                  <div className="text-[10px] font-semibold text-primary-foreground">
                     AI
                   </div>
                 </div>
@@ -77,7 +77,7 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
                   )} 
                 />
               )}
-              <span className="text-xs font-medium relative z-10">{label}</span>
+              {!isAvatar && <span className="text-xs font-medium relative z-10">{label}</span>}
             </button>
           ))}
         </div>
