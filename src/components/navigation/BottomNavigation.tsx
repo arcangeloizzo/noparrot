@@ -27,9 +27,10 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border safe-bottom z-40">
-      <div className="mobile-container">
-        <div className="flex items-center justify-around py-3">
+    <nav className="fixed bottom-0 left-1/2 transform -translate-x-1/2 w-full max-w-md z-40">
+      {/* Floating glass background */}
+      <div className="mx-4 mb-4 glass-card rounded-2xl px-4 py-3 shadow-2xl">
+        <div className="flex justify-around items-center">
           {tabs.map(({ id, icon: Icon, label, isAvatar }) => (
             <button
               key={id}
@@ -41,27 +42,38 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
                 }
               }}
               className={cn(
-                "flex flex-col items-center space-y-1.5 p-2 transition-colors relative",
-                activeTab === id && !isAvatar
-                  ? "text-primary-blue" 
-                  : isAvatar ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                "relative flex flex-col items-center gap-1 px-3 py-2 rounded-xl nav-morph",
+                activeTab === id 
+                  ? "text-primary" 
+                  : "text-muted-foreground"
               )}
             >
+              {/* Active indicator */}
+              {activeTab === id && (
+                <div className="absolute inset-0 bg-primary/10 rounded-xl glow-primary animate-pulse" />
+              )}
+              
               {isAvatar ? (
-                <div className={cn(
-                  "relative",
-                  activeTab === "profile" && "ring-2 ring-primary-blue rounded-full"
+                <div className={cn("w-5 h-5 rounded-full bg-primary flex items-center justify-center relative z-10 transition-all duration-300",
+                  activeTab === "profile" ? "scale-110 glow-primary" : "hover:scale-105"
                 )}>
-                  {getAvatarContent()}
+                  <div className="text-xs font-bold text-primary-foreground">
+                    AI
+                  </div>
                 </div>
               ) : (
-                Icon && <Icon className={cn("w-8 h-8", activeTab === id && "text-primary-blue")} />
+                Icon && <Icon className={cn("w-5 h-5 relative z-10 transition-all duration-300", 
+                  activeTab === id ? "scale-110 text-primary" : "hover:scale-105"
+                )} />
               )}
-              {label && <span className="text-xs font-semibold">{label}</span>}
+              <span className="text-xs font-medium relative z-10">{label}</span>
             </button>
           ))}
         </div>
       </div>
-    </div>
+      
+      {/* Safe area padding */}
+      <div className="pb-4" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }} />
+    </nav>
   );
 };

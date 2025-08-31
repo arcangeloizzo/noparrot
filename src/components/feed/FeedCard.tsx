@@ -97,16 +97,16 @@ export const FeedCard = ({
         onSwipeRight={handleSwipeRight}
         onLongPress={handleLongPress}
       >
-        <div 
-          className={cn("relative transition-all duration-500 ease-out", isHiding && "opacity-0 scale-95")}
+        <div
+          className={cn("relative transition-all duration-500 ease-out float-in", isHiding && "opacity-0 scale-95")}
         >
-          <div className="bg-card rounded-xl shadow-card border border-border mx-4 relative z-10">
+          <div className="glass-card rounded-2xl shadow-2xl border border-border/50 mx-4 relative z-10 card-illuminate group hover:shadow-xl transition-all duration-300">
             {/* Main Content Grid */}
             <div className="p-5">
               {/* User Row */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-3">
-                    <div className="w-9 h-9 rounded-full overflow-hidden">
+                    <div className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-primary/20 magnetic-hover">
                       {getAvatarContent()}
                     </div>
                     <div className="flex items-center space-x-2">
@@ -116,7 +116,7 @@ export const FeedCard = ({
                     </div>
                   </div>
                 {post.stance && (
-                  <span className={`${getStanceColor(post.stance)} text-xs px-3 py-1.5 rounded-full font-semibold ml-3`}>
+                  <span className={`${getStanceColor(post.stance)} text-xs px-3 py-1.5 rounded-full font-semibold ml-3 trust-glow shadow-lg`}>
                     {post.stance}
                   </span>
                 )}
@@ -193,7 +193,7 @@ export const FeedCard = ({
                   <button
                     onClick={() => setShowTooltip(!showTooltip)}
                     className={cn(
-                      "text-xs px-3 py-1.5 rounded-full font-semibold whitespace-nowrap border-2 border-transparent",
+                      "text-xs px-3 py-1.5 rounded-full font-semibold whitespace-nowrap border-2 border-transparent trust-glow magnetic-hover shadow-lg",
                       trustClass
                     )}
                   >
