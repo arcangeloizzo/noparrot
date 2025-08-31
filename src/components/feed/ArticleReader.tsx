@@ -7,19 +7,21 @@ interface ArticleReaderProps {
   post: MockPost;
   isOpen: boolean;
   onClose: () => void;
-  onStartGate: (action: string) => void;
+  onStartQuiz: (action: string) => void;
 }
 
-export const ArticleReader = ({ post, isOpen, onClose, onStartGate }: ArticleReaderProps) => {
+export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleReaderProps) => {
   const [timeLeft, setTimeLeft] = useState(10);
   const [canProceed, setCanProceed] = useState(false);
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+  const [hasCompletedReading, setHasCompletedReading] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
       setTimeLeft(10);
       setCanProceed(false);
       setHasScrolledToBottom(false);
+      setHasCompletedReading(false);
       return;
     }
 
@@ -28,6 +30,7 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartGate }: ArticleRea
       setTimeLeft(prev => {
         if (prev <= 1) {
           setCanProceed(true);
+          setHasCompletedReading(true);
           return 0;
         }
         return prev - 1;
@@ -44,6 +47,7 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartGate }: ArticleRea
     if (isAtBottom && !hasScrolledToBottom) {
       setHasScrolledToBottom(true);
       setCanProceed(true);
+      setHasCompletedReading(true);
     }
   };
 
@@ -135,7 +139,7 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartGate }: ArticleRea
           {canProceed ? (
             <>
               <Button
-                onClick={() => onStartGate("Condividi")}
+                onClick={() => onStartQuiz("Condividi")}
                 className="w-full bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-2"
               >
                 <Share className="h-4 w-4" />
@@ -144,7 +148,7 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartGate }: ArticleRea
               
               <div className="grid grid-cols-2 gap-2">
                 <Button
-                  onClick={() => onStartGate("Confuta")}
+                  onClick={() => onStartQuiz("Confuta")}
                   variant="outline"
                   className="flex items-center gap-2 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
                 >
@@ -153,7 +157,7 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartGate }: ArticleRea
                 </Button>
                 
                 <Button
-                  onClick={() => onStartGate("Invia ad un amico")}
+                  onClick={() => onStartQuiz("Invia ad un amico")}
                   variant="outline"
                   className="flex items-center gap-2"
                 >

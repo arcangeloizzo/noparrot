@@ -10,8 +10,7 @@ import { FloatingActionButton } from "@/components/fab/FloatingActionButton";
 import { ComposerModal } from "@/components/composer/ComposerModal";
 import { SimilarContentOverlay } from "@/components/feed/SimilarContentOverlay";
 import { CGProvider } from "@/lib/comprehension-gate";
-import { GateQueueManager } from "@/lib/comprehension-gate-extended";
-import { GateQueueModal } from "@/components/composer/GateQueueModal";
+import { SourceMCQTest } from "@/components/composer/SourceMCQTest";
 import { Search } from "./Search";
 import { Saved } from "./Saved";
 import { Notifications } from "./Notifications";
@@ -28,10 +27,9 @@ export const Feed = () => {
   const [showSimilarContent, setShowSimilarContent] = useState(false);
   const [selectedPost, setSelectedPost] = useState<MockPost | null>(null);
   const [showArticleReader, setShowArticleReader] = useState(false);
-  const [showGate, setShowGate] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
   const [showPostTestActions, setShowPostTestActions] = useState(false);
   const [pendingAction, setPendingAction] = useState<string>("");
-  const [gateManager, setGateManager] = useState<GateQueueManager | null>(null);
   const [, forceUpdate] = useState({});
   const { toast } = useToast();
 
@@ -49,7 +47,7 @@ export const Feed = () => {
   }, []);
 
   useEffect(() => {
-    if (showSimilarContent || showGate || showArticleReader || showPostTestActions) {
+    if (showSimilarContent || showQuiz || showArticleReader || showPostTestActions) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -57,7 +55,7 @@ export const Feed = () => {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showSimilarContent, showGate, showArticleReader, showPostTestActions]);
+  }, [showSimilarContent, showQuiz, showArticleReader, showPostTestActions]);
 
   const getCardProps = (index: number) => {
     const cardElement = document.querySelector(`[data-card-index="${index}"]`);
@@ -121,29 +119,23 @@ export const Feed = () => {
     setSelectedPost(null);
   };
 
-  const handleStartGate = (action: string) => {
+  const handleStartQuiz = (action: string) => {
+    if (!selectedPost) return;
+    
     setPendingAction(action);
     setShowArticleReader(false);
-    
-    if (selectedPost) {
-      const sources = selectedPost.sharedTitle ? [selectedPost.sharedTitle] : ['https://example.com/article'];
-      const manager = new GateQueueManager(sources, () => {});
-      setGateManager(manager);
-      setShowGate(true);
+    setShowQuiz(true);
+  };
+
+  const handleCompleteQuiz = (passed: boolean) => {
+    setShowQuiz(false);
+    if (passed) {
+      setShowPostTestActions(true);
+    } else {
+      // Reset on failed test
+      setSelectedPost(null);
+      setPendingAction("");
     }
-  };
-
-  const handleCloseGate = () => {
-    setShowGate(false);
-    setSelectedPost(null);
-    setGateManager(null);
-    setPendingAction("");
-  };
-
-  const handleCompleteGate = () => {
-    setShowGate(false);
-    setGateManager(null);
-    setShowPostTestActions(true);
   };
 
   const handleClosePostTestActions = () => {
@@ -281,16 +273,26 @@ export const Feed = () => {
           post={selectedPost}
           isOpen={showArticleReader}
           onClose={handleCloseArticleReader}
-          onStartGate={handleStartGate}
+          onStartQuiz={handleStartQuiz}
         />
       )}
 
-      {showGate && gateManager && (
-        <GateQueueModal
-          isOpen={showGate}
-          onClose={handleCloseGate}
-          onComplete={handleCompleteGate}
-          queueManager={gateManager}
+      {showQuiz && selectedPost && (
+        <SourceMCQTest
+          source={{
+            id: selectedPost.id,
+            url: selectedPost.url || "",
+            title: selectedPost.sharedTitle || "Articolo condiviso",
+            state: 'testing',
+            attempts: 0
+          }}
+          isOpen={showQuiz}
+          onClose={() => {
+            setShowQuiz(false);
+            setSelectedPost(null);
+            setPendingAction("");
+          }}
+          onComplete={handleCompleteQuiz}
         />
       )}
 
