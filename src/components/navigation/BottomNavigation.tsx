@@ -56,13 +56,13 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
               
               {isAvatar ? (
                 <div className={cn(
-                  "w-5 h-5 rounded-full bg-primary flex items-center justify-center relative z-10",
+                  "w-8 h-8 rounded-full bg-primary flex items-center justify-center relative z-10",
                   "transition-transform duration-200",
                   activeTab === "profile" 
                     ? "scale-110" 
                     : "hover:scale-105"
                 )}>
-                  <div className="text-[10px] font-semibold text-primary-foreground">
+                  <div className="text-sm font-semibold text-primary-foreground">
                     AI
                   </div>
                 </div>
