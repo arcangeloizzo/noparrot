@@ -13,20 +13,18 @@ export const FloatingActionButton = ({ onClick }: FloatingActionButtonProps) => 
     }}>
       <button
         onClick={onClick}
-        className="relative w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg flex items-center justify-center aspect-square breathe magnetic-hover glow-primary group overflow-hidden"
-      >
-        {/* Ripple effect */}
-        <div className="absolute inset-0 rounded-full bg-primary-foreground opacity-0 group-active:opacity-20 group-active:animate-[ripple_0.6s_ease-out]" />
-        
+        className="relative w-14 h-14 bg-primary text-primary-foreground rounded-full flex items-center justify-center aspect-square apple-spring gentle-hover focus-ring group overflow-hidden"
+        style={{ boxShadow: 'var(--shadow-floating)' }}
+      >        
         {/* Icon */}
         <img 
           src="/lovable-uploads/f6970c06-9fd9-4430-b863-07384bbb05ce.png"
           alt="NOPARROT"
-          className="w-6 h-6 relative z-10 transition-transform duration-200 group-hover:scale-110"
+          className="w-6 h-6 relative z-10 transition-transform duration-200"
         />
         
-        {/* Floating background glow */}
-        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary to-primary-blue opacity-80 animate-pulse" style={{ filter: 'blur(8px)', zIndex: -1 }} />
+        {/* Subtle background gradient */}
+        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary to-primary-blue opacity-90" style={{ filter: 'blur(2px)', zIndex: -1 }} />
       </button>
     </div>
   );

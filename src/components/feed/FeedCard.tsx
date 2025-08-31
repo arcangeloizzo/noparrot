@@ -100,13 +100,13 @@ export const FeedCard = ({
         <div
           className={cn("relative transition-all duration-500 ease-out float-in", isHiding && "opacity-0 scale-95")}
         >
-          <div className="glass-card rounded-2xl shadow-2xl border border-border/50 mx-4 relative z-10 card-illuminate group hover:shadow-xl transition-all duration-300">
+          <div className="glass-card rounded-2xl mx-4 relative z-10 gentle-hover group transition-all duration-300">
             {/* Main Content Grid */}
             <div className="p-5">
               {/* User Row */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-3">
-                    <div className="w-9 h-9 rounded-full overflow-hidden ring-2 ring-primary/20 magnetic-hover">
+                    <div className="w-9 h-9 rounded-full overflow-hidden ring-1 ring-white/10 gentle-hover">
                       {getAvatarContent()}
                     </div>
                     <div className="flex items-center space-x-2">
@@ -116,7 +116,7 @@ export const FeedCard = ({
                     </div>
                   </div>
                 {post.stance && (
-                  <span className={`${getStanceColor(post.stance)} text-xs px-3 py-1.5 rounded-full font-semibold ml-3 trust-glow shadow-lg`}>
+                  <span className={`${getStanceColor(post.stance)} text-xs px-3 py-1.5 rounded-full font-medium ml-3 backdrop-blur-sm`}>
                     {post.stance}
                   </span>
                 )}
@@ -167,25 +167,25 @@ export const FeedCard = ({
                   <div className="flex items-center space-x-1">
                     <button 
                       onClick={() => setIsLiked(!isLiked)}
-                      className="p-1 text-muted-foreground hover:text-primary-blue transition-colors"
+                      className="p-1 text-muted-foreground hover:text-primary apple-spring focus-ring rounded-lg"
                     >
-                      <HeartIcon className="w-5 h-5" filled={isLiked} />
+                      <HeartIcon className="w-5 h-5 stroke-[1.5px]" filled={isLiked} />
                     </button>
-                    <span className="text-xs text-muted-foreground">{post.reactions.heart}</span>
+                    <span className="text-xs text-muted-foreground font-medium">{post.reactions.heart}</span>
                   </div>
 
                   <div className="flex items-center space-x-1">
-                    <button className="p-1 text-muted-foreground hover:text-primary-blue transition-colors">
-                      <MessageCircleIcon className="w-5 h-5" />
+                    <button className="p-1 text-muted-foreground hover:text-primary apple-spring focus-ring rounded-lg">
+                      <MessageCircleIcon className="w-5 h-5 stroke-[1.5px]" />
                     </button>
-                    <span className="text-xs text-muted-foreground">{post.reactions.comments}</span>
+                    <span className="text-xs text-muted-foreground font-medium">{post.reactions.comments}</span>
                   </div>
 
                   <button 
                     onClick={() => setIsBookmarked(!isBookmarked)}
-                    className="p-1 text-muted-foreground hover:text-primary-blue transition-colors"
+                    className="p-1 text-muted-foreground hover:text-primary apple-spring focus-ring rounded-lg"
                   >
-                    <BookmarkIcon className="w-5 h-5" filled={isBookmarked} />
+                    <BookmarkIcon className="w-5 h-5 stroke-[1.5px]" filled={isBookmarked} />
                   </button>
                 </div>
 
@@ -193,7 +193,7 @@ export const FeedCard = ({
                   <button
                     onClick={() => setShowTooltip(!showTooltip)}
                     className={cn(
-                      "text-xs px-3 py-1.5 rounded-full font-semibold whitespace-nowrap border-2 border-transparent trust-glow magnetic-hover shadow-lg",
+                      "text-xs px-3 py-1.5 rounded-full font-medium whitespace-nowrap backdrop-blur-sm border-0 apple-spring focus-ring",
                       trustClass
                     )}
                   >

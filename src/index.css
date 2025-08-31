@@ -42,30 +42,35 @@
     --gradient-dark: radial-gradient(circle at center, hsl(var(--dark-blue)), hsl(203 48% 12%));
     --gradient-subtle: linear-gradient(180deg, hsl(var(--light-gray)), hsl(0 0% 100%));
     
-    /* Shadow Tokens - Enhanced for Dark Mode */
-    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
-    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.25);
-    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.3);
-    --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.1);
+    /* Apple-style shadows */
+    --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.08);
+    --shadow-strong: 0 8px 16px rgba(0, 0, 0, 0.12);
+    --shadow-floating: 0 12px 24px rgba(0, 0, 0, 0.15);
+    --shadow-elevated: 0 2px 8px rgba(0, 0, 0, 0.1);
     
-    /* Animation Tokens - Enhanced */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-spring: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    --transition-fast: all 0.15s ease-out;
-    --transition-elastic: all 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    --transition-magnetic: all 0.2s cubic-bezier(0.76, 0, 0.24, 1);
+    /* Apple-style transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    --transition-fast: all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --transition-spring: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    --transition-gentle: all 0.2s ease-out;
     
-    /* Glassmorphism Tokens */
-    --glass-bg: rgba(255, 255, 255, 0.02);
-    --glass-border: rgba(255, 255, 255, 0.1);
-    --glass-backdrop: blur(20px);
+    /* Apple Liquid Glass system */
+    --glass-primary: rgba(255, 255, 255, 0.08);
+    --glass-secondary: rgba(255, 255, 255, 0.05);
+    --glass-elevated: rgba(255, 255, 255, 0.12);
+    --glass-border: rgba(255, 255, 255, 0.15);
+    --glass-border-strong: rgba(255, 255, 255, 0.25);
+    --glass-blur-light: 25px;
+    --glass-blur-medium: 30px;
+    --glass-blur-heavy: 40px;
     
-    /* Glow Effects */
-    --glow-primary: 0 0 20px hsl(var(--primary) / 0.3);
-    --glow-accent: 0 0 15px hsl(var(--accent) / 0.4);
-    --glow-trust-high: 0 0 12px hsl(var(--trust-high) / 0.5);
-    --glow-trust-medium: 0 0 12px hsl(var(--trust-medium) / 0.5);
-    --glow-trust-low: 0 0 12px hsl(var(--trust-low) / 0.5);
+    /* Apple-style subtle glows */
+    --glow-subtle: 0 0 8px rgba(10, 122, 255, 0.15);
+    --glow-focus: 0 0 0 4px rgba(10, 122, 255, 0.2);
+    --glow-trust-high: 0 1px 3px rgba(52, 168, 83, 0.2);
+    --glow-trust-medium: 0 1px 3px rgba(251, 188, 4, 0.2);
+    --glow-trust-low: 0 1px 3px rgba(234, 67, 53, 0.2);
     
     /* Spacing Tokens */
     --space-1: 4px;
@@ -162,46 +167,31 @@
   100% { height: 0; margin-bottom: 0; }
 }
 
-/* NOPARROT Premium Animations */
-@keyframes breathe {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+/* Apple-style Premium Animations */
+@keyframes apple-spring {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.98); }
+  100% { transform: scale(1); }
 }
 
-@keyframes glow-pulse {
-  0%, 100% { box-shadow: var(--glow-primary); }
-  50% { box-shadow: var(--glow-primary), 0 0 30px hsl(var(--primary) / 0.4); }
+@keyframes gentle-float {
+  0% { transform: translateY(0px); }
+  100% { transform: translateY(-2px); }
 }
 
-@keyframes float-in {
-  0% { transform: translateY(20px) scale(0.95); opacity: 0; }
-  100% { transform: translateY(0) scale(1); opacity: 1; }
+@keyframes subtle-glow {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.8; }
 }
 
-@keyframes magnetic-hover {
-  0% { transform: translateY(0) scale(1); }
-  100% { transform: translateY(-2px) scale(1.02); }
+@keyframes glass-blur {
+  0% { backdrop-filter: blur(20px); }
+  100% { backdrop-filter: blur(30px); }
 }
 
-@keyframes nav-morph {
-  0% { transform: scale(1) rotate(0deg); }
-  50% { transform: scale(1.2) rotate(10deg); }
-  100% { transform: scale(1) rotate(0deg); }
-}
-
-@keyframes card-illuminate {
-  0% { box-shadow: var(--shadow-card); }
-  100% { box-shadow: var(--shadow-card), var(--glow-primary); }
-}
-
-@keyframes ripple {
-  0% { transform: scale(0); opacity: 1; }
-  100% { transform: scale(4); opacity: 0; }
-}
-
-@keyframes trust-glow {
-  0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.2) drop-shadow(0 0 8px currentColor); }
+@keyframes focus-ring {
+  0% { box-shadow: 0 0 0 0 rgba(10, 122, 255, 0.4); }
+  100% { box-shadow: 0 0 0 4px rgba(10, 122, 255, 0.2); }
 }
 
 @layer base {
@@ -228,51 +218,45 @@
     padding-bottom: calc(var(--space-4) + var(--safe-area-bottom));
   }
   
-  /* Premium UI Classes */
+  /* Apple Liquid Glass Classes */
   .glass-card {
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
-    backdrop-filter: var(--glass-backdrop);
-    -webkit-backdrop-filter: var(--glass-backdrop);
+    background: var(--glass-primary);
+    backdrop-filter: blur(var(--glass-blur-light));
+    border: 0.5px solid var(--glass-border);
+    box-shadow: var(--shadow-subtle);
   }
-  
-  .magnetic-hover {
-    transition: var(--transition-magnetic);
+
+  .glass-elevated {
+    background: var(--glass-elevated);
+    backdrop-filter: blur(var(--glass-blur-medium));
+    border: 0.5px solid var(--glass-border-strong);
+    box-shadow: var(--shadow-floating);
   }
-  
-  .magnetic-hover:hover {
-    animation: magnetic-hover 0.2s ease-out;
+
+  .apple-spring {
+    transition: var(--transition-spring);
+    cursor: pointer;
   }
-  
-  .breathe {
-    animation: breathe 3s ease-in-out infinite;
+
+  .apple-spring:active {
+    animation: apple-spring 0.2s ease-out;
   }
-  
-  .glow-primary {
-    box-shadow: var(--glow-primary);
+
+  .gentle-hover {
+    transition: var(--transition-gentle);
   }
-  
-  .nav-morph {
-    transition: var(--transition-elastic);
+
+  .gentle-hover:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-elevated);
   }
-  
-  .nav-morph:active {
-    animation: nav-morph 0.3s ease-out;
+
+  .focus-ring:focus {
+    outline: none;
+    animation: focus-ring 0.3s ease-out;
   }
-  
-  .card-illuminate {
-    transition: var(--transition-smooth);
-  }
-  
-  .card-illuminate:hover {
-    animation: card-illuminate 0.3s ease-out forwards;
-  }
-  
-  .trust-glow {
-    animation: trust-glow 2s ease-in-out infinite;
-  }
-  
-  .float-in {
-    animation: float-in 0.5s var(--transition-spring);
+
+  .subtle-glow {
+    animation: subtle-glow 3s ease-in-out infinite;
   }
 }

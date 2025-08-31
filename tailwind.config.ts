@@ -130,35 +130,27 @@ export default {
 					'50%': { backgroundColor: 'rgba(72, 187, 120, 0.2)' },
 					'100%': { backgroundColor: 'transparent' }
 				},
-				// NOPARROT Premium Animations
-				'breathe': {
-					'0%, 100%': { transform: 'scale(1)' },
-					'50%': { transform: 'scale(1.05)' }
+				// Apple-style Premium Animations
+				'apple-spring': {
+					'0%': { transform: 'scale(1)' },
+					'50%': { transform: 'scale(0.98)' },
+					'100%': { transform: 'scale(1)' }
 				},
-				'glow-pulse': {
-					'0%, 100%': { boxShadow: 'var(--glow-primary)' },
-					'50%': { boxShadow: 'var(--glow-primary), 0 0 30px hsl(var(--primary) / 0.4)' }
+				'gentle-float': {
+					'0%': { transform: 'translateY(0px)' },
+					'100%': { transform: 'translateY(-2px)' }
 				},
-				'float-in': {
-					'0%': { transform: 'translateY(20px) scale(0.95)', opacity: '0' },
-					'100%': { transform: 'translateY(0) scale(1)', opacity: '1' }
+				'subtle-glow': {
+					'0%, 100%': { opacity: '0.6' },
+					'50%': { opacity: '0.8' }
 				},
-				'magnetic-hover': {
-					'0%': { transform: 'translateY(0) scale(1)' },
-					'100%': { transform: 'translateY(-2px) scale(1.02)' }
+				'glass-blur': {
+					'0%': { backdropFilter: 'blur(20px)' },
+					'100%': { backdropFilter: 'blur(30px)' }
 				},
-				'nav-morph': {
-					'0%': { transform: 'scale(1) rotate(0deg)' },
-					'50%': { transform: 'scale(1.2) rotate(10deg)' },
-					'100%': { transform: 'scale(1) rotate(0deg)' }
-				},
-				'card-illuminate': {
-					'0%': { boxShadow: 'var(--shadow-card)' },
-					'100%': { boxShadow: 'var(--shadow-card), var(--glow-primary)' }
-				},
-				'trust-glow': {
-					'0%, 100%': { filter: 'brightness(1)' },
-					'50%': { filter: 'brightness(1.2) drop-shadow(0 0 8px currentColor)' }
+				'focus-ring': {
+					'0%': { boxShadow: '0 0 0 0 rgba(10, 122, 255, 0.4)' },
+					'100%': { boxShadow: '0 0 0 4px rgba(10, 122, 255, 0.2)' }
 				}
 			},
 			animation: {
@@ -170,14 +162,12 @@ export default {
 				'bounce-check': 'bounce-check 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
 				'mint-flash': 'mint-flash 0.5s ease-out',
 				
-				// NOPARROT Premium Animations
-				'breathe': 'breathe 3s ease-in-out infinite',
-				'glow-pulse': 'glow-pulse 2s ease-in-out infinite', 
-				'float-in': 'float-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
-				'magnetic-hover': 'magnetic-hover 0.2s ease-out',
-				'nav-morph': 'nav-morph 0.3s ease-out',
-				'card-illuminate': 'card-illuminate 0.3s ease-out forwards',
-				'trust-glow': 'trust-glow 2s ease-in-out infinite',
+				// Apple-style Premium Animations
+				'apple-spring': 'apple-spring 0.2s ease-out',
+				'gentle-float': 'gentle-float 0.3s ease-out',
+				'subtle-glow': 'subtle-glow 3s ease-in-out infinite',
+				'glass-blur': 'glass-blur 0.3s ease-out',
+				'focus-ring': 'focus-ring 0.3s ease-out',
 			}
 		}
 	},
