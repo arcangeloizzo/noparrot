@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { CGProvider } from "@/lib/comprehension-gate";
 import { OnboardingFlow } from "./OnboardingFlow";
 import { Feed } from "./Feed";
 
@@ -22,7 +23,11 @@ const Index = () => {
     return <OnboardingFlow onComplete={handleOnboardingComplete} />;
   }
 
-  return <Feed />;
+  return (
+    <CGProvider policy={{ minReadSeconds: 10, minScrollRatio: 0.8, passingRule: ">=2_of_3" }}>
+      <Feed />
+    </CGProvider>
+  );
 };
 
 export default Index;

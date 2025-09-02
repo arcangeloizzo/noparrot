@@ -97,6 +97,14 @@
     --trust-high: 140 60% 45%; /* #4CAF50 */
     --trust-high-text: 0 0% 100%;
 
+    /* Trust Score Colors for Components */
+    --success: 142 76% 46%;
+    --success-foreground: 355 100% 97%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 48 96% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
     /* Mobile-specific */
     --safe-area-bottom: env(safe-area-inset-bottom, 0px);
     --mobile-width: 375px;
@@ -258,5 +266,29 @@
 
   .subtle-glow {
     animation: subtle-glow 3s ease-in-out infinite;
+  }
+
+  /* Glass Panel Classes for Components */
+  .glass-panel {
+    background: var(--glass-primary);
+    backdrop-filter: blur(var(--glass-blur-light));
+    border: 0.5px solid var(--glass-border);
+  }
+
+  .border-glass {
+    border-color: var(--glass-border);
+  }
+
+  .shadow-glass {
+    box-shadow: var(--shadow-subtle);
+  }
+
+  .hover-lift {
+    transition: var(--transition-gentle);
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-elevated);
   }
 }

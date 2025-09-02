@@ -9,15 +9,59 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { X, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { toast } from "@/hooks/use-toast";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// -------------------------------------------------------------
-// TIPI
+/* ==========================
+ * CONFIG
+ * ========================== */
+const TRUST_API_BASE = process.env.TRUST_API_BASE || "http://localhost:8787";
+
+/* ==========================
+ * ENHANCED TYPES
+ * ========================== */
 type GatingPolicy = {
-  minReadSeconds?: number; // tempo minimo di lettura
-  minScrollRatio?: number; // percentuale di scroll richiesta (0..1)
+  minReadSeconds?: number;
+  minScrollRatio?: number;
   passingRule?: "all_correct" | ">=2_of_3";
+};
+
+type ContentDescriptor = { 
+  id: string; 
+  title?: string; 
+  text?: string; 
+  url?: string;
+};
+
+type QuizChoice = { id: string; text: string };
+
+type QuizQuestion = { 
+  id: string; 
+  stem: string; 
+  choices: QuizChoice[]; 
+  correctId: string; 
+};
+
+type QuizPayload = { 
+  id: string; 
+  questions: QuizQuestion[]; 
+};
+
+type QuizResult = { 
+  passed: boolean; 
+  score: number; 
+  attestation?: string; 
+};
+
+type TrustScoreResult = {
+  band: "BASSO" | "MEDIO" | "ALTO";
+  score: number;
+  reasons: string[];
+  color: string;
+  hasSources: boolean;
 };
 
 type CGContextValue = {
@@ -28,34 +72,57 @@ type CGContextValue = {
   openQuiz: (content: ContentDescriptor) => Promise<QuizResult>;
 };
 
-// -------------------------------------------------------------
-// MOCK API (sostituibile) – QUIZ GENERATOR & SUBMIT
+/* ==========================
+ * TRUST SCORE API
+ * ========================== */
+export async function fetchTrustScore({ 
+  postText, 
+  sources, 
+  userMeta 
+}: { 
+  postText: string; 
+  sources: string[]; 
+  userMeta?: any;
+}): Promise<TrustScoreResult> {
+  try {
+    const resp = await fetch(`${TRUST_API_BASE}/v1/trust/score`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        postText, 
+        sources, 
+        userMeta, 
+        locale: "it-IT" 
+      }),
+    });
+    
+    if (!resp.ok) {
+      throw new Error("Trust API error");
+    }
+    
+    return await resp.json();
+  } catch (error) {
+    // Fallback for demo/offline
+    const hasSources = sources.length > 0;
+    return {
+      band: hasSources ? "MEDIO" : "BASSO",
+      score: hasSources ? 65 : 25,
+      reasons: hasSources 
+        ? ["Fonti fornite", "Contenuto coerente"] 
+        : ["Nessuna fonte fornita"],
+      color: hasSources ? "hsl(var(--primary))" : "hsl(var(--muted))",
+      hasSources
+    };
+  }
+}
 
-type ContentDescriptor = { id: string; title?: string; text?: string };
-
-type QuizChoice = { id: string; text: string };
-
-type QuizQuestion = {
-  id: string;
-  stem: string;
-  choices: QuizChoice[];
-  correctId: string; // in mock lo conosciamo; in prod non inviare al client
-};
-
-type QuizPayload = {
-  id: string;
-  questions: QuizQuestion[];
-};
-
-type QuizResult = {
-  passed: boolean;
-  score: number;
-  attestation?: string; // JWT in produzione
-};
+/* ==========================
+ * ENHANCED QUIZ API
+ * ========================== */
+const quizCache = new Map<string, QuizPayload>();
 
 async function apiCreateOrGetQuiz(content: ContentDescriptor): Promise<QuizPayload> {
-  // MOCK deterministico: genera 3 domande basate sul titolo/testo.
-  const base = (content.title || content.text || "Contenuto NOPARROT").slice(0, 80);
+  const base = (content.title || content.text || content.url || "Contenuto").slice(0, 80);
   const q1: QuizQuestion = {
     id: "q1",
     stem: `Qual è il tema principale del contenuto: "${base}"?`,
@@ -86,23 +153,33 @@ async function apiCreateOrGetQuiz(content: ContentDescriptor): Promise<QuizPaylo
     ],
     correctId: "a",
   };
-  return { id: `qz_${content.id}`, questions: [q1, q2, q3] };
+  const payload = { id: `qz_${content.id}`, questions: [q1, q2, q3] };
+  quizCache.set(payload.id, payload);
+  return payload;
 }
 
-async function apiSubmitAnswers(quizId: string, answers: Record<string, string>, rule: GatingPolicy["passingRule"]): Promise<QuizResult> {
-  // MOCK: confronta con correctId se presente nel payload cache locale
+async function apiSubmitAnswers(
+  quizId: string, 
+  answers: Record<string, string>, 
+  rule: GatingPolicy["passingRule"]
+): Promise<QuizResult> {
   const payload = quizCache.get(quizId);
   if (!payload) return { passed: false, score: 0 };
-  const score = payload.questions.reduce((acc, q) => (answers[q.id] === q.correctId ? acc + 1 : acc), 0);
-  const passed = rule === "all_correct" ? score === payload.questions.length : score >= 2;
-  return {
-    passed,
-    score,
-    attestation: passed ? `mock-attestation-${quizId}-${Date.now()}` : undefined,
+  
+  const score = payload.questions.reduce((acc, q) => 
+    (answers[q.id] === q.correctId ? acc + 1 : acc), 0
+  );
+  
+  const passed = (rule === "all_correct") 
+    ? score === payload.questions.length 
+    : score >= 2;
+    
+  return { 
+    passed, 
+    score, 
+    attestation: passed ? `att-${quizId}-${Date.now()}` : undefined 
   };
 }
-
-const quizCache = new Map<string, QuizPayload>();
 
 // -------------------------------------------------------------
 // CONTEXT

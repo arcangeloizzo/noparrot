@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { HeartIcon, MessageCircleIcon, BookmarkIcon, InfoIcon } from "@/components/ui/icons";
 import { reactions } from "@/components/ui/icons";
+import { TrustBadge } from "@/components/ui/trust-badge";
+import { fetchTrustScore } from "@/lib/comprehension-gate";
 import { cn } from "@/lib/utils";
 import { TRUST_SCORE_COLORS, TOOLTIPS } from "@/config/brand";
 import { MockPost } from "@/data/mockData";
@@ -26,6 +28,8 @@ export const FeedCard = ({
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
   const [isHiding, setIsHiding] = useState(false);
+  const [trustScore, setTrustScore] = useState<any>(null);
+  const [loadingTrust, setLoadingTrust] = useState(false);
 
   // Generate avatar with initials if no image
   const getAvatarContent = () => {
@@ -86,6 +90,21 @@ export const FeedCard = ({
   const handleLongPress = () => {
     onLongPress?.();
   };
+
+  // Load trust score for posts with sources
+  useEffect(() => {
+    if (post.url && !trustScore && !loadingTrust) {
+      setLoadingTrust(true);
+      fetchTrustScore({
+        postText: post.userComment || "",
+        sources: [post.url],
+        userMeta: { verified: post.authorName.includes("Verified") }
+      })
+      .then(setTrustScore)
+      .catch(console.error)
+      .finally(() => setLoadingTrust(false));
+    }
+  }, [post, trustScore, loadingTrust]);
 
   const trustClass = getTrustScoreClass(post.trust);
   const trustLabel = post.sources.length === 0 ? "Nessuna Fonte" : post.trust || "Nessuna Fonte";
@@ -189,6 +208,23 @@ export const FeedCard = ({
                   </button>
                 </div>
 
+                {/* Trust Score Badge */}
+                {trustScore ? (
+                  <TrustBadge
+                    band={trustScore.band}
+                    score={trustScore.score}
+                    reasons={trustScore.reasons}
+                    size="sm"
+                    className="justify-start"
+                  />
+                ) : loadingTrust ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-muted animate-pulse" />
+                    <div className="w-12 h-3 bg-muted animate-pulse rounded" />
+                  </div>
+                ) : post.url ? (
+                  <TrustBadge size="sm" className="justify-start" />
+                ) : (
                 <div className="relative flex items-center space-x-1">
                   <button
                     onClick={() => setShowTooltip(!showTooltip)}
@@ -224,6 +260,7 @@ export const FeedCard = ({
                     </div>
                   )}
                 </div>
+                )}
               </div>
 
             </div>

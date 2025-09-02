@@ -1,0 +1,302 @@
+import React, { useState, useRef } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { GateButton } from "@/components/ui/gate-button";
+import { TrustBadge } from "@/components/ui/trust-badge";
+import { fetchTrustScore } from "@/lib/comprehension-gate";
+import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { Plus, X, ExternalLink } from "lucide-react";
+
+interface EnhancedComposerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onPostCreated?: (post: any) => void;
+}
+
+export function EnhancedComposer({ 
+  isOpen, 
+  onClose, 
+  onPostCreated 
+}: EnhancedComposerProps) {
+  const [text, setText] = useState("");
+  const [sources, setSources] = useState<string[]>([]);
+  const [newSourceUrl, setNewSourceUrl] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [publishedPost, setPublishedPost] = useState<any>(null);
+  const readerRef = useRef<HTMLDivElement>(null);
+
+  const addSource = () => {
+    const url = newSourceUrl.trim();
+    if (!url) return;
+
+    try {
+      new URL(url);
+      if (!sources.includes(url)) {
+        setSources(prev => [...prev, url]);
+        setNewSourceUrl("");
+        toast({
+          title: "Fonte aggiunta",
+          description: "La fonte è stata aggiunta con successo",
+        });
+      } else {
+        toast({
+          title: "Fonte già presente",
+          description: "Questa fonte è già stata aggiunta",
+          variant: "destructive"
+        });
+      }
+    } catch {
+      toast({
+        title: "URL non valido",
+        description: "Inserisci un URL valido per la fonte",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const removeSource = (url: string) => {
+    setSources(prev => prev.filter(s => s !== url));
+  };
+
+  const handleGatePassed = async (gateResult: any) => {
+    try {
+      setIsProcessing(true);
+
+      // Calculate Trust Score after gate is passed
+      const trustScore = await fetchTrustScore({
+        postText: text,
+        sources,
+        userMeta: { verified: false }
+      });
+
+      // Create the post
+      const newPost = {
+        id: `post-${Date.now()}`,
+        text,
+        sources,
+        trustScore,
+        gateResult,
+        createdAt: new Date().toISOString()
+      };
+
+      setPublishedPost(newPost);
+      onPostCreated?.(newPost);
+
+      toast({
+        title: "Post pubblicato!",
+        description: "Il tuo post è stato pubblicato con successo",
+      });
+
+      // Reset form
+      setText("");
+      setSources([]);
+      
+    } catch (error) {
+      console.error("Error publishing post:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante la pubblicazione",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+      {/* Backdrop */}
+      <div 
+        className="absolute inset-0 bg-background/80 backdrop-blur-sm animate-fade-in" 
+        onClick={onClose} 
+      />
+      
+      {/* Modal */}
+      <Card className="relative w-full max-w-2xl max-h-[90vh] overflow-hidden animate-scale-in glass-panel border-glass shadow-glass">
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="flex items-center justify-between p-6 border-b border-border/50">
+            <h2 className="text-xl font-semibold text-foreground">
+              Crea Post con Comprehension Gate
+            </h2>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={onClose}
+              className="hover:bg-muted/50 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
+            {/* Reader Content for Gate Tracking */}
+            <div 
+              ref={readerRef} 
+              className="p-6 border-b border-border/30 max-h-40 overflow-y-auto bg-muted/20"
+            >
+              <h3 className="font-semibold mb-2 text-foreground">
+                Linee guida per la pubblicazione responsabile
+              </h3>
+              <div className="text-sm text-muted-foreground space-y-2 leading-relaxed">
+                <p>Prima di pubblicare, leggi attentamente queste linee guida:</p>
+                <p>• Assicurati che il contenuto sia accurato e verificabile</p>
+                <p>• Includi fonti credibili quando possibile</p>
+                <p>• Evita di diffondere informazioni non verificate</p>
+                <p>• Rispetta il punto di vista degli altri utenti</p>
+                <p>• Contribuisci a una discussione costruttiva</p>
+                <p>Il nostro sistema valuterà automaticamente l'affidabilità del tuo post basandosi sulle fonti fornite e sulla qualità del contenuto.</p>
+                <p>Ricorda: la responsabilità nella condivisione delle informazioni è fondamentale per mantenere un ambiente di discussione sano e produttivo.</p>
+              </div>
+            </div>
+
+            {/* Composer Form */}
+            <div className="p-6 space-y-6">
+              {/* Post Text */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Scrivi il tuo post
+                </label>
+                <Textarea
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="Condividi i tuoi pensieri..."
+                  className="min-h-[120px] resize-none focus:ring-primary/20"
+                  rows={5}
+                />
+              </div>
+
+              {/* Sources Section */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">
+                  Fonti (migliora il Trust Score)
+                </label>
+                
+                {/* Add Source Input */}
+                <div className="flex gap-2">
+                  <Input
+                    value={newSourceUrl}
+                    onChange={(e) => setNewSourceUrl(e.target.value)}
+                    placeholder="Incolla l'URL di una fonte..."
+                    className="flex-1"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addSource();
+                      }
+                    }}
+                  />
+                  <Button 
+                    onClick={addSource}
+                    variant="outline"
+                    className="hover-lift"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Button>
+                </div>
+
+                {/* Sources List */}
+                {sources.length > 0 && (
+                  <div className="space-y-2">
+                    {sources.map((source, index) => (
+                      <div 
+                        key={index}
+                        className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/30"
+                      >
+                        <ExternalLink className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                        <span className="flex-1 text-sm text-foreground truncate" title={source}>
+                          {source}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeSource(source)}
+                          className="h-6 w-6 p-0 hover:bg-destructive/20 hover:text-destructive"
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Gate Button */}
+              <div className="pt-4 border-t border-border/30">
+                <GateButton
+                  content={{
+                    id: "composer-guidelines",
+                    title: "Linee guida per la pubblicazione responsabile",
+                    text: "Contenuto delle linee guida di pubblicazione"
+                  }}
+                  onPassed={handleGatePassed}
+                  containerRef={readerRef}
+                  disabled={!text.trim() || isProcessing}
+                  className="w-full"
+                >
+                  {isProcessing ? "Pubblicazione..." : "Pubblica Post"}
+                </GateButton>
+                
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  Completa la lettura delle linee guida e supera il test per pubblicare
+                </p>
+              </div>
+            </div>
+
+            {/* Published Post Preview */}
+            {publishedPost && (
+              <div className="p-6 border-t border-border/30 bg-muted/10">
+                <h3 className="font-semibold mb-3 text-foreground">
+                  Post pubblicato
+                </h3>
+                <Card className="p-4 glass-panel border-glass">
+                  <div className="space-y-3">
+                    <p className="text-sm text-foreground">
+                      {publishedPost.text}
+                    </p>
+                    
+                    {publishedPost.sources.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">Fonti:</p>
+                        <div className="space-y-1">
+                          {publishedPost.sources.map((source: string, i: number) => (
+                            <div key={i} className="text-xs text-primary hover:underline">
+                              <a href={source} target="_blank" rel="noopener noreferrer">
+                                {source}
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center justify-between pt-2">
+                      <TrustBadge
+                        band={publishedPost.trustScore?.band}
+                        score={publishedPost.trustScore?.score}
+                        reasons={publishedPost.trustScore?.reasons}
+                        size="sm"
+                      />
+                      <div className="flex gap-2 text-lg">
+                        <button className="hover:scale-110 transition-transform">❤️</button>
+                        <button className="hover:scale-110 transition-transform">💬</button>
+                        <button className="hover:scale-110 transition-transform">🔖</button>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+export type { EnhancedComposerProps };
