@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 /* ==========================
  * CONFIG
  * ========================== */
-const TRUST_API_BASE = process.env.TRUST_API_BASE || "http://localhost:8787";
+const TRUST_API_BASE = import.meta.env.VITE_TRUST_API_BASE || "http://localhost:8787";
 
 /* ==========================
  * ENHANCED TYPES
