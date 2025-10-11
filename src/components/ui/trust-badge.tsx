@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -40,12 +40,25 @@ export function TrustBadge({
   className 
 }: TrustBadgeProps) {
   const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState<'top' | 'bottom'>('top');
+  const buttonRef = useRef<HTMLButtonElement>(null);
   
   const hasData = band && score !== undefined;
   const finalColor = color || (band ? BAND_COLORS[band] : "hsl(var(--muted))");
   const label = band ? BAND_LABELS[band] : "Nessuna fonte";
   const letter = band ? band[0] : "?";
   const config = SIZE_CONFIG[size];
+
+  const handleMouseEnter = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      const spaceAbove = rect.top;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      
+      setTooltipPosition(spaceBelow > 300 ? 'bottom' : 'top');
+    }
+    setShowTooltip(true);
+  };
   
   return (
     <div className={cn("inline-flex items-center gap-2", className)}>
@@ -78,32 +91,42 @@ export function TrustBadge({
       {reasons.length > 0 && (
         <div className="relative">
           <Button
+            ref={buttonRef}
             variant="ghost"
             size="sm"
             className={cn(
               "p-1 h-auto hover:bg-muted/50 transition-colors",
               config.icon
             )}
-            onMouseEnter={() => setShowTooltip(true)}
+            onMouseEnter={handleMouseEnter}
             onMouseLeave={() => setShowTooltip(false)}
-            onClick={() => setShowTooltip(!showTooltip)}
+            onClick={handleMouseEnter}
           >
             <Info className={config.icon} />
           </Button>
 
           {/* Tooltip */}
           {showTooltip && (
-            <Card className="absolute bottom-full right-0 mb-2 w-72 p-4 glass-panel border-glass shadow-glass z-50 animate-scale-in">
+            <Card 
+              className={cn(
+                "absolute left-1/2 -translate-x-1/2 w-[280px] max-w-[90vw] p-4",
+                "glass-panel border-glass shadow-xl z-[100]",
+                "animate-in fade-in-0 zoom-in-95 duration-200",
+                tooltipPosition === 'top' 
+                  ? "bottom-full mb-2" 
+                  : "top-full mt-2"
+              )}
+            >
               <div className="space-y-3">
                 <div className="font-semibold text-sm text-foreground">
                   Perché questo punteggio
                 </div>
                 
-                <ul className="space-y-1 text-xs text-muted-foreground">
+                <ul className="space-y-2 text-xs text-muted-foreground">
                   {reasons.map((reason, i) => (
                     <li key={i} className="flex items-start gap-2">
-                      <span className="text-primary mt-0.5">•</span>
-                      <span>{reason}</span>
+                      <span className="text-primary mt-0.5 flex-shrink-0">•</span>
+                      <span className="flex-1">{reason}</span>
                     </li>
                   ))}
                 </ul>

@@ -104,7 +104,7 @@ export const Feed = () => {
   // Navigation pages
   if (activeNavTab === "search") {
     return (
-      <div className="pb-20">
+      <div className="pb-24">
         <Search />
         <BottomNavigation 
           activeTab={activeNavTab} 
@@ -121,7 +121,7 @@ export const Feed = () => {
 
   if (activeNavTab === "saved") {
     return (
-      <div className="pb-20">
+      <div className="pb-24">
         <Saved />
         <BottomNavigation 
           activeTab={activeNavTab} 
@@ -138,7 +138,7 @@ export const Feed = () => {
 
   if (activeNavTab === "notifications") {
     return (
-      <div className="pb-20">
+      <div className="pb-24">
         <Notifications />
         <BottomNavigation 
           activeTab={activeNavTab} 
@@ -154,7 +154,7 @@ export const Feed = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-24">
       <div className="mobile-container max-w-[600px] mx-auto">
         {/* Header - X Style */}
         <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border">
