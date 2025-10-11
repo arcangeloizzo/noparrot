@@ -21,12 +21,15 @@ export const ProfileSideSheet = ({ isOpen, onClose }: ProfileSideSheetProps) => 
     { icon: EyeOffIcon, label: "Modalità notturna", id: "darkmode" },
   ];
 
+  const userAvatar = "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=faces";
+
   const getAvatarContent = () => {
-    const initials = "AI";
     return (
-      <div className="w-full h-full bg-primary-blue flex items-center justify-center text-white text-sm font-semibold">
-        {initials}
-      </div>
+      <img 
+        src={userAvatar} 
+        alt="Profilo" 
+        className="w-full h-full object-cover"
+      />
     );
   };
 

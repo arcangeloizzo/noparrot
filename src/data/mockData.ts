@@ -29,6 +29,7 @@ export const mockPosts: MockPost[] = [
   {
     id: "1",
     authorName: "Alessandro Viola",
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=faces",
     minutesAgo: 15,
     userComment: "Questi dati sono davvero preoccupanti. I livelli di CO2 nella nostra atmosfera hanno raggiunto 420 ppm, non è più un problema temporaneo.",
     topicTag: "Clima",
@@ -61,6 +62,7 @@ export const mockPosts: MockPost[] = [
   {
     id: "2",
     authorName: "Maria Rossi",
+    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=faces",
     minutesAgo: 32,
     userComment: "Questa affermazione sulle auto elettriche peggiori per l'ambiente è stata smentita più volte. L'analisi del ciclo di vita mostra chiaramente che i veicoli elettrici hanno emissioni inferiori.",
     topicTag: "Tecnologia",
@@ -93,6 +95,7 @@ export const mockPosts: MockPost[] = [
   {
     id: "3",
     authorName: "Luca Bianchi",
+    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&crop=faces",
     minutesAgo: 47,
     userComment: "Ho sentito dire che bere acqua e limone al mattino aumenta il metabolismo del 30%. Qualcun altro l'ha provato?",
     topicTag: "Salute",
@@ -122,6 +125,7 @@ export const mockPosts: MockPost[] = [
   {
     id: "4",
     authorName: "Sofia Chen",
+    avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop&crop=faces",
     minutesAgo: 72,
     userComment: "Questa svolta nel quantum computing potrebbe rivoluzionare la cybersecurity. Il processore da 1000 qubit di IBM è una pietra miliare importante.",
     topicTag: "Tecnologia",
@@ -154,6 +158,7 @@ export const mockPosts: MockPost[] = [
   {
     id: "5",
     authorName: "Marco Verdi",
+    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=faces",
     minutesAgo: 95,
     userComment: "Questo articolo travisa i dati sui vaccini. I tassi di efficacia reali degli studi peer-reviewed mostrano risultati completamente diversi.",
     topicTag: "Salute",
@@ -186,6 +191,7 @@ export const mockPosts: MockPost[] = [
   {
     id: "6",
     authorName: "Elena Fuentes",
+    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=faces",
     minutesAgo: 128,
     userComment: "Mia nonna diceva sempre che mangiare carote migliora la vista notturna. C'è qualche verità in questo vecchio detto?",
     topicTag: "Salute",
@@ -221,36 +227,78 @@ export const generateMorePosts = (count: number): MockPost[] => {
   const stances: ("Condiviso" | "Confutato" | null)[] = ["Condiviso", "Confutato", null];
   const trustScores: ("BASSO" | "MEDIO" | "ALTO" | null)[] = ["BASSO", "MEDIO", "ALTO", null];
   
-  return Array.from({ length: count }, (_, i) => ({
-    id: (mockPosts.length + i + 1).toString(),
-    authorName: names[i % names.length],
-    minutesAgo: Math.floor(Math.random() * 240) + 5,
-    userComment: `Questo è un commento di post generato che discute argomenti importanti. Post numero ${i + 1}.`,
-    topicTag: topics[i % topics.length],
-    sharedTitle: Math.random() > 0.3 ? `Titolo Articolo Generato ${i + 1}` : undefined,
-    previewImg: `https://images.unsplash.com/photo-${1500000000000 + i}?w=800&h=450&fit=crop`,
-    url: Math.random() > 0.3 ? `example.com/article-${i}` : undefined,
-    sources: Math.random() > 0.4 ? [`source${i}.com`] : [],
-    trust: trustScores[i % trustScores.length],
-    stance: stances[i % stances.length],
-    reactions: { heart: Math.floor(Math.random() * 50), comments: Math.floor(Math.random() * 25) },
-    isBookmarked: Math.random() > 0.8,
-    questions: [
-      {
-        question: `Domanda di esempio ${i + 1}?`,
-        options: ["Opzione A", "Opzione B", "Opzione C"],
-        correct: Math.floor(Math.random() * 3)
-      },
-      {
-        question: `Altra domanda ${i + 1}?`,
-        options: ["Scelta 1", "Scelta 2", "Scelta 3"],
-        correct: Math.floor(Math.random() * 3)
-      },
-      {
-        question: `Domanda specifica ${i + 1}?`,
-        options: ["Risposta X", "Risposta Y", "Risposta Z"],
-        correct: Math.floor(Math.random() * 3)
-      }
+  const avatarPool = [
+    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=faces",
+    "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&crop=faces",
+    "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=faces",
+    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=faces",
+    "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop&crop=faces",
+    "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=faces",
+    "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop&crop=faces",
+    "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=200&h=200&fit=crop&crop=faces",
+    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop&crop=faces",
+    "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&h=200&fit=crop&crop=faces",
+  ];
+  
+  const previewImages: Record<string, string[]> = {
+    "Politica": [
+      "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800&h=450&fit=crop",
+      "https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=800&h=450&fit=crop"
+    ],
+    "Scienza": [
+      "https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=800&h=450&fit=crop",
+      "https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=800&h=450&fit=crop"
+    ],
+    "Ambiente": [
+      "https://images.unsplash.com/photo-1569163139394-de4e5f43e4e3?w=800&h=450&fit=crop",
+      "https://images.unsplash.com/photo-1473496169904-658ba7c44d8a?w=800&h=450&fit=crop"
+    ],
+    "Tecnologia": [
+      "https://images.unsplash.com/photo-1518709268805-4e9042af2ac1?w=800&h=450&fit=crop",
+      "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&h=450&fit=crop"
+    ],
+    "Società": [
+      "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&h=450&fit=crop",
+      "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=800&h=450&fit=crop"
     ]
-  }));
+  };
+  
+  return Array.from({ length: count }, (_, i) => {
+    const topic = topics[i % topics.length];
+    const topicImages = previewImages[topic];
+    
+    return {
+      id: (mockPosts.length + i + 1).toString(),
+      authorName: names[i % names.length],
+      avatar: avatarPool[i % avatarPool.length],
+      minutesAgo: Math.floor(Math.random() * 240) + 5,
+      userComment: `Questo è un commento di post generato che discute argomenti importanti. Post numero ${i + 1}.`,
+      topicTag: topic,
+      sharedTitle: Math.random() > 0.3 ? `Titolo Articolo Generato ${i + 1}` : undefined,
+      previewImg: Math.random() > 0.3 ? topicImages[i % topicImages.length] : undefined,
+      url: Math.random() > 0.3 ? `example.com/article-${i}` : undefined,
+      sources: Math.random() > 0.4 ? [`source${i}.com`] : [],
+      trust: trustScores[i % trustScores.length],
+      stance: stances[i % stances.length],
+      reactions: { heart: Math.floor(Math.random() * 50), comments: Math.floor(Math.random() * 25) },
+      isBookmarked: Math.random() > 0.8,
+      questions: [
+        {
+          question: `Domanda di esempio ${i + 1}?`,
+          options: ["Opzione A", "Opzione B", "Opzione C"],
+          correct: Math.floor(Math.random() * 3)
+        },
+        {
+          question: `Altra domanda ${i + 1}?`,
+          options: ["Scelta 1", "Scelta 2", "Scelta 3"],
+          correct: Math.floor(Math.random() * 3)
+        },
+        {
+          question: `Domanda specifica ${i + 1}?`,
+          options: ["Risposta X", "Risposta Y", "Risposta Z"],
+          correct: Math.floor(Math.random() * 3)
+        }
+      ]
+    };
+  });
 };
