@@ -17,6 +17,26 @@ interface FeedCardProps {
   onRemove?: () => void;
 }
 
+const getTimeAgo = (timestamp: number) => {
+  const seconds = Math.floor((Date.now() - timestamp) / 1000);
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  return `${Math.floor(hours / 24)}d`;
+};
+
+const getHostnameFromUrl = (url: string | undefined): string => {
+  if (!url) return 'Fonte';
+  try {
+    const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
+    return new URL(urlWithProtocol).hostname;
+  } catch {
+    return 'Fonte';
+  }
+};
+
 export const FeedCard = ({ 
   post, 
   onOpenReader,
@@ -127,7 +147,7 @@ export const FeedCard = ({
               )}
               <div className="p-3">
                 <p className="text-xs text-muted-foreground mb-1">
-                  {post.url ? new URL(post.url).hostname : 'Fonte'}
+                  {getHostnameFromUrl(post.url)}
                 </p>
                 <h3 className="font-semibold text-foreground text-[15px] line-clamp-2">
                   {post.sharedTitle}
