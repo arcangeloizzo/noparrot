@@ -6,36 +6,36 @@
 
 @layer base {
   :root {
-    /* Core NOPARROT Brand Colors */
-    --primary-blue: 212 100% 52%; /* #0A7AFF */
-    --dark-blue: 203 48% 20%; /* #1F3347 */
-    --light-blue: 180 49% 84%; /* #BFE9E9 */
-    --light-gray: 186 33% 97%; /* #F2F7F7 */
-    --brand-pink: 342 74% 52%; /* #E41E52 */
-    --brand-yellow: 47 100% 69%; /* #FFD464 */
+    /* X/Threads Brand Colors */
+    --primary-blue: 206 100% 50%; /* #1D9BF0 X Blue */
+    --dark-blue: 203 48% 20%;
+    --light-blue: 180 49% 84%;
+    --light-gray: 186 33% 97%;
+    --brand-pink: 342 74% 52%;
+    --brand-yellow: 47 100% 69%;
     
-    /* System Colors - Dark Mode First */
-    --background: 220 13% 9%; /* #161A1D */
-    --foreground: 0 0% 100%;
-    --card: 220 13% 11%; /* #1A1E22 */
-    --card-foreground: 0 0% 100%;
-    --popover: 220 13% 8%; /* #141719 */
-    --popover-foreground: 0 0% 100%;
+    /* System Colors - X Style (Dark mode first) */
+    --background: 0 0% 0%; /* Pure black like X dark */
+    --foreground: 210 9% 91%; /* #E7E9EA X text */
+    --card: 0 0% 0%;
+    --card-foreground: 210 9% 91%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 210 9% 91%;
     
-    /* Semantic Mappings - Dark Mode First */
-    --primary: var(--primary-blue);
+    /* Semantic Mappings - X Style */
+    --primary: 206 100% 50%; /* X Blue */
     --primary-foreground: 0 0% 100%;
-    --secondary: 220 13% 15%; /* #232830 */
-    --secondary-foreground: 220 9% 80%;
-    --muted: 220 13% 13%; /* #1F2328 */
-    --muted-foreground: 220 9% 65%;
-    --accent: var(--light-blue);
-    --accent-foreground: var(--dark-blue);
-    --destructive: var(--brand-pink);
-    --destructive-foreground: 0 0% 100%;
-    --border: 220 13% 18%; /* #272B30 */
-    --input: 220 13% 15%; /* #232830 */
-    --ring: var(--primary-blue);
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 210 9% 91%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 210 8% 46%; /* #71767B X secondary text */
+    --accent: 0 0% 10%;
+    --accent-foreground: 210 9% 91%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 13%; /* #2F3336 X border */
+    --input: 0 0% 10%;
+    --ring: 206 100% 50%;
     
     /* Gradient Tokens */
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary-blue)), hsl(212 100% 60%));
@@ -49,11 +49,11 @@
     --shadow-floating: 0 12px 24px rgba(0, 0, 0, 0.15);
     --shadow-elevated: 0 2px 8px rgba(0, 0, 0, 0.1);
     
-    /* Apple-style transitions */
-    --transition-smooth: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    --transition-fast: all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    --transition-spring: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    --transition-gentle: all 0.2s ease-out;
+    /* X-style transitions (faster, snappier) */
+    --transition-smooth: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-fast: all 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --transition-spring: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    --transition-gentle: all 0.15s ease-out;
     
     /* Apple Liquid Glass system */
     --glass-primary: rgba(255, 255, 255, 0.08);
@@ -210,7 +210,6 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-inter);
-    max-width: var(--mobile-width);
     margin: 0 auto;
     overflow-x: hidden;
   }

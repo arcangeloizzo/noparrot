@@ -26,7 +26,7 @@ const BAND_LABELS = {
 } as const;
 
 const SIZE_CONFIG = {
-  sm: { badge: "w-6 h-6 text-[10px]", text: "text-xs", icon: "w-3 h-3" },
+  sm: { badge: "w-5 h-5 text-[9px]", text: "text-[11px]", icon: "w-3 h-3" },
   md: { badge: "w-8 h-8 text-xs", text: "text-sm", icon: "w-4 h-4" },
   lg: { badge: "w-10 h-10 text-sm", text: "text-base", icon: "w-5 h-5" },
 } as const;

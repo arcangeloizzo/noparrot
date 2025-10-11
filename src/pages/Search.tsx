@@ -21,18 +21,18 @@ export const Search = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mobile-container">
-        {/* Search Header */}
-        <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 border-b border-border/50">
-          <div className="p-4">
+      <div className="mobile-container max-w-[600px] mx-auto">
+        {/* Search Header - X Style */}
+        <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 border-b border-border">
+          <div className="p-3">
             <div className="relative">
-              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+              <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-[20px] h-[20px] text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Cerca su NOPARROT"
+                placeholder="Cerca"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-muted rounded-full border-0 focus:ring-2 focus:ring-primary-blue focus:outline-none text-sm"
+                className="w-full pl-12 pr-4 py-2.5 bg-muted rounded-full border-0 focus:ring-1 focus:ring-primary focus:outline-none text-[15px] text-foreground placeholder:text-muted-foreground"
               />
             </div>
           </div>
