@@ -196,6 +196,28 @@ export const FeedCard = ({
             </div>
           )}
 
+          {/* Trust Score */}
+          {(trustScore || post.url) && (
+            <div className="mb-3" onClick={(e) => e.stopPropagation()}>
+              {trustScore ? (
+                <TrustBadge
+                  band={trustScore.band}
+                  score={trustScore.score}
+                  reasons={trustScore.reasons}
+                  size="sm"
+                  className="opacity-60 hover:opacity-100 transition-opacity"
+                />
+              ) : loadingTrust ? (
+                <div className="flex items-center gap-2 opacity-60">
+                  <div className="w-5 h-5 rounded-full bg-muted animate-pulse" />
+                  <div className="w-12 h-2.5 bg-muted animate-pulse rounded" />
+                </div>
+              ) : (
+                <TrustBadge size="sm" className="opacity-60 hover:opacity-100 transition-opacity" />
+              )}
+            </div>
+          )}
+
           {/* Actions Bar */}
           <div className="flex items-center justify-between max-w-md -ml-2">
             <button 
@@ -254,27 +276,6 @@ export const FeedCard = ({
             </button>
           </div>
 
-          {/* Trust Score - Discrete */}
-          {(trustScore || post.url) && (
-            <div className="mt-2 pt-2 border-t border-border/50" onClick={(e) => e.stopPropagation()}>
-              {trustScore ? (
-                <TrustBadge
-                  band={trustScore.band}
-                  score={trustScore.score}
-                  reasons={trustScore.reasons}
-                  size="sm"
-                  className="opacity-60 hover:opacity-100 transition-opacity"
-                />
-              ) : loadingTrust ? (
-                <div className="flex items-center gap-2 opacity-60">
-                  <div className="w-5 h-5 rounded-full bg-muted animate-pulse" />
-                  <div className="w-12 h-2.5 bg-muted animate-pulse rounded" />
-                </div>
-              ) : (
-                <TrustBadge size="sm" className="opacity-60 hover:opacity-100 transition-opacity" />
-              )}
-            </div>
-          )}
         </div>
       </div>
     </article>
