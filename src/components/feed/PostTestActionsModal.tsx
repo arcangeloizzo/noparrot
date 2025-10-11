@@ -1,4 +1,4 @@
-import { X, Share, MessageSquare, Send } from "lucide-react";
+import { X, Share, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MockPost } from "@/data/mockData";
 
@@ -50,15 +50,6 @@ export const PostTestActionsModal = ({ post, isOpen, onClose }: PostTestActionsM
           >
             <Share className="h-4 w-4" />
             Condividi
-          </Button>
-          
-          <Button
-            onClick={() => handleAction("Confuta")}
-            variant="outline"
-            className="w-full flex items-center gap-3 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-          >
-            <MessageSquare className="h-4 w-4" />
-            Confuta
           </Button>
           
           <Button

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { X, Share, MessageSquare, Send } from "lucide-react";
+import { X, Share, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MockPost } from "@/data/mockData";
 
@@ -137,35 +137,24 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleRea
         {/* Action Buttons */}
         <div className="p-4 border-t border-gray-700 space-y-3">
           {canProceed ? (
-            <>
+            <div className="grid grid-cols-2 gap-3">
               <Button
                 onClick={() => onStartQuiz("Condividi")}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-2"
+                className="flex items-center gap-2 bg-primary hover:bg-primary/90"
               >
                 <Share className="h-4 w-4" />
                 Condividi
               </Button>
               
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  onClick={() => onStartQuiz("Confuta")}
-                  variant="outline"
-                  className="flex items-center gap-2 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                  Confuta
-                </Button>
-                
-                <Button
-                  onClick={() => onStartQuiz("Invia ad un amico")}
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <Send className="h-4 w-4" />
-                  Invia
-                </Button>
-              </div>
-            </>
+              <Button
+                onClick={() => onStartQuiz("Invia ad un amico")}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <Send className="h-4 w-4" />
+                Invia
+              </Button>
+            </div>
           ) : (
             <Button
               disabled

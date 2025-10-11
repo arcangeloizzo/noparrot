@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { X, Check } from "lucide-react";
+import { X, Check, Share, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MockPost } from "@/data/mockData";
 
@@ -109,19 +109,23 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
             </p>
           </div>
           
-          <div className="space-y-3">
-            <Button onClick={onComplete} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+          <div className="grid grid-cols-2 gap-3">
+            <Button 
+              onClick={onComplete} 
+              className="flex items-center gap-2 bg-primary hover:bg-primary/90"
+            >
+              <Share className="h-4 w-4" />
               Condividi
             </Button>
-            <Button onClick={onComplete} className="w-full bg-orange-600 hover:bg-orange-700 text-white">
-              Confuta
-            </Button>
-            <button 
+            
+            <Button 
               onClick={onComplete} 
-              className="w-full text-center text-indigo-400 hover:text-indigo-300 transition-colors py-3 cursor-pointer"
+              variant="outline"
+              className="flex items-center gap-2"
             >
-              Invia ad un amico
-            </button>
+              <Send className="h-4 w-4" />
+              Invia
+            </Button>
           </div>
         </div>
       </div>

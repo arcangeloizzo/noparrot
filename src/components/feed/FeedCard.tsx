@@ -46,6 +46,9 @@ export const FeedCard = ({
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
   const [trustScore, setTrustScore] = useState<any>(null);
   const [loadingTrust, setLoadingTrust] = useState(false);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
 
   // Generate avatar with initials if no image
   const getAvatarContent = () => {
@@ -94,8 +97,45 @@ export const FeedCard = ({
     }
   }, [post, trustScore, loadingTrust]);
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStart) return;
+    setTouchEnd(e.targetTouches[0].clientX);
+    const offset = touchStart - e.targetTouches[0].clientX;
+    if (offset > 0) {
+      setSwipeOffset(Math.min(offset, 80));
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > 50;
+    
+    if (isLeftSwipe && onOpenReader) {
+      onOpenReader();
+    }
+    
+    setSwipeOffset(0);
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
   return (
-    <article className="px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer" onClick={onOpenReader}>
+    <article 
+      className="px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer" 
+      style={{
+        transform: `translateX(-${swipeOffset}px)`,
+        transition: swipeOffset === 0 ? 'transform 0.3s ease-out' : 'none'
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onClick={onOpenReader}
+    >
       <div className="flex gap-3">
         {/* Avatar */}
         <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
