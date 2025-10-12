@@ -331,6 +331,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      extract_mentions: {
+        Args: { content: string }
+        Returns: {
+          username: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
