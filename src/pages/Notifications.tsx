@@ -13,14 +13,6 @@ export const Notifications = () => {
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
 
-  // Auto-mark notifications as read when page is loaded
-  useEffect(() => {
-    const unreadNotifications = notifications.filter(n => !n.read);
-    if (unreadNotifications.length > 0) {
-      // Mark all as read automatically
-      markAllAsRead.mutate();
-    }
-  }, [notifications.length]); // Run only when notifications count changes
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -71,9 +63,14 @@ export const Notifications = () => {
     : notifications;
 
   const handleNotificationClick = (notification: typeof notifications[0]) => {
+    // Mark this specific notification as read
+    if (!notification.read) {
+      markAsRead.mutate(notification.id);
+    }
+    
     // Navigate to the post
     if (notification.post_id) {
-      navigate(`/feed`); // In un'app reale, navigheresti al post specifico
+      navigate(`/feed`);
     }
   };
 

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { HomeIcon, SearchIcon, BookmarkIcon, BellIcon, UserIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { NAV_PROFILE_AS_HOME } from "@/config/brand";
@@ -15,6 +16,11 @@ interface BottomNavigationProps {
 export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: BottomNavigationProps) => {
   const { user } = useAuth();
   const { data: notifications = [] } = useNotifications();
+  
+  // Track when user last viewed notifications
+  const [lastViewedAt, setLastViewedAt] = useState<string | null>(
+    localStorage.getItem('notifications-last-viewed')
+  );
 
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -26,7 +32,20 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
     enabled: !!user,
   });
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  // Count notifications created after last viewed timestamp
+  const unreadCount = notifications.filter(n => {
+    if (!lastViewedAt) return !n.read;
+    return new Date(n.created_at) > new Date(lastViewedAt);
+  }).length;
+
+  // Update last viewed timestamp when user enters notifications tab
+  useEffect(() => {
+    if (activeTab === "notifications") {
+      const now = new Date().toISOString();
+      localStorage.setItem('notifications-last-viewed', now);
+      setLastViewedAt(now);
+    }
+  }, [activeTab]);
 
   const getInitials = (name: string) => {
     return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);

@@ -17,10 +17,8 @@ export const Profile = () => {
   const { data: profile, isLoading, error } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => {
-      console.log("🔍 Profile query starting for user:", user?.id);
       if (!user) {
-        console.log("❌ No user found in Profile page");
-        return null;
+        throw new Error("Not authenticated");
       }
       const { data, error } = await supabase
         .from("profiles")
@@ -28,21 +26,13 @@ export const Profile = () => {
         .eq("id", user.id)
         .single();
       
-      console.log("📊 Profile query result:", { data, error });
-      
       if (error) {
-        console.error("❌ Profile query error:", error);
         throw error;
       }
       return data;
     },
-    enabled: !!user,
   });
 
-  // Logging dello stato per debug
-  useEffect(() => {
-    console.log("🔍 Profile page state:", { user, profile, isLoading, error });
-  }, [user, profile, isLoading, error]);
 
   const { data: stats } = useQuery({
     queryKey: ["profile-stats", user?.id],
