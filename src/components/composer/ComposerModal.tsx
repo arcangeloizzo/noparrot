@@ -5,6 +5,10 @@ import { cn } from '@/lib/utils';
 import { GateQueueManager, SourceWithGate, GateQueueState } from '@/lib/comprehension-gate-extended';
 import { GateQueueModal } from './GateQueueModal';
 import { SourceChip } from './SourceChip';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/hooks/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface ComposerModalProps {
   isOpen: boolean;
@@ -12,11 +16,14 @@ interface ComposerModalProps {
 }
 
 export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose }) => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [content, setContent] = useState('');
   const [sources, setSources] = useState<string[]>([]);
   const [newSource, setNewSource] = useState('');
   const [showGateQueue, setShowGateQueue] = useState(false);
   const [gateQueueState, setGateQueueState] = useState<GateQueueState | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
 
   // Create queue manager for sources with gate states
   const queueManager = useMemo(() => {
@@ -69,20 +76,55 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
     publishContent();
   };
 
-  const publishContent = () => {
-    console.log('Publishing:', { content, sources });
-    // Here you would typically send the data to your backend
-    
-    // Show success toast
-    // Note: toast would need to be imported and used here
-    console.log('✅ Post pubblicato con successo!');
-    
-    onClose();
-    // Reset form
-    setContent('');
-    setSources([]);
-    setNewSource('');
-    setGateQueueState(null);
+  const publishContent = async () => {
+    if (!user) {
+      toast({
+        title: 'Errore',
+        description: 'Devi essere autenticato per pubblicare un post',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsPublishing(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .insert({
+          content,
+          author_id: user.id,
+          sources: sources.length > 0 ? sources : null,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: 'Post pubblicato!',
+        description: 'Il tuo post è stato pubblicato con successo',
+      });
+
+      // Refresh posts feed
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+
+      onClose();
+      // Reset form
+      setContent('');
+      setSources([]);
+      setNewSource('');
+      setGateQueueState(null);
+    } catch (error: any) {
+      console.error('Error publishing post:', error);
+      toast({
+        title: 'Errore',
+        description: 'Si è verificato un errore durante la pubblicazione',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   const handleGateComplete = () => {
@@ -93,11 +135,43 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
     }, 100);
   };
 
+  // Fetch user profile for avatar
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from('profiles')
+        .select('avatar_url, full_name')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }) => setUserProfile(data));
+    }
+  }, [user]);
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(n => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   const getAvatarContent = () => {
-    const initials = "AI";
+    if (userProfile?.avatar_url) {
+      return (
+        <img
+          src={userProfile.avatar_url}
+          alt="Avatar"
+          className="w-8 h-8 rounded-full object-cover"
+        />
+      );
+    }
+
     return (
       <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-semibold">
-        {initials}
+        {userProfile?.full_name ? getInitials(userProfile.full_name) : '?'}
       </div>
     );
   };
@@ -130,15 +204,15 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
             {getAvatarContent()}
             <button
               onClick={handleSubmit}
-              disabled={!content.trim()}
+              disabled={!content.trim() || isPublishing}
               className={cn(
                 "px-4 py-2 rounded-full text-sm font-medium transition-colors",
-                content.trim() && allSourcesPassed
+                content.trim() && allSourcesPassed && !isPublishing
                   ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
             >
-              Pubblica
+              {isPublishing ? 'Pubblicazione...' : 'Pubblica'}
             </button>
           </div>
         </div>
