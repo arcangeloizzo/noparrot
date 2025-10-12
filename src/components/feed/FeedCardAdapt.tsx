@@ -77,7 +77,10 @@ export const FeedCard = ({
   });
 
   return (
-    <div className="p-4 hover:bg-muted/30 transition-colors">
+    <div 
+      className="p-4 hover:bg-muted/30 transition-colors cursor-pointer"
+      onClick={() => setShowComments(true)}
+    >
       <div className="flex gap-3">
         {/* Avatar */}
         <div className="flex-shrink-0">

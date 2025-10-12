@@ -41,7 +41,12 @@ export const CommentsSheet = ({ post, isOpen, onClose }: CommentsSheetProps) => 
     setNewComment('');
     setShowMentions(false);
     setMentionQuery('');
-    onClose();
+    
+    // Scroll to top per vedere il nuovo commento
+    setTimeout(() => {
+      const scrollContainer = document.querySelector('.comments-scroll-container');
+      scrollContainer?.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 300);
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -87,6 +92,10 @@ export const CommentsSheet = ({ post, isOpen, onClose }: CommentsSheetProps) => 
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      // Auto-focus textarea quando si apre la sheet
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 100);
     } else {
       document.body.style.overflow = 'unset';
     }
@@ -145,7 +154,7 @@ export const CommentsSheet = ({ post, isOpen, onClose }: CommentsSheetProps) => 
       </div>
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto comments-scroll-container">
         {/* Original Post */}
         <div className="px-4 py-3 border-b border-border">
           <div className="flex gap-3">
@@ -191,7 +200,7 @@ export const CommentsSheet = ({ post, isOpen, onClose }: CommentsSheetProps) => 
         <div className="px-4 py-3 border-b border-border">
           <div className="flex gap-3 relative">
             <div className="flex-shrink-0">
-              {user && getUserAvatar(user.user_metadata?.avatar_url, user.user_metadata?.full_name || user.email || 'User')}
+              {user && getUserAvatar(user.user_metadata?.avatar_url, user.user_metadata?.full_name || user.user_metadata?.username || 'Utente')}
             </div>
             <div className="flex-1 min-w-0 relative">
               <textarea
