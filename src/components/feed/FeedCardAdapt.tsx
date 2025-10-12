@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { HeartIcon, MessageCircleIcon, BookmarkIcon, MoreHorizontal, EyeOff } from "lucide-react";
 import { TrustBadge } from "@/components/ui/trust-badge";
 import { fetchTrustScore } from "@/lib/comprehension-gate";
-import { cn } from "@/lib/utils";
+import { cn, getDisplayUsername } from "@/lib/utils";
 import { Post } from "@/hooks/usePosts";
 import { useToggleReaction } from "@/hooks/usePosts";
 import { formatDistanceToNow } from "date-fns";
@@ -94,10 +94,10 @@ export const FeedCard = ({
           {/* Header */}
           <div className="flex items-center gap-2 mb-1">
             <span className="font-semibold text-foreground hover:underline text-sm">
-              {post.author.full_name || post.author.username}
+              {post.author.full_name || getDisplayUsername(post.author.username)}
             </span>
             <span className="text-muted-foreground text-sm">
-              @{post.author.username.split('@')[0]}
+              @{getDisplayUsername(post.author.username)}
             </span>
             <span className="text-muted-foreground text-sm">·</span>
             <span className="text-muted-foreground text-sm">

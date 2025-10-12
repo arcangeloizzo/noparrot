@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { UserSearchResult } from '@/hooks/useUserSearch';
-import { cn } from '@/lib/utils';
+import { cn, getDisplayUsername } from '@/lib/utils';
 
 interface MentionDropdownProps {
   users: UserSearchResult[];
@@ -77,8 +77,8 @@ export const MentionDropdown = ({ users, onSelect, isLoading }: MentionDropdownP
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <div className="font-semibold text-sm">{user.full_name}</div>
-            <div className="text-muted-foreground text-xs">@{user.username}</div>
+            <div className="font-semibold text-sm">{user.full_name || getDisplayUsername(user.username)}</div>
+            <div className="text-muted-foreground text-xs">@{getDisplayUsername(user.username)}</div>
           </div>
         </button>
       ))}

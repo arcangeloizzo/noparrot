@@ -10,7 +10,7 @@ import { TrustBadge } from '@/components/ui/trust-badge';
 import { MentionDropdown } from './MentionDropdown';
 import { MentionText } from './MentionText';
 import { useUserSearch } from '@/hooks/useUserSearch';
-import { cn } from '@/lib/utils';
+import { cn, getDisplayUsername } from '@/lib/utils';
 
 interface CommentsSheetProps {
   post: Post;
@@ -92,10 +92,11 @@ export const CommentsSheet = ({ post, isOpen, onClose }: CommentsSheetProps) => 
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
-      // Auto-focus textarea quando si apre la sheet
+      // Auto-focus textarea quando si apre la sheet (aumentato delay per iOS)
       setTimeout(() => {
+        textareaRef.current?.click();
         textareaRef.current?.focus();
-      }, 100);
+      }, 300);
     } else {
       document.body.style.overflow = 'unset';
     }
@@ -163,8 +164,8 @@ export const CommentsSheet = ({ post, isOpen, onClose }: CommentsSheetProps) => 
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="font-semibold text-sm">{post.author.full_name}</span>
-                <span className="text-muted-foreground text-xs">@{post.author.username}</span>
+                <span className="font-semibold text-sm">{post.author.full_name || getDisplayUsername(post.author.username)}</span>
+                <span className="text-muted-foreground text-xs">@{getDisplayUsername(post.author.username)}</span>
               </div>
               <p className="text-sm whitespace-pre-wrap break-words mb-3">{post.content}</p>
               
@@ -207,7 +208,7 @@ export const CommentsSheet = ({ post, isOpen, onClose }: CommentsSheetProps) => 
                 ref={textareaRef}
                 value={newComment}
                 onChange={handleTextChange}
-                placeholder={`In risposta a @${post.author.username}`}
+                placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
                 className="w-full bg-transparent border-none focus:outline-none resize-none text-sm min-h-[100px] placeholder:text-muted-foreground"
                 maxLength={500}
               />
@@ -271,10 +272,10 @@ export const CommentsSheet = ({ post, isOpen, onClose }: CommentsSheetProps) => 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="font-semibold text-sm">
-                        {comment.author.full_name}
+                        {comment.author.full_name || getDisplayUsername(comment.author.username)}
                       </span>
                       <span className="text-muted-foreground text-xs">
-                        @{comment.author.username}
+                        @{getDisplayUsername(comment.author.username)}
                       </span>
                       <span className="text-muted-foreground text-xs">·</span>
                       <span className="text-muted-foreground text-xs">

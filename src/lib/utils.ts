@@ -4,3 +4,10 @@ import { twMerge } from "tailwind-merge"
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
+
+export const getDisplayUsername = (username: string): string => {
+  if (username.includes('@')) {
+    return username.split('@')[0];
+  }
+  return username;
+};

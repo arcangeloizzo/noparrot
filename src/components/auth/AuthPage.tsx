@@ -9,12 +9,13 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { Camera } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export const AuthPage = () => {
   const navigate = useNavigate();
   const { user, signIn, signUpStep1, verifyEmailOTP, completeProfile } = useAuth();
   
-  const [isLogin, setIsLogin] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
   const [registrationStep, setRegistrationStep] = useState<1 | 2 | 3>(1);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -33,10 +34,47 @@ export const AuthPage = () => {
   const [username, setUsername] = useState("");
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
 
   useEffect(() => {
     if (user) navigate("/");
   }, [user, navigate]);
+
+  // Auto-suggerimento username da email
+  useEffect(() => {
+    if (email && email.includes('@') && !username) {
+      const suggestedUsername = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_');
+      setUsername(suggestedUsername.toLowerCase());
+    }
+  }, [email]);
+
+  // Verifica disponibilità username con debounce
+  useEffect(() => {
+    if (!username || username.length < 4) {
+      setUsernameAvailable(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setCheckingUsername(true);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', username)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error checking username:', error);
+        setUsernameAvailable(null);
+      } else {
+        setUsernameAvailable(data === null);
+      }
+      setCheckingUsername(false);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [username]);
 
   const getInitials = (name: string) => {
     return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
@@ -46,8 +84,14 @@ export const AuthPage = () => {
     e.preventDefault();
     setIsLoading(true);
 
-    if (!fullName || !email || !password || !dayOfBirth || !monthOfBirth || !yearOfBirth) {
+    if (!fullName || !email || !password || !dayOfBirth || !monthOfBirth || !yearOfBirth || !username) {
       toast.error("Compila tutti i campi");
+      setIsLoading(false);
+      return;
+    }
+
+    if (usernameAvailable === false) {
+      toast.error("Scegli un username diverso");
       setIsLoading(false);
       return;
     }
@@ -172,6 +216,35 @@ export const AuthPage = () => {
           <form onSubmit={handleStep1Submit} className="space-y-4">
             <Input type="text" placeholder="Nome completo" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
             <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Nome utente</label>
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="nomeutente"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                  required
+                  minLength={4}
+                  maxLength={15}
+                  pattern="[a-zA-Z0-9_]+"
+                  className={usernameAvailable === false ? 'border-destructive' : usernameAvailable === true ? 'border-green-500' : ''}
+                />
+                {checkingUsername && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                    Verifica...
+                  </span>
+                )}
+              </div>
+              {usernameAvailable === false && (
+                <p className="text-xs text-destructive">Username già in uso</p>
+              )}
+              {usernameAvailable === true && (
+                <p className="text-xs text-green-600">Username disponibile</p>
+              )}
+              <p className="text-xs text-muted-foreground">4-15 caratteri: solo lettere, numeri e underscore</p>
+            </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium">Data di nascita</label>
@@ -257,7 +330,7 @@ export const AuthPage = () => {
     );
   }
 
-  // REGISTRAZIONE STEP 3: Username e avatar
+  // REGISTRAZIONE STEP 3: Solo Avatar (username già inserito)
   if (registrationStep === 3) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
@@ -283,21 +356,6 @@ export const AuthPage = () => {
                 <input id="avatar-upload" type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
               </div>
               <p className="text-xs text-muted-foreground">Carica una foto profilo (opzionale)</p>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Nome utente</label>
-              <Input
-                type="text"
-                placeholder="nomeutente"
-                value={username}
-                onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                required
-                minLength={4}
-                maxLength={15}
-                pattern="[a-zA-Z0-9_]+"
-              />
-              <p className="text-xs text-muted-foreground">4-15 caratteri: solo lettere, numeri e underscore</p>
             </div>
 
             <Button type="submit" className="w-full" disabled={isLoading}>
