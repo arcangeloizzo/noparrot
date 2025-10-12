@@ -168,18 +168,11 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
           <ArrowLeft className="w-5 h-5" />
         </button>
         <span className="font-semibold">Post</span>
-        <Button
-          onClick={handleSubmit}
-          disabled={!newComment.trim() || addComment.isPending}
-          size="sm"
-          className="rounded-full"
-        >
-          Posta
-        </Button>
+        <div className="w-10" /> {/* Spacer per centrare il titolo */}
       </div>
 
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto comments-scroll-container">
+      <div className="flex-1 overflow-y-auto comments-scroll-container pb-32">
         {/* Original Post */}
         <div className="px-4 py-3 border-b border-border">
           <div className="flex gap-3">
@@ -220,68 +213,6 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
             </div>
           </div>
         </div>
-
-        {/* Reply Input Area - Solo se autoFocusInput è true */}
-        {autoFocusInput && (
-          <div className="px-4 py-3 border-b border-border">
-            <div className="flex gap-3 relative">
-              <div className="flex-shrink-0">
-                {currentUserProfile && getUserAvatar(
-                  currentUserProfile.avatar_url, 
-                  currentUserProfile.full_name || currentUserProfile.username
-                )}
-              </div>
-              <div className="flex-1 min-w-0 relative">
-                <textarea
-                  ref={textareaRef}
-                  value={newComment}
-                  onChange={handleTextChange}
-                  onClick={(e) => e.stopPropagation()}
-                  placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
-                  className="w-full bg-transparent border-none focus:outline-none resize-none text-sm min-h-[100px] placeholder:text-muted-foreground"
-                  maxLength={500}
-                  inputMode="text"
-                  autoFocus={autoFocusInput}
-                />
-                
-                {/* Mention Dropdown */}
-                {showMentions && (
-                  <MentionDropdown
-                    users={mentionUsers}
-                    onSelect={handleSelectMention}
-                    isLoading={isSearching}
-                  />
-                )}
-                
-                {/* Icon Bar */}
-                <div className="flex items-center gap-1 mt-2 text-primary">
-                  <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
-                    <Image className="w-4 h-4" />
-                  </button>
-                  <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
-                    <Video className="w-4 h-4" />
-                  </button>
-                  <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
-                    <BarChart3 className="w-4 h-4" />
-                  </button>
-                  <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
-                    <Smile className="w-4 h-4" />
-                  </button>
-                  <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
-                    <MapPin className="w-4 h-4" />
-                  </button>
-                  <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
-                    <Settings className="w-4 h-4" />
-                  </button>
-                </div>
-                
-                <p className="text-xs text-muted-foreground mt-2">
-                  {newComment.length}/500
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Comments List */}
         <div className="divide-y divide-border">
@@ -334,6 +265,77 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
               </div>
             ))
           )}
+        </div>
+      </div>
+
+      {/* Input commento - Fixed Bottom sopra navbar */}
+      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background z-20">
+        <div className="px-4 py-3">
+          <div className="flex gap-3 relative">
+            <div className="flex-shrink-0">
+              {currentUserProfile && getUserAvatar(
+                currentUserProfile.avatar_url, 
+                currentUserProfile.full_name || currentUserProfile.username
+              )}
+            </div>
+            <div className="flex-1 min-w-0 relative">
+              <textarea
+                ref={textareaRef}
+                value={newComment}
+                onChange={handleTextChange}
+                onClick={(e) => e.stopPropagation()}
+                placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
+                className="w-full bg-transparent border-none focus:outline-none resize-none text-sm min-h-[60px] max-h-[120px] placeholder:text-muted-foreground"
+                maxLength={500}
+                inputMode="text"
+                rows={2}
+                style={{ 
+                  height: 'auto',
+                  overflowY: newComment.split('\n').length > 5 ? 'scroll' : 'hidden'
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                }}
+              />
+              
+              {/* Mention Dropdown */}
+              {showMentions && (
+                <MentionDropdown
+                  users={mentionUsers}
+                  onSelect={handleSelectMention}
+                  isLoading={isSearching}
+                />
+              )}
+              
+              <div className="flex items-center justify-between mt-2">
+                {/* Icon Bar */}
+                <div className="flex items-center gap-1 text-primary">
+                  <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
+                    <Image className="w-4 h-4" />
+                  </button>
+                  <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
+                    <Smile className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <p className="text-xs text-muted-foreground">
+                    {newComment.length}/500
+                  </p>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={!newComment.trim() || addComment.isPending}
+                    size="sm"
+                    className="rounded-full"
+                  >
+                    Posta
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>

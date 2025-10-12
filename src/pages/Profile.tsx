@@ -58,40 +58,58 @@ export const Profile = () => {
     queryKey: ["user-posts", user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
-        .from("posts")
-        .select(`
-          *,
-          author:profiles!author_id(id, username, full_name, avatar_url),
-          reactions:reactions(reaction_type, user_id),
-          comments:comments(id)
-        `)
-        .eq("author_id", user.id)
-        .order("created_at", { ascending: false });
       
-      if (error) {
-        console.error("Posts query error:", error);
+      try {
+        const { data, error } = await supabase
+          .from("posts")
+          .select(`
+            *,
+            author:profiles!author_id(id, username, full_name, avatar_url),
+            reactions:reactions(reaction_type, user_id),
+            comments:comments(id)
+          `)
+          .eq("author_id", user.id)
+          .order("created_at", { ascending: false });
+        
+        if (error) {
+          console.error("❌ Posts query error:", error);
+          return [];
+        }
+        
+        // Format the posts to match the Post type
+        const formattedPosts = data?.map(post => ({
+          ...post,
+          author: post.author,
+          reactions: {
+            hearts: post.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
+            comments: post.comments?.length || 0,
+          },
+          user_reactions: {
+            has_hearted: post.reactions?.some((r: any) => r.reaction_type === 'heart' && r.user_id === user.id) || false,
+            has_bookmarked: post.reactions?.some((r: any) => r.reaction_type === 'bookmark' && r.user_id === user.id) || false,
+          }
+        })) || [];
+        
+        return formattedPosts;
+      } catch (err) {
+        console.error("❌ Exception fetching posts:", err);
         return [];
       }
-      
-      // Format the posts to match the Post type
-      const formattedPosts = data?.map(post => ({
-        ...post,
-        author: post.author,
-        reactions: {
-          hearts: post.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
-          comments: post.comments?.length || 0,
-        },
-        user_reactions: {
-          has_hearted: post.reactions?.some((r: any) => r.reaction_type === 'heart' && r.user_id === user.id) || false,
-          has_bookmarked: post.reactions?.some((r: any) => r.reaction_type === 'bookmark' && r.user_id === user.id) || false,
-        }
-      })) || [];
-      
-      return formattedPosts;
     },
     enabled: !!user,
   });
+
+  // Debug logging
+  useEffect(() => {
+    console.log("🔍 Profile render state:", {
+      hasProfile: !!profile,
+      hasStats: !!stats,
+      userPostsCount: userPosts?.length || 0,
+      isLoading,
+      hasError: !!error,
+      hasPostsError: !!postsError
+    });
+  }, [profile, stats, userPosts, isLoading, error, postsError]);
 
   const getInitials = (name: string) => {
     return name
@@ -264,14 +282,26 @@ export const Profile = () => {
         <div className="divide-y divide-border">
           {activeTab === "posts" && (
             <>
-              {userPosts.length === 0 ? (
+              {postsError ? (
+                <div className="py-12 text-center">
+                  <p className="text-destructive mb-2">Errore nel caricamento dei post</p>
+                  <p className="text-sm text-muted-foreground">Riprova più tardi</p>
+                </div>
+              ) : userPosts.length === 0 ? (
                 <div className="py-12 text-center text-muted-foreground">
                   <p>Nessun post ancora</p>
                 </div>
               ) : (
-                userPosts.map((post: any) => (
-                  <FeedCard key={post.id} post={post} />
-                ))
+                <>
+                  {userPosts.map((post: any) => {
+                    try {
+                      return <FeedCard key={post.id} post={post} />;
+                    } catch (err) {
+                      console.error("❌ Error rendering post:", post.id, err);
+                      return null;
+                    }
+                  })}
+                </>
               )}
             </>
           )}
