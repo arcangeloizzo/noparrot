@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Logo } from "@/components/ui/logo";
-import { FeedToggle } from "@/components/feed/FeedToggle";
 import { FeedCard } from "@/components/feed/FeedCardAdapt";
 import { ArticleReader } from "@/components/feed/ArticleReader";
 import { PostTestActionsModal } from "@/components/feed/PostTestActionsModal";
@@ -20,7 +19,6 @@ import { useToast } from "@/hooks/use-toast";
 export const Feed = () => {
   const { data: dbPosts = [], isLoading } = usePosts();
   const toggleReaction = useToggleReaction();
-  const [activeTab, setActiveTab] = useState<"following" | "foryou">("following");
   const [activeNavTab, setActiveNavTab] = useState("home");
   const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
@@ -164,17 +162,14 @@ export const Feed = () => {
       <div className="mobile-container max-w-[600px] mx-auto">
         {/* Header - X Style */}
         <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border">
-          <div className="px-4 py-2">
-            <div className="flex justify-center mb-3">
+          <div className="px-4 py-3">
+            <div className="flex justify-center">
               <img 
                 src="/lovable-uploads/2e463915-3b37-49f7-88b3-19a37a0538f2.png"
                 alt="NOPARROT"
                 className="h-7 w-auto cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={handleLogoClick}
               />
-            </div>
-            <div className="flex justify-center">
-              <FeedToggle activeTab={activeTab} onTabChange={setActiveTab} />
             </div>
           </div>
         </div>
