@@ -137,9 +137,14 @@ export const Profile = () => {
   }
 
   if (!user) {
+    navigate('/auth');
+    return null;
+  }
+
+  if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-muted-foreground">Utente non autenticato</div>
+        <div className="text-muted-foreground">Caricamento profilo...</div>
       </div>
     );
   }

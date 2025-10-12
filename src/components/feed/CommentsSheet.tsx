@@ -110,13 +110,18 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
-      // Auto-focus textarea SOLO se autoFocusInput è true (click sull'icona commento)
+      // Auto-focus textarea quando si clicca sull'icona commento
       if (autoFocusInput) {
         setTimeout(() => {
           textareaRef.current?.focus();
-          textareaRef.current?.click(); // Per iOS
-          textareaRef.current?.setSelectionRange(0, 0);
-        }, 100);
+          // Force keyboard on iOS
+          const textarea = textareaRef.current;
+          if (textarea) {
+            textarea.style.transform = 'translateZ(0)'; // Force GPU acceleration
+            textarea.click();
+            textarea.focus();
+          }
+        }, 300);
       }
     } else {
       document.body.style.overflow = 'unset';
@@ -269,7 +274,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
       </div>
 
       {/* Input commento - Fixed Bottom sopra navbar */}
-      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background z-20">
+      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background z-20 safe-area-bottom">
         <div className="px-4 py-3">
           <div className="flex gap-3 relative">
             <div className="flex-shrink-0">
@@ -283,6 +288,13 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
                 ref={textareaRef}
                 value={newComment}
                 onChange={handleTextChange}
+                onFocus={(e) => {
+                  e.stopPropagation();
+                  // Scroll into view smooth per evitare shift brutto
+                  setTimeout(() => {
+                    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }, 100);
+                }}
                 onClick={(e) => e.stopPropagation()}
                 placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
                 className="w-full bg-transparent border-none focus:outline-none resize-none text-sm min-h-[60px] max-h-[120px] placeholder:text-muted-foreground"
