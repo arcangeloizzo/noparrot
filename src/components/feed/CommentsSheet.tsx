@@ -109,13 +109,16 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   };
 
   useEffect(() => {
+    console.log("🔄 Mode changed to:", mode);
     setInternalMode(mode);
   }, [mode]);
 
   useEffect(() => {
+    console.log("📱 CommentsSheet state:", { isOpen, internalMode });
     if (isOpen) {
       document.body.style.overflow = 'hidden';
       if (internalMode === 'reply') {
+        console.log("⌨️ Triggering auto-focus for reply mode");
         const timeoutId = setTimeout(() => {
           const textarea = textareaRef.current;
           if (textarea) {
@@ -281,11 +284,16 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
 
       {/* Input commento - Condizionale basato su mode */}
       {internalMode === 'view' ? (
+        // MODE VIEW: Form piccolo e compatto tipo X - click per espandere
         <div 
-          className="fixed bottom-0 left-0 right-0 border-t border-border bg-background z-20 cursor-text transition-all duration-300"
-          onClick={() => setInternalMode('reply')}
+          className="fixed bottom-0 left-0 right-0 border-t border-border bg-background z-20 cursor-pointer transition-all duration-300 hover:bg-muted/30"
+          onClick={(e) => {
+            e.stopPropagation();
+            console.log("🖱️ Clicked on form view - switching to reply mode");
+            setInternalMode('reply');
+          }}
         >
-          <div className="px-4 py-3">
+          <div className="px-4 py-2.5">
             <div className="flex gap-3 items-center">
               <div className="flex-shrink-0">
                 {currentUserProfile && getUserAvatar(
@@ -294,22 +302,15 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                   currentUserProfile.username
                 )}
               </div>
-              <div className="flex-1 text-sm text-muted-foreground">
+              <div className="flex-1 text-[15px] text-muted-foreground">
                 Posta la tua risposta
-              </div>
-              <div className="flex gap-1">
-                <button 
-                  onClick={(e) => e.stopPropagation()}
-                  className="p-2 hover:bg-primary/10 rounded-full transition-colors text-muted-foreground"
-                >
-                  <Image className="w-5 h-5" />
-                </button>
               </div>
             </div>
           </div>
         </div>
       ) : (
-        <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background z-20 transition-all duration-300">
+        // MODE REPLY: Form espanso con textarea - tastiera aperta
+        <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background z-20 transition-all duration-300 shadow-[0_-4px_12px_rgba(0,0,0,0.1)]">
           <div className="px-4 py-3">
             <div className="flex gap-3 relative">
               <div className="flex-shrink-0">
@@ -326,10 +327,10 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                   onChange={handleTextChange}
                   onClick={(e) => e.stopPropagation()}
                   placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
-                  className="w-full bg-transparent border-none focus:outline-none resize-none text-sm min-h-[60px] max-h-[120px] placeholder:text-muted-foreground"
+                  className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[80px] max-h-[120px] placeholder:text-muted-foreground leading-normal"
                   maxLength={500}
                   inputMode="text"
-                  rows={2}
+                  rows={3}
                   style={{ 
                     height: 'auto',
                     overflowY: newComment.split('\n').length > 5 ? 'scroll' : 'hidden'
@@ -349,13 +350,19 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                   />
                 )}
                 
-                <div className="flex items-center justify-between mt-2">
+                <div className="flex items-center justify-between mt-3">
                   <div className="flex items-center gap-1 text-primary">
-                    <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
-                      <Image className="w-4 h-4" />
+                    <button 
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-2 hover:bg-primary/10 rounded-full transition-colors"
+                    >
+                      <Image className="w-[18px] h-[18px]" />
                     </button>
-                    <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
-                      <Smile className="w-4 h-4" />
+                    <button 
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-2 hover:bg-primary/10 rounded-full transition-colors"
+                    >
+                      <Smile className="w-[18px] h-[18px]" />
                     </button>
                   </div>
                   
@@ -367,9 +374,9 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                       onClick={handleSubmit}
                       disabled={!newComment.trim() || addComment.isPending}
                       size="sm"
-                      className="rounded-full"
+                      className="rounded-full px-4 font-bold"
                     >
-                      Posta
+                      {addComment.isPending ? 'Invio...' : 'Rispondi'}
                     </Button>
                   </div>
                 </div>
