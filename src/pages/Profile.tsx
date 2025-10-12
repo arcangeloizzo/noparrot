@@ -14,15 +14,19 @@ export const Profile = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"posts" | "replies">("posts");
 
-  const { data: profile, isLoading } = useQuery({
+  const { data: profile, isLoading, error } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => {
       if (!user) return null;
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .single();
+      if (error) {
+        console.error("Profile query error:", error);
+        throw error;
+      }
       return data;
     },
     enabled: !!user,
@@ -48,11 +52,11 @@ export const Profile = () => {
     enabled: !!user,
   });
 
-  const { data: userPosts = [] } = useQuery({
+  const { data: userPosts = [], error: postsError } = useQuery({
     queryKey: ["user-posts", user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("posts")
         .select(`
           *,
@@ -62,6 +66,11 @@ export const Profile = () => {
         `)
         .eq("author_id", user.id)
         .order("created_at", { ascending: false });
+      
+      if (error) {
+        console.error("Posts query error:", error);
+        return [];
+      }
       
       // Format the posts to match the Post type
       const formattedPosts = data?.map(post => ({
@@ -91,6 +100,14 @@ export const Profile = () => {
       .slice(0, 2);
   };
 
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-muted-foreground">Errore nel caricamento del profilo</div>
+      </div>
+    );
+  }
+
   if (!user || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -110,7 +127,7 @@ export const Profile = () => {
             </Button>
             <div className="ml-4">
               <h1 className="text-xl font-bold">
-                {profile?.full_name && profile.full_name.trim() && !profile.full_name.includes('.') 
+                {profile?.full_name?.trim() && !profile.full_name.includes('.') 
                   ? profile.full_name 
                   : `@${getDisplayUsername(profile?.username || '')}`
                 }
@@ -154,7 +171,7 @@ export const Profile = () => {
           {/* Nome e username */}
           <div className="mb-3">
             <h2 className="text-xl font-bold">
-              {profile?.full_name && profile.full_name.trim() && !profile.full_name.includes('.') 
+              {profile?.full_name?.trim() && !profile.full_name.includes('.') 
                 ? profile.full_name 
                 : `@${getDisplayUsername(profile?.username || '')}`
               }

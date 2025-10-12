@@ -92,11 +92,13 @@ export const CommentsSheet = ({ post, isOpen, onClose }: CommentsSheetProps) => 
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
-      // Auto-focus textarea quando si apre la sheet (aumentato delay per iOS)
-      setTimeout(() => {
-        textareaRef.current?.click();
-        textareaRef.current?.focus();
-      }, 300);
+      // Auto-focus textarea con requestAnimationFrame per miglior supporto mobile
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          textareaRef.current?.focus();
+          textareaRef.current?.setSelectionRange(0, 0);
+        });
+      });
     } else {
       document.body.style.overflow = 'unset';
     }
@@ -134,11 +136,14 @@ export const CommentsSheet = ({ post, isOpen, onClose }: CommentsSheetProps) => 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-background z-50 flex flex-col animate-in slide-in-from-right duration-300">
+    <div className="fixed inset-0 bg-background z-50 flex flex-col">
       {/* Header */}
-      <div className="sticky top-0 bg-background border-b border-border px-4 py-3 flex items-center justify-between">
+      <div className="sticky top-0 bg-background border-b border-border px-4 py-3 flex items-center justify-between z-10">
         <button
-          onClick={onClose}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
           className="p-2 hover:bg-muted rounded-full transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
@@ -211,6 +216,8 @@ export const CommentsSheet = ({ post, isOpen, onClose }: CommentsSheetProps) => 
                 placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
                 className="w-full bg-transparent border-none focus:outline-none resize-none text-sm min-h-[100px] placeholder:text-muted-foreground"
                 maxLength={500}
+                inputMode="text"
+                autoFocus
               />
               
               {/* Mention Dropdown */}
