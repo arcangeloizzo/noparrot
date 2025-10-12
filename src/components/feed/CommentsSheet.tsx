@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Trash2, Image, Video, BarChart3, Smile, MapPin, Settings } from 'lucide-react';
+import { ArrowLeft, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useComments, useAddComment, useDeleteComment } from '@/hooks/useComments';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,10 +32,8 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   const [cursorPosition, setCursorPosition] = useState(0);
   const [internalMode, setInternalMode] = useState<'view' | 'reply'>(mode);
   const [formHeight, setFormHeight] = useState(0);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
-  const commentsRef = useRef<HTMLDivElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
 
   // Carica il profilo dell'utente corrente dal database
@@ -143,19 +141,15 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     return () => observer.disconnect();
   }, []);
 
-  // Detect keyboard on mobile
+  // Fix auto-focus on mobile - trigger keyboard opening
   useEffect(() => {
-    if (!window.visualViewport) return;
-    
-    const handleResize = () => {
-      const viewport = window.visualViewport!;
-      const keyboardOpen = window.innerHeight - viewport.height;
-      setKeyboardHeight(keyboardOpen > 0 ? keyboardOpen : 0);
-    };
-    
-    window.visualViewport.addEventListener('resize', handleResize);
-    return () => window.visualViewport.removeEventListener('resize', handleResize);
-  }, []);
+    if (internalMode === 'reply' && textareaRef.current) {
+      setTimeout(() => {
+        textareaRef.current?.focus();
+        textareaRef.current?.click();
+      }, 150);
+    }
+  }, [internalMode]);
 
   const getInitials = (name: string) => {
     return name
@@ -203,8 +197,8 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
         <div className="w-10" />
       </div>
 
-      {/* Original Post - Always Visible at Top */}
-      <div className="px-4 py-3 border-b border-border bg-background">
+      {/* Original Post - Always Visible at Top (flex-shrink-0) */}
+      <div className="px-4 py-3 border-b border-border bg-background flex-shrink-0">
         <div className="flex gap-3">
           <div className="flex-shrink-0">
             {getUserAvatar(post.author.avatar_url, post.author.full_name || post.author.username)}
@@ -246,10 +240,9 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
 
       {/* Comments Area - Scrollable with dynamic padding */}
       <div 
-        ref={commentsRef}
         className="flex-1 overflow-y-auto comments-scroll-container"
         style={{ 
-          paddingBottom: internalMode === 'reply' ? `${formHeight + keyboardHeight}px` : '0px'
+          paddingBottom: internalMode === 'reply' ? `${formHeight}px` : '80px'
         }}
       >
         <div className="divide-y divide-border">
@@ -305,94 +298,9 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
         </div>
       </div>
 
-      {/* Comment Form - FIXED bottom-0, indipendente dal contenuto */}
-      <div 
-        ref={formRef}
-        className={cn(
-          "fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30",
-          "transform transition-transform duration-300 ease-out",
-          internalMode === 'view' 
-            ? "translate-y-full" 
-            : "translate-y-0"
-        )}
-      >
-        <div className="px-4 py-3">
-          <div className="flex gap-3 relative">
-            <div className="flex-shrink-0">
-              {currentUserProfile && getUserAvatar(
-                currentUserProfile.avatar_url, 
-                currentUserProfile.full_name,
-                currentUserProfile.username
-              )}
-            </div>
-            <div className="flex-1 min-w-0 relative">
-              <textarea
-                ref={textareaRef}
-                value={newComment}
-                onChange={handleTextChange}
-                onClick={(e) => e.stopPropagation()}
-                placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
-                className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[80px] max-h-[120px] placeholder:text-muted-foreground leading-normal"
-                maxLength={500}
-                inputMode="text"
-                rows={3}
-                autoFocus={internalMode === 'reply'}
-                style={{ 
-                  height: 'auto',
-                  overflowY: newComment.split('\n').length > 5 ? 'scroll' : 'hidden'
-                }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = 'auto';
-                  target.style.height = Math.min(target.scrollHeight, 120) + 'px';
-                }}
-              />
-              
-              {showMentions && (
-                <MentionDropdown
-                  users={mentionUsers}
-                  onSelect={handleSelectMention}
-                  isLoading={isSearching}
-                />
-              )}
-              
-              <div className="flex items-center justify-between mt-3">
-                <div className="flex items-center gap-1 text-primary">
-                  <button 
-                    onClick={(e) => e.stopPropagation()}
-                    className="p-2 hover:bg-primary/10 rounded-full transition-colors"
-                  >
-                    <Image className="w-[18px] h-[18px]" />
-                  </button>
-                  <button 
-                    onClick={(e) => e.stopPropagation()}
-                    className="p-2 hover:bg-primary/10 rounded-full transition-colors"
-                  >
-                    <Smile className="w-[18px] h-[18px]" />
-                  </button>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <p className="text-xs text-muted-foreground">
-                    {newComment.length}/500
-                  </p>
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={!newComment.trim() || addComment.isPending}
-                    size="sm"
-                    className="rounded-full px-4 font-bold"
-                  >
-                    {addComment.isPending ? 'Invio...' : 'Rispondi'}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Mini Placeholder Fisso - Solo per Flow 1 */}
-      {internalMode === 'view' && (
+      {/* Single Fixed Bottom Element - Conditional Rendering */}
+      {internalMode === 'view' ? (
+        // Mini Placeholder (Flow 1)
         <div 
           className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30 px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
           onClick={(e) => {
@@ -410,6 +318,69 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
             </div>
             <div className="flex-1 text-[15px] text-muted-foreground">
               Posta la tua risposta
+            </div>
+          </div>
+        </div>
+      ) : (
+        // Full Form (Flow 2 or Flow 1 after click)
+        <div 
+          ref={formRef}
+          className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
+          <div className="px-4 py-3">
+            <div className="flex gap-3 relative">
+              <div className="flex-shrink-0">
+                {currentUserProfile && getUserAvatar(
+                  currentUserProfile.avatar_url, 
+                  currentUserProfile.full_name,
+                  currentUserProfile.username
+                )}
+              </div>
+              <div className="flex-1 min-w-0 relative">
+                <textarea
+                  ref={textareaRef}
+                  value={newComment}
+                  onChange={handleTextChange}
+                  onClick={(e) => e.stopPropagation()}
+                  placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
+                  className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[80px] max-h-[120px] placeholder:text-muted-foreground leading-normal"
+                  maxLength={500}
+                  inputMode="text"
+                  rows={3}
+                  style={{ 
+                    height: 'auto',
+                    overflowY: newComment.split('\n').length > 5 ? 'scroll' : 'hidden'
+                  }}
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = 'auto';
+                    target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                  }}
+                />
+                
+                {showMentions && (
+                  <MentionDropdown
+                    users={mentionUsers}
+                    onSelect={handleSelectMention}
+                    isLoading={isSearching}
+                  />
+                )}
+                
+                <div className="flex items-center justify-end gap-3 mt-3">
+                  <p className="text-xs text-muted-foreground">
+                    {newComment.length}/500
+                  </p>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={!newComment.trim() || addComment.isPending}
+                    size="sm"
+                    className="rounded-full px-4 font-bold"
+                  >
+                    {addComment.isPending ? 'Invio...' : 'Rispondi'}
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
