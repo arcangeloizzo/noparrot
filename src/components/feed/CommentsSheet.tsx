@@ -112,16 +112,20 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
       document.body.style.overflow = 'hidden';
       // Auto-focus textarea quando si clicca sull'icona commento
       if (autoFocusInput) {
-        setTimeout(() => {
-          textareaRef.current?.focus();
-          // Force keyboard on iOS
+        // Timeout più lungo per dare tempo al layout di stabilizzarsi
+        const timeoutId = setTimeout(() => {
           const textarea = textareaRef.current;
           if (textarea) {
-            textarea.style.transform = 'translateZ(0)'; // Force GPU acceleration
-            textarea.click();
+            // Forza focus multiplo per iOS
             textarea.focus();
+            textarea.click();
+            // Double focus dopo un altro micro delay
+            setTimeout(() => {
+              textarea.focus();
+            }, 50);
           }
-        }, 300);
+        }, 400);
+        return () => clearTimeout(timeoutId);
       }
     } else {
       document.body.style.overflow = 'unset';
@@ -274,7 +278,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
       </div>
 
       {/* Input commento - Fixed Bottom sopra navbar */}
-      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background z-20 safe-area-bottom">
+      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background z-20">
         <div className="px-4 py-3">
           <div className="flex gap-3 relative">
             <div className="flex-shrink-0">
@@ -288,13 +292,6 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
                 ref={textareaRef}
                 value={newComment}
                 onChange={handleTextChange}
-                onFocus={(e) => {
-                  e.stopPropagation();
-                  // Scroll into view smooth per evitare shift brutto
-                  setTimeout(() => {
-                    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                  }, 100);
-                }}
                 onClick={(e) => e.stopPropagation()}
                 placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
                 className="w-full bg-transparent border-none focus:outline-none resize-none text-sm min-h-[60px] max-h-[120px] placeholder:text-muted-foreground"

@@ -27,10 +27,13 @@ export const Profile = () => {
         .single();
       
       if (error) {
+        console.error("❌ Profile fetch error:", error);
         throw error;
       }
+      console.log("✅ Profile fetched:", data);
       return data;
     },
+    enabled: !!user,
   });
 
 
@@ -128,22 +131,14 @@ export const Profile = () => {
     );
   }
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-muted-foreground">Caricamento profilo...</div>
-      </div>
-    );
-  }
-
   if (!user) {
     navigate('/auth');
     return null;
   }
 
-  if (!profile) {
+  if (isLoading || !profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-muted-foreground">Caricamento profilo...</div>
       </div>
     );
