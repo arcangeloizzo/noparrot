@@ -10,6 +10,7 @@ export interface MockPost {
   sharedTitle?: string;
   previewImg?: string;
   url?: string;
+  fullArticle?: string;
   sources: string[];
   trust: "BASSO" | "MEDIO" | "ALTO" | null;
   stance: "Condiviso" | "Confutato" | null;
@@ -24,6 +25,32 @@ export interface MockPost {
     correct: number;
   }[];
 }
+
+const maleAvatars = [
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=faces",
+  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&crop=faces",
+  "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=faces",
+  "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop&crop=faces",
+  "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=200&h=200&fit=crop&crop=faces",
+  "https://images.unsplash.com/photo-1566492031773-4f4e44671857?w=200&h=200&fit=crop&crop=faces",
+  "https://images.unsplash.com/photo-1545167622-3a6ac756afa4?w=200&h=200&fit=crop&crop=faces",
+  "https://images.unsplash.com/photo-1552374196-c4e7ffc6e126?w=200&h=200&fit=crop&crop=faces",
+  "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=200&h=200&fit=crop&crop=faces",
+  "https://images.unsplash.com/photo-1463453091185-61582044d556?w=200&h=200&fit=crop&crop=faces"
+];
+
+const femaleAvatars = [
+  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=faces",
+  "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop&crop=faces",
+  "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=faces",
+  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop&crop=faces",
+  "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&h=200&fit=crop&crop=faces",
+  "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=200&h=200&fit=crop&crop=faces",
+  "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=200&h=200&fit=crop&crop=faces",
+  "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?w=200&h=200&fit=crop&crop=faces",
+  "https://images.unsplash.com/photo-1502823403499-6ccfcf4fb453?w=200&h=200&fit=crop&crop=faces",
+  "https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=200&h=200&fit=crop&crop=faces"
+];
 
 export const mockPosts: MockPost[] = [
   {
@@ -221,84 +248,3 @@ export const mockPosts: MockPost[] = [
 ];
 
 // Generate more posts dynamically
-export const generateMorePosts = (count: number): MockPost[] => {
-  const names = ["Anna Lombardi", "Giuseppe Romano", "Francesca Ricci", "Matteo Ferrari", "Giulia Esposito"];
-  const topics = ["Politica", "Scienza", "Ambiente", "Tecnologia", "Società"];
-  const stances: ("Condiviso" | "Confutato" | null)[] = ["Condiviso", "Confutato", null];
-  const trustScores: ("BASSO" | "MEDIO" | "ALTO" | null)[] = ["BASSO", "MEDIO", "ALTO", null];
-  
-  const avatarPool = [
-    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=faces",
-    "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&crop=faces",
-    "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=faces",
-    "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=faces",
-    "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop&crop=faces",
-    "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=faces",
-    "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop&crop=faces",
-    "https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=200&h=200&fit=crop&crop=faces",
-    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&h=200&fit=crop&crop=faces",
-    "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=200&h=200&fit=crop&crop=faces",
-  ];
-  
-  const previewImages: Record<string, string[]> = {
-    "Politica": [
-      "https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800&h=450&fit=crop",
-      "https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=800&h=450&fit=crop"
-    ],
-    "Scienza": [
-      "https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=800&h=450&fit=crop",
-      "https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=800&h=450&fit=crop"
-    ],
-    "Ambiente": [
-      "https://images.unsplash.com/photo-1569163139394-de4e5f43e4e3?w=800&h=450&fit=crop",
-      "https://images.unsplash.com/photo-1473496169904-658ba7c44d8a?w=800&h=450&fit=crop"
-    ],
-    "Tecnologia": [
-      "https://images.unsplash.com/photo-1518709268805-4e9042af2ac1?w=800&h=450&fit=crop",
-      "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&h=450&fit=crop"
-    ],
-    "Società": [
-      "https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800&h=450&fit=crop",
-      "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=800&h=450&fit=crop"
-    ]
-  };
-  
-  return Array.from({ length: count }, (_, i) => {
-    const topic = topics[i % topics.length];
-    const topicImages = previewImages[topic];
-    
-    return {
-      id: (mockPosts.length + i + 1).toString(),
-      authorName: names[i % names.length],
-      avatar: avatarPool[i % avatarPool.length],
-      minutesAgo: Math.floor(Math.random() * 240) + 5,
-      userComment: `Questo è un commento di post generato che discute argomenti importanti. Post numero ${i + 1}.`,
-      topicTag: topic,
-      sharedTitle: Math.random() > 0.3 ? `Titolo Articolo Generato ${i + 1}` : undefined,
-      previewImg: Math.random() > 0.3 ? topicImages[i % topicImages.length] : undefined,
-      url: Math.random() > 0.3 ? `example.com/article-${i}` : undefined,
-      sources: Math.random() > 0.4 ? [`source${i}.com`] : [],
-      trust: trustScores[i % trustScores.length],
-      stance: stances[i % stances.length],
-      reactions: { heart: Math.floor(Math.random() * 50), comments: Math.floor(Math.random() * 25) },
-      isBookmarked: Math.random() > 0.8,
-      questions: [
-        {
-          question: `Domanda di esempio ${i + 1}?`,
-          options: ["Opzione A", "Opzione B", "Opzione C"],
-          correct: Math.floor(Math.random() * 3)
-        },
-        {
-          question: `Altra domanda ${i + 1}?`,
-          options: ["Scelta 1", "Scelta 2", "Scelta 3"],
-          correct: Math.floor(Math.random() * 3)
-        },
-        {
-          question: `Domanda specifica ${i + 1}?`,
-          options: ["Risposta X", "Risposta Y", "Risposta Z"],
-          correct: Math.floor(Math.random() * 3)
-        }
-      ]
-    };
-  });
-};

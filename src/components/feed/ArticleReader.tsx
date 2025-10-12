@@ -104,34 +104,18 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleRea
             />
           )}
 
-          <div className="space-y-4 text-sm text-gray-300 leading-relaxed">
-            <p>
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod 
-              tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim 
-              veniam, quis nostrud exercitation ullamco laboris.
-            </p>
-            <p>
-              Duis aute irure dolor in reprehenderit in voluptate velit esse cillum 
-              dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non 
-              proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-            </p>
-            <p>
-              Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium 
-              doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore 
-              veritatis et quasi architecto beatae vitae dicta sunt explicabo.
-            </p>
-            <p>
-              Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, 
-              sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.
-            </p>
-            <p>
-              At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis 
-              praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias.
-            </p>
-            <p>
-              Finale dell'articolo. Ora puoi procedere con il test di comprensione.
-            </p>
-          </div>
+            <div className="space-y-4 text-sm text-gray-300 leading-relaxed">
+              {post.fullArticle ? (
+                post.fullArticle.split('\n\n').map((paragraph, idx) => (
+                  <p key={idx}>{paragraph}</p>
+                ))
+              ) : (
+                <>
+                  <p className="italic text-gray-400">Contenuto originale condiviso dall'utente:</p>
+                  <p className="mt-2 font-medium">{post.userComment}</p>
+                </>
+              )}
+            </div>
         </div>
 
         {/* Action Buttons */}

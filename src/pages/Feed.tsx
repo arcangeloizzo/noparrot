@@ -14,7 +14,7 @@ import { SourceMCQTest } from "@/components/composer/SourceMCQTest";
 import { Search } from "./Search";
 import { Saved } from "./Saved";
 import { Notifications } from "./Notifications";
-import { mockPosts, generateMorePosts, MockPost } from "@/data/mockData";
+import { mockPosts, MockPost } from "@/data/mockData";
 import { useToast } from "@/hooks/use-toast";
 
 export const Feed = () => {
@@ -31,9 +31,6 @@ export const Feed = () => {
   const [pendingAction, setPendingAction] = useState<string>("");
   const { toast } = useToast();
 
-  useEffect(() => {
-    setPosts([...mockPosts, ...generateMorePosts(15)]);
-  }, []);
 
   useEffect(() => {
     if (showSimilarContent || showQuiz || showArticleReader || showPostTestActions) {
