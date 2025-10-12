@@ -37,8 +37,6 @@ export const FeedCard = ({
   onRemove 
 }: FeedCardProps) => {
   const toggleReaction = useToggleReaction();
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [showComments, setShowComments] = useState(false);
 
   const handleHeart = (e: React.MouseEvent) => {
@@ -73,40 +71,13 @@ export const FeedCard = ({
     );
   };
 
-  const minSwipeDistance = 50;
-
-  const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    if (isLeftSwipe && onOpenReader) {
-      onOpenReader();
-    }
-    setTouchStart(null);
-    setTouchEnd(null);
-  };
-
-  const timeAgo = formatDistanceToNow(new Date(post.created_at), { 
+  const timeAgo = formatDistanceToNow(new Date(post.created_at), {
     addSuffix: true,
     locale: it 
   });
 
   return (
-    <div 
-      className="p-4 hover:bg-muted/30 transition-colors"
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-    >
+    <div className="p-4 hover:bg-muted/30 transition-colors">
       <div className="flex gap-3">
         {/* Avatar */}
         <div className="flex-shrink-0">
@@ -241,7 +212,7 @@ export const FeedCard = ({
       </div>
 
       <CommentsSheet
-        postId={post.id}
+        post={post}
         isOpen={showComments}
         onClose={() => setShowComments(false)}
       />

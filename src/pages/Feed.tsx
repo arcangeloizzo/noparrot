@@ -1,15 +1,12 @@
 import { useState, useEffect } from "react";
 import { Logo } from "@/components/ui/logo";
 import { FeedCard } from "@/components/feed/FeedCardAdapt";
-import { ArticleReader } from "@/components/feed/ArticleReader";
-import { PostTestActionsModal } from "@/components/feed/PostTestActionsModal";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 import { FloatingActionButton } from "@/components/fab/FloatingActionButton";
 import { ComposerModal } from "@/components/composer/ComposerModal";
 import { SimilarContentOverlay } from "@/components/feed/SimilarContentOverlay";
 import { CGProvider } from "@/lib/comprehension-gate";
-import { SourceMCQTest } from "@/components/composer/SourceMCQTest";
 import { Search } from "./Search";
 import { Saved } from "./Saved";
 import { Notifications } from "./Notifications";
@@ -24,15 +21,11 @@ export const Feed = () => {
   const [showComposer, setShowComposer] = useState(false);
   const [showSimilarContent, setShowSimilarContent] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [showArticleReader, setShowArticleReader] = useState(false);
-  const [showQuiz, setShowQuiz] = useState(false);
-  const [showPostTestActions, setShowPostTestActions] = useState(false);
-  const [pendingAction, setPendingAction] = useState<string>("");
   const { toast } = useToast();
 
 
   useEffect(() => {
-    if (showSimilarContent || showQuiz || showArticleReader || showPostTestActions) {
+    if (showSimilarContent) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -40,7 +33,7 @@ export const Feed = () => {
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [showSimilarContent, showQuiz, showArticleReader, showPostTestActions]);
+  }, [showSimilarContent]);
 
   const handleCreatePost = () => setShowComposer(true);
   const handleLogoClick = () => {
@@ -60,41 +53,6 @@ export const Feed = () => {
 
   const handleRemovePost = (postId: string) => {
     // Post removed via database
-  };
-
-  const handleOpenReader = (post: Post) => {
-    setSelectedPost(post);
-    setShowArticleReader(true);
-  };
-
-  const handleCloseArticleReader = () => {
-    setShowArticleReader(false);
-    setSelectedPost(null);
-  };
-
-  const handleStartQuiz = (action: string) => {
-    if (!selectedPost) return;
-    
-    setPendingAction(action);
-    setShowArticleReader(false);
-    setShowQuiz(true);
-  };
-
-  const handleCompleteQuiz = (passed: boolean) => {
-    setShowQuiz(false);
-    if (passed) {
-      setShowPostTestActions(true);
-    } else {
-      // Reset on failed test
-      setSelectedPost(null);
-      setPendingAction("");
-    }
-  };
-
-  const handleClosePostTestActions = () => {
-    setShowPostTestActions(false);
-    setSelectedPost(null);
-    setPendingAction("");
   };
 
   // Navigation pages
@@ -180,7 +138,6 @@ export const Feed = () => {
             <FeedCard
               key={post.id}
               post={post}
-              onOpenReader={() => handleOpenReader(post)}
               onRemove={() => handleRemovePost(post.id)}
             />
           ))}
@@ -215,42 +172,6 @@ export const Feed = () => {
           isOpen={showSimilarContent}
           onClose={handleCloseSimilarContent}
           originalPost={selectedPost}
-        />
-      )}
-
-      {selectedPost && (
-        <ArticleReader
-          post={selectedPost}
-          isOpen={showArticleReader}
-          onClose={handleCloseArticleReader}
-          onStartQuiz={handleStartQuiz}
-        />
-      )}
-
-      {showQuiz && selectedPost && (
-        <SourceMCQTest
-          source={{
-            id: selectedPost.id,
-            url: selectedPost.shared_url || "",
-            title: selectedPost.shared_title || "Articolo condiviso",
-            state: 'testing',
-            attempts: 0
-          }}
-          isOpen={showQuiz}
-          onClose={() => {
-            setShowQuiz(false);
-            setSelectedPost(null);
-            setPendingAction("");
-          }}
-          onComplete={handleCompleteQuiz}
-        />
-      )}
-
-      {selectedPost && (
-        <PostTestActionsModal
-          post={selectedPost}
-          isOpen={showPostTestActions}
-          onClose={handleClosePostTestActions}
         />
       )}
     </div>
