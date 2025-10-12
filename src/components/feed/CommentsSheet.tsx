@@ -32,8 +32,10 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   const [cursorPosition, setCursorPosition] = useState(0);
   const [internalMode, setInternalMode] = useState<'view' | 'reply'>(mode);
   const [formHeight, setFormHeight] = useState(0);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
+  const commentsRef = useRef<HTMLDivElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
 
   // Carica il profilo dell'utente corrente dal database
@@ -127,15 +129,33 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     };
   }, [isOpen]);
 
-  // Auto-focus when switching to reply mode (Flow 1 → Flow 2)
+  // Measure form height
   useEffect(() => {
-    if (internalMode === 'reply' && textareaRef.current) {
-      setTimeout(() => {
-        textareaRef.current?.focus();
-        textareaRef.current?.click(); // Trigger mobile keyboard
-      }, 100);
-    }
-  }, [internalMode]);
+    if (!formRef.current) return;
+    
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setFormHeight(entry.contentRect.height);
+      }
+    });
+    
+    observer.observe(formRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  // Detect keyboard on mobile
+  useEffect(() => {
+    if (!window.visualViewport) return;
+    
+    const handleResize = () => {
+      const viewport = window.visualViewport!;
+      const keyboardOpen = window.innerHeight - viewport.height;
+      setKeyboardHeight(keyboardOpen > 0 ? keyboardOpen : 0);
+    };
+    
+    window.visualViewport.addEventListener('resize', handleResize);
+    return () => window.visualViewport.removeEventListener('resize', handleResize);
+  }, []);
 
   const getInitials = (name: string) => {
     return name
@@ -224,8 +244,14 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
         </div>
       </div>
 
-      {/* Comments Area - Scrollable */}
-      <div className="flex-1 overflow-y-auto comments-scroll-container">
+      {/* Comments Area - Scrollable with dynamic padding */}
+      <div 
+        ref={commentsRef}
+        className="flex-1 overflow-y-auto comments-scroll-container"
+        style={{ 
+          paddingBottom: internalMode === 'reply' ? `${formHeight + keyboardHeight}px` : '0px'
+        }}
+      >
         <div className="divide-y divide-border">
           {isLoading ? (
             <div className="text-center text-muted-foreground py-8">
@@ -279,109 +305,115 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
         </div>
       </div>
 
-      {/* Comment Form - Sticky at bottom, inside scroll flow */}
+      {/* Comment Form - FIXED bottom-0, indipendente dal contenuto */}
       <div 
         ref={formRef}
-        className="sticky bottom-0 bg-background border-t border-border"
+        className={cn(
+          "fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30",
+          "transform transition-transform duration-300 ease-out",
+          internalMode === 'view' 
+            ? "translate-y-full" 
+            : "translate-y-0"
+        )}
       >
-        {internalMode === 'view' ? (
-          /* Flow 1: Placeholder che si clicca per espandere */
-          <div 
-            className="px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              setInternalMode('reply');
-            }}
-          >
-            <div className="flex gap-3 items-center">
-              <div className="flex-shrink-0">
-                {currentUserProfile && getUserAvatar(
-                  currentUserProfile.avatar_url, 
-                  currentUserProfile.full_name,
-                  currentUserProfile.username
-                )}
-              </div>
-              <div className="flex-1 text-[15px] text-muted-foreground">
-                Posta la tua risposta
-              </div>
+        <div className="px-4 py-3">
+          <div className="flex gap-3 relative">
+            <div className="flex-shrink-0">
+              {currentUserProfile && getUserAvatar(
+                currentUserProfile.avatar_url, 
+                currentUserProfile.full_name,
+                currentUserProfile.username
+              )}
             </div>
-          </div>
-        ) : (
-          /* Flow 2: Form completo espanso */
-          <div className="px-4 py-3">
-            <div className="flex gap-3 relative">
-              <div className="flex-shrink-0">
-                {currentUserProfile && getUserAvatar(
-                  currentUserProfile.avatar_url, 
-                  currentUserProfile.full_name,
-                  currentUserProfile.username
-                )}
-              </div>
-              <div className="flex-1 min-w-0 relative">
-                <textarea
-                  ref={textareaRef}
-                  value={newComment}
-                  onChange={handleTextChange}
-                  onClick={(e) => e.stopPropagation()}
-                  placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
-                  className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[80px] max-h-[120px] placeholder:text-muted-foreground leading-normal"
-                  maxLength={500}
-                  inputMode="text"
-                  rows={3}
-                  style={{ 
-                    height: 'auto',
-                    overflowY: newComment.split('\n').length > 5 ? 'scroll' : 'hidden'
-                  }}
-                  onInput={(e) => {
-                    const target = e.target as HTMLTextAreaElement;
-                    target.style.height = 'auto';
-                    target.style.height = Math.min(target.scrollHeight, 120) + 'px';
-                  }}
+            <div className="flex-1 min-w-0 relative">
+              <textarea
+                ref={textareaRef}
+                value={newComment}
+                onChange={handleTextChange}
+                onClick={(e) => e.stopPropagation()}
+                placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
+                className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[80px] max-h-[120px] placeholder:text-muted-foreground leading-normal"
+                maxLength={500}
+                inputMode="text"
+                rows={3}
+                autoFocus={internalMode === 'reply'}
+                style={{ 
+                  height: 'auto',
+                  overflowY: newComment.split('\n').length > 5 ? 'scroll' : 'hidden'
+                }}
+                onInput={(e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  target.style.height = 'auto';
+                  target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                }}
+              />
+              
+              {showMentions && (
+                <MentionDropdown
+                  users={mentionUsers}
+                  onSelect={handleSelectMention}
+                  isLoading={isSearching}
                 />
+              )}
+              
+              <div className="flex items-center justify-between mt-3">
+                <div className="flex items-center gap-1 text-primary">
+                  <button 
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-2 hover:bg-primary/10 rounded-full transition-colors"
+                  >
+                    <Image className="w-[18px] h-[18px]" />
+                  </button>
+                  <button 
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-2 hover:bg-primary/10 rounded-full transition-colors"
+                  >
+                    <Smile className="w-[18px] h-[18px]" />
+                  </button>
+                </div>
                 
-                {showMentions && (
-                  <MentionDropdown
-                    users={mentionUsers}
-                    onSelect={handleSelectMention}
-                    isLoading={isSearching}
-                  />
-                )}
-                
-                <div className="flex items-center justify-between mt-3">
-                  <div className="flex items-center gap-1 text-primary">
-                    <button 
-                      onClick={(e) => e.stopPropagation()}
-                      className="p-2 hover:bg-primary/10 rounded-full transition-colors"
-                    >
-                      <Image className="w-[18px] h-[18px]" />
-                    </button>
-                    <button 
-                      onClick={(e) => e.stopPropagation()}
-                      className="p-2 hover:bg-primary/10 rounded-full transition-colors"
-                    >
-                      <Smile className="w-[18px] h-[18px]" />
-                    </button>
-                  </div>
-                  
-                  <div className="flex items-center gap-3">
-                    <p className="text-xs text-muted-foreground">
-                      {newComment.length}/500
-                    </p>
-                    <Button
-                      onClick={handleSubmit}
-                      disabled={!newComment.trim() || addComment.isPending}
-                      size="sm"
-                      className="rounded-full px-4 font-bold"
-                    >
-                      {addComment.isPending ? 'Invio...' : 'Rispondi'}
-                    </Button>
-                  </div>
+                <div className="flex items-center gap-3">
+                  <p className="text-xs text-muted-foreground">
+                    {newComment.length}/500
+                  </p>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={!newComment.trim() || addComment.isPending}
+                    size="sm"
+                    className="rounded-full px-4 font-bold"
+                  >
+                    {addComment.isPending ? 'Invio...' : 'Rispondi'}
+                  </Button>
                 </div>
               </div>
             </div>
           </div>
-        )}
+        </div>
       </div>
+
+      {/* Mini Placeholder Fisso - Solo per Flow 1 */}
+      {internalMode === 'view' && (
+        <div 
+          className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30 px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
+          onClick={(e) => {
+            e.stopPropagation();
+            setInternalMode('reply');
+          }}
+        >
+          <div className="flex gap-3 items-center">
+            <div className="flex-shrink-0">
+              {currentUserProfile && getUserAvatar(
+                currentUserProfile.avatar_url, 
+                currentUserProfile.full_name,
+                currentUserProfile.username
+              )}
+            </div>
+            <div className="flex-1 text-[15px] text-muted-foreground">
+              Posta la tua risposta
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
