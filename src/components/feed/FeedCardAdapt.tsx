@@ -218,6 +218,7 @@ export const FeedCard = ({
         post={post}
         isOpen={showComments}
         onClose={() => setShowComments(false)}
+        autoFocusInput={false}
       />
     </div>
   );

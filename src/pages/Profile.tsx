@@ -127,10 +127,9 @@ export const Profile = () => {
             </Button>
             <div className="ml-4">
               <h1 className="text-xl font-bold">
-                {profile?.full_name?.trim() && !profile.full_name.includes('.') 
+                {profile?.full_name?.trim() && !profile.full_name.includes('@') && profile.full_name.includes(' ')
                   ? profile.full_name 
-                  : `@${getDisplayUsername(profile?.username || '')}`
-                }
+                  : getDisplayUsername(profile?.username || '')}
               </h1>
               <p className="text-sm text-muted-foreground">{stats?.posts || 0} Post</p>
             </div>
@@ -152,7 +151,7 @@ export const Profile = () => {
               />
             ) : (
               <div className="w-32 h-32 rounded-full border-4 border-background bg-primary flex items-center justify-center text-4xl font-semibold text-primary-foreground">
-                {getInitials(profile?.full_name || "")}
+                {getInitials(getDisplayUsername(profile?.username || "U"))}
               </div>
             )}
           </div>
@@ -171,10 +170,9 @@ export const Profile = () => {
           {/* Nome e username */}
           <div className="mb-3">
             <h2 className="text-xl font-bold">
-              {profile?.full_name?.trim() && !profile.full_name.includes('.') 
+              {profile?.full_name?.trim() && !profile.full_name.includes('@') && profile.full_name.includes(' ')
                 ? profile.full_name 
-                : `@${getDisplayUsername(profile?.username || '')}`
-              }
+                : getDisplayUsername(profile?.username || '')}
             </h2>
             <p className="text-muted-foreground">@{getDisplayUsername(profile?.username || '')}</p>
           </div>

@@ -16,9 +16,10 @@ interface CommentsSheetProps {
   post: Post;
   isOpen: boolean;
   onClose: () => void;
+  autoFocusInput?: boolean;
 }
 
-export const CommentsSheet = ({ post, isOpen, onClose }: CommentsSheetProps) => {
+export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }: CommentsSheetProps) => {
   const { user } = useAuth();
   const { data: comments = [], isLoading } = useComments(post.id);
   const addComment = useAddComment();
@@ -92,20 +93,22 @@ export const CommentsSheet = ({ post, isOpen, onClose }: CommentsSheetProps) => 
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
-      // Auto-focus textarea con requestAnimationFrame per miglior supporto mobile
-      requestAnimationFrame(() => {
+      // Auto-focus textarea SOLO se autoFocusInput è true (click sull'icona commento)
+      if (autoFocusInput) {
         requestAnimationFrame(() => {
-          textareaRef.current?.focus();
-          textareaRef.current?.setSelectionRange(0, 0);
+          requestAnimationFrame(() => {
+            textareaRef.current?.focus();
+            textareaRef.current?.setSelectionRange(0, 0);
+          });
         });
-      });
+      }
     } else {
       document.body.style.overflow = 'unset';
     }
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen]);
+  }, [isOpen, autoFocusInput]);
 
   const getInitials = (name: string) => {
     return name
@@ -217,7 +220,6 @@ export const CommentsSheet = ({ post, isOpen, onClose }: CommentsSheetProps) => 
                 className="w-full bg-transparent border-none focus:outline-none resize-none text-sm min-h-[100px] placeholder:text-muted-foreground"
                 maxLength={500}
                 inputMode="text"
-                autoFocus
               />
               
               {/* Mention Dropdown */}
