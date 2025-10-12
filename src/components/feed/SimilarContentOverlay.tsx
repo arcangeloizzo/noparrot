@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { FeedCard } from "./FeedCard";
-import { MockPost, generateMorePosts } from "@/data/mockData";
+import { MockPost, mockPosts } from "@/data/mockData";
 
 interface SimilarContentOverlayProps {
   isOpen: boolean;
@@ -16,14 +16,10 @@ export const SimilarContentOverlay = ({ isOpen, onClose, originalPost }: Similar
   
   if (!isOpen) return null;
 
-  // Generate similar posts (mock data)
-  const similarPosts = generateMorePosts(6).map(post => ({
-    ...post,
-    topicTag: originalPost.topicTag,
-    // Mix of verified and unverified sources
-    sources: Math.random() > 0.5 ? ['source1.com'] : [],
-    trust: Math.random() > 0.5 ? (['BASSO', 'MEDIO', 'ALTO'] as const)[Math.floor(Math.random() * 3)] : null
-  }));
+  // Generate similar posts from existing mockPosts
+  const similarPosts = mockPosts
+    .filter(post => post.id !== originalPost.id && post.topicTag === originalPost.topicTag)
+    .slice(0, 6);
 
   const filteredPosts = showUnverifiedSources 
     ? similarPosts 
