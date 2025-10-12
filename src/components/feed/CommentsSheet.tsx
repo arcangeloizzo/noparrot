@@ -112,12 +112,11 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
       document.body.style.overflow = 'hidden';
       // Auto-focus textarea SOLO se autoFocusInput è true (click sull'icona commento)
       if (autoFocusInput) {
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            textareaRef.current?.focus();
-            textareaRef.current?.setSelectionRange(0, 0);
-          });
-        });
+        setTimeout(() => {
+          textareaRef.current?.focus();
+          textareaRef.current?.click(); // Per iOS
+          textareaRef.current?.setSelectionRange(0, 0);
+        }, 100);
       }
     } else {
       document.body.style.overflow = 'unset';
@@ -237,10 +236,12 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
                   ref={textareaRef}
                   value={newComment}
                   onChange={handleTextChange}
+                  onClick={(e) => e.stopPropagation()}
                   placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
                   className="w-full bg-transparent border-none focus:outline-none resize-none text-sm min-h-[100px] placeholder:text-muted-foreground"
                   maxLength={500}
                   inputMode="text"
+                  autoFocus={autoFocusInput}
                 />
                 
                 {/* Mention Dropdown */}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -17,20 +17,32 @@ export const Profile = () => {
   const { data: profile, isLoading, error } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => {
-      if (!user) return null;
+      console.log("🔍 Profile query starting for user:", user?.id);
+      if (!user) {
+        console.log("❌ No user found in Profile page");
+        return null;
+      }
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .single();
+      
+      console.log("📊 Profile query result:", { data, error });
+      
       if (error) {
-        console.error("Profile query error:", error);
+        console.error("❌ Profile query error:", error);
         throw error;
       }
       return data;
     },
     enabled: !!user,
   });
+
+  // Logging dello stato per debug
+  useEffect(() => {
+    console.log("🔍 Profile page state:", { user, profile, isLoading, error });
+  }, [user, profile, isLoading, error]);
 
   const { data: stats } = useQuery({
     queryKey: ["profile-stats", user?.id],
@@ -108,10 +120,18 @@ export const Profile = () => {
     );
   }
 
-  if (!user || isLoading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-muted-foreground">Caricamento profilo...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-muted-foreground">Utente non autenticato</div>
       </div>
     );
   }
