@@ -1,6 +1,9 @@
 import { HomeIcon, SearchIcon, BookmarkIcon, BellIcon, UserIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { NAV_PROFILE_AS_HOME } from "@/config/brand";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BottomNavigationProps {
   activeTab: string;
@@ -9,11 +12,30 @@ interface BottomNavigationProps {
 }
 
 export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: BottomNavigationProps) => {
+  const { user } = useAuth();
+
+  const { data: profile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase.from("profiles").select("avatar_url, full_name").eq("id", user.id).single();
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const getInitials = (name: string) => {
+    return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+  };
+
   const getAvatarContent = () => {
-    const initials = "AI";
+    if (profile?.avatar_url) {
+      return <img src={profile.avatar_url} alt="Avatar" className="w-7 h-7 rounded-full object-cover" />;
+    }
+
     return (
-      <div className="w-8 h-8 bg-primary-blue rounded-full flex items-center justify-center text-white text-sm font-semibold">
-        {initials}
+      <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-xs font-semibold text-primary-foreground">
+        {profile?.full_name ? getInitials(profile.full_name) : "?"}
       </div>
     );
   };
@@ -46,15 +68,7 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
                 : "text-muted-foreground"
             )}
           >
-            {isAvatar ? (
-              <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center">
-                <div className="text-xs font-semibold text-primary-foreground">
-                  AI
-                </div>
-              </div>
-            ) : (
-              Icon && <Icon className="w-6 h-6" />
-            )}
+            {isAvatar ? getAvatarContent() : Icon && <Icon className="w-6 h-6" />}
             {!isAvatar && <span className="text-[10px] font-medium">{label}</span>}
           </button>
         ))}
