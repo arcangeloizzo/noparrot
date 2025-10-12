@@ -10,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { CommentsSheet } from "./CommentsSheet";
 
 interface FeedCardProps {
   post: MockPost;
@@ -49,6 +50,8 @@ export const FeedCard = ({
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
+  const [commentsSheetOpen, setCommentsSheetOpen] = useState(false);
+  const [commentMode, setCommentMode] = useState<'view' | 'reply'>('view');
 
   // Generate avatar with initials if no image
   const getAvatarContent = () => {
@@ -125,17 +128,21 @@ export const FeedCard = ({
   };
 
   return (
-    <article 
-      className="px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer" 
-      style={{
-        transform: `translateX(-${swipeOffset}px)`,
-        transition: swipeOffset === 0 ? 'transform 0.3s ease-out' : 'none'
-      }}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onClick={onOpenReader}
-    >
+    <>
+      <article 
+        className="px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer" 
+        style={{
+          transform: `translateX(-${swipeOffset}px)`,
+          transition: swipeOffset === 0 ? 'transform 0.3s ease-out' : 'none'
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onClick={() => {
+          setCommentMode('view');
+          setCommentsSheetOpen(true);
+        }}
+      >
       <div className="flex gap-3">
         {/* Avatar */}
         <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
@@ -221,7 +228,11 @@ export const FeedCard = ({
           {/* Actions Bar */}
           <div className="flex items-center justify-between max-w-md -ml-2">
             <button 
-              onClick={(e) => { e.stopPropagation(); /* TODO: Comment */ }}
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                setCommentMode('reply');
+                setCommentsSheetOpen(true);
+              }}
               className="flex items-center gap-2 p-2 rounded-full hover:bg-primary/10 group transition-colors"
             >
               <MessageCircleIcon className="w-[18px] h-[18px] text-muted-foreground group-hover:text-primary transition-colors" />
@@ -279,5 +290,13 @@ export const FeedCard = ({
         </div>
       </div>
     </article>
+
+    <CommentsSheet
+      post={post as any}
+      isOpen={commentsSheetOpen}
+      onClose={() => setCommentsSheetOpen(false)}
+      mode={commentMode}
+    />
+  </>
   );
 };
