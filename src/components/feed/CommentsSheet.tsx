@@ -32,6 +32,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   const [cursorPosition, setCursorPosition] = useState(0);
   const [internalMode, setInternalMode] = useState<'view' | 'reply'>(mode);
   const [formHeight, setFormHeight] = useState(0);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
@@ -141,7 +142,37 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     return () => observer.disconnect();
   }, []);
 
-  // REMOVED: No programmatic focus/click - keyboard opens on direct user interaction only
+  // FASE 2: Auto-focus per Flow 2 (click su icona commento)
+  useEffect(() => {
+    if (internalMode === 'reply' && mode === 'reply' && textareaRef.current) {
+      setTimeout(() => {
+        textareaRef.current?.focus();
+        textareaRef.current?.click();
+      }, 150);
+    }
+  }, [internalMode, mode]);
+
+  // FASE 3: Gestione visualViewport per keyboard
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleViewportChange = () => {
+      if (window.visualViewport) {
+        const viewportHeight = window.visualViewport.height;
+        const windowHeight = window.innerHeight;
+        const diff = windowHeight - viewportHeight;
+        setKeyboardHeight(diff > 0 ? diff : 0);
+      }
+    };
+
+    window.visualViewport?.addEventListener('resize', handleViewportChange);
+    handleViewportChange(); // Initial check
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', handleViewportChange);
+      setKeyboardHeight(0);
+    };
+  }, [isOpen]);
 
   const getInitials = (name: string) => {
     return name
@@ -173,7 +204,10 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-background z-50 flex flex-col">
+    <div 
+      className="fixed inset-0 bg-background z-50 flex flex-col"
+      style={{ paddingTop: keyboardHeight > 0 ? `${keyboardHeight}px` : '0' }}
+    >
       {/* Header - Sticky Top */}
       <div className="sticky top-0 bg-background border-b border-border px-4 py-3 flex items-center justify-between z-20">
         <button
@@ -307,15 +341,15 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
             </div>
             <div className="flex-1 min-w-0 relative">
               {internalMode === 'view' ? (
-                // Flow 1: Disabled textarea that looks like placeholder
+                // FASE 1: Flow 1 - readOnly textarea (clickable placeholder)
                 <textarea
-                  disabled
+                  readOnly
                   onClick={(e) => {
                     e.stopPropagation();
                     setInternalMode('reply');
                   }}
                   placeholder="Posta la tua risposta"
-                  className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] h-[40px] placeholder:text-muted-foreground cursor-pointer"
+                  className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[40px] placeholder:text-muted-foreground cursor-pointer"
                   rows={1}
                 />
               ) : (
@@ -327,7 +361,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                     onChange={handleTextChange}
                     onClick={(e) => e.stopPropagation()}
                     placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
-                    className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[80px] max-h-[120px] placeholder:text-muted-foreground leading-normal"
+                    className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[40px] max-h-[120px] placeholder:text-muted-foreground leading-normal"
                     maxLength={500}
                     inputMode="text"
                     rows={3}
