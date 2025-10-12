@@ -11,6 +11,8 @@ import { MentionDropdown } from './MentionDropdown';
 import { MentionText } from './MentionText';
 import { useUserSearch } from '@/hooks/useUserSearch';
 import { cn, getDisplayUsername } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 interface CommentsSheetProps {
   post: Post;
@@ -30,6 +32,21 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
   const [cursorPosition, setCursorPosition] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
+
+  // Carica il profilo dell'utente corrente dal database
+  const { data: currentUserProfile } = useQuery({
+    queryKey: ["profile", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, username, full_name, avatar_url")
+        .eq("id", user.id)
+        .single();
+      return data;
+    },
+    enabled: !!user,
+  });
 
   const handleSubmit = async () => {
     if (!newComment.trim() || addComment.isPending) return;
@@ -209,7 +226,10 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
         <div className="px-4 py-3 border-b border-border">
           <div className="flex gap-3 relative">
             <div className="flex-shrink-0">
-              {user && getUserAvatar(user.user_metadata?.avatar_url, user.user_metadata?.full_name || user.user_metadata?.username || 'Utente')}
+              {currentUserProfile && getUserAvatar(
+                currentUserProfile.avatar_url, 
+                currentUserProfile.full_name || currentUserProfile.username
+              )}
             </div>
             <div className="flex-1 min-w-0 relative">
               <textarea

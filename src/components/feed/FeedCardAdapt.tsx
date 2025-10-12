@@ -38,6 +38,7 @@ export const FeedCard = ({
 }: FeedCardProps) => {
   const toggleReaction = useToggleReaction();
   const [showComments, setShowComments] = useState(false);
+  const [commentMode, setCommentMode] = useState<'view' | 'reply'>('view');
 
   const handleHeart = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -79,7 +80,10 @@ export const FeedCard = ({
   return (
     <div 
       className="p-4 hover:bg-muted/30 transition-colors cursor-pointer"
-      onClick={() => setShowComments(true)}
+      onClick={() => {
+        setCommentMode('view');
+        setShowComments(true);
+      }}
     >
       <div className="flex gap-3">
         {/* Avatar */}
@@ -188,6 +192,7 @@ export const FeedCard = ({
               className="flex items-center gap-2 hover:text-primary transition-colors group"
               onClick={(e) => {
                 e.stopPropagation();
+                setCommentMode('reply');
                 setShowComments(true);
               }}
             >
@@ -217,8 +222,11 @@ export const FeedCard = ({
       <CommentsSheet
         post={post}
         isOpen={showComments}
-        onClose={() => setShowComments(false)}
-        autoFocusInput={false}
+        onClose={() => {
+          setShowComments(false);
+          setCommentMode('view');
+        }}
+        autoFocusInput={commentMode === 'reply'}
       />
     </div>
   );
