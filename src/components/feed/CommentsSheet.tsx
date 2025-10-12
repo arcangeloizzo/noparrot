@@ -141,15 +141,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     return () => observer.disconnect();
   }, []);
 
-  // Fix auto-focus on mobile - trigger keyboard opening
-  useEffect(() => {
-    if (internalMode === 'reply' && textareaRef.current) {
-      setTimeout(() => {
-        textareaRef.current?.focus();
-        textareaRef.current?.click();
-      }, 150);
-    }
-  }, [internalMode]);
+  // REMOVED: No programmatic focus/click - keyboard opens on direct user interaction only
 
   const getInitials = (name: string) => {
     return name
@@ -299,16 +291,13 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
       </div>
 
       {/* Single Fixed Bottom Element - Conditional Rendering */}
-      {internalMode === 'view' ? (
-        // Mini Placeholder (Flow 1)
-        <div 
-          className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30 px-4 py-3 cursor-pointer hover:bg-muted/30 transition-colors"
-          onClick={(e) => {
-            e.stopPropagation();
-            setInternalMode('reply');
-          }}
-        >
-          <div className="flex gap-3 items-center">
+      <div 
+        ref={formRef}
+        className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="px-4 py-3">
+          <div className="flex gap-3 items-center relative">
             <div className="flex-shrink-0">
               {currentUserProfile && getUserAvatar(
                 currentUserProfile.avatar_url, 
@@ -316,75 +305,70 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                 currentUserProfile.username
               )}
             </div>
-            <div className="flex-1 text-[15px] text-muted-foreground">
-              Posta la tua risposta
-            </div>
-          </div>
-        </div>
-      ) : (
-        // Full Form (Flow 2 or Flow 1 after click)
-        <div 
-          ref={formRef}
-          className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30"
-          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-        >
-          <div className="px-4 py-3">
-            <div className="flex gap-3 relative">
-              <div className="flex-shrink-0">
-                {currentUserProfile && getUserAvatar(
-                  currentUserProfile.avatar_url, 
-                  currentUserProfile.full_name,
-                  currentUserProfile.username
-                )}
-              </div>
-              <div className="flex-1 min-w-0 relative">
+            <div className="flex-1 min-w-0 relative">
+              {internalMode === 'view' ? (
+                // Flow 1: Disabled textarea that looks like placeholder
                 <textarea
-                  ref={textareaRef}
-                  value={newComment}
-                  onChange={handleTextChange}
-                  onClick={(e) => e.stopPropagation()}
-                  placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
-                  className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[80px] max-h-[120px] placeholder:text-muted-foreground leading-normal"
-                  maxLength={500}
-                  inputMode="text"
-                  rows={3}
-                  style={{ 
-                    height: 'auto',
-                    overflowY: newComment.split('\n').length > 5 ? 'scroll' : 'hidden'
+                  disabled
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setInternalMode('reply');
                   }}
-                  onInput={(e) => {
-                    const target = e.target as HTMLTextAreaElement;
-                    target.style.height = 'auto';
-                    target.style.height = Math.min(target.scrollHeight, 120) + 'px';
-                  }}
+                  placeholder="Posta la tua risposta"
+                  className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] h-[40px] placeholder:text-muted-foreground cursor-pointer"
+                  rows={1}
                 />
-                
-                {showMentions && (
-                  <MentionDropdown
-                    users={mentionUsers}
-                    onSelect={handleSelectMention}
-                    isLoading={isSearching}
+              ) : (
+                // Flow 2 or Flow 1 after click: Enabled textarea
+                <>
+                  <textarea
+                    ref={textareaRef}
+                    value={newComment}
+                    onChange={handleTextChange}
+                    onClick={(e) => e.stopPropagation()}
+                    placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
+                    className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[80px] max-h-[120px] placeholder:text-muted-foreground leading-normal"
+                    maxLength={500}
+                    inputMode="text"
+                    rows={3}
+                    style={{ 
+                      height: 'auto',
+                      overflowY: newComment.split('\n').length > 5 ? 'scroll' : 'hidden'
+                    }}
+                    onInput={(e) => {
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = 'auto';
+                      target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                    }}
                   />
-                )}
-                
-                <div className="flex items-center justify-end gap-3 mt-3">
-                  <p className="text-xs text-muted-foreground">
-                    {newComment.length}/500
-                  </p>
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={!newComment.trim() || addComment.isPending}
-                    size="sm"
-                    className="rounded-full px-4 font-bold"
-                  >
-                    {addComment.isPending ? 'Invio...' : 'Rispondi'}
-                  </Button>
-                </div>
-              </div>
+                  
+                  {showMentions && (
+                    <MentionDropdown
+                      users={mentionUsers}
+                      onSelect={handleSelectMention}
+                      isLoading={isSearching}
+                    />
+                  )}
+                  
+                  <div className="flex items-center justify-end gap-3 mt-3">
+                    <p className="text-xs text-muted-foreground">
+                      {newComment.length}/500
+                    </p>
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={!newComment.trim() || addComment.isPending}
+                      size="sm"
+                      className="rounded-full px-4 font-bold"
+                    >
+                      {addComment.isPending ? 'Invio...' : 'Rispondi'}
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
