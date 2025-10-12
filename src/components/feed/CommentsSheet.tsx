@@ -145,10 +145,9 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   // FASE 2: Auto-focus per Flow 2 (click su icona commento)
   useEffect(() => {
     if (internalMode === 'reply' && mode === 'reply' && textareaRef.current) {
-      setTimeout(() => {
-        textareaRef.current?.focus();
-        textareaRef.current?.click();
-      }, 150);
+      // Immediato, senza setTimeout per evitare transizione brutta
+      textareaRef.current.focus();
+      textareaRef.current.click();
     }
   }, [internalMode, mode]);
 
@@ -331,8 +330,8 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
         <div className="px-4 py-3">
-          <div className="flex gap-3 items-center relative">
-            <div className="flex-shrink-0">
+          <div className="flex gap-3 items-start relative">
+            <div className="flex-shrink-0 pt-1">
               {currentUserProfile && getUserAvatar(
                 currentUserProfile.avatar_url, 
                 currentUserProfile.full_name,
@@ -341,17 +340,18 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
             </div>
             <div className="flex-1 min-w-0 relative">
               {internalMode === 'view' ? (
-                // FASE 1: Flow 1 - readOnly textarea (clickable placeholder)
-                <textarea
-                  readOnly
+                // FASE 1: Flow 1 - DIV cliccabile (non textarea!) per iOS Safari
+                <div
                   onClick={(e) => {
                     e.stopPropagation();
                     setInternalMode('reply');
+                    // Focus immediato dopo cambio mode
+                    setTimeout(() => textareaRef.current?.focus(), 0);
                   }}
-                  placeholder="Posta la tua risposta"
-                  className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[40px] placeholder:text-muted-foreground cursor-pointer"
-                  rows={1}
-                />
+                  className="w-full bg-transparent cursor-text py-2 text-[15px] min-h-[40px] text-muted-foreground"
+                >
+                  Posta la tua risposta
+                </div>
               ) : (
                 // Flow 2 or Flow 1 after click: Enabled textarea
                 <>
