@@ -97,7 +97,8 @@ export const AuthPage = () => {
     }
 
     const dateOfBirth = `${yearOfBirth}-${monthOfBirth.padStart(2, "0")}-${dayOfBirth.padStart(2, "0")}`;
-    const { error } = await signUpStep1(email, password, fullName, dateOfBirth);
+    const cleanFullName = fullName.trim() || null;
+    const { error } = await signUpStep1(email, password, cleanFullName, dateOfBirth);
 
     if (error) {
       toast.error(error.message);

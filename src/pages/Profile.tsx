@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar } from "lucide-react";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { FeedCard } from "@/components/feed/FeedCard";
-import { cn } from "@/lib/utils";
+import { cn, getDisplayUsername } from "@/lib/utils";
 
 export const Profile = () => {
   const { user } = useAuth();
@@ -54,10 +54,30 @@ export const Profile = () => {
       if (!user) return [];
       const { data } = await supabase
         .from("posts")
-        .select("*")
+        .select(`
+          *,
+          author:profiles!author_id(id, username, full_name, avatar_url),
+          reactions:reactions(reaction_type, user_id),
+          comments:comments(id)
+        `)
         .eq("author_id", user.id)
         .order("created_at", { ascending: false });
-      return data || [];
+      
+      // Format the posts to match the Post type
+      const formattedPosts = data?.map(post => ({
+        ...post,
+        author: post.author,
+        reactions: {
+          hearts: post.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
+          comments: post.comments?.length || 0,
+        },
+        user_reactions: {
+          has_hearted: post.reactions?.some((r: any) => r.reaction_type === 'heart' && r.user_id === user.id) || false,
+          has_bookmarked: post.reactions?.some((r: any) => r.reaction_type === 'bookmark' && r.user_id === user.id) || false,
+        }
+      })) || [];
+      
+      return formattedPosts;
     },
     enabled: !!user,
   });
@@ -89,7 +109,12 @@ export const Profile = () => {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="ml-4">
-              <h1 className="text-xl font-bold">{profile?.full_name}</h1>
+              <h1 className="text-xl font-bold">
+                {profile?.full_name && profile.full_name.trim() && !profile.full_name.includes('.') 
+                  ? profile.full_name 
+                  : `@${getDisplayUsername(profile?.username || '')}`
+                }
+              </h1>
               <p className="text-sm text-muted-foreground">{stats?.posts || 0} Post</p>
             </div>
           </div>
@@ -128,8 +153,13 @@ export const Profile = () => {
 
           {/* Nome e username */}
           <div className="mb-3">
-            <h2 className="text-xl font-bold">{profile?.full_name}</h2>
-            <p className="text-muted-foreground">@{profile?.username}</p>
+            <h2 className="text-xl font-bold">
+              {profile?.full_name && profile.full_name.trim() && !profile.full_name.includes('.') 
+                ? profile.full_name 
+                : `@${getDisplayUsername(profile?.username || '')}`
+              }
+            </h2>
+            <p className="text-muted-foreground">@{getDisplayUsername(profile?.username || '')}</p>
           </div>
 
           {/* Bio */}
@@ -214,9 +244,9 @@ export const Profile = () => {
                   <p>Nessun post ancora</p>
                 </div>
               ) : (
-                <div className="py-12 text-center text-muted-foreground">
-                  <p>{userPosts.length} post trovati</p>
-                </div>
+                userPosts.map((post: any) => (
+                  <FeedCard key={post.id} post={post} />
+                ))
               )}
             </>
           )}

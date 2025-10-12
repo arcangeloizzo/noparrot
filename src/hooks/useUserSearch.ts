@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useEffect } from 'react';
+import { getDisplayUsername } from '@/lib/utils';
 
 export interface UserSearchResult {
   id: string;
@@ -34,7 +35,14 @@ export const useUserSearch = (query: string) => {
         .limit(5);
 
       if (error) throw error;
-      return data as UserSearchResult[];
+      
+      // Clean usernames to hide emails
+      const cleanedData = data?.map(user => ({
+        ...user,
+        username: getDisplayUsername(user.username)
+      }));
+      
+      return cleanedData as UserSearchResult[];
     },
     enabled: debouncedQuery.length >= 2
   });
