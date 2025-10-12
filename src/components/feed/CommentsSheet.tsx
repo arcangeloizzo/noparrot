@@ -18,10 +18,10 @@ interface CommentsSheetProps {
   post: Post;
   isOpen: boolean;
   onClose: () => void;
-  autoFocusInput?: boolean;
+  mode: 'view' | 'reply'; // 'view' = click sul post, 'reply' = click sull'icona
 }
 
-export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }: CommentsSheetProps) => {
+export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProps) => {
   const { user } = useAuth();
   const { data: comments = [], isLoading } = useComments(post.id);
   const addComment = useAddComment();
@@ -30,6 +30,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
   const [mentionQuery, setMentionQuery] = useState('');
   const [showMentions, setShowMentions] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
+  const [internalMode, setInternalMode] = useState<'view' | 'reply'>(mode);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
 
@@ -108,23 +109,23 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
   };
 
   useEffect(() => {
+    setInternalMode(mode);
+  }, [mode]);
+
+  useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
-      // Auto-focus textarea quando si clicca sull'icona commento
-      if (autoFocusInput) {
-        // Timeout più lungo per dare tempo al layout di stabilizzarsi
+      if (internalMode === 'reply') {
         const timeoutId = setTimeout(() => {
           const textarea = textareaRef.current;
           if (textarea) {
-            // Forza focus multiplo per iOS
             textarea.focus();
-            textarea.click();
-            // Double focus dopo un altro micro delay
             setTimeout(() => {
               textarea.focus();
-            }, 50);
+              textarea.click();
+            }, 100);
           }
-        }, 400);
+        }, 300);
         return () => clearTimeout(timeoutId);
       }
     } else {
@@ -133,7 +134,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, autoFocusInput]);
+  }, [isOpen, internalMode]);
 
   const getInitials = (name: string) => {
     return name
@@ -144,19 +145,20 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
       .slice(0, 2);
   };
 
-  const getUserAvatar = (avatarUrl: string | null, name: string) => {
+  const getUserAvatar = (avatarUrl: string | null | undefined, name: string | undefined, username?: string) => {
+    const displayName = name || username || 'U';
     if (avatarUrl) {
       return (
         <img
           src={avatarUrl}
-          alt={name}
+          alt={displayName}
           className="w-10 h-10 rounded-full object-cover"
         />
       );
     }
     return (
       <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-sm font-semibold text-primary-foreground">
-        {getInitials(name)}
+        {getInitials(displayName)}
       </div>
     );
   };
@@ -277,76 +279,105 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
         </div>
       </div>
 
-      {/* Input commento - Fixed Bottom sopra navbar */}
-      <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background z-20">
-        <div className="px-4 py-3">
-          <div className="flex gap-3 relative">
-            <div className="flex-shrink-0">
-              {currentUserProfile && getUserAvatar(
-                currentUserProfile.avatar_url, 
-                currentUserProfile.full_name || currentUserProfile.username
-              )}
+      {/* Input commento - Condizionale basato su mode */}
+      {internalMode === 'view' ? (
+        <div 
+          className="fixed bottom-0 left-0 right-0 border-t border-border bg-background z-20 cursor-text transition-all duration-300"
+          onClick={() => setInternalMode('reply')}
+        >
+          <div className="px-4 py-3">
+            <div className="flex gap-3 items-center">
+              <div className="flex-shrink-0">
+                {currentUserProfile && getUserAvatar(
+                  currentUserProfile.avatar_url, 
+                  currentUserProfile.full_name,
+                  currentUserProfile.username
+                )}
+              </div>
+              <div className="flex-1 text-sm text-muted-foreground">
+                Posta la tua risposta
+              </div>
+              <div className="flex gap-1">
+                <button 
+                  onClick={(e) => e.stopPropagation()}
+                  className="p-2 hover:bg-primary/10 rounded-full transition-colors text-muted-foreground"
+                >
+                  <Image className="w-5 h-5" />
+                </button>
+              </div>
             </div>
-            <div className="flex-1 min-w-0 relative">
-              <textarea
-                ref={textareaRef}
-                value={newComment}
-                onChange={handleTextChange}
-                onClick={(e) => e.stopPropagation()}
-                placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
-                className="w-full bg-transparent border-none focus:outline-none resize-none text-sm min-h-[60px] max-h-[120px] placeholder:text-muted-foreground"
-                maxLength={500}
-                inputMode="text"
-                rows={2}
-                style={{ 
-                  height: 'auto',
-                  overflowY: newComment.split('\n').length > 5 ? 'scroll' : 'hidden'
-                }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = 'auto';
-                  target.style.height = Math.min(target.scrollHeight, 120) + 'px';
-                }}
-              />
-              
-              {/* Mention Dropdown */}
-              {showMentions && (
-                <MentionDropdown
-                  users={mentionUsers}
-                  onSelect={handleSelectMention}
-                  isLoading={isSearching}
+          </div>
+        </div>
+      ) : (
+        <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background z-20 transition-all duration-300">
+          <div className="px-4 py-3">
+            <div className="flex gap-3 relative">
+              <div className="flex-shrink-0">
+                {currentUserProfile && getUserAvatar(
+                  currentUserProfile.avatar_url, 
+                  currentUserProfile.full_name,
+                  currentUserProfile.username
+                )}
+              </div>
+              <div className="flex-1 min-w-0 relative">
+                <textarea
+                  ref={textareaRef}
+                  value={newComment}
+                  onChange={handleTextChange}
+                  onClick={(e) => e.stopPropagation()}
+                  placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
+                  className="w-full bg-transparent border-none focus:outline-none resize-none text-sm min-h-[60px] max-h-[120px] placeholder:text-muted-foreground"
+                  maxLength={500}
+                  inputMode="text"
+                  rows={2}
+                  style={{ 
+                    height: 'auto',
+                    overflowY: newComment.split('\n').length > 5 ? 'scroll' : 'hidden'
+                  }}
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = 'auto';
+                    target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                  }}
                 />
-              )}
-              
-              <div className="flex items-center justify-between mt-2">
-                {/* Icon Bar */}
-                <div className="flex items-center gap-1 text-primary">
-                  <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
-                    <Image className="w-4 h-4" />
-                  </button>
-                  <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
-                    <Smile className="w-4 h-4" />
-                  </button>
-                </div>
                 
-                <div className="flex items-center gap-3">
-                  <p className="text-xs text-muted-foreground">
-                    {newComment.length}/500
-                  </p>
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={!newComment.trim() || addComment.isPending}
-                    size="sm"
-                    className="rounded-full"
-                  >
-                    Posta
-                  </Button>
+                {showMentions && (
+                  <MentionDropdown
+                    users={mentionUsers}
+                    onSelect={handleSelectMention}
+                    isLoading={isSearching}
+                  />
+                )}
+                
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center gap-1 text-primary">
+                    <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
+                      <Image className="w-4 h-4" />
+                    </button>
+                    <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
+                      <Smile className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    <p className="text-xs text-muted-foreground">
+                      {newComment.length}/500
+                    </p>
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={!newComment.trim() || addComment.isPending}
+                      size="sm"
+                      className="rounded-full"
+                    >
+                      Posta
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

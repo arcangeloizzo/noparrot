@@ -226,7 +226,7 @@ export const FeedCard = ({
           setShowComments(false);
           setCommentMode('view');
         }}
-        autoFocusInput={commentMode === 'reply'}
+        mode={commentMode}
       />
     </div>
   );

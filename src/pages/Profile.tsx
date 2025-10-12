@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar } from "lucide-react";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
-import { FeedCard } from "@/components/feed/FeedCard";
+import { FeedCard } from "@/components/feed/FeedCardAdapt";
 import { cn, getDisplayUsername } from "@/lib/utils";
 
 export const Profile = () => {
@@ -143,6 +143,13 @@ export const Profile = () => {
       </div>
     );
   }
+
+  console.log("🎨 Rendering Profile - Stats:", { 
+    followers: stats?.followers, 
+    following: stats?.following,
+    posts: stats?.posts,
+    userPostsLength: userPosts?.length 
+  });
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -294,11 +301,28 @@ export const Profile = () => {
               ) : (
                 <>
                   {userPosts.map((post: any) => {
+                    console.log("🔍 Rendering post:", post.id, {
+                      hasAuthor: !!post.author,
+                      hasReactions: !!post.reactions,
+                      authorData: post.author
+                    });
+                    
                     try {
+                      if (!post.author) {
+                        return (
+                          <div key={post.id} className="p-4 text-sm text-destructive border-b border-border">
+                            Errore: Post senza autore (ID: {post.id})
+                          </div>
+                        );
+                      }
                       return <FeedCard key={post.id} post={post} />;
                     } catch (err) {
                       console.error("❌ Error rendering post:", post.id, err);
-                      return null;
+                      return (
+                        <div key={post.id} className="p-4 text-sm text-destructive border-b border-border">
+                          Errore rendering post (ID: {post.id})
+                        </div>
+                      );
                     }
                   })}
                 </>
