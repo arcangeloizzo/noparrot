@@ -22,6 +22,10 @@ export interface Notification {
     id: string;
     content: string;
   } | null;
+  comment?: {
+    id: string;
+    content: string;
+  } | null;
 }
 
 export const useNotifications = () => {
@@ -51,6 +55,10 @@ export const useNotifications = () => {
             avatar_url
           ),
           post:posts (
+            id,
+            content
+          ),
+          comment:comments!comment_id (
             id,
             content
           )

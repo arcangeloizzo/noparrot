@@ -222,63 +222,65 @@ export const CommentsSheet = ({ post, isOpen, onClose, autoFocusInput = false }:
           </div>
         </div>
 
-        {/* Reply Input Area */}
-        <div className="px-4 py-3 border-b border-border">
-          <div className="flex gap-3 relative">
-            <div className="flex-shrink-0">
-              {currentUserProfile && getUserAvatar(
-                currentUserProfile.avatar_url, 
-                currentUserProfile.full_name || currentUserProfile.username
-              )}
-            </div>
-            <div className="flex-1 min-w-0 relative">
-              <textarea
-                ref={textareaRef}
-                value={newComment}
-                onChange={handleTextChange}
-                placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
-                className="w-full bg-transparent border-none focus:outline-none resize-none text-sm min-h-[100px] placeholder:text-muted-foreground"
-                maxLength={500}
-                inputMode="text"
-              />
-              
-              {/* Mention Dropdown */}
-              {showMentions && (
-                <MentionDropdown
-                  users={mentionUsers}
-                  onSelect={handleSelectMention}
-                  isLoading={isSearching}
-                />
-              )}
-              
-              {/* Icon Bar */}
-              <div className="flex items-center gap-1 mt-2 text-primary">
-                <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
-                  <Image className="w-4 h-4" />
-                </button>
-                <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
-                  <Video className="w-4 h-4" />
-                </button>
-                <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
-                  <BarChart3 className="w-4 h-4" />
-                </button>
-                <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
-                  <Smile className="w-4 h-4" />
-                </button>
-                <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
-                  <MapPin className="w-4 h-4" />
-                </button>
-                <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
-                  <Settings className="w-4 h-4" />
-                </button>
+        {/* Reply Input Area - Solo se autoFocusInput è true */}
+        {autoFocusInput && (
+          <div className="px-4 py-3 border-b border-border">
+            <div className="flex gap-3 relative">
+              <div className="flex-shrink-0">
+                {currentUserProfile && getUserAvatar(
+                  currentUserProfile.avatar_url, 
+                  currentUserProfile.full_name || currentUserProfile.username
+                )}
               </div>
-              
-              <p className="text-xs text-muted-foreground mt-2">
-                {newComment.length}/500
-              </p>
+              <div className="flex-1 min-w-0 relative">
+                <textarea
+                  ref={textareaRef}
+                  value={newComment}
+                  onChange={handleTextChange}
+                  placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
+                  className="w-full bg-transparent border-none focus:outline-none resize-none text-sm min-h-[100px] placeholder:text-muted-foreground"
+                  maxLength={500}
+                  inputMode="text"
+                />
+                
+                {/* Mention Dropdown */}
+                {showMentions && (
+                  <MentionDropdown
+                    users={mentionUsers}
+                    onSelect={handleSelectMention}
+                    isLoading={isSearching}
+                  />
+                )}
+                
+                {/* Icon Bar */}
+                <div className="flex items-center gap-1 mt-2 text-primary">
+                  <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
+                    <Image className="w-4 h-4" />
+                  </button>
+                  <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
+                    <Video className="w-4 h-4" />
+                  </button>
+                  <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
+                    <BarChart3 className="w-4 h-4" />
+                  </button>
+                  <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
+                    <Smile className="w-4 h-4" />
+                  </button>
+                  <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
+                    <MapPin className="w-4 h-4" />
+                  </button>
+                  <button className="p-2 hover:bg-primary/10 rounded-full transition-colors">
+                    <Settings className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <p className="text-xs text-muted-foreground mt-2">
+                  {newComment.length}/500
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Comments List */}
         <div className="divide-y divide-border">

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { BellIcon, HeartIcon, MessageCircleIcon, UserPlusIcon, AtSignIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { useNotifications, useMarkAsRead, useMarkAllAsRead } from "@/hooks/useNotifications";
@@ -6,10 +7,20 @@ import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 
 export const Notifications = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"all" | "mentions">("all");
   const { data: notifications = [], isLoading } = useNotifications();
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
+
+  // Auto-mark notifications as read when page is loaded
+  useEffect(() => {
+    const unreadNotifications = notifications.filter(n => !n.read);
+    if (unreadNotifications.length > 0) {
+      // Mark all as read automatically
+      markAllAsRead.mutate();
+    }
+  }, [notifications.length]); // Run only when notifications count changes
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -59,8 +70,11 @@ export const Notifications = () => {
     ? notifications.filter(n => n.type === "mention")
     : notifications;
 
-  const handleMarkAsRead = (id: string) => {
-    markAsRead.mutate(id);
+  const handleNotificationClick = (notification: typeof notifications[0]) => {
+    // Navigate to the post
+    if (notification.post_id) {
+      navigate(`/feed`); // In un'app reale, navigheresti al post specifico
+    }
   };
 
   const handleMarkAllAsRead = () => {
@@ -143,7 +157,7 @@ export const Notifications = () => {
             {filteredNotifications.map((notification) => (
               <div
                 key={notification.id}
-                onClick={() => handleMarkAsRead(notification.id)}
+                onClick={() => handleNotificationClick(notification)}
                 className={cn(
                   "p-4 hover:bg-muted/50 transition-colors cursor-pointer",
                   !notification.read && "bg-primary-blue/5 border-l-4 border-l-primary-blue"
@@ -181,11 +195,16 @@ export const Notifications = () => {
                           {getNotificationText(notification)}
                         </p>
 
-                        {notification.post && (
+                        {/* Mostra commento per le notifiche di tipo 'comment', altrimenti mostra il post */}
+                        {notification.type === 'comment' && notification.comment ? (
+                          <p className="text-sm text-foreground mt-1 line-clamp-2">
+                            "{notification.comment.content}"
+                          </p>
+                        ) : notification.post ? (
                           <p className="text-sm text-foreground mt-1 line-clamp-2">
                             "{notification.post.content}"
                           </p>
-                        )}
+                        ) : null}
                       </div>
                       
                       <div className="flex-shrink-0">
