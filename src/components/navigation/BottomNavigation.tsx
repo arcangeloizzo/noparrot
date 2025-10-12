@@ -4,6 +4,7 @@ import { NAV_PROFILE_AS_HOME } from "@/config/brand";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useNotifications } from "@/hooks/useNotifications";
 
 interface BottomNavigationProps {
   activeTab: string;
@@ -13,6 +14,7 @@ interface BottomNavigationProps {
 
 export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: BottomNavigationProps) => {
   const { user } = useAuth();
+  const { data: notifications = [] } = useNotifications();
 
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -23,6 +25,8 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
     },
     enabled: !!user,
   });
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   const getInitials = (name: string) => {
     return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
@@ -62,13 +66,24 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
               }
             }}
             className={cn(
-              "flex flex-col items-center justify-center gap-0.5 px-4 h-full transition-colors",
+              "flex flex-col items-center justify-center gap-0.5 px-4 h-full transition-colors relative",
               activeTab === id 
                 ? "text-foreground" 
                 : "text-muted-foreground"
             )}
           >
-            {isAvatar ? getAvatarContent() : Icon && <Icon className="w-6 h-6" />}
+            {isAvatar ? (
+              getAvatarContent()
+            ) : Icon && (
+              <div className="relative">
+                <Icon className="w-6 h-6" />
+                {id === "notifications" && unreadCount > 0 && (
+                  <div className="absolute -top-1 -right-1 bg-brand-pink text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-semibold">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </div>
+                )}
+              </div>
+            )}
             {!isAvatar && <span className="text-[10px] font-medium">{label}</span>}
           </button>
         ))}

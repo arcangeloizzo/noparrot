@@ -1,63 +1,15 @@
 import { useState } from "react";
 import { BellIcon, HeartIcon, MessageCircleIcon, UserPlusIcon, AtSignIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
-
-interface Notification {
-  id: string;
-  type: "like" | "comment" | "follow" | "mention";
-  user: string;
-  avatar?: string;
-  content?: string;
-  timestamp: string;
-  read: boolean;
-}
-
-const mockNotifications: Notification[] = [
-  {
-    id: "1",
-    type: "like",
-    user: "Marco Rossi",
-    content: "ha messo mi piace al tuo post sulla sostenibilità",
-    timestamp: "2h",
-    read: false
-  },
-  {
-    id: "2", 
-    type: "comment",
-    user: "Anna Verdi",
-    content: "ha commentato il tuo post: \"Interessante analisi, condivido la tua visione\"",
-    timestamp: "4h",
-    read: false
-  },
-  {
-    id: "3",
-    type: "follow",
-    user: "Luca Bianchi",
-    content: "ha iniziato a seguirti",
-    timestamp: "6h",
-    read: true
-  },
-  {
-    id: "4",
-    type: "mention",
-    user: "Sofia Neri",
-    content: "ti ha menzionato in un commento",
-    timestamp: "1g",
-    read: true
-  },
-  {
-    id: "5",
-    type: "like",
-    user: "Andrea Gialli",
-    content: "ha messo mi piace al tuo post",
-    timestamp: "2g",
-    read: true
-  }
-];
+import { useNotifications, useMarkAsRead, useMarkAllAsRead } from "@/hooks/useNotifications";
+import { formatDistanceToNow } from "date-fns";
+import { it } from "date-fns/locale";
 
 export const Notifications = () => {
   const [activeTab, setActiveTab] = useState<"all" | "mentions">("all");
-  const [notifications, setNotifications] = useState(mockNotifications);
+  const { data: notifications = [], isLoading } = useNotifications();
+  const markAsRead = useMarkAsRead();
+  const markAllAsRead = useMarkAllAsRead();
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -74,7 +26,17 @@ export const Notifications = () => {
     }
   };
 
-  const getAvatarContent = (name: string) => {
+  const getAvatarContent = (avatarUrl: string | null, name: string) => {
+    if (avatarUrl) {
+      return (
+        <img 
+          src={avatarUrl} 
+          alt={name}
+          className="w-10 h-10 rounded-full object-cover"
+        />
+      );
+    }
+
     const initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
     const hashCode = name.split('').reduce((a, b) => {
       a = ((a << 5) - a) + b.charCodeAt(0);
@@ -97,13 +59,30 @@ export const Notifications = () => {
     ? notifications.filter(n => n.type === "mention")
     : notifications;
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev => 
-      prev.map(n => n.id === id ? { ...n, read: true } : n)
-    );
+  const handleMarkAsRead = (id: string) => {
+    markAsRead.mutate(id);
+  };
+
+  const handleMarkAllAsRead = () => {
+    markAllAsRead.mutate();
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  const getNotificationText = (notification: typeof notifications[0]) => {
+    switch (notification.type) {
+      case 'like':
+        return 'ha messo mi piace al tuo post';
+      case 'comment':
+        return 'ha commentato il tuo post';
+      case 'follow':
+        return 'ha iniziato a seguirti';
+      case 'mention':
+        return 'ti ha menzionato';
+      default:
+        return '';
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -122,7 +101,11 @@ export const Notifications = () => {
                 )}
               </div>
               
-              <button className="text-sm text-primary-blue font-medium">
+              <button 
+                onClick={handleMarkAllAsRead}
+                className="text-sm text-primary-blue font-medium disabled:opacity-50"
+                disabled={markAllAsRead.isPending || unreadCount === 0}
+              >
                 Segna tutto come letto
               </button>
             </div>
@@ -151,51 +134,70 @@ export const Notifications = () => {
         </div>
 
         {/* Notifications List */}
-        <div className="divide-y divide-border/50">
-          {filteredNotifications.map((notification) => (
-            <div
-              key={notification.id}
-              onClick={() => markAsRead(notification.id)}
-              className={cn(
-                "p-4 hover:bg-muted/50 transition-colors cursor-pointer",
-                !notification.read && "bg-primary-blue/5 border-l-4 border-l-primary-blue"
-              )}
-            >
-              <div className="flex space-x-3">
-                {/* Avatar */}
-                <div className="flex-shrink-0">
-                  {getAvatarContent(notification.user)}
-                </div>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start space-x-2">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <p className="font-medium text-sm text-foreground">
-                          {notification.user}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="text-muted-foreground">Caricamento notifiche...</div>
+          </div>
+        ) : (
+          <div className="divide-y divide-border/50">
+            {filteredNotifications.map((notification) => (
+              <div
+                key={notification.id}
+                onClick={() => handleMarkAsRead(notification.id)}
+                className={cn(
+                  "p-4 hover:bg-muted/50 transition-colors cursor-pointer",
+                  !notification.read && "bg-primary-blue/5 border-l-4 border-l-primary-blue"
+                )}
+              >
+                <div className="flex space-x-3">
+                  {/* Avatar */}
+                  <div className="flex-shrink-0">
+                    {getAvatarContent(notification.actor.avatar_url, notification.actor.full_name)}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start space-x-2">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <p className="font-medium text-sm text-foreground">
+                            {notification.actor.full_name}
+                          </p>
+                          <span className="text-xs text-muted-foreground">
+                            @{notification.actor.username}
+                          </span>
+                          <span className="text-xs text-muted-foreground">·</span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatDistanceToNow(new Date(notification.created_at), {
+                              addSuffix: true,
+                              locale: it
+                            })}
+                          </span>
+                          {!notification.read && (
+                            <div className="w-2 h-2 bg-primary-blue rounded-full"></div>
+                          )}
+                        </div>
+                        
+                        <p className="text-sm text-muted-foreground">
+                          {getNotificationText(notification)}
                         </p>
-                        <span className="text-xs text-muted-foreground">
-                          {notification.timestamp}
-                        </span>
-                        {!notification.read && (
-                          <div className="w-2 h-2 bg-primary-blue rounded-full"></div>
+
+                        {notification.post && (
+                          <p className="text-sm text-foreground mt-1 line-clamp-2">
+                            "{notification.post.content}"
+                          </p>
                         )}
                       </div>
                       
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {notification.content}
-                      </p>
-                    </div>
-                    
-                    <div className="flex-shrink-0">
-                      {getNotificationIcon(notification.type)}
+                      <div className="flex-shrink-0">
+                        {getNotificationIcon(notification.type)}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* Empty State */}
         {filteredNotifications.length === 0 && (

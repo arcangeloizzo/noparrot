@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { CommentsSheet } from "./CommentsSheet";
 
 interface FeedCardProps {
   post: Post;
@@ -38,6 +39,7 @@ export const FeedCard = ({
   const toggleReaction = useToggleReaction();
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [showComments, setShowComments] = useState(false);
 
   const handleHeart = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -209,7 +211,13 @@ export const FeedCard = ({
               <span className="text-sm">{post.reactions.hearts}</span>
             </button>
 
-            <button className="flex items-center gap-2 hover:text-primary transition-colors group">
+            <button 
+              className="flex items-center gap-2 hover:text-primary transition-colors group"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowComments(true);
+              }}
+            >
               <div className="p-2 rounded-full group-hover:bg-primary/10 transition-colors">
                 <MessageCircleIcon className="w-[18px] h-[18px]" />
               </div>
@@ -232,6 +240,12 @@ export const FeedCard = ({
           </div>
         </div>
       </div>
+
+      <CommentsSheet
+        postId={post.id}
+        isOpen={showComments}
+        onClose={() => setShowComments(false)}
+      />
     </div>
   );
 };
