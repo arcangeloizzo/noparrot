@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { X, Share, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MockPost } from "@/data/mockData";
+import { Post } from "@/hooks/usePosts";
 
 interface ArticleReaderProps {
-  post: MockPost;
+  post: Post;
   isOpen: boolean;
   onClose: () => void;
   onStartQuiz: (action: string) => void;
@@ -93,26 +93,26 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleRea
           onScroll={handleScroll}
         >
           <h3 className="font-semibold text-lg mb-3 text-white">
-            {post.sharedTitle || "Articolo condiviso"}
+            {post.shared_title || "Articolo condiviso"}
           </h3>
           
-          {post.previewImg && (
+          {post.preview_img && (
             <img 
-              src={post.previewImg} 
+              src={post.preview_img} 
               alt="Anteprima articolo" 
               className="w-full aspect-video object-cover rounded-lg mb-4"
             />
           )}
 
             <div className="space-y-4 text-sm text-gray-300 leading-relaxed">
-              {post.fullArticle ? (
-                post.fullArticle.split('\n\n').map((paragraph, idx) => (
+              {post.full_article ? (
+                post.full_article.split('\n\n').map((paragraph, idx) => (
                   <p key={idx}>{paragraph}</p>
                 ))
               ) : (
                 <>
                   <p className="italic text-gray-400">Contenuto originale condiviso dall'utente:</p>
-                  <p className="mt-2 font-medium">{post.userComment}</p>
+                  <p className="mt-2 font-medium">{post.content}</p>
                 </>
               )}
             </div>

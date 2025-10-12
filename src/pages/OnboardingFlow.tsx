@@ -55,15 +55,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   }
 
   if (currentStep === "auth") {
-    return (
-      <AuthPage 
-        mode={authMode}
-        onSubmit={handleAuthSubmit}
-        onBack={handleBack}
-        onToggleMode={handleToggleAuthMode}
-        onComplete={onComplete}
-      />
-    );
+    return <AuthPage />;
   }
 
   return null;

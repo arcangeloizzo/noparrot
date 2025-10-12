@@ -14,16 +14,193 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      posts: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string | null
+          full_article: string | null
+          id: string
+          preview_img: string | null
+          shared_title: string | null
+          shared_url: string | null
+          sources: string[] | null
+          stance: string | null
+          topic_tag: string | null
+          trust_level: string | null
+        }
+        Insert: {
+          author_id: string
+          content: string
+          created_at?: string | null
+          full_article?: string | null
+          id?: string
+          preview_img?: string | null
+          shared_title?: string | null
+          shared_url?: string | null
+          sources?: string[] | null
+          stance?: string | null
+          topic_tag?: string | null
+          trust_level?: string | null
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string | null
+          full_article?: string | null
+          id?: string
+          preview_img?: string | null
+          shared_title?: string | null
+          shared_url?: string | null
+          sources?: string[] | null
+          stance?: string | null
+          topic_tag?: string | null
+          trust_level?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string | null
+          full_name: string | null
+          id: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      questions: {
+        Row: {
+          correct_index: number
+          id: string
+          options: Json
+          order_index: number
+          post_id: string
+          question_text: string
+        }
+        Insert: {
+          correct_index: number
+          id?: string
+          options: Json
+          order_index: number
+          post_id: string
+          question_text: string
+        }
+        Update: {
+          correct_index?: number
+          id?: string
+          options?: Json
+          order_index?: number
+          post_id?: string
+          question_text?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reactions: {
+        Row: {
+          created_at: string | null
+          id: string
+          post_id: string
+          reaction_type: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          post_id: string
+          reaction_type?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          post_id?: string
+          reaction_type?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reactions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +327,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Logo } from "@/components/ui/logo";
 import { FeedToggle } from "@/components/feed/FeedToggle";
-import { FeedCard } from "@/components/feed/FeedCard";
+import { FeedCard } from "@/components/feed/FeedCardAdapt";
 import { ArticleReader } from "@/components/feed/ArticleReader";
 import { PostTestActionsModal } from "@/components/feed/PostTestActionsModal";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
@@ -14,17 +14,18 @@ import { SourceMCQTest } from "@/components/composer/SourceMCQTest";
 import { Search } from "./Search";
 import { Saved } from "./Saved";
 import { Notifications } from "./Notifications";
-import { mockPosts, MockPost } from "@/data/mockData";
+import { usePosts, useToggleReaction, Post } from "@/hooks/usePosts";
 import { useToast } from "@/hooks/use-toast";
 
 export const Feed = () => {
+  const { data: dbPosts = [], isLoading } = usePosts();
+  const toggleReaction = useToggleReaction();
   const [activeTab, setActiveTab] = useState<"following" | "foryou">("following");
   const [activeNavTab, setActiveNavTab] = useState("home");
-  const [posts, setPosts] = useState(mockPosts);
   const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
   const [showSimilarContent, setShowSimilarContent] = useState(false);
-  const [selectedPost, setSelectedPost] = useState<MockPost | null>(null);
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [showArticleReader, setShowArticleReader] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [showPostTestActions, setShowPostTestActions] = useState(false);
@@ -49,7 +50,7 @@ export const Feed = () => {
     window.location.reload();
   };
 
-  const handleShowSimilarContent = (post: MockPost) => {
+  const handleShowSimilarContent = (post: Post) => {
     setSelectedPost(post);
     setShowSimilarContent(true);
   };
@@ -60,10 +61,10 @@ export const Feed = () => {
   };
 
   const handleRemovePost = (postId: string) => {
-    setPosts(prev => prev.filter(post => post.id !== postId));
+    // Post removed via database
   };
 
-  const handleOpenReader = (post: MockPost) => {
+  const handleOpenReader = (post: Post) => {
     setSelectedPost(post);
     setShowArticleReader(true);
   };
@@ -150,6 +151,14 @@ export const Feed = () => {
     );
   }
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-lg text-muted-foreground">Caricamento feed...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <div className="mobile-container max-w-[600px] mx-auto">
@@ -172,7 +181,7 @@ export const Feed = () => {
 
         {/* Feed Cards - Linear X Style */}
         <div className="divide-y divide-border">
-          {posts.map((post) => (
+          {dbPosts.map((post) => (
             <FeedCard
               key={post.id}
               post={post}
@@ -180,6 +189,12 @@ export const Feed = () => {
               onRemove={() => handleRemovePost(post.id)}
             />
           ))}
+          {dbPosts.length === 0 && (
+            <div className="py-12 text-center text-muted-foreground">
+              <p>Nessun post disponibile.</p>
+              <p className="text-sm mt-2">Crea il primo post!</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -221,8 +236,8 @@ export const Feed = () => {
         <SourceMCQTest
           source={{
             id: selectedPost.id,
-            url: selectedPost.url || "",
-            title: selectedPost.sharedTitle || "Articolo condiviso",
+            url: selectedPost.shared_url || "",
+            title: selectedPost.shared_title || "Articolo condiviso",
             state: 'testing',
             attempts: 0
           }}

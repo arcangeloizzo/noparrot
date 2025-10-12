@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { UserIcon, BookmarkIcon, InfoIcon, SearchIcon, HeartIcon, MessageCircleIcon, EyeOffIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface ProfileSideSheetProps {
   isOpen: boolean;
@@ -8,6 +12,32 @@ interface ProfileSideSheetProps {
 }
 
 export const ProfileSideSheet = ({ isOpen, onClose }: ProfileSideSheetProps) => {
+  const { user, signOut } = useAuth();
+
+  const { data: profile } = useQuery({
+    queryKey: ['profile', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      return data;
+    },
+    enabled: !!user
+  });
+
+  const handleLogout = async () => {
+    await signOut();
+    toast.success('Logout effettuato!');
+    onClose();
+  };
+
+  if (!user || !profile) {
+    return null;
+  }
+
   const menuItems = [
     { icon: UserIcon, label: "Profilo", id: "profile" },
     { icon: HeartIcon, label: "Premium", id: "premium" },
@@ -21,12 +51,10 @@ export const ProfileSideSheet = ({ isOpen, onClose }: ProfileSideSheetProps) => 
     { icon: EyeOffIcon, label: "Modalità notturna", id: "darkmode" },
   ];
 
-  const userAvatar = "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=faces";
-
   const getAvatarContent = () => {
     return (
       <img 
-        src={userAvatar} 
+        src={profile?.avatar_url || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop&crop=faces"} 
         alt="Profilo" 
         className="w-full h-full object-cover"
       />
@@ -57,9 +85,10 @@ export const ProfileSideSheet = ({ isOpen, onClose }: ProfileSideSheetProps) => 
                 {getAvatarContent()}
               </div>
               <div>
-                <div className="font-semibold text-foreground">Arcangelo Izzo</div>
-                <div className="text-sm text-muted-foreground">@manuel</div>
+                <div className="font-semibold text-foreground">{profile?.full_name || profile?.username}</div>
+                <div className="text-sm text-muted-foreground">@{profile?.username.split('@')[0]}</div>
               </div>
+              <button onClick={handleLogout} className="ml-auto text-sm text-destructive hover:underline">Logout</button>
             </div>
             <div className="flex items-center space-x-4 mt-3 text-sm">
               <span><span className="font-semibold">178</span> <span className="text-muted-foreground">Following</span></span>

@@ -2,23 +2,25 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { FeedCard } from "./FeedCard";
-import { MockPost, mockPosts } from "@/data/mockData";
+import { FeedCard } from "./FeedCardAdapt";
+import { Post } from "@/hooks/usePosts";
+import { usePosts } from "@/hooks/usePosts";
 
 interface SimilarContentOverlayProps {
   isOpen: boolean;
   onClose: () => void;
-  originalPost: MockPost;
+  originalPost: Post;
 }
 
 export const SimilarContentOverlay = ({ isOpen, onClose, originalPost }: SimilarContentOverlayProps) => {
+  const { data: allPosts = [] } = usePosts();
   const [showUnverifiedSources, setShowUnverifiedSources] = useState(false);
   
   if (!isOpen) return null;
 
-  // Generate similar posts from existing mockPosts
-  const similarPosts = mockPosts
-    .filter(post => post.id !== originalPost.id && post.topicTag === originalPost.topicTag)
+  // Generate similar posts from database
+  const similarPosts = allPosts
+    .filter(post => post.id !== originalPost.id && post.topic_tag === originalPost.topic_tag)
     .slice(0, 6);
 
   const filteredPosts = showUnverifiedSources 

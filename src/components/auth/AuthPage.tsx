@@ -1,170 +1,157 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AppleIcon, GoogleIcon, LinkedInIcon, ArrowLeftIcon } from "@/components/ui/icons";
+import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Logo } from "@/components/ui/logo";
+import { TrustBadge } from "@/components/ui/trust-badge";
+import { ChevronRight } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
-interface AuthPageProps {
-  mode: "login" | "signup";
-  onSubmit: (email: string, password: string) => void;
-  onBack: () => void;
-  onToggleMode: () => void;
-  onComplete: () => void;
-}
-
-export const AuthPage = ({ mode, onSubmit, onBack, onToggleMode, onComplete }: AuthPageProps) => {
+export const AuthPage = () => {
   const navigate = useNavigate();
+  const { user, signIn, signUp } = useAuth();
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (user) {
+      navigate('/');
+    }
+  }, [user, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(email, password);
-  };
+    setIsLoading(true);
 
-  const handleSocialLogin = () => {
-    localStorage.setItem("noparrot-onboarded", "true");
-    onComplete();
+    try {
+      if (isLogin) {
+        const { error } = await signIn(email, password);
+        if (error) {
+          toast.error(error.message === 'Invalid login credentials' 
+            ? 'Email o password non corretti' 
+            : error.message);
+        } else {
+          toast.success('Login effettuato!');
+        }
+      } else {
+        if (password !== confirmPassword) {
+          toast.error('Le password non corrispondono');
+          setIsLoading(false);
+          return;
+        }
+        if (password.length < 6) {
+          toast.error('La password deve essere di almeno 6 caratteri');
+          setIsLoading(false);
+          return;
+        }
+        const { error } = await signUp(email, password, fullName);
+        if (error) {
+          toast.error(error.message === 'User already registered' 
+            ? 'Questo email è già registrata' 
+            : error.message);
+        } else {
+          toast.success('Account creato! Accesso effettuato.');
+        }
+      }
+    } catch (error) {
+      toast.error('Si è verificato un errore. Riprova.');
+    } finally {
+      setIsLoading(false);
+    }
   };
-
-  const isSignup = mode === "signup";
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4">
-        <button 
-          onClick={onBack}
-          className="p-2 -ml-2 text-foreground hover:text-primary-blue transition-colors"
-        >
-          <ArrowLeftIcon className="w-5 h-5" />
-        </button>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 flex items-center justify-center px-6">
-        <div className="w-full max-w-sm space-y-6">
-          <Card className="shadow-card border-border/50">
-            <CardHeader className="text-center">
-              <CardTitle className="text-xl font-semibold text-foreground">
-                {isSignup ? "Create Account" : "Welcome Back"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-sm font-medium text-foreground">
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email"
-                    className="rounded-md"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="password" className="text-sm font-medium text-foreground">
-                    Password
-                  </Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    className="rounded-md"
-                    required
-                  />
-                </div>
-
-                {isSignup && (
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmPassword" className="text-sm font-medium text-foreground">
-                      Confirm Password
-                    </Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Confirm your password"
-                      className="rounded-md"
-                      required
-                    />
-                  </div>
-                )}
-
-                <Button 
-                  type="submit"
-                  className="w-full bg-primary-blue hover:bg-primary-blue/90 text-white font-semibold py-3 rounded-full h-11"
-                >
-                  {isSignup ? "Sign Up" : "Log In"}
-                </Button>
-              </form>
-
-              {/* Social Login */}
-              <div className="space-y-3">
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-border"></div>
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Button 
-                    variant="outline" 
-                    onClick={handleSocialLogin}
-                    className="w-full bg-black hover:bg-black/90 text-white border-black rounded-md h-11"
-                  >
-                    <AppleIcon className="w-5 h-5 mr-2" />
-                    Apple
-                  </Button>
-
-                  <Button 
-                    variant="outline" 
-                    onClick={handleSocialLogin}
-                    className="w-full bg-white hover:bg-gray-50 text-gray-700 border-gray-300 rounded-md h-11"
-                  >
-                    <GoogleIcon className="w-5 h-5 mr-2" />
-                    Google
-                  </Button>
-
-                  <Button 
-                    variant="outline" 
-                    onClick={handleSocialLogin}
-                    className="w-full bg-[#0A66C2] hover:bg-[#0A66C2]/90 text-white border-[#0A66C2] rounded-md h-11"
-                  >
-                    <LinkedInIcon className="w-4 h-4 mr-2" />
-                    LinkedIn
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Toggle Mode */}
-          <div className="text-center">
-            <span className="text-sm text-muted-foreground">
-              {isSignup ? "Already have an account?" : "Don't have an account?"}
-            </span>
-            <button 
-              onClick={onToggleMode}
-              className="ml-1 text-sm text-primary-blue hover:text-primary-blue/80 font-medium transition-colors"
-            >
-              {isSignup ? "Log in" : "Sign up"}
-            </button>
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
+      <div className="w-full max-w-md space-y-8">
+        <div className="text-center space-y-4">
+          <Logo size="lg" />
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold text-foreground">
+              {isLogin ? "Bentornato!" : "Crea il tuo account"}
+            </h1>
+            <p className="text-muted-foreground">
+              {isLogin 
+                ? "Accedi per continuare a combattere la disinformazione" 
+                : "Unisciti alla community per un'informazione più consapevole"}
+            </p>
           </div>
+        </div>
+
+        <Card className="p-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {!isLogin && (
+              <Input
+                type="text"
+                placeholder="Nome completo"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="h-12"
+                required
+              />
+            )}
+            <Input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="h-12"
+              required
+            />
+            <Input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="h-12"
+              required
+            />
+            {!isLogin && (
+              <Input
+                type="password"
+                placeholder="Conferma Password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="h-12"
+                required
+              />
+            )}
+
+            <Button 
+              type="submit" 
+              className="w-full h-12 bg-primary hover:bg-primary/90"
+              disabled={isLoading}
+            >
+              {isLoading ? "Caricamento..." : isLogin ? "Accedi" : "Registrati"}
+              {!isLoading && <ChevronRight className="ml-2 h-5 w-5" />}
+            </Button>
+          </form>
+
+          <Separator className="my-6" />
+
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground mb-2">
+              {isLogin ? "Non hai un account?" : "Hai già un account?"}
+            </p>
+            <Button
+              variant="ghost"
+              onClick={() => setIsLogin(!isLogin)}
+              className="text-primary hover:text-primary/90"
+              disabled={isLoading}
+            >
+              {isLogin ? "Registrati ora" : "Accedi"}
+            </Button>
+          </div>
+        </Card>
+
+        <div className="text-center text-sm text-muted-foreground">
+          <p>Sistema sicuro e protetto 🔒</p>
         </div>
       </div>
     </div>

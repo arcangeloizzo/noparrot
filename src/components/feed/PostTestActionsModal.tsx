@@ -1,9 +1,9 @@
 import { X, Share, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MockPost } from "@/data/mockData";
+import { Post } from "@/hooks/usePosts";
 
 interface PostTestActionsModalProps {
-  post: MockPost;
+  post: Post;
   isOpen: boolean;
   onClose: () => void;
 }
