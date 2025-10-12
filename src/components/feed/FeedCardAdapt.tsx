@@ -102,8 +102,7 @@ export const FeedCard = ({
 
   return (
     <div 
-      className="p-4 hover:bg-muted/30 transition-colors cursor-pointer"
-      onClick={onOpenReader}
+      className="p-4 hover:bg-muted/30 transition-colors"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}

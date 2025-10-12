@@ -30,6 +30,7 @@ export const CommentsSheet = ({ postId, isOpen, onClose }: CommentsSheetProps) =
     });
 
     setNewComment('');
+    onClose();
   };
 
   const getInitials = (name: string) => {
@@ -60,7 +61,7 @@ export const CommentsSheet = ({ postId, isOpen, onClose }: CommentsSheetProps) =
                 Nessun commento ancora. Sii il primo a commentare!
               </div>
             ) : (
-              comments.map((comment) => (
+              [...comments].reverse().map((comment) => (
                 <div key={comment.id} className="flex gap-3">
                   {/* Avatar */}
                   <div className="flex-shrink-0">
@@ -120,7 +121,7 @@ export const CommentsSheet = ({ postId, isOpen, onClose }: CommentsSheetProps) =
               <Textarea
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Scrivi un commento..."
+                placeholder="Posta la tua risposta"
                 className="min-h-[80px] resize-none"
                 maxLength={500}
                 onKeyDown={(e) => {

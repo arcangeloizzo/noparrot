@@ -56,7 +56,8 @@ export const usePosts = () => {
           reactions (
             reaction_type,
             user_id
-          )
+          ),
+          comments(count)
         `)
         .order('created_at', { ascending: false });
 
@@ -77,7 +78,7 @@ export const usePosts = () => {
         created_at: post.created_at,
         reactions: {
           hearts: post.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
-          comments: 0
+          comments: post.comments?.[0]?.count || 0
         },
         user_reactions: {
           has_hearted: post.reactions?.some((r: any) => 
