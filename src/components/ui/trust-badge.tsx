@@ -64,15 +64,19 @@ export function TrustBadge({
       {/* Trust Badge Circle */}
       <div 
         className={cn(
-          "rounded-full flex items-center justify-center font-bold tracking-wide transition-all duration-200 hover-lift glass-panel border-glass shadow-glass",
+          "rounded-full flex items-center justify-center font-bold tracking-wide transition-all duration-200 hover-lift border shadow-sm",
           config.badge,
           !hasData && "opacity-60"
         )}
         style={{ 
           backgroundColor: band === "BASSO" 
-            ? `${finalColor}40`  // Rosso più opaco per leggibilità
-            : `${finalColor}15`, // Mantieni trasparenza per MEDIO/ALTO
-          borderColor: `${finalColor}30`,
+            ? `hsl(var(--destructive) / 0.5)`
+            : band === "MEDIO"
+            ? `hsl(var(--warning) / 0.3)`
+            : band === "ALTO"
+            ? `hsl(var(--success) / 0.25)`
+            : `hsl(var(--muted) / 0.15)`,
+          borderColor: `hsl(var(--border) / 0.3)`,
           color: band === "ALTO" ? "white" : finalColor
         }}
         title={`Trust Score: ${label}${score ? ` (${score}%)` : ""}`}
