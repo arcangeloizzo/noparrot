@@ -19,6 +19,8 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [questionAttempts, setQuestionAttempts] = useState<Record<string, number>>({});
+  const [totalErrors, setTotalErrors] = useState(0);
 
   const handleAnswer = async (questionId: string, choiceId: string) => {
     if (showFeedback) return;
@@ -30,9 +32,30 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
     const correct = currentQuestion.correctId === choiceId;
     setIsCorrect(correct);
     
-    setAnswers(prev => ({ ...prev, [questionId]: choiceId }));
-    
-    if (correct) {
+    if (!correct) {
+      const attempts = (questionAttempts[questionId] || 0) + 1;
+      setQuestionAttempts(prev => ({ ...prev, [questionId]: attempts }));
+      
+      const newTotalErrors = totalErrors + 1;
+      setTotalErrors(newTotalErrors);
+      
+      if (attempts >= 2 || newTotalErrors >= 2) {
+        setTimeout(() => {
+          if (currentStep < questions.length - 1) {
+            setCurrentStep(prev => prev + 1);
+            resetFeedback();
+          } else {
+            handleFinalSubmit();
+          }
+        }, 1500);
+      } else {
+        setTimeout(() => {
+          resetFeedback();
+        }, 1500);
+      }
+    } else {
+      setAnswers(prev => ({ ...prev, [questionId]: choiceId }));
+      
       setTimeout(() => {
         if (currentStep < questions.length - 1) {
           setCurrentStep(prev => prev + 1);
@@ -144,8 +167,6 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
                 } else {
                   buttonClasses += ' border-red-500 bg-red-500/20';
                 }
-              } else if (showFeedback && !isCorrect && isThisCorrect) {
-                buttonClasses += ' border-green-500 bg-green-500/10';
               } else if (answers[currentQuestion.id] === choice.id) {
                 buttonClasses += ' border-primary bg-primary/10';
               } else {
@@ -170,9 +191,6 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
                         {isCorrect ? '✅' : '❌'}
                       </span>
                     )}
-                    {showFeedback && !isCorrect && isThisCorrect && (
-                      <span className="text-sm text-green-600 font-medium ml-2">✓ Corretta</span>
-                    )}
                   </div>
                 </button>
               );
@@ -185,7 +203,10 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
               <p className={`text-sm font-medium ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
                 {isCorrect 
                   ? '🎉 Risposta corretta! Passaggio alla prossima domanda...'
-                  : '❌ Risposta errata. Rivedi il contenuto e continua.'}
+                  : totalErrors >= 2 
+                    ? '❌ Hai raggiunto il limite di 2 errori. Passaggio alla prossima domanda...'
+                    : `❌ Risposta errata. Riprova! (Errori totali: ${totalErrors}/2)`
+                }
               </p>
             </div>
           )}
@@ -196,35 +217,6 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
           {onCancel && (
             <Button onClick={onCancel} variant="outline" className="flex-1">
               Annulla
-            </Button>
-          )}
-          
-          {showFeedback && !isCorrect && currentStep < questions.length - 1 && (
-            <Button
-              onClick={() => {
-                setCurrentStep(prev => prev + 1);
-                resetFeedback();
-              }}
-              className="flex-1"
-            >
-              Continua
-            </Button>
-          )}
-          
-          {showFeedback && !isCorrect && currentStep === questions.length - 1 && (
-            <Button
-              onClick={handleFinalSubmit}
-              disabled={isSubmitting}
-              className="flex-1"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Verifica...
-                </>
-              ) : (
-                'Termina Test'
-              )}
             </Button>
           )}
         </div>

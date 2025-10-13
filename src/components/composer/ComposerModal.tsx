@@ -304,7 +304,7 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
               disabled={!content.trim() || isPublishing}
               className={cn(
                 "px-4 py-2 rounded-full text-sm font-medium transition-colors",
-                content.trim() && allSourcesPassed && !isPublishing
+                content.trim() && !isPublishing
                   ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : "bg-muted text-muted-foreground cursor-not-allowed"
               )}
@@ -365,7 +365,7 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
             {/* Sources List with Gate States */}
             {sources.length > 0 && (
               <div className="space-y-2">
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 overflow-hidden">
                   {sources.map((sourceUrl, index) => {
                     const sourceWithGate = gateQueueState?.sources.find(s => s.url === sourceUrl);
                     if (sourceWithGate) {

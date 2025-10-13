@@ -26,7 +26,7 @@ export const SourceChip: React.FC<SourceChipProps> = ({
   return (
     <div 
       className={cn(
-        "inline-flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2 text-sm group hover:bg-muted/50 transition-colors",
+        "inline-flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2 text-sm group hover:bg-muted/50 transition-colors max-w-full",
         className
       )}
       title={chipState.tooltip}
