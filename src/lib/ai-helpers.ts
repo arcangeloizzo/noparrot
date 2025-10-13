@@ -28,7 +28,8 @@ export interface ValidationResult {
  * Genera Q&A per un contenuto usando Lovable AI
  */
 export async function generateQA(params: {
-  contentId: string;
+  contentId: string | null;
+  isPrePublish?: boolean;
   title?: string;
   summary: string;
   excerpt?: string;

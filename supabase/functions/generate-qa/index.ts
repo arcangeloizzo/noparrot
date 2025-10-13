@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { contentId, title, summary, excerpt, type, sourceUrl } = await req.json();
+    const { contentId, isPrePublish, title, summary, excerpt, type, sourceUrl } = await req.json();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -21,12 +21,18 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Check if Q&A already exists
-    const { data: existing } = await supabase
+    let query = supabase
       .from('post_qa')
       .select('*')
-      .eq('post_id', contentId)
-      .eq('source_url', sourceUrl || '')
-      .maybeSingle();
+      .eq('source_url', sourceUrl || '');
+    
+    if (isPrePublish) {
+      query = query.is('post_id', null);
+    } else {
+      query = query.eq('post_id', contentId);
+    }
+    
+    const { data: existing } = await query.maybeSingle();
 
     if (existing) {
       console.log('Q&A già esistente, ritorno cached version');
@@ -62,6 +68,7 @@ REGOLE GENERAZIONE:
    - Solo 1 opzione corretta
    - Le altre 2 plausibili ma sbagliate
    - Difficoltà media (no trabocchetti)
+   - IMPORTANTE: Varia la posizione della risposta corretta tra A, B, C in modo casuale
    
 3. OUTPUT JSON rigoroso:
 {
@@ -147,17 +154,32 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
       throw new Error('Invalid Q&A schema');
     }
 
+    // Shuffle choices for each question to randomize answer positions
+    function shuffleArray<T>(array: T[]): T[] {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+
+    const shuffledQuestions = parsedContent.questions.map((q: any) => ({
+      ...q,
+      choices: shuffleArray(q.choices)
+    }));
+
     // Extract correct answers
-    const correctAnswers = parsedContent.questions.map((q: any) => ({
+    const correctAnswers = shuffledQuestions.map((q: any) => ({
       id: q.id,
       correctId: q.correctId
     }));
 
     // Save to database
     await supabase.from('post_qa').insert({
-      post_id: contentId,
+      post_id: isPrePublish ? null : contentId,
       source_url: sourceUrl || '',
-      questions: parsedContent.questions,
+      questions: shuffledQuestions,
       correct_answers: correctAnswers,
       generated_from: 'gemini'
     });
@@ -165,7 +187,7 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
     console.log('Q&A generated and saved successfully');
 
     return new Response(
-      JSON.stringify({ questions: parsedContent.questions }),
+      JSON.stringify({ questions: shuffledQuestions }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

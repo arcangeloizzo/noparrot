@@ -123,14 +123,15 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
       description: 'Attendi mentre creo il test di comprensione'
     });
 
-    const result = await generateQA({
-      contentId: `temp-${Date.now()}`,
-      title: metadata.title,
-      summary: metadata.summary,
-      excerpt: metadata.excerpt,
-      type: metadata.type || 'article',
-      sourceUrl
-    });
+      const result = await generateQA({
+        contentId: null,
+        isPrePublish: true,
+        title: metadata.title,
+        summary: metadata.summary,
+        excerpt: metadata.excerpt,
+        type: metadata.type || 'article',
+        sourceUrl
+      });
 
     if (result.insufficient_context) {
       toast({
@@ -172,7 +173,7 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
     setIsPublishing(true);
 
     try {
-      const { data, error } = await supabase
+      const { data: postData, error } = await supabase
         .from('posts')
         .insert({
           content,
@@ -183,11 +184,21 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
         .single();
 
       if (error) throw error;
+      if (!postData) throw new Error('Failed to create post');
 
       toast({
         title: 'Post pubblicato!',
         description: 'Il tuo post è stato pubblicato con successo',
       });
+
+      // Update post_qa records with the real post_id
+      for (const source of sources) {
+        await supabase
+          .from('post_qa')
+          .update({ post_id: postData.id })
+          .eq('source_url', source)
+          .is('post_id', null);
+      }
 
       // Refresh posts feed
       queryClient.invalidateQueries({ queryKey: ['posts'] });

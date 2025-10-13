@@ -20,14 +20,29 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Fetch correct answers from post_qa
-    const { data: qaData, error: qaError } = await supabase
+    // Try with postId first
+    let { data: qaData, error: qaError } = await supabase
       .from('post_qa')
       .select('correct_answers, generated_from')
       .eq('post_id', postId)
       .eq('source_url', sourceUrl || '')
-      .single();
+      .maybeSingle();
+
+    // If not found, fallback to pre-publish records (post_id IS NULL)
+    if (!qaData) {
+      const { data: prePublishData, error: prePublishError } = await supabase
+        .from('post_qa')
+        .select('correct_answers, generated_from')
+        .eq('source_url', sourceUrl || '')
+        .is('post_id', null)
+        .maybeSingle();
+      
+      qaData = prePublishData;
+      qaError = prePublishError;
+    }
 
     if (qaError || !qaData) {
+      console.error('Q&A lookup failed:', { postId, sourceUrl, qaError });
       throw new Error('Q&A not found');
     }
 
