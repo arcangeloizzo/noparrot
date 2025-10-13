@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { X, Link, Plus, User, ChevronLeft, Image, FileText, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -13,6 +13,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { fetchArticlePreview, generateQA, validateAnswers } from '@/lib/ai-helpers';
 import { QuizModal } from '@/components/ui/quiz-modal';
 import { QuotedPostCard } from '@/components/feed/QuotedPostCard';
+import { MentionDropdown } from '@/components/feed/MentionDropdown';
+import { useUserSearch } from '@/hooks/useUserSearch';
 
 interface ComposerModalProps {
   isOpen: boolean;
@@ -47,6 +49,15 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose, q
   const [showReader, setShowReader] = useState(false);
   const [currentReaderSource, setCurrentReaderSource] = useState<any>(null);
   const [sourceMetadata, setSourceMetadata] = useState<Record<string, any>>({});
+  
+  // Mention state management
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [showMentions, setShowMentions] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // User search for mentions
+  const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
 
   // Create queue manager for sources with gate states
   const queueManager = useMemo(() => {
@@ -215,6 +226,46 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose, q
       metadata
     });
     setShowQuiz(true);
+  };
+
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    const cursorPos = e.target.selectionStart;
+    
+    setContent(value);
+    setCursorPosition(cursorPos);
+
+    // Detect @ mentions
+    const textBeforeCursor = value.slice(0, cursorPos);
+    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+
+    if (mentionMatch) {
+      setMentionQuery(mentionMatch[1]);
+      setShowMentions(true);
+    } else {
+      setShowMentions(false);
+      setMentionQuery('');
+    }
+  };
+
+  const handleSelectMention = (user: { username: string }) => {
+    const textBeforeCursor = content.slice(0, cursorPosition);
+    const textAfterCursor = content.slice(cursorPosition);
+    
+    // Remove the partial @mention and replace with full @username
+    const beforeMention = textBeforeCursor.replace(/@\w*$/, '');
+    const newText = `${beforeMention}@${user.username} ${textAfterCursor}`;
+    
+    setContent(newText);
+    setShowMentions(false);
+    setMentionQuery('');
+    
+    // Focus back on textarea
+    setTimeout(() => {
+      contentTextareaRef.current?.focus();
+      const newCursorPos = beforeMention.length + user.username.length + 2;
+      contentTextareaRef.current?.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
   };
 
 
@@ -417,13 +468,24 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose, q
         {/* Content */}
         <div className="flex-1 p-5 space-y-5 overflow-y-auto">
           {/* Text Area */}
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder={quotedPost ? "Aggiungi il tuo commento..." : "Scrivi qui il tuo Knowledge Drop..."}
-            className="w-full min-h-[120px] p-0 bg-transparent border-0 resize-none focus:outline-none text-foreground placeholder:text-muted-foreground text-base leading-relaxed"
-            autoFocus
-          />
+          <div className="relative z-10">
+            <textarea
+              ref={contentTextareaRef}
+              value={content}
+              onChange={handleContentChange}
+              placeholder={quotedPost ? "Aggiungi il tuo commento..." : "Scrivi qui il tuo Knowledge Drop..."}
+              className="w-full min-h-[120px] p-0 bg-transparent border-0 resize-none focus:outline-none text-foreground placeholder:text-muted-foreground text-base leading-relaxed"
+              autoFocus
+            />
+            
+            {showMentions && (
+              <MentionDropdown
+                users={mentionUsers}
+                onSelect={handleSelectMention}
+                isLoading={isSearching}
+              />
+            )}
+          </div>
 
           {/* Quoted Post Preview */}
           {quotedPost && (
