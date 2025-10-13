@@ -249,7 +249,7 @@ export type Database = {
           preview_img: string | null
           shared_title: string | null
           shared_url: string | null
-          sources: string[] | null
+          sources: Json | null
           stance: string | null
           topic_tag: string | null
           trust_level: string | null
@@ -263,7 +263,7 @@ export type Database = {
           preview_img?: string | null
           shared_title?: string | null
           shared_url?: string | null
-          sources?: string[] | null
+          sources?: Json | null
           stance?: string | null
           topic_tag?: string | null
           trust_level?: string | null
@@ -277,7 +277,7 @@ export type Database = {
           preview_img?: string | null
           shared_title?: string | null
           shared_url?: string | null
-          sources?: string[] | null
+          sources?: Json | null
           stance?: string | null
           topic_tag?: string | null
           trust_level?: string | null
