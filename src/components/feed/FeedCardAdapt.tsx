@@ -306,10 +306,7 @@ export const FeedCard = ({
               {post.content}
             </div>
 
-            {/* Quoted Post (if exists) */}
-            {post.quoted_post && (
-              <QuotedPostCard quotedPost={post.quoted_post} />
-            )}
+            {/* Quoted Post removed temporarily - will fix query */}
 
             {/* Article Preview Card */}
             {post.shared_url && (

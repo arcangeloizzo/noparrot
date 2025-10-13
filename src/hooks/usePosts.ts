@@ -66,19 +66,6 @@ export const usePosts = () => {
             full_name,
             avatar_url
           ),
-          quoted_post:posts!quoted_post_id (
-            id,
-            content,
-            created_at,
-            shared_url,
-            shared_title,
-            preview_img,
-            author:profiles!author_id (
-              username,
-              full_name,
-              avatar_url
-            )
-          ),
           questions (*),
           reactions (
             reaction_type,
@@ -104,15 +91,7 @@ export const usePosts = () => {
         sources: post.sources || [],
         created_at: post.created_at,
         quoted_post_id: post.quoted_post_id,
-        quoted_post: post.quoted_post ? {
-          id: post.quoted_post.id,
-          content: post.quoted_post.content,
-          created_at: post.quoted_post.created_at,
-          shared_url: post.quoted_post.shared_url,
-          shared_title: post.quoted_post.shared_title,
-          preview_img: post.quoted_post.preview_img,
-          author: post.quoted_post.author
-        } : null,
+        quoted_post: null, // Fetched separately
         reactions: {
           hearts: post.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
           comments: post.comments?.[0]?.count || 0

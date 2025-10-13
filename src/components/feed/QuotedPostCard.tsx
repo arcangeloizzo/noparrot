@@ -54,10 +54,12 @@ export const QuotedPostCard = ({ quotedPost }: QuotedPostCardProps) => {
     );
   };
 
-  const timeAgo = formatDistanceToNow(new Date(quotedPost.created_at), {
-    addSuffix: true,
-    locale: it 
-  });
+  const timeAgo = quotedPost.created_at 
+    ? formatDistanceToNow(new Date(quotedPost.created_at), {
+        addSuffix: true,
+        locale: it 
+      })
+    : 'poco fa';
 
   // Truncate content to 280 characters
   const truncatedContent = quotedPost.content.length > 280 
