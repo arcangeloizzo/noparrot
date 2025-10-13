@@ -247,19 +247,19 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose, q
         }
       }
 
-      const { data: postData, error } = await supabase
-        .from('posts')
-        .insert({
-          content,
-          author_id: user.id,
-          sources: sources.length > 0 ? sources : null,
-          shared_title: firstSourceMetadata?.title || null,
-          shared_url: firstSourceUrl,
-          preview_img: firstSourceMetadata?.previewImg || null,
-          quoted_post_id: quotedPost?.id || null,
-        })
-        .select()
-        .single();
+    const { data: postData, error } = await supabase
+      .from('posts')
+      .insert({
+        content,
+        author_id: user.id,
+        sources: sources.length > 0 ? sources : null,
+        shared_title: quotedPost?.shared_title || firstSourceMetadata?.title || null,
+        shared_url: quotedPost?.shared_url || firstSourceUrl,
+        preview_img: quotedPost?.preview_img || firstSourceMetadata?.previewImg || null,
+        quoted_post_id: quotedPost?.id || null,
+      })
+      .select()
+      .single();
 
       if (error) throw error;
       if (!postData) throw new Error('Failed to create post');

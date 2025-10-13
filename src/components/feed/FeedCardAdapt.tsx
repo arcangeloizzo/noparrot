@@ -18,6 +18,7 @@ import { CommentsSheet } from "./CommentsSheet";
 import { SourceReaderGate } from "../composer/SourceReaderGate";
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { PostTestActionsModal } from "./PostTestActionsModal";
+import { QuotedPostCard } from "./QuotedPostCard";
 import { generateQA, fetchArticlePreview } from "@/lib/ai-helpers";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -304,6 +305,11 @@ export const FeedCard = ({
             <div className="mb-3 text-foreground text-[15px] leading-normal whitespace-pre-wrap break-words">
               {post.content}
             </div>
+
+            {/* Quoted Post (if exists) */}
+            {post.quoted_post && (
+              <QuotedPostCard quotedPost={post.quoted_post} />
+            )}
 
             {/* Article Preview Card */}
             {post.shared_url && (
