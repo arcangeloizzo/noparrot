@@ -454,6 +454,15 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
               setShowQuiz(false);
               setCurrentQuiz(null);
               startSourceGate(nextIndex);
+            } else {
+              // Test failed: close modal and show error
+              setShowQuiz(false);
+              setCurrentQuiz(null);
+              toast({
+                title: 'Test fallito',
+                description: 'Non hai superato il test di comprensione. Riprova a leggere la fonte.',
+                variant: 'destructive'
+              });
             }
 
             return result;
