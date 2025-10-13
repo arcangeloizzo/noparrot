@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { HeartIcon, MessageCircleIcon, BookmarkIcon, MoreHorizontal, EyeOff, ExternalLink } from "lucide-react";
 import { TrustBadge } from "@/components/ui/trust-badge";
 import { fetchTrustScore } from "@/lib/comprehension-gate";
@@ -237,154 +238,156 @@ export const FeedCard = ({
   });
 
   return (
-    <div 
-      className="p-4 hover:bg-muted/30 transition-colors cursor-pointer relative"
-      style={{ transform: `translateX(-${swipeOffset}px)` }}
-      onClick={() => {
-        setCommentMode('view');
-        setShowComments(true);
-      }}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      <div className="flex gap-3">
-        {/* Avatar */}
-        <div className="flex-shrink-0">
-          <div className="w-10 h-10 rounded-full overflow-hidden bg-muted">
-            {getAvatarContent()}
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          {/* Header */}
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold text-foreground hover:underline text-sm">
-              {post.author.full_name || getDisplayUsername(post.author.username)}
-            </span>
-            <span className="text-muted-foreground text-sm">
-              @{getDisplayUsername(post.author.username)}
-            </span>
-            <span className="text-muted-foreground text-sm">·</span>
-            <span className="text-muted-foreground text-sm">
-              {timeAgo}
-            </span>
-
-            {/* Actions Menu */}
-            <div className="ml-auto">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button 
-                    className="p-1.5 hover:bg-primary/10 rounded-full transition-colors text-muted-foreground hover:text-primary"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <MoreHorizontal className="w-5 h-5" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={(e) => {
-                    e.stopPropagation();
-                    onRemove?.();
-                  }}>
-                    <EyeOff className="w-4 h-4 mr-2" />
-                    Nascondi post
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+    <>
+      <div 
+        className="p-4 hover:bg-muted/30 transition-colors cursor-pointer relative"
+        style={{ transform: `translateX(-${swipeOffset}px)` }}
+        onClick={() => {
+          setCommentMode('view');
+          setShowComments(true);
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        <div className="flex gap-3">
+          {/* Avatar */}
+          <div className="flex-shrink-0">
+            <div className="w-10 h-10 rounded-full overflow-hidden bg-muted">
+              {getAvatarContent()}
             </div>
           </div>
 
-          {/* User Comment */}
-          <div className="mb-3 text-foreground text-[15px] leading-normal whitespace-pre-wrap break-words">
-            {post.content}
-          </div>
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            {/* Header */}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="font-semibold text-foreground hover:underline text-sm">
+                {post.author.full_name || getDisplayUsername(post.author.username)}
+              </span>
+              <span className="text-muted-foreground text-sm">
+                @{getDisplayUsername(post.author.username)}
+              </span>
+              <span className="text-muted-foreground text-sm">·</span>
+              <span className="text-muted-foreground text-sm">
+                {timeAgo}
+              </span>
 
-          {/* Article Preview Card */}
-          {post.shared_url && (
-            <div 
-              className="mb-3 border border-border rounded-2xl overflow-hidden hover:bg-accent/10 hover:border-accent/50 transition-all cursor-pointer group"
-              onClick={(e) => {
-                e.stopPropagation();
-                window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-              }}
-            >
-              {post.preview_img && (
-                <div className="aspect-video w-full overflow-hidden bg-muted">
-                  <img 
-                    src={post.preview_img}
-                    alt={post.shared_title || ''}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              {/* Actions Menu */}
+              <div className="ml-auto">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button 
+                      className="p-1.5 hover:bg-primary/10 rounded-full transition-colors text-muted-foreground hover:text-primary"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MoreHorizontal className="w-5 h-5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={(e) => {
+                      e.stopPropagation();
+                      onRemove?.();
+                    }}>
+                      <EyeOff className="w-4 h-4 mr-2" />
+                      Nascondi post
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+
+            {/* User Comment */}
+            <div className="mb-3 text-foreground text-[15px] leading-normal whitespace-pre-wrap break-words">
+              {post.content}
+            </div>
+
+            {/* Article Preview Card */}
+            {post.shared_url && (
+              <div 
+                className="mb-3 border border-border rounded-2xl overflow-hidden hover:bg-accent/10 hover:border-accent/50 transition-all cursor-pointer group"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                }}
+              >
+                {post.preview_img && (
+                  <div className="aspect-video w-full overflow-hidden bg-muted">
+                    <img 
+                      src={post.preview_img}
+                      alt={post.shared_title || ''}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  </div>
+                )}
+                <div className="p-3">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                    <span>{getHostnameFromUrl(post.shared_url)}</span>
+                    <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </div>
+                  <div className="font-semibold text-sm text-foreground line-clamp-2 group-hover:text-accent transition-colors">
+                    {post.shared_title}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Trust Badge */}
+            {post.trust_level && (
+              <div className="mb-3 flex items-center gap-2">
+                <TrustBadge 
+                  band={post.trust_level}
+                  score={post.trust_level === 'ALTO' ? 85 : post.trust_level === 'MEDIO' ? 60 : 35}
+                  size="sm"
+                />
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center gap-6 text-muted-foreground mt-3">
+              <button 
+                className="flex items-center gap-2 hover:text-primary transition-colors group"
+                onClick={handleHeart}
+              >
+                <div className="p-2 rounded-full group-hover:bg-primary/10 transition-colors">
+                  <HeartIcon 
+                    className={cn(
+                      "w-[18px] h-[18px] transition-all",
+                      post.user_reactions.has_hearted && "fill-primary stroke-primary"
+                    )}
                   />
                 </div>
-              )}
-              <div className="p-3">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
-                  <span>{getHostnameFromUrl(post.shared_url)}</span>
-                  <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                <span className="text-sm">{post.reactions.hearts}</span>
+              </button>
+
+              <button 
+                className="flex items-center gap-2 hover:text-primary transition-colors group"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCommentMode('reply');
+                  setShowComments(true);
+                }}
+              >
+                <div className="p-2 rounded-full group-hover:bg-primary/10 transition-colors">
+                  <MessageCircleIcon className="w-[18px] h-[18px]" />
                 </div>
-                <div className="font-semibold text-sm text-foreground line-clamp-2 group-hover:text-accent transition-colors">
-                  {post.shared_title}
+                <span className="text-sm">{post.reactions.comments}</span>
+              </button>
+
+              <button 
+                className="flex items-center gap-2 hover:text-primary transition-colors group ml-auto"
+                onClick={handleBookmark}
+              >
+                <div className="p-2 rounded-full group-hover:bg-primary/10 transition-colors">
+                  <BookmarkIcon 
+                    className={cn(
+                      "w-[18px] h-[18px] transition-all",
+                      post.user_reactions.has_bookmarked && "fill-primary stroke-primary"
+                    )}
+                  />
                 </div>
-              </div>
+              </button>
             </div>
-          )}
-
-          {/* Trust Badge */}
-          {post.trust_level && (
-            <div className="mb-3 flex items-center gap-2">
-              <TrustBadge 
-                band={post.trust_level}
-                score={post.trust_level === 'ALTO' ? 85 : post.trust_level === 'MEDIO' ? 60 : 35}
-                size="sm"
-              />
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex items-center gap-6 text-muted-foreground mt-3">
-            <button 
-              className="flex items-center gap-2 hover:text-primary transition-colors group"
-              onClick={handleHeart}
-            >
-              <div className="p-2 rounded-full group-hover:bg-primary/10 transition-colors">
-                <HeartIcon 
-                  className={cn(
-                    "w-[18px] h-[18px] transition-all",
-                    post.user_reactions.has_hearted && "fill-primary stroke-primary"
-                  )}
-                />
-              </div>
-              <span className="text-sm">{post.reactions.hearts}</span>
-            </button>
-
-            <button 
-              className="flex items-center gap-2 hover:text-primary transition-colors group"
-              onClick={(e) => {
-                e.stopPropagation();
-                setCommentMode('reply');
-                setShowComments(true);
-              }}
-            >
-              <div className="p-2 rounded-full group-hover:bg-primary/10 transition-colors">
-                <MessageCircleIcon className="w-[18px] h-[18px]" />
-              </div>
-              <span className="text-sm">{post.reactions.comments}</span>
-            </button>
-
-            <button 
-              className="flex items-center gap-2 hover:text-primary transition-colors group ml-auto"
-              onClick={handleBookmark}
-            >
-              <div className="p-2 rounded-full group-hover:bg-primary/10 transition-colors">
-                <BookmarkIcon 
-                  className={cn(
-                    "w-[18px] h-[18px] transition-all",
-                    post.user_reactions.has_bookmarked && "fill-primary stroke-primary"
-                  )}
-                />
-              </div>
-            </button>
           </div>
         </div>
       </div>
@@ -399,8 +402,8 @@ export const FeedCard = ({
         mode={commentMode}
       />
 
-      {/* Reader Modal */}
-      {showReader && readerSource && (
+      {/* Reader Modal - Rendered via Portal */}
+      {showReader && readerSource && createPortal(
         <SourceReaderGate
           source={readerSource}
           isOpen={showReader}
@@ -409,11 +412,12 @@ export const FeedCard = ({
             setReaderSource(null);
           }}
           onComplete={handleReaderComplete}
-        />
+        />,
+        document.body
       )}
 
-      {/* Quiz Modal */}
-      {showQuiz && quizData && (
+      {/* Quiz Modal - Rendered via Portal */}
+      {showQuiz && quizData && createPortal(
         <QuizModal
           questions={quizData.questions}
           onSubmit={handleQuizSubmit}
@@ -421,8 +425,9 @@ export const FeedCard = ({
             setShowQuiz(false);
             setQuizData(null);
           }}
-        />
+        />,
+        document.body
       )}
-    </div>
+    </>
   );
 };

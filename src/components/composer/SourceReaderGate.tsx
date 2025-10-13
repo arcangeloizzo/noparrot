@@ -74,7 +74,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const isReady = canProceed || hasScrolledToBottom;
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999]">
       <div className="bg-background rounded-2xl w-[90vw] h-[84vh] flex flex-col border border-border">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
