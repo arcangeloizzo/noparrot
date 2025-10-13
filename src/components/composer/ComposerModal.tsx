@@ -46,18 +46,31 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
   const addSource = async () => {
     if (newSource.trim() && !sources.includes(newSource.trim())) {
       const url = newSource.trim();
-      setSources([...sources, url]);
-      setNewSource('');
       
-      // Fetch preview metadata in background
+      // Show loading toast
       toast({
         title: 'Caricamento fonte...',
         description: 'Recupero informazioni dall\'articolo'
       });
       
+      // Wait for metadata before adding source
       const metadata = await fetchArticlePreview(url);
+      
       if (metadata) {
         setSourceMetadata(prev => ({ ...prev, [url]: metadata }));
+        setSources([...sources, url]);
+        setNewSource('');
+        
+        toast({
+          title: '✅ Fonte aggiunta',
+          description: metadata.title || 'Fonte pronta'
+        });
+      } else {
+        toast({
+          title: 'Errore',
+          description: 'Impossibile recuperare informazioni dalla fonte',
+          variant: 'destructive'
+        });
       }
     }
   };
@@ -178,7 +191,19 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
     try {
       // Get metadata for the first source if available
       const firstSourceUrl = sources.length > 0 ? sources[0] : null;
-      const firstSourceMetadata = firstSourceUrl ? sourceMetadata[firstSourceUrl] : null;
+      let firstSourceMetadata = firstSourceUrl ? sourceMetadata[firstSourceUrl] : null;
+
+      // Fallback: if metadata not available, fetch it now
+      if (firstSourceUrl && !firstSourceMetadata) {
+        toast({
+          title: 'Recupero informazioni fonte...',
+          description: 'Attendi...'
+        });
+        firstSourceMetadata = await fetchArticlePreview(firstSourceUrl);
+        if (firstSourceMetadata) {
+          setSourceMetadata(prev => ({ ...prev, [firstSourceUrl]: firstSourceMetadata }));
+        }
+      }
 
       const { data: postData, error } = await supabase
         .from('posts')
