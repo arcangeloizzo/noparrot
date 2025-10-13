@@ -176,12 +176,19 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
     setIsPublishing(true);
 
     try {
+      // Get metadata for the first source if available
+      const firstSourceUrl = sources.length > 0 ? sources[0] : null;
+      const firstSourceMetadata = firstSourceUrl ? sourceMetadata[firstSourceUrl] : null;
+
       const { data: postData, error } = await supabase
         .from('posts')
         .insert({
           content,
           author_id: user.id,
           sources: sources.length > 0 ? sources : null,
+          shared_title: firstSourceMetadata?.title || null,
+          shared_url: firstSourceUrl,
+          preview_img: firstSourceMetadata?.previewImg || null,
         })
         .select()
         .single();
