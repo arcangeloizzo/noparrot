@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { HeartIcon, MessageCircleIcon, BookmarkIcon, MoreHorizontal, EyeOff } from "lucide-react";
+import { HeartIcon, MessageCircleIcon, BookmarkIcon, MoreHorizontal, EyeOff, ExternalLink } from "lucide-react";
 import { TrustBadge } from "@/components/ui/trust-badge";
 import { fetchTrustScore } from "@/lib/comprehension-gate";
 import { cn, getDisplayUsername } from "@/lib/utils";
@@ -14,6 +14,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CommentsSheet } from "./CommentsSheet";
+import { SourceReaderGate } from "../composer/SourceReaderGate";
+import { QuizModal } from "@/components/ui/quiz-modal";
+import { generateQA, fetchArticlePreview } from "@/lib/ai-helpers";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
 
 interface FeedCardProps {
   post: Post;
@@ -36,9 +42,21 @@ export const FeedCard = ({
   onOpenReader,
   onRemove 
 }: FeedCardProps) => {
+  const { user } = useAuth();
   const toggleReaction = useToggleReaction();
   const [showComments, setShowComments] = useState(false);
   const [commentMode, setCommentMode] = useState<'view' | 'reply'>('view');
+  
+  // Swipe gesture states
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  
+  // Gate states
+  const [showReader, setShowReader] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [readerSource, setReaderSource] = useState<any>(null);
+  const [quizData, setQuizData] = useState<any>(null);
 
   const handleHeart = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -72,6 +90,147 @@ export const FeedCard = ({
     );
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+    setTouchEnd(null);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStart) return;
+    const currentTouch = e.targetTouches[0].clientX;
+    setTouchEnd(currentTouch);
+    const offset = touchStart - currentTouch;
+    if (offset > 0) {
+      setSwipeOffset(Math.min(offset, 80));
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (!touchStart || touchEnd === null) {
+      setSwipeOffset(0);
+      return;
+    }
+
+    const distance = touchStart - touchEnd;
+    
+    // Swipe left detected on post with source
+    if (distance > 50 && post.shared_url) {
+      await startComprehensionGate();
+    }
+    
+    // Reset
+    setSwipeOffset(0);
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
+
+  const startComprehensionGate = async () => {
+    if (!post.shared_url || !user) return;
+
+    toast({
+      title: 'Caricamento contenuto...',
+      description: 'Preparazione del Comprehension Gate'
+    });
+
+    // Fetch article preview
+    const preview = await fetchArticlePreview(post.shared_url);
+    
+    if (!preview) {
+      toast({
+        title: 'Errore',
+        description: 'Impossibile recuperare il contenuto',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Show Reader
+    setReaderSource({
+      url: post.shared_url,
+      title: preview.title || post.shared_title || '',
+      content: preview.excerpt || preview.summary || '',
+      ...preview
+    });
+    setShowReader(true);
+  };
+
+  const handleReaderComplete = async () => {
+    setShowReader(false);
+    
+    if (!readerSource || !user) return;
+
+    toast({
+      title: 'Generazione Q&A...',
+      description: 'Creazione del test di comprensione'
+    });
+
+    const result = await generateQA({
+      contentId: post.id,
+      title: readerSource.title,
+      summary: readerSource.content,
+      sourceUrl: readerSource.url,
+    });
+
+    if (result.error || !result.questions) {
+      toast({
+        title: 'Errore',
+        description: result.error || 'Impossibile generare Q&A',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setQuizData({
+      questions: result.questions,
+      sourceUrl: readerSource.url
+    });
+    setShowQuiz(true);
+  };
+
+  const handleQuizSubmit = async (answers: Record<string, string>) => {
+    if (!user || !quizData) return { passed: false, score: 0, total: 0, wrongIndexes: [] };
+
+    try {
+      const { data, error } = await supabase.functions.invoke('validate-answers', {
+        body: {
+          postId: post.id,
+          sourceUrl: quizData.sourceUrl,
+          answers,
+          userId: user.id,
+          gateType: 'share'
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.passed) {
+        toast({
+          title: '✅ Test Superato!',
+          description: `Punteggio: ${data.score}/${data.total}`
+        });
+      } else {
+        toast({
+          title: 'Test Non Superato',
+          description: `Punteggio: ${data.score}/${data.total}`,
+          variant: 'destructive'
+        });
+      }
+
+      setShowQuiz(false);
+      setQuizData(null);
+      
+      return data;
+    } catch (error) {
+      console.error('Error validating quiz:', error);
+      toast({
+        title: 'Errore',
+        description: 'Errore durante la validazione',
+        variant: 'destructive'
+      });
+      return { passed: false, score: 0, total: 0, wrongIndexes: [] };
+    }
+  };
+
   const timeAgo = formatDistanceToNow(new Date(post.created_at), {
     addSuffix: true,
     locale: it 
@@ -79,11 +238,15 @@ export const FeedCard = ({
 
   return (
     <div 
-      className="p-4 hover:bg-muted/30 transition-colors cursor-pointer"
+      className="p-4 hover:bg-muted/30 transition-colors cursor-pointer relative"
+      style={{ transform: `translateX(-${swipeOffset}px)` }}
       onClick={() => {
         setCommentMode('view');
         setShowComments(true);
       }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       <div className="flex gap-3">
         {/* Avatar */}
@@ -139,21 +302,28 @@ export const FeedCard = ({
 
           {/* Article Preview Card */}
           {post.shared_url && (
-            <div className="mb-3 border border-border rounded-2xl overflow-hidden hover:bg-muted/30 transition-colors">
+            <div 
+              className="mb-3 border border-border rounded-2xl overflow-hidden hover:bg-accent/10 hover:border-accent/50 transition-all cursor-pointer group"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+              }}
+            >
               {post.preview_img && (
                 <div className="aspect-video w-full overflow-hidden bg-muted">
                   <img 
                     src={post.preview_img}
                     alt={post.shared_title || ''}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                 </div>
               )}
               <div className="p-3">
-                <div className="text-xs text-muted-foreground mb-1">
-                  {getHostnameFromUrl(post.shared_url)}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                  <span>{getHostnameFromUrl(post.shared_url)}</span>
+                  <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
-                <div className="font-semibold text-sm text-foreground line-clamp-2">
+                <div className="font-semibold text-sm text-foreground line-clamp-2 group-hover:text-accent transition-colors">
                   {post.shared_title}
                 </div>
               </div>
@@ -228,6 +398,31 @@ export const FeedCard = ({
         }}
         mode={commentMode}
       />
+
+      {/* Reader Modal */}
+      {showReader && readerSource && (
+        <SourceReaderGate
+          source={readerSource}
+          isOpen={showReader}
+          onClose={() => {
+            setShowReader(false);
+            setReaderSource(null);
+          }}
+          onComplete={handleReaderComplete}
+        />
+      )}
+
+      {/* Quiz Modal */}
+      {showQuiz && quizData && (
+        <QuizModal
+          questions={quizData.questions}
+          onSubmit={handleQuizSubmit}
+          onCancel={() => {
+            setShowQuiz(false);
+            setQuizData(null);
+          }}
+        />
+      )}
     </div>
   );
 };

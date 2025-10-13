@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { GateQueueManager, SourceWithGate, GateQueueState } from '@/lib/comprehension-gate-extended';
 import { GateQueueModal } from './GateQueueModal';
 import { SourceChip } from './SourceChip';
+import { SourceReaderGate } from './SourceReaderGate';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
@@ -29,6 +30,8 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
   const [currentSourceIndex, setCurrentSourceIndex] = useState(0);
   const [showQuiz, setShowQuiz] = useState(false);
   const [currentQuiz, setCurrentQuiz] = useState<any>(null);
+  const [showReader, setShowReader] = useState(false);
+  const [currentReaderSource, setCurrentReaderSource] = useState<any>(null);
   const [sourceMetadata, setSourceMetadata] = useState<Record<string, any>>({});
 
   // Create queue manager for sources with gate states
@@ -133,21 +136,41 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
       return;
     }
 
-    // Generate Q&A
+    // 1. First show the Reader
+    setCurrentReaderSource({
+      url: sourceUrl,
+      title: metadata.title || '',
+      content: metadata.excerpt || metadata.summary || '',
+      sourceIndex: index,
+      ...metadata
+    });
+    setShowReader(true);
+  };
+
+  // Handler when Reader is completed
+  const handleReaderComplete = async () => {
+    setShowReader(false);
+    
+    if (!currentReaderSource) return;
+    
+    const sourceUrl = currentReaderSource.url;
+    const index = currentReaderSource.sourceIndex;
+    const metadata = currentReaderSource;
+
     toast({
-      title: 'Generazione domande...',
-      description: 'Attendi mentre creo il test di comprensione'
+      title: 'Generazione Q&A...',
+      description: `Fonte ${index + 1}/${sources.length}`
     });
 
-      const result = await generateQA({
-        contentId: null,
-        isPrePublish: true,
-        title: metadata.title,
-        summary: metadata.summary,
-        excerpt: metadata.excerpt,
-        type: metadata.type || 'article',
-        sourceUrl
-      });
+    const result = await generateQA({
+      contentId: null,
+      isPrePublish: true,
+      title: metadata.title || '',
+      summary: metadata.content || metadata.summary || '',
+      excerpt: metadata.excerpt,
+      type: metadata.type || 'article',
+      sourceUrl: sourceUrl,
+    });
 
     if (result.insufficient_context) {
       toast({
@@ -164,14 +187,19 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
     if (result.error || !result.questions) {
       toast({
         title: 'Errore generazione quiz',
-        description: 'Riprova più tardi',
+        description: result.error || 'Impossibile generare Q&A',
         variant: 'destructive'
       });
       return;
     }
 
-    // Show quiz modal
-    setCurrentQuiz({ questions: result.questions, sourceUrl, metadata });
+    // 2. Then show the Quiz
+    setCurrentQuiz({
+      questions: result.questions,
+      sourceUrl: sourceUrl,
+      sourceIndex: index,
+      metadata
+    });
     setShowQuiz(true);
   };
 
@@ -482,6 +510,20 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
         </div>
       </div>
       
+      {/* Reader Modal */}
+      {showReader && currentReaderSource && (
+        <SourceReaderGate
+          source={currentReaderSource}
+          isOpen={showReader}
+          onClose={() => {
+            setShowReader(false);
+            setCurrentReaderSource(null);
+            setIsPublishing(false);
+          }}
+          onComplete={handleReaderComplete}
+        />
+      )}
+
       {/* Quiz Modal */}
       {showQuiz && currentQuiz && user && (
         <QuizModal
