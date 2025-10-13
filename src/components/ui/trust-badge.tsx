@@ -69,7 +69,9 @@ export function TrustBadge({
           !hasData && "opacity-60"
         )}
         style={{ 
-          backgroundColor: `${finalColor}15`,
+          backgroundColor: band === "BASSO" 
+            ? `${finalColor}40`  // Rosso più opaco per leggibilità
+            : `${finalColor}15`, // Mantieni trasparenza per MEDIO/ALTO
           borderColor: `${finalColor}30`,
           color: band === "ALTO" ? "white" : finalColor
         }}
