@@ -119,16 +119,19 @@ export function TrustBadge({
             <div 
               className={cn(
                 "absolute left-1/2 -translate-x-1/2 w-[280px] max-w-[90vw] p-4",
-                "rounded-lg shadow-xl z-[100]",
+                "rounded-lg shadow-xl z-[9999] trust-tooltip-override",
                 "animate-in fade-in-0 zoom-in-95 duration-200",
                 tooltipPosition === 'top' 
                   ? "bottom-full mb-2" 
                   : "top-full mt-2"
               )}
               style={{ 
-                backgroundColor: 'hsl(240 10% 3.9%)',
-                border: '1px solid hsl(240 3.7% 15.9%)',
-                color: 'hsl(0 0% 98%)'
+                backgroundColor: 'hsl(240 10% 3.9%) !important' as any,
+                border: '1px solid hsl(240 3.7% 15.9%) !important' as any,
+                color: 'hsl(0 0% 98%) !important' as any,
+                opacity: '1 !important' as any,
+                backdropFilter: 'none !important' as any,
+                WebkitBackdropFilter: 'none !important' as any,
               }}
             >
               <div className="space-y-3">
