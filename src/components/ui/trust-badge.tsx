@@ -109,7 +109,7 @@ export function TrustBadge({
             <div 
               className={cn(
                 "absolute left-1/2 -translate-x-1/2 w-[280px] max-w-[90vw] p-4",
-                "rounded-lg border bg-popover text-card-foreground shadow-xl z-[100]",
+                "tooltip-solid-bg rounded-lg border text-card-foreground shadow-xl z-[100]",
                 "animate-in fade-in-0 zoom-in-95 duration-200",
                 tooltipPosition === 'top' 
                   ? "bottom-full mb-2" 
