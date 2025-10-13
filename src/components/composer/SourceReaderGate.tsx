@@ -38,6 +38,16 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       return;
     }
 
+    // Block body scroll when modal is open
+    const originalOverflow = document.body.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+    
+    // Get scrollbar width to prevent layout shift
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    
+    document.body.style.overflow = 'hidden';
+    document.body.style.paddingRight = `${scrollbarWidth}px`;
+
     // Timer countdown
     const timer = setInterval(() => {
       setTimeLeft(prev => {
@@ -49,7 +59,12 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       });
     }, 1000);
 
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      // Restore body scroll on unmount
+      document.body.style.overflow = originalOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+    };
   }, [isOpen]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -73,8 +88,25 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
   const isReady = canProceed || hasScrolledToBottom;
 
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  const handleBackdropTouch = (e: React.TouchEvent) => {
+    if (e.target === e.currentTarget) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999]">
+    <div 
+      className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999]"
+      onClick={handleBackdropClick}
+      onTouchMove={handleBackdropTouch}
+    >
       <div className="bg-background rounded-2xl w-[90vw] h-[84vh] flex flex-col border border-border">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">

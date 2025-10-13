@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "./button";
 import { Badge } from "./badge";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
@@ -21,6 +21,22 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
   const [showFeedback, setShowFeedback] = useState(false);
   const [questionAttempts, setQuestionAttempts] = useState<Record<string, number>>({});
   const [totalErrors, setTotalErrors] = useState(0);
+
+  // Block body scroll when modal is open
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+    
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    
+    document.body.style.overflow = 'hidden';
+    document.body.style.paddingRight = `${scrollbarWidth}px`;
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+    };
+  }, []);
 
   const handleAnswer = async (questionId: string, choiceId: string) => {
     if (showFeedback) return;
@@ -108,9 +124,18 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
 
   const allAnswered = Object.keys(answers).length === questions.length;
 
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    if (e.target === e.currentTarget && onCancel) {
+      onCancel();
+    }
+  };
+
   if (result) {
     return (
-      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div 
+        className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+        onClick={handleBackdropClick}
+      >
         <div className="bg-card rounded-lg shadow-lg max-w-md w-full p-6 space-y-4">
           <div className="text-center">
             {result.passed ? (
@@ -142,7 +167,10 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
   const currentQuestion = questions[currentStep];
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div 
+      className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+      onClick={handleBackdropClick}
+    >
       <div className="bg-card rounded-lg shadow-lg max-w-2xl w-full p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
