@@ -158,6 +158,18 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
     setShowQuiz(true);
   };
 
+  const handleClose = () => {
+    setContent('');
+    setSources([]);
+    setNewSource('');
+    setSourceMetadata({});
+    setGateQueueState(null);
+    setCurrentSourceIndex(0);
+    setShowQuiz(false);
+    setCurrentQuiz(null);
+    onClose();
+  };
+
   const publishContent = async () => {
     if (!user) {
       toast({
@@ -191,12 +203,7 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
       // Refresh posts feed
       queryClient.invalidateQueries({ queryKey: ['posts'] });
 
-      onClose();
-      // Reset form
-      setContent('');
-      setSources([]);
-      setNewSource('');
-      setGateQueueState(null);
+      handleClose();
     } catch (error: any) {
       console.error('Error publishing post:', error);
       toast({
@@ -283,6 +290,14 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
           </div>
           
           <div className="flex items-center space-x-3">
+            <button
+              onClick={handleClose}
+              className="p-1 text-muted-foreground hover:text-destructive transition-colors"
+              title="Chiudi senza salvare"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
             {getAvatarContent()}
             <button
               onClick={handleSubmit}

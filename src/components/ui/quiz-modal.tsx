@@ -16,14 +16,41 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<{ passed: boolean; wrongIndexes: string[] } | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
+  const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
+  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+  const [showFeedback, setShowFeedback] = useState(false);
 
-  const handleAnswer = (questionId: string, choiceId: string) => {
+  const handleAnswer = async (questionId: string, choiceId: string) => {
+    if (showFeedback) return;
+    
+    setSelectedChoice(choiceId);
+    setShowFeedback(true);
+    
+    const currentQuestion = questions[currentStep];
+    const correct = currentQuestion.correctId === choiceId;
+    setIsCorrect(correct);
+    
     setAnswers(prev => ({ ...prev, [questionId]: choiceId }));
+    
+    if (correct) {
+      setTimeout(() => {
+        if (currentStep < questions.length - 1) {
+          setCurrentStep(prev => prev + 1);
+          resetFeedback();
+        } else {
+          handleFinalSubmit();
+        }
+      }, 1500);
+    }
   };
 
-  const handleSubmit = async () => {
-    if (Object.keys(answers).length !== questions.length) return;
-    
+  const resetFeedback = () => {
+    setSelectedChoice(null);
+    setIsCorrect(null);
+    setShowFeedback(false);
+  };
+
+  const handleFinalSubmit = async () => {
     setIsSubmitting(true);
     try {
       const validationResult = await onSubmit(answers);
@@ -105,21 +132,63 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
           <p className="text-base font-medium">{currentQuestion.stem}</p>
           
           <div className="space-y-2">
-            {currentQuestion.choices.map((choice) => (
-              <button
-                key={choice.id}
-                onClick={() => handleAnswer(currentQuestion.id, choice.id)}
-                className={`w-full text-left p-4 rounded-lg border-2 transition-colors ${
-                  answers[currentQuestion.id] === choice.id
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border hover:border-primary/50 hover:bg-muted/50'
-                }`}
-              >
-                <span className="font-medium mr-2">{choice.id.toUpperCase()}.</span>
-                {choice.text}
-              </button>
-            ))}
+            {currentQuestion.choices.map((choice) => {
+              const isSelected = selectedChoice === choice.id;
+              const isThisCorrect = currentQuestion.correctId === choice.id;
+              
+              let buttonClasses = 'w-full text-left p-4 rounded-lg border-2 transition-all relative';
+              
+              if (showFeedback && isSelected) {
+                if (isCorrect) {
+                  buttonClasses += ' border-green-500 bg-green-500/20';
+                } else {
+                  buttonClasses += ' border-red-500 bg-red-500/20';
+                }
+              } else if (showFeedback && !isCorrect && isThisCorrect) {
+                buttonClasses += ' border-green-500 bg-green-500/10';
+              } else if (answers[currentQuestion.id] === choice.id) {
+                buttonClasses += ' border-primary bg-primary/10';
+              } else {
+                buttonClasses += ' border-border hover:border-primary/50 hover:bg-muted/50';
+              }
+              
+              return (
+                <button
+                  key={choice.id}
+                  onClick={() => handleAnswer(currentQuestion.id, choice.id)}
+                  disabled={showFeedback}
+                  className={buttonClasses}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-medium mr-2">{choice.id.toUpperCase()}.</span>
+                      {choice.text}
+                    </div>
+                    
+                    {showFeedback && isSelected && (
+                      <span className="text-lg ml-2">
+                        {isCorrect ? '✅' : '❌'}
+                      </span>
+                    )}
+                    {showFeedback && !isCorrect && isThisCorrect && (
+                      <span className="text-sm text-green-600 font-medium ml-2">✓ Corretta</span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
           </div>
+
+          {/* Feedback Message */}
+          {showFeedback && (
+            <div className={`p-3 rounded-lg ${isCorrect ? 'bg-green-500/10 border border-green-500/30' : 'bg-red-500/10 border border-red-500/30'}`}>
+              <p className={`text-sm font-medium ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
+                {isCorrect 
+                  ? '🎉 Risposta corretta! Passaggio alla prossima domanda...'
+                  : '❌ Risposta errata. Rivedi il contenuto e continua.'}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Actions */}
@@ -130,18 +199,22 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
             </Button>
           )}
           
-          {currentStep < questions.length - 1 ? (
+          {showFeedback && !isCorrect && currentStep < questions.length - 1 && (
             <Button
-              onClick={() => setCurrentStep(prev => prev + 1)}
-              disabled={!answers[currentQuestion.id]}
+              onClick={() => {
+                setCurrentStep(prev => prev + 1);
+                resetFeedback();
+              }}
               className="flex-1"
             >
-              Avanti
+              Continua
             </Button>
-          ) : (
+          )}
+          
+          {showFeedback && !isCorrect && currentStep === questions.length - 1 && (
             <Button
-              onClick={handleSubmit}
-              disabled={!allAnswered || isSubmitting}
+              onClick={handleFinalSubmit}
+              disabled={isSubmitting}
               className="flex-1"
             >
               {isSubmitting ? (
@@ -150,7 +223,7 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
                   Verifica...
                 </>
               ) : (
-                'Invia Risposte'
+                'Termina Test'
               )}
             </Button>
           )}

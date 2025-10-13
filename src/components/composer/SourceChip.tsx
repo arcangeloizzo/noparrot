@@ -65,7 +65,7 @@ export const SourceChip: React.FC<SourceChipProps> = ({
           e.preventDefault();
           onRemove();
         }}
-        className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
+        className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground opacity-70 hover:opacity-100 transition-opacity flex-shrink-0"
       >
         <X className="h-3 w-3" />
       </Button>
