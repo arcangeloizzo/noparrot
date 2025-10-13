@@ -22,10 +22,26 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    const prompt = `Sei un esperto valutatore di fonti e contenuti web. 
+    // Normalize YouTube URLs before evaluation
+    function normalizeYouTubeUrl(inputUrl: string): string {
+      try {
+        const parsed = new URL(inputUrl);
+        if (parsed.hostname === 'youtu.be' || parsed.hostname === 'www.youtu.be') {
+          const videoId = parsed.pathname.slice(1).split('?')[0];
+          return `https://www.youtube.com/watch?v=${videoId}`;
+        }
+        return inputUrl;
+      } catch {
+        return inputUrl;
+      }
+    }
+
+    const normalizedSourceUrl = normalizeYouTubeUrl(sourceUrl);
+
+    const prompt = `Sei un esperto valutatore di fonti e contenuti web.
 
 FONTE DA VALUTARE:
-URL: ${sourceUrl}
+URL: ${normalizedSourceUrl}
 Contesto post: ${postText?.substring(0, 300) || 'N/A'}
 
 COMPITO:
@@ -35,9 +51,15 @@ Analizza l'affidabilità della fonte considerando:
 3. Coerenza con il contesto del post (se fornito)
 4. Indizi di credibilità (es. https, certificazioni)
 
+DOMINI RICONOSCIUTI:
+- YouTube (youtube.com, youtu.be): MEDIO-ALTO (piattaforma video riconosciuta, contenuti misti)
+- Vimeo (vimeo.com): MEDIO (contenuti professionali)
+- Siti istituzionali (.edu, .gov, .org): ALTO
+- Testate giornalistiche primarie: ALTO
+
 CLASSIFICAZIONE:
 - ALTO (85-100): Fonti accademiche, governative, istituzioni riconosciute, giornali primari
-- MEDIO (50-84): Blog professionali, media regionali, siti con autori identificabili
+- MEDIO (50-84): Blog professionali, media regionali, siti con autori identificabili, YouTube
 - BASSO (0-49): Siti dubbi, no autore, clickbait, domini sospetti
 
 OUTPUT JSON RIGOROSO:

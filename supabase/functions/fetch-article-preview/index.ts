@@ -18,8 +18,27 @@ serve(async (req) => {
       throw new Error('URL is required');
     }
 
+    // Normalize YouTube URLs before processing
+    function normalizeYouTubeUrl(inputUrl: string): string {
+      try {
+        const parsed = new URL(inputUrl);
+        
+        // Convert youtu.be short URLs to youtube.com
+        if (parsed.hostname === 'youtu.be' || parsed.hostname === 'www.youtu.be') {
+          const videoId = parsed.pathname.slice(1).split('?')[0];
+          return `https://www.youtube.com/watch?v=${videoId}`;
+        }
+        
+        return inputUrl;
+      } catch {
+        return inputUrl;
+      }
+    }
+
+    const normalizedUrl = normalizeYouTubeUrl(url);
+
     // Fetch the webpage
-    const response = await fetch(url, {
+    const response = await fetch(normalizedUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; NoParrot/1.0; +https://noparrot.com)'
       }
@@ -80,11 +99,11 @@ serve(async (req) => {
       .join('\n\n')
       .substring(0, 3000);
 
-    const hostname = new URL(url).hostname.replace('www.', '');
+    const hostname = new URL(normalizedUrl).hostname.replace('www.', '');
 
     // Detect video platforms
-    const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
-    const isVimeo = url.includes('vimeo.com');
+    const isYouTube = normalizedUrl.includes('youtube.com') || normalizedUrl.includes('youtu.be');
+    const isVimeo = normalizedUrl.includes('vimeo.com');
     
     let embedUrl = null;
     let videoId = null;
@@ -93,7 +112,7 @@ serve(async (req) => {
     if (isYouTube) {
       // Extract YouTube video ID from various URL formats
       const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-      const match = url.match(youtubeRegex);
+      const match = normalizedUrl.match(youtubeRegex);
       if (match) {
         videoId = match[1];
         embedUrl = `https://www.youtube.com/embed/${videoId}`;
@@ -101,7 +120,7 @@ serve(async (req) => {
       }
     } else if (isVimeo) {
       const vimeoRegex = /vimeo\.com\/(?:video\/)?(\d+)/;
-      const match = url.match(vimeoRegex);
+      const match = normalizedUrl.match(vimeoRegex);
       if (match) {
         videoId = match[1];
         embedUrl = `https://player.vimeo.com/video/${videoId}`;

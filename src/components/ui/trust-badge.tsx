@@ -70,14 +70,18 @@ export function TrustBadge({
         )}
         style={{ 
           backgroundColor: band === "BASSO" 
-            ? `hsl(var(--destructive) / 0.5)`
+            ? "hsl(0 84% 60% / 0.5)"
             : band === "MEDIO"
-            ? `hsl(var(--warning) / 0.3)`
+            ? "hsl(38 92% 50% / 0.4)"
             : band === "ALTO"
-            ? `hsl(var(--success) / 0.25)`
-            : `hsl(var(--muted) / 0.15)`,
-          borderColor: `hsl(var(--border) / 0.3)`,
-          color: band === "ALTO" ? "white" : finalColor
+            ? "hsl(142 76% 46% / 0.35)"
+            : "hsl(0 0% 50% / 0.2)",
+          borderColor: "hsl(0 0% 50% / 0.3)",
+          color: band === "ALTO" ? "white" : (
+            band === "BASSO" ? "hsl(0 84% 60%)" : 
+            band === "MEDIO" ? "hsl(38 92% 50%)" : 
+            "hsl(0 0% 50%)"
+          )
         }}
         title={`Trust Score: ${label}${score ? ` (${score}%)` : ""}`}
       >
