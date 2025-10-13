@@ -1,5 +1,4 @@
 import React, { useState, useRef } from "react";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Info } from "lucide-react";
@@ -107,15 +106,19 @@ export function TrustBadge({
 
           {/* Tooltip */}
           {showTooltip && (
-            <Card 
+            <div 
               className={cn(
                 "absolute left-1/2 -translate-x-1/2 w-[280px] max-w-[90vw] p-4",
-                "bg-popover border shadow-xl z-[100]",
+                "rounded-lg border bg-popover text-card-foreground shadow-xl z-[100]",
                 "animate-in fade-in-0 zoom-in-95 duration-200",
                 tooltipPosition === 'top' 
                   ? "bottom-full mb-2" 
                   : "top-full mt-2"
               )}
+              style={{ 
+                backgroundColor: 'hsl(var(--popover))',
+                backdropFilter: 'none'
+              }}
             >
               <div className="space-y-3">
                 <div className="font-semibold text-sm text-foreground">
@@ -135,7 +138,7 @@ export function TrustBadge({
                   Valuta qualità delle fonti e coerenza col contenuto. Non è fact-checking.
                 </div>
               </div>
-            </Card>
+            </div>
           )}
         </div>
       )}
