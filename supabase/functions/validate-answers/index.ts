@@ -21,12 +21,19 @@ serve(async (req) => {
 
     // Fetch correct answers from post_qa
     // Try with postId first
-    let { data: qaData, error: qaError } = await supabase
-      .from('post_qa')
-      .select('correct_answers, generated_from')
-      .eq('post_id', postId)
-      .eq('source_url', sourceUrl || '')
-      .maybeSingle();
+    let { data: qaData, error: qaError } = postId
+      ? await supabase
+          .from('post_qa')
+          .select('correct_answers, generated_from')
+          .eq('post_id', postId)
+          .eq('source_url', sourceUrl || '')
+          .maybeSingle()
+      : await supabase
+          .from('post_qa')
+          .select('correct_answers, generated_from')
+          .eq('source_url', sourceUrl || '')
+          .is('post_id', null)
+          .maybeSingle();
 
     // If not found, fallback to pre-publish records (post_id IS NULL)
     if (!qaData) {
@@ -65,7 +72,7 @@ serve(async (req) => {
     // Save attempt to database
     await supabase.from('post_gate_attempts').insert({
       user_id: userId,
-      post_id: postId,
+      post_id: postId || null,
       source_url: sourceUrl || '',
       answers,
       passed,
