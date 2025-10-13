@@ -95,13 +95,16 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
   };
 
   const startSourceGate = async (index: number) => {
+    console.log('[startSourceGate] Called with index:', index, 'Total sources:', sources.length);
+    
     if (index >= sources.length) {
       // All sources passed!
+      console.log('[startSourceGate] All sources validated, publishing...');
       toast({
         title: '✅ Tutte le fonti validate!',
         description: 'Pubblicazione in corso...'
       });
-      publishContent();
+      await publishContent();
       return;
     }
 
@@ -222,10 +225,16 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
       setCurrentQuiz(null);
       onClose();
     } catch (error: any) {
-      console.error('Error publishing post:', error);
+      console.error('[publishContent] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        error: error,
+        sources: sources,
+        content: content.substring(0, 50) + '...'
+      });
       toast({
         title: 'Errore',
-        description: 'Si è verificato un errore durante la pubblicazione',
+        description: `Si è verificato un errore durante la pubblicazione: ${error.message}`,
         variant: 'destructive'
       });
     } finally {
@@ -456,12 +465,21 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
             });
 
             if (result.passed) {
+              console.log('[QuizModal] Test passed, moving to next source');
+              
+              // Close quiz modal
+              setShowQuiz(false);
+              setCurrentQuiz(null);
+              
               // Move to next source
               const nextIndex = currentSourceIndex + 1;
               setCurrentSourceIndex(nextIndex);
-              setShowQuiz(false);
-              setCurrentQuiz(null);
-              startSourceGate(nextIndex);
+              
+              // Wait for state to update before proceeding
+              setTimeout(async () => {
+                console.log('[QuizModal] Calling startSourceGate with index:', nextIndex);
+                await startSourceGate(nextIndex);
+              }, 100);
             } else {
               // Test failed: close modal and show error
               setShowQuiz(false);
