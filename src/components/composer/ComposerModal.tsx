@@ -253,9 +253,16 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose, q
         content,
         author_id: user.id,
         sources: sources.length > 0 ? sources : null,
-        shared_title: quotedPost?.shared_title || firstSourceMetadata?.title || null,
-        shared_url: quotedPost?.shared_url || firstSourceUrl,
-        preview_img: quotedPost?.preview_img || firstSourceMetadata?.previewImg || null,
+        // Don't copy metadata from quoted post if it's an original post (no shared_url)
+        shared_title: (quotedPost && !quotedPost.shared_url) 
+          ? null  // Original quoted post
+          : (quotedPost?.shared_title || firstSourceMetadata?.title || null),
+        shared_url: (quotedPost && !quotedPost.shared_url)
+          ? null  // Original quoted post
+          : (quotedPost?.shared_url || firstSourceUrl),
+        preview_img: (quotedPost && !quotedPost.shared_url)
+          ? null  // Original quoted post
+          : (quotedPost?.preview_img || firstSourceMetadata?.previewImg || null),
         quoted_post_id: quotedPost?.id || null,
       })
       .select()

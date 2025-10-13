@@ -5,7 +5,7 @@ import { HeartIcon, MessageCircleIcon, BookmarkIcon, MoreHorizontal, EyeOff, Ext
 import { TrustBadge } from "@/components/ui/trust-badge";
 import { fetchTrustScore } from "@/lib/comprehension-gate";
 import { cn, getDisplayUsername } from "@/lib/utils";
-import { Post } from "@/hooks/usePosts";
+import { Post, useQuotedPost } from "@/hooks/usePosts";
 import { useToggleReaction } from "@/hooks/usePosts";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
@@ -51,6 +51,7 @@ export const FeedCard = ({
   const { user } = useAuth();
   const navigate = useNavigate();
   const toggleReaction = useToggleReaction();
+  const { data: quotedPost } = useQuotedPost(post.quoted_post_id);
   const [showComments, setShowComments] = useState(false);
   const [commentMode, setCommentMode] = useState<'view' | 'reply'>('view');
   
@@ -121,15 +122,63 @@ export const FeedCard = ({
 
     const distance = touchStart - touchEnd;
     
-    // Swipe left detected on post with source
-    if (distance > 50 && post.shared_url) {
-      await startComprehensionGate();
+    // Swipe left detected
+    if (distance > 50) {
+      if (post.shared_url) {
+        // Post with source → existing flow
+        await startComprehensionGate();
+      } else {
+        // Post without source → check word count
+        handleQuotePost();
+      }
     }
     
     // Reset
     setSwipeOffset(0);
     setTouchStart(null);
     setTouchEnd(null);
+  };
+
+  const handleQuotePost = async () => {
+    if (!user) {
+      toast({
+        title: 'Accedi per condividere',
+        description: 'Devi essere autenticato',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const wordCount = post.content.trim().split(/\s+/).length;
+    
+    // Post < 150 words → share directly
+    if (wordCount < 150) {
+      onQuoteShare?.(post);
+      toast({
+        title: 'Post pronto per la condivisione',
+        description: 'Aggiungi un tuo commento'
+      });
+    } else {
+      // Post ≥ 150 words → Comprehension Gate
+      toast({
+        title: 'Lettura richiesta',
+        description: 'Leggi il post per condividerlo'
+      });
+      await startComprehensionGateForPost();
+    }
+  };
+
+  const startComprehensionGateForPost = async () => {
+    if (!user) return;
+
+    // Show reader with the post content
+    setReaderSource({
+      url: '', // No URL for original posts
+      title: `Post di @${post.author.username}`,
+      content: post.content,
+      isOriginalPost: true, // Flag to distinguish from external sources
+    });
+    setShowReader(true);
   };
 
   const startComprehensionGate = async () => {
@@ -167,21 +216,35 @@ export const FeedCard = ({
     
     if (!readerSource || !user) return;
 
+    // Check if it's an original post
+    const isOriginalPost = readerSource.isOriginalPost;
+    
     toast({
       title: 'Generazione Q&A...',
-      description: 'Creazione del test di comprensione'
+      description: isOriginalPost 
+        ? 'Creazione del test sul post'
+        : 'Creazione del test di comprensione'
     });
 
     const result = await generateQA({
-      contentId: post.id,
+      contentId: isOriginalPost ? post.id : post.id,
       title: readerSource.title,
       summary: readerSource.content,
-      sourceUrl: readerSource.url,
+      sourceUrl: isOriginalPost ? undefined : readerSource.url,
     });
+
+    if (result.insufficient_context) {
+      toast({
+        title: 'Contenuto troppo breve',
+        description: 'Puoi comunque condividere questo post',
+      });
+      onQuoteShare?.(post);
+      return;
+    }
 
     if (result.error || !result.questions) {
       toast({
-        title: 'Errore',
+        title: 'Errore generazione quiz',
         description: result.error || 'Impossibile generare Q&A',
         variant: 'destructive'
       });
@@ -190,7 +253,7 @@ export const FeedCard = ({
 
     setQuizData({
       questions: result.questions,
-      sourceUrl: readerSource.url
+      sourceUrl: readerSource.url || ''
     });
     setShowQuiz(true);
   };
@@ -212,19 +275,22 @@ export const FeedCard = ({
       if (error) throw error;
 
       if (data.passed) {
+        toast({
+          title: '✅ Test superato!',
+          description: 'Ora puoi condividere il post'
+        });
         setShowQuiz(false);
         setQuizData(null);
-        setShowActionsModal(true);
+        onQuoteShare?.(post); // Open composer with quoted post
       } else {
         toast({
           title: 'Test Non Superato',
           description: `Punteggio: ${data.score}/${data.total}`,
           variant: 'destructive'
         });
+        setShowQuiz(false);
+        setQuizData(null);
       }
-
-      setShowQuiz(false);
-      setQuizData(null);
       
       return data;
     } catch (error) {
@@ -320,7 +386,10 @@ export const FeedCard = ({
               {post.content}
             </div>
 
-            {/* Quoted Post removed temporarily - will fix query */}
+            {/* Quoted Post */}
+            {quotedPost && (
+              <QuotedPostCard quotedPost={quotedPost} />
+            )}
 
             {/* Article Preview Card */}
             {post.shared_url && (
@@ -449,19 +518,6 @@ export const FeedCard = ({
         document.body
       )}
 
-      {/* Post Test Actions Modal - Rendered via Portal */}
-      {showActionsModal && createPortal(
-        <PostTestActionsModal
-          post={post}
-          isOpen={showActionsModal}
-          onClose={() => setShowActionsModal(false)}
-          onShare={() => {
-            setShowActionsModal(false);
-            onQuoteShare?.(post);
-          }}
-        />,
-        document.body
-      )}
     </>
   );
 };

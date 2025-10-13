@@ -221,3 +221,37 @@ export const useSavedPosts = () => {
     enabled: !!user
   });
 };
+
+export const useQuotedPost = (quotedPostId: string | null) => {
+  return useQuery({
+    queryKey: ['quoted-post', quotedPostId],
+    queryFn: async () => {
+      if (!quotedPostId) return null;
+      
+      const { data, error } = await supabase
+        .from('posts')
+        .select(`
+          id,
+          content,
+          created_at,
+          shared_url,
+          shared_title,
+          preview_img,
+          author:profiles!author_id (
+            username,
+            full_name,
+            avatar_url
+          )
+        `)
+        .eq('id', quotedPostId)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching quoted post:', error);
+        return null;
+      }
+      return data;
+    },
+    enabled: !!quotedPostId
+  });
+};
