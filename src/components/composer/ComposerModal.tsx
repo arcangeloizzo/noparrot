@@ -198,6 +198,14 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
           .update({ post_id: postData.id })
           .eq('source_url', source)
           .is('post_id', null);
+        
+        // Update post_gate_attempts records as well
+        await supabase
+          .from('post_gate_attempts')
+          .update({ post_id: postData.id })
+          .eq('source_url', source)
+          .is('post_id', null)
+          .eq('user_id', user.id);
       }
 
       // Refresh posts feed
@@ -440,7 +448,7 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
           provider="gemini"
           onSubmit={async (answers) => {
             const result = await validateAnswers({
-              postId: `temp-${Date.now()}`,
+              postId: null,
               sourceUrl: currentQuiz.sourceUrl,
               answers,
               userId: user.id,

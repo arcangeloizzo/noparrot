@@ -53,7 +53,7 @@ export async function generateQA(params: {
  * Valida le risposte dell'utente
  */
 export async function validateAnswers(params: {
-  postId: string;
+  postId: string | null;
   sourceUrl?: string;
   answers: Record<string, string>;
   userId: string;
