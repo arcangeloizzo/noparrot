@@ -483,6 +483,7 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose, q
                 users={mentionUsers}
                 onSelect={handleSelectMention}
                 isLoading={isSearching}
+                position="below"
               />
             )}
           </div>

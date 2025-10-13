@@ -6,10 +6,14 @@ interface MentionDropdownProps {
   users: UserSearchResult[];
   onSelect: (user: UserSearchResult) => void;
   isLoading: boolean;
+  position?: 'above' | 'below';
 }
 
-export const MentionDropdown = ({ users, onSelect, isLoading }: MentionDropdownProps) => {
+export const MentionDropdown = ({ users, onSelect, isLoading, position = 'above' }: MentionDropdownProps) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const positionClass = position === 'below' 
+    ? 'absolute top-full left-0 mt-2' 
+    : 'absolute bottom-full left-0 mb-2';
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -37,7 +41,7 @@ export const MentionDropdown = ({ users, onSelect, isLoading }: MentionDropdownP
 
   if (isLoading) {
     return (
-      <div className="absolute bottom-full left-0 mb-2 w-full max-w-sm bg-background border border-border rounded-lg shadow-lg p-3">
+      <div className={`${positionClass} w-full max-w-sm bg-background border border-border rounded-lg shadow-lg p-3 z-50`}>
         <div className="text-sm text-muted-foreground">Ricerca...</div>
       </div>
     );
@@ -55,7 +59,7 @@ export const MentionDropdown = ({ users, onSelect, isLoading }: MentionDropdownP
   };
 
   return (
-    <div className="absolute bottom-full left-0 mb-2 w-full max-w-sm bg-background border border-border rounded-lg shadow-lg overflow-hidden">
+    <div className={`${positionClass} w-full max-w-sm bg-background border border-border rounded-lg shadow-lg overflow-hidden z-50`}>
       {users.map((user, index) => (
         <button
           key={user.id}
