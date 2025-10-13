@@ -205,7 +205,50 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           onScroll={handleScroll}
         >
           <div className="space-y-4 text-sm leading-relaxed">
-            {source.content || source.summary || source.excerpt ? (
+            {source.type === 'video' && source.embedUrl ? (
+              <>
+                {/* Video Player */}
+                <div className="mb-4">
+                  <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden">
+                    <iframe
+                      src={source.embedUrl}
+                      title={source.title || 'Video'}
+                      className="w-full h-full"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                </div>
+                
+                {/* Video metadata */}
+                {source.platform && (
+                  <div className="bg-muted/50 p-3 rounded-lg border border-border">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
+                      Video {source.platform === 'youtube' ? 'YouTube' : 
+                             source.platform === 'vimeo' ? 'Vimeo' : ''}
+                    </p>
+                    {source.duration && (
+                      <p className="text-xs text-muted-foreground">
+                        Durata: {Math.floor(parseInt(source.duration) / 60)}:{String(parseInt(source.duration) % 60).padStart(2, '0')}
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {/* Video description */}
+                {(source.summary || source.content || source.excerpt) && (
+                  <div className="prose prose-sm max-w-none">
+                    <div className="whitespace-pre-wrap text-foreground">
+                      {source.summary || source.content || source.excerpt}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Padding per scroll */}
+                <div className="h-32"></div>
+              </>
+            ) : source.content || source.summary || source.excerpt ? (
               <>
                 <div className="prose prose-sm max-w-none">
                   <div className="whitespace-pre-wrap text-foreground">

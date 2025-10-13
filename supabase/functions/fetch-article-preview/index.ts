@@ -82,18 +82,55 @@ serve(async (req) => {
 
     const hostname = new URL(url).hostname.replace('www.', '');
 
+    // Detect video platforms
+    const isYouTube = url.includes('youtube.com') || url.includes('youtu.be');
+    const isVimeo = url.includes('vimeo.com');
+    
+    let embedUrl = null;
+    let videoId = null;
+    let platform = null;
+    
+    if (isYouTube) {
+      // Extract YouTube video ID from various URL formats
+      const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+      const match = url.match(youtubeRegex);
+      if (match) {
+        videoId = match[1];
+        embedUrl = `https://www.youtube.com/embed/${videoId}`;
+        platform = 'youtube';
+      }
+    } else if (isVimeo) {
+      const vimeoRegex = /vimeo\.com\/(?:video\/)?(\d+)/;
+      const match = url.match(vimeoRegex);
+      if (match) {
+        videoId = match[1];
+        embedUrl = `https://player.vimeo.com/video/${videoId}`;
+        platform = 'vimeo';
+      }
+    }
+    
+    const videoDuration = getMetaContent('video:duration');
+    const isVideoContent = isYouTube || isVimeo || type === 'video';
+
     console.log(`Preview extracted for: ${hostname}`);
     console.log(`Full content length: ${fullContent.length} chars`);
+    if (isVideoContent) {
+      console.log(`Video detected: platform=${platform}, videoId=${videoId}`);
+    }
 
     return new Response(
       JSON.stringify({
         title: title.substring(0, 200),
         summary: description.substring(0, 500),
         excerpt: excerpt,
-        content: fullContent,
+        content: fullContent || description,
         previewImg: image,
-        type: type === 'video' ? 'video' : 'article',
-        hostname
+        type: isVideoContent ? 'video' : 'article',
+        hostname,
+        embedUrl,
+        videoId,
+        platform,
+        duration: videoDuration
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -25,6 +25,11 @@ export interface SourceWithGate {
   excerpt?: string;
   previewImg?: string;
   hostname?: string;
+  type?: 'article' | 'video' | 'audio' | 'image';
+  embedUrl?: string;
+  videoId?: string;
+  platform?: string;
+  duration?: string;
 }
 
 export interface GateQueueState {

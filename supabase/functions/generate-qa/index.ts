@@ -52,18 +52,28 @@ serve(async (req) => {
       );
     }
 
+    const isVideo = type === 'video';
+
     const prompt = `Sei un assistente esperto nella valutazione della comprensione.
 
-CONTENUTO DA ANALIZZARE:
-${contentText.substring(0, 1200)}
+${isVideo ? 'CONTENUTO VIDEO DA ANALIZZARE:' : 'CONTENUTO DA ANALIZZARE:'}
+Titolo: ${title || ''}
+Descrizione: ${summary || ''}
+${excerpt ? `Dettagli: ${excerpt}` : ''}
 
 REGOLE GENERAZIONE:
-1. Genera ESATTAMENTE 3 domande:
-   - Domanda 1 (MACRO): Sul tema principale o idea centrale
-   - Domanda 2 (MACRO): Su evidenza, impatto o conseguenza descritta
-   - Domanda 3 (DETTAGLIO): Su un dato specifico, cifra, nome o metodologia
+1. Genera ESATTAMENTE 3 domande${isVideo ? ' sul contenuto del video' : ''}:
+   - Domanda 1 (MACRO): Sul tema principale${isVideo ? ' o argomento del video' : ' o idea centrale'}
+   - Domanda 2 (MACRO): Su evidenza, impatto${isVideo ? ', punto chiave discusso' : ' o conseguenza descritta'}
+   - Domanda 3 (DETTAGLIO): Su un dato specifico${isVideo ? ', fatto menzionato' : ', cifra, nome o metodologia'}
    
-2. Per ogni domanda:
+${isVideo ? `NOTA: Poiché questo è un video, focalizzati su:
+- Tema e argomento principale del video
+- Punti chiave menzionati nella descrizione
+- Informazioni fattuali evidenti dal titolo/descrizione
+- Evita domande su dettagli visivi non descritti
+
+` : ''}2. Per ogni domanda:
    - 3 opzioni di risposta (A, B, C)
    - Solo 1 opzione corretta
    - Le altre 2 plausibili ma sbagliate
