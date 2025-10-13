@@ -12,13 +12,27 @@ import { toast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { fetchArticlePreview, generateQA, validateAnswers } from '@/lib/ai-helpers';
 import { QuizModal } from '@/components/ui/quiz-modal';
+import { QuotedPostCard } from '@/components/feed/QuotedPostCard';
 
 interface ComposerModalProps {
   isOpen: boolean;
   onClose: () => void;
+  quotedPost?: {
+    id: string;
+    content: string;
+    created_at: string;
+    shared_url?: string | null;
+    shared_title?: string | null;
+    preview_img?: string | null;
+    author: {
+      username: string;
+      full_name: string | null;
+      avatar_url: string | null;
+    };
+  } | null;
 }
 
-export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose }) => {
+export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose, quotedPost }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [content, setContent] = useState('');
@@ -242,6 +256,7 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
           shared_title: firstSourceMetadata?.title || null,
           shared_url: firstSourceUrl,
           preview_img: firstSourceMetadata?.previewImg || null,
+          quoted_post_id: quotedPost?.id || null,
         })
         .select()
         .single();
@@ -398,10 +413,15 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Scrivi qui il tuo Knowledge Drop..."
+            placeholder={quotedPost ? "Aggiungi il tuo commento..." : "Scrivi qui il tuo Knowledge Drop..."}
             className="w-full min-h-[120px] p-0 bg-transparent border-0 resize-none focus:outline-none text-foreground placeholder:text-muted-foreground text-base leading-relaxed"
             autoFocus
           />
+
+          {/* Quoted Post Preview */}
+          {quotedPost && (
+            <QuotedPostCard quotedPost={quotedPost} />
+          )}
 
           {/* Sources Section */}
           <div className="space-y-3">

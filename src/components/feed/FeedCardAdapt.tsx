@@ -17,6 +17,7 @@ import {
 import { CommentsSheet } from "./CommentsSheet";
 import { SourceReaderGate } from "../composer/SourceReaderGate";
 import { QuizModal } from "@/components/ui/quiz-modal";
+import { PostTestActionsModal } from "./PostTestActionsModal";
 import { generateQA, fetchArticlePreview } from "@/lib/ai-helpers";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,6 +27,7 @@ interface FeedCardProps {
   post: Post;
   onOpenReader?: () => void;
   onRemove?: () => void;
+  onQuoteShare?: (post: Post) => void;
 }
 
 const getHostnameFromUrl = (url: string | undefined): string => {
@@ -41,7 +43,8 @@ const getHostnameFromUrl = (url: string | undefined): string => {
 export const FeedCard = ({ 
   post, 
   onOpenReader,
-  onRemove 
+  onRemove,
+  onQuoteShare
 }: FeedCardProps) => {
   const { user } = useAuth();
   const toggleReaction = useToggleReaction();
@@ -56,6 +59,7 @@ export const FeedCard = ({
   // Gate states
   const [showReader, setShowReader] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
+  const [showActionsModal, setShowActionsModal] = useState(false);
   const [readerSource, setReaderSource] = useState<any>(null);
   const [quizData, setQuizData] = useState<any>(null);
 
@@ -205,10 +209,9 @@ export const FeedCard = ({
       if (error) throw error;
 
       if (data.passed) {
-        toast({
-          title: '✅ Test Superato!',
-          description: `Punteggio: ${data.score}/${data.total}`
-        });
+        setShowQuiz(false);
+        setQuizData(null);
+        setShowActionsModal(true);
       } else {
         toast({
           title: 'Test Non Superato',
@@ -424,6 +427,20 @@ export const FeedCard = ({
           onCancel={() => {
             setShowQuiz(false);
             setQuizData(null);
+          }}
+        />,
+        document.body
+      )}
+
+      {/* Post Test Actions Modal - Rendered via Portal */}
+      {showActionsModal && createPortal(
+        <PostTestActionsModal
+          post={post}
+          isOpen={showActionsModal}
+          onClose={() => setShowActionsModal(false)}
+          onShare={() => {
+            setShowActionsModal(false);
+            onQuoteShare?.(post);
           }}
         />,
         document.body

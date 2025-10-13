@@ -21,6 +21,7 @@ export const Feed = () => {
   const [showComposer, setShowComposer] = useState(false);
   const [showSimilarContent, setShowSimilarContent] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [quotedPost, setQuotedPost] = useState<Post | null>(null);
   const { toast } = useToast();
 
 
@@ -35,7 +36,15 @@ export const Feed = () => {
     };
   }, [showSimilarContent]);
 
-  const handleCreatePost = () => setShowComposer(true);
+  const handleCreatePost = () => {
+    setQuotedPost(null);
+    setShowComposer(true);
+  };
+
+  const handleQuoteShare = (post: Post) => {
+    setQuotedPost(post);
+    setShowComposer(true);
+  };
   const handleLogoClick = () => {
     localStorage.removeItem("noparrot-onboarded");
     window.location.reload();
@@ -139,6 +148,7 @@ export const Feed = () => {
               key={post.id}
               post={post}
               onRemove={() => handleRemovePost(post.id)}
+              onQuoteShare={handleQuoteShare}
             />
           ))}
           {dbPosts.length === 0 && (
@@ -164,7 +174,11 @@ export const Feed = () => {
 
       <ComposerModal
         isOpen={showComposer}
-        onClose={() => setShowComposer(false)}
+        onClose={() => {
+          setShowComposer(false);
+          setQuotedPost(null);
+        }}
+        quotedPost={quotedPost}
       />
 
       {selectedPost && (

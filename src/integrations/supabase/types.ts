@@ -247,6 +247,7 @@ export type Database = {
           full_article: string | null
           id: string
           preview_img: string | null
+          quoted_post_id: string | null
           shared_title: string | null
           shared_url: string | null
           sources: Json | null
@@ -261,6 +262,7 @@ export type Database = {
           full_article?: string | null
           id?: string
           preview_img?: string | null
+          quoted_post_id?: string | null
           shared_title?: string | null
           shared_url?: string | null
           sources?: Json | null
@@ -275,6 +277,7 @@ export type Database = {
           full_article?: string | null
           id?: string
           preview_img?: string | null
+          quoted_post_id?: string | null
           shared_title?: string | null
           shared_url?: string | null
           sources?: Json | null
@@ -288,6 +291,13 @@ export type Database = {
             columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_quoted_post_id_fkey"
+            columns: ["quoted_post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
             referencedColumns: ["id"]
           },
         ]

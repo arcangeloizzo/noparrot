@@ -6,14 +6,20 @@ interface PostTestActionsModalProps {
   post: Post;
   isOpen: boolean;
   onClose: () => void;
+  onShare: () => void;
 }
 
-export const PostTestActionsModal = ({ post, isOpen, onClose }: PostTestActionsModalProps) => {
+export const PostTestActionsModal = ({ post, isOpen, onClose, onShare }: PostTestActionsModalProps) => {
   if (!isOpen) return null;
 
-  const handleAction = (action: string) => {
-    console.log(`${action} action for post:`, post.id);
-    // Here you would implement the actual sharing logic
+  const handleShare = () => {
+    onShare();
+    onClose();
+  };
+
+  const handleSendToFriend = () => {
+    console.log('Send to friend for post:', post.id);
+    // TODO: Implement send to friend functionality
     onClose();
   };
 
@@ -45,7 +51,7 @@ export const PostTestActionsModal = ({ post, isOpen, onClose }: PostTestActionsM
         {/* Action Buttons */}
         <div className="p-4 space-y-3">
           <Button
-            onClick={() => handleAction("Condividi")}
+            onClick={handleShare}
             className="w-full flex items-center gap-3 bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             <Share className="h-4 w-4" />
@@ -53,7 +59,7 @@ export const PostTestActionsModal = ({ post, isOpen, onClose }: PostTestActionsM
           </Button>
           
           <Button
-            onClick={() => handleAction("Invia ad un amico")}
+            onClick={handleSendToFriend}
             variant="outline"
             className="w-full flex items-center gap-3"
           >
