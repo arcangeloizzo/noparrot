@@ -119,15 +119,16 @@ export function TrustBadge({
             <div 
               className={cn(
                 "absolute left-1/2 -translate-x-1/2 w-[280px] max-w-[90vw] p-4",
-                "tooltip-solid-bg rounded-lg border text-card-foreground shadow-xl z-[100]",
+                "rounded-lg shadow-xl z-[100]",
                 "animate-in fade-in-0 zoom-in-95 duration-200",
                 tooltipPosition === 'top' 
                   ? "bottom-full mb-2" 
                   : "top-full mt-2"
               )}
               style={{ 
-                backgroundColor: 'hsl(var(--popover))',
-                backdropFilter: 'none'
+                backgroundColor: 'hsl(240 10% 3.9%)',
+                border: '1px solid hsl(240 3.7% 15.9%)',
+                color: 'hsl(0 0% 98%)'
               }}
             >
               <div className="space-y-3">
@@ -135,7 +136,7 @@ export function TrustBadge({
                   Perché questo punteggio
                 </div>
                 
-                <ul className="space-y-2 text-xs text-muted-foreground">
+                <ul className="space-y-2 text-xs" style={{ color: 'hsl(0 0% 90%)' }}>
                   {reasons.map((reason, i) => (
                     <li key={i} className="flex items-start gap-2">
                       <span className="text-primary mt-0.5 flex-shrink-0">•</span>
@@ -144,7 +145,7 @@ export function TrustBadge({
                   ))}
                 </ul>
                 
-                <div className="text-[10px] text-muted-foreground/80 pt-2 border-t border-border/30">
+                <div className="text-[10px] pt-2 border-t" style={{ color: 'hsl(0 0% 70%)', borderColor: 'hsl(240 3.7% 15.9%)' }}>
                   Valuta qualità delle fonti e coerenza col contenuto. Non è fact-checking.
                 </div>
               </div>
