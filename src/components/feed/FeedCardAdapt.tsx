@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { HeartIcon, MessageCircleIcon, BookmarkIcon, MoreHorizontal, EyeOff, ExternalLink } from "lucide-react";
 import { TrustBadge } from "@/components/ui/trust-badge";
@@ -48,6 +49,7 @@ export const FeedCard = ({
   onQuoteShare
 }: FeedCardProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const toggleReaction = useToggleReaction();
   const [showComments, setShowComments] = useState(false);
   const [commentMode, setCommentMode] = useState<'view' | 'reply'>('view');
@@ -257,7 +259,13 @@ export const FeedCard = ({
         <div className="flex gap-3">
           {/* Avatar */}
           <div className="flex-shrink-0">
-            <div className="w-10 h-10 rounded-full overflow-hidden bg-muted">
+            <div 
+              className="w-10 h-10 rounded-full overflow-hidden bg-muted cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/profile/${post.author.id}`);
+              }}
+            >
               {getAvatarContent()}
             </div>
           </div>
@@ -266,7 +274,13 @@ export const FeedCard = ({
           <div className="flex-1 min-w-0">
             {/* Header */}
             <div className="flex items-center gap-2 mb-1">
-              <span className="font-semibold text-foreground hover:underline text-sm">
+              <span 
+                className="font-semibold text-foreground hover:underline text-sm cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/profile/${post.author.id}`);
+                }}
+              >
                 {post.author.full_name || getDisplayUsername(post.author.username)}
               </span>
               <span className="text-muted-foreground text-sm">

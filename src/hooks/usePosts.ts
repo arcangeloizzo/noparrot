@@ -123,14 +123,8 @@ export const useToggleReaction = () => {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ 
-      postId, 
-      reactionType 
-    }: { 
-      postId: string; 
-      reactionType: 'heart' | 'bookmark' 
-    }) => {
-      if (!user) return;
+    mutationFn: async ({ postId, reactionType }: { postId: string; reactionType: 'heart' | 'bookmark' }) => {
+      if (!user) throw new Error('Not authenticated');
 
       const { data: existing } = await supabase
         .from('reactions')
@@ -151,12 +145,79 @@ export const useToggleReaction = () => {
           .insert({
             post_id: postId,
             user_id: user.id,
-            reaction_type: reactionType
+            reaction_type: reactionType,
           });
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['saved-posts'] });
     }
+  });
+};
+
+export const useSavedPosts = () => {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['saved-posts', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from('reactions')
+        .select(`
+          created_at,
+          posts!inner (
+            *,
+            author:profiles!author_id (
+              id,
+              username,
+              full_name,
+              avatar_url
+            ),
+            reactions (
+              reaction_type,
+              user_id
+            ),
+            comments(count)
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('reaction_type', 'bookmark')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      return (data || []).map((item: any) => {
+        const post = item.posts;
+        return {
+          id: post.id,
+          author: post.author,
+          content: post.content,
+          shared_url: post.shared_url,
+          shared_title: post.shared_title,
+          preview_img: post.preview_img,
+          full_article: post.full_article,
+          trust_level: post.trust_level,
+          topic_tag: post.topic_tag,
+          stance: post.stance,
+          sources: post.sources || [],
+          created_at: post.created_at,
+          quoted_post_id: post.quoted_post_id,
+          quoted_post: null,
+          reactions: {
+            hearts: post.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
+            comments: post.comments?.[0]?.count || 0,
+          },
+          user_reactions: {
+            has_hearted: post.reactions?.some((r: any) => r.reaction_type === 'heart' && r.user_id === user.id) || false,
+            has_bookmarked: true,
+          },
+          questions: []
+        };
+      });
+    },
+    enabled: !!user
   });
 };
