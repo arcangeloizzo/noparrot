@@ -112,7 +112,24 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
     // Parse JSON from AI response
     let parsedContent;
     try {
-      parsedContent = JSON.parse(content);
+      // Strip markdown code fences if present
+      let cleanContent = content.trim();
+      
+      // Remove ```json at the start
+      if (cleanContent.startsWith('```json')) {
+        cleanContent = cleanContent.slice(7);
+      } else if (cleanContent.startsWith('```')) {
+        cleanContent = cleanContent.slice(3);
+      }
+      
+      // Remove ``` at the end
+      if (cleanContent.endsWith('```')) {
+        cleanContent = cleanContent.slice(0, -3);
+      }
+      
+      cleanContent = cleanContent.trim();
+      
+      parsedContent = JSON.parse(cleanContent);
     } catch (e) {
       console.error('Failed to parse AI response:', content);
       throw new Error('Invalid AI response format');
