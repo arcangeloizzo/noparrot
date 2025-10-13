@@ -33,13 +33,25 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
     setIsCorrect(correct);
     
     if (!correct) {
+      // Salva la risposta sbagliata (per la validazione finale)
+      setAnswers(prev => ({ ...prev, [questionId]: choiceId }));
+      
       const attempts = (questionAttempts[questionId] || 0) + 1;
       setQuestionAttempts(prev => ({ ...prev, [questionId]: attempts }));
       
       const newTotalErrors = totalErrors + 1;
       setTotalErrors(newTotalErrors);
       
-      if (attempts >= 2 || newTotalErrors >= 2) {
+      // Se hai già fatto 2 errori totali → FAIL immediato
+      if (newTotalErrors >= 2) {
+        setTimeout(() => {
+          handleFinalSubmit();
+        }, 1500);
+        return;
+      }
+      
+      // Se hai fatto 2 tentativi su questa domanda → passa alla prossima
+      if (attempts >= 2) {
         setTimeout(() => {
           if (currentStep < questions.length - 1) {
             setCurrentStep(prev => prev + 1);
@@ -49,11 +61,13 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
           }
         }, 1500);
       } else {
+        // Altrimenti permetti retry
         setTimeout(() => {
           resetFeedback();
         }, 1500);
       }
     } else {
+      // Salva risposta corretta (sovrascrive eventuale risposta sbagliata precedente)
       setAnswers(prev => ({ ...prev, [questionId]: choiceId }));
       
       setTimeout(() => {
@@ -74,9 +88,16 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
   };
 
   const handleFinalSubmit = async () => {
+    console.log('=== FINAL SUBMIT ===');
+    console.log('Answers:', answers);
+    console.log('Total answers:', Object.keys(answers).length);
+    console.log('Total errors:', totalErrors);
+    console.log('Question attempts:', questionAttempts);
+    
     setIsSubmitting(true);
     try {
       const validationResult = await onSubmit(answers);
+      console.log('Validation result:', validationResult);
       setResult(validationResult);
     } catch (error) {
       console.error('Error submitting quiz:', error);
@@ -204,8 +225,10 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
                 {isCorrect 
                   ? '🎉 Risposta corretta! Passaggio alla prossima domanda...'
                   : totalErrors >= 2 
-                    ? '❌ Hai raggiunto il limite di 2 errori. Passaggio alla prossima domanda...'
-                    : `❌ Risposta errata. Riprova! (Errori totali: ${totalErrors}/2)`
+                    ? '❌ Hai raggiunto 2 errori totali. Test fallito.'
+                    : (questionAttempts[currentQuestion.id] || 0) >= 2
+                      ? '❌ 2 tentativi su questa domanda esauriti. Prossima domanda...'
+                      : `❌ Risposta errata. Riprova! (Tentativo ${questionAttempts[currentQuestion.id] || 1}/2 - Errori totali: ${totalErrors}/2)`
                 }
               </p>
             </div>
