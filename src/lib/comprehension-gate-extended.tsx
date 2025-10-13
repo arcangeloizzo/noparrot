@@ -20,6 +20,11 @@ export interface SourceWithGate {
   state: SourceGateState;
   attempts?: number;
   lastAttempt?: Date;
+  content?: string;
+  summary?: string;
+  excerpt?: string;
+  previewImg?: string;
+  hostname?: string;
 }
 
 export interface GateQueueState {

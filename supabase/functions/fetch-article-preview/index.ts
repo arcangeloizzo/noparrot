@@ -63,22 +63,34 @@ serve(async (req) => {
       getMetaContent('og:type') || 
       'article';
 
-    // Extract first paragraph as excerpt (max 300 chars)
-    const paragraphs = Array.from(doc.querySelectorAll('p'));
+    // Extract content from main content area
+    const mainContent = doc.querySelector('article') || doc.querySelector('main') || doc.querySelector('body');
+    const paragraphs = Array.from(mainContent?.querySelectorAll('p') || []);
+    
+    // Extract excerpt (first meaningful paragraph, max 300 chars)
     const excerpt = paragraphs
       .map(p => p.textContent?.trim())
       .filter(text => text && text.length > 50)
       [0]?.substring(0, 300) || '';
 
+    // Extract full content (all meaningful paragraphs, max 3000 chars)
+    const fullContent = paragraphs
+      .map(p => p.textContent?.trim())
+      .filter(text => text && text.length > 30)
+      .join('\n\n')
+      .substring(0, 3000);
+
     const hostname = new URL(url).hostname.replace('www.', '');
 
     console.log(`Preview extracted for: ${hostname}`);
+    console.log(`Full content length: ${fullContent.length} chars`);
 
     return new Response(
       JSON.stringify({
         title: title.substring(0, 200),
         summary: description.substring(0, 500),
         excerpt: excerpt,
+        content: fullContent,
         previewImg: image,
         type: type === 'video' ? 'video' : 'article',
         hostname

@@ -172,71 +172,38 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           className="flex-1 p-4 overflow-y-auto"
           onScroll={handleScroll}
         >
-          <div className="space-y-4 text-sm text-muted-foreground leading-relaxed">
-            <div className="bg-muted/50 p-4 rounded-lg border border-border">
-              <p className="text-accent text-xs uppercase tracking-wide mb-2">
-                Anteprima Contenuto
-              </p>
-              <p className="text-foreground">
-                Questo è un contenuto di esempio per la fonte selezionata. 
-                In una implementazione reale, qui verrebbe mostrato il contenuto 
-                estratto dall'URL fornito.
-              </p>
-            </div>
-
-            <p>
-              Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod 
-              tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim 
-              veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea 
-              commodo consequat.
-            </p>
-            
-            <p>
-              Duis aute irure dolor in reprehenderit in voluptate velit esse cillum 
-              dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non 
-              proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-            </p>
-            
-            <p>
-              Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium 
-              doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore 
-              veritatis et quasi architecto beatae vitae dicta sunt explicabo.
-            </p>
-            
-            <p>
-              Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, 
-              sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.
-              Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, 
-              adipisci velit.
-            </p>
-            
-            <p>
-              At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis 
-              praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias 
-              excepturi sint occaecati cupiditate non provident, similique sunt in culpa.
-            </p>
-            
-            <div className="bg-accent/10 p-4 rounded-lg border border-accent/20">
-              <p className="text-accent text-sm font-medium mb-2">
-                📚 Punto Chiave
-              </p>
-              <p className="text-foreground">
-                Questo paragrafo contiene informazioni importanti che saranno 
-                oggetto delle domande del test di comprensione. È fondamentale 
-                prestare attenzione ai dettagli specifici.
-              </p>
-            </div>
-            
-            <p>
-              Qui si conclude il contenuto della fonte. Se hai raggiunto questo punto 
-              scorrendo o hai aspettato 10 secondi, puoi procedere al test di comprensione.
-            </p>
-            
-            <div className="text-center p-4 bg-trust-high/10 rounded-lg border border-trust-high/20">
-              <p className="text-trust-high font-medium">
-                ✅ Fine del contenuto raggiunta
-              </p>
-            </div>
+          <div className="space-y-4 text-sm leading-relaxed">
+            {source.content || source.summary || source.excerpt ? (
+              <>
+                <div className="prose prose-sm max-w-none">
+                  <div className="whitespace-pre-wrap text-foreground">
+                    {source.content || source.summary || source.excerpt}
+                  </div>
+                </div>
+                
+                {/* Padding per scroll */}
+                <div className="h-32"></div>
+              </>
+            ) : (
+              <div className="bg-muted/50 p-4 rounded-lg border border-border">
+                <p className="text-accent text-xs uppercase tracking-wide mb-2">
+                  Anteprima Non Disponibile
+                </p>
+                <p className="text-foreground mb-3">
+                  Impossibile estrarre il contenuto da questa fonte. 
+                  Usa il pulsante "Apri Originale" per leggere l'articolo completo.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={openSource}
+                  className="w-full"
+                >
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Apri Articolo Originale
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
