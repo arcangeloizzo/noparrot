@@ -66,6 +66,45 @@ export const FeedCard = ({
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [readerSource, setReaderSource] = useState<any>(null);
   const [quizData, setQuizData] = useState<any>(null);
+  
+  // Trust Score state
+  const [trustScore, setTrustScore] = useState<{
+    band: 'BASSO' | 'MEDIO' | 'ALTO';
+    score: number;
+    reasons?: string[];
+  } | null>(null);
+  const [loadingTrustScore, setLoadingTrustScore] = useState(false);
+
+  // Fetch trust score for posts with sources
+  useEffect(() => {
+    const loadTrustScore = async () => {
+      if (!post.shared_url) {
+        setTrustScore(null);
+        return;
+      }
+      
+      setLoadingTrustScore(true);
+      try {
+        const result = await fetchTrustScore({
+          postText: post.content,
+          sources: [post.shared_url]
+        });
+        if (result) {
+          setTrustScore({
+            band: result.band,
+            score: result.score,
+            reasons: result.reasons
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching trust score:', error);
+      } finally {
+        setLoadingTrustScore(false);
+      }
+    };
+    
+    loadTrustScore();
+  }, [post.shared_url, post.content]);
 
   const handleHeart = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -421,12 +460,13 @@ export const FeedCard = ({
               </div>
             )}
 
-            {/* Trust Badge */}
-            {post.trust_level && (
+            {/* Trust Badge - Mostra solo per post con fonte */}
+            {trustScore && post.shared_url && (
               <div className="mb-3 flex items-center gap-2">
                 <TrustBadge 
-                  band={post.trust_level}
-                  score={post.trust_level === 'ALTO' ? 85 : post.trust_level === 'MEDIO' ? 60 : 35}
+                  band={trustScore.band}
+                  score={trustScore.score}
+                  reasons={trustScore.reasons}
                   size="sm"
                 />
               </div>
