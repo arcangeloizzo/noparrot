@@ -462,7 +462,10 @@ export const FeedCard = ({
 
             {/* Trust Badge - Mostra solo per post con fonte */}
             {trustScore && post.shared_url && (
-              <div className="mb-3 flex items-center gap-2">
+              <div 
+                className="mb-3 flex items-center gap-2"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <TrustBadge 
                   band={trustScore.band}
                   score={trustScore.score}

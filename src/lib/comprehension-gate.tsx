@@ -83,36 +83,38 @@ export async function fetchTrustScore({
   postText: string; 
   sources: string[]; 
   userMeta?: any;
-}): Promise<TrustScoreResult> {
+}): Promise<TrustScoreResult | null> {
   try {
-    const resp = await fetch(`${TRUST_API_BASE}/v1/trust/score`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        postText, 
-        sources, 
-        userMeta, 
-        locale: "it-IT" 
-      }),
+    const sourceUrl = sources[0];
+    if (!sourceUrl) return null;
+
+    const { supabase } = await import("@/integrations/supabase/client");
+    
+    const { data, error } = await supabase.functions.invoke('evaluate-trust-score', {
+      body: {
+        sourceUrl,
+        postText
+      }
     });
-    
-    if (!resp.ok) {
-      throw new Error("Trust API error");
+
+    if (error) {
+      console.error('Error evaluating trust score:', error);
+      return null;
     }
-    
-    return await resp.json();
-  } catch (error) {
-    // Fallback for demo/offline
-    const hasSources = sources.length > 0;
+
+    // Transform response to match expected format
     return {
-      band: hasSources ? "MEDIO" : "BASSO",
-      score: hasSources ? 65 : 25,
-      reasons: hasSources 
-        ? ["Fonti fornite", "Contenuto coerente"] 
-        : ["Nessuna fonte fornita"],
-      color: hasSources ? "hsl(var(--primary))" : "hsl(var(--muted))",
-      hasSources
+      band: data.band,
+      score: data.score,
+      reasons: data.reasons || [],
+      color: data.band === 'ALTO' ? 'hsl(var(--success))' : 
+             data.band === 'MEDIO' ? 'hsl(var(--warning))' : 
+             'hsl(var(--destructive))',
+      hasSources: true
     };
+  } catch (error) {
+    console.error('Error in fetchTrustScore:', error);
+    return null;
   }
 }
 

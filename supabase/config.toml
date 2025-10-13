@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.fetch-article-preview]
 verify_jwt = false
+
+[functions.evaluate-trust-score]
+verify_jwt = false
