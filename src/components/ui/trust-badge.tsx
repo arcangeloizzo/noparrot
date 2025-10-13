@@ -110,7 +110,7 @@ export function TrustBadge({
             <Card 
               className={cn(
                 "absolute left-1/2 -translate-x-1/2 w-[280px] max-w-[90vw] p-4",
-                "glass-panel border-glass shadow-xl z-[100]",
+                "bg-popover border shadow-xl z-[100]",
                 "animate-in fade-in-0 zoom-in-95 duration-200",
                 tooltipPosition === 'top' 
                   ? "bottom-full mb-2" 
