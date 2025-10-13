@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { HeartIcon, MessageCircleIcon, BookmarkIcon, MoreHorizontal, EyeOff } from "lucide-react";
+import { HeartIcon, MessageCircleIcon, BookmarkIcon, MoreHorizontal, EyeOff, Share2 } from "lucide-react";
 import { TrustBadge } from "@/components/ui/trust-badge";
 import { fetchTrustScore } from "@/lib/comprehension-gate";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CommentsSheet } from "./CommentsSheet";
+import { generateQA, validateAnswers, fetchArticlePreview } from "@/lib/ai-helpers";
+import { QuizModal } from "@/components/ui/quiz-modal";
+import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface FeedCardProps {
   post: MockPost;
@@ -43,6 +47,7 @@ export const FeedCard = ({
   onOpenReader,
   onRemove 
 }: FeedCardProps) => {
+  const { user } = useAuth();
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
   const [trustScore, setTrustScore] = useState<any>(null);
@@ -52,6 +57,9 @@ export const FeedCard = ({
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [commentsSheetOpen, setCommentsSheetOpen] = useState(false);
   const [commentMode, setCommentMode] = useState<'view' | 'reply'>('view');
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizData, setQuizData] = useState<any>(null);
+  const [articlePreview, setArticlePreview] = useState<any>(null);
 
   // Generate avatar with initials if no image
   const getAvatarContent = () => {
@@ -85,7 +93,7 @@ export const FeedCard = ({
     return `${days}g`;
   };
 
-  // Load trust score for posts with sources
+  // Load trust score and article preview for posts with sources
   useEffect(() => {
     if (post.url && !trustScore && !loadingTrust) {
       setLoadingTrust(true);
@@ -97,8 +105,75 @@ export const FeedCard = ({
       .then(setTrustScore)
       .catch(console.error)
       .finally(() => setLoadingTrust(false));
+
+      // Also fetch article preview for better display
+      if (!articlePreview) {
+        fetchArticlePreview(post.url).then(preview => {
+          if (preview) setArticlePreview(preview);
+        });
+      }
     }
-  }, [post, trustScore, loadingTrust]);
+  }, [post, trustScore, loadingTrust, articlePreview]);
+
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (!user) {
+      toast({
+        title: 'Login richiesto',
+        description: 'Devi essere autenticato per condividere',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!post.url) {
+      // No source, share directly
+      toast({
+        title: 'Condiviso!',
+        description: 'Post condiviso con successo'
+      });
+      return;
+    }
+
+    // Generate Q&A for comprehension gate
+    toast({
+      title: 'Generazione test...',
+      description: 'Verifica la tua comprensione dell\'articolo'
+    });
+
+    const preview = articlePreview || await fetchArticlePreview(post.url);
+    
+    const qaResult = await generateQA({
+      contentId: post.id,
+      title: preview?.title || post.sharedTitle || '',
+      summary: preview?.summary || post.userComment || '',
+      excerpt: preview?.excerpt,
+      type: preview?.type || 'article',
+      sourceUrl: post.url
+    });
+
+    if (qaResult.insufficient_context) {
+      toast({
+        title: 'Condiviso!',
+        description: 'Contenuto condiviso (test non disponibile)'
+      });
+      return;
+    }
+
+    if (qaResult.error || !qaResult.questions) {
+      toast({
+        title: 'Errore',
+        description: 'Impossibile generare il test',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Show quiz
+    setQuizData({ questions: qaResult.questions, postId: post.id, sourceUrl: post.url });
+    setShowQuiz(true);
+  };
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStart(e.targetTouches[0].clientX);
@@ -242,15 +317,10 @@ export const FeedCard = ({
             </button>
 
             <button 
-              onClick={(e) => { e.stopPropagation(); /* TODO: Repost */ }}
+              onClick={handleShare}
               className="flex items-center gap-2 p-2 rounded-full hover:bg-green-500/10 group transition-colors"
             >
-              <svg className="w-[18px] h-[18px] text-muted-foreground group-hover:text-green-500 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17 1l4 4-4 4" />
-                <path d="M3 11V9a4 4 0 0 1 4-4h14" />
-                <path d="M7 23l-4-4 4-4" />
-                <path d="M21 13v2a4 4 0 0 1-4 4H3" />
-              </svg>
+              <Share2 className="w-[18px] h-[18px] text-muted-foreground group-hover:text-green-500 transition-colors" />
               <span className="text-[13px] text-muted-foreground group-hover:text-green-500 transition-colors">
                 {Math.floor(post.reactions.heart / 10)}
               </span>
@@ -297,6 +367,38 @@ export const FeedCard = ({
       onClose={() => setCommentsSheetOpen(false)}
       mode={commentMode}
     />
+
+    {/* Quiz Modal for Share Gate */}
+    {showQuiz && quizData && user && (
+      <QuizModal
+        questions={quizData.questions}
+        provider="gemini"
+        onSubmit={async (answers) => {
+          const result = await validateAnswers({
+            postId: quizData.postId,
+            sourceUrl: quizData.sourceUrl,
+            answers,
+            userId: user.id,
+            gateType: 'share'
+          });
+
+          if (result.passed) {
+            toast({
+              title: '✅ Test superato!',
+              description: 'Ora puoi condividere questo contenuto'
+            });
+            setShowQuiz(false);
+            setQuizData(null);
+          }
+
+          return result;
+        }}
+        onCancel={() => {
+          setShowQuiz(false);
+          setQuizData(null);
+        }}
+      />
+    )}
   </>
   );
 };

@@ -151,6 +151,94 @@ export type Database = {
           },
         ]
       }
+      post_gate_attempts: {
+        Row: {
+          answers: Json
+          completion_time_ms: number | null
+          created_at: string | null
+          gate_type: string
+          id: string
+          passed: boolean
+          post_id: string | null
+          provider: string | null
+          score: number
+          source_url: string | null
+          user_id: string
+        }
+        Insert: {
+          answers: Json
+          completion_time_ms?: number | null
+          created_at?: string | null
+          gate_type: string
+          id?: string
+          passed: boolean
+          post_id?: string | null
+          provider?: string | null
+          score: number
+          source_url?: string | null
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          completion_time_ms?: number | null
+          created_at?: string | null
+          gate_type?: string
+          id?: string
+          passed?: boolean
+          post_id?: string | null
+          provider?: string | null
+          score?: number
+          source_url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_gate_attempts_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_qa: {
+        Row: {
+          correct_answers: Json
+          generated_at: string | null
+          generated_from: string | null
+          id: string
+          post_id: string | null
+          questions: Json
+          source_url: string | null
+        }
+        Insert: {
+          correct_answers: Json
+          generated_at?: string | null
+          generated_from?: string | null
+          id?: string
+          post_id?: string | null
+          questions: Json
+          source_url?: string | null
+        }
+        Update: {
+          correct_answers?: Json
+          generated_at?: string | null
+          generated_from?: string | null
+          id?: string
+          post_id?: string | null
+          questions?: Json
+          source_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_qa_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           author_id: string

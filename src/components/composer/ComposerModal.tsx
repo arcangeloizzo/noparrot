@@ -9,6 +9,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { useQueryClient } from '@tanstack/react-query';
+import { fetchArticlePreview, generateQA, validateAnswers } from '@/lib/ai-helpers';
+import { QuizModal } from '@/components/ui/quiz-modal';
 
 interface ComposerModalProps {
   isOpen: boolean;
@@ -24,6 +26,10 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
   const [showGateQueue, setShowGateQueue] = useState(false);
   const [gateQueueState, setGateQueueState] = useState<GateQueueState | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [currentSourceIndex, setCurrentSourceIndex] = useState(0);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [currentQuiz, setCurrentQuiz] = useState<any>(null);
+  const [sourceMetadata, setSourceMetadata] = useState<Record<string, any>>({});
 
   // Create queue manager for sources with gate states
   const queueManager = useMemo(() => {
@@ -37,10 +43,22 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
     return gateQueueState?.allPassed || false;
   }, [sources.length, gateQueueState?.allPassed]);
 
-  const addSource = () => {
+  const addSource = async () => {
     if (newSource.trim() && !sources.includes(newSource.trim())) {
-      setSources([...sources, newSource.trim()]);
+      const url = newSource.trim();
+      setSources([...sources, url]);
       setNewSource('');
+      
+      // Fetch preview metadata in background
+      toast({
+        title: 'Caricamento fonte...',
+        description: 'Recupero informazioni dall\'articolo'
+      });
+      
+      const metadata = await fetchArticlePreview(url);
+      if (metadata) {
+        setSourceMetadata(prev => ({ ...prev, [url]: metadata }));
+      }
     }
   };
 
@@ -57,7 +75,7 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!content.trim()) return;
 
     // If no sources, publish immediately
@@ -66,14 +84,78 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
       return;
     }
 
-    // If sources exist but not all passed, open gate queue
-    if (!allSourcesPassed) {
-      setShowGateQueue(true);
+    // Start comprehension gate for sources
+    toast({
+      title: 'Validazione fonti...',
+      description: 'Leggi e comprendi le fonti per pubblicare'
+    });
+    
+    setCurrentSourceIndex(0);
+    await startSourceGate(0);
+  };
+
+  const startSourceGate = async (index: number) => {
+    if (index >= sources.length) {
+      // All sources passed!
+      toast({
+        title: '✅ Tutte le fonti validate!',
+        description: 'Pubblicazione in corso...'
+      });
+      publishContent();
       return;
     }
 
-    // All sources passed, publish
-    publishContent();
+    const sourceUrl = sources[index];
+    const metadata = sourceMetadata[sourceUrl];
+    
+    if (!metadata) {
+      toast({
+        title: 'Errore',
+        description: 'Impossibile caricare la fonte',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Generate Q&A
+    toast({
+      title: 'Generazione domande...',
+      description: 'Attendi mentre creo il test di comprensione'
+    });
+
+    const result = await generateQA({
+      contentId: `temp-${Date.now()}`,
+      title: metadata.title,
+      summary: metadata.summary,
+      excerpt: metadata.excerpt,
+      type: metadata.type || 'article',
+      sourceUrl
+    });
+
+    if (result.insufficient_context) {
+      toast({
+        title: 'Contenuto insufficiente',
+        description: 'Puoi comunque usare questa fonte',
+        variant: 'default'
+      });
+      // Skip to next source
+      setCurrentSourceIndex(index + 1);
+      startSourceGate(index + 1);
+      return;
+    }
+
+    if (result.error || !result.questions) {
+      toast({
+        title: 'Errore generazione quiz',
+        description: 'Riprova più tardi',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Show quiz modal
+    setCurrentQuiz({ questions: result.questions, sourceUrl, metadata });
+    setShowQuiz(true);
   };
 
   const publishContent = async () => {
@@ -335,13 +417,39 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose })
         </div>
       </div>
       
-      {/* Gate Queue Modal */}
-      {showGateQueue && queueManager && (
-        <GateQueueModal
-          isOpen={showGateQueue}
-          onClose={() => setShowGateQueue(false)}
-          onComplete={handleGateComplete}
-          queueManager={queueManager}
+      {/* Quiz Modal */}
+      {showQuiz && currentQuiz && user && (
+        <QuizModal
+          questions={currentQuiz.questions}
+          provider="gemini"
+          onSubmit={async (answers) => {
+            const result = await validateAnswers({
+              postId: `temp-${Date.now()}`,
+              sourceUrl: currentQuiz.sourceUrl,
+              answers,
+              userId: user.id,
+              gateType: 'composer'
+            });
+
+            if (result.passed) {
+              // Move to next source
+              const nextIndex = currentSourceIndex + 1;
+              setCurrentSourceIndex(nextIndex);
+              setShowQuiz(false);
+              setCurrentQuiz(null);
+              startSourceGate(nextIndex);
+            }
+
+            return result;
+          }}
+          onCancel={() => {
+            setShowQuiz(false);
+            setCurrentQuiz(null);
+            toast({
+              title: 'Pubblicazione annullata',
+              description: 'Devi completare il test per tutte le fonti'
+            });
+          }}
         />
       )}
     </div>

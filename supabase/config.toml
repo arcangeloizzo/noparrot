@@ -1,1 +1,10 @@
 project_id = "nwmpstvoutkjshhhtmrk"
+
+[functions.generate-qa]
+verify_jwt = false
+
+[functions.validate-answers]
+verify_jwt = false
+
+[functions.fetch-article-preview]
+verify_jwt = false
