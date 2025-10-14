@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { HeartIcon, MessageCircleIcon, BookmarkIcon, MoreHorizontal, EyeOff, Share2 } from "lucide-react";
 import { TrustBadge } from "@/components/ui/trust-badge";
 import { fetchTrustScore } from "@/lib/comprehension-gate";
@@ -48,6 +49,7 @@ export const FeedCard = ({
   onRemove 
 }: FeedCardProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
   const [trustScore, setTrustScore] = useState<any>(null);
@@ -214,8 +216,7 @@ export const FeedCard = ({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onClick={() => {
-          setCommentMode('view');
-          setCommentsSheetOpen(true);
+          navigate(`/post/${post.id}`);
         }}
       >
       <div className="flex gap-3">

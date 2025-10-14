@@ -354,8 +354,7 @@ export const FeedCard = ({
         className="p-4 hover:bg-muted/30 transition-colors cursor-pointer relative"
         style={{ transform: `translateX(-${swipeOffset}px)` }}
         onClick={() => {
-          setCommentMode('view');
-          setShowComments(true);
+          navigate(`/post/${post.id}`);
         }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}

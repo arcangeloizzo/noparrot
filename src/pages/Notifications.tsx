@@ -70,7 +70,7 @@ export const Notifications = () => {
     
     // Navigate to the post
     if (notification.post_id) {
-      navigate(`/feed`);
+      navigate(`/post/${notification.post_id}`);
     }
   };
 
