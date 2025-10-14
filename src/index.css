@@ -15,11 +15,11 @@
     --brand-yellow: 47 100% 69%;
     
     /* System Colors - X Style (Dark mode first) */
-    --background: 0 0% 0%; /* Pure black like X dark */
+    --background: 210 18% 12%; /* rgb(25, 39, 52) - X dark blue-gray */
     --foreground: 210 9% 91%; /* #E7E9EA X text */
-    --card: 0 0% 0%;
+    --card: 210 18% 12%;
     --card-foreground: 210 9% 91%;
-    --popover: 0 0% 7%;
+    --popover: 210 18% 15%;
     --popover-foreground: 210 9% 91%;
     
     /* Semantic Mappings - X Style */
@@ -28,12 +28,12 @@
     --secondary: 0 0% 10%;
     --secondary-foreground: 210 9% 91%;
     --muted: 0 0% 10%;
-    --muted-foreground: 210 8% 46%; /* #71767B X secondary text */
+    --muted-foreground: 210 10% 55%; /* Più chiaro per migliore leggibilità */
     --accent: 0 0% 10%;
     --accent-foreground: 210 9% 91%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 13%; /* #2F3336 X border */
+    --border: 210 18% 18%; /* Border più visibile con tonalità X */
     --input: 0 0% 10%;
     --ring: 206 100% 50%;
     

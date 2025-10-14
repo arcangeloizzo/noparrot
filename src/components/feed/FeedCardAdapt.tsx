@@ -351,7 +351,7 @@ export const FeedCard = ({
   return (
     <>
       <div 
-        className="p-4 hover:bg-muted/30 transition-colors cursor-pointer relative"
+        className="px-4 py-3 border-b border-border hover:bg-muted/30 transition-colors cursor-pointer relative"
         style={{ transform: `translateX(-${swipeOffset}px)` }}
         onClick={() => {
           navigate(`/post/${post.id}`);
@@ -376,10 +376,10 @@ export const FeedCard = ({
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            {/* Header */}
-            <div className="flex items-center gap-2 mb-1">
+            {/* Header - Compact single line */}
+            <div className="flex items-center gap-1.5 mb-1 text-[15px]">
               <span 
-                className="font-semibold text-foreground hover:underline text-sm cursor-pointer"
+                className="font-bold text-foreground hover:underline cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate(`/profile/${post.author.id}`);
@@ -387,11 +387,11 @@ export const FeedCard = ({
               >
                 {post.author.full_name || getDisplayUsername(post.author.username)}
               </span>
-              <span className="text-muted-foreground text-sm">
+              <span className="text-muted-foreground">
                 @{getDisplayUsername(post.author.username)}
               </span>
-              <span className="text-muted-foreground text-sm">·</span>
-              <span className="text-muted-foreground text-sm">
+              <span className="text-muted-foreground">·</span>
+              <span className="text-muted-foreground">
                 {timeAgo}
               </span>
 
@@ -420,7 +420,7 @@ export const FeedCard = ({
             </div>
 
             {/* User Comment */}
-            <div className="mb-3 text-foreground text-[15px] leading-normal whitespace-pre-wrap break-words">
+            <div className="mb-2 text-foreground text-[15px] leading-5 whitespace-pre-wrap break-words">
               {post.content}
             </div>
 
@@ -474,49 +474,43 @@ export const FeedCard = ({
               </div>
             )}
 
-            {/* Actions */}
-            <div className="flex items-center gap-6 text-muted-foreground mt-3">
+            {/* Actions - Compact */}
+            <div className="flex items-center justify-between max-w-md -ml-2">
               <button 
-                className="flex items-center gap-2 hover:text-primary transition-colors group"
+                className="flex items-center gap-1.5 p-2 rounded-full hover:bg-primary/10 hover:text-primary transition-colors group"
                 onClick={handleHeart}
               >
-                <div className="p-2 rounded-full group-hover:bg-primary/10 transition-colors">
-                  <HeartIcon 
-                    className={cn(
-                      "w-[18px] h-[18px] transition-all",
-                      post.user_reactions.has_hearted && "fill-primary stroke-primary"
-                    )}
-                  />
-                </div>
-                <span className="text-sm">{post.reactions.hearts}</span>
+                <HeartIcon 
+                  className={cn(
+                    "w-[18px] h-[18px] transition-all",
+                    post.user_reactions.has_hearted && "fill-primary stroke-primary"
+                  )}
+                />
+                <span className="text-xs">{post.reactions.hearts}</span>
               </button>
 
               <button 
-                className="flex items-center gap-2 hover:text-primary transition-colors group"
+                className="flex items-center gap-1.5 p-2 rounded-full hover:bg-primary/10 hover:text-primary transition-colors group"
                 onClick={(e) => {
                   e.stopPropagation();
                   setCommentMode('reply');
                   setShowComments(true);
                 }}
               >
-                <div className="p-2 rounded-full group-hover:bg-primary/10 transition-colors">
-                  <MessageCircleIcon className="w-[18px] h-[18px]" />
-                </div>
-                <span className="text-sm">{post.reactions.comments}</span>
+                <MessageCircleIcon className="w-[18px] h-[18px]" />
+                <span className="text-xs">{post.reactions.comments}</span>
               </button>
 
               <button 
-                className="flex items-center gap-2 hover:text-primary transition-colors group ml-auto"
+                className="p-2 rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
                 onClick={handleBookmark}
               >
-                <div className="p-2 rounded-full group-hover:bg-primary/10 transition-colors">
-                  <BookmarkIcon 
-                    className={cn(
-                      "w-[18px] h-[18px] transition-all",
-                      post.user_reactions.has_bookmarked && "fill-primary stroke-primary"
-                    )}
-                  />
-                </div>
+                <BookmarkIcon 
+                  className={cn(
+                    "w-[18px] h-[18px] transition-all",
+                    post.user_reactions.has_bookmarked && "fill-primary stroke-primary"
+                  )}
+                />
               </button>
             </div>
           </div>

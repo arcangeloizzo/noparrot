@@ -126,10 +126,8 @@ export function TrustBadge({
                   : "top-full mt-2"
               )}
               style={{ 
-                backgroundColor: tooltipPosition === 'bottom' 
-                  ? 'hsl(240 10% 10%) !important' as any
-                  : 'hsl(240 10% 3.9%) !important' as any,
-                border: '1px solid hsl(240 3.7% 15.9%) !important' as any,
+                backgroundColor: 'hsl(240 10% 8%) !important' as any,
+                border: '1px solid hsl(240 3.7% 20%) !important' as any,
                 color: 'hsl(0 0% 98%) !important' as any,
                 opacity: '1 !important' as any,
                 backdropFilter: 'none !important' as any,
