@@ -24,6 +24,7 @@ import { generateQA, fetchArticlePreview } from "@/lib/ai-helpers";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { PostHeader } from "./PostHeader";
 
 interface FeedCardProps {
   post: Post;
@@ -361,62 +362,42 @@ export const FeedCard = ({
         onTouchEnd={handleTouchEnd}
       >
         <div className="flex gap-3">
-          {/* Avatar */}
-          <div className="flex-shrink-0">
-            <div 
-              className="w-10 h-10 rounded-full overflow-hidden bg-muted cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={(e) => {
+          {/* Content - PostHeader già include l'avatar */}
+          <div className="flex-1 min-w-0">
+            {/* Header con PostHeader component */}
+            <div className="flex items-start justify-between gap-2 mb-1">
+              <div className="flex-1 min-w-0 cursor-pointer" onClick={(e) => {
                 e.stopPropagation();
                 navigate(`/profile/${post.author.id}`);
-              }}
-            >
-              {getAvatarContent()}
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            {/* Header - Compact single line */}
-            <div className="flex items-center gap-1.5 mb-1 text-[15px]">
-              <span 
-                className="font-bold text-foreground hover:underline cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/profile/${post.author.id}`);
-                }}
-              >
-                {post.author.full_name || getDisplayUsername(post.author.username)}
-              </span>
-              <span className="text-muted-foreground">
-                @{getDisplayUsername(post.author.username)}
-              </span>
-              <span className="text-muted-foreground">·</span>
-              <span className="text-muted-foreground">
-                {timeAgo}
-              </span>
+              }}>
+                <PostHeader
+                  displayName={post.author.full_name || getDisplayUsername(post.author.username)}
+                  username={getDisplayUsername(post.author.username)}
+                  timestamp={timeAgo}
+                  avatarUrl={post.author.avatar_url}
+                />
+              </div>
 
               {/* Actions Menu */}
-              <div className="ml-auto">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button 
-                      className="p-1.5 hover:bg-primary/10 rounded-full transition-colors text-muted-foreground hover:text-primary"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <MoreHorizontal className="w-5 h-5" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={(e) => {
-                      e.stopPropagation();
-                      onRemove?.();
-                    }}>
-                      <EyeOff className="w-4 h-4 mr-2" />
-                      Nascondi post
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button 
+                    className="p-1.5 hover:bg-primary/10 rounded-full transition-colors text-muted-foreground hover:text-primary flex-shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreHorizontal className="w-5 h-5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove?.();
+                  }}>
+                    <EyeOff className="w-4 h-4 mr-2" />
+                    Nascondi post
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {/* User Comment */}

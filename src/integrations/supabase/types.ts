@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      comment_media: {
+        Row: {
+          comment_id: string
+          created_at: string
+          id: string
+          media_id: string
+          order_idx: number
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          id?: string
+          media_id: string
+          order_idx?: number
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          id?: string
+          media_id?: string
+          order_idx?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comment_media_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comment_media_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comments: {
         Row: {
           author_id: string
@@ -88,6 +127,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      media: {
+        Row: {
+          created_at: string
+          duration_sec: number | null
+          height: number | null
+          id: string
+          mime: string
+          owner_id: string
+          thumbnail_url: string | null
+          type: string
+          url: string
+          width: number | null
+        }
+        Insert: {
+          created_at?: string
+          duration_sec?: number | null
+          height?: number | null
+          id?: string
+          mime: string
+          owner_id: string
+          thumbnail_url?: string | null
+          type: string
+          url: string
+          width?: number | null
+        }
+        Update: {
+          created_at?: string
+          duration_sec?: number | null
+          height?: number | null
+          id?: string
+          mime?: string
+          owner_id?: string
+          thumbnail_url?: string | null
+          type?: string
+          url?: string
+          width?: number | null
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -194,6 +272,45 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "post_gate_attempts_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_media: {
+        Row: {
+          created_at: string
+          id: string
+          media_id: string
+          order_idx: number
+          post_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          media_id: string
+          order_idx?: number
+          post_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          media_id?: string
+          order_idx?: number
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_media_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_media_post_id_fkey"
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "posts"
