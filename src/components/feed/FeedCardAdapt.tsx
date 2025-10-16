@@ -25,6 +25,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { PostHeader } from "./PostHeader";
+import { MediaGallery } from "@/components/media/MediaGallery";
+import { uniqueSources } from "@/lib/url";
 
 interface FeedCardProps {
   post: Post;
@@ -349,10 +351,13 @@ export const FeedCard = ({
     locale: it 
   });
 
+  // Deduplicazione fonti
+  const displaySources = uniqueSources(post.sources || []);
+
   return (
     <>
       <div 
-        className="px-4 py-3 border-b border-border hover:bg-muted/30 transition-colors cursor-pointer relative"
+        className="px-4 py-3 border-b border-border hover:bg-muted/30 transition-colors cursor-pointer relative max-w-[600px] mx-auto"
         style={{ transform: `translateX(-${swipeOffset}px)` }}
         onClick={() => {
           navigate(`/post/${post.id}`);
@@ -370,12 +375,13 @@ export const FeedCard = ({
                 e.stopPropagation();
                 navigate(`/profile/${post.author.id}`);
               }}>
-                <PostHeader
-                  displayName={post.author.full_name || getDisplayUsername(post.author.username)}
-                  username={getDisplayUsername(post.author.username)}
-                  timestamp={timeAgo}
-                  avatarUrl={post.author.avatar_url}
-                />
+          <PostHeader
+            displayName={post.author.full_name || getDisplayUsername(post.author.username)}
+            username={getDisplayUsername(post.author.username)}
+            timestamp={timeAgo}
+            label={post.stance === 'Condiviso' ? 'Condiviso' : post.stance === 'Confutato' ? 'Confutato' : undefined}
+            avatarUrl={post.author.avatar_url}
+          />
               </div>
 
               {/* Actions Menu */}
@@ -404,6 +410,11 @@ export const FeedCard = ({
             <div className="mb-2 text-foreground text-[15px] leading-5 whitespace-pre-wrap break-words">
               {post.content}
             </div>
+
+            {/* Media Gallery */}
+            {post.media && post.media.length > 0 && (
+              <MediaGallery media={post.media} />
+            )}
 
             {/* Quoted Post */}
             {quotedPost && (

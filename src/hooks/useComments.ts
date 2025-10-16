@@ -15,6 +15,14 @@ export interface Comment {
     full_name: string;
     avatar_url: string | null;
   };
+  media?: Array<{
+    id: string;
+    type: 'image' | 'video';
+    url: string;
+    thumbnail_url?: string | null;
+    width?: number | null;
+    height?: number | null;
+  }>;
 }
 
 export const useComments = (postId: string) => {
@@ -34,13 +42,31 @@ export const useComments = (postId: string) => {
             username,
             full_name,
             avatar_url
+          ),
+          comment_media!comment_media_comment_id_fkey (
+            order_idx,
+            media:media_id (
+              id,
+              type,
+              url,
+              thumbnail_url,
+              width,
+              height
+            )
           )
         `)
         .eq('post_id', postId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      return data as Comment[];
+      
+      return (data || []).map((comment: any) => ({
+        ...comment,
+        media: (comment.comment_media || [])
+          .sort((a: any, b: any) => a.order_idx - b.order_idx)
+          .map((cm: any) => cm.media)
+          .filter(Boolean)
+      })) as Comment[];
     },
     enabled: !!postId
   });

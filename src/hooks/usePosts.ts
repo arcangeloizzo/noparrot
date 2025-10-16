@@ -34,6 +34,16 @@ export interface Post {
       avatar_url: string | null;
     };
   } | null;
+  media?: Array<{
+    id: string;
+    type: 'image' | 'video';
+    url: string;
+    thumbnail_url?: string | null;
+    width?: number | null;
+    height?: number | null;
+    mime?: string;
+    duration_sec?: number | null;
+  }>;
   reactions: {
     hearts: number;
     comments: number;
@@ -71,7 +81,20 @@ export const usePosts = () => {
             reaction_type,
             user_id
           ),
-          comments(count)
+          comments(count),
+          post_media!post_media_post_id_fkey (
+            order_idx,
+            media:media_id (
+              id,
+              type,
+              url,
+              thumbnail_url,
+              width,
+              height,
+              mime,
+              duration_sec
+            )
+          )
         `)
         .order('created_at', { ascending: false });
 
@@ -91,7 +114,11 @@ export const usePosts = () => {
         sources: post.sources || [],
         created_at: post.created_at,
         quoted_post_id: post.quoted_post_id,
-        quoted_post: null, // Fetched separately
+        quoted_post: null,
+        media: (post.post_media || [])
+          .sort((a: any, b: any) => a.order_idx - b.order_idx)
+          .map((pm: any) => pm.media)
+          .filter(Boolean),
         reactions: {
           hearts: post.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
           comments: post.comments?.[0]?.count || 0

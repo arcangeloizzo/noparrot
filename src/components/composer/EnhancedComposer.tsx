@@ -8,18 +8,24 @@ import { TrustBadge } from "@/components/ui/trust-badge";
 import { fetchTrustScore } from "@/lib/comprehension-gate";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Plus, X, ExternalLink } from "lucide-react";
+import { Plus, X, ExternalLink, Image as ImageIcon, Video } from "lucide-react";
+import { useMediaUpload } from "@/hooks/useMediaUpload";
+import { MediaUploadButton } from "@/components/media/MediaUploadButton";
+import { MediaPreviewTray } from "@/components/media/MediaPreviewTray";
+import { normalizeUrl } from "@/lib/url";
 
 interface EnhancedComposerProps {
   isOpen: boolean;
   onClose: () => void;
   onPostCreated?: (post: any) => void;
+  quotedPost?: any;
 }
 
 export function EnhancedComposer({ 
   isOpen, 
   onClose, 
-  onPostCreated 
+  onPostCreated,
+  quotedPost 
 }: EnhancedComposerProps) {
   const [text, setText] = useState("");
   const [sources, setSources] = useState<string[]>([]);
@@ -27,6 +33,8 @@ export function EnhancedComposer({
   const [isProcessing, setIsProcessing] = useState(false);
   const [publishedPost, setPublishedPost] = useState<any>(null);
   const readerRef = useRef<HTMLDivElement>(null);
+  
+  const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
 
   const addSource = () => {
     const url = newSourceUrl.trim();
@@ -34,20 +42,29 @@ export function EnhancedComposer({
 
     try {
       new URL(url);
-      if (!sources.includes(url)) {
-        setSources(prev => [...prev, url]);
-        setNewSourceUrl("");
+      
+      // Controllo duplicati con normalizzazione
+      const normalized = normalizeUrl(url);
+      const originalSources = quotedPost?.sources || [];
+      const alreadyExists = [...originalSources, ...sources].some(
+        s => normalizeUrl(s) === normalized
+      );
+      
+      if (alreadyExists) {
         toast({
-          title: "Fonte aggiunta",
-          description: "La fonte è stata aggiunta con successo",
-        });
-      } else {
-        toast({
-          title: "Fonte già presente",
-          description: "Questa fonte è già stata aggiunta",
+          title: "Fonte già inclusa",
+          description: "Questa fonte è già presente nel post",
           variant: "destructive"
         });
+        return;
       }
+      
+      setSources(prev => [...prev, url]);
+      setNewSourceUrl("");
+      toast({
+        title: "Fonte aggiunta",
+        description: "La fonte è stata aggiunta con successo",
+      });
     } catch {
       toast({
         title: "URL non valido",
@@ -93,6 +110,7 @@ export function EnhancedComposer({
       // Reset form
       setText("");
       setSources([]);
+      clearMedia();
       
     } catch (error) {
       console.error("Error publishing post:", error);
@@ -168,6 +186,31 @@ export function EnhancedComposer({
                   placeholder="Condividi i tuoi pensieri..."
                   className="min-h-[120px] resize-none focus:ring-primary/20"
                   rows={5}
+                />
+              </div>
+
+              {/* Media Upload */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-foreground">
+                  Media
+                </label>
+                <div className="flex gap-2">
+                  <MediaUploadButton
+                    type="image"
+                    onFilesSelected={(files) => uploadMedia(files, 'image')}
+                    maxFiles={4}
+                    disabled={isUploading}
+                  />
+                  <MediaUploadButton
+                    type="video"
+                    onFilesSelected={(files) => uploadMedia(files, 'video')}
+                    maxFiles={1}
+                    disabled={isUploading}
+                  />
+                </div>
+                <MediaPreviewTray
+                  media={uploadedMedia}
+                  onRemove={removeMedia}
                 />
               </div>
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Trash2, Image as ImageIcon, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useComments, useAddComment, useDeleteComment } from '@/hooks/useComments';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,6 +13,10 @@ import { useUserSearch } from '@/hooks/useUserSearch';
 import { cn, getDisplayUsername } from '@/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useMediaUpload } from '@/hooks/useMediaUpload';
+import { MediaUploadButton } from '@/components/media/MediaUploadButton';
+import { MediaPreviewTray } from '@/components/media/MediaPreviewTray';
+import { MediaGallery } from '@/components/media/MediaGallery';
 
 interface CommentsSheetProps {
   post: Post;
@@ -36,6 +40,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
+  const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
 
   // Carica il profilo dell'utente corrente dal database
   const { data: currentUserProfile } = useQuery({
@@ -63,6 +68,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     setNewComment('');
     setShowMentions(false);
     setMentionQuery('');
+    clearMedia();
     
     // Scroll to top per vedere il nuovo commento
     setTimeout(() => {
@@ -303,9 +309,15 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                         })}
                       </span>
                     </div>
-                    <p className="text-sm whitespace-pre-wrap break-words">
+                     <p className="text-sm whitespace-pre-wrap break-words">
                       <MentionText text={comment.content} />
                     </p>
+                    
+                    {/* Comment Media */}
+                    {comment.media && comment.media.length > 0 && (
+                      <MediaGallery media={comment.media} />
+                    )}
+                    
                     {user?.id === comment.author_id && (
                       <button
                         onClick={() => deleteComment.mutate(comment.id)}
@@ -384,25 +396,45 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                     />
                   )}
                   
-                  <div className="flex items-center justify-end gap-3 mt-3">
-                    <p className="text-xs text-muted-foreground">
-                      {newComment.length}/500
-                    </p>
-                    <Button
-                      onClick={handleSubmit}
-                      disabled={!newComment.trim() || addComment.isPending}
-                      size="sm"
-                      className="rounded-full px-4 font-bold"
-                    >
-                      {addComment.isPending ? 'Invio...' : 'Rispondi'}
-                    </Button>
+                  <MediaPreviewTray
+                    media={uploadedMedia}
+                    onRemove={removeMedia}
+                  />
+                  
+                  <div className="flex gap-2 mt-2">
+                    <MediaUploadButton
+                      type="image"
+                      onFilesSelected={(files) => uploadMedia(files, 'image')}
+                      maxFiles={4}
+                      disabled={isUploading}
+                    />
+                    <MediaUploadButton
+                      type="video"
+                      onFilesSelected={(files) => uploadMedia(files, 'video')}
+                      maxFiles={1}
+                      disabled={isUploading}
+                    />
                   </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+                   
+                   <div className="flex items-center justify-end gap-3 mt-3">
+                     <p className="text-xs text-muted-foreground">
+                       {newComment.length}/500
+                     </p>
+                     <Button
+                       onClick={handleSubmit}
+                       disabled={!newComment.trim() || addComment.isPending}
+                       size="sm"
+                       className="rounded-full px-4 font-bold"
+                     >
+                       {addComment.isPending ? 'Invio...' : 'Rispondi'}
+                     </Button>
+                   </div>
+                 </>
+               )}
+             </div>
+           </div>
+         </div>
+       </div>
+     </div>
+   );
+ };
