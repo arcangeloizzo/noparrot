@@ -60,10 +60,21 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   const handleSubmit = async () => {
     if (!newComment.trim() || addComment.isPending) return;
 
-    await addComment.mutateAsync({
+    const commentId = await addComment.mutateAsync({
       postId: post.id,
       content: newComment.trim()
     });
+
+    // Salvare comment_media
+    if (uploadedMedia.length > 0 && commentId) {
+      for (let i = 0; i < uploadedMedia.length; i++) {
+        await supabase.from('comment_media').insert({
+          comment_id: commentId,
+          media_id: uploadedMedia[i].id,
+          order_idx: i
+        });
+      }
+    }
 
     setNewComment('');
     setShowMentions(false);

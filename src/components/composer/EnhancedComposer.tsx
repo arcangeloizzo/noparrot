@@ -12,7 +12,9 @@ import { Plus, X, ExternalLink, Image as ImageIcon, Video } from "lucide-react";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { MediaUploadButton } from "@/components/media/MediaUploadButton";
 import { MediaPreviewTray } from "@/components/media/MediaPreviewTray";
-import { normalizeUrl } from "@/lib/url";
+import { normalizeUrl, uniqueSources } from "@/lib/url";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface EnhancedComposerProps {
   isOpen: boolean;
@@ -27,6 +29,7 @@ export function EnhancedComposer({
   onPostCreated,
   quotedPost 
 }: EnhancedComposerProps) {
+  const { user } = useAuth();
   const [text, setText] = useState("");
   const [sources, setSources] = useState<string[]>([]);
   const [newSourceUrl, setNewSourceUrl] = useState("");
@@ -82,25 +85,57 @@ export function EnhancedComposer({
     try {
       setIsProcessing(true);
 
+      if (!user) {
+        toast({
+          title: "Errore",
+          description: "Devi essere autenticato",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Merge fonti: dedup tra quelle del quoted post e quelle aggiunte
+      const originalSources = quotedPost?.sources || [];
+      const mergedSources = uniqueSources(originalSources, sources);
+
       // Calculate Trust Score after gate is passed
       const trustScore = await fetchTrustScore({
         postText: text,
-        sources,
+        sources: mergedSources,
         userMeta: { verified: false }
       });
 
-      // Create the post
-      const newPost = {
-        id: `post-${Date.now()}`,
-        text,
-        sources,
-        trustScore,
-        gateResult,
-        createdAt: new Date().toISOString()
-      };
+      // Create the post in DB
+      const { data: insertedPost, error: postError } = await supabase
+        .from('posts')
+        .insert({
+          content: text,
+          author_id: user.id,
+          sources: mergedSources,
+          trust_level: trustScore?.band || null,
+          quoted_post_id: quotedPost?.id || null
+        })
+        .select()
+        .single();
 
-      setPublishedPost(newPost);
-      onPostCreated?.(newPost);
+      if (postError) throw postError;
+
+      // Salvare post_media
+      if (uploadedMedia.length > 0 && insertedPost) {
+        for (let i = 0; i < uploadedMedia.length; i++) {
+          await supabase.from('post_media').insert({
+            post_id: insertedPost.id,
+            media_id: uploadedMedia[i].id,
+            order_idx: i
+          });
+        }
+      }
+
+      setPublishedPost({
+        ...insertedPost,
+        trustScore
+      });
+      onPostCreated?.(insertedPost);
 
       toast({
         title: "Post pubblicato!",

@@ -87,11 +87,11 @@ export const useAddComment = () => {
           author_id: user.id,
           content
         })
-        .select()
+        .select('id')
         .single();
 
       if (error) throw error;
-      return data;
+      return data.id;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['comments', variables.postId] });

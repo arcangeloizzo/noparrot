@@ -195,7 +195,10 @@ export const FeedCard = ({
     
     // Post < 150 words → share directly
     if (wordCount < 150) {
-      onQuoteShare?.(post);
+      onQuoteShare?.({
+        ...post,
+        _originalSources: post.sources || []
+      });
       toast({
         title: 'Post pronto per la condivisione',
         description: 'Aggiungi un tuo commento'
@@ -323,7 +326,10 @@ export const FeedCard = ({
         });
         setShowQuiz(false);
         setQuizData(null);
-        onQuoteShare?.(post); // Open composer with quoted post
+        onQuoteShare?.({
+          ...post,
+          _originalSources: post.sources || []
+        }); // Open composer with quoted post
       } else {
         toast({
           title: 'Test Non Superato',

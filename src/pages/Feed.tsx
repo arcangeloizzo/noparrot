@@ -41,7 +41,7 @@ export const Feed = () => {
     setShowComposer(true);
   };
 
-  const handleQuoteShare = (post: Post) => {
+  const handleQuoteShare = (post: Post & { _originalSources?: string[] }) => {
     setQuotedPost(post);
     setShowComposer(true);
   };

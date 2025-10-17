@@ -21,6 +21,7 @@ export interface Post {
   sources: string[];
   created_at: string;
   quoted_post_id: string | null;
+  _originalSources?: string[];
   quoted_post?: {
     id: string;
     content: string;
