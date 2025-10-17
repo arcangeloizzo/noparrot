@@ -25,21 +25,23 @@ export const PostHeader = ({
   };
 
   return (
-    <div className="flex items-start gap-3 w-full">
-      {/* Avatar */}
-      <div className="flex-shrink-0">
-        {avatarUrl ? (
-          <img
-            src={avatarUrl}
-            alt={displayName}
-            className="w-10 h-10 rounded-full object-cover"
-          />
-        ) : (
-          <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-sm font-semibold text-primary-foreground">
-            {getInitials(displayName)}
-          </div>
-        )}
-      </div>
+    <div className="flex items-start w-full">
+      {/* Avatar - solo se passato */}
+      {avatarUrl !== null && (
+        <div className="flex-shrink-0 mr-3">
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={displayName}
+              className="w-10 h-10 rounded-full object-cover"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-sm font-semibold text-primary-foreground">
+              {getInitials(displayName)}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main info */}
       <div className="flex-1 min-w-0 flex items-start justify-between gap-2">

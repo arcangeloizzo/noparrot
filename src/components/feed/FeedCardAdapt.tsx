@@ -197,7 +197,7 @@ export const FeedCard = ({
     if (wordCount < 150) {
       onQuoteShare?.({
         ...post,
-        _originalSources: post.sources || []
+        _originalSources: Array.isArray(post.sources) ? post.sources : []
       });
       toast({
         title: 'Post pronto per la condivisione',
@@ -307,6 +307,8 @@ export const FeedCard = ({
     if (!user || !quizData) return { passed: false, score: 0, total: 0, wrongIndexes: [] };
 
     try {
+      console.log('Quiz submitted:', { answers, postId: post.id, sourceUrl: quizData.sourceUrl });
+      
       const { data, error } = await supabase.functions.invoke('validate-answers', {
         body: {
           postId: post.id,
@@ -317,8 +319,14 @@ export const FeedCard = ({
         }
       });
 
-      if (error) throw error;
+      console.log('Quiz validation response:', { data, error });
 
+      if (error) {
+        console.error('Quiz validation error:', error);
+        throw error;
+      }
+
+      // IMPORTANTE: aprire composer SOLO se il test è superato
       if (data.passed) {
         toast({
           title: '✅ Test superato!',
@@ -328,16 +336,18 @@ export const FeedCard = ({
         setQuizData(null);
         onQuoteShare?.({
           ...post,
-          _originalSources: post.sources || []
-        }); // Open composer with quoted post
+          _originalSources: Array.isArray(post.sources) ? post.sources : []
+        });
       } else {
+        console.warn('Test failed, NOT opening composer');
         toast({
           title: 'Test Non Superato',
-          description: `Punteggio: ${data.score}/${data.total}`,
+          description: `Punteggio: ${data.score}/${data.total}. Riprova!`,
           variant: 'destructive'
         });
         setShowQuiz(false);
         setQuizData(null);
+        // NON aprire il composer
       }
       
       return data;
@@ -373,21 +383,37 @@ export const FeedCard = ({
         onTouchEnd={handleTouchEnd}
       >
         <div className="flex gap-3">
-          {/* Content - PostHeader già include l'avatar */}
+          {/* Avatar a sinistra */}
+          <div 
+            className="flex-shrink-0 cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/profile/${post.author.id}`);
+            }}
+          >
+            <div className="w-10 h-10 rounded-full overflow-hidden">
+              {getAvatarContent()}
+            </div>
+          </div>
+          
+          {/* Content a destra, allineato con l'avatar */}
           <div className="flex-1 min-w-0">
-            {/* Header con PostHeader component */}
+            {/* Header SENZA avatar */}
             <div className="flex items-start justify-between gap-2 mb-1">
-              <div className="flex-1 min-w-0 cursor-pointer" onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/profile/${post.author.id}`);
-              }}>
-          <PostHeader
-            displayName={post.author.full_name || getDisplayUsername(post.author.username)}
-            username={getDisplayUsername(post.author.username)}
-            timestamp={timeAgo}
-            label={post.stance === 'Condiviso' ? 'Condiviso' : post.stance === 'Confutato' ? 'Confutato' : undefined}
-            avatarUrl={post.author.avatar_url}
-          />
+              <div 
+                className="flex-1 min-w-0 cursor-pointer" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/profile/${post.author.id}`);
+                }}
+              >
+                <PostHeader
+                  displayName={post.author.full_name || getDisplayUsername(post.author.username)}
+                  username={getDisplayUsername(post.author.username)}
+                  timestamp={timeAgo}
+                  label={post.stance === 'Condiviso' ? 'Condiviso' : post.stance === 'Confutato' ? 'Confutato' : undefined}
+                  avatarUrl={null}
+                />
               </div>
 
               {/* Actions Menu */}

@@ -18,7 +18,10 @@ export const MediaUploadButton = ({
 }: MediaUploadButtonProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('MediaUploadButton clicked', inputRef.current);
     inputRef.current?.click();
   };
 

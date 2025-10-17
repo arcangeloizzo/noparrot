@@ -95,8 +95,11 @@ export function EnhancedComposer({
       }
 
       // Merge fonti: dedup tra quelle del quoted post e quelle aggiunte
-      const originalSources = quotedPost?.sources || [];
+      const originalSources = Array.isArray(quotedPost?.sources) 
+        ? quotedPost.sources 
+        : (quotedPost?._originalSources || []);
       const mergedSources = uniqueSources(originalSources, sources);
+      console.log('Merging sources:', { originalSources, sources, mergedSources });
 
       // Calculate Trust Score after gate is passed
       const trustScore = await fetchTrustScore({
