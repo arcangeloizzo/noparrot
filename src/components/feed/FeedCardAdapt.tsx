@@ -326,8 +326,18 @@ export const FeedCard = ({
         throw error;
       }
 
-      // IMPORTANTE: aprire composer SOLO se il test è superato
-      if (data.passed) {
+      // IMPORTANTE: aprire composer SOLO se il test è superato (66% minimo = 2/3)
+      const actualPassed = data.passed && (data.score / data.total) >= 0.66;
+      
+      console.log('Quiz result details:', {
+        score: data.score,
+        total: data.total,
+        percentage: ((data.score / data.total) * 100).toFixed(0) + '%',
+        backendPassed: data.passed,
+        actualPassed
+      });
+      
+      if (actualPassed) {
         toast({
           title: '✅ Test superato!',
           description: 'Ora puoi condividere il post'
@@ -342,7 +352,7 @@ export const FeedCard = ({
         console.warn('Test failed, NOT opening composer');
         toast({
           title: 'Test Non Superato',
-          description: `Punteggio: ${data.score}/${data.total}. Riprova!`,
+          description: `Punteggio: ${data.score}/${data.total} (${((data.score / data.total) * 100).toFixed(0)}%). Serve almeno 66%!`,
           variant: 'destructive'
         });
         setShowQuiz(false);

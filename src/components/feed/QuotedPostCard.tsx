@@ -11,6 +11,7 @@ interface QuotedPost {
   shared_url?: string | null;
   shared_title?: string | null;
   preview_img?: string | null;
+  sources?: string[];
   author: {
     username: string;
     full_name: string | null;
@@ -34,10 +35,16 @@ const getHostnameFromUrl = (url: string | undefined): string => {
 };
 
 export const QuotedPostCard = ({ quotedPost, parentSources = [] }: QuotedPostCardProps) => {
-  // Nascondi la fonte del quoted post se è già presente nel post principale
-  const shouldShowSource = quotedPost.shared_url && !parentSources.some(
-    ps => normalizeUrl(ps) === normalizeUrl(quotedPost.shared_url)
+  // Deduplicare tutte le fonti del quoted post contro quelle del post principale
+  const quotedSources = quotedPost.shared_url 
+    ? [quotedPost.shared_url, ...(quotedPost.sources || [])]
+    : (quotedPost.sources || []);
+  
+  const uniqueQuotedSources = quotedSources.filter(src => 
+    !parentSources.some(ps => normalizeUrl(ps) === normalizeUrl(src))
   );
+  
+  const shouldShowSource = quotedPost.shared_url && uniqueQuotedSources.includes(quotedPost.shared_url);
   const getAvatarContent = () => {
     if (quotedPost.author.avatar_url) {
       return (

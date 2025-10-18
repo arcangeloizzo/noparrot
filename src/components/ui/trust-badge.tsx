@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Info } from "lucide-react";
@@ -40,6 +41,7 @@ export function TrustBadge({
 }: TrustBadgeProps) {
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipPosition, setTooltipPosition] = useState<'top' | 'bottom'>('top');
+  const [tooltipCoords, setTooltipCoords] = useState({ x: 0, y: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
   
   const hasData = band && score !== undefined;
@@ -51,10 +53,14 @@ export function TrustBadge({
   const handleMouseEnter = () => {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
-      const spaceAbove = rect.top;
       const spaceBelow = window.innerHeight - rect.bottom;
+      const position = spaceBelow > 300 ? 'bottom' : 'top';
       
-      setTooltipPosition(spaceBelow > 300 ? 'bottom' : 'top');
+      setTooltipPosition(position);
+      setTooltipCoords({
+        x: rect.left + rect.width / 2,
+        y: position === 'bottom' ? rect.bottom + 8 : rect.top - 8
+      });
     }
     setShowTooltip(true);
   };
@@ -115,27 +121,26 @@ export function TrustBadge({
           </Button>
 
           {/* Tooltip */}
-          {showTooltip && (
+          {showTooltip && createPortal(
             <div 
               className={cn(
-                "absolute left-1/2 -translate-x-1/2 w-[280px] max-w-[90vw] p-4",
-                "rounded-lg shadow-xl z-[9999] trust-tooltip-override",
-                "animate-in fade-in-0 zoom-in-95 duration-200",
-                tooltipPosition === 'top' 
-                  ? "bottom-full mb-2" 
-                  : "top-full mt-2"
+                "w-[280px] max-w-[90vw] p-4",
+                "rounded-lg shadow-xl",
+                "animate-in fade-in-0 zoom-in-95 duration-200"
               )}
               style={{ 
-                backgroundColor: 'hsl(240 10% 8%) !important' as any,
-                border: '1px solid hsl(240 3.7% 20%) !important' as any,
-                color: 'hsl(0 0% 98%) !important' as any,
-                opacity: '1 !important' as any,
-                backdropFilter: 'none !important' as any,
-                WebkitBackdropFilter: 'none !important' as any,
+                position: 'fixed',
+                left: tooltipCoords.x,
+                top: tooltipCoords.y,
+                transform: tooltipPosition === 'top' ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+                zIndex: 99999,
+                backgroundColor: 'hsl(240 10% 8%)',
+                border: '1px solid hsl(240 3.7% 20%)',
+                color: 'hsl(0 0% 98%)',
               }}
             >
               <div className="space-y-3">
-                <div className="font-semibold text-sm text-foreground">
+                <div className="font-semibold text-sm" style={{ color: 'hsl(0 0% 98%)' }}>
                   Perché questo punteggio
                 </div>
                 
@@ -152,7 +157,8 @@ export function TrustBadge({
                   Valuta qualità delle fonti e coerenza col contenuto. Non è fact-checking.
                 </div>
               </div>
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       )}
