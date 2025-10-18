@@ -2,6 +2,7 @@ import { ExternalLink } from "lucide-react";
 import { cn, getDisplayUsername } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
+import { normalizeUrl } from "@/lib/url";
 
 interface QuotedPost {
   id: string;
@@ -19,6 +20,7 @@ interface QuotedPost {
 
 interface QuotedPostCardProps {
   quotedPost: QuotedPost;
+  parentSources?: string[];
 }
 
 const getHostnameFromUrl = (url: string | undefined): string => {
@@ -31,7 +33,11 @@ const getHostnameFromUrl = (url: string | undefined): string => {
   }
 };
 
-export const QuotedPostCard = ({ quotedPost }: QuotedPostCardProps) => {
+export const QuotedPostCard = ({ quotedPost, parentSources = [] }: QuotedPostCardProps) => {
+  // Nascondi la fonte del quoted post se è già presente nel post principale
+  const shouldShowSource = quotedPost.shared_url && !parentSources.some(
+    ps => normalizeUrl(ps) === normalizeUrl(quotedPost.shared_url)
+  );
   const getAvatarContent = () => {
     if (quotedPost.author.avatar_url) {
       return (
@@ -98,7 +104,7 @@ export const QuotedPostCard = ({ quotedPost }: QuotedPostCardProps) => {
           </div>
 
           {/* Article Preview (if exists) */}
-          {quotedPost.shared_url && (
+          {shouldShowSource && (
             <div 
               className="border border-border rounded-lg overflow-hidden bg-background/50 cursor-pointer group"
               onClick={(e) => {

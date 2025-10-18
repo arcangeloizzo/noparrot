@@ -450,7 +450,10 @@ export const FeedCard = ({
 
             {/* Quoted Post */}
             {quotedPost && (
-              <QuotedPostCard quotedPost={quotedPost} />
+              <QuotedPostCard 
+                quotedPost={quotedPost} 
+                parentSources={post.sources || []} 
+              />
             )}
 
             {/* Article Preview Card */}
@@ -499,7 +502,7 @@ export const FeedCard = ({
             )}
 
             {/* Actions - Compact */}
-            <div className="flex items-center justify-between max-w-md -ml-2">
+            <div className="flex items-center gap-4 -ml-2">
               <button 
                 className="flex items-center gap-1.5 p-2 rounded-full hover:bg-primary/10 hover:text-primary transition-colors group"
                 onClick={handleHeart}

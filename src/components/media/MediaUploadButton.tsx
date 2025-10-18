@@ -81,6 +81,7 @@ export const MediaUploadButton = ({
         ref={inputRef}
         type="file"
         accept={type === 'image' ? 'image/*' : 'video/*'}
+        capture="environment"
         multiple={type === 'image'}
         onChange={handleChange}
         className="hidden"
