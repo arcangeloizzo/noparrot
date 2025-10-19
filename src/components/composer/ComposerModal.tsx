@@ -624,7 +624,6 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose, q
               postId: null,
               sourceUrl: currentQuiz.sourceUrl,
               answers,
-              userId: user.id,
               gateType: 'composer'
             });
 

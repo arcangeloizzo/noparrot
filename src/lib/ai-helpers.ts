@@ -56,12 +56,16 @@ export async function validateAnswers(params: {
   postId: string | null;
   sourceUrl?: string;
   answers: Record<string, string>;
-  userId: string;
   gateType: 'share' | 'composer';
 }): Promise<ValidationResult> {
   try {
     const { data, error } = await supabase.functions.invoke('validate-answers', {
-      body: params
+      body: {
+        postId: params.postId,
+        sourceUrl: params.sourceUrl,
+        answers: params.answers,
+        gateType: params.gateType
+      }
     });
 
     if (error) throw error;
