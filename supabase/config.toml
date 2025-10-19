@@ -1,13 +1,13 @@
 project_id = "nwmpstvoutkjshhhtmrk"
 
 [functions.generate-qa]
-verify_jwt = false
+verify_jwt = true
 
 [functions.validate-answers]
-verify_jwt = false
+verify_jwt = true
 
 [functions.fetch-article-preview]
-verify_jwt = false
+verify_jwt = true
 
 [functions.evaluate-trust-score]
-verify_jwt = false
+verify_jwt = true

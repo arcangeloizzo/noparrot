@@ -12,12 +12,33 @@ serve(async (req) => {
   }
 
   try {
-    const { postId, sourceUrl, answers, userId, gateType } = await req.json();
+    const { postId, sourceUrl, answers, gateType } = await req.json();
     const startTime = Date.now();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Get authenticated user from JWT
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: corsHeaders }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid token' }),
+        { status: 401, headers: corsHeaders }
+      );
+    }
+
+    const userId = user.id;
 
     // Fetch correct answers from post_qa
     // Try with postId first
