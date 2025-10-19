@@ -109,6 +109,13 @@
     --safe-area-bottom: env(safe-area-inset-bottom, 0px);
     --mobile-width: 375px;
   }
+  
+  /* Safe area support for iOS */
+  @supports (padding: env(safe-area-inset-bottom)) {
+    .pb-24 {
+      padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+    }
+  }
 
   .dark {
     --background: var(--dark-blue);

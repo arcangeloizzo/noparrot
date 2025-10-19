@@ -125,7 +125,7 @@ export const Feed = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-[calc(6rem+env(safe-area-inset-bottom))]">
       <div className="mobile-container max-w-[600px] mx-auto">
         {/* Header - X Style */}
         <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border">

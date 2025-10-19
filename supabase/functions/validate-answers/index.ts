@@ -56,18 +56,23 @@ serve(async (req) => {
     // Validate answers
     const correctAnswers = qaData.correct_answers;
     let score = 0;
+    let errorCount = 0;
     const wrongIndexes: string[] = [];
 
     correctAnswers.forEach((correct: any) => {
       if (answers[correct.id] === correct.correctId) {
         score++;
       } else {
+        errorCount++;
         wrongIndexes.push(correct.id);
       }
     });
 
-    const passed = score >= 2; // Pass with 2/3 correct
+    // NUOVA LOGICA: massimo 2 errori totali E almeno 1 risposta corretta
+    const passed = errorCount <= 2 && score >= 1;
     const completionTime = Date.now() - startTime;
+    
+    console.log(`Validation complete: ${score}/3 correct, ${errorCount} errors, passed: ${passed}`);
 
     // Save attempt to database
     await supabase.from('post_gate_attempts').insert({
@@ -81,8 +86,6 @@ serve(async (req) => {
       provider: qaData.generated_from,
       completion_time_ms: completionTime
     });
-
-    console.log(`Validation complete: ${score}/3 correct, passed: ${passed}`);
 
     return new Response(
       JSON.stringify({ 

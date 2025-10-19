@@ -326,12 +326,13 @@ export const FeedCard = ({
         throw error;
       }
 
-      // IMPORTANTE: aprire composer SOLO se il test è superato (66% minimo = 2/3)
-      const actualPassed = data.passed && (data.score / data.total) >= 0.66;
+      // IMPORTANTE: aprire composer SOLO se il test è superato (max 2 errori totali)
+      const actualPassed = data.passed && (data.total - data.score) <= 2;
       
       console.log('Quiz result details:', {
         score: data.score,
         total: data.total,
+        errors: data.total - data.score,
         percentage: ((data.score / data.total) * 100).toFixed(0) + '%',
         backendPassed: data.passed,
         actualPassed

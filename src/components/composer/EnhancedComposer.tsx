@@ -94,17 +94,14 @@ export function EnhancedComposer({
         return;
       }
 
-      // Merge fonti: dedup tra quelle del quoted post e quelle aggiunte
-      const originalSources = Array.isArray(quotedPost?.sources) 
-        ? quotedPost.sources 
-        : (quotedPost?._originalSources || []);
-      const mergedSources = uniqueSources(originalSources, sources);
-      console.log('Merging sources:', { originalSources, sources, mergedSources });
+      // NON fare merge delle fonti - il post principale ha solo le sue fonti
+      // Il quoted post mantiene le sue fonti separatamente
+      console.log('Creating post with sources:', { newSources: sources, quotedPostId: quotedPost?.id });
 
-      // Calculate Trust Score after gate is passed
+      // Calculate Trust Score solo sulle fonti del nuovo post
       const trustScore = await fetchTrustScore({
         postText: text,
-        sources: mergedSources,
+        sources: sources,
         userMeta: { verified: false }
       });
 
@@ -114,7 +111,7 @@ export function EnhancedComposer({
         .insert({
           content: text,
           author_id: user.id,
-          sources: mergedSources,
+          sources: sources,
           trust_level: trustScore?.band || null,
           quoted_post_id: quotedPost?.id || null
         })
@@ -230,9 +227,9 @@ export function EnhancedComposer({
               {/* Media Upload */}
               <div className="space-y-3">
                 <label className="text-sm font-medium text-foreground">
-                  Media
+                  Aggiungi Media
                 </label>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-3 p-3 border border-border rounded-lg bg-muted/20">
                   <MediaUploadButton
                     type="image"
                     onFilesSelected={(files) => uploadMedia(files, 'image')}
@@ -245,6 +242,11 @@ export function EnhancedComposer({
                     maxFiles={1}
                     disabled={isUploading}
                   />
+                  {isUploading && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      Caricamento in corso...
+                    </span>
+                  )}
                 </div>
                 <MediaPreviewTray
                   media={uploadedMedia}
