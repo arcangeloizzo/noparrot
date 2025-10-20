@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
+import { usePushNotifications } from './usePushNotifications';
 
 export interface Notification {
   id: string;
@@ -31,6 +32,7 @@ export interface Notification {
 export const useNotifications = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { permission, sendNotification } = usePushNotifications();
 
   const query = useQuery({
     queryKey: ['notifications', user?.id],
@@ -87,8 +89,40 @@ export const useNotifications = () => {
           table: 'notifications',
           filter: `user_id=eq.${user.id}`
         },
-        () => {
+        (payload) => {
           queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
+          
+          // Send browser notification if permission granted
+          if (permission === 'granted' && payload.new) {
+            const notif = payload.new as any;
+            let title = 'NoParrot';
+            let body = '';
+            
+            switch (notif.type) {
+              case 'like':
+                title = 'Nuovo like ❤️';
+                body = 'Il tuo post è piaciuto!';
+                break;
+              case 'comment':
+                title = 'Nuovo commento 💬';
+                body = 'Qualcuno ha commentato il tuo post';
+                break;
+              case 'follow':
+                title = 'Nuovo follower 👤';
+                body = 'Hai un nuovo follower!';
+                break;
+              case 'mention':
+                title = 'Nuova menzione @';
+                body = 'Sei stato menzionato in un post';
+                break;
+            }
+            
+            sendNotification(title, {
+              body,
+              tag: notif.type,
+              data: { url: notif.post_id ? `/post/${notif.post_id}` : '/notifications' }
+            });
+          }
         }
       )
       .subscribe();
@@ -96,7 +130,7 @@ export const useNotifications = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, queryClient]);
+  }, [user, queryClient, permission, sendNotification]);
 
   return query;
 };

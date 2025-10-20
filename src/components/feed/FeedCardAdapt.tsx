@@ -463,7 +463,7 @@ export const FeedCard = ({
             {quotedPost && (
               <QuotedPostCard 
                 quotedPost={quotedPost} 
-                parentSources={post.sources || []} 
+                parentSources={post.shared_url ? [post.shared_url, ...(post.sources || [])] : (post.sources || [])} 
               />
             )}
 

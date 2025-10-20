@@ -12,6 +12,7 @@ import { Saved } from "./Saved";
 import { Notifications } from "./Notifications";
 import { usePosts, useToggleReaction, Post } from "@/hooks/usePosts";
 import { useToast } from "@/hooks/use-toast";
+import { NotificationPermissionBanner } from "@/components/notifications/NotificationPermissionBanner";
 
 export const Feed = () => {
   const { data: dbPosts = [], isLoading } = usePosts();
@@ -126,6 +127,8 @@ export const Feed = () => {
 
   return (
     <div className="min-h-screen bg-background pb-[calc(6rem+env(safe-area-inset-bottom))]">
+      <NotificationPermissionBanner />
+      
       <div className="mobile-container max-w-[600px] mx-auto">
         {/* Header - X Style */}
         <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border">
