@@ -317,7 +317,16 @@ export const UserProfile = () => {
         </div>
       </div>
 
-      <BottomNavigation activeTab="" onTabChange={() => {}} onProfileClick={() => navigate('/profile')} />
+      <BottomNavigation 
+        activeTab="" 
+        onTabChange={(tab) => {
+          if (tab === 'home') navigate('/');
+          else if (tab === 'search') navigate('/search');
+          else if (tab === 'saved') navigate('/saved');
+          else if (tab === 'notifications') navigate('/notifications');
+        }}
+        onProfileClick={() => navigate('/profile')}
+      />
     </div>
   );
 };

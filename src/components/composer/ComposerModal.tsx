@@ -15,6 +15,9 @@ import { QuizModal } from '@/components/ui/quiz-modal';
 import { QuotedPostCard } from '@/components/feed/QuotedPostCard';
 import { MentionDropdown } from '@/components/feed/MentionDropdown';
 import { useUserSearch } from '@/hooks/useUserSearch';
+import { useMediaUpload } from '@/hooks/useMediaUpload';
+import { MediaUploadButton } from '@/components/media/MediaUploadButton';
+import { MediaPreviewTray } from '@/components/media/MediaPreviewTray';
 
 interface ComposerModalProps {
   isOpen: boolean;
@@ -58,6 +61,9 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose, q
   
   // User search for mentions
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
+  
+  // Media upload hook
+  const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
 
   // Create queue manager for sources with gate states
   const queueManager = useMemo(() => {
@@ -322,6 +328,17 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose, q
       if (error) throw error;
       if (!postData) throw new Error('Failed to create post');
 
+      // Save post_media if media uploaded
+      if (uploadedMedia.length > 0) {
+        for (let i = 0; i < uploadedMedia.length; i++) {
+          await supabase.from('post_media').insert({
+            post_id: postData.id,
+            media_id: uploadedMedia[i].id,
+            order_idx: i
+          });
+        }
+      }
+
       toast({
         title: 'Post pubblicato!',
         description: 'Il tuo post è stato pubblicato con successo',
@@ -356,6 +373,7 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose, q
       setCurrentSourceIndex(0);
       setShowQuiz(false);
       setCurrentQuiz(null);
+      clearMedia();
       onClose();
     } catch (error: any) {
       console.error('[publishContent] Error details:', {
@@ -487,11 +505,17 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose, q
               />
             )}
           </div>
-
+          
           {/* Quoted Post Preview */}
           {quotedPost && (
             <QuotedPostCard quotedPost={quotedPost} />
           )}
+          
+          {/* Media Preview */}
+          <MediaPreviewTray
+            media={uploadedMedia}
+            onRemove={removeMedia}
+          />
 
           {/* Sources Section */}
           <div className="space-y-3">
@@ -582,16 +606,24 @@ export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose, q
 
         {/* Bottom Toolbar */}
         <div className="flex items-center justify-between p-5 border-t border-border">
-          <div className="flex items-center space-x-4">
-            <button className="p-2 text-muted-foreground hover:text-primary transition-colors">
-              <FileText className="w-5 h-5" />
-            </button>
-            <button className="p-2 text-muted-foreground hover:text-primary transition-colors">
-              <Image className="w-5 h-5" />
-            </button>
-            <button className="p-2 text-muted-foreground hover:text-primary transition-colors">
-              <MapPin className="w-5 h-5" />
-            </button>
+          <div className="flex items-center space-x-2">
+            <MediaUploadButton
+              type="image"
+              onFilesSelected={(files) => uploadMedia(files, 'image')}
+              maxFiles={4}
+              disabled={isUploading}
+            />
+            <MediaUploadButton
+              type="video"
+              onFilesSelected={(files) => uploadMedia(files, 'video')}
+              maxFiles={1}
+              disabled={isUploading}
+            />
+            {isUploading && (
+              <span className="text-xs text-muted-foreground ml-2">
+                Caricamento...
+              </span>
+            )}
           </div>
           
           <div className="text-xs text-muted-foreground">

@@ -13,6 +13,8 @@ export const Profile = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"posts" | "replies">("posts");
+  const [navTab, setNavTab] = useState("");
+  const [showProfileSheet, setShowProfileSheet] = useState(false);
 
   const { data: profile, isLoading, error } = useQuery({
     queryKey: ["profile", user?.id],
@@ -337,7 +339,24 @@ export const Profile = () => {
         </div>
       </div>
 
-      <BottomNavigation activeTab="profile" onTabChange={() => {}} onProfileClick={() => {}} />
+      <BottomNavigation 
+        activeTab={navTab} 
+        onTabChange={(tab) => {
+          if (tab === 'home') navigate('/');
+          else if (tab === 'search') navigate('/search');
+          else if (tab === 'saved') navigate('/saved');
+          else if (tab === 'notifications') navigate('/notifications');
+        }}
+        onProfileClick={() => setShowProfileSheet(true)}
+      />
+      
+      {showProfileSheet && (
+        <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setShowProfileSheet(false)}>
+          <div className="absolute right-0 top-0 bottom-0 w-80 bg-background p-6">
+            <p className="text-foreground">Profile Sheet (implementa qui)</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
