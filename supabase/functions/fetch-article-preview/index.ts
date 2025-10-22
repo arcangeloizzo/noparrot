@@ -6,6 +6,20 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Fetch Twitter/X oEmbed
+async function fetchTwitterEmbed(url: string): Promise<string | null> {
+  try {
+    const oembedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(url)}&omit_script=true`;
+    const response = await fetch(oembedUrl);
+    if (!response.ok) return null;
+    const data = await response.json();
+    return data.html || null;
+  } catch (error) {
+    console.error('Error fetching Twitter oEmbed:', error);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -16,6 +30,36 @@ serve(async (req) => {
 
     if (!url) {
       throw new Error('URL is required');
+    }
+
+    // Check if it's a Twitter/X URL
+    const isTwitterUrl = url.match(/(?:twitter\.com|x\.com)\/\w+\/status\/\d+/i);
+    if (isTwitterUrl) {
+      console.log('Detected Twitter/X URL, fetching oEmbed...');
+      const embedHtml = await fetchTwitterEmbed(url);
+      
+      if (embedHtml) {
+        // Extract basic info from the URL for title
+        const urlParts = url.split('/');
+        const username = urlParts[3] || 'Twitter';
+        
+        return new Response(JSON.stringify({
+          title: `Post by @${username}`,
+          summary: 'Post from X (Twitter)',
+          content: '',
+          excerpt: '',
+          previewImg: null,
+          type: 'article',
+          hostname: new URL(url).hostname,
+          embedHtml,
+          embedUrl: null,
+          videoId: null,
+          platform: 'twitter',
+          duration: null
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
     }
 
     // Normalize YouTube URLs before processing

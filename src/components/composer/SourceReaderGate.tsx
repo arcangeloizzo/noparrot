@@ -28,6 +28,24 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const [canProceed, setCanProceed] = useState(false);
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [twitterScriptLoaded, setTwitterScriptLoaded] = useState(false);
+
+  // Load Twitter widgets script if needed
+  useEffect(() => {
+    if (source.embedHtml && !twitterScriptLoaded) {
+      const script = document.createElement('script');
+      script.src = 'https://platform.twitter.com/widgets.js';
+      script.async = true;
+      script.onload = () => setTwitterScriptLoaded(true);
+      document.body.appendChild(script);
+      
+      return () => {
+        if (document.body.contains(script)) {
+          document.body.removeChild(script);
+        }
+      };
+    }
+  }, [source.embedHtml, twitterScriptLoaded]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -205,7 +223,20 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           onScroll={handleScroll}
         >
           <div className="space-y-4 text-sm leading-relaxed">
-            {source.type === 'video' && source.embedUrl ? (
+            {source.embedHtml ? (
+              <>
+                {/* Twitter/X Embed */}
+                <div className="max-w-2xl mx-auto">
+                  <div 
+                    dangerouslySetInnerHTML={{ __html: source.embedHtml }}
+                    className="twitter-embed-container"
+                  />
+                </div>
+                
+                {/* Padding per scroll */}
+                <div className="h-32"></div>
+              </>
+            ) : source.type === 'video' && source.embedUrl ? (
               <>
                 {/* Video Player */}
                 <div className="mb-4">
@@ -260,23 +291,38 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 <div className="h-32"></div>
               </>
             ) : (
-              <div className="bg-muted/50 p-4 rounded-lg border border-border">
-                <p className="text-accent text-xs uppercase tracking-wide mb-2">
-                  Anteprima Non Disponibile
-                </p>
-                <p className="text-foreground mb-3">
-                  Impossibile estrarre il contenuto da questa fonte. 
-                  Usa il pulsante "Apri Originale" per leggere l'articolo completo.
-                </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={openSource}
-                  className="w-full"
-                >
-                  <ExternalLink className="h-4 w-4 mr-2" />
-                  Apri Articolo Originale
-                </Button>
+              <div className="max-w-2xl mx-auto text-center py-12">
+                <div className="bg-muted/50 rounded-lg p-8 space-y-6">
+                  <div className="space-y-2">
+                    <h3 className="text-lg font-semibold text-foreground">
+                      Contenuto non visualizzabile nell'app
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Questo sito blocca la visualizzazione incorporata per motivi di sicurezza.
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <Button
+                      onClick={openSource}
+                      className="inline-flex items-center gap-2"
+                      size="lg"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      Leggi su {source.hostname || new URL(source.url).hostname}
+                    </Button>
+                    
+                    <p className="text-xs text-muted-foreground">
+                      Torna qui dopo aver letto per completare il test
+                    </p>
+                  </div>
+
+                  {timeLeft > 0 && (
+                    <div className="pt-4 text-sm text-muted-foreground">
+                      Tempo minimo di lettura: {timeLeft}s
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

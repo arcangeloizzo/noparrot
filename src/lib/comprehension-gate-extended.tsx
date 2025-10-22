@@ -27,6 +27,7 @@ export interface SourceWithGate {
   hostname?: string;
   type?: 'article' | 'video' | 'audio' | 'image';
   embedUrl?: string;
+  embedHtml?: string;
   videoId?: string;
   platform?: string;
   duration?: string;
