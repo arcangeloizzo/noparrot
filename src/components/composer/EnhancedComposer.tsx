@@ -50,6 +50,8 @@ export function EnhancedComposer({
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
 
   const handleSelectMention = (user: any) => {
+    if (!textareaRef.current) return;
+    
     const textBeforeCursor = text.slice(0, cursorPosition);
     const textAfterCursor = text.slice(cursorPosition);
     
@@ -62,16 +64,14 @@ export function EnhancedComposer({
     setMentionQuery('');
     setSelectedMentionIndex(0);
     
-    // Use double setTimeout for robust focus management
-    setTimeout(() => {
-      setTimeout(() => {
-        if (textareaRef.current) {
-          textareaRef.current.focus();
-          textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
-          setCursorPosition(newCursorPos);
-        }
-      }, 0);
-    }, 0);
+    // Restore focus immediately
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        setCursorPosition(newCursorPos);
+      }
+    });
   };
 
   // Reset selection when users change

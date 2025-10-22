@@ -8,9 +8,10 @@ interface ArticleReaderProps {
   isOpen: boolean;
   onClose: () => void;
   onStartQuiz: (action: string) => void;
+  articleContent?: string;
 }
 
-export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleReaderProps) => {
+export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleReaderProps & { articleContent?: string }) => {
   const [timeLeft, setTimeLeft] = useState(10);
   const [canProceed, setCanProceed] = useState(false);
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
@@ -105,7 +106,10 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleRea
           )}
 
             <div className="space-y-4 text-sm text-gray-300 leading-relaxed">
-              <p className="mt-2 font-medium whitespace-pre-wrap">{post.content}</p>
+              {/* Mostra il contenuto completo dall'articolo */}
+              <p className="mt-2 font-medium whitespace-pre-wrap">
+                {(post as any).articleContent || post.content}
+              </p>
               
               {post.shared_url && (
                 <div className="mt-4 pt-4 border-t border-gray-700">
@@ -115,7 +119,7 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleRea
                     rel="noopener noreferrer"
                     className="text-primary hover:underline text-sm"
                   >
-                    Visualizza su X →
+                    Leggi articolo completo →
                   </a>
                 </div>
               )}

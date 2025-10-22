@@ -264,10 +264,10 @@ export const FeedCard = ({
           {/* Article Preview */}
           {post.url && (
             <div className="border border-border rounded-2xl overflow-hidden mb-3">
-              {(post.previewImg || articlePreview?.previewImg || articlePreview?.image) && (
+              {(articlePreview?.image || articlePreview?.previewImg || post.previewImg) && (
                 <div className="w-full aspect-video bg-muted">
                   <img 
-                    src={post.previewImg || articlePreview?.previewImg || articlePreview?.image} 
+                    src={articlePreview?.image || articlePreview?.previewImg || post.previewImg} 
                     alt="Article preview" 
                     className="w-full h-full object-cover"
                   />
@@ -277,27 +277,24 @@ export const FeedCard = ({
                 {articlePreview?.platform === 'twitter' && articlePreview?.author_username && (
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-xs font-semibold text-primary">
-                        {articlePreview.author_username.charAt(0).toUpperCase()}
-                      </span>
+                      <span className="text-xs font-semibold text-primary">𝕏</span>
                     </div>
-                    <span className="text-sm font-semibold text-foreground">
-                      @{articlePreview.author_username}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      su X
-                    </span>
+                    <span className="text-sm font-semibold">@{articlePreview.author_username}</span>
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground mb-1">
                   {getHostnameFromUrl(post.url)}
                 </p>
-                <h3 className="font-semibold text-foreground text-[15px] line-clamp-2 mb-1">
-                  {post.sharedTitle || articlePreview?.title || 'Post condiviso'}
+                <h3 className="text-sm font-medium text-foreground line-clamp-2 mb-1">
+                  {post.sharedTitle || articlePreview?.title || 'Articolo condiviso'}
                 </h3>
-                {articlePreview?.content && (
+                {articlePreview?.content && articlePreview.platform === 'twitter' ? (
                   <p className="text-sm text-muted-foreground line-clamp-3">
                     {articlePreview.content}
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground line-clamp-3">
+                    {articlePreview?.summary || articlePreview?.excerpt}
                   </p>
                 )}
               </div>
