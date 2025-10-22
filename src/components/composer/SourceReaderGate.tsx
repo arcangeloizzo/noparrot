@@ -32,20 +32,45 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
   // Load Twitter widgets script if needed
   useEffect(() => {
-    if (source.embedHtml && !twitterScriptLoaded) {
-      const script = document.createElement('script');
-      script.src = 'https://platform.twitter.com/widgets.js';
-      script.async = true;
-      script.onload = () => setTwitterScriptLoaded(true);
-      document.body.appendChild(script);
-      
-      return () => {
-        if (document.body.contains(script)) {
-          document.body.removeChild(script);
-        }
-      };
+    if (source.embedHtml) {
+      // Check if script already exists
+      const win = window as any;
+      if (!win.twttr) {
+        const script = document.createElement('script');
+        script.src = 'https://platform.twitter.com/widgets.js';
+        script.async = true;
+        script.charset = 'utf-8';
+        script.onload = () => {
+          setTwitterScriptLoaded(true);
+          // Force widget rendering
+          if (win.twttr?.widgets) {
+            win.twttr.widgets.load();
+          }
+        };
+        document.body.appendChild(script);
+      } else {
+        setTwitterScriptLoaded(true);
+        // Force widget rendering if script already loaded
+        setTimeout(() => {
+          if (win.twttr?.widgets) {
+            win.twttr.widgets.load();
+          }
+        }, 100);
+      }
     }
-  }, [source.embedHtml, twitterScriptLoaded]);
+  }, [source.embedHtml]);
+  
+  // Re-render Twitter widgets when embed HTML changes
+  useEffect(() => {
+    if (source.embedHtml) {
+      const win = window as any;
+      setTimeout(() => {
+        if (win.twttr?.widgets) {
+          win.twttr.widgets.load();
+        }
+      }, 100);
+    }
+  }, [source.embedHtml]);
 
   useEffect(() => {
     if (!isOpen) {

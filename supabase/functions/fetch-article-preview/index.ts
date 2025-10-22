@@ -43,11 +43,16 @@ serve(async (req) => {
         const urlParts = url.split('/');
         const username = urlParts[3] || 'Twitter';
         
+        // Extract text from embed HTML for AI comprehension test
+        const parser = new DOMParser();
+        const embedDoc = parser.parseFromString(embedHtml, 'text/html');
+        const tweetText = embedDoc.querySelector('p')?.textContent || 'Tweet content';
+        
         return new Response(JSON.stringify({
           title: `Post by @${username}`,
-          summary: 'Post from X (Twitter)',
-          content: '',
-          excerpt: '',
+          summary: tweetText,
+          content: tweetText,
+          excerpt: tweetText,
           previewImg: null,
           type: 'article',
           hostname: new URL(url).hostname,
