@@ -35,100 +35,113 @@ serve(async (req) => {
     // Check if it's a Twitter/X URL
     const isTwitterUrl = url.match(/(?:twitter\.com|x\.com)\/\w+\/status\/\d+/i);
     if (isTwitterUrl) {
-      console.log('Detected Twitter/X URL, fetching oEmbed...');
-      const embedHtml = await fetchTwitterEmbed(url);
+      console.log('Detected Twitter/X URL, scraping full content...');
       
-      if (embedHtml) {
-        const parser = new DOMParser();
-        const embedDoc = parser.parseFromString(embedHtml, 'text/html');
-        
-        // Extract author info
-        const blockquote = embedDoc.querySelector('blockquote.twitter-tweet');
-        const authorLink = blockquote?.querySelector('a[href*="/status/"]');
-        const authorName = authorLink?.textContent?.trim() || '';
-        
-        const urlParts = url.split('/');
-        const username = urlParts[3] || 'Twitter';
-        
-        // Extract tweet text - get FULL text including all paragraphs
-        let tweetText = '';
-        const allParagraphs = embedDoc.querySelectorAll('blockquote.twitter-tweet p');
-        
-        // Join ALL paragraphs to get complete tweet text
-        const paragraphTexts = Array.from(allParagraphs)
-          .map(p => p.textContent?.trim())
-          .filter(text => {
-            // Filter out link-only paragraphs (date/author links)
-            if (!text) return false;
-            // Keep if it's not just a link
-            return !text.match(/^https?:\/\//);
-          });
-        
-        tweetText = paragraphTexts.join('\n\n');
-        
-        // Clean up: remove pic.twitter.com and t.co links
-        tweetText = tweetText
-          .replace(/pic\.twitter\.com\/\w+/g, '')
-          .replace(/https?:\/\/t\.co\/\w+/g, '')
-          .trim();
-        
-        if (!tweetText || tweetText.length < 10) {
-          tweetText = 'Post da X/Twitter';
-        }
-        
-        // Try to extract image - look for <a> tags with pic.twitter.com
-        // The actual image URL is not in oEmbed HTML, we need to fetch the actual tweet page
-        let tweetImage = null;
-        
-        try {
-          // Fetch the actual tweet page to extract image
-          const tweetPageResponse = await fetch(url, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (compatible; NoParrot/1.0)'
-            }
-          });
-          
-          if (tweetPageResponse.ok) {
-            const tweetPageHtml = await tweetPageResponse.text();
-            const tweetDoc = parser.parseFromString(tweetPageHtml, 'text/html');
-            
-            // Try to get og:image from meta tags (this is the tweet image)
-            const ogImage = tweetDoc.querySelector('meta[property="og:image"]');
-            tweetImage = ogImage?.getAttribute('content') || null;
-            
-            console.log('[fetch-article-preview] Extracted image from tweet page:', tweetImage);
+      let tweetImage = null;
+      let fullTweetText = '';
+      let authorName = '';
+      let username = '';
+      
+      try {
+        // Fetch the actual tweet page directly for full content
+        const tweetPageResponse = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; NoParrot/1.0)'
           }
-        } catch (error) {
-          console.error('[fetch-article-preview] Error fetching tweet page for image:', error);
-        }
-        
-        console.log('[fetch-article-preview] Tweet URL:', url);
-        console.log('[fetch-article-preview] Author:', authorName);
-        console.log('[fetch-article-preview] Username:', username);
-        console.log('[fetch-article-preview] Full tweet text length:', tweetText.length);
-        console.log('[fetch-article-preview] Full tweet text:', tweetText);
-        
-        return new Response(JSON.stringify({
-          title: `Post by @${username}`,
-          summary: tweetText,
-          content: tweetText, // FULL untruncated text
-          excerpt: tweetText,
-          tweet_text: tweetText,
-          author_name: authorName || username,
-          author_username: username,
-          previewImg: tweetImage,
-          image: tweetImage,
-          type: 'article',
-          hostname: new URL(url).hostname,
-          embedHtml,
-          embedUrl: null,
-          videoId: null,
-          platform: 'twitter',
-          duration: null
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
+        
+        if (tweetPageResponse.ok) {
+          const tweetPageHtml = await tweetPageResponse.text();
+          const parser = new DOMParser();
+          const tweetDoc = parser.parseFromString(tweetPageHtml, 'text/html');
+          
+          // Extract full tweet text from og:description meta tag (contains FULL text)
+          const ogDescription = tweetDoc.querySelector('meta[property="og:description"]');
+          fullTweetText = ogDescription?.getAttribute('content') || '';
+          
+          // Extract image from multiple possible sources
+          const ogImage = tweetDoc.querySelector('meta[property="og:image"]');
+          const twitterImage = tweetDoc.querySelector('meta[name="twitter:image"]');
+          const twitterImageSrc = tweetDoc.querySelector('meta[name="twitter:image:src"]');
+          
+          tweetImage = ogImage?.getAttribute('content') || 
+                      twitterImage?.getAttribute('content') || 
+                      twitterImageSrc?.getAttribute('content') || 
+                      null;
+          
+          // Extract author info from URL
+          const urlParts = url.split('/');
+          username = urlParts[3] || 'Twitter';
+          
+          // Try to get author name from og:title or twitter:title
+          const ogTitle = tweetDoc.querySelector('meta[property="og:title"]');
+          const twitterTitle = tweetDoc.querySelector('meta[name="twitter:title"]');
+          const titleText = ogTitle?.getAttribute('content') || twitterTitle?.getAttribute('content') || '';
+          
+          // Title usually in format "Author Name on X: tweet text"
+          const titleMatch = titleText.match(/^(.+?)\s+on\s+X:/i);
+          if (titleMatch) {
+            authorName = titleMatch[1].trim();
+          } else {
+            authorName = username;
+          }
+          
+          console.log('[fetch-article-preview] Tweet scraped successfully');
+          console.log('[fetch-article-preview] Full tweet text length:', fullTweetText.length);
+          console.log('[fetch-article-preview] Image URL:', tweetImage);
+          console.log('[fetch-article-preview] Author:', authorName);
+          console.log('[fetch-article-preview] Username:', username);
+        }
+      } catch (error) {
+        console.error('[fetch-article-preview] Error scraping tweet page:', error);
+        // Fallback to oEmbed if direct scraping fails
+        const embedHtml = await fetchTwitterEmbed(url);
+        if (embedHtml) {
+          const parser = new DOMParser();
+          const embedDoc = parser.parseFromString(embedHtml, 'text/html');
+          
+          const allParagraphs = embedDoc.querySelectorAll('blockquote.twitter-tweet p');
+          const paragraphTexts = Array.from(allParagraphs)
+            .map(p => p.textContent?.trim())
+            .filter(text => text && !text.match(/^https?:\/\//));
+          
+          fullTweetText = paragraphTexts.join('\n\n')
+            .replace(/pic\.twitter\.com\/\w+/g, '')
+            .replace(/https?:\/\/t\.co\/\w+/g, '')
+            .trim();
+          
+          const urlParts = url.split('/');
+          username = urlParts[3] || 'Twitter';
+          authorName = username;
+        }
       }
+      
+      if (!fullTweetText || fullTweetText.length < 10) {
+        fullTweetText = 'Post da X/Twitter';
+      }
+      
+      console.log('[fetch-article-preview] Final tweet text:', fullTweetText);
+      
+      return new Response(JSON.stringify({
+        title: `Post by @${username}`,
+        summary: fullTweetText,
+        content: fullTweetText, // FULL untruncated text from page scraping
+        excerpt: fullTweetText.substring(0, 300),
+        tweet_text: fullTweetText,
+        author_name: authorName || username,
+        author_username: username,
+        previewImg: tweetImage,
+        image: tweetImage,
+        type: 'article',
+        hostname: new URL(url).hostname,
+        embedHtml: null,
+        embedUrl: null,
+        videoId: null,
+        platform: 'twitter',
+        duration: null
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     // Normalize YouTube URLs before processing

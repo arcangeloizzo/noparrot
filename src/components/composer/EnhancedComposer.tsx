@@ -62,14 +62,16 @@ export function EnhancedComposer({
     setMentionQuery('');
     setSelectedMentionIndex(0);
     
-    // Use requestAnimationFrame for better timing
-    requestAnimationFrame(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
-        setCursorPosition(newCursorPos);
-      }
-    });
+    // Use double setTimeout for robust focus management
+    setTimeout(() => {
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+          textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+          setCursorPosition(newCursorPos);
+        }
+      }, 0);
+    }, 0);
   };
 
   // Reset selection when users change
@@ -290,15 +292,28 @@ export function EnhancedComposer({
                           
                           if (data) {
                             setUrlPreview(data);
-                            // Remove URL from text
-                            setText(value.replace(detectedUrl, '').trim());
+                            // Remove URL from text immediately after preview loads
+                            const newText = value.replace(detectedUrl, '').trim();
+                            setText(newText);
+                            setCursorPosition(newText.length);
+                            
                             // Add to sources if not already there
                             if (!sources.includes(detectedUrl)) {
                               setSources(prev => [...prev, detectedUrl]);
                             }
+                            
+                            toast({
+                              title: "Anteprima caricata",
+                              description: "L'URL è stato rimosso dal testo"
+                            });
                           }
                         } catch (error) {
                           console.error('Error loading preview:', error);
+                          toast({
+                            title: "Errore",
+                            description: "Impossibile caricare l'anteprima",
+                            variant: "destructive"
+                          });
                         } finally {
                           setIsLoadingPreview(false);
                         }
