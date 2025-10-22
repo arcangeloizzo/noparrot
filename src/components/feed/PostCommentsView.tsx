@@ -184,13 +184,24 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar 
     });
   };
 
+  const indentLevel = comment.level || 0;
+  const indentAmount = indentLevel > 0 ? indentLevel * 20 : 0;
+
   return (
     <div 
-      className="px-4 py-3 border-b border-border hover:bg-muted/30 transition-colors"
+      className="py-3 border-b border-border hover:bg-muted/30 transition-colors relative"
       style={{ 
-        marginLeft: comment.level > 0 ? `${comment.level * 16}px` : '0'
+        paddingLeft: `${16 + indentAmount}px`,
+        paddingRight: '16px'
       }}
     >
+      {/* Linea verticale di indentazione */}
+      {indentLevel > 0 && (
+        <div 
+          className="absolute top-0 bottom-0 w-0.5 bg-border"
+          style={{ left: `${(indentLevel - 1) * 20 + 16}px` }}
+        />
+      )}
       <div className="flex gap-3">
         <div className="flex-shrink-0">
           {getUserAvatar(comment.author.avatar_url, comment.author.full_name, comment.author.username)}

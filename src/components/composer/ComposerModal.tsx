@@ -87,12 +87,16 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
   const loadPreview = async (url: string) => {
     try {
+      console.log('[Composer] Loading preview for URL:', url);
       const preview = await fetchArticlePreview(url);
+      console.log('[Composer] Preview result:', preview);
       if (preview) {
         setUrlPreview({ ...preview, url });
+      } else {
+        console.warn('[Composer] No preview data received');
       }
     } catch (error) {
-      console.error('Error loading preview:', error);
+      console.error('[Composer] Error loading preview:', error);
     }
   };
 

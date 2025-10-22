@@ -56,11 +56,18 @@ export const CommentReplySheet = ({ post, parentComment, isOpen, onClose }: Comm
   const handleSubmit = async () => {
     if (!newComment.trim() || addComment.isPending) return;
 
+    console.log('[CommentReply] Submitting comment:', {
+      postId: post.id,
+      parentId: parentComment?.id || null,
+      level: parentComment ? (parentComment.level || 0) + 1 : 0,
+      parentComment
+    });
+
     const commentId = await addComment.mutateAsync({
       postId: post.id,
       content: newComment.trim(),
       parentId: parentComment?.id || null,
-      level: parentComment ? parentComment.level + 1 : 0
+      level: parentComment ? (parentComment.level || 0) + 1 : 0
     });
 
     if (uploadedMedia.length > 0 && commentId) {
