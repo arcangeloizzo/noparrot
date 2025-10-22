@@ -78,8 +78,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       if (url !== detectedUrl) {
         setDetectedUrl(url);
         loadPreview(url);
+        // Rimuovi l'URL dal contenuto dopo averlo rilevato
+        setContent(prev => prev.replace(url, '').trim());
       }
-    } else if (!content.includes(detectedUrl || '')) {
+    } else if (detectedUrl && !content.includes(detectedUrl)) {
       setDetectedUrl(null);
       setUrlPreview(null);
     }

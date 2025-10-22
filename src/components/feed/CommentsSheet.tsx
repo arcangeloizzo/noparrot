@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Trash2, Heart } from 'lucide-react';
+import { ArrowLeft, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useComments, useAddComment, useDeleteComment } from '@/hooks/useComments';
 import { useCommentReactions, useToggleCommentReaction } from '@/hooks/useCommentReactions';
@@ -37,14 +37,10 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   const [showMentions, setShowMentions] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
-  const [internalMode, setInternalMode] = useState<'view' | 'reply'>(mode);
-  const [formHeight, setFormHeight] = useState(0);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [viewerMedia, setViewerMedia] = useState<any[] | null>(null);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const formRef = useRef<HTMLDivElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
 
@@ -61,6 +57,12 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     },
     enabled: !!user,
   });
+
+  useEffect(() => {
+    if (mode === 'reply' && isOpen) {
+      setTimeout(() => textareaRef.current?.focus(), 100);
+    }
+  }, [mode, isOpen]);
 
   const handleSubmit = async () => {
     if (!newComment.trim() || addComment.isPending) return;
@@ -133,10 +135,6 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   };
 
   useEffect(() => {
-    setInternalMode(mode);
-  }, [mode]);
-
-  useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
     } else {
@@ -148,49 +146,8 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   }, [isOpen]);
 
   useEffect(() => {
-    if (!formRef.current) return;
-    
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setFormHeight(entry.contentRect.height);
-      }
-    });
-    
-    observer.observe(formRef.current);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (internalMode === 'reply' && mode === 'reply' && textareaRef.current) {
-      textareaRef.current.focus();
-      textareaRef.current.click();
-    }
-  }, [internalMode, mode]);
-
-  useEffect(() => {
     setSelectedMentionIndex(0);
   }, [mentionUsers]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleViewportChange = () => {
-      if (window.visualViewport) {
-        const viewportHeight = window.visualViewport.height;
-        const windowHeight = window.innerHeight;
-        const diff = windowHeight - viewportHeight;
-        setKeyboardHeight(diff > 0 ? diff : 0);
-      }
-    };
-
-    window.visualViewport?.addEventListener('resize', handleViewportChange);
-    handleViewportChange();
-
-    return () => {
-      window.visualViewport?.removeEventListener('resize', handleViewportChange);
-      setKeyboardHeight(0);
-    };
-  }, [isOpen]);
 
   const getInitials = (name: string) => {
     return name
@@ -223,16 +180,11 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
 
   return (
     <>
-      <div 
-        className="fixed inset-0 bg-background z-50 flex flex-col"
-        style={{ paddingTop: keyboardHeight > 0 ? `${keyboardHeight}px` : '0' }}
-      >
+      <div className="fixed inset-0 bg-background z-50 flex flex-col">
+        {/* Header */}
         <div className="sticky top-0 bg-background border-b border-border px-4 py-3 flex items-center justify-between z-20">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
+            onClick={onClose}
             className="p-2 hover:bg-muted rounded-full transition-colors"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -241,6 +193,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
           <div className="w-10" />
         </div>
 
+        {/* Post originale */}
         <div className="px-4 py-3 border-b border-border bg-background flex-shrink-0">
           <div className="flex gap-3">
             <div className="flex-shrink-0">
@@ -283,24 +236,20 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
           </div>
         </div>
 
-        <div 
-          className="flex-1 overflow-y-auto comments-scroll-container"
-          style={{ 
-            paddingBottom: `${formHeight + 20}px`
-          }}
-        >
-          <div className="divide-y divide-border">
-            {isLoading ? (
-              <div className="text-center text-muted-foreground py-8">
-                Caricamento commenti...
-              </div>
-            ) : comments.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8 px-4">
-                <p className="text-sm">Nessun commento ancora.</p>
-                <p className="text-xs mt-1">Sii il primo a rispondere!</p>
-              </div>
-            ) : (
-              comments.map((comment) => (
+        {/* Lista commenti */}
+        <div className="flex-1 overflow-y-auto pb-32">
+          {isLoading ? (
+            <div className="text-center text-muted-foreground py-8">
+              Caricamento commenti...
+            </div>
+          ) : comments.length === 0 ? (
+            <div className="text-center text-muted-foreground py-8 px-4">
+              <p className="text-sm">Nessun commento ancora.</p>
+              <p className="text-xs mt-1">Sii il primo a rispondere!</p>
+            </div>
+          ) : (
+            <div>
+              {comments.map((comment) => (
                 <CommentItem
                   key={comment.id}
                   comment={comment}
@@ -316,20 +265,17 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                   }}
                   getUserAvatar={getUserAvatar}
                 />
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div 
-          ref={formRef}
-          className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30"
-          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-        >
+        {/* Form commento fisso in basso */}
+        <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30">
           <div className="px-4 py-3">
             {replyingTo && (
               <div className="mb-2 text-xs text-muted-foreground flex items-center justify-between">
-                <span>Rispondi a {comments.find(c => c.id === replyingTo)?.author.full_name}</span>
+                <span>Rispondi a @{comments.find(c => c.id === replyingTo)?.author.username}</span>
                 <button
                   onClick={() => setReplyingTo(null)}
                   className="text-destructive hover:underline"
@@ -351,7 +297,6 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                   ref={textareaRef}
                   value={newComment}
                   onChange={handleTextChange}
-                  onClick={(e) => e.stopPropagation()}
                   onKeyDown={(e) => {
                     if (!showMentions || mentionUsers.length === 0) {
                       if (e.key === 'Enter' && !e.shiftKey) {
@@ -378,11 +323,10 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                       setShowMentions(false);
                     }
                   }}
-                  placeholder={replyingTo ? `Rispondi a @${comments.find(c => c.id === replyingTo)?.author.username || post.author.username}` : `Aggiungi un commento...`}
+                  placeholder={replyingTo ? `Rispondi...` : `Aggiungi un commento...`}
                   className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[40px] max-h-[120px] placeholder:text-muted-foreground leading-normal"
                   maxLength={500}
-                  inputMode="text"
-                  rows={3}
+                  rows={2}
                   style={{ 
                     height: 'auto',
                     overflowY: newComment.split('\n').length > 5 ? 'scroll' : 'hidden'
@@ -408,32 +352,29 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                   onRemove={removeMedia}
                 />
                 
-                <div className="flex gap-2 mt-2">
-                  <MediaUploadButton
-                    type="image"
-                    onFilesSelected={(files) => uploadMedia(files, 'image')}
-                    maxFiles={4}
-                    disabled={isUploading}
-                  />
-                  <MediaUploadButton
-                    type="video"
-                    onFilesSelected={(files) => uploadMedia(files, 'video')}
-                    maxFiles={1}
-                    disabled={isUploading}
-                  />
-                </div>
-                
-                <div className="flex items-center justify-end gap-3 mt-3">
-                  <p className="text-xs text-muted-foreground">
-                    {newComment.length}/500
-                  </p>
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex gap-2">
+                    <MediaUploadButton
+                      type="image"
+                      onFilesSelected={(files) => uploadMedia(files, 'image')}
+                      maxFiles={4}
+                      disabled={isUploading}
+                    />
+                    <MediaUploadButton
+                      type="video"
+                      onFilesSelected={(files) => uploadMedia(files, 'video')}
+                      maxFiles={1}
+                      disabled={isUploading}
+                    />
+                  </div>
+                  
                   <Button
                     onClick={handleSubmit}
                     disabled={!newComment.trim() || addComment.isPending}
                     size="sm"
                     className="rounded-full px-4 font-bold"
                   >
-                    {addComment.isPending ? 'Invio...' : (replyingTo ? 'Rispondi' : 'Commenta')}
+                    {addComment.isPending ? 'Invio...' : (replyingTo ? 'Rispondi' : 'Pubblica')}
                   </Button>
                 </div>
               </div>
@@ -475,18 +416,17 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, onMediaClick, 
 
   return (
     <div 
-      className="py-3 relative"
-      style={{ paddingLeft: `${16 + comment.level * 24}px`, paddingRight: '16px' }}
-    >
-      {comment.level > 0 && (
-        <div 
-          className="absolute left-0 top-0 bottom-0 w-0.5 bg-border"
-          style={{ left: `${16 + (comment.level - 1) * 24}px` }}
-        />
+      className={cn(
+        "px-4 py-3 border-b border-border hover:bg-muted/30 transition-colors",
+        comment.level > 0 && "border-l-2 border-l-muted"
       )}
+      style={{ 
+        marginLeft: comment.level > 0 ? `${comment.level * 32}px` : '0'
+      }}
+    >
       <div className="flex gap-3">
         <div className="flex-shrink-0">
-          {getUserAvatar(comment.author.avatar_url, comment.author.full_name || comment.author.username)}
+          {getUserAvatar(comment.author.avatar_url, comment.author.full_name, comment.author.username)}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
@@ -504,36 +444,36 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, onMediaClick, 
               })}
             </span>
           </div>
+          
           <div className="text-sm mb-2">
-            <MentionText text={comment.content} />
+            <MentionText content={comment.content} />
           </div>
           
           {comment.media && comment.media.length > 0 && (
-            <MediaGallery 
-              media={comment.media}
-              onClick={onMediaClick}
-            />
+            <div className="mb-2">
+              <MediaGallery 
+                media={comment.media}
+              />
+            </div>
           )}
           
-          <div className="flex items-center gap-4 mt-2">
+          <div className="flex items-center gap-4 text-muted-foreground">
             <button
               onClick={handleLike}
-              className="flex items-center gap-1 text-muted-foreground hover:text-red-500 transition-colors"
+              className={cn(
+                "flex items-center gap-1 hover:text-destructive transition-colors",
+                reactions?.likedByMe && "text-destructive"
+              )}
             >
-              <Heart 
-                className={cn(
-                  "w-4 h-4",
-                  reactions?.likedByMe && "fill-red-500 text-red-500"
-                )} 
-              />
-              {reactions?.likesCount ? (
+              <Heart className={cn("w-4 h-4", reactions?.likedByMe && "fill-current")} />
+              {reactions?.likesCount && reactions.likesCount > 0 && (
                 <span className="text-xs">{reactions.likesCount}</span>
-              ) : null}
+              )}
             </button>
             
             <button
               onClick={onReply}
-              className="text-xs text-muted-foreground hover:text-primary transition-colors"
+              className="text-xs hover:text-foreground transition-colors"
             >
               Rispondi
             </button>
@@ -541,9 +481,8 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, onMediaClick, 
             {currentUserId === comment.author_id && (
               <button
                 onClick={onDelete}
-                className="text-xs text-destructive hover:underline flex items-center gap-1"
+                className="text-xs hover:text-destructive transition-colors ml-auto"
               >
-                <Trash2 className="w-3 h-3" />
                 Elimina
               </button>
             )}
