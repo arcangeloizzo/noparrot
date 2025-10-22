@@ -44,9 +44,12 @@ export const MentionDropdown = ({
 
   return (
     <div 
-      className={`${positionClass} w-full max-w-sm bg-card border border-border rounded-lg shadow-2xl overflow-hidden`}
-      style={{ zIndex: 999999, position: 'fixed' }}
-      onMouseDown={(e) => e.preventDefault()}
+      className={`${positionClass} w-full max-w-sm bg-card border-2 border-primary rounded-lg shadow-2xl overflow-hidden`}
+      style={{ zIndex: 9999999 }}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
     >
       {users.map((user, index) => (
         <button
