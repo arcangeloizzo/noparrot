@@ -35,44 +35,59 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   useEffect(() => {
     if (!source.embedHtml || !isOpen) return;
 
+    console.log('[SourceReaderGate] Loading Twitter embed for:', source.url);
     const win = window as any;
     setIsRenderingTwitter(true);
 
     const renderWidgets = () => {
+      console.log('[SourceReaderGate] Rendering Twitter widgets...');
       if (win.twttr?.widgets) {
         win.twttr.widgets.load()
           .then(() => {
+            console.log('[SourceReaderGate] Twitter widgets loaded successfully');
             setIsRenderingTwitter(false);
             setTwitterScriptLoaded(true);
           })
-          .catch(() => {
+          .catch((err: any) => {
+            console.error('[SourceReaderGate] Twitter widgets loading error:', err);
             setIsRenderingTwitter(false);
           });
+      } else {
+        console.warn('[SourceReaderGate] twttr.widgets not available');
+        setIsRenderingTwitter(false);
       }
     };
 
-    // If script is already loaded
+    // Check if script already loaded
     if (win.twttr) {
+      console.log('[SourceReaderGate] Twitter script already loaded');
       renderWidgets();
       return;
     }
 
     // Load script
+    console.log('[SourceReaderGate] Loading Twitter script...');
     const script = document.createElement('script');
     script.src = 'https://platform.twitter.com/widgets.js';
     script.async = true;
     script.charset = 'utf-8';
     script.onload = () => {
+      console.log('[SourceReaderGate] Twitter script loaded');
       setTwitterScriptLoaded(true);
-      renderWidgets();
+      // Give time for twttr object to initialize
+      setTimeout(renderWidgets, 100);
     };
-    script.onerror = () => {
+    script.onerror = (err) => {
+      console.error('[SourceReaderGate] Failed to load Twitter widgets script:', err);
       setIsRenderingTwitter(false);
-      console.error('Failed to load Twitter widgets script');
     };
     
     document.body.appendChild(script);
-  }, [source.embedHtml, isOpen]);
+
+    return () => {
+      // Cleanup if needed
+    };
+  }, [source.embedHtml, source.url, isOpen]);
 
   useEffect(() => {
     if (!isOpen) {

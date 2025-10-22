@@ -5,24 +5,17 @@
 // ✅ Deterministic questions based on source URL/domain
 
 import React, { useState, useEffect } from 'react';
-import { X, Check, RotateCcw } from 'lucide-react';
+import { X, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { SourceWithGate, generateSourceQuiz } from '@/lib/comprehension-gate-extended';
+import { SourceWithGate } from '@/lib/comprehension-gate-extended';
+import { fetchArticlePreview, generateQA, type QuizQuestion } from '@/lib/ai-helpers';
 
 interface SourceMCQTestProps {
   source: SourceWithGate;
   isOpen: boolean;
   onClose: () => void;
   onComplete: (passed: boolean) => void;
-}
-
-interface Question {
-  id: string;
-  stem: string;
-  choices: { id: string; text: string }[];
-  correctId: string;
-  type: 'macro' | 'detail';
 }
 
 export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
@@ -36,108 +29,75 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
   const [attempts, setAttempts] = useState<Record<string, number>>({});
   const [showResult, setShowResult] = useState<'correct' | 'wrong' | null>(null);
   const [isComplete, setIsComplete] = useState(false);
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+  const [questionError, setQuestionError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      // Generate deterministic questions based on source
-      const generatedQuestions = generateQuestionsForSource(source);
-      setQuestions(generatedQuestions);
-      
-      // Reset state
-      setCurrentQuestion(0);
-      setAnswers({});
-      setAttempts({});
-      setShowResult(null);
-      setIsComplete(false);
+    if (isOpen && source) {
+      loadQuestionsForSource();
     }
   }, [isOpen, source]);
 
-  const generateQuestionsForSource = (source: SourceWithGate): Question[] => {
-    // Hash-based deterministic generation
-    const hash = source.url.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-
-    const domain = getDomainType(source.url);
-    const baseTitle = source.title || source.url;
-
-    return [
-      {
-        id: 'q1',
-        type: 'macro',
-        stem: getQuestionStem(domain, 'macro1', baseTitle),
-        choices: [
-          { id: 'a', text: 'Il concetto principale espresso nel contenuto' },
-          { id: 'b', text: 'Un argomento secondario non centrale' },
-          { id: 'c', text: 'Un tema non trattato nella fonte' },
-        ],
-        correctId: 'a'
-      },
-      {
-        id: 'q2', 
-        type: 'macro',
-        stem: getQuestionStem(domain, 'macro2', baseTitle),
-        choices: [
-          { id: 'a', text: 'Una congettura senza evidenze' },
-          { id: 'b', text: 'Il supporto o evidenza presentata' },
-          { id: 'c', text: 'Un\'opinione non presente nel testo' },
-        ],
-        correctId: 'b'
-      },
-      {
-        id: 'q3',
-        type: 'detail', 
-        stem: getQuestionStem(domain, 'detail', baseTitle),
-        choices: [
-          { id: 'a', text: 'Un dettaglio inventato' },
-          { id: 'b', text: 'Un elemento non menzionato' },
-          { id: 'c', text: 'Il dettaglio specifico citato' },
-        ],
-        correctId: 'c'
-      }
-    ];
-  };
-
-  const getDomainType = (url: string): string => {
+  const loadQuestionsForSource = async () => {
+    setIsLoadingQuestions(true);
+    setQuestionError(null);
+    
+    // Reset state
+    setCurrentQuestion(0);
+    setAnswers({});
+    setAttempts({});
+    setShowResult(null);
+    setIsComplete(false);
+    
     try {
-      const domain = new URL(url).hostname.toLowerCase();
-      if (domain.includes('news') || domain.includes('bbc') || domain.includes('cnn')) return 'news';
-      if (domain.includes('edu') || domain.includes('arxiv') || domain.includes('pubmed')) return 'academic';
-      if (domain.includes('twitter') || domain.includes('facebook') || domain.includes('instagram')) return 'social';
-      return 'general';
-    } catch {
-      return 'general';
-    }
-  };
-
-  const getQuestionStem = (domain: string, type: string, title: string): string => {
-    const templates = {
-      news: {
-        macro1: 'Qual è la notizia principale riportata?',
-        macro2: 'Quale evidenza o fonte viene citata?',
-        detail: 'Quale dato specifico viene menzionato?'
-      },
-      academic: {
-        macro1: 'Qual è la tesi principale dell\'articolo?',
-        macro2: 'Quale metodologia supporta la conclusione?',
-        detail: 'Quale studio o ricerca viene citata?'
-      },
-      social: {
-        macro1: 'Qual è il messaggio principale del post?',
-        macro2: 'Quale reazione viene stimolata?',
-        detail: 'Quale hashtag o riferimento specifico è presente?'
-      },
-      general: {
-        macro1: 'Qual è il tema principale del contenuto?',
-        macro2: 'Quale punto di vista viene espresso?', 
-        detail: 'Quale informazione specifica viene fornita?'
+      console.log('[SourceMCQTest] Loading questions for:', source.url);
+      
+      // 1. Fetch article preview to get full metadata
+      const preview = await fetchArticlePreview(source.url);
+      
+      if (!preview) {
+        throw new Error('Impossibile recuperare il contenuto della fonte');
       }
-    };
-
-    return templates[domain as keyof typeof templates]?.[type as keyof (typeof templates)['general']] ||
-           templates.general[type as keyof (typeof templates)['general']];
+      
+      console.log('[SourceMCQTest] Preview fetched:', {
+        title: preview.title,
+        contentLength: preview.content?.length,
+        summaryLength: preview.summary?.length
+      });
+      
+      // 2. Generate AI questions
+      const result = await generateQA({
+        contentId: null,
+        isPrePublish: true,
+        title: preview.title || source.title || '',
+        summary: preview.content || preview.summary || preview.excerpt || '',
+        excerpt: preview.excerpt || '',
+        type: preview.type as any || 'article',
+        sourceUrl: source.url
+      });
+      
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      if (result.insufficient_context) {
+        throw new Error('Contenuto insufficiente per generare domande');
+      }
+      
+      if (!result.questions || result.questions.length !== 3) {
+        throw new Error('Formato domande non valido');
+      }
+      
+      console.log('[SourceMCQTest] Questions generated:', result.questions.length);
+      setQuestions(result.questions);
+      
+    } catch (error: any) {
+      console.error('[SourceMCQTest] Error loading questions:', error);
+      setQuestionError(error.message || 'Errore nel caricamento delle domande');
+    } finally {
+      setIsLoadingQuestions(false);
+    }
   };
 
   const handleAnswer = (questionId: string, choiceId: string) => {
@@ -185,7 +145,45 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
     setIsComplete(false);
   };
 
-  if (!isOpen || questions.length === 0) return null;
+  if (!isOpen) return null;
+
+  // Loading state
+  if (isLoadingQuestions) {
+    return (
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+        <div className="bg-background rounded-2xl w-[90vw] max-w-md p-8 text-center border border-border">
+          <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-foreground font-medium mb-2">Generazione domande...</p>
+          <p className="text-sm text-muted-foreground">Analizzando il contenuto della fonte</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (questionError) {
+    return (
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+        <div className="bg-background rounded-2xl w-[90vw] max-w-md p-6 text-center border border-border">
+          <div className="w-16 h-16 bg-trust-low/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <X className="w-8 h-8 text-trust-low" />
+          </div>
+          <h2 className="text-xl font-semibold mb-2 text-foreground">Errore</h2>
+          <p className="text-muted-foreground mb-4">{questionError}</p>
+          <div className="space-y-2">
+            <Button onClick={() => loadQuestionsForSource()} className="w-full">
+              Riprova
+            </Button>
+            <Button onClick={onClose} variant="outline" className="w-full">
+              Chiudi
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (questions.length === 0) return null;
 
   if (isComplete) {
     return (
@@ -218,6 +216,7 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
 
   const question = questions[currentQuestion];
   const questionAttempts = attempts[question.id] || 0;
+  const questionType = currentQuestion < 2 ? 'macro' : 'detail';
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
@@ -261,9 +260,9 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
               <div className="flex items-center gap-2">
                 <span className={cn(
                   "px-2 py-1 rounded text-xs font-medium",
-                  question.type === 'macro' ? "bg-primary/20 text-primary" : "bg-accent/20 text-accent"
+                  questionType === 'macro' ? "bg-primary/20 text-primary" : "bg-accent/20 text-accent"
                 )}>
-                  {question.type === 'macro' ? 'Comprensione' : 'Dettaglio'}
+                  {questionType === 'macro' ? 'Comprensione' : 'Dettaglio'}
                 </span>
                 {showResult === 'correct' && (
                   <Check className="w-5 h-5 text-trust-high animate-bounce-check" />

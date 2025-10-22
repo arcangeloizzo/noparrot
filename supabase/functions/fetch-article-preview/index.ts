@@ -54,6 +54,9 @@ serve(async (req) => {
                           embedDoc.querySelector('blockquote p')?.textContent?.trim() || 
                           'Post da X/Twitter';
         
+        console.log('[fetch-article-preview] Tweet text extracted:', tweetText);
+        console.log('[fetch-article-preview] Tweet text length:', tweetText.length);
+        
         return new Response(JSON.stringify({
           title: `Post by @${username}`,
           summary: tweetText,
