@@ -26,6 +26,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { PostHeader } from "./PostHeader";
 import { MediaGallery } from "@/components/media/MediaGallery";
+import { MediaViewer } from "@/components/media/MediaViewer";
 import { uniqueSources } from "@/lib/url";
 
 interface FeedCardProps {
@@ -57,6 +58,7 @@ export const FeedCard = ({
   const { data: quotedPost } = useQuotedPost(post.quoted_post_id);
   const [showComments, setShowComments] = useState(false);
   const [commentMode, setCommentMode] = useState<'view' | 'reply'>('view');
+  const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
   
   // Remove swipe gesture states - no longer needed
   
@@ -421,9 +423,8 @@ export const FeedCard = ({
             {post.media && post.media.length > 0 && (
               <MediaGallery 
                 media={post.media}
-                onClick={(media) => {
-                  // TODO: Aprire media in fullscreen
-                  window.open(media.url, '_blank');
+                onClick={(_, index) => {
+                  setSelectedMediaIndex(index);
                 }}
               />
             )}
@@ -571,6 +572,16 @@ export const FeedCard = ({
             setShowQuiz(false);
             setQuizData(null);
           }}
+        />,
+        document.body
+      )}
+
+      {/* Media Viewer - Rendered via Portal */}
+      {selectedMediaIndex !== null && post.media && createPortal(
+        <MediaViewer
+          media={post.media}
+          initialIndex={selectedMediaIndex}
+          onClose={() => setSelectedMediaIndex(null)}
         />,
         document.body
       )}
