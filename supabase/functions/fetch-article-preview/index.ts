@@ -39,30 +39,31 @@ serve(async (req) => {
       const embedHtml = await fetchTwitterEmbed(url);
       
       if (embedHtml) {
-        // Extract basic info from the URL for title
-        const urlParts = url.split('/');
-        const username = urlParts[3] || 'Twitter';
-        
-        // Extract text from embed HTML for AI comprehension test
+        // Extract info from embed HTML
         const parser = new DOMParser();
         const embedDoc = parser.parseFromString(embedHtml, 'text/html');
         
-        // Try multiple selectors for tweet text
-        let tweetText = '';
+        // Extract author info from blockquote
+        const blockquote = embedDoc.querySelector('blockquote.twitter-tweet');
+        const authorLink = blockquote?.querySelector('a[href*="/status/"]');
+        const authorName = authorLink?.textContent?.trim() || '';
         
-        // 1. Try paragraph with lang attribute (main tweet text)
+        // Extract username from URL
+        const urlParts = url.split('/');
+        const username = urlParts[3] || 'Twitter';
+        
+        // Extract tweet text
+        let tweetText = '';
         const mainParagraph = embedDoc.querySelector('blockquote.twitter-tweet p[lang]');
         if (mainParagraph) {
           tweetText = mainParagraph.textContent?.trim() || '';
         }
         
-        // 2. Fallback to any paragraph in blockquote
         if (!tweetText) {
           const anyParagraph = embedDoc.querySelector('blockquote.twitter-tweet p');
           tweetText = anyParagraph?.textContent?.trim() || '';
         }
         
-        // 3. Get all paragraphs and join them (for threads)
         if (!tweetText) {
           const allParagraphs = embedDoc.querySelectorAll('blockquote.twitter-tweet p');
           tweetText = Array.from(allParagraphs)
@@ -71,30 +72,41 @@ serve(async (req) => {
             .join('\n');
         }
         
-        // Clean up: remove pic.twitter.com links and t.co shortened URLs
+        // Clean up text
         tweetText = tweetText
           .replace(/pic\.twitter\.com\/\w+/g, '')
           .replace(/https?:\/\/t\.co\/\w+/g, '')
           .replace(/\s+/g, ' ')
           .trim();
         
-        // Fallback if nothing extracted
         if (!tweetText || tweetText.length < 10) {
           tweetText = 'Post da X/Twitter';
         }
         
+        // Try to extract image from embed HTML (usually in <a> tags with pic.twitter.com)
+        let tweetImage = null;
+        const imgLinks = Array.from(embedDoc.querySelectorAll('a[href*="pic.twitter.com"]'));
+        if (imgLinks.length > 0) {
+          // Twitter images are often linked, we'll need to construct a proper image URL
+          // For now, we'll mark that an image exists
+          tweetImage = null; // We can't reliably extract the actual image URL from oEmbed
+        }
+        
         console.log('[fetch-article-preview] Tweet URL:', url);
-        console.log('[fetch-article-preview] Tweet text extracted:', tweetText);
+        console.log('[fetch-article-preview] Author:', authorName);
+        console.log('[fetch-article-preview] Username:', username);
+        console.log('[fetch-article-preview] Tweet text:', tweetText);
         console.log('[fetch-article-preview] Tweet text length:', tweetText.length);
-        console.log('[fetch-article-preview] Embed HTML length:', embedHtml.length);
         
         return new Response(JSON.stringify({
           title: `Post by @${username}`,
           summary: tweetText,
           content: tweetText,
           excerpt: tweetText,
-          tweet_text: tweetText,  // Add explicit tweet_text field
-          previewImg: null,
+          tweet_text: tweetText,
+          author_name: authorName || username,
+          author_username: username,
+          previewImg: tweetImage,
           type: 'article',
           hostname: new URL(url).hostname,
           embedHtml,

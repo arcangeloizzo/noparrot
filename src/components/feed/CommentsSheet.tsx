@@ -119,21 +119,18 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     const newCursorPos = beforeMention.length + user.username.length + 2;
     
     setNewComment(newText);
-    setCursorPosition(newCursorPos);
     setShowMentions(false);
     setMentionQuery('');
     setSelectedMentionIndex(0);
     
-    setTimeout(() => {
+    // Use requestAnimationFrame for better timing
+    requestAnimationFrame(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
-        setTimeout(() => {
-          if (textareaRef.current) {
-            textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
-          }
-        }, 0);
+        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        setCursorPosition(newCursorPos);
       }
-    }, 0);
+    });
   };
 
   useEffect(() => {

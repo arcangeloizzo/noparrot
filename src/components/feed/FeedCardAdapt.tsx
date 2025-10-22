@@ -485,10 +485,30 @@ export const FeedCard = ({
                   </div>
                 )}
                 <div className="p-3">
+                  {/* Tweet author info */}
+                  {articlePreview?.platform === 'twitter' && articlePreview?.author_username && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-xs font-semibold text-primary">
+                          {articlePreview.author_username.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-foreground">
+                          {articlePreview.author_name || articlePreview.author_username}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          @{articlePreview.author_username}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                     <span>{getHostnameFromUrl(post.shared_url)}</span>
                     <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
+                  
                   {/* Show full tweet content or article title */}
                   {articlePreview?.content && articlePreview?.platform === 'twitter' ? (
                     <p className="text-sm text-foreground line-clamp-3 whitespace-pre-wrap leading-relaxed">
