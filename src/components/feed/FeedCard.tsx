@@ -107,15 +107,18 @@ export const FeedCard = ({
       .then(setTrustScore)
       .catch(console.error)
       .finally(() => setLoadingTrust(false));
-
-      // Also fetch article preview for better display
-      if (!articlePreview) {
-        fetchArticlePreview(post.url).then(preview => {
-          if (preview) setArticlePreview(preview);
-        });
-      }
     }
-  }, [post, trustScore, loadingTrust, articlePreview]);
+    
+    // Always fetch article preview for better display
+    if (post.url && !articlePreview) {
+      fetchArticlePreview(post.url).then(preview => {
+        if (preview) {
+          console.log('[FeedCard] Loaded preview:', preview);
+          setArticlePreview(preview);
+        }
+      });
+    }
+  }, [post.url, trustScore, loadingTrust, articlePreview]);
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -130,7 +133,6 @@ export const FeedCard = ({
     }
 
     if (!post.url) {
-      // No source, share directly
       toast({
         title: 'Condiviso!',
         description: 'Post condiviso con successo'
@@ -138,24 +140,22 @@ export const FeedCard = ({
       return;
     }
 
-    // Generate Q&A for comprehension gate
     toast({
       title: 'Generazione test...',
       description: 'Verifica la tua comprensione dell\'articolo'
     });
 
     const preview = articlePreview || await fetchArticlePreview(post.url);
+    console.log('[FeedCard] Preview for quiz:', preview);
     
-    // Per i tweet, usa il testo completo dal post invece dell'anteprima limitata
-    const isTweet = post.url?.includes('twitter.com') || post.url?.includes('x.com');
-    const contentForQuiz = isTweet 
-      ? (post.userComment || preview?.content || preview?.summary || '')
-      : (preview?.content || preview?.summary || post.userComment || '');
+    // IMPORTANTE: Usa sempre preview.content per il testo completo (già estratto da fetch-article-preview)
+    const fullContent = preview?.content || preview?.summary || post.userComment || '';
+    console.log('[FeedCard] Full content for quiz (length):', fullContent.length);
     
     const qaResult = await generateQA({
       contentId: post.id,
       title: preview?.title || post.sharedTitle || '',
-      summary: contentForQuiz,
+      summary: fullContent, // Questo è il testo COMPLETO non troncato
       excerpt: preview?.excerpt,
       type: preview?.type || 'article',
       sourceUrl: post.url
@@ -178,7 +178,6 @@ export const FeedCard = ({
       return;
     }
 
-    // Show quiz
     setQuizData({ questions: qaResult.questions, postId: post.id, sourceUrl: post.url });
     setShowQuiz(true);
   };
@@ -265,22 +264,42 @@ export const FeedCard = ({
           {/* Article Preview */}
           {post.url && (
             <div className="border border-border rounded-2xl overflow-hidden mb-3">
-              {(post.previewImg || articlePreview?.image) && (
+              {(post.previewImg || articlePreview?.previewImg || articlePreview?.image) && (
                 <div className="w-full aspect-video bg-muted">
                   <img 
-                    src={post.previewImg || articlePreview?.image} 
+                    src={post.previewImg || articlePreview?.previewImg || articlePreview?.image} 
                     alt="Article preview" 
                     className="w-full h-full object-cover"
                   />
                 </div>
               )}
               <div className="p-3">
+                {articlePreview?.platform === 'twitter' && articlePreview?.author_username && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="text-xs font-semibold text-primary">
+                        {articlePreview.author_username.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <span className="text-sm font-semibold text-foreground">
+                      @{articlePreview.author_username}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      su X
+                    </span>
+                  </div>
+                )}
                 <p className="text-xs text-muted-foreground mb-1">
                   {getHostnameFromUrl(post.url)}
                 </p>
-                <h3 className="font-semibold text-foreground text-[15px] line-clamp-2">
+                <h3 className="font-semibold text-foreground text-[15px] line-clamp-2 mb-1">
                   {post.sharedTitle || articlePreview?.title || 'Post condiviso'}
                 </h3>
+                {articlePreview?.content && (
+                  <p className="text-sm text-muted-foreground line-clamp-3">
+                    {articlePreview.content}
+                  </p>
+                )}
               </div>
             </div>
           )}

@@ -285,27 +285,45 @@ export function EnhancedComposer({
                         const detectedUrl = urlMatch[0];
                         setIsLoadingPreview(true);
                         
+                        toast({
+                          title: "Caricamento anteprima...",
+                          description: "Attendere prego"
+                        });
+                        
                         try {
-                          const { data } = await supabase.functions.invoke('fetch-article-preview', {
+                          const { data, error } = await supabase.functions.invoke('fetch-article-preview', {
                             body: { url: detectedUrl }
                           });
                           
+                          if (error) throw error;
+                          
                           if (data) {
+                            console.log('[EnhancedComposer] Preview loaded:', data);
                             setUrlPreview(data);
-                            // Remove URL from text immediately after preview loads
+                            
+                            // Remove URL from text
                             const newText = value.replace(detectedUrl, '').trim();
                             setText(newText);
-                            setCursorPosition(newText.length);
                             
-                            // Add to sources if not already there
+                            // Add to sources
                             if (!sources.includes(detectedUrl)) {
                               setSources(prev => [...prev, detectedUrl]);
                             }
                             
                             toast({
-                              title: "Anteprima caricata",
-                              description: "L'URL è stato rimosso dal testo"
+                              title: "✅ Anteprima caricata",
+                              description: "URL rimosso dal testo e aggiunto alle fonti"
                             });
+                            
+                            // Restore focus
+                            setTimeout(() => {
+                              if (textareaRef.current) {
+                                textareaRef.current.focus();
+                                const pos = newText.length;
+                                textareaRef.current.setSelectionRange(pos, pos);
+                                setCursorPosition(pos);
+                              }
+                            }, 100);
                           }
                         } catch (error) {
                           console.error('Error loading preview:', error);
