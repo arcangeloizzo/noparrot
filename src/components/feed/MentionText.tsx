@@ -1,11 +1,13 @@
 import { getDisplayUsername } from '@/lib/utils';
 
 interface MentionTextProps {
-  text: string;
+  text?: string;
+  content?: string;
 }
 
-export const MentionText = ({ text }: MentionTextProps) => {
-  const parts = text.split(/(@[\w@.]+)/g);
+export const MentionText = ({ text, content }: MentionTextProps) => {
+  const textContent = text || content || '';
+  const parts = textContent.split(/(@[\w@.]+)/g);
 
   return (
     <>

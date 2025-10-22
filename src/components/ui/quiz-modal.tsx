@@ -181,7 +181,7 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
             </p>
           </div>
           <Badge variant="outline" className="text-xs">
-            {provider === 'gemini' ? '🤖 Gemini' : '🧠 GPT'}
+            🤖 Gemini
           </Badge>
         </div>
 

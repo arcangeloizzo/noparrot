@@ -253,7 +253,9 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                 <span className="font-semibold text-sm">{post.author.full_name || getDisplayUsername(post.author.username)}</span>
                 <span className="text-muted-foreground text-xs">@{getDisplayUsername(post.author.username)}</span>
               </div>
-              <p className="text-sm whitespace-pre-wrap break-words mb-3">{post.content}</p>
+              <div className="text-sm mb-3">
+                <MentionText content={post.content} />
+              </div>
               
               {post.preview_img && (
                 <img
@@ -514,9 +516,9 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, onMediaClick, 
               })}
             </span>
           </div>
-          <p className="text-sm whitespace-pre-wrap break-words mb-2">
+          <div className="text-sm mb-2">
             <MentionText text={comment.content} />
-          </p>
+          </div>
           
           {comment.media && comment.media.length > 0 && (
             <MediaGallery 

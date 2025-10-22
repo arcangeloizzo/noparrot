@@ -120,7 +120,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       contentId: null,
       isPrePublish: true,
       title: urlPreview.title || '',
-      summary: urlPreview.excerpt || urlPreview.summary || '',
+      summary: urlPreview.content || urlPreview.summary || urlPreview.excerpt || '',
       sourceUrl: detectedUrl || undefined,
     });
 

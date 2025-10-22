@@ -28,6 +28,7 @@ import { PostHeader } from "./PostHeader";
 import { MediaGallery } from "@/components/media/MediaGallery";
 import { MediaViewer } from "@/components/media/MediaViewer";
 import { uniqueSources } from "@/lib/url";
+import { MentionText } from "./MentionText";
 
 interface FeedCardProps {
   post: Post;
@@ -445,7 +446,7 @@ export const FeedCard = ({
 
             {/* User Comment */}
             <div className="mb-2 text-foreground text-[15px] leading-5 whitespace-pre-wrap break-words">
-              {post.content}
+              <MentionText content={post.content} />
             </div>
 
             {/* Media Gallery */}

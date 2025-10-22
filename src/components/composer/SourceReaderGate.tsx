@@ -395,8 +395,9 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               </>
             ) : source.content || source.summary || source.excerpt ? (
               <>
+                {/* Show full content with line breaks preserved */}
                 <div className="prose prose-sm max-w-none">
-                  <div className="whitespace-pre-wrap text-foreground">
+                  <div className="whitespace-pre-wrap text-foreground leading-relaxed">
                     {source.content || source.summary || source.excerpt}
                   </div>
                 </div>
