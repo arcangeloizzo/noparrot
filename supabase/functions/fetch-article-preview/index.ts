@@ -93,6 +93,7 @@ serve(async (req) => {
           summary: tweetText,
           content: tweetText,
           excerpt: tweetText,
+          tweet_text: tweetText,  // Add explicit tweet_text field
           previewImg: null,
           type: 'article',
           hostname: new URL(url).hostname,

@@ -17,12 +17,12 @@ export const MentionDropdown = ({
   position = 'above' 
 }: MentionDropdownProps) => {
   const positionClass = position === 'below' 
-    ? 'absolute top-full left-0 mt-2 z-50' 
-    : 'absolute bottom-full left-0 mb-2 z-50';
+    ? 'absolute top-full left-0 mt-2 z-[999]' 
+    : 'absolute bottom-full left-0 mb-2 z-[999]';
 
   if (isLoading) {
     return (
-      <div className={`${positionClass} w-full max-w-sm bg-background border border-border rounded-lg shadow-lg p-3`}>
+      <div className={`${positionClass} w-full max-w-sm bg-card border border-border rounded-lg shadow-xl p-3`}>
         <div className="text-sm text-muted-foreground">Ricerca...</div>
       </div>
     );
@@ -40,16 +40,20 @@ export const MentionDropdown = ({
   };
 
   return (
-    <div className={`${positionClass} w-full max-w-sm bg-background border border-border rounded-lg shadow-lg overflow-hidden z-50`}>
+    <div className={`${positionClass} w-full max-w-sm bg-card border border-border rounded-lg shadow-2xl overflow-hidden`}>
       {users.map((user, index) => (
         <button
           key={user.id}
           onClick={(e) => {
+            e.preventDefault();
             e.stopPropagation();
             onSelect(user);
           }}
+          onMouseDown={(e) => {
+            e.preventDefault(); // Prevent losing focus from textarea
+          }}
           className={cn(
-            "w-full flex items-center gap-3 p-3 hover:bg-muted transition-colors text-left",
+            "w-full flex items-center gap-3 p-3 hover:bg-muted/80 transition-colors text-left cursor-pointer",
             selectedIndex === index && "bg-muted"
           )}
         >
