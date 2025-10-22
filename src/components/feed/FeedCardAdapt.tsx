@@ -2,33 +2,43 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { HeartIcon, MessageCircleIcon, BookmarkIcon, MoreHorizontal, EyeOff, ExternalLink } from "lucide-react";
-import { TrustBadge } from "@/components/ui/trust-badge";
-import { fetchTrustScore } from "@/lib/comprehension-gate";
-import { cn, getDisplayUsername } from "@/lib/utils";
-import { Post, useQuotedPost } from "@/hooks/usePosts";
-import { useToggleReaction } from "@/hooks/usePosts";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
+
+// UI Components
+import { TrustBadge } from "@/components/ui/trust-badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CommentsSheet } from "./CommentsSheet";
-import { SourceReaderGate } from "../composer/SourceReaderGate";
 import { QuizModal } from "@/components/ui/quiz-modal";
+
+// Feed Components
+import { CommentsSheet } from "./CommentsSheet";
 import { PostTestActionsModal } from "./PostTestActionsModal";
 import { QuotedPostCard } from "./QuotedPostCard";
-import { generateQA, fetchArticlePreview } from "@/lib/ai-helpers";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "@/hooks/use-toast";
 import { PostHeader } from "./PostHeader";
+import { MentionText } from "./MentionText";
+
+// Media Components
 import { MediaGallery } from "@/components/media/MediaGallery";
 import { MediaViewer } from "@/components/media/MediaViewer";
+
+// Composer Components
+import { SourceReaderGate } from "../composer/SourceReaderGate";
+
+// Hooks & Utils
+import { Post, useQuotedPost } from "@/hooks/usePosts";
+import { useToggleReaction } from "@/hooks/usePosts";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
+import { cn, getDisplayUsername } from "@/lib/utils";
+import { fetchTrustScore } from "@/lib/comprehension-gate";
+import { generateQA, fetchArticlePreview } from "@/lib/ai-helpers";
+import { supabase } from "@/integrations/supabase/client";
 import { uniqueSources } from "@/lib/url";
-import { MentionText } from "./MentionText";
 
 interface FeedCardProps {
   post: Post;
