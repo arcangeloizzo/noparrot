@@ -70,9 +70,7 @@ serve(async (req) => {
       console.log('[generate-qa] No existing Q&A found, generating new');
     }
 
-    // Generate Q&A with Lovable AI
-    const contentText = `${title || ''}\n\n${summary || ''}\n\n${excerpt || ''}`.trim();
-    
+    // Check if content is sufficient for Q&A generation
     if (contentText.length < 50) {
       return new Response(
         JSON.stringify({ insufficient_context: true }),
