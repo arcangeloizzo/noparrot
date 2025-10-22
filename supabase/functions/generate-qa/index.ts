@@ -20,7 +20,24 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Check if Q&A already exists
+    // Create content hash for cache invalidation
+    const contentText = `${title || ''}\n\n${summary || ''}\n\n${excerpt || ''}`.trim();
+    const contentHash = await crypto.subtle.digest(
+      'SHA-256',
+      new TextEncoder().encode(contentText)
+    ).then(buf => 
+      Array.from(new Uint8Array(buf))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('')
+        .substring(0, 16)
+    );
+
+    console.log('[generate-qa] Content hash:', contentHash);
+    console.log('[generate-qa] Content text length:', contentText.length);
+    console.log('[generate-qa] Title:', title);
+    console.log('[generate-qa] Summary preview:', summary?.substring(0, 100));
+
+    // Check if Q&A already exists with same content hash
     let query = supabase
       .from('post_qa')
       .select('*')
@@ -34,12 +51,23 @@ serve(async (req) => {
     
     const { data: existing } = await query.maybeSingle();
 
-    if (existing) {
-      console.log('Q&A già esistente, ritorno cached version');
+    // If exists and content hash matches, return cached version
+    if (existing && existing.content_hash === contentHash) {
+      console.log('[generate-qa] Q&A cache HIT with matching content hash');
       return new Response(
         JSON.stringify({ questions: existing.questions }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    if (existing && existing.content_hash !== contentHash) {
+      console.log('[generate-qa] Q&A cache MISS - content hash changed, regenerating');
+      console.log('[generate-qa] Old hash:', existing.content_hash);
+      console.log('[generate-qa] New hash:', contentHash);
+    }
+
+    if (!existing) {
+      console.log('[generate-qa] No existing Q&A found, generating new');
     }
 
     // Generate Q&A with Lovable AI
@@ -185,16 +213,31 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
       correctId: q.correctId
     }));
 
-    // Save to database
-    await supabase.from('post_qa').insert({
-      post_id: isPrePublish ? null : contentId,
-      source_url: sourceUrl || '',
-      questions: shuffledQuestions,
-      correct_answers: correctAnswers,
-      generated_from: 'gemini'
-    });
-
-    console.log('Q&A generated and saved successfully');
+    // Save to database (upsert to update if content changed)
+    if (existing) {
+      // Update existing record with new questions and content hash
+      await supabase.from('post_qa')
+        .update({
+          questions: shuffledQuestions,
+          correct_answers: correctAnswers,
+          content_hash: contentHash,
+          generated_from: 'gemini',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existing.id);
+      console.log('[generate-qa] Q&A updated with new content');
+    } else {
+      // Insert new record
+      await supabase.from('post_qa').insert({
+        post_id: isPrePublish ? null : contentId,
+        source_url: sourceUrl || '',
+        questions: shuffledQuestions,
+        correct_answers: correctAnswers,
+        content_hash: contentHash,
+        generated_from: 'gemini'
+      });
+      console.log('[generate-qa] Q&A generated and saved successfully');
+    }
 
     return new Response(
       JSON.stringify({ questions: shuffledQuestions }),

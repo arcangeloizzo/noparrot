@@ -47,15 +47,46 @@ serve(async (req) => {
         const parser = new DOMParser();
         const embedDoc = parser.parseFromString(embedHtml, 'text/html');
         
-        // Try to extract text from the blockquote paragraph with more specific selector
-        const tweetParagraph = embedDoc.querySelector('blockquote.twitter-tweet p[lang]');
-        const tweetText = tweetParagraph?.textContent?.trim() || 
-                          embedDoc.querySelector('blockquote.twitter-tweet p')?.textContent?.trim() || 
-                          embedDoc.querySelector('blockquote p')?.textContent?.trim() || 
-                          'Post da X/Twitter';
+        // Try multiple selectors for tweet text
+        let tweetText = '';
         
+        // 1. Try paragraph with lang attribute (main tweet text)
+        const mainParagraph = embedDoc.querySelector('blockquote.twitter-tweet p[lang]');
+        if (mainParagraph) {
+          tweetText = mainParagraph.textContent?.trim() || '';
+        }
+        
+        // 2. Fallback to any paragraph in blockquote
+        if (!tweetText) {
+          const anyParagraph = embedDoc.querySelector('blockquote.twitter-tweet p');
+          tweetText = anyParagraph?.textContent?.trim() || '';
+        }
+        
+        // 3. Get all paragraphs and join them (for threads)
+        if (!tweetText) {
+          const allParagraphs = embedDoc.querySelectorAll('blockquote.twitter-tweet p');
+          tweetText = Array.from(allParagraphs)
+            .map(p => p.textContent?.trim())
+            .filter(Boolean)
+            .join('\n');
+        }
+        
+        // Clean up: remove pic.twitter.com links and t.co shortened URLs
+        tweetText = tweetText
+          .replace(/pic\.twitter\.com\/\w+/g, '')
+          .replace(/https?:\/\/t\.co\/\w+/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        
+        // Fallback if nothing extracted
+        if (!tweetText || tweetText.length < 10) {
+          tweetText = 'Post da X/Twitter';
+        }
+        
+        console.log('[fetch-article-preview] Tweet URL:', url);
         console.log('[fetch-article-preview] Tweet text extracted:', tweetText);
         console.log('[fetch-article-preview] Tweet text length:', tweetText.length);
+        console.log('[fetch-article-preview] Embed HTML length:', embedHtml.length);
         
         return new Response(JSON.stringify({
           title: `Post by @${username}`,

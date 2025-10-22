@@ -31,25 +31,46 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const [twitterScriptLoaded, setTwitterScriptLoaded] = useState(false);
   const [isRenderingTwitter, setIsRenderingTwitter] = useState(false);
 
-  // Load and render Twitter widgets
+  // Load and render Twitter widgets with MutationObserver
   useEffect(() => {
     if (!source.embedHtml || !isOpen) return;
 
     console.log('[SourceReaderGate] Loading Twitter embed for:', source.url);
     const win = window as any;
     setIsRenderingTwitter(true);
+    let renderTimeout: number;
+    let observer: MutationObserver;
 
     const renderWidgets = () => {
-      console.log('[SourceReaderGate] Rendering Twitter widgets...');
+      console.log('[SourceReaderGate] Attempting to render Twitter widgets...');
+      
+      // Wait for embed HTML to be in DOM
+      const embedContainer = document.querySelector('.twitter-embed-container');
+      if (!embedContainer) {
+        console.warn('[SourceReaderGate] Embed container not found in DOM');
+        setIsRenderingTwitter(false);
+        return;
+      }
+
+      const blockquote = embedContainer.querySelector('blockquote.twitter-tweet');
+      if (!blockquote) {
+        console.warn('[SourceReaderGate] Blockquote not found in embed container');
+        setIsRenderingTwitter(false);
+        return;
+      }
+
+      console.log('[SourceReaderGate] Embed HTML found in DOM, calling twttr.widgets.load()');
+      
       if (win.twttr?.widgets) {
-        win.twttr.widgets.load()
+        win.twttr.widgets.load(embedContainer)
           .then(() => {
-            console.log('[SourceReaderGate] Twitter widgets loaded successfully');
+            console.log('[SourceReaderGate] Twitter widgets rendered successfully');
             setIsRenderingTwitter(false);
             setTwitterScriptLoaded(true);
+            if (renderTimeout) clearTimeout(renderTimeout);
           })
           .catch((err: any) => {
-            console.error('[SourceReaderGate] Twitter widgets loading error:', err);
+            console.error('[SourceReaderGate] Twitter widgets render error:', err);
             setIsRenderingTwitter(false);
           });
       } else {
@@ -58,11 +79,48 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       }
     };
 
+    const initTwitterWidget = () => {
+      // Set timeout fallback (5s)
+      renderTimeout = window.setTimeout(() => {
+        console.warn('[SourceReaderGate] Twitter render timeout, showing fallback');
+        setIsRenderingTwitter(false);
+      }, 5000);
+
+      // Use MutationObserver to detect when embed HTML is in DOM
+      const embedContainer = document.querySelector('.twitter-embed-container');
+      if (embedContainer) {
+        observer = new MutationObserver((mutations) => {
+          const blockquote = embedContainer.querySelector('blockquote.twitter-tweet');
+          if (blockquote) {
+            console.log('[SourceReaderGate] Blockquote detected in DOM via MutationObserver');
+            observer.disconnect();
+            // Small delay to ensure DOM is fully ready
+            setTimeout(renderWidgets, 100);
+          }
+        });
+
+        observer.observe(embedContainer, { 
+          childList: true, 
+          subtree: true 
+        });
+
+        // Also try immediately in case already in DOM
+        const blockquote = embedContainer.querySelector('blockquote.twitter-tweet');
+        if (blockquote) {
+          console.log('[SourceReaderGate] Blockquote already in DOM');
+          setTimeout(renderWidgets, 100);
+        }
+      }
+    };
+
     // Check if script already loaded
     if (win.twttr) {
       console.log('[SourceReaderGate] Twitter script already loaded');
-      renderWidgets();
-      return;
+      initTwitterWidget();
+      return () => {
+        if (renderTimeout) clearTimeout(renderTimeout);
+        if (observer) observer.disconnect();
+      };
     }
 
     // Load script
@@ -75,7 +133,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       console.log('[SourceReaderGate] Twitter script loaded');
       setTwitterScriptLoaded(true);
       // Give time for twttr object to initialize
-      setTimeout(renderWidgets, 100);
+      setTimeout(initTwitterWidget, 200);
     };
     script.onerror = (err) => {
       console.error('[SourceReaderGate] Failed to load Twitter widgets script:', err);
@@ -85,7 +143,8 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     document.body.appendChild(script);
 
     return () => {
-      // Cleanup if needed
+      if (renderTimeout) clearTimeout(renderTimeout);
+      if (observer) observer.disconnect();
     };
   }, [source.embedHtml, source.url, isOpen]);
 

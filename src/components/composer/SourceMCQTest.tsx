@@ -61,9 +61,11 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
       }
       
       console.log('[SourceMCQTest] Preview fetched:', {
-        title: preview.title,
+        title: preview.title?.substring(0, 50),
+        summaryLength: preview.summary?.length,
         contentLength: preview.content?.length,
-        summaryLength: preview.summary?.length
+        excerptLength: preview.excerpt?.length,
+        type: preview.type
       });
       
       // 2. Generate AI questions
@@ -75,6 +77,13 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
         excerpt: preview.excerpt || '',
         type: preview.type as any || 'article',
         sourceUrl: source.url
+      });
+      
+      console.log('[SourceMCQTest] Generate QA result:', {
+        hasQuestions: !!result.questions,
+        questionCount: result.questions?.length,
+        hasError: !!result.error,
+        insufficientContext: !!result.insufficient_context
       });
       
       if (result.error) {
@@ -89,7 +98,7 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
         throw new Error('Formato domande non valido');
       }
       
-      console.log('[SourceMCQTest] Questions generated:', result.questions.length);
+      console.log('[SourceMCQTest] Questions loaded successfully');
       setQuestions(result.questions);
       
     } catch (error: any) {
