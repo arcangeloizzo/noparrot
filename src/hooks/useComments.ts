@@ -9,6 +9,8 @@ export interface Comment {
   author_id: string;
   content: string;
   created_at: string;
+  parent_id: string | null;
+  level: number;
   author: {
     id: string;
     username: string;
@@ -37,6 +39,8 @@ export const useComments = (postId: string) => {
           author_id,
           content,
           created_at,
+          parent_id,
+          level,
           author:profiles!author_id (
             id,
             username,
@@ -56,7 +60,7 @@ export const useComments = (postId: string) => {
           )
         `)
         .eq('post_id', postId)
-        .order('created_at', { ascending: false }); // Dal più recente al più vecchio
+        .order('created_at', { ascending: true }); // Dal più vecchio al più recente
 
       if (error) throw error;
       
@@ -77,7 +81,17 @@ export const useAddComment = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ postId, content }: { postId: string; content: string }) => {
+    mutationFn: async ({ 
+      postId, 
+      content, 
+      parentId = null,
+      level = 0
+    }: { 
+      postId: string; 
+      content: string;
+      parentId?: string | null;
+      level?: number;
+    }) => {
       if (!user) throw new Error('Not authenticated');
 
       const { data, error } = await supabase
@@ -85,7 +99,9 @@ export const useAddComment = () => {
         .insert({
           post_id: postId,
           author_id: user.id,
-          content
+          content,
+          parent_id: parentId,
+          level
         })
         .select('id')
         .single();

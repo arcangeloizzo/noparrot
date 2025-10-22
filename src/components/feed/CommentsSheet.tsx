@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Trash2, Image as ImageIcon, Video } from 'lucide-react';
+import { ArrowLeft, Trash2, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useComments, useAddComment, useDeleteComment } from '@/hooks/useComments';
+import { useCommentReactions, useToggleCommentReaction } from '@/hooks/useCommentReactions';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -17,12 +18,13 @@ import { useMediaUpload } from '@/hooks/useMediaUpload';
 import { MediaUploadButton } from '@/components/media/MediaUploadButton';
 import { MediaPreviewTray } from '@/components/media/MediaPreviewTray';
 import { MediaGallery } from '@/components/media/MediaGallery';
+import { MediaViewer } from '@/components/media/MediaViewer';
 
 interface CommentsSheetProps {
   post: Post;
   isOpen: boolean;
   onClose: () => void;
-  mode: 'view' | 'reply'; // 'view' = click sul post, 'reply' = click sull'icona
+  mode: 'view' | 'reply';
 }
 
 export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProps) => {
@@ -37,12 +39,14 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   const [internalMode, setInternalMode] = useState<'view' | 'reply'>(mode);
   const [formHeight, setFormHeight] = useState(0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [viewerMedia, setViewerMedia] = useState<any[] | null>(null);
+  const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
 
-  // Carica il profilo dell'utente corrente dal database
   const { data: currentUserProfile } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => {
@@ -60,12 +64,15 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   const handleSubmit = async () => {
     if (!newComment.trim() || addComment.isPending) return;
 
+    const parentComment = replyingTo ? comments.find(c => c.id === replyingTo) : null;
+
     const commentId = await addComment.mutateAsync({
       postId: post.id,
-      content: newComment.trim()
+      content: newComment.trim(),
+      parentId: replyingTo,
+      level: parentComment ? parentComment.level + 1 : 0
     });
 
-    // Salvare comment_media
     if (uploadedMedia.length > 0 && commentId) {
       for (let i = 0; i < uploadedMedia.length; i++) {
         await supabase.from('comment_media').insert({
@@ -79,6 +86,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     setNewComment('');
     setShowMentions(false);
     setMentionQuery('');
+    setReplyingTo(null);
     clearMedia();
   };
 
@@ -89,7 +97,6 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     setNewComment(value);
     setCursorPosition(cursorPos);
 
-    // Detect @ mentions
     const textBeforeCursor = value.slice(0, cursorPos);
     const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
 
@@ -106,7 +113,6 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     const textBeforeCursor = newComment.slice(0, cursorPosition);
     const textAfterCursor = newComment.slice(cursorPosition);
     
-    // Remove the partial @mention and replace with full @username
     const beforeMention = textBeforeCursor.replace(/@\w*$/, '');
     const newText = `${beforeMention}@${user.username} ${textAfterCursor}`;
     
@@ -114,7 +120,6 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     setShowMentions(false);
     setMentionQuery('');
     
-    // Focus back on textarea
     setTimeout(() => {
       textareaRef.current?.focus();
       const newCursorPos = beforeMention.length + user.username.length + 2;
@@ -122,12 +127,10 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     }, 0);
   };
 
-  // Sync internal mode with prop mode
   useEffect(() => {
     setInternalMode(mode);
   }, [mode]);
 
-  // Manage body overflow
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -139,7 +142,6 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     };
   }, [isOpen]);
 
-  // Measure form height
   useEffect(() => {
     if (!formRef.current) return;
     
@@ -153,16 +155,13 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     return () => observer.disconnect();
   }, []);
 
-  // FASE 2: Auto-focus per Flow 2 (click su icona commento)
   useEffect(() => {
     if (internalMode === 'reply' && mode === 'reply' && textareaRef.current) {
-      // Immediato, senza setTimeout per evitare transizione brutta
       textareaRef.current.focus();
       textareaRef.current.click();
     }
   }, [internalMode, mode]);
 
-  // FASE 3: Gestione visualViewport per keyboard
   useEffect(() => {
     if (!isOpen) return;
 
@@ -176,7 +175,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     };
 
     window.visualViewport?.addEventListener('resize', handleViewportChange);
-    handleViewportChange(); // Initial check
+    handleViewportChange();
 
     return () => {
       window.visualViewport?.removeEventListener('resize', handleViewportChange);
@@ -214,237 +213,321 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   if (!isOpen) return null;
 
   return (
-    <div 
-      className="fixed inset-0 bg-background z-50 flex flex-col"
-      style={{ paddingTop: keyboardHeight > 0 ? `${keyboardHeight}px` : '0' }}
-    >
-      {/* Header - Sticky Top */}
-      <div className="sticky top-0 bg-background border-b border-border px-4 py-3 flex items-center justify-between z-20">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-          className="p-2 hover:bg-muted rounded-full transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <span className="font-semibold">Post</span>
-        <div className="w-10" />
-      </div>
+    <>
+      <div 
+        className="fixed inset-0 bg-background z-50 flex flex-col"
+        style={{ paddingTop: keyboardHeight > 0 ? `${keyboardHeight}px` : '0' }}
+      >
+        <div className="sticky top-0 bg-background border-b border-border px-4 py-3 flex items-center justify-between z-20">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="p-2 hover:bg-muted rounded-full transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <span className="font-semibold">Post</span>
+          <div className="w-10" />
+        </div>
 
-      {/* Original Post - Always Visible at Top (flex-shrink-0) */}
-      <div className="px-4 py-3 border-b border-border bg-background flex-shrink-0">
-        <div className="flex gap-3">
-          <div className="flex-shrink-0">
-            {getUserAvatar(post.author.avatar_url, post.author.full_name || post.author.username)}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="font-semibold text-sm">{post.author.full_name || getDisplayUsername(post.author.username)}</span>
-              <span className="text-muted-foreground text-xs">@{getDisplayUsername(post.author.username)}</span>
+        <div className="px-4 py-3 border-b border-border bg-background flex-shrink-0">
+          <div className="flex gap-3">
+            <div className="flex-shrink-0">
+              {getUserAvatar(post.author.avatar_url, post.author.full_name || post.author.username)}
             </div>
-            <p className="text-sm whitespace-pre-wrap break-words mb-3">{post.content}</p>
-            
-            {post.preview_img && (
-              <img
-                src={post.preview_img}
-                alt=""
-                className="rounded-2xl w-full mb-3"
-              />
-            )}
-            
-            {post.trust_level && (
-              <div className="mb-3">
-                <TrustBadge 
-                  band={post.trust_level}
-                  score={post.trust_level === 'ALTO' ? 85 : post.trust_level === 'MEDIO' ? 60 : 35}
-                  size="sm"
-                />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-semibold text-sm">{post.author.full_name || getDisplayUsername(post.author.username)}</span>
+                <span className="text-muted-foreground text-xs">@{getDisplayUsername(post.author.username)}</span>
               </div>
-            )}
-            
-            <div className="text-muted-foreground text-xs">
-              {formatDistanceToNow(new Date(post.created_at), {
-                addSuffix: true,
-                locale: it
-              })}
+              <p className="text-sm whitespace-pre-wrap break-words mb-3">{post.content}</p>
+              
+              {post.preview_img && (
+                <img
+                  src={post.preview_img}
+                  alt=""
+                  className="rounded-2xl w-full mb-3"
+                />
+              )}
+              
+              {post.trust_level && (
+                <div className="mb-3">
+                  <TrustBadge 
+                    band={post.trust_level}
+                    score={post.trust_level === 'ALTO' ? 85 : post.trust_level === 'MEDIO' ? 60 : 35}
+                    size="sm"
+                  />
+                </div>
+              )}
+              
+              <div className="text-muted-foreground text-xs">
+                {formatDistanceToNow(new Date(post.created_at), {
+                  addSuffix: true,
+                  locale: it
+                })}
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Comments Area - Scrollable with dynamic padding */}
-      <div 
-        className="flex-1 overflow-y-auto comments-scroll-container"
-        style={{ 
-          paddingBottom: internalMode === 'reply' ? `${formHeight}px` : '80px'
-        }}
-      >
-        <div className="divide-y divide-border">
-          {isLoading ? (
-            <div className="text-center text-muted-foreground py-8">
-              Caricamento commenti...
-            </div>
-          ) : comments.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8 px-4">
-              <p className="text-sm">Nessun commento ancora.</p>
-              <p className="text-xs mt-1">Sii il primo a rispondere!</p>
-            </div>
-          ) : (
-            comments.map((comment) => (
-              <div key={comment.id} className="px-4 py-3">
-                <div className="flex gap-3">
-                  <div className="flex-shrink-0">
-                    {getUserAvatar(comment.author.avatar_url, comment.author.full_name || comment.author.username)}
+        <div 
+          className="flex-1 overflow-y-auto comments-scroll-container"
+          style={{ 
+            paddingBottom: internalMode === 'reply' ? `${formHeight}px` : '80px'
+          }}
+        >
+          <div className="divide-y divide-border">
+            {isLoading ? (
+              <div className="text-center text-muted-foreground py-8">
+                Caricamento commenti...
+              </div>
+            ) : comments.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8 px-4">
+                <p className="text-sm">Nessun commento ancora.</p>
+                <p className="text-xs mt-1">Sii il primo a rispondere!</p>
+              </div>
+            ) : (
+              comments.map((comment) => (
+                <CommentItem
+                  key={comment.id}
+                  comment={comment}
+                  currentUserId={user?.id}
+                  onReply={() => {
+                    setReplyingTo(comment.id);
+                    setInternalMode('reply');
+                    setTimeout(() => textareaRef.current?.focus(), 100);
+                  }}
+                  onDelete={() => deleteComment.mutate(comment.id)}
+                  onMediaClick={(media, index) => {
+                    setViewerMedia(comment.media || []);
+                    setViewerInitialIndex(index);
+                  }}
+                  getUserAvatar={getUserAvatar}
+                />
+              ))
+            )}
+          </div>
+        </div>
+
+        <div 
+          ref={formRef}
+          className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
+          <div className="px-4 py-3">
+            {replyingTo && internalMode === 'reply' && (
+              <div className="mb-2 text-xs text-muted-foreground flex items-center justify-between">
+                <span>Rispondi a {comments.find(c => c.id === replyingTo)?.author.full_name}</span>
+                <button
+                  onClick={() => setReplyingTo(null)}
+                  className="text-destructive hover:underline"
+                >
+                  Annulla
+                </button>
+              </div>
+            )}
+            <div className="flex gap-3 items-start relative">
+              <div className="flex-shrink-0 pt-1">
+                {currentUserProfile && getUserAvatar(
+                  currentUserProfile.avatar_url, 
+                  currentUserProfile.full_name,
+                  currentUserProfile.username
+                )}
+              </div>
+              <div className="flex-1 min-w-0 relative">
+                {internalMode === 'view' ? (
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInternalMode('reply');
+                      setTimeout(() => textareaRef.current?.focus(), 0);
+                    }}
+                    className="w-full bg-transparent cursor-text py-2 text-[15px] min-h-[40px] text-muted-foreground"
+                  >
+                    Posta la tua risposta
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-sm">
-                        {comment.author.full_name || getDisplayUsername(comment.author.username)}
-                      </span>
-                      <span className="text-muted-foreground text-xs">
-                        @{getDisplayUsername(comment.author.username)}
-                      </span>
-                      <span className="text-muted-foreground text-xs">·</span>
-                      <span className="text-muted-foreground text-xs">
-                        {formatDistanceToNow(new Date(comment.created_at), {
-                          addSuffix: true,
-                          locale: it
-                        })}
-                      </span>
-                    </div>
-                     <p className="text-sm whitespace-pre-wrap break-words">
-                      <MentionText text={comment.content} />
-                    </p>
+                ) : (
+                  <>
+                    <textarea
+                      ref={textareaRef}
+                      value={newComment}
+                      onChange={handleTextChange}
+                      onClick={(e) => e.stopPropagation()}
+                      placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
+                      className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[40px] max-h-[120px] placeholder:text-muted-foreground leading-normal"
+                      maxLength={500}
+                      inputMode="text"
+                      rows={3}
+                      style={{ 
+                        height: 'auto',
+                        overflowY: newComment.split('\n').length > 5 ? 'scroll' : 'hidden'
+                      }}
+                      onInput={(e) => {
+                        const target = e.target as HTMLTextAreaElement;
+                        target.style.height = 'auto';
+                        target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                      }}
+                    />
                     
-                    {/* Comment Media */}
-                    {comment.media && comment.media.length > 0 && (
-                      <MediaGallery 
-                        media={comment.media}
-                        onClick={(media) => {
-                          window.open(media.url, '_blank');
-                        }}
+                    {showMentions && (
+                      <MentionDropdown
+                        users={mentionUsers}
+                        onSelect={handleSelectMention}
+                        isLoading={isSearching}
                       />
                     )}
                     
-                    {user?.id === comment.author_id && (
-                      <button
-                        onClick={() => deleteComment.mutate(comment.id)}
-                        className="text-xs text-destructive hover:underline mt-1 flex items-center gap-1"
+                    <MediaPreviewTray
+                      media={uploadedMedia}
+                      onRemove={removeMedia}
+                    />
+                    
+                    <div className="flex gap-2 mt-2">
+                      <MediaUploadButton
+                        type="image"
+                        onFilesSelected={(files) => uploadMedia(files, 'image')}
+                        maxFiles={4}
+                        disabled={isUploading}
+                      />
+                      <MediaUploadButton
+                        type="video"
+                        onFilesSelected={(files) => uploadMedia(files, 'video')}
+                        maxFiles={1}
+                        disabled={isUploading}
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-end gap-3 mt-3">
+                      <p className="text-xs text-muted-foreground">
+                        {newComment.length}/500
+                      </p>
+                      <Button
+                        onClick={handleSubmit}
+                        disabled={!newComment.trim() || addComment.isPending}
+                        size="sm"
+                        className="rounded-full px-4 font-bold"
                       >
-                        <Trash2 className="w-3 h-3" />
-                        Elimina
-                      </button>
-                    )}
-                  </div>
-                </div>
+                        {addComment.isPending ? 'Invio...' : 'Rispondi'}
+                      </Button>
+                    </div>
+                  </>
+                )}
               </div>
-            ))
-          )}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Single Fixed Bottom Element - Conditional Rendering */}
-      <div 
-        ref={formRef}
-        className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-      >
-        <div className="px-4 py-3">
-          <div className="flex gap-3 items-start relative">
-            <div className="flex-shrink-0 pt-1">
-              {currentUserProfile && getUserAvatar(
-                currentUserProfile.avatar_url, 
-                currentUserProfile.full_name,
-                currentUserProfile.username
-              )}
-            </div>
-            <div className="flex-1 min-w-0 relative">
-              {internalMode === 'view' ? (
-                // FASE 1: Flow 1 - DIV cliccabile (non textarea!) per iOS Safari
-                <div
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setInternalMode('reply');
-                    // Focus immediato dopo cambio mode
-                    setTimeout(() => textareaRef.current?.focus(), 0);
-                  }}
-                  className="w-full bg-transparent cursor-text py-2 text-[15px] min-h-[40px] text-muted-foreground"
-                >
-                  Posta la tua risposta
-                </div>
-              ) : (
-                // Flow 2 or Flow 1 after click: Enabled textarea
-                <>
-                  <textarea
-                    ref={textareaRef}
-                    value={newComment}
-                    onChange={handleTextChange}
-                    onClick={(e) => e.stopPropagation()}
-                    placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
-                    className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[40px] max-h-[120px] placeholder:text-muted-foreground leading-normal"
-                    maxLength={500}
-                    inputMode="text"
-                    rows={3}
-                    style={{ 
-                      height: 'auto',
-                      overflowY: newComment.split('\n').length > 5 ? 'scroll' : 'hidden'
-                    }}
-                    onInput={(e) => {
-                      const target = e.target as HTMLTextAreaElement;
-                      target.style.height = 'auto';
-                      target.style.height = Math.min(target.scrollHeight, 120) + 'px';
-                    }}
-                  />
-                  
-                  {showMentions && (
-                    <MentionDropdown
-                      users={mentionUsers}
-                      onSelect={handleSelectMention}
-                      isLoading={isSearching}
-                    />
-                  )}
-                  
-                  <MediaPreviewTray
-                    media={uploadedMedia}
-                    onRemove={removeMedia}
-                  />
-                  
-                  <div className="flex gap-2 mt-2">
-                    <MediaUploadButton
-                      type="image"
-                      onFilesSelected={(files) => uploadMedia(files, 'image')}
-                      maxFiles={4}
-                      disabled={isUploading}
-                    />
-                    <MediaUploadButton
-                      type="video"
-                      onFilesSelected={(files) => uploadMedia(files, 'video')}
-                      maxFiles={1}
-                      disabled={isUploading}
-                    />
-                  </div>
-                   
-                   <div className="flex items-center justify-end gap-3 mt-3">
-                     <p className="text-xs text-muted-foreground">
-                       {newComment.length}/500
-                     </p>
-                     <Button
-                       onClick={handleSubmit}
-                       disabled={!newComment.trim() || addComment.isPending}
-                       size="sm"
-                       className="rounded-full px-4 font-bold"
-                     >
-                       {addComment.isPending ? 'Invio...' : 'Rispondi'}
-                     </Button>
-                   </div>
-                 </>
-               )}
-             </div>
-           </div>
-         </div>
-       </div>
-     </div>
-   );
- };
+      {viewerMedia && (
+        <MediaViewer
+          media={viewerMedia}
+          initialIndex={viewerInitialIndex}
+          onClose={() => setViewerMedia(null)}
+        />
+      )}
+    </>
+  );
+};
+
+interface CommentItemProps {
+  comment: any;
+  currentUserId?: string;
+  onReply: () => void;
+  onDelete: () => void;
+  onMediaClick: (media: any, index: number) => void;
+  getUserAvatar: (avatarUrl: string | null | undefined, name: string | undefined, username?: string) => JSX.Element;
+}
+
+const CommentItem = ({ comment, currentUserId, onReply, onDelete, onMediaClick, getUserAvatar }: CommentItemProps) => {
+  const { data: reactions } = useCommentReactions(comment.id);
+  const toggleReaction = useToggleCommentReaction();
+
+  const handleLike = () => {
+    toggleReaction.mutate({
+      commentId: comment.id,
+      isLiked: reactions?.likedByMe || false
+    });
+  };
+
+  return (
+    <div 
+      className="px-4 py-3 relative"
+      style={{ paddingLeft: `${16 + comment.level * 16}px` }}
+    >
+      {comment.level > 0 && (
+        <div 
+          className="absolute left-4 top-0 bottom-0 w-0.5 bg-border"
+          style={{ marginLeft: `${comment.level * 16 - 16}px` }}
+        />
+      )}
+      <div className="flex gap-3">
+        <div className="flex-shrink-0">
+          {getUserAvatar(comment.author.avatar_url, comment.author.full_name || comment.author.username)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-semibold text-sm">
+              {comment.author.full_name || getDisplayUsername(comment.author.username)}
+            </span>
+            <span className="text-muted-foreground text-xs">
+              @{getDisplayUsername(comment.author.username)}
+            </span>
+            <span className="text-muted-foreground text-xs">·</span>
+            <span className="text-muted-foreground text-xs">
+              {formatDistanceToNow(new Date(comment.created_at), {
+                addSuffix: true,
+                locale: it
+              })}
+            </span>
+          </div>
+          <p className="text-sm whitespace-pre-wrap break-words mb-2">
+            <MentionText text={comment.content} />
+          </p>
+          
+          {comment.media && comment.media.length > 0 && (
+            <MediaGallery 
+              media={comment.media}
+              onClick={onMediaClick}
+            />
+          )}
+          
+          <div className="flex items-center gap-4 mt-2">
+            <button
+              onClick={handleLike}
+              className="flex items-center gap-1 text-muted-foreground hover:text-red-500 transition-colors"
+            >
+              <Heart 
+                className={cn(
+                  "w-4 h-4",
+                  reactions?.likedByMe && "fill-red-500 text-red-500"
+                )} 
+              />
+              {reactions?.likesCount ? (
+                <span className="text-xs">{reactions.likesCount}</span>
+              ) : null}
+            </button>
+            
+            <button
+              onClick={onReply}
+              className="text-xs text-muted-foreground hover:text-primary transition-colors"
+            >
+              Rispondi
+            </button>
+            
+            {currentUserId === comment.author_id && (
+              <button
+                onClick={onDelete}
+                className="text-xs text-destructive hover:underline flex items-center gap-1"
+              >
+                <Trash2 className="w-3 h-3" />
+                Elimina
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

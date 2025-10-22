@@ -9,7 +9,7 @@ interface Media {
 
 interface MediaGalleryProps {
   media: Media[];
-  onClick?: (media: Media) => void;
+  onClick?: (media: Media, index: number) => void;
 }
 
 export const MediaGallery = ({ media, onClick }: MediaGalleryProps) => {
@@ -18,10 +18,12 @@ export const MediaGallery = ({ media, onClick }: MediaGalleryProps) => {
   const images = media.filter(m => m.type === 'image');
   const videos = media.filter(m => m.type === 'video');
 
-  const handleMediaClick = (e: React.MouseEvent, item: Media) => {
+  const handleMediaClick = (e: React.MouseEvent, item: Media, index: number) => {
     if (onClick) {
       e.stopPropagation();
-      onClick(item);
+      // Pass the index within the full media array
+      const fullIndex = media.findIndex(m => m.id === item.id);
+      onClick(item, fullIndex);
     }
   };
 
@@ -41,7 +43,7 @@ export const MediaGallery = ({ media, onClick }: MediaGalleryProps) => {
               className={`relative ${
                 images.length === 3 && idx === 0 ? 'col-span-2' : ''
               } ${onClick ? 'cursor-pointer' : ''}`}
-              onClick={(e) => handleMediaClick(e, img)}
+              onClick={(e) => handleMediaClick(e, img, idx)}
             >
               <img
                 src={img.url}
@@ -59,7 +61,7 @@ export const MediaGallery = ({ media, onClick }: MediaGalleryProps) => {
         <div 
           key={vid.id} 
           className={`rounded-2xl overflow-hidden ${onClick ? 'cursor-pointer' : ''}`}
-          onClick={(e) => handleMediaClick(e, vid)}
+          onClick={(e) => handleMediaClick(e, vid, videos.findIndex(v => v.id === vid.id) + images.length)}
         >
           <video
             src={vid.url}

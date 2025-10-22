@@ -53,12 +53,46 @@ export type Database = {
           },
         ]
       }
+      comment_reactions: {
+        Row: {
+          comment_id: string
+          created_at: string | null
+          id: string
+          reaction_type: string
+          user_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string | null
+          id?: string
+          reaction_type?: string
+          user_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string | null
+          id?: string
+          reaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comment_reactions_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comments: {
         Row: {
           author_id: string
           content: string
           created_at: string | null
           id: string
+          level: number
+          parent_id: string | null
           post_id: string
         }
         Insert: {
@@ -66,6 +100,8 @@ export type Database = {
           content: string
           created_at?: string | null
           id?: string
+          level?: number
+          parent_id?: string | null
           post_id: string
         }
         Update: {
@@ -73,6 +109,8 @@ export type Database = {
           content?: string
           created_at?: string | null
           id?: string
+          level?: number
+          parent_id?: string | null
           post_id?: string
         }
         Relationships: [
@@ -88,6 +126,13 @@ export type Database = {
             columns: ["author_id"]
             isOneToOne: false
             referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
             referencedColumns: ["id"]
           },
           {
@@ -187,6 +232,115 @@ export type Database = {
           width?: number | null
         }
         Relationships: []
+      }
+      media_comment_reactions: {
+        Row: {
+          created_at: string | null
+          id: string
+          media_comment_id: string
+          reaction_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          media_comment_id: string
+          reaction_type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          media_comment_id?: string
+          reaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_comment_reactions_media_comment_id_fkey"
+            columns: ["media_comment_id"]
+            isOneToOne: false
+            referencedRelation: "media_comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      media_comments: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string | null
+          id: string
+          level: number
+          media_id: string
+          parent_id: string | null
+        }
+        Insert: {
+          author_id: string
+          content: string
+          created_at?: string | null
+          id?: string
+          level?: number
+          media_id: string
+          parent_id?: string | null
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string | null
+          id?: string
+          level?: number
+          media_id?: string
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_comments_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "media_comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "media_comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      media_reactions: {
+        Row: {
+          created_at: string | null
+          id: string
+          media_id: string
+          reaction_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          media_id: string
+          reaction_type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          media_id?: string
+          reaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_reactions_media_id_fkey"
+            columns: ["media_id"]
+            isOneToOne: false
+            referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -666,10 +820,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      is_valid_username: {
-        Args: { username: string }
-        Returns: boolean
-      }
+      is_valid_username: { Args: { username: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
