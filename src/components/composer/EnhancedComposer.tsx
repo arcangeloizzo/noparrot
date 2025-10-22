@@ -41,6 +41,8 @@ export function EnhancedComposer({
   const [showMentions, setShowMentions] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const [urlPreview, setUrlPreview] = useState<any>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const readerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
@@ -257,7 +259,7 @@ export function EnhancedComposer({
                   <Textarea
                     ref={textareaRef}
                     value={text}
-                    onChange={(e) => {
+                    onChange={async (e) => {
                       const value = e.target.value;
                       const cursorPos = e.target.selectionStart;
                       
@@ -273,6 +275,33 @@ export function EnhancedComposer({
                       } else {
                         setShowMentions(false);
                         setMentionQuery('');
+                      }
+                      
+                      // Auto-detect URL and load preview
+                      const urlMatch = value.match(/https?:\/\/[^\s]+/);
+                      if (urlMatch && !isLoadingPreview && !urlPreview) {
+                        const detectedUrl = urlMatch[0];
+                        setIsLoadingPreview(true);
+                        
+                        try {
+                          const { data } = await supabase.functions.invoke('fetch-article-preview', {
+                            body: { url: detectedUrl }
+                          });
+                          
+                          if (data) {
+                            setUrlPreview(data);
+                            // Remove URL from text
+                            setText(value.replace(detectedUrl, '').trim());
+                            // Add to sources if not already there
+                            if (!sources.includes(detectedUrl)) {
+                              setSources(prev => [...prev, detectedUrl]);
+                            }
+                          }
+                        } catch (error) {
+                          console.error('Error loading preview:', error);
+                        } finally {
+                          setIsLoadingPreview(false);
+                        }
                       }
                     }}
                     onKeyDown={(e) => {
@@ -311,6 +340,56 @@ export function EnhancedComposer({
                   )}
                 </div>
               </div>
+              
+              {/* URL Preview Card */}
+              {urlPreview && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-foreground">
+                      Anteprima Link
+                    </label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setUrlPreview(null);
+                        setSources(prev => prev.filter(s => !sources.includes(s)));
+                      }}
+                      className="h-6 w-6 p-0"
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                  <div className="border border-border rounded-xl overflow-hidden bg-muted/20">
+                    {urlPreview.image && (
+                      <div className="aspect-video w-full overflow-hidden bg-muted">
+                        <img 
+                          src={urlPreview.image}
+                          alt={urlPreview.title || ''}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <div className="p-3">
+                      {urlPreview.platform === 'twitter' && urlPreview.author_username && (
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+                            <span className="text-xs font-semibold text-primary">
+                              {urlPreview.author_username.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <span className="text-sm font-semibold">@{urlPreview.author_username}</span>
+                        </div>
+                      )}
+                      <div className="text-xs text-muted-foreground mb-1">{urlPreview.hostname}</div>
+                      <div className="font-semibold text-sm mb-1">{urlPreview.title}</div>
+                      {urlPreview.content && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">{urlPreview.content}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Media Upload */}
               <div className="space-y-3">

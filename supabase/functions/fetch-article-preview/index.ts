@@ -39,74 +39,85 @@ serve(async (req) => {
       const embedHtml = await fetchTwitterEmbed(url);
       
       if (embedHtml) {
-        // Extract info from embed HTML
         const parser = new DOMParser();
         const embedDoc = parser.parseFromString(embedHtml, 'text/html');
         
-        // Extract author info from blockquote
+        // Extract author info
         const blockquote = embedDoc.querySelector('blockquote.twitter-tweet');
         const authorLink = blockquote?.querySelector('a[href*="/status/"]');
         const authorName = authorLink?.textContent?.trim() || '';
         
-        // Extract username from URL
         const urlParts = url.split('/');
         const username = urlParts[3] || 'Twitter';
         
-        // Extract tweet text
+        // Extract tweet text - get FULL text including all paragraphs
         let tweetText = '';
-        const mainParagraph = embedDoc.querySelector('blockquote.twitter-tweet p[lang]');
-        if (mainParagraph) {
-          tweetText = mainParagraph.textContent?.trim() || '';
-        }
+        const allParagraphs = embedDoc.querySelectorAll('blockquote.twitter-tweet p');
         
-        if (!tweetText) {
-          const anyParagraph = embedDoc.querySelector('blockquote.twitter-tweet p');
-          tweetText = anyParagraph?.textContent?.trim() || '';
-        }
+        // Join ALL paragraphs to get complete tweet text
+        const paragraphTexts = Array.from(allParagraphs)
+          .map(p => p.textContent?.trim())
+          .filter(text => {
+            // Filter out link-only paragraphs (date/author links)
+            if (!text) return false;
+            // Keep if it's not just a link
+            return !text.match(/^https?:\/\//);
+          });
         
-        if (!tweetText) {
-          const allParagraphs = embedDoc.querySelectorAll('blockquote.twitter-tweet p');
-          tweetText = Array.from(allParagraphs)
-            .map(p => p.textContent?.trim())
-            .filter(Boolean)
-            .join('\n');
-        }
+        tweetText = paragraphTexts.join('\n\n');
         
-        // Clean up text
+        // Clean up: remove pic.twitter.com and t.co links
         tweetText = tweetText
           .replace(/pic\.twitter\.com\/\w+/g, '')
           .replace(/https?:\/\/t\.co\/\w+/g, '')
-          .replace(/\s+/g, ' ')
           .trim();
         
         if (!tweetText || tweetText.length < 10) {
           tweetText = 'Post da X/Twitter';
         }
         
-        // Try to extract image from embed HTML (usually in <a> tags with pic.twitter.com)
+        // Try to extract image - look for <a> tags with pic.twitter.com
+        // The actual image URL is not in oEmbed HTML, we need to fetch the actual tweet page
         let tweetImage = null;
-        const imgLinks = Array.from(embedDoc.querySelectorAll('a[href*="pic.twitter.com"]'));
-        if (imgLinks.length > 0) {
-          // Twitter images are often linked, we'll need to construct a proper image URL
-          // For now, we'll mark that an image exists
-          tweetImage = null; // We can't reliably extract the actual image URL from oEmbed
+        
+        try {
+          // Fetch the actual tweet page to extract image
+          const tweetPageResponse = await fetch(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; NoParrot/1.0)'
+            }
+          });
+          
+          if (tweetPageResponse.ok) {
+            const tweetPageHtml = await tweetPageResponse.text();
+            const tweetDoc = parser.parseFromString(tweetPageHtml, 'text/html');
+            
+            // Try to get og:image from meta tags (this is the tweet image)
+            const ogImage = tweetDoc.querySelector('meta[property="og:image"]');
+            tweetImage = ogImage?.getAttribute('content') || null;
+            
+            console.log('[fetch-article-preview] Extracted image from tweet page:', tweetImage);
+          }
+        } catch (error) {
+          console.error('[fetch-article-preview] Error fetching tweet page for image:', error);
         }
         
         console.log('[fetch-article-preview] Tweet URL:', url);
         console.log('[fetch-article-preview] Author:', authorName);
         console.log('[fetch-article-preview] Username:', username);
-        console.log('[fetch-article-preview] Tweet text:', tweetText);
-        console.log('[fetch-article-preview] Tweet text length:', tweetText.length);
+        console.log('[fetch-article-preview] Full tweet text length:', tweetText.length);
+        console.log('[fetch-article-preview] Full tweet text:', tweetText);
         
         return new Response(JSON.stringify({
           title: `Post by @${username}`,
           summary: tweetText,
-          content: tweetText,
+          content: tweetText, // FULL untruncated text
           excerpt: tweetText,
           tweet_text: tweetText,
           author_name: authorName || username,
           author_username: username,
           previewImg: tweetImage,
+          image: tweetImage,
           type: 'article',
           hostname: new URL(url).hostname,
           embedHtml,

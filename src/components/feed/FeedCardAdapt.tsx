@@ -475,15 +475,17 @@ export const FeedCard = ({
                   window.open(post.shared_url, '_blank', 'noopener,noreferrer');
                 }}
               >
-                {(articlePreview?.image || post.preview_img) && (
+                {/* Image preview */}
+                {(articlePreview?.image || articlePreview?.previewImg || post.preview_img) && (
                   <div className="aspect-video w-full overflow-hidden bg-muted">
                     <img 
-                      src={articlePreview?.image || post.preview_img}
+                      src={articlePreview?.image || articlePreview?.previewImg || post.preview_img}
                       alt={articlePreview?.title || post.shared_title || ''}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>
                 )}
+                
                 <div className="p-3">
                   {/* Tweet author info */}
                   {articlePreview?.platform === 'twitter' && articlePreview?.author_username && (
@@ -511,7 +513,7 @@ export const FeedCard = ({
                   
                   {/* Show full tweet content or article title */}
                   {articlePreview?.content && articlePreview?.platform === 'twitter' ? (
-                    <p className="text-sm text-foreground line-clamp-3 whitespace-pre-wrap leading-relaxed">
+                    <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
                       {articlePreview.content}
                     </p>
                   ) : (
