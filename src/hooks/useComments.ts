@@ -56,7 +56,7 @@ export const useComments = (postId: string) => {
           )
         `)
         .eq('post_id', postId)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false }); // Dal più recente al più vecchio
 
       if (error) throw error;
       

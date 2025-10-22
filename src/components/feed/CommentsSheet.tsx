@@ -80,12 +80,6 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     setShowMentions(false);
     setMentionQuery('');
     clearMedia();
-    
-    // Scroll to top per vedere il nuovo commento
-    setTimeout(() => {
-      const scrollContainer = document.querySelector('.comments-scroll-container');
-      scrollContainer?.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 300);
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -298,7 +292,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
               <p className="text-xs mt-1">Sii il primo a rispondere!</p>
             </div>
           ) : (
-            [...comments].reverse().map((comment) => (
+            comments.map((comment) => (
               <div key={comment.id} className="px-4 py-3">
                 <div className="flex gap-3">
                   <div className="flex-shrink-0">
@@ -326,7 +320,12 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                     
                     {/* Comment Media */}
                     {comment.media && comment.media.length > 0 && (
-                      <MediaGallery media={comment.media} />
+                      <MediaGallery 
+                        media={comment.media}
+                        onClick={(media) => {
+                          window.open(media.url, '_blank');
+                        }}
+                      />
                     )}
                     
                     {user?.id === comment.author_id && (

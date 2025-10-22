@@ -9,13 +9,21 @@ interface Media {
 
 interface MediaGalleryProps {
   media: Media[];
+  onClick?: (media: Media) => void;
 }
 
-export const MediaGallery = ({ media }: MediaGalleryProps) => {
+export const MediaGallery = ({ media, onClick }: MediaGalleryProps) => {
   if (!media || media.length === 0) return null;
 
   const images = media.filter(m => m.type === 'image');
   const videos = media.filter(m => m.type === 'video');
+
+  const handleMediaClick = (e: React.MouseEvent, item: Media) => {
+    if (onClick) {
+      e.stopPropagation();
+      onClick(item);
+    }
+  };
 
   return (
     <div className="mt-3 space-y-2">
@@ -32,7 +40,8 @@ export const MediaGallery = ({ media }: MediaGalleryProps) => {
               key={img.id}
               className={`relative ${
                 images.length === 3 && idx === 0 ? 'col-span-2' : ''
-              }`}
+              } ${onClick ? 'cursor-pointer' : ''}`}
+              onClick={(e) => handleMediaClick(e, img)}
             >
               <img
                 src={img.url}
@@ -47,7 +56,11 @@ export const MediaGallery = ({ media }: MediaGalleryProps) => {
 
       {/* Video */}
       {videos.map((vid) => (
-        <div key={vid.id} className="rounded-2xl overflow-hidden">
+        <div 
+          key={vid.id} 
+          className={`rounded-2xl overflow-hidden ${onClick ? 'cursor-pointer' : ''}`}
+          onClick={(e) => handleMediaClick(e, vid)}
+        >
           <video
             src={vid.url}
             poster={vid.thumbnail_url}

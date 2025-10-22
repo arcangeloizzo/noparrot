@@ -1,703 +1,331 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { X, Link, Plus, User, ChevronLeft, Image, FileText, MapPin } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { GateQueueManager, SourceWithGate, GateQueueState } from '@/lib/comprehension-gate-extended';
-import { GateQueueModal } from './GateQueueModal';
-import { SourceChip } from './SourceChip';
-import { SourceReaderGate } from './SourceReaderGate';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { toast } from '@/hooks/use-toast';
-import { useQueryClient } from '@tanstack/react-query';
-import { fetchArticlePreview, generateQA, validateAnswers } from '@/lib/ai-helpers';
-import { QuizModal } from '@/components/ui/quiz-modal';
-import { QuotedPostCard } from '@/components/feed/QuotedPostCard';
-import { MentionDropdown } from '@/components/feed/MentionDropdown';
-import { useUserSearch } from '@/hooks/useUserSearch';
-import { useMediaUpload } from '@/hooks/useMediaUpload';
-import { MediaUploadButton } from '@/components/media/MediaUploadButton';
-import { MediaPreviewTray } from '@/components/media/MediaPreviewTray';
+import { useState, useEffect } from "react";
+import { X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useMediaUpload } from "@/hooks/useMediaUpload";
+import { MediaUploadButton } from "@/components/media/MediaUploadButton";
+import { MediaPreviewTray } from "@/components/media/MediaPreviewTray";
+import { fetchArticlePreview } from "@/lib/ai-helpers";
+import { QuotedPostCard } from "@/components/feed/QuotedPostCard";
+import { SourceReaderGate } from "./SourceReaderGate";
+import { generateQA } from "@/lib/ai-helpers";
+import { QuizModal } from "@/components/ui/quiz-modal";
 
 interface ComposerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  quotedPost?: {
-    id: string;
-    content: string;
-    created_at: string;
-    shared_url?: string | null;
-    shared_title?: string | null;
-    preview_img?: string | null;
-    author: {
-      username: string;
-      full_name: string | null;
-      avatar_url: string | null;
-    };
-  } | null;
+  quotedPost?: any;
 }
 
-export const ComposerModal: React.FC<ComposerModalProps> = ({ isOpen, onClose, quotedPost }) => {
+const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+
+export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProps) {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
-  const [content, setContent] = useState('');
-  const [sources, setSources] = useState<string[]>([]);
-  const [newSource, setNewSource] = useState('');
-  const [showGateQueue, setShowGateQueue] = useState(false);
-  const [gateQueueState, setGateQueueState] = useState<GateQueueState | null>(null);
+  const [content, setContent] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
-  const [currentSourceIndex, setCurrentSourceIndex] = useState(0);
-  const [showQuiz, setShowQuiz] = useState(false);
-  const [currentQuiz, setCurrentQuiz] = useState<any>(null);
+  const [detectedUrl, setDetectedUrl] = useState<string | null>(null);
+  const [urlPreview, setUrlPreview] = useState<any>(null);
   const [showReader, setShowReader] = useState(false);
-  const [currentReaderSource, setCurrentReaderSource] = useState<any>(null);
-  const [sourceMetadata, setSourceMetadata] = useState<Record<string, any>>({});
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizData, setQuizData] = useState<any>(null);
   
-  // Mention state management
-  const [mentionQuery, setMentionQuery] = useState('');
-  const [showMentions, setShowMentions] = useState(false);
-  const [cursorPosition, setCursorPosition] = useState(0);
-  const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
-  
-  // User search for mentions
-  const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
-  
-  // Media upload hook
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
 
-  // Create queue manager for sources with gate states
-  const queueManager = useMemo(() => {
-    if (sources.length === 0) return null;
-    return new GateQueueManager(sources, setGateQueueState);
-  }, [sources]);
-
-  // Check if all sources are passed
-  const allSourcesPassed = useMemo(() => {
-    if (sources.length === 0) return true; // No sources = can publish
-    return gateQueueState?.allPassed || false;
-  }, [sources.length, gateQueueState?.allPassed]);
-
-  const addSource = async () => {
-    if (newSource.trim() && !sources.includes(newSource.trim())) {
-      const url = newSource.trim();
-      
-      // Show loading toast
-      toast({
-        title: 'Caricamento fonte...',
-        description: 'Recupero informazioni dall\'articolo'
-      });
-      
-      // Wait for metadata before adding source
-      const metadata = await fetchArticlePreview(url);
-      
-      if (metadata) {
-        setSourceMetadata(prev => ({ ...prev, [url]: metadata }));
-        setSources([...sources, url]);
-        setNewSource('');
-        
-        toast({
-          title: '✅ Fonte aggiunta',
-          description: metadata.title || 'Fonte pronta'
-        });
-      } else {
-        toast({
-          title: 'Errore',
-          description: 'Impossibile recuperare informazioni dalla fonte',
-          variant: 'destructive'
-        });
+  // Detect URL in content
+  useEffect(() => {
+    const urls = content.match(URL_REGEX);
+    if (urls && urls.length > 0) {
+      const url = urls[0];
+      if (url !== detectedUrl) {
+        setDetectedUrl(url);
+        loadPreview(url);
       }
+    } else {
+      setDetectedUrl(null);
+      setUrlPreview(null);
     }
-  };
+  }, [content]);
 
-  const removeSource = (index: number) => {
-    const removedSource = sources[index];
-    setSources(sources.filter((_, i) => i !== index));
-    
-    // If queue manager exists, remove from queue as well
-    if (queueManager && gateQueueState) {
-      const sourceInQueue = gateQueueState.sources.find(s => s.url === removedSource);
-      if (sourceInQueue) {
-        queueManager.removeSource(sourceInQueue.id);
+  const loadPreview = async (url: string) => {
+    try {
+      const preview = await fetchArticlePreview(url);
+      if (preview) {
+        setUrlPreview({ ...preview, url });
       }
+    } catch (error) {
+      console.error('Error loading preview:', error);
     }
   };
 
-  const handleSubmit = async () => {
-    if (!content.trim()) return;
+  const handlePublish = async () => {
+    if (!user || !content.trim()) return;
 
-    // If no sources, publish immediately
-    if (sources.length === 0) {
-      publishContent();
+    // Se c'è un link → apri reader + comprehension gate
+    if (detectedUrl) {
+      setShowReader(true);
       return;
     }
 
-    // Start comprehension gate for sources
-    toast({
-      title: 'Validazione fonti...',
-      description: 'Leggi e comprendi le fonti per pubblicare'
-    });
-    
-    setCurrentSourceIndex(0);
-    await startSourceGate(0);
+    // Nessun link → pubblica subito
+    await publishPost();
   };
 
-  const startSourceGate = async (index: number) => {
-    console.log('[startSourceGate] Called with index:', index, 'Total sources:', sources.length);
-    
-    if (index >= sources.length) {
-      // All sources passed!
-      console.log('[startSourceGate] All sources validated, publishing...');
-      toast({
-        title: '✅ Tutte le fonti validate!',
-        description: 'Pubblicazione in corso...'
-      });
-      await publishContent();
-      return;
-    }
-
-    const sourceUrl = sources[index];
-    const metadata = sourceMetadata[sourceUrl];
-    
-    if (!metadata) {
-      toast({
-        title: 'Errore',
-        description: 'Impossibile caricare la fonte',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    // 1. First show the Reader
-    setCurrentReaderSource({
-      url: sourceUrl,
-      title: metadata.title || '',
-      content: metadata.excerpt || metadata.summary || '',
-      sourceIndex: index,
-      ...metadata
-    });
-    setShowReader(true);
-  };
-
-  // Handler when Reader is completed
   const handleReaderComplete = async () => {
     setShowReader(false);
     
-    if (!currentReaderSource) return;
-    
-    const sourceUrl = currentReaderSource.url;
-    const index = currentReaderSource.sourceIndex;
-    const metadata = currentReaderSource;
+    if (!urlPreview || !user) return;
 
-    toast({
-      title: 'Generazione Q&A...',
-      description: `Fonte ${index + 1}/${sources.length}`
-    });
+    toast.loading('Generazione Q&A...');
 
     const result = await generateQA({
       contentId: null,
       isPrePublish: true,
-      title: metadata.title || '',
-      summary: metadata.content || metadata.summary || '',
-      excerpt: metadata.excerpt,
-      type: metadata.type || 'article',
-      sourceUrl: sourceUrl,
+      title: urlPreview.title || '',
+      summary: urlPreview.excerpt || urlPreview.summary || '',
+      sourceUrl: detectedUrl || undefined,
     });
 
+    toast.dismiss();
+
     if (result.insufficient_context) {
-      toast({
-        title: 'Contenuto insufficiente',
-        description: 'Puoi comunque usare questa fonte',
-        variant: 'default'
-      });
-      // Skip to next source
-      setCurrentSourceIndex(index + 1);
-      startSourceGate(index + 1);
+      toast.info('Contenuto troppo breve, pubblicazione diretta');
+      await publishPost();
       return;
     }
 
     if (result.error || !result.questions) {
-      toast({
-        title: 'Errore generazione quiz',
-        description: result.error || 'Impossibile generare Q&A',
-        variant: 'destructive'
-      });
+      toast.error('Errore generazione quiz');
       return;
     }
 
-    // 2. Then show the Quiz
-    setCurrentQuiz({
+    setQuizData({
       questions: result.questions,
-      sourceUrl: sourceUrl,
-      sourceIndex: index,
-      metadata
+      sourceUrl: detectedUrl || ''
     });
     setShowQuiz(true);
   };
 
-  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    const cursorPos = e.target.selectionStart;
-    
-    setContent(value);
-    setCursorPosition(cursorPos);
-
-    // Detect @ mentions
-    const textBeforeCursor = value.slice(0, cursorPos);
-    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
-
-    if (mentionMatch) {
-      setMentionQuery(mentionMatch[1]);
-      setShowMentions(true);
-    } else {
-      setShowMentions(false);
-      setMentionQuery('');
-    }
-  };
-
-  const handleSelectMention = (user: { username: string }) => {
-    const textBeforeCursor = content.slice(0, cursorPosition);
-    const textAfterCursor = content.slice(cursorPosition);
-    
-    // Remove the partial @mention and replace with full @username
-    const beforeMention = textBeforeCursor.replace(/@\w*$/, '');
-    const newText = `${beforeMention}@${user.username} ${textAfterCursor}`;
-    
-    setContent(newText);
-    setShowMentions(false);
-    setMentionQuery('');
-    
-    // Focus back on textarea
-    setTimeout(() => {
-      contentTextareaRef.current?.focus();
-      const newCursorPos = beforeMention.length + user.username.length + 2;
-      contentTextareaRef.current?.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
-  };
-
-
-  const publishContent = async () => {
-    if (!user) {
-      toast({
-        title: 'Errore',
-        description: 'Devi essere autenticato per pubblicare un post',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    setIsPublishing(true);
+  const handleQuizSubmit = async (answers: Record<string, string>) => {
+    if (!user || !quizData) return { passed: false, score: 0, total: 0, wrongIndexes: [] };
 
     try {
-      // Get metadata for the first source if available
-      const firstSourceUrl = sources.length > 0 ? sources[0] : null;
-      let firstSourceMetadata = firstSourceUrl ? sourceMetadata[firstSourceUrl] : null;
-
-      // Fallback: if metadata not available, fetch it now
-      if (firstSourceUrl && !firstSourceMetadata) {
-        toast({
-          title: 'Recupero informazioni fonte...',
-          description: 'Attendi...'
-        });
-        firstSourceMetadata = await fetchArticlePreview(firstSourceUrl);
-        if (firstSourceMetadata) {
-          setSourceMetadata(prev => ({ ...prev, [firstSourceUrl]: firstSourceMetadata }));
+      const { data, error } = await supabase.functions.invoke('validate-answers', {
+        body: {
+          postId: null,
+          sourceUrl: quizData.sourceUrl,
+          answers,
+          userId: user.id,
+          gateType: 'composer'
         }
-      }
-
-    const { data: postData, error } = await supabase
-      .from('posts')
-      .insert({
-        content,
-        author_id: user.id,
-        sources: sources.length > 0 ? sources : null,
-        // Don't copy metadata from quoted post if it's an original post (no shared_url)
-        shared_title: (quotedPost && !quotedPost.shared_url) 
-          ? null  // Original quoted post
-          : (quotedPost?.shared_title || firstSourceMetadata?.title || null),
-        shared_url: (quotedPost && !quotedPost.shared_url)
-          ? null  // Original quoted post
-          : (quotedPost?.shared_url || firstSourceUrl),
-        preview_img: (quotedPost && !quotedPost.shared_url)
-          ? null  // Original quoted post
-          : (quotedPost?.preview_img || firstSourceMetadata?.previewImg || null),
-        quoted_post_id: quotedPost?.id || null,
-      })
-      .select()
-      .single();
+      });
 
       if (error) throw error;
-      if (!postData) throw new Error('Failed to create post');
 
-      // Save post_media if media uploaded
-      if (uploadedMedia.length > 0) {
+      const actualPassed = data.passed && (data.total - data.score) <= 2;
+      
+      if (actualPassed) {
+        toast.success('Test superato!');
+        setShowQuiz(false);
+        await publishPost();
+      } else {
+        toast.error(`Test non superato: ${data.score}/${data.total}`);
+        setShowQuiz(false);
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Error validating quiz:', error);
+      toast.error('Errore validazione');
+      return { passed: false, score: 0, total: 0, wrongIndexes: [] };
+    }
+  };
+
+  const publishPost = async () => {
+    if (!user) return;
+
+    setIsPublishing(true);
+    try {
+      const { data: insertedPost, error: postError } = await supabase
+        .from('posts')
+        .insert({
+          content: content.trim(),
+          author_id: user.id,
+          shared_url: detectedUrl || null,
+          shared_title: urlPreview?.title || null,
+          preview_img: urlPreview?.image || null,
+          quoted_post_id: quotedPost?.id || null
+        })
+        .select()
+        .single();
+
+      if (postError) throw postError;
+
+      // Salvare post_media
+      if (uploadedMedia.length > 0 && insertedPost) {
         for (let i = 0; i < uploadedMedia.length; i++) {
           await supabase.from('post_media').insert({
-            post_id: postData.id,
+            post_id: insertedPost.id,
             media_id: uploadedMedia[i].id,
             order_idx: i
           });
         }
       }
 
-      toast({
-        title: 'Post pubblicato!',
-        description: 'Il tuo post è stato pubblicato con successo',
-      });
-
-      // Update post_qa records with the real post_id
-      for (const source of sources) {
-        await supabase
-          .from('post_qa')
-          .update({ post_id: postData.id })
-          .eq('source_url', source)
-          .is('post_id', null);
-        
-        // Update post_gate_attempts records as well
-        await supabase
-          .from('post_gate_attempts')
-          .update({ post_id: postData.id })
-          .eq('source_url', source)
-          .is('post_id', null)
-          .eq('user_id', user.id);
-      }
-
-      // Refresh posts feed
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
-
-      // Reset modal state and close
+      toast.success('Post pubblicato!');
       setContent('');
-      setSources([]);
-      setNewSource('');
-      setSourceMetadata({});
-      setGateQueueState(null);
-      setCurrentSourceIndex(0);
-      setShowQuiz(false);
-      setCurrentQuiz(null);
+      setDetectedUrl(null);
+      setUrlPreview(null);
       clearMedia();
       onClose();
-    } catch (error: any) {
-      console.error('[publishContent] Error details:', {
-        message: error.message,
-        stack: error.stack,
-        error: error,
-        sources: sources,
-        content: content.substring(0, 50) + '...'
-      });
-      toast({
-        title: 'Errore',
-        description: `Si è verificato un errore durante la pubblicazione: ${error.message}`,
-        variant: 'destructive'
-      });
+    } catch (error) {
+      console.error('Error publishing post:', error);
+      toast.error('Errore pubblicazione');
     } finally {
       setIsPublishing(false);
     }
   };
 
-  const handleGateComplete = () => {
-    setShowGateQueue(false);
-    // Show toast notification before publishing
-    setTimeout(() => {
-      publishContent();
-    }, 100);
-  };
-
-  // Fetch user profile for avatar
-  const [userProfile, setUserProfile] = useState<any>(null);
-
-  useEffect(() => {
-    if (user) {
-      supabase
-        .from('profiles')
-        .select('avatar_url, full_name')
-        .eq('id', user.id)
-        .single()
-        .then(({ data }) => setUserProfile(data));
-    }
-  }, [user]);
-
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const getAvatarContent = () => {
-    if (userProfile?.avatar_url) {
-      return (
-        <img
-          src={userProfile.avatar_url}
-          alt="Avatar"
-          className="w-8 h-8 rounded-full object-cover"
-        />
-      );
-    }
-
-    return (
-      <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-semibold">
-        {userProfile?.full_name ? getInitials(userProfile.full_name) : '?'}
-      </div>
-    );
-  };
-
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-      
-      {/* Modal */}
-      <div className="relative w-full max-w-[340px] mx-4 bg-card rounded-3xl shadow-lg border border-border max-h-[80vh] flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-border">
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={onClose}
-              className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <h2 className="text-lg font-semibold text-foreground">Crea</h2>
-          </div>
-          
-          <div className="flex items-center space-x-3">
-            {getAvatarContent()}
-            <button
-              onClick={handleSubmit}
-              disabled={!content.trim() || isPublishing}
-              className={cn(
-                "px-4 py-2 rounded-full text-sm font-medium transition-colors",
-                content.trim() && !isPublishing
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                  : "bg-muted text-muted-foreground cursor-not-allowed"
-              )}
-            >
-              {isPublishing ? 'Pubblicazione...' : 'Pubblica'}
-            </button>
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 p-5 space-y-5 overflow-y-auto">
-          {/* Text Area */}
-          <div className="relative z-10">
-            <textarea
-              ref={contentTextareaRef}
-              value={content}
-              onChange={handleContentChange}
-              placeholder={quotedPost ? "Aggiungi il tuo commento..." : "Scrivi qui il tuo Knowledge Drop..."}
-              className="w-full min-h-[120px] p-0 bg-transparent border-0 resize-none focus:outline-none text-foreground placeholder:text-muted-foreground text-base leading-relaxed"
-              autoFocus
-            />
-            
-            {showMentions && (
-              <MentionDropdown
-                users={mentionUsers}
-                onSelect={handleSelectMention}
-                isLoading={isSearching}
-                position="below"
-              />
-            )}
-          </div>
-          
-          {/* Quoted Post Preview */}
-          {quotedPost && (
-            <QuotedPostCard quotedPost={quotedPost} />
-          )}
-          
-          {/* Media Preview */}
-          <MediaPreviewTray
-            media={uploadedMedia}
-            onRemove={removeMedia}
-          />
-
-          {/* Sources Section */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-foreground">Fonti</span>
-              <button
-                onClick={() => document.getElementById('source-input')?.focus()}
-                className="text-sm text-primary font-medium hover:underline"
+    <>
+      <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+        <div 
+          className="absolute inset-0 bg-background/80 backdrop-blur-sm" 
+          onClick={onClose} 
+        />
+        
+        <Card className="relative w-full max-w-2xl max-h-[90vh] overflow-hidden glass-panel border-glass shadow-glass">
+          <div className="flex flex-col h-full">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-border/50">
+              <h2 className="text-xl font-semibold text-foreground">
+                Nuovo Post
+              </h2>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={onClose}
+                className="hover:bg-muted/50"
               >
-                Aggiungi Fonti
-              </button>
+                <X className="w-4 h-4" />
+              </Button>
             </div>
 
-            {/* Add Source Input */}
-            <div className="flex space-x-2">
-              <input
-                id="source-input"
-                type="url"
-                value={newSource}
-                onChange={(e) => setNewSource(e.target.value)}
-                placeholder="https://example.com"
-                className="flex-1 px-4 py-3 bg-input rounded-lg border border-border focus:ring-2 focus:ring-primary focus:outline-none text-sm text-foreground"
-                onKeyPress={(e) => e.key === 'Enter' && addSource()}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {/* Textarea */}
+              <Textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="Scrivi qui il tuo Knowledge Drop"
+                className="min-h-[120px] resize-none text-[15px]"
+                rows={5}
               />
-              <button
-                onClick={addSource}
-                disabled={!newSource.trim()}
-                className={cn(
-                  "px-4 py-3 rounded-lg transition-colors",
-                  newSource.trim()
-                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                    : "bg-muted text-muted-foreground cursor-not-allowed"
-                )}
-              >
-                <Plus className="w-4 h-4" />
-              </button>
-            </div>
 
-            {/* Sources List with Gate States */}
-            {sources.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex flex-wrap gap-2 overflow-hidden">
-                  {sources.map((sourceUrl, index) => {
-                    const sourceWithGate = gateQueueState?.sources.find(s => s.url === sourceUrl);
-                    if (sourceWithGate) {
-                      return (
-                        <SourceChip
-                          key={sourceWithGate.id}
-                          source={sourceWithGate}
-                          onRemove={() => removeSource(index)}
-                        />
-                      );
-                    }
-                    
-                    // Fallback for sources not yet in queue
-                    return (
-                      <div
-                        key={index}
-                        className="inline-flex items-center gap-2 bg-card border border-border rounded-lg px-3 py-2 text-sm"
-                      >
-                        <div className="w-2 h-2 rounded-full bg-muted-foreground" />
-                        <span className="text-foreground truncate max-w-[200px]">
-                          {sourceUrl}
-                        </span>
-                        <button
-                          onClick={() => removeSource(index)}
-                          className="text-muted-foreground hover:text-foreground ml-1"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
+              {/* URL Preview */}
+              {urlPreview && (
+                <div className="border border-border rounded-2xl overflow-hidden">
+                  {urlPreview.image && (
+                    <div className="aspect-video w-full overflow-hidden bg-muted">
+                      <img 
+                        src={urlPreview.image}
+                        alt={urlPreview.title || ''}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+                  <div className="p-3">
+                    <div className="text-xs text-muted-foreground mb-1">
+                      {urlPreview.domain || new URL(detectedUrl || '').hostname}
+                    </div>
+                    <div className="font-semibold text-sm line-clamp-2">
+                      {urlPreview.title}
+                    </div>
+                    {urlPreview.description && (
+                      <div className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                        {urlPreview.description}
                       </div>
-                    );
-                  })}
-                </div>
-                
-                {/* Gate Status Message */}
-                {sources.length > 0 && !allSourcesPassed && (
-                  <div className="bg-accent/10 border border-accent/20 rounded-lg p-3">
-                    <p className="text-xs text-accent">
-                      💡 <strong>Comprehension Gate™:</strong> Per pubblicare, completa la lettura e il test per tutte le fonti aggiunte. Il post verrà pubblicato automaticamente al completamento.
-                    </p>
+                    )}
                   </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+                </div>
+              )}
 
-        {/* Bottom Toolbar */}
-        <div className="flex items-center justify-between p-5 border-t border-border">
-          <div className="flex items-center space-x-2">
-            <MediaUploadButton
-              type="image"
-              onFilesSelected={(files) => uploadMedia(files, 'image')}
-              maxFiles={4}
-              disabled={isUploading}
-            />
-            <MediaUploadButton
-              type="video"
-              onFilesSelected={(files) => uploadMedia(files, 'video')}
-              maxFiles={1}
-              disabled={isUploading}
-            />
-            {isUploading && (
-              <span className="text-xs text-muted-foreground ml-2">
-                Caricamento...
-              </span>
-            )}
+              {/* Quoted Post */}
+              {quotedPost && (
+                <QuotedPostCard 
+                  quotedPost={quotedPost} 
+                  parentSources={[]} 
+                />
+              )}
+
+              {/* Media Upload */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <MediaUploadButton
+                    type="image"
+                    onFilesSelected={(files) => uploadMedia(files, 'image')}
+                    maxFiles={4}
+                    disabled={isUploading}
+                  />
+                  <MediaUploadButton
+                    type="video"
+                    onFilesSelected={(files) => uploadMedia(files, 'video')}
+                    maxFiles={1}
+                    disabled={isUploading}
+                  />
+                  {isUploading && (
+                    <span className="text-xs text-muted-foreground">
+                      Caricamento...
+                    </span>
+                  )}
+                </div>
+                <MediaPreviewTray
+                  media={uploadedMedia}
+                  onRemove={removeMedia}
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-6 border-t border-border/30 flex justify-end">
+              <Button
+                onClick={handlePublish}
+                disabled={!content.trim() || isPublishing}
+                className="rounded-full px-6"
+              >
+                {isPublishing ? "Pubblicazione..." : "Pubblica"}
+              </Button>
+            </div>
           </div>
-          
-          <div className="text-xs text-muted-foreground">
-            {content.length}/280
-          </div>
-        </div>
+        </Card>
       </div>
-      
-      {/* Reader Modal */}
-      {showReader && currentReaderSource && (
+
+      {/* Reader Gate */}
+      {showReader && urlPreview && (
         <SourceReaderGate
-          source={currentReaderSource}
           isOpen={showReader}
-          onClose={() => {
-            setShowReader(false);
-            setCurrentReaderSource(null);
-            setIsPublishing(false);
-          }}
+          onClose={() => setShowReader(false)}
+          source={urlPreview}
           onComplete={handleReaderComplete}
         />
       )}
 
       {/* Quiz Modal */}
-      {showQuiz && currentQuiz && user && (
+      {showQuiz && quizData && (
         <QuizModal
-          questions={currentQuiz.questions}
-          provider="gemini"
-          onSubmit={async (answers) => {
-            const result = await validateAnswers({
-              postId: null,
-              sourceUrl: currentQuiz.sourceUrl,
-              answers,
-              gateType: 'composer'
-            });
-
-            if (result.passed) {
-              console.log('[QuizModal] Test passed, moving to next source');
-              
-              // Close quiz modal
-              setShowQuiz(false);
-              setCurrentQuiz(null);
-              
-              // Move to next source
-              const nextIndex = currentSourceIndex + 1;
-              setCurrentSourceIndex(nextIndex);
-              
-              // Wait for state to update before proceeding
-              setTimeout(async () => {
-                console.log('[QuizModal] Calling startSourceGate with index:', nextIndex);
-                await startSourceGate(nextIndex);
-              }, 100);
-            } else {
-              // Test failed: close modal and show error
-              setShowQuiz(false);
-              setCurrentQuiz(null);
-              toast({
-                title: 'Test fallito',
-                description: 'Non hai superato il test di comprensione. Riprova a leggere la fonte.',
-                variant: 'destructive'
-              });
-            }
-
-            return result;
-          }}
+          questions={quizData.questions}
+          onSubmit={handleQuizSubmit}
           onCancel={() => {
             setShowQuiz(false);
-            setCurrentQuiz(null);
-            toast({
-              title: 'Pubblicazione annullata',
-              description: 'Devi completare il test per tutte le fonti'
-            });
+            setQuizData(null);
           }}
+          provider="Comprehension Gate"
         />
       )}
-    </div>
+    </>
   );
-};
+}

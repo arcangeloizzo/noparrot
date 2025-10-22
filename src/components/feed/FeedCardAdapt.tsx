@@ -58,10 +58,7 @@ export const FeedCard = ({
   const [showComments, setShowComments] = useState(false);
   const [commentMode, setCommentMode] = useState<'view' | 'reply'>('view');
   
-  // Swipe gesture states
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
-  const [swipeOffset, setSwipeOffset] = useState(0);
+  // Remove swipe gesture states - no longer needed
   
   // Gate states
   const [showReader, setShowReader] = useState(false);
@@ -141,47 +138,12 @@ export const FeedCard = ({
     );
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStart(e.targetTouches[0].clientX);
-    setTouchEnd(null);
-  };
+  // Swipe functions removed - using button instead
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchStart) return;
-    const currentTouch = e.targetTouches[0].clientX;
-    setTouchEnd(currentTouch);
-    const offset = touchStart - currentTouch;
-    if (offset > 0) {
-      setSwipeOffset(Math.min(offset, 80));
-    }
-  };
-
-  const handleTouchEnd = async () => {
-    if (!touchStart || touchEnd === null) {
-      setSwipeOffset(0);
-      return;
-    }
-
-    const distance = touchStart - touchEnd;
+  // Share button handler
+  const handleShareClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     
-    // Swipe left detected
-    if (distance > 50) {
-      if (post.shared_url) {
-        // Post with source → existing flow
-        await startComprehensionGate();
-      } else {
-        // Post without source → check word count
-        handleQuotePost();
-      }
-    }
-    
-    // Reset
-    setSwipeOffset(0);
-    setTouchStart(null);
-    setTouchEnd(null);
-  };
-
-  const handleQuotePost = async () => {
     if (!user) {
       toast({
         title: 'Accedi per condividere',
@@ -191,9 +153,15 @@ export const FeedCard = ({
       return;
     }
 
+    // Se ha shared_url → apri reader
+    if (post.shared_url) {
+      await startComprehensionGate();
+      return;
+    }
+
+    // Altrimenti controlla word count
     const wordCount = post.content.trim().split(/\s+/).length;
     
-    // Post < 150 words → share directly
     if (wordCount < 150) {
       onQuoteShare?.({
         ...post,
@@ -204,7 +172,6 @@ export const FeedCard = ({
         description: 'Aggiungi un tuo commento'
       });
     } else {
-      // Post ≥ 150 words → Comprehension Gate
       toast({
         title: 'Lettura richiesta',
         description: 'Leggi il post per condividerlo'
@@ -385,13 +352,9 @@ export const FeedCard = ({
     <>
       <div 
         className="px-4 py-3 border-b border-border hover:bg-muted/30 transition-colors cursor-pointer relative max-w-[600px] mx-auto"
-        style={{ transform: `translateX(-${swipeOffset}px)` }}
         onClick={() => {
           navigate(`/post/${post.id}`);
         }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
       >
         <div className="flex gap-3">
           {/* Avatar a sinistra */}
@@ -456,7 +419,13 @@ export const FeedCard = ({
 
             {/* Media Gallery */}
             {post.media && post.media.length > 0 && (
-              <MediaGallery media={post.media} />
+              <MediaGallery 
+                media={post.media}
+                onClick={(media) => {
+                  // TODO: Aprire media in fullscreen
+                  window.open(media.url, '_blank');
+                }}
+              />
             )}
 
             {/* Quoted Post */}
@@ -512,32 +481,46 @@ export const FeedCard = ({
               </div>
             )}
 
-            {/* Actions - Compact */}
-            <div className="flex items-center gap-4 -ml-2">
-              <button 
-                className="flex items-center gap-1.5 p-2 rounded-full hover:bg-primary/10 hover:text-primary transition-colors group"
-                onClick={handleHeart}
-              >
-                <HeartIcon 
-                  className={cn(
-                    "w-[18px] h-[18px] transition-all",
-                    post.user_reactions.has_hearted && "fill-primary stroke-primary"
-                  )}
-                />
-                <span className="text-xs">{post.reactions.hearts}</span>
-              </button>
+            {/* Actions - Like, Comments, Share, Save */}
+            <div className="flex items-center justify-between -ml-2">
+              <div className="flex items-center gap-4">
+                <button 
+                  className="flex items-center gap-1.5 p-2 rounded-full hover:bg-primary/10 hover:text-primary transition-colors group"
+                  onClick={handleHeart}
+                >
+                  <HeartIcon 
+                    className={cn(
+                      "w-[18px] h-[18px] transition-all",
+                      post.user_reactions.has_hearted && "fill-primary stroke-primary"
+                    )}
+                  />
+                  <span className="text-xs">{post.reactions.hearts}</span>
+                </button>
 
-              <button 
-                className="flex items-center gap-1.5 p-2 rounded-full hover:bg-primary/10 hover:text-primary transition-colors group"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setCommentMode('reply');
-                  setShowComments(true);
-                }}
-              >
-                <MessageCircleIcon className="w-[18px] h-[18px]" />
-                <span className="text-xs">{post.reactions.comments}</span>
-              </button>
+                <button 
+                  className="flex items-center gap-1.5 p-2 rounded-full hover:bg-primary/10 hover:text-primary transition-colors group"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCommentMode('reply');
+                    setShowComments(true);
+                  }}
+                >
+                  <MessageCircleIcon className="w-[18px] h-[18px]" />
+                  <span className="text-xs">{post.reactions.comments}</span>
+                </button>
+
+                <button 
+                  className="p-2 rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
+                  onClick={handleShareClick}
+                  title="Condividi"
+                >
+                  <img 
+                    src="/lovable-uploads/f6970c06-9fd9-4430-b863-07384bbb05ce.png"
+                    alt="Condividi"
+                    className="w-[18px] h-[18px]"
+                  />
+                </button>
+              </div>
 
               <button 
                 className="p-2 rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
