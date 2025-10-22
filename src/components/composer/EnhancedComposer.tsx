@@ -61,12 +61,16 @@ export function EnhancedComposer({
     setMentionQuery('');
     setSelectedMentionIndex(0);
     
-    requestAnimationFrame(() => {
+    setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+          }
+        }, 0);
       }
-    });
+    }, 0);
   };
 
   // Reset selection when users change

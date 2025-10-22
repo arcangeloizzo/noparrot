@@ -60,6 +60,9 @@ export const FeedCard = ({
   const [commentMode, setCommentMode] = useState<'view' | 'reply'>('view');
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
   
+  // Article preview state
+  const [articlePreview, setArticlePreview] = useState<any>(null);
+  
   // Remove swipe gesture states - no longer needed
   
   // Gate states
@@ -76,6 +79,27 @@ export const FeedCard = ({
     reasons?: string[];
   } | null>(null);
   const [loadingTrustScore, setLoadingTrustScore] = useState(false);
+
+  // Fetch article preview dynamically
+  useEffect(() => {
+    const loadArticlePreview = async () => {
+      if (!post.shared_url) {
+        setArticlePreview(null);
+        return;
+      }
+      
+      try {
+        const preview = await fetchArticlePreview(post.shared_url);
+        if (preview) {
+          setArticlePreview(preview);
+        }
+      } catch (error) {
+        console.error('Error fetching article preview:', error);
+      }
+    };
+    
+    loadArticlePreview();
+  }, [post.shared_url]);
 
   // Fetch trust score for posts with sources
   useEffect(() => {
@@ -215,11 +239,11 @@ export const FeedCard = ({
       return;
     }
 
-    // Show Reader
+    // Show Reader with FULL content
     setReaderSource({
       url: post.shared_url,
       title: preview.title || post.shared_title || '',
-      content: preview.excerpt || preview.summary || '',
+      content: preview.content || preview.summary || preview.excerpt || '',
       ...preview
     });
     setShowReader(true);
@@ -240,10 +264,15 @@ export const FeedCard = ({
         : 'Creazione del test di comprensione'
     });
 
+    // Use FULL content for quiz generation
+    const fullContent = readerSource.content || readerSource.summary || readerSource.excerpt || post.content;
+    
+    console.log('Generating QA with full content length:', fullContent.length);
+
     const result = await generateQA({
       contentId: isOriginalPost ? post.id : post.id,
       title: readerSource.title,
-      summary: readerSource.content,
+      summary: fullContent,
       sourceUrl: isOriginalPost ? undefined : readerSource.url,
     });
 
@@ -446,11 +475,11 @@ export const FeedCard = ({
                   window.open(post.shared_url, '_blank', 'noopener,noreferrer');
                 }}
               >
-                {post.preview_img && (
+                {(articlePreview?.image || post.preview_img) && (
                   <div className="aspect-video w-full overflow-hidden bg-muted">
                     <img 
-                      src={post.preview_img}
-                      alt={post.shared_title || ''}
+                      src={articlePreview?.image || post.preview_img}
+                      alt={articlePreview?.title || post.shared_title || ''}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                   </div>
@@ -461,7 +490,7 @@ export const FeedCard = ({
                     <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                   <div className="font-semibold text-sm text-foreground line-clamp-2 group-hover:text-accent transition-colors">
-                    {post.shared_title}
+                    {articlePreview?.title || post.shared_title || 'Post condiviso'}
                   </div>
                 </div>
               </div>
