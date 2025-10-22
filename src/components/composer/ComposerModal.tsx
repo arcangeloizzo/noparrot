@@ -79,11 +79,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         setDetectedUrl(url);
         loadPreview(url);
       }
-    } else if (detectedUrl && !content.includes(detectedUrl)) {
+    } else {
       setDetectedUrl(null);
       setUrlPreview(null);
     }
-  }, [content, detectedUrl]);
+  }, [content]);
 
   const loadPreview = async (url: string) => {
     try {

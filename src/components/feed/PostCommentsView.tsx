@@ -151,24 +151,16 @@ export const PostCommentsView = ({ post, isOpen, onClose }: PostCommentsViewProp
           )}
         </div>
 
-        {/* Input fisso in basso */}
-        <div className="sticky bottom-0 bg-background border-t border-border px-4 py-3">
-          <input
-            type="text"
-            placeholder="Posta la tua risposta"
-            readOnly
-            onClick={() => setReplyingToComment(null)}
-            className="w-full bg-muted/30 border border-border rounded-full px-4 py-2 text-sm cursor-pointer"
-          />
-        </div>
       </div>
 
-      <CommentReplySheet
-        post={post}
-        parentComment={replyingToComment}
-        isOpen={!!replyingToComment || (isOpen && !comments.length)}
-        onClose={() => setReplyingToComment(null)}
-      />
+      {replyingToComment && (
+        <CommentReplySheet
+          post={post}
+          parentComment={replyingToComment}
+          isOpen={true}
+          onClose={() => setReplyingToComment(null)}
+        />
+      )}
     </>
   );
 };
