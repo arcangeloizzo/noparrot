@@ -239,11 +239,11 @@ export const FeedCard = ({
       return;
     }
 
-    // Show Reader with FULL content
+    // Show Reader with FULL content - prioritize tweet_text for Twitter posts
     setReaderSource({
       url: post.shared_url,
       title: preview.title || post.shared_title || '',
-      content: preview.content || preview.summary || preview.excerpt || '',
+      content: preview.tweet_text || preview.content || preview.summary || preview.excerpt || '',
       ...preview
     });
     setShowReader(true);
@@ -264,8 +264,8 @@ export const FeedCard = ({
         : 'Creazione del test di comprensione'
     });
 
-    // Use FULL content for quiz generation
-    const fullContent = readerSource.content || readerSource.summary || readerSource.excerpt || post.content;
+    // Use FULL content for quiz generation - prioritize tweet_text
+    const fullContent = readerSource.tweet_text || readerSource.content || readerSource.summary || readerSource.excerpt || post.content;
     
     console.log('Generating QA with full content length:', fullContent.length);
 
@@ -489,9 +489,16 @@ export const FeedCard = ({
                     <span>{getHostnameFromUrl(post.shared_url)}</span>
                     <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
-                  <div className="font-semibold text-sm text-foreground line-clamp-2 group-hover:text-accent transition-colors">
-                    {articlePreview?.title || post.shared_title || 'Post condiviso'}
-                  </div>
+                  {/* Show tweet text if available, otherwise title */}
+                  {articlePreview?.tweet_text ? (
+                    <p className="text-sm text-foreground line-clamp-3 whitespace-pre-wrap">
+                      {articlePreview.tweet_text}
+                    </p>
+                  ) : (
+                    <div className="font-semibold text-sm text-foreground line-clamp-2 group-hover:text-accent transition-colors">
+                      {articlePreview?.title || post.shared_title || 'Post condiviso'}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
