@@ -509,6 +509,7 @@ export type Database = {
       }
       post_qa: {
         Row: {
+          content_hash: string | null
           correct_answers: Json
           generated_at: string | null
           generated_from: string | null
@@ -516,8 +517,10 @@ export type Database = {
           post_id: string | null
           questions: Json
           source_url: string | null
+          updated_at: string | null
         }
         Insert: {
+          content_hash?: string | null
           correct_answers: Json
           generated_at?: string | null
           generated_from?: string | null
@@ -525,8 +528,10 @@ export type Database = {
           post_id?: string | null
           questions: Json
           source_url?: string | null
+          updated_at?: string | null
         }
         Update: {
+          content_hash?: string | null
           correct_answers?: Json
           generated_at?: string | null
           generated_from?: string | null
@@ -534,6 +539,7 @@ export type Database = {
           post_id?: string | null
           questions?: Json
           source_url?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
