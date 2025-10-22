@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,11 +40,36 @@ export function EnhancedComposer({
   const [mentionQuery, setMentionQuery] = useState('');
   const [showMentions, setShowMentions] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const readerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
+
+  const handleSelectMention = (user: any) => {
+    const textBeforeCursor = text.slice(0, cursorPosition);
+    const textAfterCursor = text.slice(cursorPosition);
+    
+    const beforeMention = textBeforeCursor.replace(/@\w*$/, '');
+    const newText = `${beforeMention}@${user.username} ${textAfterCursor}`;
+    
+    setText(newText);
+    setShowMentions(false);
+    setMentionQuery('');
+    setSelectedMentionIndex(0);
+    
+    setTimeout(() => {
+      textareaRef.current?.focus();
+      const newCursorPos = beforeMention.length + user.username.length + 2;
+      textareaRef.current?.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
+
+  // Reset selection when users change
+  useEffect(() => {
+    setSelectedMentionIndex(0);
+  }, [mentionUsers]);
 
   const addSource = () => {
     const url = newSourceUrl.trim();
@@ -218,60 +243,69 @@ export function EnhancedComposer({
             {/* Composer Form */}
             <div className="p-6 space-y-6">
               {/* Post Text */}
-              <div className="space-y-2 relative">
+              <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
                   Scrivi il tuo post
                 </label>
-                <Textarea
-                  ref={textareaRef}
-                  value={text}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    const cursorPos = e.target.selectionStart;
-                    
-                    setText(value);
-                    setCursorPosition(cursorPos);
-
-                    const textBeforeCursor = value.slice(0, cursorPos);
-                    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
-
-                    if (mentionMatch) {
-                      setMentionQuery(mentionMatch[1]);
-                      setShowMentions(true);
-                    } else {
-                      setShowMentions(false);
-                      setMentionQuery('');
-                    }
-                  }}
-                  placeholder="Condividi i tuoi pensieri... Usa @ per menzionare"
-                  className="min-h-[120px] resize-none focus:ring-primary/20"
-                  rows={5}
-                />
                 
-                {showMentions && (
-                  <MentionDropdown
-                    users={mentionUsers}
-                    onSelect={(user) => {
-                      const textBeforeCursor = text.slice(0, cursorPosition);
-                      const textAfterCursor = text.slice(cursorPosition);
+                {/* Wrapper con position relative */}
+                <div className="relative">
+                  <Textarea
+                    ref={textareaRef}
+                    value={text}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      const cursorPos = e.target.selectionStart;
                       
-                      const beforeMention = textBeforeCursor.replace(/@\w*$/, '');
-                      const newText = `${beforeMention}@${user.username} ${textAfterCursor}`;
-                      
-                      setText(newText);
-                      setShowMentions(false);
-                      setMentionQuery('');
-                      
-                      setTimeout(() => {
-                        textareaRef.current?.focus();
-                        const newCursorPos = beforeMention.length + user.username.length + 2;
-                        textareaRef.current?.setSelectionRange(newCursorPos, newCursorPos);
-                      }, 0);
+                      setText(value);
+                      setCursorPosition(cursorPos);
+
+                      const textBeforeCursor = value.slice(0, cursorPos);
+                      const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+
+                      if (mentionMatch) {
+                        setMentionQuery(mentionMatch[1]);
+                        setShowMentions(true);
+                      } else {
+                        setShowMentions(false);
+                        setMentionQuery('');
+                      }
                     }}
-                    isLoading={isSearching}
-                    position="below"
+                    onKeyDown={(e) => {
+                      if (!showMentions || mentionUsers.length === 0) return;
+                      
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setSelectedMentionIndex((prev) => 
+                          (prev + 1) % mentionUsers.length
+                        );
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setSelectedMentionIndex((prev) => 
+                          (prev - 1 + mentionUsers.length) % mentionUsers.length
+                        );
+                      } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSelectMention(mentionUsers[selectedMentionIndex]);
+                      } else if (e.key === 'Escape') {
+                        setShowMentions(false);
+                      }
+                    }}
+                    placeholder="Condividi i tuoi pensieri... Usa @ per menzionare"
+                    className="min-h-[120px] resize-none focus:ring-primary/20"
+                    rows={5}
                   />
-                )}
+                  
+                  {showMentions && (
+                    <MentionDropdown
+                      users={mentionUsers}
+                      selectedIndex={selectedMentionIndex}
+                      onSelect={handleSelectMention}
+                      isLoading={isSearching}
+                      position="below"
+                    />
+                  )}
+                </div>
               </div>
 
               {/* Media Upload */}

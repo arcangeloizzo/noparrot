@@ -29,48 +29,50 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [twitterScriptLoaded, setTwitterScriptLoaded] = useState(false);
+  const [isRenderingTwitter, setIsRenderingTwitter] = useState(false);
 
-  // Load Twitter widgets script if needed
+  // Load and render Twitter widgets
   useEffect(() => {
-    if (source.embedHtml) {
-      // Check if script already exists
-      const win = window as any;
-      if (!win.twttr) {
-        const script = document.createElement('script');
-        script.src = 'https://platform.twitter.com/widgets.js';
-        script.async = true;
-        script.charset = 'utf-8';
-        script.onload = () => {
-          setTwitterScriptLoaded(true);
-          // Force widget rendering
-          if (win.twttr?.widgets) {
-            win.twttr.widgets.load();
-          }
-        };
-        document.body.appendChild(script);
-      } else {
-        setTwitterScriptLoaded(true);
-        // Force widget rendering if script already loaded
-        setTimeout(() => {
-          if (win.twttr?.widgets) {
-            win.twttr.widgets.load();
-          }
-        }, 100);
+    if (!source.embedHtml || !isOpen) return;
+
+    const win = window as any;
+    setIsRenderingTwitter(true);
+
+    const renderWidgets = () => {
+      if (win.twttr?.widgets) {
+        win.twttr.widgets.load()
+          .then(() => {
+            setIsRenderingTwitter(false);
+            setTwitterScriptLoaded(true);
+          })
+          .catch(() => {
+            setIsRenderingTwitter(false);
+          });
       }
+    };
+
+    // If script is already loaded
+    if (win.twttr) {
+      renderWidgets();
+      return;
     }
-  }, [source.embedHtml]);
-  
-  // Re-render Twitter widgets when embed HTML changes
-  useEffect(() => {
-    if (source.embedHtml) {
-      const win = window as any;
-      setTimeout(() => {
-        if (win.twttr?.widgets) {
-          win.twttr.widgets.load();
-        }
-      }, 100);
-    }
-  }, [source.embedHtml]);
+
+    // Load script
+    const script = document.createElement('script');
+    script.src = 'https://platform.twitter.com/widgets.js';
+    script.async = true;
+    script.charset = 'utf-8';
+    script.onload = () => {
+      setTwitterScriptLoaded(true);
+      renderWidgets();
+    };
+    script.onerror = () => {
+      setIsRenderingTwitter(false);
+      console.error('Failed to load Twitter widgets script');
+    };
+    
+    document.body.appendChild(script);
+  }, [source.embedHtml, isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -252,9 +254,22 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               <>
                 {/* Twitter/X Embed */}
                 <div className="max-w-2xl mx-auto">
+                  {isRenderingTwitter && (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="animate-pulse space-y-3 w-full">
+                        <div className="h-4 bg-muted rounded w-3/4"></div>
+                        <div className="h-4 bg-muted rounded w-1/2"></div>
+                        <div className="h-32 bg-muted rounded"></div>
+                      </div>
+                    </div>
+                  )}
                   <div 
                     dangerouslySetInnerHTML={{ __html: source.embedHtml }}
-                    className="twitter-embed-container"
+                    className={cn(
+                      "twitter-embed-container",
+                      isRenderingTwitter && "hidden"
+                    )}
+                    style={{ minHeight: '200px' }}
                   />
                 </div>
                 

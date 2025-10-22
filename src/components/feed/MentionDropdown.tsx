@@ -1,47 +1,28 @@
-import { useEffect, useState } from 'react';
-import { UserSearchResult } from '@/hooks/useUserSearch';
 import { cn, getDisplayUsername } from '@/lib/utils';
+import { UserSearchResult } from '@/hooks/useUserSearch';
 
 interface MentionDropdownProps {
   users: UserSearchResult[];
+  selectedIndex: number;
   onSelect: (user: UserSearchResult) => void;
   isLoading: boolean;
   position?: 'above' | 'below';
 }
 
-export const MentionDropdown = ({ users, onSelect, isLoading, position = 'above' }: MentionDropdownProps) => {
-  const [selectedIndex, setSelectedIndex] = useState(0);
+export const MentionDropdown = ({ 
+  users, 
+  selectedIndex, 
+  onSelect, 
+  isLoading, 
+  position = 'above' 
+}: MentionDropdownProps) => {
   const positionClass = position === 'below' 
-    ? 'absolute top-full left-0 mt-2' 
-    : 'absolute bottom-full left-0 mb-2';
-
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [users]);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (users.length === 0) return;
-
-      if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev + 1) % users.length);
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        setSelectedIndex((prev) => (prev - 1 + users.length) % users.length);
-      } else if (e.key === 'Enter' && users[selectedIndex]) {
-        e.preventDefault();
-        onSelect(users[selectedIndex]);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [users, selectedIndex, onSelect]);
+    ? 'absolute top-full left-0 mt-2 z-50' 
+    : 'absolute bottom-full left-0 mb-2 z-50';
 
   if (isLoading) {
     return (
-      <div className={`${positionClass} w-full max-w-sm bg-background border border-border rounded-lg shadow-lg p-3 z-50`}>
+      <div className={`${positionClass} w-full max-w-sm bg-background border border-border rounded-lg shadow-lg p-3`}>
         <div className="text-sm text-muted-foreground">Ricerca...</div>
       </div>
     );

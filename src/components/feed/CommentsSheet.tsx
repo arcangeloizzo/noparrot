@@ -36,6 +36,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   const [mentionQuery, setMentionQuery] = useState('');
   const [showMentions, setShowMentions] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [internalMode, setInternalMode] = useState<'view' | 'reply'>(mode);
   const [formHeight, setFormHeight] = useState(0);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -119,6 +120,13 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     setNewComment(newText);
     setShowMentions(false);
     setMentionQuery('');
+    setSelectedMentionIndex(0);
+    
+    setTimeout(() => {
+      textareaRef.current?.focus();
+      const newCursorPos = beforeMention.length + user.username.length + 2;
+      textareaRef.current?.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
     
     setTimeout(() => {
       textareaRef.current?.focus();
@@ -161,6 +169,11 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
       textareaRef.current.click();
     }
   }, [internalMode, mode]);
+
+  // Reset selection when users change
+  useEffect(() => {
+    setSelectedMentionIndex(0);
+  }, [mentionUsers]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -355,6 +368,26 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                       value={newComment}
                       onChange={handleTextChange}
                       onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (!showMentions || mentionUsers.length === 0) return;
+                        
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          setSelectedMentionIndex((prev) => 
+                            (prev + 1) % mentionUsers.length
+                          );
+                        } else if (e.key === 'ArrowUp') {
+                          e.preventDefault();
+                          setSelectedMentionIndex((prev) => 
+                            (prev - 1 + mentionUsers.length) % mentionUsers.length
+                          );
+                        } else if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSelectMention(mentionUsers[selectedMentionIndex]);
+                        } else if (e.key === 'Escape') {
+                          setShowMentions(false);
+                        }
+                      }}
                       placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
                       className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[40px] max-h-[120px] placeholder:text-muted-foreground leading-normal"
                       maxLength={500}
@@ -374,6 +407,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                     {showMentions && (
                       <MentionDropdown
                         users={mentionUsers}
+                        selectedIndex={selectedMentionIndex}
                         onSelect={handleSelectMention}
                         isLoading={isSearching}
                       />

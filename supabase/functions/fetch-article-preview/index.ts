@@ -46,7 +46,13 @@ serve(async (req) => {
         // Extract text from embed HTML for AI comprehension test
         const parser = new DOMParser();
         const embedDoc = parser.parseFromString(embedHtml, 'text/html');
-        const tweetText = embedDoc.querySelector('p')?.textContent || 'Tweet content';
+        
+        // Try to extract text from the blockquote paragraph with more specific selector
+        const tweetParagraph = embedDoc.querySelector('blockquote.twitter-tweet p[lang]');
+        const tweetText = tweetParagraph?.textContent?.trim() || 
+                          embedDoc.querySelector('blockquote.twitter-tweet p')?.textContent?.trim() || 
+                          embedDoc.querySelector('blockquote p')?.textContent?.trim() || 
+                          'Post da X/Twitter';
         
         return new Response(JSON.stringify({
           title: `Post by @${username}`,
