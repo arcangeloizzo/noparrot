@@ -146,10 +146,16 @@ export const FeedCard = ({
 
     const preview = articlePreview || await fetchArticlePreview(post.url);
     
+    // Per i tweet, usa il testo completo dal post invece dell'anteprima limitata
+    const isTweet = post.url?.includes('twitter.com') || post.url?.includes('x.com');
+    const contentForQuiz = isTweet 
+      ? (post.userComment || preview?.content || preview?.summary || '')
+      : (preview?.content || preview?.summary || post.userComment || '');
+    
     const qaResult = await generateQA({
       contentId: post.id,
       title: preview?.title || post.sharedTitle || '',
-      summary: preview?.content || preview?.summary || post.userComment || '',
+      summary: contentForQuiz,
       excerpt: preview?.excerpt,
       type: preview?.type || 'article',
       sourceUrl: post.url
