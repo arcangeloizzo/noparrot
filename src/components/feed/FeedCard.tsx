@@ -263,7 +263,7 @@ export const FeedCard = ({
           </p>
 
           {/* Article Preview */}
-          {(post.sharedTitle || articlePreview?.title) && (
+          {post.url && (
             <div className="border border-border rounded-2xl overflow-hidden mb-3">
               {(post.previewImg || articlePreview?.image) && (
                 <div className="w-full aspect-video bg-muted">
@@ -279,13 +279,8 @@ export const FeedCard = ({
                   {getHostnameFromUrl(post.url)}
                 </p>
                 <h3 className="font-semibold text-foreground text-[15px] line-clamp-2">
-                  {post.sharedTitle || articlePreview?.title}
+                  {post.sharedTitle || articlePreview?.title || 'Post condiviso'}
                 </h3>
-                {articlePreview?.summary && (
-                  <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                    {articlePreview.summary}
-                  </p>
-                )}
               </div>
             </div>
           )}

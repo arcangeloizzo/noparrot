@@ -105,15 +105,19 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleRea
           )}
 
             <div className="space-y-4 text-sm text-gray-300 leading-relaxed">
-              {post.full_article ? (
-                post.full_article.split('\n\n').map((paragraph, idx) => (
-                  <p key={idx}>{paragraph}</p>
-                ))
-              ) : (
-                <>
-                  <p className="italic text-gray-400">Contenuto originale condiviso dall'utente:</p>
-                  <p className="mt-2 font-medium">{post.content}</p>
-                </>
+              <p className="mt-2 font-medium whitespace-pre-wrap">{post.content}</p>
+              
+              {post.shared_url && (
+                <div className="mt-4 pt-4 border-t border-gray-700">
+                  <a 
+                    href={post.shared_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline text-sm"
+                  >
+                    Visualizza su X →
+                  </a>
+                </div>
               )}
             </div>
         </div>

@@ -111,29 +111,25 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   };
 
   const handleSelectMention = (user: { username: string }) => {
-    if (!textareaRef.current) return;
-    
-    const cursorPos = textareaRef.current.selectionStart;
-    const textBeforeCursor = newComment.slice(0, cursorPos);
-    const textAfterCursor = newComment.slice(cursorPos);
+    const textBeforeCursor = newComment.slice(0, cursorPosition);
+    const textAfterCursor = newComment.slice(cursorPosition);
     
     const beforeMention = textBeforeCursor.replace(/@\w*$/, '');
     const newText = `${beforeMention}@${user.username} ${textAfterCursor}`;
+    const newCursorPos = beforeMention.length + user.username.length + 2;
     
     setNewComment(newText);
+    setCursorPosition(newCursorPos);
     setShowMentions(false);
     setMentionQuery('');
     setSelectedMentionIndex(0);
     
-    // Focus e posiziona il cursore
-    const newCursorPos = beforeMention.length + user.username.length + 2;
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
         textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
-        setCursorPosition(newCursorPos);
       }
-    }, 10);
+    });
   };
 
   useEffect(() => {
