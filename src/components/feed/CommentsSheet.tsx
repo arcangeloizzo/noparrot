@@ -92,15 +92,8 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    let value = e.target.value;
+    const value = e.target.value;
     const cursorPos = e.target.selectionStart;
-    
-    // Detect and extract URLs
-    const urlMatches = value.match(/(https?:\/\/[^\s]+)/g);
-    if (urlMatches && urlMatches.length > 0) {
-      // Remove URL from text (will be shown as source)
-      value = value.replace(/(https?:\/\/[^\s]+)/g, '').trim();
-    }
     
     setNewComment(value);
     setCursorPosition(cursorPos);
@@ -130,7 +123,6 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     setMentionQuery('');
     setSelectedMentionIndex(0);
     
-    // Use requestAnimationFrame for better timing
     requestAnimationFrame(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
@@ -175,7 +167,6 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     }
   }, [internalMode, mode]);
 
-  // Reset selection when users change
   useEffect(() => {
     setSelectedMentionIndex(0);
   }, [mentionUsers]);
@@ -295,7 +286,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
         <div 
           className="flex-1 overflow-y-auto comments-scroll-container"
           style={{ 
-            paddingBottom: internalMode === 'reply' ? `${formHeight}px` : '80px'
+            paddingBottom: `${formHeight + 20}px`
           }}
         >
           <div className="divide-y divide-border">
@@ -316,7 +307,6 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                   currentUserId={user?.id}
                   onReply={() => {
                     setReplyingTo(comment.id);
-                    setInternalMode('reply');
                     setTimeout(() => textareaRef.current?.focus(), 100);
                   }}
                   onDelete={() => deleteComment.mutate(comment.id)}
@@ -331,147 +321,125 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
           </div>
         </div>
 
-        {internalMode === 'reply' && (
-          <div 
-            ref={formRef}
-            className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30"
-            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-          >
-            <div className="px-4 py-3">
-              {replyingTo && (
-                <div className="mb-2 text-xs text-muted-foreground flex items-center justify-between">
-                  <span>Rispondi a {comments.find(c => c.id === replyingTo)?.author.full_name}</span>
-                  <button
-                    onClick={() => setReplyingTo(null)}
-                    className="text-destructive hover:underline"
+        <div 
+          ref={formRef}
+          className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        >
+          <div className="px-4 py-3">
+            {replyingTo && (
+              <div className="mb-2 text-xs text-muted-foreground flex items-center justify-between">
+                <span>Rispondi a {comments.find(c => c.id === replyingTo)?.author.full_name}</span>
+                <button
+                  onClick={() => setReplyingTo(null)}
+                  className="text-destructive hover:underline"
+                >
+                  Annulla
+                </button>
+              </div>
+            )}
+            <div className="flex gap-3 items-start relative">
+              <div className="flex-shrink-0 pt-1">
+                {currentUserProfile && getUserAvatar(
+                  currentUserProfile.avatar_url, 
+                  currentUserProfile.full_name,
+                  currentUserProfile.username
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <textarea
+                  ref={textareaRef}
+                  value={newComment}
+                  onChange={handleTextChange}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (!showMentions || mentionUsers.length === 0) {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSubmit();
+                      }
+                      return;
+                    }
+                    
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      setSelectedMentionIndex((prev) => 
+                        (prev + 1) % mentionUsers.length
+                      );
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setSelectedMentionIndex((prev) => 
+                        (prev - 1 + mentionUsers.length) % mentionUsers.length
+                      );
+                    } else if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSelectMention(mentionUsers[selectedMentionIndex]);
+                    } else if (e.key === 'Escape') {
+                      setShowMentions(false);
+                    }
+                  }}
+                  placeholder={replyingTo ? `Rispondi a @${comments.find(c => c.id === replyingTo)?.author.username || post.author.username}` : `Aggiungi un commento...`}
+                  className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[40px] max-h-[120px] placeholder:text-muted-foreground leading-normal"
+                  maxLength={500}
+                  inputMode="text"
+                  rows={3}
+                  style={{ 
+                    height: 'auto',
+                    overflowY: newComment.split('\n').length > 5 ? 'scroll' : 'hidden'
+                  }}
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = 'auto';
+                    target.style.height = Math.min(target.scrollHeight, 120) + 'px';
+                  }}
+                />
+                
+                {showMentions && (
+                  <MentionDropdown
+                    users={mentionUsers}
+                    selectedIndex={selectedMentionIndex}
+                    onSelect={handleSelectMention}
+                    isLoading={isSearching}
+                  />
+                )}
+                
+                <MediaPreviewTray
+                  media={uploadedMedia}
+                  onRemove={removeMedia}
+                />
+                
+                <div className="flex gap-2 mt-2">
+                  <MediaUploadButton
+                    type="image"
+                    onFilesSelected={(files) => uploadMedia(files, 'image')}
+                    maxFiles={4}
+                    disabled={isUploading}
+                  />
+                  <MediaUploadButton
+                    type="video"
+                    onFilesSelected={(files) => uploadMedia(files, 'video')}
+                    maxFiles={1}
+                    disabled={isUploading}
+                  />
+                </div>
+                
+                <div className="flex items-center justify-end gap-3 mt-3">
+                  <p className="text-xs text-muted-foreground">
+                    {newComment.length}/500
+                  </p>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={!newComment.trim() || addComment.isPending}
+                    size="sm"
+                    className="rounded-full px-4 font-bold"
                   >
-                    Annulla
-                  </button>
-                </div>
-              )}
-              <div className="flex gap-3 items-start relative">
-                <div className="flex-shrink-0 pt-1">
-                  {currentUserProfile && getUserAvatar(
-                    currentUserProfile.avatar_url, 
-                    currentUserProfile.full_name,
-                    currentUserProfile.username
-                  )}
-                </div>
-                <div className="flex-1 min-w-0 relative">
-                  <textarea
-                      ref={textareaRef}
-                      value={newComment}
-                      onChange={handleTextChange}
-                      onClick={(e) => e.stopPropagation()}
-                      onKeyDown={(e) => {
-                        if (!showMentions || mentionUsers.length === 0) return;
-                        
-                        if (e.key === 'ArrowDown') {
-                          e.preventDefault();
-                          setSelectedMentionIndex((prev) => 
-                            (prev + 1) % mentionUsers.length
-                          );
-                        } else if (e.key === 'ArrowUp') {
-                          e.preventDefault();
-                          setSelectedMentionIndex((prev) => 
-                            (prev - 1 + mentionUsers.length) % mentionUsers.length
-                          );
-                        } else if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleSelectMention(mentionUsers[selectedMentionIndex]);
-                        } else if (e.key === 'Escape') {
-                          setShowMentions(false);
-                        }
-                      }}
-                      placeholder={`In risposta a @${getDisplayUsername(post.author.username)}`}
-                      className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[40px] max-h-[120px] placeholder:text-muted-foreground leading-normal"
-                      maxLength={500}
-                      inputMode="text"
-                      rows={3}
-                      style={{ 
-                        height: 'auto',
-                        overflowY: newComment.split('\n').length > 5 ? 'scroll' : 'hidden'
-                      }}
-                      onInput={(e) => {
-                        const target = e.target as HTMLTextAreaElement;
-                        target.style.height = 'auto';
-                        target.style.height = Math.min(target.scrollHeight, 120) + 'px';
-                      }}
-                    />
-                    
-                    {showMentions && (
-                      <MentionDropdown
-                        users={mentionUsers}
-                        selectedIndex={selectedMentionIndex}
-                        onSelect={handleSelectMention}
-                        isLoading={isSearching}
-                      />
-                    )}
-                    
-                    <MediaPreviewTray
-                      media={uploadedMedia}
-                      onRemove={removeMedia}
-                    />
-                    
-                    <div className="flex gap-2 mt-2">
-                      <MediaUploadButton
-                        type="image"
-                        onFilesSelected={(files) => uploadMedia(files, 'image')}
-                        maxFiles={4}
-                        disabled={isUploading}
-                      />
-                      <MediaUploadButton
-                        type="video"
-                        onFilesSelected={(files) => uploadMedia(files, 'video')}
-                        maxFiles={1}
-                        disabled={isUploading}
-                      />
-                    </div>
-                    
-                    <div className="flex items-center justify-end gap-3 mt-3">
-                      <p className="text-xs text-muted-foreground">
-                        {newComment.length}/500
-                      </p>
-                      <Button
-                        onClick={handleSubmit}
-                        disabled={!newComment.trim() || addComment.isPending}
-                        size="sm"
-                        className="rounded-full px-4 font-bold"
-                      >
-                        {addComment.isPending ? 'Invio...' : 'Rispondi'}
-                      </Button>
-                    </div>
-                  </div>
+                    {addComment.isPending ? 'Invio...' : (replyingTo ? 'Rispondi' : 'Commenta')}
+                  </Button>
                 </div>
               </div>
             </div>
-          )}
-
-          {internalMode === 'view' && (
-            <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30">
-              <div className="px-4 py-3">
-                <div className="flex gap-3 items-start">
-                  <div className="flex-shrink-0 pt-1">
-                    {currentUserProfile && getUserAvatar(
-                      currentUserProfile.avatar_url, 
-                      currentUserProfile.full_name,
-                      currentUserProfile.username
-                    )}
-                  </div>
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setInternalMode('reply');
-                      setTimeout(() => textareaRef.current?.focus(), 0);
-                    }}
-                    className="flex-1 bg-transparent cursor-text py-2 text-[15px] min-h-[40px] text-muted-foreground"
-                  >
-                    Posta la tua risposta
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          </div>
+        </div>
       </div>
 
       {viewerMedia && (
@@ -507,13 +475,13 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, onMediaClick, 
 
   return (
     <div 
-      className="px-4 py-3 relative"
-      style={{ paddingLeft: `${16 + comment.level * 16}px` }}
+      className="py-3 relative"
+      style={{ paddingLeft: `${16 + comment.level * 24}px`, paddingRight: '16px' }}
     >
       {comment.level > 0 && (
         <div 
-          className="absolute left-4 top-0 bottom-0 w-0.5 bg-border"
-          style={{ marginLeft: `${comment.level * 16 - 16}px` }}
+          className="absolute left-0 top-0 bottom-0 w-0.5 bg-border"
+          style={{ left: `${16 + (comment.level - 1) * 24}px` }}
         />
       )}
       <div className="flex gap-3">
