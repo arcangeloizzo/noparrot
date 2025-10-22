@@ -46,26 +46,17 @@ export const MentionDropdown = ({
     <div 
       className={`${positionClass} w-full max-w-sm bg-card border-2 border-primary rounded-lg shadow-2xl overflow-hidden`}
       style={{ zIndex: 9999999 }}
-      onMouseDown={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      }}
     >
       {users.map((user, index) => (
-        <button
+        <div
           key={user.id}
-          type="button"
           onMouseDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             onSelect(user);
           }}
           className={cn(
-            "w-full flex items-center gap-3 p-3 hover:bg-muted/80 transition-colors text-left cursor-pointer",
+            "w-full flex items-center gap-3 p-3 hover:bg-muted/80 transition-colors cursor-pointer",
             selectedIndex === index && "bg-muted"
           )}
         >
@@ -84,7 +75,7 @@ export const MentionDropdown = ({
             <div className="font-semibold text-sm">{user.full_name || getDisplayUsername(user.username)}</div>
             <div className="text-muted-foreground text-xs">@{getDisplayUsername(user.username)}</div>
           </div>
-        </button>
+        </div>
       ))}
     </div>
   );

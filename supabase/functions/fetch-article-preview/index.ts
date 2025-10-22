@@ -50,17 +50,29 @@ serve(async (req) => {
       // Extract plain text from HTML for content field
       const plainText = extractTextFromHtml(data.html || '');
       
+      // Extract image URL from oEmbed data or HTML
+      let imageUrl = '';
+      if (data.thumbnail_url) {
+        imageUrl = data.thumbnail_url;
+      } else if (data.html) {
+        // Try to extract image from HTML
+        const imgMatch = data.html.match(/<img[^>]+src="([^">]+)"/);
+        if (imgMatch) {
+          imageUrl = imgMatch[1];
+        }
+      }
+      
       const result = {
         title: data.author_name ? `Post by @${data.author_name}` : 'Post da X/Twitter',
         author_username: data.author_name || '',
         author_name: data.author_name || '',
-        summary: plainText, // Plain text for display
-        content: plainText, // Plain text for quiz
-        image: '',
-        previewImg: '',
+        summary: plainText,
+        content: plainText,
+        image: imageUrl,
+        previewImg: imageUrl,
         platform: 'twitter',
         type: 'tweet',
-        embedHtml: data.html, // HTML only for embed rendering
+        embedHtml: data.html,
         hostname: 'x.com'
       };
 
@@ -69,11 +81,59 @@ serve(async (req) => {
       });
     }
 
-    // Generic URL
+    // Generic URL - try basic fetch
+    try {
+      const pageResponse = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Bot/1.0)'
+        }
+      });
+      
+      if (pageResponse.ok) {
+        const html = await pageResponse.text();
+        
+        // Extract title
+        const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        const title = titleMatch ? titleMatch[1].trim() : 'Article';
+        
+        // Extract meta description
+        const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
+                         html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
+        const description = descMatch ? descMatch[1].trim() : '';
+        
+        // Extract og:image
+        const imgMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+                        html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+        const image = imgMatch ? imgMatch[1] : '';
+        
+        // Extract first paragraph for content
+        const bodyMatch = html.match(/<p[^>]*>([^<]+)<\/p>/i);
+        const content = bodyMatch ? extractTextFromHtml(bodyMatch[0]) : description;
+        
+        const result = {
+          title,
+          summary: description,
+          content: content || description,
+          image,
+          previewImg: image,
+          platform: 'generic',
+          type: 'article',
+          hostname: new URL(url).hostname
+        };
+        
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } catch (fetchError) {
+      console.error('Generic URL fetch failed:', fetchError);
+    }
+    
+    // Fallback
     const result = {
       title: 'Article',
       summary: '',
-      content: '',
+      content: 'Apri il link per leggere il contenuto completo.',
       platform: 'generic',
       type: 'article',
       hostname: new URL(url).hostname
