@@ -78,8 +78,6 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       if (url !== detectedUrl) {
         setDetectedUrl(url);
         loadPreview(url);
-        // Rimuovi l'URL dal contenuto dopo averlo rilevato
-        setContent(prev => prev.replace(url, '').trim());
       }
     } else if (detectedUrl && !content.includes(detectedUrl)) {
       setDetectedUrl(null);
@@ -186,10 +184,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
     setIsPublishing(true);
     try {
+      // Rimuovi tutti gli URL dal contenuto prima di pubblicare
+      const cleanContent = content.replace(URL_REGEX, '').trim();
+      
       const { data: insertedPost, error: postError } = await supabase
         .from('posts')
         .insert({
-          content: content.trim(),
+          content: cleanContent,
           author_id: user.id,
           shared_url: detectedUrl || null,
           shared_title: urlPreview?.title || null,

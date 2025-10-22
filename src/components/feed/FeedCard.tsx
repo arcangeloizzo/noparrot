@@ -11,7 +11,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { CommentsSheet } from "./CommentsSheet";
+import { CommentReplySheet } from "./CommentReplySheet";
+import { PostCommentsView } from "./PostCommentsView";
 import { generateQA, validateAnswers, fetchArticlePreview } from "@/lib/ai-helpers";
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { toast } from "@/hooks/use-toast";
@@ -58,7 +59,7 @@ export const FeedCard = ({
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [commentsSheetOpen, setCommentsSheetOpen] = useState(false);
-  const [commentMode, setCommentMode] = useState<'view' | 'reply'>('view');
+  const [showCommentReply, setShowCommentReply] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizData, setQuizData] = useState<any>(null);
   const [articlePreview, setArticlePreview] = useState<any>(null);
@@ -221,7 +222,7 @@ export const FeedCard = ({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onClick={() => {
-          navigate(`/post/${post.id}`);
+          setCommentsSheetOpen(true);
         }}
       >
       <div className="flex gap-3">
@@ -328,8 +329,7 @@ export const FeedCard = ({
             <button 
               onClick={(e) => { 
                 e.stopPropagation(); 
-                setCommentMode('reply');
-                setCommentsSheetOpen(true);
+                setShowCommentReply(true);
               }}
               className="flex items-center gap-2 p-2 rounded-full hover:bg-primary/10 group transition-colors"
             >
@@ -384,11 +384,16 @@ export const FeedCard = ({
       </div>
     </article>
 
-    <CommentsSheet
+    <CommentReplySheet
+      post={post as any}
+      isOpen={showCommentReply}
+      onClose={() => setShowCommentReply(false)}
+    />
+    
+    <PostCommentsView
       post={post as any}
       isOpen={commentsSheetOpen}
       onClose={() => setCommentsSheetOpen(false)}
-      mode={commentMode}
     />
 
     {/* Quiz Modal for Share Gate */}
