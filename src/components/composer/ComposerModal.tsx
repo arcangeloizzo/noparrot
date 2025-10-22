@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,6 +14,8 @@ import { QuotedPostCard } from "@/components/feed/QuotedPostCard";
 import { SourceReaderGate } from "./SourceReaderGate";
 import { generateQA } from "@/lib/ai-helpers";
 import { QuizModal } from "@/components/ui/quiz-modal";
+import { MentionDropdown } from "@/components/feed/MentionDropdown";
+import { useUserSearch } from "@/hooks/useUserSearch";
 
 interface ComposerModalProps {
   isOpen: boolean;
@@ -32,8 +34,41 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const [showReader, setShowReader] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizData, setQuizData] = useState<any>(null);
+  const [mentionQuery, setMentionQuery] = useState('');
+  const [showMentions, setShowMentions] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
+  const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
+
+  const handleSelectMention = (user: any) => {
+    const textBeforeCursor = content.slice(0, cursorPosition);
+    const textAfterCursor = content.slice(cursorPosition);
+    
+    const beforeMention = textBeforeCursor.replace(/@\w*$/, '');
+    const newText = `${beforeMention}@${user.username} ${textAfterCursor}`;
+    const newCursorPos = beforeMention.length + user.username.length + 2;
+    
+    setContent(newText);
+    setShowMentions(false);
+    setMentionQuery('');
+    setSelectedMentionIndex(0);
+    setCursorPosition(newCursorPos);
+    
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
+      }
+    }, 0);
+  };
+
+  // Reset selection when users change
+  useEffect(() => {
+    setSelectedMentionIndex(0);
+  }, [mentionUsers]);
 
   // Detect URL in content
   useEffect(() => {
@@ -217,14 +252,64 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {/* Textarea */}
-              <Textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Scrivi qui il tuo Knowledge Drop"
-                className="min-h-[120px] resize-none text-[15px]"
-                rows={5}
-              />
+              {/* Textarea con Mention */}
+              <div className="relative">
+                <Textarea
+                  ref={textareaRef}
+                  value={content}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const cursorPos = e.target.selectionStart;
+                    
+                    setContent(value);
+                    setCursorPosition(cursorPos);
+
+                    const textBeforeCursor = value.slice(0, cursorPos);
+                    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+
+                    if (mentionMatch) {
+                      setMentionQuery(mentionMatch[1]);
+                      setShowMentions(true);
+                    } else {
+                      setShowMentions(false);
+                      setMentionQuery('');
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (!showMentions || mentionUsers.length === 0) return;
+                    
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      setSelectedMentionIndex((prev) => 
+                        (prev + 1) % mentionUsers.length
+                      );
+                    } else if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setSelectedMentionIndex((prev) => 
+                        (prev - 1 + mentionUsers.length) % mentionUsers.length
+                      );
+                    } else if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSelectMention(mentionUsers[selectedMentionIndex]);
+                    } else if (e.key === 'Escape') {
+                      setShowMentions(false);
+                    }
+                  }}
+                  placeholder="Scrivi qui il tuo Knowledge Drop... Usa @ per menzionare"
+                  className="min-h-[120px] resize-none text-[15px]"
+                  rows={5}
+                />
+                
+                {showMentions && (
+                  <MentionDropdown
+                    users={mentionUsers}
+                    selectedIndex={selectedMentionIndex}
+                    onSelect={handleSelectMention}
+                    isLoading={isSearching}
+                    position="below"
+                  />
+                )}
+              </div>
 
               {/* URL Preview */}
               {urlPreview && (
