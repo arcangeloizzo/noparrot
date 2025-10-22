@@ -92,8 +92,15 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
+    let value = e.target.value;
     const cursorPos = e.target.selectionStart;
+    
+    // Detect and extract URLs
+    const urlMatches = value.match(/(https?:\/\/[^\s]+)/g);
+    if (urlMatches && urlMatches.length > 0) {
+      // Remove URL from text (will be shown as source)
+      value = value.replace(/(https?:\/\/[^\s]+)/g, '').trim();
+    }
     
     setNewComment(value);
     setCursorPosition(cursorPos);
@@ -324,46 +331,34 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
           </div>
         </div>
 
-        <div 
-          ref={formRef}
-          className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30"
-          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-        >
-          <div className="px-4 py-3">
-            {replyingTo && internalMode === 'reply' && (
-              <div className="mb-2 text-xs text-muted-foreground flex items-center justify-between">
-                <span>Rispondi a {comments.find(c => c.id === replyingTo)?.author.full_name}</span>
-                <button
-                  onClick={() => setReplyingTo(null)}
-                  className="text-destructive hover:underline"
-                >
-                  Annulla
-                </button>
-              </div>
-            )}
-            <div className="flex gap-3 items-start relative">
-              <div className="flex-shrink-0 pt-1">
-                {currentUserProfile && getUserAvatar(
-                  currentUserProfile.avatar_url, 
-                  currentUserProfile.full_name,
-                  currentUserProfile.username
-                )}
-              </div>
-              <div className="flex-1 min-w-0 relative">
-                {internalMode === 'view' ? (
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setInternalMode('reply');
-                      setTimeout(() => textareaRef.current?.focus(), 0);
-                    }}
-                    className="w-full bg-transparent cursor-text py-2 text-[15px] min-h-[40px] text-muted-foreground"
+        {internalMode === 'reply' && (
+          <div 
+            ref={formRef}
+            className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+          >
+            <div className="px-4 py-3">
+              {replyingTo && (
+                <div className="mb-2 text-xs text-muted-foreground flex items-center justify-between">
+                  <span>Rispondi a {comments.find(c => c.id === replyingTo)?.author.full_name}</span>
+                  <button
+                    onClick={() => setReplyingTo(null)}
+                    className="text-destructive hover:underline"
                   >
-                    Posta la tua risposta
-                  </div>
-                ) : (
-                  <>
-                    <textarea
+                    Annulla
+                  </button>
+                </div>
+              )}
+              <div className="flex gap-3 items-start relative">
+                <div className="flex-shrink-0 pt-1">
+                  {currentUserProfile && getUserAvatar(
+                    currentUserProfile.avatar_url, 
+                    currentUserProfile.full_name,
+                    currentUserProfile.username
+                  )}
+                </div>
+                <div className="flex-1 min-w-0 relative">
+                  <textarea
                       ref={textareaRef}
                       value={newComment}
                       onChange={handleTextChange}
@@ -446,12 +441,37 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                         {addComment.isPending ? 'Invio...' : 'Rispondi'}
                       </Button>
                     </div>
-                  </>
-                )}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+          )}
+
+          {internalMode === 'view' && (
+            <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30">
+              <div className="px-4 py-3">
+                <div className="flex gap-3 items-start">
+                  <div className="flex-shrink-0 pt-1">
+                    {currentUserProfile && getUserAvatar(
+                      currentUserProfile.avatar_url, 
+                      currentUserProfile.full_name,
+                      currentUserProfile.username
+                    )}
+                  </div>
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setInternalMode('reply');
+                      setTimeout(() => textareaRef.current?.focus(), 0);
+                    }}
+                    className="flex-1 bg-transparent cursor-text py-2 text-[15px] min-h-[40px] text-muted-foreground"
+                  >
+                    Posta la tua risposta
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
       </div>
 
       {viewerMedia && (

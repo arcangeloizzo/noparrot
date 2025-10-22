@@ -70,7 +70,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     setSelectedMentionIndex(0);
   }, [mentionUsers]);
 
-  // Detect URL in content
+  // Detect URL in content and remove it from text
   useEffect(() => {
     const urls = content.match(URL_REGEX);
     if (urls && urls.length > 0) {
@@ -78,12 +78,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       if (url !== detectedUrl) {
         setDetectedUrl(url);
         loadPreview(url);
+        // Remove URL from content
+        setContent(prev => prev.replace(URL_REGEX, '').trim());
       }
     } else {
       setDetectedUrl(null);
       setUrlPreview(null);
     }
-  }, [content]);
+  }, [content, detectedUrl]);
 
   const loadPreview = async (url: string) => {
     try {

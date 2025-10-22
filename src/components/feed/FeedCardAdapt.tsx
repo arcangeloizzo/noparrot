@@ -454,7 +454,7 @@ export const FeedCard = ({
               </DropdownMenu>
             </div>
 
-            {/* User Comment */}
+            {/* User Comment - Full content */}
             <div className="mb-2 text-foreground text-[15px] leading-5 whitespace-pre-wrap break-words">
               <MentionText content={post.content} />
             </div>
