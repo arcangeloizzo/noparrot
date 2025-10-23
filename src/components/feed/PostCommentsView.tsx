@@ -200,7 +200,12 @@ const CommentThread = ({ comment, currentUserId, onReply, onDelete, getUserAvata
         comment={comment}
         currentUserId={currentUserId}
         onReply={() => {
-          console.log('[CommentThread] Replying to comment:', comment);
+          console.log('[PostCommentsView] Setting replyingToComment:', {
+            id: comment.id,
+            content: comment.content?.substring(0, 30),
+            level: comment.level,
+            parent_id: comment.parent_id
+          });
           onReply(comment);
         }}
         onDelete={() => onDelete(comment.id)}
