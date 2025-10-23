@@ -185,7 +185,7 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar 
   };
 
   const indentLevel = comment.level || 0;
-  const indentAmount = indentLevel > 0 ? indentLevel * 20 : 0;
+  const indentAmount = indentLevel > 0 ? indentLevel * 32 : 0;
 
   return (
     <div 
@@ -198,8 +198,8 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar 
       {/* Linea verticale di indentazione */}
       {indentLevel > 0 && (
         <div 
-          className="absolute top-0 bottom-0 w-0.5 bg-border"
-          style={{ left: `${(indentLevel - 1) * 20 + 16}px` }}
+          className="absolute top-0 bottom-0 w-0.5 bg-muted-foreground/20"
+          style={{ left: `${(indentLevel - 1) * 32 + 16}px` }}
         />
       )}
       <div className="flex gap-3">

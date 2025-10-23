@@ -80,10 +80,12 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         loadPreview(url);
       }
     } else {
-      setDetectedUrl(null);
-      setUrlPreview(null);
+      // Solo se non c'è preview, cancella tutto
+      if (!urlPreview) {
+        setDetectedUrl(null);
+      }
     }
-  }, [content]);
+  }, [content, detectedUrl, urlPreview]);
 
   const loadPreview = async (url: string) => {
     try {
@@ -332,7 +334,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                   )}
                   <div className="p-3">
                     <div className="text-xs text-muted-foreground mb-1">
-                      {urlPreview.domain || new URL(detectedUrl || '').hostname}
+                      {urlPreview.domain || (urlPreview.url ? new URL(urlPreview.url).hostname : '')}
                     </div>
                     <div className="font-semibold text-sm line-clamp-2">
                       {urlPreview.title}
