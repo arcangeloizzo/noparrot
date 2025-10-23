@@ -159,7 +159,14 @@ export const PostCommentsView = ({ post, isOpen, onClose }: PostCommentsViewProp
                   key={comment.id}
                   comment={comment}
                   currentUserId={user?.id}
-                  onReply={setReplyingToComment}
+                  onReply={(comment) => {
+                    // Reset prima per forzare un re-render pulito
+                    setReplyingToComment(null);
+                    // Usa setTimeout per garantire che il reset sia completato
+                    setTimeout(() => {
+                      setReplyingToComment(comment);
+                    }, 0);
+                  }}
                   onDelete={(id) => deleteComment.mutate(id)}
                   getUserAvatar={getUserAvatar}
                 />
@@ -172,6 +179,7 @@ export const PostCommentsView = ({ post, isOpen, onClose }: PostCommentsViewProp
 
       {replyingToComment && (
         <CommentReplySheet
+          key={replyingToComment.id}
           post={post}
           parentComment={replyingToComment}
           isOpen={true}
@@ -264,8 +272,11 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar,
       {/* Linea verticale di indentazione */}
       {depth > 0 && (
         <div 
-          className="absolute top-0 bottom-0 w-0.5 bg-border"
-          style={{ left: `${(depth - 1) * 40 + 26}px` }}
+          className="absolute top-0 bottom-0 w-0.5 bg-muted-foreground/40"
+          style={{ 
+            left: `${(depth - 1) * 40 + 20}px`,
+            zIndex: 0
+          }}
         />
       )}
       <div className="flex gap-3">
