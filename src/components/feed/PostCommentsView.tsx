@@ -212,8 +212,8 @@ interface CommentThreadProps {
 }
 
 const CommentThread = ({ comment, currentUserId, onReply, onDelete, getUserAvatar, depth = 0 }: CommentThreadProps) => {
-  // Use the level from the database instead of calculating depth
-  const actualDepth = comment.level || 0;
+  // ALWAYS use the level from database, NOT the depth prop
+  const actualDepth = comment.level;
   
   return (
     <>
