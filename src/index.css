@@ -297,6 +297,31 @@
     transform: translateY(-1px);
     box-shadow: var(--shadow-elevated);
   }
+
+  /* Button Primary Enhancements */
+  .btn-primary {
+    box-shadow: inset 0 -2px 4px rgba(255, 255, 255, 0.1);
+    transition: transform 0.15s ease-out, box-shadow 0.2s;
+  }
+
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-primary:hover {
+    transform: scale(1.02);
+  }
+
+  /* Modal Overlay */
+  .modal-overlay {
+    animation: fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(4px);
+  }
+
+  /* Global Transitions */
+  * {
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
 }
 
 /* Trust Badge Tooltip - Override Definitivo */
