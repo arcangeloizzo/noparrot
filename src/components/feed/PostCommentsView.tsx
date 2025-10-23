@@ -284,7 +284,7 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar,
         <div 
           className="absolute top-0 bottom-0 w-0.5 bg-border"
           style={{ 
-            left: `10px`,
+            left: `${16 + (depth - 1) * 40 + 20}px`,
             zIndex: 1
           }}
         />
