@@ -7,7 +7,7 @@ const corsHeaders = {
 
 // Extract plain text from HTML
 function extractTextFromHtml(html: string): string {
-  return html
+  let text = html
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
     .replace(/<[^>]+>/g, ' ')
@@ -17,6 +17,24 @@ function extractTextFromHtml(html: string): string {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&#8220;/g, '"')  // left double quote
+    .replace(/&#8221;/g, '"')  // right double quote
+    .replace(/&#8222;/g, '"')  // double low-9 quote
+    .replace(/&#8217;/g, "'")  // right single quote
+    .replace(/&#8216;/g, "'")  // left single quote
+    .replace(/&#8211;/g, '–')  // en dash
+    .replace(/&#8212;/g, '—')  // em dash
+    .replace(/&rsquo;/g, "'")
+    .replace(/&lsquo;/g, "'")
+    .replace(/&rdquo;/g, '"')
+    .replace(/&ldquo;/g, '"')
+    .replace(/&mdash;/g, '—')
+    .replace(/&ndash;/g, '–');
+  
+  // Decode all remaining numeric HTML entities
+  text = text.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec));
+  
+  return text
     .replace(/\s+/g, ' ')
     .trim();
 }

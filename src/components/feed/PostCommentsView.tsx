@@ -12,6 +12,7 @@ import { MentionText } from './MentionText';
 import { cn, getDisplayUsername } from '@/lib/utils';
 import { MediaGallery } from '@/components/media/MediaGallery';
 import { CommentReplySheet } from './CommentReplySheet';
+import { Comment } from '@/hooks/useComments';
 
 interface PostCommentsViewProps {
   post: Post;
@@ -21,9 +22,40 @@ interface PostCommentsViewProps {
 
 export const PostCommentsView = ({ post, isOpen, onClose }: PostCommentsViewProps) => {
   const { user } = useAuth();
-  const { data: comments = [], isLoading } = useComments(post.id);
+  const { data: allComments = [], isLoading } = useComments(post.id);
   const deleteComment = useDeleteComment();
   const [replyingToComment, setReplyingToComment] = useState<any>(null);
+
+  // Build nested comment tree
+  const buildCommentTree = (comments: Comment[]): (Comment & { replies?: Comment[] })[] => {
+    const topLevel = comments.filter(c => !c.parent_id);
+    const repliesMap = new Map<string, Comment[]>();
+    
+    // Group replies by parent_id
+    comments.filter(c => c.parent_id).forEach(comment => {
+      const parentId = comment.parent_id!;
+      if (!repliesMap.has(parentId)) {
+        repliesMap.set(parentId, []);
+      }
+      repliesMap.get(parentId)!.push(comment);
+    });
+    
+    // Recursively add replies
+    const addReplies = (comment: Comment): Comment & { replies?: Comment[] } => {
+      const children = repliesMap.get(comment.id) || [];
+      if (children.length === 0) {
+        return comment;
+      }
+      return {
+        ...comment,
+        replies: children.map(addReplies)
+      };
+    };
+    
+    return topLevel.map(addReplies);
+  };
+
+  const comments = buildCommentTree(allComments);
 
   useEffect(() => {
     if (isOpen) {
@@ -88,65 +120,47 @@ export const PostCommentsView = ({ post, isOpen, onClose }: PostCommentsViewProp
               <div className="flex-shrink-0">
                 {getUserAvatar(post.author.avatar_url, post.author.full_name || post.author.username)}
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-semibold text-sm">{post.author.full_name || getDisplayUsername(post.author.username)}</span>
-                  <span className="text-muted-foreground text-xs">@{getDisplayUsername(post.author.username)}</span>
+                  <span className="font-semibold">
+                    {post.author.full_name || getDisplayUsername(post.author.username)}
+                  </span>
+                  <span className="text-muted-foreground text-sm">
+                    @{getDisplayUsername(post.author.username)}
+                  </span>
                 </div>
-                <div className="text-sm mb-3">
+                <div className="text-sm mb-2">
                   <MentionText content={post.content} />
                 </div>
-                
-                {post.preview_img && (
-                  <img
-                    src={post.preview_img}
-                    alt=""
-                    className="rounded-2xl w-full mb-3"
-                  />
+                {post.media && post.media.length > 0 && (
+                  <MediaGallery media={post.media} />
                 )}
-                
-                {post.trust_level && (
-                  <div className="mb-3">
-                    <TrustBadge 
-                      band={post.trust_level}
-                      score={post.trust_level === 'ALTO' ? 85 : post.trust_level === 'MEDIO' ? 60 : 35}
-                      size="sm"
-                    />
-                  </div>
-                )}
-                
-                <div className="text-muted-foreground text-xs">
-                  {formatDistanceToNow(new Date(post.created_at), {
-                    addSuffix: true,
-                    locale: it
-                  })}
-                </div>
               </div>
             </div>
           </div>
 
-          {/* Lista commenti */}
-          {isLoading ? (
-            <div className="text-center text-muted-foreground py-8">
-              Caricamento commenti...
+          {/* Commenti */}
+          <div className="border-b-8 border-muted">
+            <div className="px-4 py-3 bg-muted/30">
+              <h3 className="font-semibold text-sm">
+                Commenti
+              </h3>
             </div>
-          ) : comments.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8 px-4">
+
+          {!comments || comments.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
               <p className="text-sm">Nessun commento ancora.</p>
               <p className="text-xs mt-1">Sii il primo a rispondere!</p>
             </div>
           ) : (
             <div>
               {comments.map((comment) => (
-                <CommentItem
+                <CommentThread
                   key={comment.id}
                   comment={comment}
                   currentUserId={user?.id}
-                  onReply={() => {
-                    console.log('[PostCommentsView] Replying to comment:', comment);
-                    setReplyingToComment(comment);
-                  }}
-                  onDelete={() => deleteComment.mutate(comment.id)}
+                  onReply={setReplyingToComment}
+                  onDelete={(id) => deleteComment.mutate(id)}
                   getUserAvatar={getUserAvatar}
                 />
               ))}
@@ -164,16 +178,57 @@ export const PostCommentsView = ({ post, isOpen, onClose }: PostCommentsViewProp
           onClose={() => setReplyingToComment(null)}
         />
       )}
+    </div>
+    </>
+  );
+};
+
+// CommentThread renders a comment and all its nested replies
+interface CommentThreadProps {
+  comment: Comment & { replies?: (Comment & { replies?: Comment[] })[] };
+  currentUserId?: string;
+  onReply: (comment: Comment) => void;
+  onDelete: (id: string) => void;
+  getUserAvatar: (avatarUrl: string | null, fullName: string | null, username: string) => React.ReactNode;
+}
+
+const CommentThread = ({ comment, currentUserId, onReply, onDelete, getUserAvatar }: CommentThreadProps) => {
+  return (
+    <>
+      <CommentItem
+        comment={comment}
+        currentUserId={currentUserId}
+        onReply={() => {
+          console.log('[CommentThread] Replying to comment:', comment);
+          onReply(comment);
+        }}
+        onDelete={() => onDelete(comment.id)}
+        getUserAvatar={getUserAvatar}
+      />
+      {comment.replies && comment.replies.length > 0 && (
+        <>
+          {comment.replies.map((reply) => (
+            <CommentThread
+              key={reply.id}
+              comment={reply}
+              currentUserId={currentUserId}
+              onReply={onReply}
+              onDelete={onDelete}
+              getUserAvatar={getUserAvatar}
+            />
+          ))}
+        </>
+      )}
     </>
   );
 };
 
 interface CommentItemProps {
-  comment: any;
+  comment: Comment;
   currentUserId?: string;
   onReply: () => void;
   onDelete: () => void;
-  getUserAvatar: (avatarUrl: string | null | undefined, name: string | undefined, username?: string) => JSX.Element;
+  getUserAvatar: (avatarUrl: string | null, fullName: string | null, username: string) => React.ReactNode;
 }
 
 const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar }: CommentItemProps) => {
