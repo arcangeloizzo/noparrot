@@ -109,14 +109,22 @@ serve(async (req) => {
                         html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
         const image = imgMatch ? imgMatch[1] : '';
         
-        // Extract first paragraph for content
-        const bodyMatch = html.match(/<p[^>]*>([^<]+)<\/p>/i);
-        const content = bodyMatch ? extractTextFromHtml(bodyMatch[0]) : description;
+        // Extract all significant paragraphs for content
+        const paragraphs: string[] = [];
+        const pRegex = /<p[^>]*>(.+?)<\/p>/gis;
+        let match;
+        while ((match = pRegex.exec(html)) !== null && paragraphs.length < 7) {
+          const text = extractTextFromHtml(match[0]);
+          if (text.length > 50) {
+            paragraphs.push(text);
+          }
+        }
+        const content = paragraphs.length > 0 ? paragraphs.join('\n\n') : description;
         
         console.log('[fetch-article-preview] Extracted data:', { title, hasDescription: !!description, hasImage: !!image });
         
-        // If we got minimal data, try AI extraction
-        if (!title || title === 'Article' || (!description && !content)) {
+        // If we got minimal data or short content, try AI extraction
+        if (!title || title === 'Article' || (!description && !content) || content.length < 200) {
           console.log('[fetch-article-preview] Poor extraction, trying AI fallback');
           
           try {
@@ -137,7 +145,7 @@ serve(async (req) => {
                 messages: [
                   { 
                     role: 'system', 
-                    content: 'Extract article metadata from HTML. Return ONLY valid JSON with fields: title, description, content (first 2-3 paragraphs). No markdown, no extra text.' 
+                    content: 'Extract article metadata from HTML. Return ONLY valid JSON with fields: title, description, content (extract the FULL article body text with all main paragraphs, at least 500 characters if available). No markdown, no extra text.' 
                   },
                   { 
                     role: 'user', 

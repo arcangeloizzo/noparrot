@@ -68,6 +68,7 @@ export const CommentReplySheet = ({ post, parentComment, isOpen, onClose }: Comm
     console.log('[CommentReplySheet] - Parent Level:', parentComment?.level);
     console.log('[CommentReplySheet] - New Level:', level);
     console.log('[CommentReplySheet] - Content:', newComment.substring(0, 50) + '...');
+    console.log('[CommentReplySheet] - Full Parent Object:', parentComment);
     console.log('[CommentReplySheet] ========================================');
 
     const commentId = await addComment.mutateAsync({

@@ -142,7 +142,10 @@ export const PostCommentsView = ({ post, isOpen, onClose }: PostCommentsViewProp
                   key={comment.id}
                   comment={comment}
                   currentUserId={user?.id}
-                  onReply={() => setReplyingToComment(comment)}
+                  onReply={() => {
+                    console.log('[PostCommentsView] Replying to comment:', comment);
+                    setReplyingToComment(comment);
+                  }}
                   onDelete={() => deleteComment.mutate(comment.id)}
                   getUserAvatar={getUserAvatar}
                 />
