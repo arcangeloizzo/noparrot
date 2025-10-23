@@ -270,6 +270,18 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar,
   };
 
   const indentAmount = depth > 0 ? depth * 40 : 0;
+  const linePosition = 16 + (depth - 1) * 40 + 20;
+  
+  console.log('[CommentItem]', {
+    commentId: comment.id.substring(0, 8),
+    depth,
+    indentAmount,
+    paddingLeft: 16 + indentAmount,
+    linePosition,
+    showLine: depth > 0,
+    level: comment.level,
+    parent_id: comment.parent_id?.substring(0, 8)
+  });
 
   return (
     <div 
