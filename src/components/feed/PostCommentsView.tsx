@@ -212,6 +212,9 @@ interface CommentThreadProps {
 }
 
 const CommentThread = ({ comment, currentUserId, onReply, onDelete, getUserAvatar, depth = 0 }: CommentThreadProps) => {
+  // Use the level from the database instead of calculating depth
+  const actualDepth = comment.level || 0;
+  
   return (
     <>
       <CommentItem
@@ -228,7 +231,7 @@ const CommentThread = ({ comment, currentUserId, onReply, onDelete, getUserAvata
         }}
         onDelete={() => onDelete(comment.id)}
         getUserAvatar={getUserAvatar}
-        depth={depth}
+        depth={actualDepth}
       />
       {comment.replies && comment.replies.length > 0 && (
         <>
@@ -240,7 +243,7 @@ const CommentThread = ({ comment, currentUserId, onReply, onDelete, getUserAvata
               onReply={onReply}
               onDelete={onDelete}
               getUserAvatar={getUserAvatar}
-              depth={depth + 1}
+              depth={actualDepth + 1}
             />
           ))}
         </>
