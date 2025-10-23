@@ -553,6 +553,7 @@ export type Database = {
       }
       posts: {
         Row: {
+          article_content: string | null
           author_id: string
           content: string
           created_at: string | null
@@ -568,6 +569,7 @@ export type Database = {
           trust_level: string | null
         }
         Insert: {
+          article_content?: string | null
           author_id: string
           content: string
           created_at?: string | null
@@ -583,6 +585,7 @@ export type Database = {
           trust_level?: string | null
         }
         Update: {
+          article_content?: string | null
           author_id?: string
           content?: string
           created_at?: string | null

@@ -16,6 +16,7 @@ export interface Post {
   shared_url: string | null;
   preview_img: string | null;
   full_article: string | null;
+  article_content: string | null;
   trust_level: 'BASSO' | 'MEDIO' | 'ALTO' | null;
   stance: 'Condiviso' | 'Confutato' | null;
   sources: string[];
@@ -110,6 +111,7 @@ export const usePosts = () => {
         shared_url: post.shared_url,
         preview_img: post.preview_img,
         full_article: post.full_article,
+        article_content: post.article_content,
         trust_level: post.trust_level,
         stance: post.stance,
         sources: post.sources || [],
@@ -227,6 +229,7 @@ export const useSavedPosts = () => {
           shared_title: post.shared_title,
           preview_img: post.preview_img,
           full_article: post.full_article,
+          article_content: post.article_content,
           trust_level: post.trust_level,
           topic_tag: post.topic_tag,
           stance: post.stance,

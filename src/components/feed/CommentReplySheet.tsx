@@ -59,16 +59,16 @@ export const CommentReplySheet = ({ post, parentComment, isOpen, onClose }: Comm
     const parentId = parentComment?.id || null;
     const level = parentComment ? (parentComment.level || 0) + 1 : 0;
     
-    console.log('[CommentReply] Submitting comment:', {
-      postId: post.id,
-      parentId,
-      level,
-      parentComment: parentComment ? {
-        id: parentComment.id,
-        level: parentComment.level,
-        parent_id: parentComment.parent_id
-      } : null
-    });
+    console.log('[CommentReplySheet] ========================================');
+    console.log('[CommentReplySheet] Creating comment with:');
+    console.log('[CommentReplySheet] - Post ID:', post.id);
+    console.log('[CommentReplySheet] - Author ID:', user?.id);
+    console.log('[CommentReplySheet] - Parent Comment:', parentComment);
+    console.log('[CommentReplySheet] - Parent ID (using):', parentId);
+    console.log('[CommentReplySheet] - Parent Level:', parentComment?.level);
+    console.log('[CommentReplySheet] - New Level:', level);
+    console.log('[CommentReplySheet] - Content:', newComment.substring(0, 50) + '...');
+    console.log('[CommentReplySheet] ========================================');
 
     const commentId = await addComment.mutateAsync({
       postId: post.id,

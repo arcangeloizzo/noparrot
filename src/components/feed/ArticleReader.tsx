@@ -108,7 +108,7 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleRea
             <div className="space-y-4 text-sm text-gray-300 leading-relaxed">
               {/* Mostra il contenuto completo dall'articolo */}
               <p className="mt-2 font-medium whitespace-pre-wrap">
-                {(post as any).articleContent || post.content}
+                {post.article_content || post.content}
               </p>
               
               {post.shared_url && (

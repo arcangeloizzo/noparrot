@@ -46,12 +46,14 @@ export const Post = () => {
         shared_url: data.shared_url,
         preview_img: data.preview_img,
         full_article: data.full_article,
+        article_content: data.article_content,
         trust_level: data.trust_level as 'BASSO' | 'MEDIO' | 'ALTO' | null,
         stance: data.stance as 'Condiviso' | 'Confutato' | null,
         sources: (Array.isArray(data.sources) ? data.sources : []) as string[],
         created_at: data.created_at,
         quoted_post_id: data.quoted_post_id,
         quoted_post: null,
+        media: [],
         reactions: {
           hearts: data.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
           comments: data.comments?.[0]?.count || 0

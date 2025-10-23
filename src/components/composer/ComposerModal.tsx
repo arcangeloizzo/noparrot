@@ -208,6 +208,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
           shared_url: detectedUrl || null,
           shared_title: urlPreview?.title || null,
           preview_img: urlPreview?.image || null,
+          article_content: urlPreview?.content || null,
           quoted_post_id: quotedPost?.id || null
         })
         .select()

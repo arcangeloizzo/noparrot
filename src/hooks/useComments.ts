@@ -94,12 +94,14 @@ export const useAddComment = () => {
     }) => {
       if (!user) throw new Error('Not authenticated');
 
-      console.log('[useAddComment] Inserting comment:', {
-        post_id: postId,
-        author_id: user.id,
-        parent_id: parentId,
-        level
-      });
+      console.log('[useComments] ==========================================');
+      console.log('[useComments] Inserting comment into database:');
+      console.log('[useComments] - post_id:', postId);
+      console.log('[useComments] - author_id:', user.id);
+      console.log('[useComments] - parent_id:', parentId);
+      console.log('[useComments] - level:', level);
+      console.log('[useComments] - content length:', content.length);
+      console.log('[useComments] ==========================================');
 
       const { data, error } = await supabase
         .from('comments')
