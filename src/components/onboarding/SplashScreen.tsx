@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
+import { haptics } from "@/lib/haptics";
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -10,12 +11,16 @@ export const SplashScreen = ({ onComplete }: SplashScreenProps) => {
   const [phase, setPhase] = useState(0);
 
   useEffect(() => {
-    // Phase 0: Giant logo centered (2 seconds)
+    // Phase 0: Giant logo centered with scale animation (2 seconds)
     // Phase 1: Logo reduces + wordmark appears simultaneously (800ms)
     // Phase 2: Combined element moves up + claim and button appear (600ms)
 
     const timer1 = setTimeout(() => setPhase(1), 2000);
-    const timer2 = setTimeout(() => setPhase(2), 2800);
+    const timer2 = setTimeout(() => {
+      setPhase(2);
+      // Light haptic feedback at end of animation
+      haptics.light();
+    }, 2800);
 
     return () => {
       clearTimeout(timer1);
@@ -36,21 +41,32 @@ export const SplashScreen = ({ onComplete }: SplashScreenProps) => {
       <div className="flex flex-col items-center justify-center relative z-10">
         {/* Combined Logo + Wordmark Container */}
         <div 
-          className={`flex flex-col items-center transition-all duration-800 ease-in-out relative ${
-            phase >= 1 ? 'scale-50' : 'scale-100'
+          className={`flex flex-col items-center transition-all ease-out relative ${
+            phase >= 1 ? 'scale-50' : 'scale-[1.2]'
           } ${phase >= 2 ? '-translate-y-8' : 'translate-y-0'}`}
+          style={{
+            transitionDuration: phase === 0 ? '0ms' : '800ms',
+            transitionTimingFunction: 'cubic-bezier(0.22, 1, 0.36, 1)'
+          }}
         >
-          {/* Glow effect behind logo */}
-          <div className="absolute inset-0 animate-pulse rounded-full bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 blur-3xl" />
+          {/* Enhanced glow effect behind logo */}
+          <div className="absolute inset-0 animate-pulse rounded-full bg-gradient-to-r from-primary/20 via-accent/20 to-primary/20 blur-3xl" 
+               style={{ filter: 'blur(20px)', boxShadow: '0 0 60px rgba(10,122,255,0.3)' }} />
           
-          {/* Logo */}
-          <Logo id="introLogoMark" variant="icon" size="xl" className="w-96 h-96 relative z-10 drop-shadow-2xl" />
+          {/* Logo with enhanced shadow */}
+          <div style={{ filter: 'drop-shadow(0 0 20px rgba(10,122,255,0.3))' }}>
+            <Logo id="introLogoMark" variant="icon" size="xl" className="w-96 h-96 relative z-10" />
+          </div>
           
-          {/* Wordmark */}
+          {/* Wordmark with delay */}
           <div 
-            className={`transition-all duration-800 ease-out relative z-10 ${
+            className={`transition-all ease-out relative z-10 ${
               phase >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
             }`}
+            style={{
+              transitionDuration: '800ms',
+              transitionDelay: phase >= 1 ? '300ms' : '0ms'
+            }}
           >
             <div id="introWordmark" className="font-inter text-7xl font-semibold">
               <span className="bg-gradient-to-r from-accent to-accent/80 bg-clip-text text-transparent animate-pulse">NO</span>

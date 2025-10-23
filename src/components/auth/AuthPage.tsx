@@ -182,16 +182,34 @@ export const AuthPage = () => {
   if (isLogin) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-        <Card className="w-full max-w-md p-6">
+        <Card className="w-full max-w-md p-6 shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
           <div className="text-center mb-6">
             <Logo />
             <h1 className="text-2xl font-bold mt-4">Accedi a NoParrot</h1>
           </div>
 
           <form onSubmit={handleLoginSubmit} className="space-y-4">
-            <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Input 
+              type="email" 
+              placeholder="Email" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              className="focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200"
+              required 
+            />
+            <Input 
+              type="password" 
+              placeholder="Password" 
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)} 
+              className="focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200"
+              required 
+            />
+            <Button 
+              type="submit" 
+              className="w-full shadow-[inset_0_-2px_4px_rgba(255,255,255,0.1)] transition-all duration-200 hover:scale-[1.02] active:scale-[0.97]" 
+              disabled={isLoading}
+            >
               {isLoading ? "Caricamento..." : "Accedi"}
             </Button>
           </form>
@@ -208,7 +226,7 @@ export const AuthPage = () => {
   if (registrationStep === 1) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-        <Card className="w-full max-w-md p-6">
+        <Card className="w-full max-w-md p-6 shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
           <div className="text-center mb-6">
             <Logo />
             <h1 className="text-2xl font-bold mt-4">Crea il tuo account</h1>
@@ -299,7 +317,7 @@ export const AuthPage = () => {
   if (registrationStep === 2) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-        <Card className="w-full max-w-md p-6">
+        <Card className="w-full max-w-md p-6 shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
           <div className="text-center mb-6">
             <Logo />
             <h1 className="text-2xl font-bold mt-4">Verifica la tua email</h1>
@@ -335,7 +353,7 @@ export const AuthPage = () => {
   if (registrationStep === 3) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-        <Card className="w-full max-w-md p-6">
+        <Card className="w-full max-w-md p-6 shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
           <div className="text-center mb-6">
             <Logo />
             <h1 className="text-2xl font-bold mt-4">Completa il tuo profilo</h1>

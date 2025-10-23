@@ -10,12 +10,12 @@ const Index = () => {
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
 
   useEffect(() => {
-    const seen = localStorage.getItem('noparrot-onboarding-seen');
+    const seen = localStorage.getItem('noparrot-onboarding-completed');
     setHasSeenOnboarding(!!seen);
   }, []);
 
   const handleOnboardingComplete = () => {
-    localStorage.setItem('noparrot-onboarding-seen', 'true');
+    localStorage.setItem('noparrot-onboarding-completed', 'true');
     setHasSeenOnboarding(true);
   };
 

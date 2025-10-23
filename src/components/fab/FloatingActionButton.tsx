@@ -1,14 +1,20 @@
 import { Logo } from "@/components/ui/logo";
+import { haptics } from "@/lib/haptics";
 
 interface FloatingActionButtonProps {
   onClick: () => void;
 }
 
 export const FloatingActionButton = ({ onClick }: FloatingActionButtonProps) => {
+  const handleClick = () => {
+    haptics.medium();
+    onClick();
+  };
+
   return (
     <button
-      onClick={onClick}
-      className="fixed w-14 h-14 bg-primary text-primary-foreground rounded-full flex items-center justify-center apple-spring gentle-hover focus-ring group overflow-hidden"
+      onClick={handleClick}
+      className="fixed w-14 h-14 bg-primary text-primary-foreground rounded-full flex items-center justify-center apple-spring gentle-hover focus-ring group overflow-hidden transition-all duration-200 hover:scale-110 active:scale-95"
       style={{ 
         right: 'max(16px, env(safe-area-inset-right))',
         bottom: 'calc(80px + env(safe-area-inset-bottom))',

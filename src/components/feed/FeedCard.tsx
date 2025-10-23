@@ -15,8 +15,9 @@ import { CommentReplySheet } from "./CommentReplySheet";
 import { PostCommentsView } from "./PostCommentsView";
 import { generateQA, validateAnswers, fetchArticlePreview } from "@/lib/ai-helpers";
 import { QuizModal } from "@/components/ui/quiz-modal";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { haptics } from "@/lib/haptics";
 
 interface FeedCardProps {
   post: MockPost;
@@ -63,6 +64,7 @@ export const FeedCard = ({
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizData, setQuizData] = useState<any>(null);
   const [articlePreview, setArticlePreview] = useState<any>(null);
+  const [shouldBlinkShare, setShouldBlinkShare] = useState(false);
 
   // Generate avatar with initials if no image
   const getAvatarContent = () => {
@@ -124,25 +126,26 @@ export const FeedCard = ({
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
     
+    // Blink animation on tap
+    setShouldBlinkShare(true);
+    haptics.light();
+    setTimeout(() => setShouldBlinkShare(false), 300);
+    
     if (!user) {
-      toast({
-        title: 'Login richiesto',
-        description: 'Devi essere autenticato per condividere',
-        variant: 'destructive'
+      toast.error('Login richiesto', {
+        description: 'Devi essere autenticato per condividere'
       });
       return;
     }
 
     if (!post.url) {
-      toast({
-        title: 'Condiviso!',
+      toast.success('Condiviso!', {
         description: 'Post condiviso con successo'
       });
       return;
     }
 
-    toast({
-      title: 'Generazione test...',
+    toast.info('Generazione test...', {
       description: 'Verifica la tua comprensione dell\'articolo'
     });
 
@@ -163,18 +166,15 @@ export const FeedCard = ({
     });
 
     if (qaResult.insufficient_context) {
-      toast({
-        title: 'Condiviso!',
+      toast.success('Condiviso!', {
         description: 'Contenuto condiviso (test non disponibile)'
       });
       return;
     }
 
     if (qaResult.error || !qaResult.questions) {
-      toast({
-        title: 'Errore',
-        description: 'Impossibile generare il test',
-        variant: 'destructive'
+      toast.error('Errore', {
+        description: qaResult.error || 'Impossibile generare il test'
       });
       return;
     }
@@ -213,7 +213,7 @@ export const FeedCard = ({
   return (
     <>
       <article 
-        className="px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer" 
+        className="px-4 py-3 hover:bg-muted/30 transition-all duration-300 cursor-pointer border-t border-[#1F3347] shadow-[0_2px_8px_rgba(0,0,0,0.35)]" 
         style={{
           transform: `translateX(-${swipeOffset}px)`,
           transition: swipeOffset === 0 ? 'transform 0.3s ease-out' : 'none'
@@ -341,7 +341,10 @@ export const FeedCard = ({
 
             <button 
               onClick={handleShare}
-              className="flex items-center gap-2 p-2 rounded-full hover:bg-green-500/10 group transition-colors"
+              className={cn(
+                "flex items-center gap-2 p-2 rounded-full hover:bg-green-500/10 group transition-all duration-200",
+                shouldBlinkShare && "animate-blink-parrot"
+              )}
             >
               <Share2 className="w-[18px] h-[18px] text-muted-foreground group-hover:text-green-500 transition-colors" />
               <span className="text-[13px] text-muted-foreground group-hover:text-green-500 transition-colors">
@@ -350,31 +353,39 @@ export const FeedCard = ({
             </button>
 
             <button 
-              onClick={(e) => { e.stopPropagation(); setIsLiked(!isLiked); }}
-              className="flex items-center gap-2 p-2 rounded-full hover:bg-red-500/10 group transition-colors"
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                setIsLiked(!isLiked);
+                haptics.light();
+              }}
+              className="flex items-center gap-2 p-2 rounded-full hover:bg-red-500/10 group transition-all duration-200 active:scale-[1.2]"
             >
               <HeartIcon 
                 className={cn(
-                  "w-[18px] h-[18px] transition-colors",
-                  isLiked ? "text-red-500 fill-red-500" : "text-muted-foreground group-hover:text-red-500"
+                  "w-[18px] h-[18px] transition-all duration-200",
+                  isLiked ? "text-[#BFE9E9] fill-[#BFE9E9] scale-110" : "text-muted-foreground group-hover:text-red-500"
                 )}
               />
               <span className={cn(
                 "text-[13px] transition-colors",
-                isLiked ? "text-red-500" : "text-muted-foreground group-hover:text-red-500"
+                isLiked ? "text-[#BFE9E9]" : "text-muted-foreground group-hover:text-red-500"
               )}>
                 {post.reactions.heart + (isLiked ? 1 : 0)}
               </span>
             </button>
 
             <button 
-              onClick={(e) => { e.stopPropagation(); setIsBookmarked(!isBookmarked); }}
-              className="p-2 rounded-full hover:bg-primary/10 group transition-colors"
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                setIsBookmarked(!isBookmarked);
+                haptics.light();
+              }}
+              className="p-2 rounded-full hover:bg-primary/10 group transition-all duration-200"
             >
               <BookmarkIcon 
                 className={cn(
-                  "w-[18px] h-[18px] transition-colors",
-                  isBookmarked ? "text-primary fill-primary" : "text-muted-foreground group-hover:text-primary"
+                  "w-[18px] h-[18px] transition-all duration-200",
+                  isBookmarked ? "text-primary fill-primary scale-110" : "text-muted-foreground group-hover:text-primary"
                 )}
               />
             </button>
@@ -410,8 +421,10 @@ export const FeedCard = ({
           });
 
           if (result.passed) {
-            toast({
-              title: '✅ Test superato!',
+            haptics.success();
+            setShouldBlinkShare(true);
+            setTimeout(() => setShouldBlinkShare(false), 600);
+            toast.success('✅ Test superato!', {
               description: 'Ora puoi condividere questo contenuto'
             });
             setShowQuiz(false);

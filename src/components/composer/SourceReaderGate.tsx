@@ -7,6 +7,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Check, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { TypingIndicator } from '@/components/ui/typing-indicator';
 import { cn } from '@/lib/utils';
 import { SourceWithGate } from '@/lib/comprehension-gate-extended';
 
@@ -30,6 +31,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [twitterScriptLoaded, setTwitterScriptLoaded] = useState(false);
   const [isRenderingTwitter, setIsRenderingTwitter] = useState(false);
+  const [showTypingIndicator, setShowTypingIndicator] = useState(false);
 
   // Load and render Twitter widgets with MutationObserver
   useEffect(() => {
@@ -154,8 +156,15 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       setScrollProgress(0);
       setCanProceed(false);
       setHasScrolledToBottom(false);
+      setShowTypingIndicator(false);
       return;
     }
+    
+    // Show typing indicator briefly at start
+    setShowTypingIndicator(true);
+    const indicatorTimer = setTimeout(() => setShowTypingIndicator(false), 2000);
+    
+    const cleanup = () => clearTimeout(indicatorTimer);
 
     // Block body scroll when modal is open
     const originalOverflow = document.body.style.overflow;
@@ -179,6 +188,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     }, 1000);
 
     return () => {
+      cleanup();
       clearInterval(timer);
       // Restore body scroll on unmount
       document.body.style.overflow = originalOverflow;
@@ -222,11 +232,11 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 bg-black/80 flex items-center justify-center z-[9999]"
+      className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-[9999] animate-fade-in"
       onClick={handleBackdropClick}
       onTouchMove={handleBackdropTouch}
     >
-      <div className="bg-background rounded-2xl w-[90vw] h-[84vh] flex flex-col border border-border">
+      <div className="bg-background rounded-2xl w-[90vw] h-[84vh] flex flex-col border border-border animate-slide-up-blur">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-3">
@@ -257,7 +267,12 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
         <div className="p-4 bg-muted/50 border-b border-border">
           <div className="flex items-center justify-between text-sm mb-2">
             <div className="flex items-center gap-2">
-              {isReady ? (
+              {showTypingIndicator ? (
+                <>
+                  <TypingIndicator className="mr-2" />
+                  <span className="text-muted-foreground font-medium">Preparazione Comprehension Gate...</span>
+                </>
+              ) : isReady ? (
                 <>
                   <Check className="h-4 w-4 text-trust-high" />
                   <span className="text-trust-high font-medium">Lettura Completata</span>
@@ -284,21 +299,24 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           {/* Progress bars */}
           <div className="space-y-2">
             {/* Time progress */}
-            <div className="w-full bg-muted rounded-full h-1.5">
+            <div className="w-full bg-muted rounded-full h-2">
               <div 
                 className={cn(
-                  "h-1.5 rounded-full transition-all duration-1000",
+                  "h-2 rounded-full transition-all ease-linear",
                   timeLeft === 0 ? "bg-trust-high" : "bg-primary"
                 )}
-                style={{ width: `${((10 - timeLeft) / 10) * 100}%` }}
+                style={{ 
+                  width: `${((10 - timeLeft) / 10) * 100}%`,
+                  transitionDuration: '1000ms'
+                }}
               />
             </div>
             
             {/* Scroll progress */}
-            <div className="w-full bg-muted rounded-full h-1.5">
+            <div className="w-full bg-muted rounded-full h-2">
               <div 
                 className={cn(
-                  "h-1.5 rounded-full transition-all duration-300",
+                  "h-2 rounded-full transition-all duration-300",
                   hasScrolledToBottom ? "bg-trust-high" : "bg-accent"
                 )}
                 style={{ width: `${scrollProgress}%` }}

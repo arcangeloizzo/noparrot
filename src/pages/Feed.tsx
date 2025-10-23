@@ -130,8 +130,11 @@ export const Feed = () => {
       <NotificationPermissionBanner />
       
       <div className="mobile-container max-w-[600px] mx-auto">
-        {/* Header - X Style */}
-        <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border">
+        {/* Header - X Style with gradient */}
+        <div className="sticky top-0 z-50 border-b border-border" style={{
+          background: 'linear-gradient(to bottom, rgba(14,20,26,0) 0%, rgba(14,20,26,0.8) 100%)',
+          backdropFilter: 'blur(8px)'
+        }}>
           <div className="px-4 py-3">
             <div className="flex justify-center">
               <img 

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Heart, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMediaReactions, useToggleMediaReaction } from '@/hooks/useMediaReactions';
 import { MediaCommentsSheet } from './MediaCommentsSheet';
 import { cn } from '@/lib/utils';
+import { haptics } from '@/lib/haptics';
 
 interface Media {
   id: string;
@@ -24,6 +25,19 @@ export const MediaViewer = ({ media, initialIndex = 0, onClose }: MediaViewerPro
   const [showComments, setShowComments] = useState(false);
   const [scale, setScale] = useState(1);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+  
+  // Restore scroll on close
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    sessionStorage.setItem('feed-scroll', scrollY.toString());
+    return () => {
+      const savedScroll = sessionStorage.getItem('feed-scroll');
+      if (savedScroll) {
+        setTimeout(() => window.scrollTo(0, parseInt(savedScroll)), 50);
+        sessionStorage.removeItem('feed-scroll');
+      }
+    };
+  }, []);
   
   const currentMedia = media[currentIndex];
   const { data: reactions } = useMediaReactions(currentMedia.id);
@@ -78,6 +92,7 @@ export const MediaViewer = ({ media, initialIndex = 0, onClose }: MediaViewerPro
 
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation();
+    haptics.light();
     toggleReaction.mutate({
       mediaId: currentMedia.id,
       isLiked: reactions?.likedByMe || false

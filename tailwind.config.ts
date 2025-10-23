@@ -115,6 +115,10 @@ export default {
 					'0%': { opacity: '0', transform: 'translateY(20px)' },
 					'100%': { opacity: '1', transform: 'translateY(0)' }
 				},
+				'fade-in': {
+					'0%': { opacity: '0', transform: 'translateY(10px)' },
+					'100%': { opacity: '1', transform: 'translateY(0)' }
+				},
 				'shake': {
 					'0%, 100%': { transform: 'translateX(0)' },
 					'25%': { transform: 'translateX(-4px)' },
@@ -151,6 +155,28 @@ export default {
 				'focus-ring': {
 					'0%': { boxShadow: '0 0 0 0 rgba(10, 122, 255, 0.4)' },
 					'100%': { boxShadow: '0 0 0 4px rgba(10, 122, 255, 0.2)' }
+				},
+				// New UX Update Animations
+				'scale-bounce': {
+					'0%': { transform: 'scale(1)' },
+					'50%': { transform: 'scale(1.2)' },
+					'100%': { transform: 'scale(1)' }
+				},
+				'blink-parrot': {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.3' }
+				},
+				'typing-dot': {
+					'0%, 60%, 100%': { opacity: '0.3', transform: 'translateY(0)' },
+					'30%': { opacity: '1', transform: 'translateY(-4px)' }
+				},
+				'slide-up-blur': {
+					'0%': { transform: 'translateY(100%)', opacity: '0' },
+					'100%': { transform: 'translateY(0)', opacity: '1' }
+				},
+				'pulse-subtle': {
+					'0%, 100%': { transform: 'scale(1)', opacity: '1' },
+					'50%': { transform: 'scale(1.05)', opacity: '0.8' }
 				}
 			},
 			animation: {
@@ -158,6 +184,7 @@ export default {
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'logo-scale-in': 'logo-scale-in 900ms cubic-bezier(0.4, 0, 0.2, 1)',
 				'fade-slide-up': 'fade-slide-up 700ms cubic-bezier(0.4, 0, 0.2, 1)',
+				'fade-in': 'fade-in 0.3s ease-out',
 				'shake': 'shake 0.3s ease-in-out',
 				'bounce-check': 'bounce-check 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
 				'mint-flash': 'mint-flash 0.5s ease-out',
@@ -168,6 +195,13 @@ export default {
 				'subtle-glow': 'subtle-glow 3s ease-in-out infinite',
 				'glass-blur': 'glass-blur 0.3s ease-out',
 				'focus-ring': 'focus-ring 0.3s ease-out',
+				
+				// New UX Update Animations
+				'scale-bounce': 'scale-bounce 0.3s ease-in-out',
+				'blink-parrot': 'blink-parrot 0.3s ease-in-out',
+				'typing-dot': 'typing-dot 1.4s ease-in-out infinite',
+				'slide-up-blur': 'slide-up-blur 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+				'pulse-subtle': 'pulse-subtle 1s ease-in-out'
 			}
 		}
 	},
