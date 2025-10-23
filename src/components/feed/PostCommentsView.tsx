@@ -272,18 +272,19 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar,
     });
   };
 
-  const indentAmount = depth > 0 ? depth * 40 : 0;
-  const linePosition = 16 + (depth - 1) * 40 + 20;
+  // ALWAYS use comment.level from database, ignore depth prop
+  const actualDepth = comment.level;
+  const indentAmount = actualDepth > 0 ? actualDepth * 40 : 0;
   
-  console.log('[CommentItem]', {
-    commentId: comment.id.substring(0, 8),
-    depth,
+  console.log('🔍 [CommentItem RENDER]', {
+    content: comment.content.substring(0, 20),
+    level_from_db: comment.level,
+    depth_prop: depth,
+    actualDepth,
     indentAmount,
     paddingLeft: 16 + indentAmount,
-    linePosition,
-    showLine: depth > 0,
-    level: comment.level,
-    parent_id: comment.parent_id?.substring(0, 8)
+    willShowLine: actualDepth > 0,
+    parent_id: comment.parent_id
   });
 
   return (
@@ -295,11 +296,11 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar,
       }}
     >
       {/* Linea verticale di indentazione */}
-      {depth > 0 && (
+      {actualDepth > 0 && (
         <div 
           className="absolute top-0 bottom-0 w-0.5 bg-border"
           style={{ 
-            left: `${16 + (depth - 1) * 40 + 20}px`,
+            left: `${16 + (actualDepth - 1) * 40 + 20}px`,
             zIndex: 1
           }}
         />
