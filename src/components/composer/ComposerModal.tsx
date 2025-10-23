@@ -75,27 +75,34 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     const urls = content.match(URL_REGEX);
     if (urls && urls.length > 0) {
       const url = urls[0];
+      console.log('[Composer] URL detected:', url);
       if (url !== detectedUrl) {
+        console.log('[Composer] Setting new URL:', url);
         setDetectedUrl(url);
         loadPreview(url);
       }
-    } else {
-      // Solo se non c'è preview, cancella tutto
-      if (!urlPreview) {
-        setDetectedUrl(null);
-      }
+    } else if (!urls && detectedUrl) {
+      console.log('[Composer] No URL found, clearing');
+      setDetectedUrl(null);
+      setUrlPreview(null);
     }
-  }, [content, detectedUrl, urlPreview]);
+  }, [content]);
 
   const loadPreview = async (url: string) => {
     try {
-      console.log('[Composer] Loading preview for URL:', url);
+      console.log('[Composer] Loading preview for:', url);
       const preview = await fetchArticlePreview(url);
+      
       console.log('[Composer] Preview result:', preview);
+      
       if (preview) {
-        setUrlPreview({ ...preview, url });
+        setUrlPreview({
+          url: url,
+          ...preview
+        });
+        console.log('[Composer] Preview set successfully');
       } else {
-        console.warn('[Composer] No preview data received');
+        console.log('[Composer] No preview data returned');
       }
     } catch (error) {
       console.error('[Composer] Error loading preview:', error);

@@ -94,6 +94,13 @@ export const useAddComment = () => {
     }) => {
       if (!user) throw new Error('Not authenticated');
 
+      console.log('[useAddComment] Inserting comment:', {
+        post_id: postId,
+        author_id: user.id,
+        parent_id: parentId,
+        level
+      });
+
       const { data, error } = await supabase
         .from('comments')
         .insert({
@@ -106,7 +113,12 @@ export const useAddComment = () => {
         .select('id')
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[useAddComment] Error inserting comment:', error);
+        throw error;
+      }
+      
+      console.log('[useAddComment] Comment inserted successfully:', data.id);
       return data.id;
     },
     onSuccess: (_, variables) => {

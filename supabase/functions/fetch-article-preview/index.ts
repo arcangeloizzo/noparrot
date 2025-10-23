@@ -83,6 +83,8 @@ serve(async (req) => {
 
     // Generic URL - try basic fetch
     try {
+      console.log('[fetch-article-preview] Fetching URL:', url);
+      
       const pageResponse = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; Bot/1.0)'
@@ -91,10 +93,11 @@ serve(async (req) => {
       
       if (pageResponse.ok) {
         const html = await pageResponse.text();
+        console.log('[fetch-article-preview] HTML fetched, length:', html.length);
         
         // Extract title
         const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-        const title = titleMatch ? titleMatch[1].trim() : 'Article';
+        const title = titleMatch ? titleMatch[1].trim() : '';
         
         // Extract meta description
         const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
@@ -110,8 +113,79 @@ serve(async (req) => {
         const bodyMatch = html.match(/<p[^>]*>([^<]+)<\/p>/i);
         const content = bodyMatch ? extractTextFromHtml(bodyMatch[0]) : description;
         
+        console.log('[fetch-article-preview] Extracted data:', { title, hasDescription: !!description, hasImage: !!image });
+        
+        // If we got minimal data, try AI extraction
+        if (!title || title === 'Article' || (!description && !content)) {
+          console.log('[fetch-article-preview] Poor extraction, trying AI fallback');
+          
+          try {
+            const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+            if (!LOVABLE_API_KEY) {
+              console.error('[fetch-article-preview] LOVABLE_API_KEY not configured');
+              throw new Error('AI extraction unavailable');
+            }
+
+            const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'google/gemini-2.5-flash',
+                messages: [
+                  { 
+                    role: 'system', 
+                    content: 'Extract article metadata from HTML. Return ONLY valid JSON with fields: title, description, content (first 2-3 paragraphs). No markdown, no extra text.' 
+                  },
+                  { 
+                    role: 'user', 
+                    content: `Extract metadata from this HTML:\n\n${html.substring(0, 15000)}` 
+                  }
+                ],
+                temperature: 0.3
+              }),
+            });
+
+            if (aiResponse.ok) {
+              const aiData = await aiResponse.json();
+              const aiContent = aiData.choices?.[0]?.message?.content;
+              
+              if (aiContent) {
+                console.log('[fetch-article-preview] AI response:', aiContent);
+                
+                try {
+                  const extracted = JSON.parse(aiContent);
+                  
+                  const result = {
+                    title: extracted.title || title || 'Article',
+                    summary: extracted.description || description,
+                    content: extracted.content || content || extracted.description || description,
+                    image,
+                    previewImg: image,
+                    platform: 'generic',
+                    type: 'article',
+                    hostname: new URL(url).hostname
+                  };
+                  
+                  console.log('[fetch-article-preview] AI extraction successful');
+                  return new Response(JSON.stringify(result), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                  });
+                } catch (parseError) {
+                  console.error('[fetch-article-preview] Failed to parse AI JSON:', parseError);
+                }
+              }
+            }
+          } catch (aiError) {
+            console.error('[fetch-article-preview] AI extraction failed:', aiError);
+          }
+        }
+        
+        // Return what we extracted (even if minimal)
         const result = {
-          title,
+          title: title || 'Article',
           summary: description,
           content: content || description,
           image,
@@ -126,7 +200,7 @@ serve(async (req) => {
         });
       }
     } catch (fetchError) {
-      console.error('Generic URL fetch failed:', fetchError);
+      console.error('[fetch-article-preview] Generic URL fetch failed:', fetchError);
     }
     
     // Fallback
