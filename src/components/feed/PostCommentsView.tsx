@@ -40,6 +40,11 @@ export const PostCommentsView = ({ post, isOpen, onClose }: PostCommentsViewProp
       repliesMap.get(parentId)!.push(comment);
     });
     
+    // Sort replies by created_at for each parent
+    repliesMap.forEach((replies) => {
+      replies.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    });
+    
     // Recursively add replies
     const addReplies = (comment: Comment): Comment & { replies?: Comment[] } => {
       const children = repliesMap.get(comment.id) || [];
@@ -48,11 +53,16 @@ export const PostCommentsView = ({ post, isOpen, onClose }: PostCommentsViewProp
       }
       return {
         ...comment,
-        replies: children.map(addReplies)
+        replies: children.map(addReplies).sort((a, b) => 
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        )
       };
     };
     
-    return topLevel.map(addReplies);
+    // Sort top-level by created_at
+    return topLevel
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .map(addReplies);
   };
 
   const comments = buildCommentTree(allComments);
@@ -272,10 +282,10 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar,
       {/* Linea verticale di indentazione */}
       {depth > 0 && (
         <div 
-          className="absolute top-0 bottom-0 w-0.5 bg-muted-foreground/40"
+          className="absolute top-0 bottom-0 w-0.5 bg-muted-foreground/50"
           style={{ 
-            left: `${(depth - 1) * 40 + 20}px`,
-            zIndex: 0
+            left: `${16 + (depth - 1) * 40 + 10}px`,
+            zIndex: 1
           }}
         />
       )}
