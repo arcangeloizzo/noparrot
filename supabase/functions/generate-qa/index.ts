@@ -145,7 +145,19 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
     });
 
     if (!aiResponse.ok) {
-      console.error('AI API error:', await aiResponse.text());
+      const errorText = await aiResponse.text();
+      console.error('AI API error:', errorText);
+      
+      // Handle payment required error
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Crediti Lovable AI esauriti. Vai su Impostazioni → Workspace → Usage per ricaricare.' 
+          }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       throw new Error('AI generation failed');
     }
 

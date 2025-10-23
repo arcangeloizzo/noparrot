@@ -41,7 +41,14 @@ export async function generateQA(params: {
       body: params
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error generating Q&A:', error);
+      // Check if it's a payment error
+      if (error.message?.includes('Crediti') || error.message?.includes('402')) {
+        return { error: 'Crediti Lovable AI esauriti' };
+      }
+      throw error;
+    }
     return data;
   } catch (error) {
     console.error('Error generating Q&A:', error);
