@@ -282,9 +282,9 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar,
       {/* Linea verticale di indentazione */}
       {depth > 0 && (
         <div 
-          className="absolute top-0 bottom-0 w-0.5 bg-muted-foreground/50"
+          className="absolute top-0 bottom-0 w-0.5 bg-border"
           style={{ 
-            left: `${16 + (depth - 1) * 40 + 10}px`,
+            left: `-20px`,
             zIndex: 1
           }}
         />
