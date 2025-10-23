@@ -190,9 +190,10 @@ interface CommentThreadProps {
   onReply: (comment: Comment) => void;
   onDelete: (id: string) => void;
   getUserAvatar: (avatarUrl: string | null, fullName: string | null, username: string) => React.ReactNode;
+  depth?: number;
 }
 
-const CommentThread = ({ comment, currentUserId, onReply, onDelete, getUserAvatar }: CommentThreadProps) => {
+const CommentThread = ({ comment, currentUserId, onReply, onDelete, getUserAvatar, depth = 0 }: CommentThreadProps) => {
   return (
     <>
       <CommentItem
@@ -204,6 +205,7 @@ const CommentThread = ({ comment, currentUserId, onReply, onDelete, getUserAvata
         }}
         onDelete={() => onDelete(comment.id)}
         getUserAvatar={getUserAvatar}
+        depth={depth}
       />
       {comment.replies && comment.replies.length > 0 && (
         <>
@@ -215,6 +217,7 @@ const CommentThread = ({ comment, currentUserId, onReply, onDelete, getUserAvata
               onReply={onReply}
               onDelete={onDelete}
               getUserAvatar={getUserAvatar}
+              depth={depth + 1}
             />
           ))}
         </>
@@ -229,9 +232,10 @@ interface CommentItemProps {
   onReply: () => void;
   onDelete: () => void;
   getUserAvatar: (avatarUrl: string | null, fullName: string | null, username: string) => React.ReactNode;
+  depth: number;
 }
 
-const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar }: CommentItemProps) => {
+const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar, depth }: CommentItemProps) => {
   const { data: reactions } = useCommentReactions(comment.id);
   const toggleReaction = useToggleCommentReaction();
 
@@ -242,8 +246,7 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar 
     });
   };
 
-  const indentLevel = comment.level || 0;
-  const indentAmount = indentLevel > 0 ? indentLevel * 32 : 0;
+  const indentAmount = depth > 0 ? depth * 40 : 0;
 
   return (
     <div 
@@ -254,10 +257,10 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar 
       }}
     >
       {/* Linea verticale di indentazione */}
-      {indentLevel > 0 && (
+      {depth > 0 && (
         <div 
-          className="absolute top-0 bottom-0 w-0.5 bg-muted-foreground/20"
-          style={{ left: `${(indentLevel - 1) * 32 + 16}px` }}
+          className="absolute top-0 bottom-0 w-0.5 bg-border"
+          style={{ left: `${(depth - 1) * 40 + 26}px` }}
         />
       )}
       <div className="flex gap-3">
@@ -293,11 +296,11 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar 
             </div>
           )}
           
-          <div className="flex items-center gap-4 text-muted-foreground">
+          <div className="flex items-center gap-2 text-muted-foreground">
             <button
               onClick={handleLike}
               className={cn(
-                "flex items-center gap-1 hover:text-destructive transition-colors",
+                "flex items-center gap-1.5 py-1.5 px-2 -ml-2 rounded hover:bg-muted hover:text-destructive transition-colors",
                 reactions?.likedByMe && "text-destructive"
               )}
             >
@@ -309,15 +312,16 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar 
             
             <button
               onClick={onReply}
-              className="flex items-center gap-1 hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 py-1.5 px-2 rounded hover:bg-muted hover:text-foreground transition-colors"
             >
               <MessageCircle className="w-4 h-4" />
+              <span className="text-xs">Rispondi</span>
             </button>
             
             {currentUserId === comment.author.id && (
               <button
                 onClick={onDelete}
-                className="flex items-center gap-1 hover:text-destructive transition-colors ml-auto"
+                className="flex items-center gap-1.5 py-1.5 px-2 rounded hover:bg-muted hover:text-destructive transition-colors ml-auto"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
