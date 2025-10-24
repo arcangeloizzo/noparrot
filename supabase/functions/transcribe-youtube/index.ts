@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { YoutubeTranscript } from "https://esm.sh/youtube-transcript@1.0.6";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,93 +23,84 @@ function extractYouTubeId(url: string): string | null {
   return null;
 }
 
-// Fetch YouTube captions using youtube-transcript-api
+// Fetch YouTube captions using youtube-transcript library
 async function fetchYouTubeTranscript(videoId: string): Promise<{ transcript: string; source: string } | null> {
   try {
-    // Use youtube-transcript API (free, no API key needed)
-    const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`);
+    console.log(`Fetching transcript for video ${videoId}`);
     
-    if (!response.ok) {
-      console.log(`Failed to fetch YouTube page for video ${videoId}`);
-      return null;
-    }
-
-    const html = await response.text();
-    
-    // Extract captions from YouTube's player response
-    const captionsMatch = html.match(/"captions":(\{[^}]+\})/);
-    if (!captionsMatch) {
-      console.log(`No captions found for video ${videoId}`);
-      return null;
-    }
-
-    // Try to find caption tracks
-    const captionTracksMatch = html.match(/"captionTracks":(\[[^\]]+\])/);
-    if (!captionTracksMatch) {
-      console.log(`No caption tracks found for video ${videoId}`);
-      return null;
-    }
-
+    // Try Italian first
     try {
-      const captionTracks = JSON.parse(captionTracksMatch[1]);
+      const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId, {
+        lang: 'it',
+      });
       
-      // Prefer English captions, fallback to first available
-      let captionUrl = captionTracks[0]?.baseUrl;
-      for (const track of captionTracks) {
-        if (track.languageCode?.startsWith('en')) {
-          captionUrl = track.baseUrl;
-          break;
-        }
+      if (transcriptItems && transcriptItems.length > 0) {
+        const transcript = transcriptItems
+          .map((item: any) => item.text)
+          .join(' ')
+          .replace(/\s+/g, ' ') // Normalize multiple spaces
+          .trim();
+        
+        console.log(`Successfully extracted Italian transcript for video ${videoId} (${transcript.length} chars, ${transcriptItems.length} segments)`);
+        
+        return {
+          transcript,
+          source: 'youtube_captions'
+        };
       }
-
-      if (!captionUrl) {
-        console.log(`No caption URL found for video ${videoId}`);
-        return null;
-      }
-
-      // Fetch the actual captions
-      const captionResponse = await fetch(captionUrl);
-      if (!captionResponse.ok) {
-        console.log(`Failed to fetch captions from ${captionUrl}`);
-        return null;
-      }
-
-      const captionXml = await captionResponse.text();
-      
-      // Parse XML and extract text content
-      const textMatches = captionXml.matchAll(/<text[^>]*>([^<]+)<\/text>/g);
-      const transcriptParts: string[] = [];
-      
-      for (const match of textMatches) {
-        if (match[1]) {
-          // Decode HTML entities
-          const decoded = match[1]
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&quot;/g, '"')
-            .replace(/&#39;/g, "'")
-            .replace(/&nbsp;/g, ' ');
-          transcriptParts.push(decoded.trim());
-        }
-      }
-
-      if (transcriptParts.length === 0) {
-        console.log(`No transcript text extracted for video ${videoId}`);
-        return null;
-      }
-
-      const transcript = transcriptParts.join(' ');
-      console.log(`Successfully extracted transcript for video ${videoId} (${transcript.length} chars)`);
-      
-      return {
-        transcript,
-        source: 'youtube_captions'
-      };
-    } catch (parseError) {
-      console.error(`Error parsing captions for video ${videoId}:`, parseError);
-      return null;
+    } catch (italianError) {
+      console.log(`Italian transcript not available for video ${videoId}, trying English fallback`);
     }
+    
+    // Fallback to English
+    try {
+      const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId, {
+        lang: 'en',
+      });
+      
+      if (transcriptItems && transcriptItems.length > 0) {
+        const transcript = transcriptItems
+          .map((item: any) => item.text)
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        
+        console.log(`Successfully extracted English transcript for video ${videoId} (${transcript.length} chars, ${transcriptItems.length} segments)`);
+        
+        return {
+          transcript,
+          source: 'youtube_captions'
+        };
+      }
+    } catch (englishError) {
+      console.log(`English transcript not available for video ${videoId}`);
+    }
+    
+    // Try without language specification (auto-detect)
+    try {
+      const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
+      
+      if (transcriptItems && transcriptItems.length > 0) {
+        const transcript = transcriptItems
+          .map((item: any) => item.text)
+          .join(' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        
+        console.log(`Successfully extracted auto-detected transcript for video ${videoId} (${transcript.length} chars, ${transcriptItems.length} segments)`);
+        
+        return {
+          transcript,
+          source: 'youtube_captions'
+        };
+      }
+    } catch (autoError) {
+      console.log(`Auto-detect transcript failed for video ${videoId}`);
+    }
+    
+    console.log(`No captions available for video ${videoId}`);
+    return null;
+    
   } catch (error) {
     console.error(`Error fetching YouTube transcript for ${videoId}:`, error);
     return null;
