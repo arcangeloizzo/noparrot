@@ -16,6 +16,11 @@ import { generateQA, validateAnswers, fetchArticlePreview } from "@/lib/ai-helpe
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { ShareSheet } from "@/components/share/ShareSheet";
+import { PeoplePicker } from "@/components/share/PeoplePicker";
+import { useCreateThread } from "@/hooks/useMessageThreads";
+import { useSendMessage } from "@/hooks/useMessages";
+import { runGateBeforeAction } from "@/lib/runGateBeforeAction";
 import { haptics } from "@/lib/haptics";
 
 interface FeedCardProps {
@@ -51,6 +56,9 @@ export const FeedCard = ({
 }: FeedCardProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const createThread = useCreateThread();
+  const sendMessage = useSendMessage();
+  
   const [isLiked, setIsLiked] = useState(false);
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
   const [trustScore, setTrustScore] = useState<any>(null);
@@ -64,6 +72,10 @@ export const FeedCard = ({
   const [quizData, setQuizData] = useState<any>(null);
   const [articlePreview, setArticlePreview] = useState<any>(null);
   const [shouldBlinkShare, setShouldBlinkShare] = useState(false);
+  const [showShareSheet, setShowShareSheet] = useState(false);
+  const [showPeoplePicker, setShowPeoplePicker] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Generate avatar with initials if no image
   const getAvatarContent = () => {
@@ -122,10 +134,9 @@ export const FeedCard = ({
     }
   }, [post.url, trustScore, loadingTrust, articlePreview]);
 
-  const handleShare = async (e: React.MouseEvent) => {
+  const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
     
-    // Blink animation on tap
     setShouldBlinkShare(true);
     haptics.light();
     setTimeout(() => setShouldBlinkShare(false), 300);
@@ -137,49 +148,99 @@ export const FeedCard = ({
       return;
     }
 
-    if (!post.url) {
-      toast.success('Condiviso!', {
-        description: 'Post condiviso con successo'
-      });
-      return;
-    }
+    setShowShareSheet(true);
+  };
 
-    toast.info('Generazione test...', {
-      description: 'Verifica la tua comprensione dell\'articolo'
+  const handleShareToFeed = () => {
+    // Apri composer con quote - verrà gestito dal componente parent (Feed.tsx)
+    // Per ora mostra solo un toast
+    toast.success('Condividi nel Feed', {
+      description: 'Funzionalità in arrivo'
     });
+  };
 
-    const preview = articlePreview || await fetchArticlePreview(post.url);
-    console.log('[FeedCard] Preview for quiz:', preview);
-    
-    // IMPORTANTE: Usa sempre preview.content per il testo completo (già estratto da fetch-article-preview)
-    const fullContent = preview?.content || preview?.summary || post.userComment || '';
-    console.log('[FeedCard] Full content for quiz (length):', fullContent.length);
-    
-    const qaResult = await generateQA({
-      contentId: post.id,
-      title: preview?.title || post.sharedTitle || '',
-      summary: fullContent, // Questo è il testo COMPLETO non troncato
-      excerpt: preview?.excerpt,
-      type: preview?.type || 'article',
-      sourceUrl: post.url
-    });
+  const handleShareToFriend = () => {
+    setShowShareSheet(false);
+    setShowPeoplePicker(true);
+  };
 
-    if (qaResult.insufficient_context) {
-      toast.success('Condiviso!', {
-        description: 'Contenuto condiviso (test non disponibile)'
+  const handleSendToFriends = async (userIds: string[]) => {
+    if (!user || userIds.length === 0) return;
+
+    setSelectedUserIds(userIds);
+    setShowPeoplePicker(false);
+
+    // Se il post ha un link, richiedi Gate prima di inviare
+    if (post.url) {
+      setIsProcessing(true);
+      
+      await runGateBeforeAction({
+        linkUrl: post.url,
+        onSuccess: async () => {
+          await sendMessagesToUsers(userIds);
+        },
+        onCancel: () => {
+          setIsProcessing(false);
+          toast.error('Invio annullato');
+        },
+        setIsProcessing,
+        setQuizData,
+        setShowQuiz
       });
-      return;
+    } else {
+      // Nessun link, invia direttamente
+      await sendMessagesToUsers(userIds);
     }
+  };
 
-    if (qaResult.error || !qaResult.questions) {
+  const sendMessagesToUsers = async (userIds: string[]) => {
+    try {
+      let successCount = 0;
+      
+      for (const recipientId of userIds) {
+        try {
+          // Crea o trova thread
+          const result = await createThread.mutateAsync([recipientId]);
+
+          // Invia messaggio
+          const messageContent = post.url 
+            ? `${post.userComment}\n\n${post.url}`
+            : post.userComment;
+
+          await sendMessage.mutateAsync({
+            threadId: result.thread_id,
+            content: messageContent,
+            linkUrl: post.url || undefined
+          });
+
+          successCount++;
+        } catch (error) {
+          console.error(`Errore invio a utente ${recipientId}:`, error);
+        }
+      }
+
+      if (successCount === userIds.length) {
+        toast.success('Messaggio inviato!', {
+          description: `Inviato a ${successCount} ${successCount === 1 ? 'persona' : 'persone'}`
+        });
+      } else if (successCount > 0) {
+        toast.warning('Invio parziale', {
+          description: `Inviato a ${successCount}/${userIds.length} persone`
+        });
+      } else {
+        toast.error('Errore', {
+          description: 'Impossibile inviare i messaggi'
+        });
+      }
+    } catch (error) {
+      console.error('Errore invio messaggi:', error);
       toast.error('Errore', {
-        description: qaResult.error || 'Impossibile generare il test'
+        description: 'Impossibile inviare i messaggi'
       });
-      return;
+    } finally {
+      setIsProcessing(false);
+      setSelectedUserIds([]);
     }
-
-    setQuizData({ questions: qaResult.questions, postId: post.id, sourceUrl: post.url });
-    setShowQuiz(true);
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {

@@ -30,8 +30,15 @@ export default function Messages() {
         <div className="flex items-center justify-center h-64">
           <p className="text-muted-foreground">Caricamento...</p>
         </div>
+      ) : threads && threads.length > 0 ? (
+        <ThreadList threads={threads} />
       ) : (
-        <ThreadList threads={threads || []} />
+        <div className="flex flex-col items-center justify-center h-64 px-4 text-center">
+          <p className="text-lg font-semibold mb-2">Nessun messaggio</p>
+          <p className="text-muted-foreground text-sm">
+            Inizia una conversazione condividendo un post con un amico!
+          </p>
+        </div>
       )}
     </div>
   );

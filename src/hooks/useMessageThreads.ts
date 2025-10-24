@@ -33,7 +33,11 @@ export function useMessageThreads() {
   return useQuery({
     queryKey: ['message-threads', user?.id],
     queryFn: async () => {
-      if (!user) return [];
+      console.log('[useMessageThreads] User:', user?.id);
+      if (!user) {
+        console.log('[useMessageThreads] No user, returning empty array');
+        return [];
+      }
 
       const { data: threads, error } = await supabase
         .from('message_threads')
@@ -50,7 +54,13 @@ export function useMessageThreads() {
         `)
         .order('updated_at', { ascending: false });
 
-      if (error) throw error;
+      console.log('[useMessageThreads] Threads data:', threads);
+      console.log('[useMessageThreads] Error:', error);
+
+      if (error) {
+        console.error('[useMessageThreads] Query error:', error);
+        throw error;
+      }
 
       // Fetch ultimo messaggio per ogni thread
       const threadsWithMessages = await Promise.all(
@@ -87,9 +97,11 @@ export function useMessageThreads() {
         })
       );
 
+      console.log('[useMessageThreads] Enriched threads:', threadsWithMessages);
       return threadsWithMessages as MessageThread[];
     },
-    enabled: !!user
+    enabled: !!user,
+    staleTime: 1000 * 30 // 30 secondi
   });
 }
 
