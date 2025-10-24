@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { Header } from "@/components/navigation/Header";
 import { SearchBar } from "@/components/search/SearchBar";
 import { QuickFilters } from "@/components/search/QuickFilters";
 import { SearchTabs, SearchTab } from "@/components/search/SearchTabs";
@@ -58,6 +59,7 @@ export const Search = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <Header />
       <div className="max-w-[600px] mx-auto">
         {/* Sticky search header */}
         <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-20 border-b border-border">

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Logo } from "@/components/ui/logo";
+import { Header } from "@/components/navigation/Header";
 import { FeedCard } from "@/components/feed/FeedCardAdapt";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
@@ -129,23 +130,9 @@ export const Feed = () => {
     <div className="min-h-screen bg-background pb-[calc(6rem+env(safe-area-inset-bottom))]">
       <NotificationPermissionBanner />
       
+      <Header />
+      
       <div className="mobile-container max-w-[600px] mx-auto">
-        {/* Header - X Style with gradient */}
-        <div className="sticky top-0 z-50 border-b border-border" style={{
-          background: 'linear-gradient(to bottom, rgba(14,20,26,0) 0%, rgba(14,20,26,0.8) 100%)',
-          backdropFilter: 'blur(8px)'
-        }}>
-          <div className="px-4 py-3">
-            <div className="flex justify-center">
-              <img 
-                src="/lovable-uploads/2e463915-3b37-49f7-88b3-19a37a0538f2.png"
-                alt="NOPARROT"
-                className="h-7 w-auto cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={handleLogoClick}
-              />
-            </div>
-          </div>
-        </div>
 
         {/* Feed Cards - Linear X Style */}
         <div className="divide-y divide-border">

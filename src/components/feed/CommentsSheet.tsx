@@ -19,6 +19,10 @@ import { MediaUploadButton } from '@/components/media/MediaUploadButton';
 import { MediaPreviewTray } from '@/components/media/MediaPreviewTray';
 import { MediaGallery } from '@/components/media/MediaGallery';
 import { MediaViewer } from '@/components/media/MediaViewer';
+import { extractFirstUrl } from '@/lib/shouldRequireGate';
+import { runGateBeforeAction } from '@/lib/runGateBeforeAction';
+import { QuizModal } from '@/components/ui/quiz-modal';
+import { toast as sonnerToast } from 'sonner';
 
 interface CommentsSheetProps {
   post: Post;
@@ -40,6 +44,9 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [viewerMedia, setViewerMedia] = useState<any[] | null>(null);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizData, setQuizData] = useState<any>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
@@ -65,32 +72,51 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   }, [mode, isOpen]);
 
   const handleSubmit = async () => {
-    if (!newComment.trim() || addComment.isPending) return;
+    if (!newComment.trim() || addComment.isPending || isProcessing) return;
 
-    const parentComment = replyingTo ? comments.find(c => c.id === replyingTo) : null;
+    const linkUrl = extractFirstUrl(newComment);
 
-    const commentId = await addComment.mutateAsync({
-      postId: post.id,
-      content: newComment.trim(),
-      parentId: replyingTo,
-      level: parentComment ? parentComment.level + 1 : 0
-    });
+    const doSubmit = async () => {
+      const parentComment = replyingTo ? comments.find(c => c.id === replyingTo) : null;
 
-    if (uploadedMedia.length > 0 && commentId) {
-      for (let i = 0; i < uploadedMedia.length; i++) {
-        await supabase.from('comment_media').insert({
-          comment_id: commentId,
-          media_id: uploadedMedia[i].id,
-          order_idx: i
-        });
+      const commentId = await addComment.mutateAsync({
+        postId: post.id,
+        content: newComment.trim(),
+        parentId: replyingTo,
+        level: parentComment ? parentComment.level + 1 : 0
+      });
+
+      if (uploadedMedia.length > 0 && commentId) {
+        for (let i = 0; i < uploadedMedia.length; i++) {
+          await supabase.from('comment_media').insert({
+            comment_id: commentId,
+            media_id: uploadedMedia[i].id,
+            order_idx: i
+          });
+        }
       }
-    }
 
-    setNewComment('');
-    setShowMentions(false);
-    setMentionQuery('');
-    setReplyingTo(null);
-    clearMedia();
+      setNewComment('');
+      setShowMentions(false);
+      setMentionQuery('');
+      setReplyingTo(null);
+      clearMedia();
+    };
+
+    if (linkUrl) {
+      // Gate richiesto per commenti con link
+      await runGateBeforeAction({
+        linkUrl,
+        onSuccess: doSubmit,
+        onCancel: () => sonnerToast.error('Condivisione annullata'),
+        setIsProcessing,
+        setQuizData,
+        setShowQuiz
+      });
+    } else {
+      // Pubblica direttamente
+      await doSubmit();
+    }
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -489,6 +515,24 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, onMediaClick, 
           </div>
         </div>
       </div>
+
+      {showQuiz && quizData && (
+        <QuizModal
+          questions={quizData.questions}
+          onSubmit={async (answers: Record<string, string>) => {
+            quizData.onSuccess();
+            setShowQuiz(false);
+            setQuizData(null);
+            return { passed: true, wrongIndexes: [] };
+          }}
+          onCancel={() => {
+            quizData.onCancel();
+            setShowQuiz(false);
+            setQuizData(null);
+          }}
+          provider="gemini"
+        />
+      )}
     </div>
   );
 };
