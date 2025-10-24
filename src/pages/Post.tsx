@@ -194,9 +194,48 @@ export const Post = () => {
           </div>
           
           {/* Content */}
-          <div className="text-[15px] leading-relaxed mb-4 whitespace-pre-wrap">
-            {post.content}
-          </div>
+          {post.content && (
+            <div className="text-[15px] leading-relaxed mb-4 whitespace-pre-wrap">
+              {post.content}
+            </div>
+          )}
+
+          {/* Shared Article Preview */}
+          {post.shared_url && post.shared_title && (
+            <div className="mb-4 border border-border rounded-xl overflow-hidden hover:bg-muted/30 transition-colors">
+              {post.preview_img && (
+                <img
+                  src={post.preview_img}
+                  alt={post.shared_title}
+                  className="w-full aspect-video object-cover"
+                />
+              )}
+              <div className="p-3">
+                <div className="text-sm font-medium line-clamp-2 mb-1">
+                  {post.shared_title}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {new URL(post.shared_url).hostname}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Media */}
+          {post.media && post.media.length > 0 && (
+            <div className={`mb-4 rounded-xl overflow-hidden ${
+              post.media.length === 1 ? 'max-h-[500px]' : 'grid grid-cols-2 gap-1'
+            }`}>
+              {post.media.map((media, idx) => (
+                <img
+                  key={idx}
+                  src={media.url}
+                  alt={`Media ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              ))}
+            </div>
+          )}
 
           {/* Timestamp */}
           <div className="text-muted-foreground text-[15px] pb-4 border-b border-border">
