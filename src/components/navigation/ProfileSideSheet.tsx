@@ -55,8 +55,8 @@ export const ProfileSideSheet = ({ isOpen, onClose }: ProfileSideSheetProps) => 
   }
 
   const menuItems = [
-    { icon: UserIcon, label: "Profilo", id: "profile", enabled: true, onClick: () => { navigate("/profile"); onClose(); } },
-    { icon: InfoIcon, label: "Impostazioni e privacy", id: "settings", enabled: false, tooltip: "Prossimamente" },
+    { icon: UserIcon, label: "Profilo", id: "profile", enabled: true, onClick: () => { navigate("/profile"); onClose(); }, tooltip: undefined },
+    { icon: InfoIcon, label: "Impostazioni e privacy", id: "settings", enabled: true, onClick: () => { navigate("/settings/privacy"); onClose(); }, tooltip: undefined },
   ];
 
   const getInitials = (name: string) => {

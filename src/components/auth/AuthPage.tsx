@@ -217,6 +217,13 @@ export const AuthPage = () => {
           <Button variant="ghost" className="w-full mt-4" onClick={() => { setIsLogin(false); setRegistrationStep(1); }}>
             Non hai un account? Registrati
           </Button>
+
+          <p className="text-xs text-muted-foreground text-center mt-4">
+            Accedendo o creando un account, accetti i{" "}
+            <a href="/terms" className="text-primary underline">Termini di Servizio</a>
+            {" "}e la{" "}
+            <a href="/privacy" className="text-primary underline">Privacy Policy</a>.
+          </p>
         </Card>
       </div>
     );
@@ -308,6 +315,13 @@ export const AuthPage = () => {
           <Button variant="ghost" className="w-full mt-4" onClick={() => setIsLogin(true)}>
             Hai già un account? Accedi
           </Button>
+
+          <p className="text-xs text-muted-foreground text-center mt-4">
+            Accedendo o creando un account, accetti i{" "}
+            <a href="/terms" className="text-primary underline">Termini di Servizio</a>
+            {" "}e la{" "}
+            <a href="/privacy" className="text-primary underline">Privacy Policy</a>.
+          </p>
         </Card>
       </div>
     );

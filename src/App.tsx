@@ -9,6 +9,9 @@ import Profile from "./pages/Profile";
 import ProfileEdit from "./pages/ProfileEdit";
 import UserProfile from "./pages/UserProfile";
 import { Post } from "./pages/Post";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import SettingsPrivacy from "./pages/SettingsPrivacy";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +30,9 @@ const App = () => (
             <Route path="/profile/edit" element={<ProfileEdit />} />
             <Route path="/post/:postId" element={<Post />} />
             <Route path="/post/:postId/comments" element={<Post />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/settings/privacy" element={<SettingsPrivacy />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
