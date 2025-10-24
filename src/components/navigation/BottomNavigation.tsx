@@ -72,9 +72,10 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 w-full z-40 border-t border-border" style={{
+    <nav className="fixed bottom-0 left-0 right-0 w-full z-40 border-t border-border pb-safe" style={{
       background: 'linear-gradient(to top, rgba(14,20,26,0.95) 0%, rgba(14,20,26,0.8) 100%)',
-      backdropFilter: 'blur(8px)'
+      backdropFilter: 'blur(8px)',
+      paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))'
     }}>
       <div className="flex justify-around items-center h-14 max-w-[600px] mx-auto">
         {tabs.map(({ id, icon: Icon, label, isAvatar }) => (

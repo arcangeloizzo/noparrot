@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, ArrowLeft } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageComposer } from "./MessageComposer";
@@ -10,6 +10,7 @@ import { extractFirstUrl } from "@/lib/shouldRequireGate";
 import { runGateBeforeAction } from "@/lib/runGateBeforeAction";
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
+import { toast } from "sonner";
 
 interface NewMessageSheetProps {
   isOpen: boolean;
@@ -26,29 +27,39 @@ export const NewMessageSheet = ({ isOpen, onClose, selectedUsers }: NewMessageSh
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizData, setQuizData] = useState<any>(null);
 
-  const handleSendMessage = async (messageContent: string) => {
+  const handleSendMessage = async (messageContent: string, mediaIds?: string[]) => {
     if (!messageContent.trim() || selectedUsers.length === 0) return;
 
     const linkUrl = extractFirstUrl(messageContent);
 
     const doSend = async () => {
       try {
+        console.log('[NewMessageSheet] Creating thread with participants:', selectedUsers.map(u => u.id));
+        
         // Crea thread con tutti gli utenti selezionati
         const participantIds = selectedUsers.map(u => u.id);
         const result = await createThread.mutateAsync(participantIds);
+
+        console.log('[NewMessageSheet] Thread created:', result);
 
         // Invia il primo messaggio
         await sendMessage.mutateAsync({
           threadId: result.thread_id,
           content: messageContent.trim(),
-          linkUrl: linkUrl || undefined
+          linkUrl: linkUrl || undefined,
+          mediaIds
         });
+
+        console.log('[NewMessageSheet] Message sent successfully');
 
         // Naviga al thread appena creato
         navigate(`/messages/${result.thread_id}`);
         onClose();
       } catch (error) {
-        console.error('Errore creazione conversazione:', error);
+        console.error('[NewMessageSheet] Error creating conversation:', error);
+        toast.error('Errore', {
+          description: error instanceof Error ? error.message : 'Impossibile creare la conversazione'
+        });
       }
     };
 
@@ -82,7 +93,8 @@ export const NewMessageSheet = ({ isOpen, onClose, selectedUsers }: NewMessageSh
             <Button variant="ghost" size="icon" onClick={onClose}>
               <X className="h-5 w-5" />
             </Button>
-            <h2 className="font-semibold">Nuovo messaggio</h2>
+            <h2 className="font-semibold flex-1 text-center">Inizia una nuova conversazione</h2>
+            <div className="w-10" /> {/* Spacer for centering */}
           </div>
 
           {/* Destinatari */}
@@ -118,9 +130,12 @@ export const NewMessageSheet = ({ isOpen, onClose, selectedUsers }: NewMessageSh
           </div>
         </div>
 
-        {/* Message Composer - usando un wrapper personalizzato */}
+        {/* Message Composer - usando il componente completo */}
         <div className="border-t border-border bg-background">
-          <MessageComposerIntegrated onSend={handleSendMessage} />
+          <MessageComposer 
+            threadId={null}
+            onSendWithoutThread={handleSendMessage}
+          />
         </div>
       </div>
 
@@ -152,62 +167,3 @@ export const NewMessageSheet = ({ isOpen, onClose, selectedUsers }: NewMessageSh
   );
 };
 
-// Componente interno semplificato per comporre il primo messaggio
-import { useState as useLocalState, useRef, useEffect } from "react";
-import { Send, Image as ImageIcon, Video } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
-
-interface MessageComposerIntegratedProps {
-  onSend: (content: string) => void;
-}
-
-const MessageComposerIntegrated = ({ onSend }: MessageComposerIntegratedProps) => {
-  const [content, setContent] = useLocalState("");
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // Auto-resize textarea
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
-  }, [content]);
-
-  const handleSend = () => {
-    if (!content.trim()) return;
-    onSend(content);
-    setContent("");
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  return (
-    <div className="p-3">
-      <div className="flex items-end gap-2">
-        <Textarea
-          ref={textareaRef}
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="Scrivi un messaggio..."
-          className="flex-1 min-h-[40px] max-h-32 resize-none"
-          rows={1}
-        />
-
-        <Button
-          onClick={handleSend}
-          size="icon"
-          disabled={!content.trim()}
-          className="flex-shrink-0"
-        >
-          <Send className="h-5 w-5" />
-        </Button>
-      </div>
-    </div>
-  );
-};

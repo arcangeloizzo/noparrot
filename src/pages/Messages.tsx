@@ -6,7 +6,9 @@ import { useMessageThreads } from "@/hooks/useMessageThreads";
 import { PeoplePicker } from "@/components/share/PeoplePicker";
 import { NewMessageSheet } from "@/components/messages/NewMessageSheet";
 import { useState } from "react";
-import { useUserSearch } from "@/hooks/useUserSearch";
+import { supabase } from "@/integrations/supabase/client";
+import { getDisplayUsername } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function Messages() {
   const navigate = useNavigate();
@@ -18,11 +20,28 @@ export default function Messages() {
   const handleStartConversation = async (selectedUserIds: string[]) => {
     if (selectedUserIds.length === 0) return;
     
-    // Recupera i dati degli utenti selezionati
-    const usersData = selectedUserIds.map(id => {
-      // Trova l'utente dalla cache o fai una query
-      return { id, username: `user_${id}`, full_name: null, avatar_url: null };
-    });
+    // Recupera profili REALI dal database
+    const { data: profiles, error } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url')
+      .in('id', selectedUserIds);
+
+    if (error) {
+      console.error('Error fetching user profiles:', error);
+      toast.error('Impossibile recuperare i profili utente');
+      return;
+    }
+
+    if (!profiles || profiles.length === 0) {
+      toast.error('Nessun utente trovato');
+      return;
+    }
+
+    // Applica getDisplayUsername per nascondere email
+    const usersData = profiles.map(user => ({
+      ...user,
+      username: getDisplayUsername(user.username)
+    }));
     
     setSelectedUsers(usersData);
     setShowPeoplePicker(false);

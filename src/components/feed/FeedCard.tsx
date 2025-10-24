@@ -156,9 +156,10 @@ export const FeedCard = ({
   };
 
   const handleShareToFeed = async () => {
-    setShowShareSheet(false);
-    
     if (post.url) {
+      // Chiudi ShareSheet prima di avviare Gate
+      setShowShareSheet(false);
+      
       // Gate richiesto prima di condividere
       await runGateBeforeAction({
         linkUrl: post.url,
@@ -174,7 +175,8 @@ export const FeedCard = ({
         setShowQuiz
       });
     } else {
-      // Nessun link, apri direttamente composer
+      // Nessun link, chiudi sheet e apri composer
+      setShowShareSheet(false);
       setShowComposer(true);
       setQuotedPostId(post.id);
     }

@@ -11,10 +11,11 @@ import { QuizModal } from "@/components/ui/quiz-modal";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
 
 interface MessageComposerProps {
-  threadId: string;
+  threadId: string | null;
+  onSendWithoutThread?: (content: string, mediaIds?: string[]) => void;
 }
 
-export const MessageComposer = ({ threadId }: MessageComposerProps) => {
+export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageComposerProps) => {
   const [content, setContent] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
@@ -65,20 +66,27 @@ export const MessageComposer = ({ threadId }: MessageComposerProps) => {
     const currentLinkUrl = extractFirstUrl(content);
 
     const doSend = () => {
-      sendMessage.mutate(
-        {
-          threadId,
-          content: content.trim(),
-          linkUrl: currentLinkUrl || undefined,
-          mediaIds: uploadedMedia.map(m => m.id)
-        },
-        {
-          onSuccess: () => {
-            setContent("");
-            clearMedia();
+      // Se non c'è threadId, usa onSendWithoutThread (nuovo messaggio)
+      if (!threadId && onSendWithoutThread) {
+        onSendWithoutThread(content.trim(), uploadedMedia.map(m => m.id));
+        setContent("");
+        clearMedia();
+      } else if (threadId) {
+        sendMessage.mutate(
+          {
+            threadId,
+            content: content.trim(),
+            linkUrl: currentLinkUrl || undefined,
+            mediaIds: uploadedMedia.map(m => m.id)
+          },
+          {
+            onSuccess: () => {
+              setContent("");
+              clearMedia();
+            }
           }
-        }
-      );
+        );
+      }
     };
 
     if (currentLinkUrl) {
@@ -97,7 +105,7 @@ export const MessageComposer = ({ threadId }: MessageComposerProps) => {
       // Invio diretto
       doSend();
     }
-  }, [content, uploadedMedia, isProcessing, isUploading, threadId, sendMessage, clearMedia]);
+  }, [content, uploadedMedia, isProcessing, isUploading, threadId, onSendWithoutThread, sendMessage, clearMedia]);
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
