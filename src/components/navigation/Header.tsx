@@ -16,7 +16,7 @@ export const Header = () => {
         <div className="flex-1" />
         
         <div className="flex items-center justify-center">
-          <Logo className="h-10" />
+          <Logo variant="extended" size="md" className="h-8" />
         </div>
 
         {/* Icona messaggi a destra */}

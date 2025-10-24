@@ -152,35 +152,36 @@ export const FeedCard = ({
       return;
     }
 
-    // Mostra PRIMA lo ShareSheet per far scegliere
+    // Mostra SEMPRE lo ShareSheet per scegliere tra feed/amici
     setShowShareSheet(true);
   };
 
   const handleShareToFeed = async () => {
-    if (post.url) {
-      // Chiudi ShareSheet prima di avviare Gate
-      setShowShareSheet(false);
-      
-      // Gate richiesto prima di condividere
-      await runGateBeforeAction({
-        linkUrl: post.url,
-        onSuccess: () => {
-          setShowComposer(true);
-          setQuotedPostId(post.id);
-        },
-        onCancel: () => {
-          // Annullato
-        },
-        setIsProcessing,
-        setQuizData,
-        setShowQuiz
-      });
-    } else {
-      // Nessun link, chiudi sheet e apri composer
-      setShowShareSheet(false);
+    // Chiudi ShareSheet
+    setShowShareSheet(false);
+    
+    if (!post.url) {
+      // Nessun link: apri composer diretto
       setShowComposer(true);
-      setQuotedPostId(post.id);
+      return;
     }
+
+    // Ha un link: Gate necessario
+    const doShare = async () => {
+      setShowComposer(true);
+    };
+
+    setIsProcessing(true);
+    await runGateBeforeAction({
+      linkUrl: post.url,
+      onSuccess: doShare,
+      onCancel: () => {
+        setIsProcessing(false);
+      },
+      setIsProcessing,
+      setQuizData,
+      setShowQuiz
+    });
   };
 
   const handleShareToFriend = () => {

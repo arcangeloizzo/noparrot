@@ -93,20 +93,8 @@ export const NewMessageSheet = ({ isOpen, onClose, selectedUsers }: NewMessageSh
             <Button variant="ghost" size="icon" onClick={onClose}>
               <X className="h-5 w-5" />
             </Button>
-            <h2 className="font-semibold flex-1">Nuova conversazione</h2>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={() => {
-                const textarea = document.querySelector('textarea[placeholder="Scrivi un messaggio..."]') as HTMLTextAreaElement;
-                if (textarea) {
-                  textarea.focus();
-                }
-              }}
-              className="text-primary font-semibold"
-            >
-              Inizia
-            </Button>
+            <h2 className="font-semibold flex-1 text-center">Comincia una nuova conversazione</h2>
+            <div className="w-10" />
           </div>
 
           {/* Destinatari */}
@@ -142,8 +130,8 @@ export const NewMessageSheet = ({ isOpen, onClose, selectedUsers }: NewMessageSh
           </div>
         </div>
 
-        {/* Message Composer - usando il componente completo */}
-        <div className="border-t border-border bg-background">
+        {/* Message Composer */}
+        <div className="border-t border-border bg-background p-4">
           <MessageComposer 
             threadId={null}
             onSendWithoutThread={handleSendMessage}

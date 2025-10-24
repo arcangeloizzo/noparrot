@@ -96,6 +96,19 @@ export const usePosts = () => {
               mime,
               duration_sec
             )
+          ),
+          quoted_post:posts!quoted_post_id (
+            id,
+            content,
+            created_at,
+            shared_url,
+            shared_title,
+            preview_img,
+            author:profiles!author_id (
+              username,
+              full_name,
+              avatar_url
+            )
           )
         `)
         .order('created_at', { ascending: false });
@@ -117,7 +130,7 @@ export const usePosts = () => {
         sources: post.sources || [],
         created_at: post.created_at,
         quoted_post_id: post.quoted_post_id,
-        quoted_post: null,
+        quoted_post: post.quoted_post || null,
         media: (post.post_media || [])
           .sort((a: any, b: any) => a.order_idx - b.order_idx)
           .map((pm: any) => pm.media)
