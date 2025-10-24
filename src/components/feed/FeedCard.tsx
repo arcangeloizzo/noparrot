@@ -23,6 +23,7 @@ import { useSendMessage } from "@/hooks/useMessages";
 import { runGateBeforeAction } from "@/lib/runGateBeforeAction";
 import { haptics } from "@/lib/haptics";
 import { ComposerModal } from "@/components/composer/ComposerModal";
+import { LoadingOverlay } from "@/components/ui/loading-overlay";
 
 interface FeedCardProps {
   post: MockPost;
@@ -155,21 +156,21 @@ export const FeedCard = ({
   };
 
   const handleShareToFeed = () => {
-    setShowShareSheet(false);
-    
+    // NON chiudere ShareSheet - prima mostra Gate poi apri Composer
     if (post.url) {
       // Gate richiesto prima di condividere
       setIsProcessing(true);
       runGateBeforeAction({
         linkUrl: post.url,
         onSuccess: () => {
+          setShowShareSheet(false);
           setShowComposer(true);
           setQuotedPostId(post.id);
           setIsProcessing(false);
         },
         onCancel: () => {
+          setShowShareSheet(false);
           setIsProcessing(false);
-          toast.error('Condivisione annullata');
         },
         setIsProcessing,
         setQuizData,
@@ -177,6 +178,7 @@ export const FeedCard = ({
       });
     } else {
       // Nessun link, apri direttamente composer
+      setShowShareSheet(false);
       setShowComposer(true);
       setQuotedPostId(post.id);
     }
@@ -573,11 +575,10 @@ export const FeedCard = ({
 
           if (result.passed) {
             haptics.success();
-            setShouldBlinkShare(true);
-            setTimeout(() => setShouldBlinkShare(false), 600);
-            toast.success('✅ Test superato!', {
-              description: 'Ora puoi condividere questo contenuto'
-            });
+            // Esegui callback onSuccess
+            if (quizData.onSuccess) {
+              quizData.onSuccess();
+            }
             setShowQuiz(false);
             setQuizData(null);
           }
@@ -585,9 +586,20 @@ export const FeedCard = ({
           return result;
         }}
         onCancel={() => {
+          if (quizData.onCancel) {
+            quizData.onCancel();
+          }
           setShowQuiz(false);
           setQuizData(null);
         }}
+      />
+    )}
+
+    {/* Loading Overlay */}
+    {isProcessing && (
+      <LoadingOverlay 
+        message="Caricamento contenuto..."
+        submessage="Preparazione del Comprehension Gate"
       />
     )}
   </>

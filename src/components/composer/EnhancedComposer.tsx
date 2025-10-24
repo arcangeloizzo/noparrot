@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { MentionDropdown } from "@/components/feed/MentionDropdown";
 import { useUserSearch } from "@/hooks/useUserSearch";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface EnhancedComposerProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ export function EnhancedComposer({
   quotedPost 
 }: EnhancedComposerProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [text, setText] = useState("");
   const [sources, setSources] = useState<string[]>([]);
   const [newSourceUrl, setNewSourceUrl] = useState("");
@@ -173,17 +175,21 @@ export function EnhancedComposer({
         ...insertedPost,
         trustScore
       });
+      // Invalidate posts query per far apparire il post immediatamente
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      
       onPostCreated?.(insertedPost);
 
       toast({
-        title: "Post pubblicato!",
-        description: "Il tuo post è stato pubblicato con successo",
+        title: "✓ Post pubblicato",
+        description: "Il post è ora visibile nel feed",
       });
 
-      // Reset form
+      // Reset form e chiudi
       setText("");
       setSources([]);
       clearMedia();
+      setTimeout(() => onClose(), 800);
       
     } catch (error) {
       console.error("Error publishing post:", error);

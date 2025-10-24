@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
 interface GateOptions {
   linkUrl: string;
@@ -63,8 +62,17 @@ export async function runGateBeforeAction({
     }
   } catch (error) {
     console.error('Gate error:', error);
-    toast.error('Impossibile verificare il contenuto');
-    onCancel();
+    // Mostra errore tramite setQuizData per renderlo più integrato
+    if (setQuizData && setShowQuiz) {
+      setQuizData({
+        error: true,
+        errorMessage: 'Impossibile verificare il contenuto. Riprova.',
+        onCancel
+      });
+      setShowQuiz(true);
+    } else {
+      onCancel();
+    }
   } finally {
     if (setIsProcessing) setIsProcessing(false);
   }

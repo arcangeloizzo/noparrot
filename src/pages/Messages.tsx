@@ -15,9 +15,14 @@ export default function Messages() {
   const handleStartConversation = async (selectedUserIds: string[]) => {
     if (selectedUserIds.length === 0) return;
     
-    const result = await createThread.mutateAsync(selectedUserIds);
-    setShowPeoplePicker(false);
-    navigate(`/messages/${result.thread_id}`);
+    try {
+      const result = await createThread.mutateAsync(selectedUserIds);
+      setShowPeoplePicker(false);
+      navigate(`/messages/${result.thread_id}`);
+    } catch (error) {
+      console.error('Thread creation error:', error);
+      // Error handling is already done in the mutation
+    }
   };
 
   return (
@@ -53,14 +58,21 @@ export default function Messages() {
         </div>
       )}
 
-      {/* FAB Nuova conversazione */}
-      <Button
-        size="icon"
-        className="fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg z-10"
-        onClick={() => setShowPeoplePicker(true)}
+      {/* FAB Nuova conversazione - Enhanced */}
+      <button
+        onClick={() => {
+          setShowPeoplePicker(true);
+        }}
+        className="fixed w-16 h-16 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg z-10 transition-all duration-200 hover:scale-110 active:scale-95"
+        style={{ 
+          right: 'max(16px, env(safe-area-inset-right))',
+          bottom: 'calc(80px + env(safe-area-inset-bottom))',
+          boxShadow: '0 8px 24px rgba(0,0,0,.32)'
+        }}
+        aria-label="Nuova conversazione"
       >
-        <MessageSquarePlus className="h-6 w-6" />
-      </Button>
+        <MessageSquarePlus className="h-7 w-7" />
+      </button>
 
       {/* People Picker */}
       <PeoplePicker

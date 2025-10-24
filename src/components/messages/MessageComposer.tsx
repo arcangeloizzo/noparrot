@@ -8,7 +8,7 @@ import { MediaPreviewTray } from "@/components/media/MediaPreviewTray";
 import { extractFirstUrl } from "@/lib/shouldRequireGate";
 import { runGateBeforeAction } from "@/lib/runGateBeforeAction";
 import { QuizModal } from "@/components/ui/quiz-modal";
-import { toast } from "sonner";
+import { LoadingOverlay } from "@/components/ui/loading-overlay";
 
 interface MessageComposerProps {
   threadId: string;
@@ -86,7 +86,9 @@ export const MessageComposer = ({ threadId }: MessageComposerProps) => {
       await runGateBeforeAction({
         linkUrl: currentLinkUrl,
         onSuccess: doSend,
-        onCancel: () => toast.error('Invio annullato'),
+        onCancel: () => {
+          setIsProcessing(false);
+        },
         setIsProcessing,
         setQuizData,
         setShowQuiz
@@ -178,6 +180,13 @@ export const MessageComposer = ({ threadId }: MessageComposerProps) => {
             setQuizData(null);
           }}
           provider="gemini"
+        />
+      )}
+
+      {isProcessing && (
+        <LoadingOverlay 
+          message="Verifica contenuto..."
+          submessage="Preparazione del Comprehension Gate"
         />
       )}
     </>
