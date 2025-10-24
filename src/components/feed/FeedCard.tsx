@@ -212,7 +212,7 @@ export const FeedCard = ({
   return (
     <>
       <article 
-        className="px-4 py-3 hover:bg-muted/30 transition-all duration-300 cursor-pointer border-t border-[#1F3347] shadow-[0_2px_8px_rgba(0,0,0,0.35)]" 
+        className="px-4 py-3 hover:bg-muted/30 transition-all duration-300 border-t border-[#1F3347] shadow-[0_2px_8px_rgba(0,0,0,0.35)]" 
         style={{
           transform: `translateX(-${swipeOffset}px)`,
           transition: swipeOffset === 0 ? 'transform 0.3s ease-out' : 'none'
@@ -220,19 +220,30 @@ export const FeedCard = ({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        onClick={() => navigate(`/post/${post.id}`)}
       >
       <div className="flex gap-3">
         {/* Avatar */}
-        <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+        <div 
+          className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate(`/profile/${post.author_id}`);
+          }}
+        >
           {getAvatarContent()}
         </div>
 
         {/* Content */}
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0" onClick={() => navigate(`/post/${post.id}`)}>
           {/* User Info */}
           <div className="flex items-center gap-1 mb-1">
-            <span className="font-semibold text-foreground text-[15px] hover:underline" onClick={(e) => e.stopPropagation()}>
+            <span 
+              className="font-semibold text-foreground text-[15px] hover:underline cursor-pointer" 
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/profile/${post.author_id}`);
+              }}
+            >
               {post.authorName}
             </span>
             <span className="text-muted-foreground text-[15px]">·</span>
@@ -261,7 +272,10 @@ export const FeedCard = ({
 
           {/* Article Preview */}
           {post.url && (
-            <div className="border border-border rounded-2xl overflow-hidden mb-3">
+            <div 
+              className="border border-border rounded-2xl overflow-hidden mb-3"
+              onClick={(e) => e.stopPropagation()}
+            >
               {(articlePreview?.image || articlePreview?.previewImg || post.previewImg) && (
                 <div className="w-full aspect-video bg-muted">
                   <img 

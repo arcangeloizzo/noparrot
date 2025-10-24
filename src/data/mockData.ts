@@ -2,6 +2,7 @@
 
 export interface MockPost {
   id: string;
+  author_id?: string;
   authorName: string;
   avatar?: string;
   minutesAgo: number;
