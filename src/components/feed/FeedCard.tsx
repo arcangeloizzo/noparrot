@@ -12,7 +12,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { CommentReplySheet } from "./CommentReplySheet";
-import { PostCommentsView } from "./PostCommentsView";
 import { generateQA, validateAnswers, fetchArticlePreview } from "@/lib/ai-helpers";
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { toast } from "sonner";
@@ -59,7 +58,7 @@ export const FeedCard = ({
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
-  const [commentsSheetOpen, setCommentsSheetOpen] = useState(false);
+  
   const [showCommentReply, setShowCommentReply] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizData, setQuizData] = useState<any>(null);
@@ -221,9 +220,7 @@ export const FeedCard = ({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        onClick={() => {
-          setCommentsSheetOpen(true);
-        }}
+        onClick={() => navigate(`/post/${post.id}`)}
       >
       <div className="flex gap-3">
         {/* Avatar */}
@@ -401,11 +398,6 @@ export const FeedCard = ({
       onClose={() => setShowCommentReply(false)}
     />
     
-    <PostCommentsView
-      post={post as any}
-      isOpen={commentsSheetOpen}
-      onClose={() => setCommentsSheetOpen(false)}
-    />
 
     {/* Quiz Modal for Share Gate */}
     {showQuiz && quizData && user && (
