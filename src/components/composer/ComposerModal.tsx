@@ -16,6 +16,7 @@ import { generateQA } from "@/lib/ai-helpers";
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { MentionDropdown } from "@/components/feed/MentionDropdown";
 import { useUserSearch } from "@/hooks/useUserSearch";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface ComposerModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 
 export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProps) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [content, setContent] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
   const [detectedUrl, setDetectedUrl] = useState<string | null>(null);
@@ -227,6 +229,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         }
       }
 
+      // Invalida queries per ricaricare il feed immediatamente
+      await queryClient.invalidateQueries({ queryKey: ['posts'] });
+      await queryClient.refetchQueries({ queryKey: ['posts'] });
+      
       toast.success('Post pubblicato!');
       setContent('');
       setDetectedUrl(null);

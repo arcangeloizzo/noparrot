@@ -152,6 +152,7 @@ export const FeedCard = ({
       return;
     }
 
+    // Mostra PRIMA lo ShareSheet per far scegliere
     setShowShareSheet(true);
   };
 

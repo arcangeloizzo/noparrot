@@ -93,8 +93,20 @@ export const NewMessageSheet = ({ isOpen, onClose, selectedUsers }: NewMessageSh
             <Button variant="ghost" size="icon" onClick={onClose}>
               <X className="h-5 w-5" />
             </Button>
-            <h2 className="font-semibold flex-1 text-center">Inizia una nuova conversazione</h2>
-            <div className="w-10" /> {/* Spacer for centering */}
+            <h2 className="font-semibold flex-1">Nuova conversazione</h2>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => {
+                const textarea = document.querySelector('textarea[placeholder="Scrivi un messaggio..."]') as HTMLTextAreaElement;
+                if (textarea) {
+                  textarea.focus();
+                }
+              }}
+              className="text-primary font-semibold"
+            >
+              Inizia
+            </Button>
           </div>
 
           {/* Destinatari */}
