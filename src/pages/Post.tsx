@@ -3,16 +3,15 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { cn, getDisplayUsername } from '@/lib/utils';
 import { Post as PostType } from '@/hooks/usePosts';
 import { useComments, useAddComment, useDeleteComment } from '@/hooks/useComments';
 import { useToggleCommentReaction } from '@/hooks/useCommentReactions';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { CollapsiblePostHeader } from '@/components/feed/CollapsiblePostHeader';
 import { CommentMetricsBar } from '@/components/feed/CommentMetricsBar';
 import { CommentList } from '@/components/feed/CommentList';
 import { StickyComposer } from '@/components/feed/StickyComposer';
-import { PostExpandedOverlay } from '@/components/feed/PostExpandedOverlay';
 import { Comment } from '@/hooks/useComments';
 import { toast } from 'sonner';
 
@@ -213,34 +212,125 @@ export const Post = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      {/* Back button header */}
-      <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-40 border-b border-border/50">
-        <div className="px-4 py-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(-1)}
-            className="gap-2"
+    <div className="min-h-screen bg-background pb-32">
+      {/* Header dinamico: back button quando expanded, collapsible quando scrolled */}
+      <div className={cn(
+        "sticky top-0 bg-background/95 backdrop-blur-sm z-40 border-b border-border/50 transition-all duration-200",
+        isCollapsed ? "" : ""
+      )}>
+        {!isCollapsed ? (
+          <div className="px-4 py-3 flex items-center gap-3">
+            <button
+              onClick={() => navigate(-1)}
+              className="p-2 hover:bg-muted rounded-full transition-colors -ml-2"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div>
+              <div className="font-bold text-lg">Post</div>
+            </div>
+          </div>
+        ) : (
+          <div 
+            className="px-4 py-2.5 flex items-center gap-3 cursor-pointer hover:bg-muted/30 transition-colors"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           >
-            <ArrowLeft className="w-4 h-4" />
-            Indietro
-          </Button>
-        </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(-1);
+              }}
+              className="p-1.5 hover:bg-muted rounded-full transition-colors -ml-1"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <div className="flex-shrink-0">
+              {post.author.avatar_url ? (
+                <img
+                  src={post.author.avatar_url}
+                  alt={post.author.full_name || post.author.username}
+                  className="w-8 h-8 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold">
+                  {(post.author.full_name || post.author.username).slice(0, 2).toUpperCase()}
+                </div>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold truncate">
+                {post.author.full_name || getDisplayUsername(post.author.username)}
+              </div>
+              <div className="text-xs text-muted-foreground truncate">
+                {post.content}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Collapsible Post Header */}
-      <CollapsiblePostHeader
-        post={post}
-        isCollapsed={isCollapsed}
-        onExpand={() => setShowPostOverlay(true)}
-        focusComment={focusComment}
-        onBackToPost={focusComment ? () => {
-          setSearchParams({});
-        } : undefined}
-      />
+      {/* Post completo (quando non collapsed) */}
+      {!isCollapsed && (
+        <div className="border-b border-border">
+          <div className="px-4 py-3">
+            <div className="flex gap-3">
+              <div className="flex-shrink-0">
+                {post.author.avatar_url ? (
+                  <img
+                    src={post.author.avatar_url}
+                    alt={post.author.full_name || post.author.username}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
+                    {(post.author.full_name || post.author.username).slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="font-bold text-base">
+                    {post.author.full_name || getDisplayUsername(post.author.username)}
+                  </span>
+                </div>
+                <div className="text-muted-foreground text-sm mb-3">
+                  @{getDisplayUsername(post.author.username)}
+                </div>
+              </div>
+            </div>
+            
+            {/* Content */}
+            <div className="text-base leading-relaxed mb-3 whitespace-pre-wrap">
+              {post.content}
+            </div>
 
-      {/* Metrics & Filters */}
+            {/* Timestamp */}
+            <div className="text-muted-foreground text-sm border-b border-border pb-3 mb-3">
+              {new Date(post.created_at).toLocaleString('it-IT', {
+                hour: '2-digit',
+                minute: '2-digit',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+              })}
+            </div>
+
+            {/* Metrics */}
+            <div className="flex items-center gap-4 text-sm border-b border-border pb-3 mb-3">
+              <div>
+                <span className="font-bold">{post.reactions.hearts}</span>
+                <span className="text-muted-foreground ml-1">Mi piace</span>
+              </div>
+              <div>
+                <span className="font-bold">{comments.length}</span>
+                <span className="text-muted-foreground ml-1">Comment{comments.length !== 1 ? 'i' : 'o'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
       <CommentMetricsBar
         commentsCount={comments.length}
         likesCount={post.reactions.hearts}
@@ -266,14 +356,6 @@ export const Post = () => {
         onClearReplyTo={() => setReplyToComment(null)}
         onSubmit={handleSubmitComment}
       />
-
-      {/* Post Expanded Overlay */}
-      {showPostOverlay && (
-        <PostExpandedOverlay
-          post={post}
-          onClose={() => setShowPostOverlay(false)}
-        />
-      )}
     </div>
   );
 };
