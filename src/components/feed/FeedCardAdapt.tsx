@@ -16,7 +16,6 @@ import {
 import { QuizModal } from "@/components/ui/quiz-modal";
 
 // Feed Components
-import { CommentsSheet } from "./CommentsSheet";
 import { PostTestActionsModal } from "./PostTestActionsModal";
 import { QuotedPostCard } from "./QuotedPostCard";
 import { PostHeader } from "./PostHeader";
@@ -67,8 +66,6 @@ export const FeedCard = ({
   const navigate = useNavigate();
   const toggleReaction = useToggleReaction();
   const { data: quotedPost } = useQuotedPost(post.quoted_post_id);
-  const [showComments, setShowComments] = useState(false);
-  const [commentMode, setCommentMode] = useState<'view' | 'reply'>('view');
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
   
   // Article preview state
@@ -571,8 +568,7 @@ export const FeedCard = ({
                   className="flex items-center gap-1.5 p-2 rounded-full hover:bg-primary/10 hover:text-primary transition-colors group"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setCommentMode('reply');
-                    setShowComments(true);
+                    navigate(`/post/${post.id}`);
                   }}
                 >
                   <MessageCircleIcon className="w-[18px] h-[18px]" />
@@ -607,16 +603,6 @@ export const FeedCard = ({
           </div>
         </div>
       </div>
-
-      <CommentsSheet
-        post={post}
-        isOpen={showComments}
-        onClose={() => {
-          setShowComments(false);
-          setCommentMode('view');
-        }}
-        mode={commentMode}
-      />
 
       {/* Reader Modal - Rendered via Portal */}
       {showReader && readerSource && createPortal(
