@@ -186,15 +186,17 @@ export const StickyComposer = ({
               </div>
             )}
 
-            {/* Mention Dropdown */}
+            {/* Mention Dropdown - positioned below */}
             {mentionQuery && (
-              <MentionDropdown
-                users={mentionUsers}
-                selectedIndex={selectedMentionIndex}
-                onSelect={handleMentionSelect}
-                isLoading={isLoadingUsers}
-                position="above"
-              />
+              <div className="relative">
+                <MentionDropdown
+                  users={mentionUsers}
+                  selectedIndex={selectedMentionIndex}
+                  onSelect={handleMentionSelect}
+                  isLoading={isLoadingUsers}
+                  position="below"
+                />
+              </div>
             )}
 
             {/* Textarea */}

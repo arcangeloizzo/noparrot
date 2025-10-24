@@ -129,14 +129,14 @@ export const Post = () => {
       <div className="min-h-screen bg-background">
         <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-40 border-b border-border/50">
           <div className="flex items-center gap-4 px-4 h-14">
-            <button
-              onClick={() => navigate(-1)}
-              className="p-2 hover:bg-muted rounded-full transition-colors -ml-2"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <h1 className="text-xl font-bold">Post</h1>
-          </div>
+          <button
+            onClick={() => navigate('/')}
+            className="p-2 hover:bg-muted rounded-full transition-colors -ml-2"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h1 className="text-xl font-bold">Post</h1>
+        </div>
         </div>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center space-y-3">
@@ -156,7 +156,7 @@ export const Post = () => {
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-40 border-b border-border/50">
         <div className="flex items-center gap-4 px-4 h-14">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/')}
             className="p-2 hover:bg-muted rounded-full transition-colors -ml-2"
           >
             <ArrowLeft className="w-5 h-5" />
