@@ -11,11 +11,15 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
-export const AuthPage = () => {
+export interface AuthPageProps {
+  initialMode?: 'login' | 'signup';
+}
+
+export const AuthPage = ({ initialMode = 'login' }: AuthPageProps) => {
   const navigate = useNavigate();
   const { user, signIn, signUpStep1, verifyEmailOTP, completeProfile } = useAuth();
   
-  const [isLogin, setIsLogin] = useState(true);
+  const [isLogin, setIsLogin] = useState(initialMode === 'login');
   const [registrationStep, setRegistrationStep] = useState<1 | 2 | 3>(1);
   const [isLoading, setIsLoading] = useState(false);
 

@@ -10,6 +10,7 @@ interface OnboardingFlowProps {
 
 export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [currentStep, setCurrentStep] = useState<"splash" | "slides" | "mission" | "auth">("splash");
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
 
   const handleSplashComplete = () => {
     setCurrentStep("slides");
@@ -24,10 +25,12 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   };
 
   const handleCreateAccount = () => {
+    setAuthMode('signup');
     setCurrentStep("auth");
   };
 
   const handleLogin = () => {
+    setAuthMode('login');
     setCurrentStep("auth");
   };
 
@@ -54,7 +57,7 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   }
 
   if (currentStep === "auth") {
-    return <AuthPage />;
+    return <AuthPage initialMode={authMode} />;
   }
 
   return null;
