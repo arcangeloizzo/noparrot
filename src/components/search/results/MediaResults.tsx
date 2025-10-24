@@ -16,26 +16,49 @@ export const MediaResults = ({ query }: MediaResultsProps) => {
   const { data: mediaItems, isLoading } = useQuery({
     queryKey: ["search-media", query],
     queryFn: async () => {
-      const { data, error } = await supabase
+      if (!query || query.length < 2) return [];
+
+      // Search for posts that contain media and match the query
+      const { data: posts, error } = await supabase
+        .from("posts")
+        .select(`
+          id,
+          content,
+          created_at,
+          profiles!posts_author_id_fkey (
+            username,
+            full_name,
+            avatar_url
+          )
+        `)
+        .or(`content.ilike.%${query}%,shared_title.ilike.%${query}%`)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+
+      // Now get media for these posts
+      const postIds = (posts || []).map(p => p.id);
+      if (postIds.length === 0) return [];
+
+      const { data: mediaData, error: mediaError } = await supabase
         .from("post_media")
         .select(`
           *,
-          media (*),
-          posts (
-            *,
-            profiles!posts_author_id_fkey (
-              username,
-              full_name,
-              avatar_url
-            )
-          )
+          media (*)
         `)
-        .limit(20);
+        .in("post_id", postIds)
+        .limit(50);
 
-      if (error) throw error;
-      return data || [];
+      if (mediaError) throw mediaError;
+
+      // Combine with post data
+      return (mediaData || []).map(item => ({
+        ...item,
+        post: posts.find(p => p.id === item.post_id)
+      })).filter(item => item.media);
     },
-    enabled: !!query,
+    enabled: !!query && query.length >= 2,
   });
 
   if (isLoading || !mediaItems || mediaItems.length === 0) {
@@ -47,7 +70,7 @@ export const MediaResults = ({ query }: MediaResultsProps) => {
       <div className="grid grid-cols-2 gap-1 p-1">
         {mediaItems.map((item) => {
           const media = item.media;
-          const post = item.posts;
+          const post = item.post;
           const isVideo = media?.type === "video";
 
           return (

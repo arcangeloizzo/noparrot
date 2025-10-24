@@ -13,6 +13,8 @@ export const PostsResults = ({ query, filters }: PostsResultsProps) => {
   const { data: posts, isLoading } = useQuery({
     queryKey: ["search-posts", query, filters],
     queryFn: async () => {
+      if (!query || query.length < 2) return [];
+
       let queryBuilder = supabase
         .from("posts")
         .select(`
@@ -34,21 +36,25 @@ export const PostsResults = ({ query, filters }: PostsResultsProps) => {
             )
           )
         `)
-        .or(`content.ilike.%${query}%,shared_title.ilike.%${query}%`)
-        .order("created_at", { ascending: false })
-        .limit(20);
+        .order("created_at", { ascending: false });
+
+      // Search in content, title, or topic
+      const searchPattern = `%${query}%`;
+      queryBuilder = queryBuilder.or(
+        `content.ilike.${searchPattern},shared_title.ilike.${searchPattern},topic_tag.ilike.${searchPattern}`
+      );
 
       // Apply date range filter
+      const now = new Date();
       if (filters.dateRange === "today") {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         queryBuilder = queryBuilder.gte("created_at", today.toISOString());
       } else if (filters.dateRange === "7days") {
-        const weekAgo = new Date();
+        const weekAgo = new Date(now);
         weekAgo.setDate(weekAgo.getDate() - 7);
         queryBuilder = queryBuilder.gte("created_at", weekAgo.toISOString());
       } else if (filters.dateRange === "30days") {
-        const monthAgo = new Date();
+        const monthAgo = new Date(now);
         monthAgo.setDate(monthAgo.getDate() - 30);
         queryBuilder = queryBuilder.gte("created_at", monthAgo.toISOString());
       }
@@ -60,12 +66,18 @@ export const PostsResults = ({ query, filters }: PostsResultsProps) => {
         queryBuilder = queryBuilder.in("trust_level", ["MEDIO", "ALTO"]);
       }
 
+      queryBuilder = queryBuilder.limit(50);
+
       const { data, error } = await queryBuilder;
 
-      if (error) throw error;
+      if (error) {
+        console.error("Search error:", error);
+        throw error;
+      }
+      
       return data || [];
     },
-    enabled: !!query,
+    enabled: !!query && query.length >= 2,
   });
 
   if (isLoading) {

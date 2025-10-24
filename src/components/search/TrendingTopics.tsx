@@ -1,21 +1,49 @@
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { TrendingUp, Hash } from "lucide-react";
 
 interface TrendingTopicsProps {
   onSelect: (query: string) => void;
 }
 
-const TRENDING = [
-  { topic: "Intelligenza Artificiale", posts: 1234, trending: true },
-  { topic: "Elezioni 2024", posts: 892, trending: true },
-  { topic: "Cambiamento Climatico", posts: 567, trending: false },
-  { topic: "Tecnologia", posts: 445, trending: false },
-  { topic: "Salute", posts: 332, trending: false },
-  { topic: "Sport", posts: 298, trending: false },
-  { topic: "Economia", posts: 245, trending: false },
-  { topic: "Cultura", posts: 189, trending: false },
-];
-
 export const TrendingTopics = ({ onSelect }: TrendingTopicsProps) => {
+  const { data: trending } = useQuery({
+    queryKey: ["trending-topics"],
+    queryFn: async () => {
+      // Get recent posts with topics
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const { data: posts, error } = await supabase
+        .from("posts")
+        .select("topic_tag")
+        .not("topic_tag", "is", null)
+        .gte("created_at", thirtyDaysAgo.toISOString())
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      // Count topic occurrences
+      const topicCounts = (posts || []).reduce((acc: Record<string, number>, post) => {
+        const tag = post.topic_tag;
+        if (tag) {
+          acc[tag] = (acc[tag] || 0) + 1;
+        }
+        return acc;
+      }, {});
+
+      // Convert to array and sort by count
+      return Object.entries(topicCounts)
+        .map(([topic, posts]) => ({ topic, posts, trending: posts > 5 }))
+        .sort((a, b) => b.posts - a.posts)
+        .slice(0, 8);
+    },
+  });
+
+  if (!trending || trending.length === 0) {
+    return null;
+  }
+
   return (
     <div className="p-4 space-y-3">
       <div className="flex items-center gap-2">
@@ -24,7 +52,7 @@ export const TrendingTopics = ({ onSelect }: TrendingTopicsProps) => {
       </div>
 
       <div className="space-y-2">
-        {TRENDING.map((trend, i) => (
+        {trending.map((trend, i) => (
           <button
             key={i}
             onClick={() => onSelect(`#${trend.topic}`)}
@@ -42,7 +70,7 @@ export const TrendingTopics = ({ onSelect }: TrendingTopicsProps) => {
                 {trend.topic}
               </div>
               <div className="text-sm text-muted-foreground">
-                {trend.posts.toLocaleString()} post
+                {trend.posts} post
               </div>
             </div>
           </button>
