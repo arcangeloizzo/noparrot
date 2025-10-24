@@ -155,22 +155,19 @@ export const FeedCard = ({
     setShowShareSheet(true);
   };
 
-  const handleShareToFeed = () => {
-    // NON chiudere ShareSheet - prima mostra Gate poi apri Composer
+  const handleShareToFeed = async () => {
+    setShowShareSheet(false);
+    
     if (post.url) {
       // Gate richiesto prima di condividere
-      setIsProcessing(true);
-      runGateBeforeAction({
+      await runGateBeforeAction({
         linkUrl: post.url,
         onSuccess: () => {
-          setShowShareSheet(false);
           setShowComposer(true);
           setQuotedPostId(post.id);
-          setIsProcessing(false);
         },
         onCancel: () => {
-          setShowShareSheet(false);
-          setIsProcessing(false);
+          // Annullato
         },
         setIsProcessing,
         setQuizData,
@@ -178,7 +175,6 @@ export const FeedCard = ({
       });
     } else {
       // Nessun link, apri direttamente composer
-      setShowShareSheet(false);
       setShowComposer(true);
       setQuotedPostId(post.id);
     }

@@ -175,14 +175,15 @@ export function EnhancedComposer({
         ...insertedPost,
         trustScore
       });
-      // Invalidate posts query per far apparire il post immediatamente
+      
+      // Invalidate e refetch per far apparire il post immediatamente
       queryClient.invalidateQueries({ queryKey: ['posts'] });
+      await queryClient.refetchQueries({ queryKey: ['posts'] });
       
       onPostCreated?.(insertedPost);
 
       toast({
-        title: "✓ Post pubblicato",
-        description: "Il post è ora visibile nel feed",
+        title: "✓ Post pubblicato"
       });
 
       // Reset form e chiudi

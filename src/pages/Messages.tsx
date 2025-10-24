@@ -2,27 +2,31 @@ import { ArrowLeft, MessageSquarePlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ThreadList } from "@/components/messages/ThreadList";
-import { useMessageThreads, useCreateThread } from "@/hooks/useMessageThreads";
+import { useMessageThreads } from "@/hooks/useMessageThreads";
 import { PeoplePicker } from "@/components/share/PeoplePicker";
+import { NewMessageSheet } from "@/components/messages/NewMessageSheet";
 import { useState } from "react";
+import { useUserSearch } from "@/hooks/useUserSearch";
 
 export default function Messages() {
   const navigate = useNavigate();
   const { data: threads, isLoading } = useMessageThreads();
   const [showPeoplePicker, setShowPeoplePicker] = useState(false);
-  const createThread = useCreateThread();
+  const [showNewMessage, setShowNewMessage] = useState(false);
+  const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
 
   const handleStartConversation = async (selectedUserIds: string[]) => {
     if (selectedUserIds.length === 0) return;
     
-    try {
-      const result = await createThread.mutateAsync(selectedUserIds);
-      setShowPeoplePicker(false);
-      navigate(`/messages/${result.thread_id}`);
-    } catch (error) {
-      console.error('Thread creation error:', error);
-      // Error handling is already done in the mutation
-    }
+    // Recupera i dati degli utenti selezionati
+    const usersData = selectedUserIds.map(id => {
+      // Trova l'utente dalla cache o fai una query
+      return { id, username: `user_${id}`, full_name: null, avatar_url: null };
+    });
+    
+    setSelectedUsers(usersData);
+    setShowPeoplePicker(false);
+    setShowNewMessage(true);
   };
 
   return (
@@ -60,18 +64,17 @@ export default function Messages() {
 
       {/* FAB Nuova conversazione - Enhanced */}
       <button
-        onClick={() => {
-          setShowPeoplePicker(true);
-        }}
-        className="fixed w-16 h-16 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg z-10 transition-all duration-200 hover:scale-110 active:scale-95"
+        onClick={() => setShowPeoplePicker(true)}
+        className="group fixed w-14 h-14 bg-primary text-primary-foreground rounded-full flex items-center justify-center z-10 transition-all duration-300 hover:scale-110 hover:shadow-2xl active:scale-95"
         style={{ 
-          right: 'max(16px, env(safe-area-inset-right))',
-          bottom: 'calc(80px + env(safe-area-inset-bottom))',
-          boxShadow: '0 8px 24px rgba(0,0,0,.32)'
+          right: 'max(20px, env(safe-area-inset-right))',
+          bottom: 'calc(88px + env(safe-area-inset-bottom))',
+          boxShadow: '0 8px 32px hsl(var(--primary) / 0.4), 0 4px 16px rgba(0,0,0,.24)'
         }}
         aria-label="Nuova conversazione"
       >
-        <MessageSquarePlus className="h-7 w-7" />
+        <MessageSquarePlus className="h-6 w-6 transition-transform group-hover:rotate-12" />
+        <div className="absolute inset-0 rounded-full bg-primary/20 blur-xl animate-pulse" />
       </button>
 
       {/* People Picker */}
@@ -79,6 +82,16 @@ export default function Messages() {
         isOpen={showPeoplePicker}
         onClose={() => setShowPeoplePicker(false)}
         onSend={handleStartConversation}
+      />
+
+      {/* New Message Sheet */}
+      <NewMessageSheet
+        isOpen={showNewMessage}
+        onClose={() => {
+          setShowNewMessage(false);
+          setSelectedUsers([]);
+        }}
+        selectedUsers={selectedUsers}
       />
     </div>
   );

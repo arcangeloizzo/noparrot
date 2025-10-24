@@ -14,27 +14,24 @@ interface PeoplePickerProps {
 
 export const PeoplePicker = ({ isOpen, onClose, onSend }: PeoplePickerProps) => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
 
   const { data: users, isLoading } = useUserSearch(searchQuery);
 
   const toggleUser = (userId: string) => {
     setSelectedUserIds(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(userId)) {
-        newSet.delete(userId);
+      if (prev.includes(userId)) {
+        return prev.filter(id => id !== userId);
       } else {
-        newSet.add(userId);
+        return [...prev, userId];
       }
-      return newSet;
     });
   };
 
   const handleSend = () => {
-    onSend(Array.from(selectedUserIds));
-    setSelectedUserIds(new Set());
+    onSend(selectedUserIds);
+    setSelectedUserIds([]);
     setSearchQuery("");
-    onClose();
   };
 
   if (!isOpen) return null;
@@ -51,7 +48,7 @@ export const PeoplePicker = ({ isOpen, onClose, onSend }: PeoplePickerProps) => 
           <Button
             variant="ghost"
             onClick={handleSend}
-            disabled={selectedUserIds.size === 0}
+            disabled={selectedUserIds.length === 0}
             className="font-semibold text-primary disabled:text-muted-foreground"
           >
             Invia
@@ -74,9 +71,9 @@ export const PeoplePicker = ({ isOpen, onClose, onSend }: PeoplePickerProps) => 
       </div>
 
       {/* Selected count */}
-      {selectedUserIds.size > 0 && (
+      {selectedUserIds.length > 0 && (
         <div className="px-4 py-2 bg-muted/50 text-sm text-muted-foreground">
-          {selectedUserIds.size} {selectedUserIds.size === 1 ? 'persona selezionata' : 'persone selezionate'}
+          {selectedUserIds.length} {selectedUserIds.length === 1 ? 'persona selezionata' : 'persone selezionate'}
         </div>
       )}
 
@@ -89,7 +86,7 @@ export const PeoplePicker = ({ isOpen, onClose, onSend }: PeoplePickerProps) => 
         ) : users && users.length > 0 ? (
           <div className="divide-y divide-border">
             {users.map((user) => {
-              const isSelected = selectedUserIds.has(user.id);
+              const isSelected = selectedUserIds.includes(user.id);
               return (
                 <div
                   key={user.id}
