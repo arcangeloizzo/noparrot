@@ -293,12 +293,42 @@ export const FeedCard = ({
                 </div>
               )}
               <div className="p-3">
-                {articlePreview?.platform === 'twitter' && articlePreview?.author_username && (
+                {/* Social Media Platform Badges */}
+                {articlePreview?.platform === 'twitter' && (
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-xs font-semibold text-primary">𝕏</span>
+                    <div className="w-6 h-6 rounded-full bg-black flex items-center justify-center">
+                      <span className="text-xs font-bold text-white">𝕏</span>
                     </div>
-                    <span className="text-sm font-semibold">@{articlePreview.author_username}</span>
+                    <span className="text-sm font-semibold">
+                      {articlePreview.author_username ? `@${articlePreview.author_username}` : 'Twitter/X'}
+                    </span>
+                  </div>
+                )}
+                {articlePreview?.platform === 'linkedin' && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 rounded-full bg-[#0A66C2] flex items-center justify-center">
+                      <span className="text-xs font-bold text-white">in</span>
+                    </div>
+                    <span className="text-sm font-semibold text-[#0A66C2]">LinkedIn</span>
+                    {articlePreview.author && (
+                      <span className="text-xs text-muted-foreground">• {articlePreview.author}</span>
+                    )}
+                  </div>
+                )}
+                {articlePreview?.platform === 'instagram' && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-[#FCAF45] via-[#E1306C] to-[#833AB4] flex items-center justify-center">
+                      <span className="text-xs font-bold text-white">📷</span>
+                    </div>
+                    <span className="text-sm font-semibold">Instagram</span>
+                  </div>
+                )}
+                {articlePreview?.platform === 'threads' && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 rounded-full bg-black flex items-center justify-center">
+                      <span className="text-xs font-bold text-white">🧵</span>
+                    </div>
+                    <span className="text-sm font-semibold">Threads</span>
                   </div>
                 )}
                 {articlePreview?.platform === 'youtube' && (

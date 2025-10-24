@@ -391,9 +391,124 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 {/* Padding per scroll */}
                 <div className="h-32"></div>
               </>
+            ) : source.platform === 'twitter' || source.platform === 'linkedin' || 
+                source.platform === 'instagram' || source.platform === 'threads' ? (
+              <>
+                {/* Social Media Content */}
+                <div className="max-w-2xl mx-auto space-y-4">
+                  {/* Platform Header */}
+                  <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-lg">
+                    {source.platform === 'twitter' && (
+                      <>
+                        <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center">
+                          <span className="text-lg font-bold text-white">𝕏</span>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-foreground">Twitter/X</p>
+                          {source.author_username && (
+                            <p className="text-sm text-muted-foreground">@{source.author_username}</p>
+                          )}
+                        </div>
+                      </>
+                    )}
+                    {source.platform === 'linkedin' && (
+                      <>
+                        <div className="w-10 h-10 rounded-full bg-[#0A66C2] flex items-center justify-center">
+                          <span className="text-lg font-bold text-white">in</span>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#0A66C2]">LinkedIn</p>
+                          {source.author && (
+                            <p className="text-sm text-muted-foreground">{source.author}</p>
+                          )}
+                        </div>
+                      </>
+                    )}
+                    {source.platform === 'instagram' && (
+                      <>
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#FCAF45] via-[#E1306C] to-[#833AB4] flex items-center justify-center">
+                          <span className="text-lg">📷</span>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-foreground">Instagram</p>
+                        </div>
+                      </>
+                    )}
+                    {source.platform === 'threads' && (
+                      <>
+                        <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center">
+                          <span className="text-lg">🧵</span>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-foreground">Threads</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  {source.content && (
+                    <div className="prose prose-sm max-w-none">
+                      <div className="whitespace-pre-wrap text-foreground leading-relaxed bg-card rounded-lg p-4 border border-border">
+                        {source.content}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Image if available */}
+                  {source.image && (
+                    <div className="rounded-lg overflow-hidden border border-border">
+                      <img 
+                        src={source.image} 
+                        alt="Social media content" 
+                        className="w-full object-cover"
+                      />
+                    </div>
+                  )}
+
+                  {/* Try Twitter embed if available */}
+                  {source.embedHtml && source.platform === 'twitter' && (
+                    <div className="mt-4">
+                      {isRenderingTwitter && (
+                        <div className="flex items-center justify-center py-12">
+                          <div className="animate-pulse space-y-3 w-full">
+                            <div className="h-4 bg-muted rounded w-3/4"></div>
+                            <div className="h-4 bg-muted rounded w-1/2"></div>
+                            <div className="h-32 bg-muted rounded"></div>
+                          </div>
+                        </div>
+                      )}
+                      <div 
+                        dangerouslySetInnerHTML={{ __html: source.embedHtml }}
+                        className={cn(
+                          "twitter-embed-container",
+                          isRenderingTwitter && "hidden"
+                        )}
+                        style={{ minHeight: '200px' }}
+                      />
+                    </div>
+                  )}
+
+                  {/* Link to original */}
+                  <div className="flex justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={openSource}
+                      className="gap-2"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Vedi Post Originale
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Padding per scroll */}
+                <div className="h-32"></div>
+              </>
             ) : source.embedHtml ? (
               <>
-                {/* Twitter/X Embed */}
+                {/* Generic Embed (e.g., older Twitter implementation) */}
                 <div className="max-w-2xl mx-auto">
                   {isRenderingTwitter && (
                     <div className="flex items-center justify-center py-12">

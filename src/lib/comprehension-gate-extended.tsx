@@ -24,6 +24,7 @@ export interface SourceWithGate {
   summary?: string;
   excerpt?: string;
   previewImg?: string;
+  image?: string;
   hostname?: string;
   type?: 'article' | 'video' | 'audio' | 'image';
   embedUrl?: string;
@@ -33,6 +34,8 @@ export interface SourceWithGate {
   duration?: string;
   transcript?: string;
   transcriptSource?: 'youtube_captions' | 'whisper' | 'manual' | 'none';
+  author?: string;
+  author_username?: string;
 }
 
 export interface GateQueueState {

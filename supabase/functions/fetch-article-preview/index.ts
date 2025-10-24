@@ -56,6 +56,66 @@ function extractYouTubeId(url: string): string | null {
   return null;
 }
 
+// Detect social media platforms
+function detectSocialPlatform(url: string): string | null {
+  const urlLower = url.toLowerCase();
+  if (urlLower.includes('twitter.com') || urlLower.includes('x.com')) return 'twitter';
+  if (urlLower.includes('linkedin.com')) return 'linkedin';
+  if (urlLower.includes('instagram.com')) return 'instagram';
+  if (urlLower.includes('threads.net')) return 'threads';
+  return null;
+}
+
+// Fetch social content using Jina AI Reader (FREE)
+async function fetchSocialWithJina(url: string, platform: string) {
+  try {
+    console.log(`[fetch-article-preview] Fetching ${platform} content via Jina AI Reader`);
+    
+    const jinaUrl = `https://r.jina.ai/${url}`;
+    const response = await fetch(jinaUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'X-Return-Format': 'json'
+      }
+    });
+    
+    if (!response.ok) {
+      console.error(`[fetch-article-preview] Jina AI fetch failed: ${response.status}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    console.log('[fetch-article-preview] Jina AI extraction successful:', {
+      title: data.title,
+      contentLength: data.content?.length || 0,
+      hasImage: !!data.image
+    });
+    
+    // Extract author from LinkedIn/Instagram
+    let author = data.author_name || data.author || '';
+    if (platform === 'linkedin' && data.content) {
+      const authorMatch = data.content.match(/(?:Posted by|By)\s+([^\n]+)/i);
+      if (authorMatch) author = authorMatch[1].trim();
+    }
+    
+    return {
+      title: data.title || `Post from ${platform}`,
+      content: data.content || '',
+      summary: data.description || (data.content ? data.content.substring(0, 300) + '...' : ''),
+      image: data.image || '',
+      previewImg: data.image || '',
+      platform,
+      type: 'social',
+      author,
+      author_username: platform === 'twitter' ? author.replace('@', '') : '',
+      hostname: new URL(url).hostname
+    };
+  } catch (error) {
+    console.error('[fetch-article-preview] Jina AI error:', error);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -140,52 +200,67 @@ serve(async (req) => {
       }
     }
 
-    const isTwitter = url.includes('twitter.com') || url.includes('x.com');
-
-    if (isTwitter) {
-      const twitterUrl = url.replace('x.com', 'twitter.com');
-      const oembedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(twitterUrl)}`;
+    // Check if it's a social media link (Twitter/X, LinkedIn, Instagram, Threads)
+    const socialPlatform = detectSocialPlatform(url);
+    if (socialPlatform) {
+      console.log(`[fetch-article-preview] Detected ${socialPlatform} link`);
       
-      const response = await fetch(oembedUrl);
-      
-      if (!response.ok) {
-        throw new Error(`oEmbed failed: ${response.status}`);
+      // Try Jina AI Reader first (FREE)
+      const jinaResult = await fetchSocialWithJina(url, socialPlatform);
+      if (jinaResult) {
+        return new Response(JSON.stringify(jinaResult), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
+      
+      // Fallback to oEmbed for Twitter only
+      if (socialPlatform === 'twitter') {
+        try {
+          const twitterUrl = url.replace('x.com', 'twitter.com');
+          const oembedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(twitterUrl)}`;
+          
+          const response = await fetch(oembedUrl);
+          
+          if (response.ok) {
+            const data = await response.json();
+            
+            // Extract plain text from HTML for content field
+            const plainText = extractTextFromHtml(data.html || '');
+            
+            // Extract image URL from oEmbed data or HTML
+            let imageUrl = '';
+            if (data.thumbnail_url) {
+              imageUrl = data.thumbnail_url;
+            } else if (data.html) {
+              // Try to extract image from HTML
+              const imgMatch = data.html.match(/<img[^>]+src="([^">]+)"/);
+              if (imgMatch) {
+                imageUrl = imgMatch[1];
+              }
+            }
+            
+            const result = {
+              title: data.author_name ? `Post by @${data.author_name}` : 'Post da X/Twitter',
+              author_username: data.author_name || '',
+              author_name: data.author_name || '',
+              summary: plainText,
+              content: plainText,
+              image: imageUrl,
+              previewImg: imageUrl,
+              platform: 'twitter',
+              type: 'social',
+              embedHtml: data.html,
+              hostname: 'x.com'
+            };
 
-      const data = await response.json();
-      
-      // Extract plain text from HTML for content field
-      const plainText = extractTextFromHtml(data.html || '');
-      
-      // Extract image URL from oEmbed data or HTML
-      let imageUrl = '';
-      if (data.thumbnail_url) {
-        imageUrl = data.thumbnail_url;
-      } else if (data.html) {
-        // Try to extract image from HTML
-        const imgMatch = data.html.match(/<img[^>]+src="([^">]+)"/);
-        if (imgMatch) {
-          imageUrl = imgMatch[1];
+            return new Response(JSON.stringify(result), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        } catch (twitterError) {
+          console.error('[fetch-article-preview] Twitter oEmbed fallback failed:', twitterError);
         }
       }
-      
-      const result = {
-        title: data.author_name ? `Post by @${data.author_name}` : 'Post da X/Twitter',
-        author_username: data.author_name || '',
-        author_name: data.author_name || '',
-        summary: plainText,
-        content: plainText,
-        image: imageUrl,
-        previewImg: imageUrl,
-        platform: 'twitter',
-        type: 'tweet',
-        embedHtml: data.html,
-        hostname: 'x.com'
-      };
-
-      return new Response(JSON.stringify(result), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
     }
 
     // Generic URL - try basic fetch
