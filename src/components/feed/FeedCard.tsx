@@ -328,8 +328,8 @@ export const FeedCard = ({
           <div className="flex items-center justify-between max-w-md -ml-2">
             <button 
               onClick={(e) => { 
-                e.stopPropagation(); 
-                setShowCommentReply(true);
+                e.stopPropagation();
+                navigate(`/post/${post.id}`);
               }}
               className="flex items-center gap-2 p-2 rounded-full hover:bg-primary/10 group transition-colors"
             >

@@ -27,11 +27,12 @@ export interface Comment {
   }>;
 }
 
-export const useComments = (postId: string) => {
+export const useComments = (postId: string, sortMode: 'relevance' | 'recent' | 'top' = 'relevance') => {
   return useQuery({
-    queryKey: ['comments', postId],
+    queryKey: ['comments', postId, sortMode],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // Fetch comments
+      const { data: commentsData, error: commentsError } = await supabase
         .from('comments')
         .select(`
           id,
@@ -60,20 +61,101 @@ export const useComments = (postId: string) => {
           )
         `)
         .eq('post_id', postId)
-        .order('created_at', { ascending: true }); // Dal più vecchio al più recente
+        .order('created_at', { ascending: true });
 
-      if (error) throw error;
-      
-      return (data || []).map((comment: any) => ({
+      if (commentsError) throw commentsError;
+
+      // Map comments with media
+      const comments = (commentsData || []).map((comment: any) => ({
         ...comment,
         media: (comment.comment_media || [])
           .sort((a: any, b: any) => a.order_idx - b.order_idx)
           .map((cm: any) => cm.media)
           .filter(Boolean)
-      })) as Comment[];
+      }));
+
+      // Fetch reactions count for each comment
+      const commentsWithReactions = await Promise.all(
+        comments.map(async (c: any) => {
+          const { data: reactionsData } = await supabase
+            .from('comment_reactions')
+            .select('id')
+            .eq('comment_id', c.id)
+            .eq('reaction_type', 'heart');
+          
+          const { data: repliesData } = await supabase
+            .from('comments')
+            .select('id')
+            .eq('parent_id', c.id);
+          
+          return { 
+            ...c, 
+            likesCount: reactionsData?.length || 0,
+            repliesCount: repliesData?.length || 0
+          };
+        })
+      );
+
+      // Sort comments based on mode
+      return sortCommentsByMode(commentsWithReactions, sortMode);
     },
     enabled: !!postId
   });
+};
+
+// Helper to calculate relevance score
+const calculateRelevance = (comment: any): number => {
+  const likesWeight = (comment.likesCount || 0) * 2;
+  const repliesWeight = (comment.repliesCount || 0) * 3;
+  
+  // Boost if created in last 24h
+  const hoursSinceCreation = (Date.now() - new Date(comment.created_at).getTime()) / (1000 * 60 * 60);
+  const recencyBoost = hoursSinceCreation < 24 ? 5 : 0;
+  
+  return likesWeight + repliesWeight + recencyBoost;
+};
+
+// Sort comments by mode (per-thread, not global)
+const sortCommentsByMode = (comments: any[], mode: string): any[] => {
+  const topLevel = comments.filter(c => !c.parent_id);
+  const repliesMap = new Map<string, any[]>();
+  
+  // Group replies by parent_id
+  comments.filter(c => c.parent_id).forEach(comment => {
+    const parentId = comment.parent_id!;
+    if (!repliesMap.has(parentId)) {
+      repliesMap.set(parentId, []);
+    }
+    repliesMap.get(parentId)!.push(comment);
+  });
+  
+  // Sort siblings based on mode
+  const sortSiblings = (siblings: any[]) => {
+    if (mode === 'recent') {
+      return siblings.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    } else if (mode === 'top') {
+      return siblings.sort((a, b) => 
+        (b.likesCount || 0) - (a.likesCount || 0)
+      );
+    } else {
+      // relevance
+      return siblings.sort((a, b) => 
+        calculateRelevance(b) - calculateRelevance(a)
+      );
+    }
+  };
+  
+  // Sort top level
+  const sortedTopLevel = sortSiblings([...topLevel]);
+  
+  // Sort replies for each parent
+  repliesMap.forEach((replies, parentId) => {
+    repliesMap.set(parentId, sortSiblings(replies));
+  });
+  
+  return comments;
 };
 
 export const useAddComment = () => {

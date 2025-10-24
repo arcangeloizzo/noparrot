@@ -1,15 +1,37 @@
-import { useParams, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { FeedCard } from "@/components/feed/FeedCardAdapt";
-import { Post as PostType } from "@/hooks/usePosts";
-import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { ArrowLeft } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Post as PostType } from '@/hooks/usePosts';
+import { useComments, useAddComment, useDeleteComment } from '@/hooks/useComments';
+import { useToggleCommentReaction } from '@/hooks/useCommentReactions';
+import { useAuth } from '@/contexts/AuthContext';
+import { Button } from '@/components/ui/button';
+import { CollapsiblePostHeader } from '@/components/feed/CollapsiblePostHeader';
+import { CommentMetricsBar } from '@/components/feed/CommentMetricsBar';
+import { CommentList } from '@/components/feed/CommentList';
+import { StickyComposer } from '@/components/feed/StickyComposer';
+import { PostExpandedOverlay } from '@/components/feed/PostExpandedOverlay';
+import { Comment } from '@/hooks/useComments';
+import { toast } from 'sonner';
 
 export const Post = () => {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
 
+  const focusCommentId = searchParams.get('focus');
+  const [sortMode, setSortMode] = useState<'relevance' | 'recent' | 'top'>('relevance');
+  const [replyToComment, setReplyToComment] = useState<Comment | null>(null);
+  const [showPostOverlay, setShowPostOverlay] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
+  const [newCommentsCount, setNewCommentsCount] = useState(0);
+  
+  const previousCountRef = useRef(0);
+
+  // Fetch post
   const { data: post, isLoading, error } = useQuery<PostType>({
     queryKey: ['post', postId],
     queryFn: async () => {
@@ -75,14 +97,89 @@ export const Post = () => {
     enabled: !!postId,
   });
 
+  // Fetch comments with sorting
+  const { data: comments = [] } = useComments(postId || '', sortMode);
+  const addComment = useAddComment();
+  const deleteComment = useDeleteComment();
+  const toggleReaction = useToggleCommentReaction();
+
+  // Scroll detection for collapsible header
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrollY(window.scrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Scroll position restore
+  const scrollPositionKey = `post-${postId}-scroll`;
+  
+  useEffect(() => {
+    const saved = sessionStorage.getItem(scrollPositionKey);
+    if (saved) {
+      setTimeout(() => {
+        window.scrollTo(0, parseInt(saved));
+        sessionStorage.removeItem(scrollPositionKey);
+      }, 100);
+    }
+
+    return () => {
+      sessionStorage.setItem(scrollPositionKey, window.scrollY.toString());
+    };
+  }, [postId, scrollPositionKey]);
+
+  // New comments notification
+  useEffect(() => {
+    if (!comments) return;
+
+    const newCount = comments.length;
+    const hadNew = newCount > previousCountRef.current;
+
+    if (hadNew && window.scrollY > 300 && previousCountRef.current > 0) {
+      const diff = newCount - previousCountRef.current;
+      setNewCommentsCount(diff);
+      toast.info(`${diff} nuov${diff === 1 ? 'o commento' : 'i commenti'}`, {
+        action: {
+          label: 'Vedi',
+          onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' })
+        }
+      });
+    }
+
+    previousCountRef.current = newCount;
+  }, [comments?.length]);
+
+  const handleSubmitComment = async (content: string) => {
+    if (!postId || !user) return;
+
+    await addComment.mutateAsync({
+      postId,
+      content,
+      parentId: replyToComment?.id || null,
+      level: replyToComment ? replyToComment.level + 1 : 0
+    });
+  };
+
+  const handleLike = (commentId: string, isLiked: boolean) => {
+    toggleReaction.mutate({
+      commentId,
+      isLiked
+    });
+  };
+
+  const handleDelete = (commentId: string) => {
+    deleteComment.mutate(commentId);
+  };
+
+  const isCollapsed = scrollY > 24;
+  const focusComment = focusCommentId ? comments.find(c => c.id === focusCommentId) : null;
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="mobile-container">
-          <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="text-muted-foreground">Caricamento...</div>
-          </div>
-        </div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground">Caricamento...</div>
       </div>
     );
   }
@@ -104,7 +201,7 @@ export const Post = () => {
           </div>
           <div className="flex items-center justify-center min-h-[60vh]">
             <div className="text-center space-y-3">
-              <h2 className="text-lg font-semibold text-foreground">Post non trovato</h2>
+              <h2 className="text-lg font-semibold">Post non trovato</h2>
               <p className="text-muted-foreground text-sm">
                 Il post che stai cercando non esiste o è stato rimosso
               </p>
@@ -116,28 +213,67 @@ export const Post = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="mobile-container">
-        {/* Header */}
-        <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 border-b border-border/50">
-          <div className="p-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate(-1)}
-              className="gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Indietro
-            </Button>
-          </div>
-        </div>
-
-        {/* Post */}
-        <div className="border-b border-border">
-          <FeedCard post={post} />
+    <div className="min-h-screen bg-background pb-24">
+      {/* Back button header */}
+      <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-40 border-b border-border/50">
+        <div className="px-4 py-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(-1)}
+            className="gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Indietro
+          </Button>
         </div>
       </div>
+
+      {/* Collapsible Post Header */}
+      <CollapsiblePostHeader
+        post={post}
+        isCollapsed={isCollapsed}
+        onExpand={() => setShowPostOverlay(true)}
+        focusComment={focusComment}
+        onBackToPost={focusComment ? () => {
+          setSearchParams({});
+        } : undefined}
+      />
+
+      {/* Metrics & Filters */}
+      <CommentMetricsBar
+        commentsCount={comments.length}
+        likesCount={post.reactions.hearts}
+        activeFilter={sortMode}
+        onFilterChange={setSortMode}
+      />
+
+      {/* Comments List */}
+      <CommentList
+        comments={comments}
+        currentUserId={user?.id}
+        onReply={setReplyToComment}
+        onLike={handleLike}
+        onDelete={handleDelete}
+        focusCommentId={focusCommentId}
+        sortMode={sortMode}
+      />
+
+      {/* Sticky Composer */}
+      <StickyComposer
+        postId={postId || ''}
+        replyToComment={replyToComment}
+        onClearReplyTo={() => setReplyToComment(null)}
+        onSubmit={handleSubmitComment}
+      />
+
+      {/* Post Expanded Overlay */}
+      {showPostOverlay && (
+        <PostExpandedOverlay
+          post={post}
+          onClose={() => setShowPostOverlay(false)}
+        />
+      )}
     </div>
   );
 };

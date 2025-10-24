@@ -26,6 +26,7 @@ const App = () => (
             <Route path="/profile/:userId" element={<UserProfile />} />
             <Route path="/profile/edit" element={<ProfileEdit />} />
             <Route path="/post/:postId" element={<Post />} />
+            <Route path="/post/:postId/comments" element={<Post />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

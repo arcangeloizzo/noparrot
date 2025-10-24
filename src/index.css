@@ -322,6 +322,81 @@
   * {
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
+
+  /* Collapsible Header */
+  .collapsible-header {
+    will-change: transform, opacity;
+  }
+
+  /* Comment Item */
+  .comment-item {
+    will-change: transform;
+  }
+
+  /* Sticky Composer */
+  .sticky-composer {
+    will-change: height;
+  }
+
+  /* Highlight Comment Animation */
+  .highlight-comment {
+    animation: highlight-flash 1s ease-out;
+  }
+
+  @keyframes highlight-flash {
+    0% {
+      background-color: hsl(var(--primary) / 0.1);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+
+  /* Scale Like Animation */
+  @keyframes scale-like {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.3);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  .scale-like {
+    animation: scale-like 0.25s ease-out;
+  }
+
+  /* Slide Up Animation */
+  @keyframes slide-up {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out;
+  }
+
+  /* Screen reader only */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
 }
 
 /* Trust Badge Tooltip - Override Definitivo */
