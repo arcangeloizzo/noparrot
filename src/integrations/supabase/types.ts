@@ -517,6 +517,8 @@ export type Database = {
           post_id: string | null
           questions: Json
           source_url: string | null
+          transcript: string | null
+          transcript_source: string | null
           updated_at: string | null
         }
         Insert: {
@@ -528,6 +530,8 @@ export type Database = {
           post_id?: string | null
           questions: Json
           source_url?: string | null
+          transcript?: string | null
+          transcript_source?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -539,6 +543,8 @@ export type Database = {
           post_id?: string | null
           questions?: Json
           source_url?: string | null
+          transcript?: string | null
+          transcript_source?: string | null
           updated_at?: string | null
         }
         Relationships: [

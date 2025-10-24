@@ -342,7 +342,56 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           onScroll={handleScroll}
         >
           <div className="space-y-4 text-sm leading-relaxed">
-            {source.embedHtml ? (
+            {source.embedHtml && source.platform === 'youtube' ? (
+              <>
+                {/* YouTube Embed */}
+                <div className="w-full">
+                  <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden">
+                    <div 
+                      dangerouslySetInnerHTML={{ __html: source.embedHtml }}
+                      className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full"
+                    />
+                  </div>
+                </div>
+                
+                {/* Transcript Badge */}
+                {source.transcriptSource === 'youtube_captions' && (
+                  <div className="bg-trust-high/10 border border-trust-high/20 rounded-lg p-3">
+                    <div className="flex items-center gap-2">
+                      <Check className="h-4 w-4 text-trust-high" />
+                      <span className="text-sm font-medium text-trust-high">
+                        Trascrizione disponibile
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                {source.transcriptSource === 'none' && (
+                  <div className="bg-muted/50 border border-border rounded-lg p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        ⚠️ Sottotitoli non disponibili per questo video
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Transcript Text */}
+                {source.transcript && (
+                  <div className="prose prose-sm max-w-none">
+                    <h4 className="text-base font-semibold text-foreground mb-3">
+                      Trascrizione del Video
+                    </h4>
+                    <div className="whitespace-pre-wrap text-foreground leading-relaxed bg-muted/30 rounded-lg p-4 border border-border">
+                      {source.transcript}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Padding per scroll */}
+                <div className="h-32"></div>
+              </>
+            ) : source.embedHtml ? (
               <>
                 {/* Twitter/X Embed */}
                 <div className="max-w-2xl mx-auto">

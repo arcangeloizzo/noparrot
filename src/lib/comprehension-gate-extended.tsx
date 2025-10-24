@@ -31,6 +31,8 @@ export interface SourceWithGate {
   videoId?: string;
   platform?: string;
   duration?: string;
+  transcript?: string;
+  transcriptSource?: 'youtube_captions' | 'whisper' | 'manual' | 'none';
 }
 
 export interface GateQueueState {

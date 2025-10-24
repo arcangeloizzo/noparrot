@@ -39,6 +39,23 @@ function extractTextFromHtml(html: string): string {
     .trim();
 }
 
+// Extract YouTube video ID
+function extractYouTubeId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+    /youtube\.com\/shorts\/([^&\n?#]+)/,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -49,6 +66,78 @@ serve(async (req) => {
 
     if (!url) {
       throw new Error('URL is required');
+    }
+
+    // Check if it's a YouTube link
+    const youtubeId = extractYouTubeId(url);
+    if (youtubeId) {
+      console.log('[fetch-article-preview] Detected YouTube video:', youtubeId);
+      
+      try {
+        // Fetch YouTube metadata using oEmbed
+        const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
+        const oembedResponse = await fetch(oembedUrl);
+        
+        if (!oembedResponse.ok) {
+          throw new Error('Failed to fetch YouTube oEmbed data');
+        }
+        
+        const oembedData = await oembedResponse.json();
+        
+        // Get transcript using our transcribe-youtube function
+        const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+        const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        
+        let transcript = null;
+        let transcriptSource = 'none';
+        
+        if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
+          try {
+            const transcriptResponse = await fetch(
+              `${SUPABASE_URL}/functions/v1/transcribe-youtube`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+                },
+                body: JSON.stringify({ url }),
+              }
+            );
+            
+            if (transcriptResponse.ok) {
+              const transcriptData = await transcriptResponse.json();
+              transcript = transcriptData.transcript;
+              transcriptSource = transcriptData.source || 'none';
+              console.log(`[fetch-article-preview] Transcript ${transcriptSource === 'youtube_captions' ? 'fetched' : 'not available'} for video ${youtubeId}`);
+            }
+          } catch (transcriptError) {
+            console.error('[fetch-article-preview] Error fetching transcript:', transcriptError);
+          }
+        }
+        
+        return new Response(JSON.stringify({
+          title: oembedData.title,
+          content: transcript || `Video: ${oembedData.title}`,
+          summary: transcript ? transcript.substring(0, 500) + '...' : oembedData.title,
+          image: oembedData.thumbnail_url,
+          platform: 'youtube',
+          type: 'video',
+          embedHtml: oembedData.html,
+          transcript: transcript,
+          transcriptSource: transcriptSource,
+          author: oembedData.author_name,
+          authorUrl: oembedData.author_url,
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (error) {
+        console.error('[fetch-article-preview] Error fetching YouTube data:', error);
+        return new Response(JSON.stringify({ error: error.message }), {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     const isTwitter = url.includes('twitter.com') || url.includes('x.com');

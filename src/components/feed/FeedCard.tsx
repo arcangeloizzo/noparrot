@@ -277,12 +277,19 @@ export const FeedCard = ({
               onClick={(e) => e.stopPropagation()}
             >
               {(articlePreview?.image || articlePreview?.previewImg || post.previewImg) && (
-                <div className="w-full aspect-video bg-muted">
+                <div className="w-full aspect-video bg-muted relative">
                   <img 
                     src={articlePreview?.image || articlePreview?.previewImg || post.previewImg} 
                     alt="Article preview" 
                     className="w-full h-full object-cover"
                   />
+                  {articlePreview?.platform === 'youtube' && (
+                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                      <div className="w-16 h-16 rounded-full bg-red-600 flex items-center justify-center">
+                        <div className="w-0 h-0 border-t-8 border-t-transparent border-l-12 border-l-white border-b-8 border-b-transparent ml-1"></div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               <div className="p-3">
@@ -292,6 +299,19 @@ export const FeedCard = ({
                       <span className="text-xs font-semibold text-primary">𝕏</span>
                     </div>
                     <span className="text-sm font-semibold">@{articlePreview.author_username}</span>
+                  </div>
+                )}
+                {articlePreview?.platform === 'youtube' && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 rounded-full bg-red-600 flex items-center justify-center">
+                      <span className="text-xs font-semibold text-white">▶</span>
+                    </div>
+                    <span className="text-sm font-semibold text-red-600">YouTube</span>
+                    {articlePreview.transcriptSource === 'youtube_captions' && (
+                      <span className="text-xs px-2 py-0.5 bg-trust-high/10 text-trust-high rounded-full">
+                        📝 Con trascrizione
+                      </span>
+                    )}
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground mb-1">
