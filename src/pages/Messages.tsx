@@ -1,12 +1,24 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MessageSquarePlus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ThreadList } from "@/components/messages/ThreadList";
-import { useMessageThreads } from "@/hooks/useMessageThreads";
+import { useMessageThreads, useCreateThread } from "@/hooks/useMessageThreads";
+import { PeoplePicker } from "@/components/share/PeoplePicker";
+import { useState } from "react";
 
 export default function Messages() {
   const navigate = useNavigate();
   const { data: threads, isLoading } = useMessageThreads();
+  const [showPeoplePicker, setShowPeoplePicker] = useState(false);
+  const createThread = useCreateThread();
+
+  const handleStartConversation = async (selectedUserIds: string[]) => {
+    if (selectedUserIds.length === 0) return;
+    
+    const result = await createThread.mutateAsync(selectedUserIds);
+    setShowPeoplePicker(false);
+    navigate(`/messages/${result.thread_id}`);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -40,6 +52,22 @@ export default function Messages() {
           </p>
         </div>
       )}
+
+      {/* FAB Nuova conversazione */}
+      <Button
+        size="icon"
+        className="fixed bottom-20 right-4 h-14 w-14 rounded-full shadow-lg z-10"
+        onClick={() => setShowPeoplePicker(true)}
+      >
+        <MessageSquarePlus className="h-6 w-6" />
+      </Button>
+
+      {/* People Picker */}
+      <PeoplePicker
+        isOpen={showPeoplePicker}
+        onClose={() => setShowPeoplePicker(false)}
+        onSend={handleStartConversation}
+      />
     </div>
   );
 }

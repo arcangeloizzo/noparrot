@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Send, Image as ImageIcon, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,12 +19,24 @@ export const MessageComposer = ({ threadId }: MessageComposerProps) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizData, setQuizData] = useState<any>(null);
+  const [debouncedContent, setDebouncedContent] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const sendMessage = useSendMessage();
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
 
-  const handleMediaUpload = async (type: 'image' | 'video') => {
+  // Debounce content per rilevamento URL (500ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedContent(content);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [content]);
+
+  // Estrai URL solo da contenuto debounced
+  const linkUrl = useMemo(() => extractFirstUrl(debouncedContent), [debouncedContent]);
+
+  const handleMediaUpload = useCallback(async (type: 'image' | 'video') => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = type === 'image' ? 'image/*' : 'video/*';
@@ -36,7 +48,7 @@ export const MessageComposer = ({ threadId }: MessageComposerProps) => {
       }
     };
     input.click();
-  };
+  }, [uploadMedia]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -46,17 +58,18 @@ export const MessageComposer = ({ threadId }: MessageComposerProps) => {
     }
   }, [content]);
 
-  const handleSend = async () => {
+  const handleSend = useCallback(async () => {
     if ((!content.trim() && uploadedMedia.length === 0) || isProcessing || isUploading) return;
 
-    const linkUrl = extractFirstUrl(content);
+    // Usa linkUrl dal memo debounced
+    const currentLinkUrl = extractFirstUrl(content);
 
     const doSend = () => {
       sendMessage.mutate(
         {
           threadId,
           content: content.trim(),
-          linkUrl: linkUrl || undefined,
+          linkUrl: currentLinkUrl || undefined,
           mediaIds: uploadedMedia.map(m => m.id)
         },
         {
@@ -68,10 +81,10 @@ export const MessageComposer = ({ threadId }: MessageComposerProps) => {
       );
     };
 
-    if (linkUrl) {
+    if (currentLinkUrl) {
       // Gate richiesto
       await runGateBeforeAction({
-        linkUrl,
+        linkUrl: currentLinkUrl,
         onSuccess: doSend,
         onCancel: () => toast.error('Invio annullato'),
         setIsProcessing,
@@ -82,14 +95,14 @@ export const MessageComposer = ({ threadId }: MessageComposerProps) => {
       // Invio diretto
       doSend();
     }
-  };
+  }, [content, uploadedMedia, isProcessing, isUploading, threadId, sendMessage, clearMedia]);
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
-  };
+  }, [handleSend]);
 
   return (
     <>

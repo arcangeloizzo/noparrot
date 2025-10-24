@@ -22,6 +22,7 @@ import { useCreateThread } from "@/hooks/useMessageThreads";
 import { useSendMessage } from "@/hooks/useMessages";
 import { runGateBeforeAction } from "@/lib/runGateBeforeAction";
 import { haptics } from "@/lib/haptics";
+import { ComposerModal } from "@/components/composer/ComposerModal";
 
 interface FeedCardProps {
   post: MockPost;
@@ -74,6 +75,8 @@ export const FeedCard = ({
   const [shouldBlinkShare, setShouldBlinkShare] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showPeoplePicker, setShowPeoplePicker] = useState(false);
+  const [showComposer, setShowComposer] = useState(false);
+  const [quotedPostId, setQuotedPostId] = useState<string | null>(null);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -152,11 +155,31 @@ export const FeedCard = ({
   };
 
   const handleShareToFeed = () => {
-    // Apri composer con quote - verrà gestito dal componente parent (Feed.tsx)
-    // Per ora mostra solo un toast
-    toast.success('Condividi nel Feed', {
-      description: 'Funzionalità in arrivo'
-    });
+    setShowShareSheet(false);
+    
+    if (post.url) {
+      // Gate richiesto prima di condividere
+      setIsProcessing(true);
+      runGateBeforeAction({
+        linkUrl: post.url,
+        onSuccess: () => {
+          setShowComposer(true);
+          setQuotedPostId(post.id);
+          setIsProcessing(false);
+        },
+        onCancel: () => {
+          setIsProcessing(false);
+          toast.error('Condivisione annullata');
+        },
+        setIsProcessing,
+        setQuizData,
+        setShowQuiz
+      });
+    } else {
+      // Nessun link, apri direttamente composer
+      setShowComposer(true);
+      setQuotedPostId(post.id);
+    }
   };
 
   const handleShareToFriend = () => {
@@ -523,6 +546,17 @@ export const FeedCard = ({
       onClose={() => setShowCommentReply(false)}
     />
     
+    {/* Composer Modal for quoting */}
+    {showComposer && quotedPostId && (
+      <ComposerModal
+        isOpen={showComposer}
+        onClose={() => {
+          setShowComposer(false);
+          setQuotedPostId(null);
+        }}
+        quotedPost={post}
+      />
+    )}
 
     {/* Quiz Modal for Share Gate */}
     {showQuiz && quizData && user && (

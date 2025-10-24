@@ -5,12 +5,13 @@ import { Message } from "@/hooks/useMessages";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { ExternalLink } from "lucide-react";
+import { memo } from "react";
 
 interface MessageBubbleProps {
   message: Message;
 }
 
-export const MessageBubble = ({ message }: MessageBubbleProps) => {
+export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
   const { user } = useAuth();
   const isSent = message.sender_id === user?.id;
 
@@ -53,19 +54,21 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
             <div className="mt-2 space-y-2">
               {message.media.map((media) => (
                 <div key={media.id} className="rounded-lg overflow-hidden">
-                  {media.type === 'image' ? (
+                   {media.type === 'image' ? (
                     <img
                       src={media.url}
                       alt=""
+                      loading="lazy"
                       className="max-w-full h-auto rounded-lg"
                     />
-                  ) : (
+                   ) : (
                     <video
                       src={media.url}
                       controls
+                      preload="metadata"
                       className="max-w-full h-auto rounded-lg"
                     />
-                  )}
+                   )}
                 </div>
               ))}
             </div>
@@ -81,4 +84,4 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
       </div>
     </div>
   );
-};
+});

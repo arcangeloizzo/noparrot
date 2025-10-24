@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { useEffect } from "react";
 
 export interface MessageThread {
   id: string;
@@ -29,15 +30,36 @@ export interface MessageThread {
 
 export function useMessageThreads() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Setup realtime subscription
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('message-threads-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['message-threads', user.id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, queryClient]);
 
   return useQuery({
     queryKey: ['message-threads', user?.id],
     queryFn: async () => {
-      console.log('[useMessageThreads] User:', user?.id);
-      if (!user) {
-        console.log('[useMessageThreads] No user, returning empty array');
-        return [];
-      }
+      if (!user) return [];
 
       const { data: threads, error } = await supabase
         .from('message_threads')
@@ -54,54 +76,45 @@ export function useMessageThreads() {
         `)
         .order('updated_at', { ascending: false });
 
-      console.log('[useMessageThreads] Threads data:', threads);
-      console.log('[useMessageThreads] Error:', error);
+      if (error) throw error;
 
-      if (error) {
-        console.error('[useMessageThreads] Query error:', error);
-        throw error;
-      }
-
-      // Fetch ultimo messaggio per ogni thread
-      const threadsWithMessages = await Promise.all(
+      // Fetch ultimo messaggio e unread count in parallelo per tutti i thread
+      const enrichedThreads = await Promise.all(
         (threads || []).map(async (thread) => {
-          const { data: lastMsg } = await supabase
-            .from('messages')
-            .select('id, content, created_at, sender_id')
-            .eq('thread_id', thread.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          // Calcola messaggi non letti
           const myParticipant = thread.participants?.find((p: any) => p.user_id === user.id);
           const lastReadAt = myParticipant?.last_read_at;
 
-          let unreadCount = 0;
-          if (lastMsg && lastReadAt) {
-            const { count } = await supabase
+          // Single query per thread invece di 2
+          const [{ data: lastMsg }, { count: unreadCount }] = await Promise.all([
+            supabase
               .from('messages')
-              .select('*', { count: 'exact', head: true })
+              .select('id, content, created_at, sender_id')
               .eq('thread_id', thread.id)
-              .gt('created_at', lastReadAt)
-              .neq('sender_id', user.id);
-            
-            unreadCount = count || 0;
-          }
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+            lastReadAt
+              ? supabase
+                  .from('messages')
+                  .select('*', { count: 'exact', head: true })
+                  .eq('thread_id', thread.id)
+                  .gt('created_at', lastReadAt)
+                  .neq('sender_id', user.id)
+              : Promise.resolve({ count: 0 })
+          ]);
 
           return {
             ...thread,
             last_message: lastMsg || undefined,
-            unread_count: unreadCount
+            unread_count: unreadCount || 0
           };
         })
       );
 
-      console.log('[useMessageThreads] Enriched threads:', threadsWithMessages);
-      return threadsWithMessages as MessageThread[];
+      return enrichedThreads as MessageThread[];
     },
     enabled: !!user,
-    staleTime: 1000 * 30 // 30 secondi
+    staleTime: 1000 * 60 * 5 // 5 minuti
   });
 }
 
@@ -160,8 +173,9 @@ export function useCreateThread() {
 
       return { thread_id: thread.id };
     },
-    onSuccess: () => {
+    onSuccess: (_, threadId) => {
       queryClient.invalidateQueries({ queryKey: ['message-threads'] });
+      queryClient.invalidateQueries({ queryKey: ['messages', threadId] });
     },
     onError: (error) => {
       console.error('Create thread error:', error);
