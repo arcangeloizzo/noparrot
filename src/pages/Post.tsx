@@ -1,34 +1,26 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { cn, getDisplayUsername } from '@/lib/utils';
+import { getDisplayUsername } from '@/lib/utils';
 import { Post as PostType } from '@/hooks/usePosts';
 import { useComments, useAddComment, useDeleteComment } from '@/hooks/useComments';
 import { useToggleCommentReaction } from '@/hooks/useCommentReactions';
 import { useAuth } from '@/contexts/AuthContext';
-import { Button } from '@/components/ui/button';
-import { CommentMetricsBar } from '@/components/feed/CommentMetricsBar';
 import { CommentList } from '@/components/feed/CommentList';
 import { StickyComposer } from '@/components/feed/StickyComposer';
 import { Comment } from '@/hooks/useComments';
-import { toast } from 'sonner';
 
 export const Post = () => {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
 
   const focusCommentId = searchParams.get('focus');
   const [sortMode, setSortMode] = useState<'relevance' | 'recent' | 'top'>('relevance');
   const [replyToComment, setReplyToComment] = useState<Comment | null>(null);
-  const [showPostOverlay, setShowPostOverlay] = useState(false);
-  const [scrollY, setScrollY] = useState(0);
-  const [newCommentsCount, setNewCommentsCount] = useState(0);
-  
-  const previousCountRef = useRef(0);
 
   // Fetch post
   const { data: post, isLoading, error } = useQuery<PostType>({
@@ -102,54 +94,6 @@ export const Post = () => {
   const deleteComment = useDeleteComment();
   const toggleReaction = useToggleCommentReaction();
 
-  // Scroll detection for collapsible header
-  useEffect(() => {
-    const handleScroll = () => {
-      setScrollY(window.scrollY);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  // Scroll position restore
-  const scrollPositionKey = `post-${postId}-scroll`;
-  
-  useEffect(() => {
-    const saved = sessionStorage.getItem(scrollPositionKey);
-    if (saved) {
-      setTimeout(() => {
-        window.scrollTo(0, parseInt(saved));
-        sessionStorage.removeItem(scrollPositionKey);
-      }, 100);
-    }
-
-    return () => {
-      sessionStorage.setItem(scrollPositionKey, window.scrollY.toString());
-    };
-  }, [postId, scrollPositionKey]);
-
-  // New comments notification
-  useEffect(() => {
-    if (!comments) return;
-
-    const newCount = comments.length;
-    const hadNew = newCount > previousCountRef.current;
-
-    if (hadNew && window.scrollY > 300 && previousCountRef.current > 0) {
-      const diff = newCount - previousCountRef.current;
-      setNewCommentsCount(diff);
-      toast.info(`${diff} nuov${diff === 1 ? 'o commento' : 'i commenti'}`, {
-        action: {
-          label: 'Vedi',
-          onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' })
-        }
-      });
-    }
-
-    previousCountRef.current = newCount;
-  }, [comments?.length]);
-
   const handleSubmitComment = async (content: string) => {
     if (!postId || !user) return;
 
@@ -172,9 +116,6 @@ export const Post = () => {
     deleteComment.mutate(commentId);
   };
 
-  const isCollapsed = scrollY > 24;
-  const focusComment = focusCommentId ? comments.find(c => c.id === focusCommentId) : null;
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -186,25 +127,23 @@ export const Post = () => {
   if (error || !post) {
     return (
       <div className="min-h-screen bg-background">
-        <div className="mobile-container">
-          <div className="p-4 border-b border-border/50">
-            <Button
-              variant="ghost"
-              size="sm"
+        <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-40 border-b border-border/50">
+          <div className="flex items-center gap-4 px-4 h-14">
+            <button
               onClick={() => navigate(-1)}
-              className="gap-2"
+              className="p-2 hover:bg-muted rounded-full transition-colors -ml-2"
             >
-              <ArrowLeft className="w-4 h-4" />
-              Indietro
-            </Button>
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <h1 className="text-xl font-bold">Post</h1>
           </div>
-          <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="text-center space-y-3">
-              <h2 className="text-lg font-semibold">Post non trovato</h2>
-              <p className="text-muted-foreground text-sm">
-                Il post che stai cercando non esiste o è stato rimosso
-              </p>
-            </div>
+        </div>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center space-y-3">
+            <h2 className="text-lg font-semibold">Post non trovato</h2>
+            <p className="text-muted-foreground text-sm">
+              Il post che stai cercando non esiste o è stato rimosso
+            </p>
           </div>
         </div>
       </div>
@@ -213,130 +152,123 @@ export const Post = () => {
 
   return (
     <div className="min-h-screen bg-background pb-32">
-      {/* Header dinamico: back button quando expanded, collapsible quando scrolled */}
-      <div className={cn(
-        "sticky top-0 bg-background/95 backdrop-blur-sm z-40 border-b border-border/50 transition-all duration-200",
-        isCollapsed ? "" : ""
-      )}>
-        {!isCollapsed ? (
-          <div className="px-4 py-3 flex items-center gap-3">
-            <button
-              onClick={() => navigate(-1)}
-              className="p-2 hover:bg-muted rounded-full transition-colors -ml-2"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <div className="font-bold text-lg">Post</div>
-            </div>
-          </div>
-        ) : (
-          <div 
-            className="px-4 py-2.5 flex items-center gap-3 cursor-pointer hover:bg-muted/30 transition-colors"
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      {/* Header fisso - stile X */}
+      <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-40 border-b border-border/50">
+        <div className="flex items-center gap-4 px-4 h-14">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 hover:bg-muted rounded-full transition-colors -ml-2"
           >
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(-1);
-              }}
-              className="p-1.5 hover:bg-muted rounded-full transition-colors -ml-1"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h1 className="text-xl font-bold">Post</h1>
+        </div>
+      </div>
+
+      {/* Post completo */}
+      <div className="border-b border-border">
+        <div className="px-4 py-3">
+          {/* Author info */}
+          <div className="flex gap-3 mb-3">
             <div className="flex-shrink-0">
               {post.author.avatar_url ? (
                 <img
                   src={post.author.avatar_url}
                   alt={post.author.full_name || post.author.username}
-                  className="w-8 h-8 rounded-full object-cover"
+                  className="w-12 h-12 rounded-full object-cover"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold">
+                <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
                   {(post.author.full_name || post.author.username).slice(0, 2).toUpperCase()}
                 </div>
               )}
             </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold truncate">
+            <div>
+              <div className="font-bold text-base">
                 {post.author.full_name || getDisplayUsername(post.author.username)}
               </div>
-              <div className="text-xs text-muted-foreground truncate">
-                {post.content}
+              <div className="text-muted-foreground text-sm">
+                @{getDisplayUsername(post.author.username)}
               </div>
             </div>
           </div>
-        )}
-      </div>
+          
+          {/* Content */}
+          <div className="text-[15px] leading-relaxed mb-4 whitespace-pre-wrap">
+            {post.content}
+          </div>
 
-      {/* Post completo (quando non collapsed) */}
-      {!isCollapsed && (
-        <div className="border-b border-border">
-          <div className="px-4 py-3">
-            <div className="flex gap-3">
-              <div className="flex-shrink-0">
-                {post.author.avatar_url ? (
-                  <img
-                    src={post.author.avatar_url}
-                    alt={post.author.full_name || post.author.username}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
-                    {(post.author.full_name || post.author.username).slice(0, 2).toUpperCase()}
-                  </div>
-                )}
-              </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="font-bold text-base">
-                    {post.author.full_name || getDisplayUsername(post.author.username)}
-                  </span>
-                </div>
-                <div className="text-muted-foreground text-sm mb-3">
-                  @{getDisplayUsername(post.author.username)}
-                </div>
-              </div>
-            </div>
-            
-            {/* Content */}
-            <div className="text-base leading-relaxed mb-3 whitespace-pre-wrap">
-              {post.content}
-            </div>
+          {/* Timestamp */}
+          <div className="text-muted-foreground text-[15px] pb-4 border-b border-border">
+            {new Date(post.created_at).toLocaleString('it-IT', {
+              hour: '2-digit',
+              minute: '2-digit',
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric'
+            })}
+          </div>
 
-            {/* Timestamp */}
-            <div className="text-muted-foreground text-sm border-b border-border pb-3 mb-3">
-              {new Date(post.created_at).toLocaleString('it-IT', {
-                hour: '2-digit',
-                minute: '2-digit',
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric'
-              })}
-            </div>
-
-            {/* Metrics */}
-            <div className="flex items-center gap-4 text-sm border-b border-border pb-3 mb-3">
-              <div>
-                <span className="font-bold">{post.reactions.hearts}</span>
-                <span className="text-muted-foreground ml-1">Mi piace</span>
-              </div>
-              <div>
-                <span className="font-bold">{comments.length}</span>
-                <span className="text-muted-foreground ml-1">Comment{comments.length !== 1 ? 'i' : 'o'}</span>
-              </div>
-            </div>
+          {/* Metrics */}
+          <div className="flex items-center gap-5 py-4 border-b border-border">
+            <button className="hover:underline">
+              <span className="font-bold text-sm">{comments.length}</span>
+              <span className="text-muted-foreground text-sm ml-1">
+                Comment{comments.length !== 1 ? 'i' : 'o'}
+              </span>
+            </button>
+            <button className="hover:underline">
+              <span className="font-bold text-sm">{post.reactions.hearts}</span>
+              <span className="text-muted-foreground text-sm ml-1">Mi piace</span>
+            </button>
           </div>
         </div>
-      )}
+      </div>
 
       {/* Filters */}
-      <CommentMetricsBar
-        commentsCount={comments.length}
-        likesCount={post.reactions.hearts}
-        activeFilter={sortMode}
-        onFilterChange={setSortMode}
-      />
+      <div className="border-b border-border">
+        <div className="flex">
+          <button
+            onClick={() => setSortMode('relevance')}
+            className={`flex-1 py-4 text-[15px] font-semibold transition-colors relative ${
+              sortMode === 'relevance'
+                ? 'text-foreground'
+                : 'text-muted-foreground hover:bg-muted/30'
+            }`}
+          >
+            Rilevanti
+            {sortMode === 'relevance' && (
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+            )}
+          </button>
+          <button
+            onClick={() => setSortMode('recent')}
+            className={`flex-1 py-4 text-[15px] font-semibold transition-colors relative ${
+              sortMode === 'recent'
+                ? 'text-foreground'
+                : 'text-muted-foreground hover:bg-muted/30'
+            }`}
+          >
+            Recenti
+            {sortMode === 'recent' && (
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+            )}
+          </button>
+          <button
+            onClick={() => setSortMode('top')}
+            className={`flex-1 py-4 text-[15px] font-semibold transition-colors relative ${
+              sortMode === 'top'
+                ? 'text-foreground'
+                : 'text-muted-foreground hover:bg-muted/30'
+            }`}
+          >
+            Top
+            {sortMode === 'top' && (
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+            )}
+          </button>
+        </div>
+      </div>
 
       {/* Comments List */}
       <CommentList
