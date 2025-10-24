@@ -1,123 +1,109 @@
-import { useState } from "react";
-import { SearchIcon, TrendingUpIcon, HashIcon } from "@/components/ui/icons";
-import { FeedCard } from "@/components/feed/FeedCard";
-import { mockPosts } from "@/data/mockData";
-import { cn } from "@/lib/utils";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { SearchBar } from "@/components/search/SearchBar";
+import { QuickFilters } from "@/components/search/QuickFilters";
+import { SearchTabs, SearchTab } from "@/components/search/SearchTabs";
+import { SearchFilters, SearchFiltersState } from "@/components/search/SearchFilters";
+import { SearchResults } from "@/components/search/SearchResults";
+import { RecentSearches } from "@/components/search/RecentSearches";
+import { TrendingTopics } from "@/components/search/TrendingTopics";
+
+const defaultFilters: SearchFiltersState = {
+  dateRange: "30days",
+  language: "auto",
+  contentType: [],
+  trustScore: "all",
+  sortBy: "relevance",
+};
 
 export const Search = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"all" | "people" | "posts">("all");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [query, setQuery] = useState(searchParams.get("q") || "");
+  const [activeTab, setActiveTab] = useState<SearchTab>(
+    (searchParams.get("tab") as SearchTab) || "posts"
+  );
+  const [filters, setFilters] = useState<SearchFiltersState>(defaultFilters);
+  const [quickFilters, setQuickFilters] = useState<string[]>([]);
 
-  const recentSearches = ["AI", "Politica", "Economia", "Sport"];
-  const trendingTopics = [
-    { topic: "Intelligenza Artificiale", posts: "1,234 post" },
-    { topic: "Elezioni 2024", posts: "892 post" },
-    { topic: "Cambiamento Climatico", posts: "567 post" },
-    { topic: "Tecnologia", posts: "445 post" },
-    { topic: "Salute", posts: "332 post" },
-  ];
+  // Sync URL with state
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (activeTab !== "posts") params.set("tab", activeTab);
+    setSearchParams(params, { replace: true });
+  }, [query, activeTab, setSearchParams]);
 
-  const filteredPosts = mockPosts.slice(0, 5); // Show top 5 posts
+  const handleSearch = (searchQuery: string) => {
+    setQuery(searchQuery);
+    
+    // Save to recent searches
+    if (searchQuery.trim()) {
+      const recent = JSON.parse(localStorage.getItem("recentSearches") || "[]");
+      const updated = [searchQuery, ...recent.filter((s: string) => s !== searchQuery)].slice(0, 10);
+      localStorage.setItem("recentSearches", JSON.stringify(updated));
+    }
+  };
+
+  const handleTabChange = (tab: SearchTab) => {
+    setActiveTab(tab);
+  };
+
+  const handleQuickFilterToggle = (filter: string) => {
+    setQuickFilters(prev =>
+      prev.includes(filter)
+        ? prev.filter(f => f !== filter)
+        : [...prev, filter]
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="mobile-container max-w-[600px] mx-auto">
-        {/* Search Header - X Style */}
-        <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 border-b border-border">
-          <div className="p-3">
-            <div className="relative">
-              <SearchIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 w-[20px] h-[20px] text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Cerca"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-2.5 bg-muted rounded-full border-0 focus:ring-1 focus:ring-primary focus:outline-none text-[15px] text-foreground placeholder:text-muted-foreground"
+      <div className="max-w-[600px] mx-auto">
+        {/* Sticky search header */}
+        <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-20 border-b border-border">
+          <div className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <SearchBar
+                  value={query}
+                  onChange={setQuery}
+                  onSearch={handleSearch}
+                />
+              </div>
+              <SearchFilters
+                filters={filters}
+                onFiltersChange={setFilters}
               />
             </div>
+
+            {query && (
+              <QuickFilters
+                activeFilters={quickFilters}
+                onToggle={handleQuickFilterToggle}
+              />
+            )}
           </div>
+
+          {query && (
+            <SearchTabs
+              activeTab={activeTab}
+              onTabChange={handleTabChange}
+            />
+          )}
         </div>
 
-        {/* Search Results or Default Content */}
-        {searchQuery.length > 0 ? (
-          <div className="p-4">
-            {/* Search Tabs */}
-            <div className="flex space-x-1 mb-6 bg-muted rounded-full p-1">
-              {[
-                { id: "all", label: "Tutto" },
-                { id: "people", label: "Persone" },
-                { id: "posts", label: "Post" },
-              ].map(({ id, label }) => (
-                <button
-                  key={id}
-                  onClick={() => setActiveTab(id as any)}
-                  className={cn(
-                    "flex-1 py-2 px-4 rounded-full text-sm font-medium transition-colors",
-                    activeTab === id
-                      ? "bg-primary-blue text-white"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            {/* Search Results */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-foreground">Post principali</h3>
-              {filteredPosts.map((post) => (
-                <FeedCard
-                  key={post.id}
-                  post={post}
-                />
-              ))}
-            </div>
-          </div>
+        {/* Content */}
+        {query ? (
+          <SearchResults
+            query={query}
+            tab={activeTab}
+            filters={filters}
+            quickFilters={quickFilters}
+          />
         ) : (
-          <div className="p-4 space-y-6">
-            {/* Recent Searches */}
-            <div>
-              <h3 className="text-lg font-semibold text-foreground mb-3">Ricerche recenti</h3>
-              <div className="flex flex-wrap gap-2">
-                {recentSearches.map((search) => (
-                  <button
-                    key={search}
-                    onClick={() => setSearchQuery(search)}
-                    className="px-4 py-2 bg-muted rounded-full text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors"
-                  >
-                    {search}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Trending Topics */}
-            <div>
-              <div className="flex items-center space-x-2 mb-3">
-                <TrendingUpIcon className="w-5 h-5 text-primary-blue" />
-                <h3 className="text-lg font-semibold text-foreground">Tendenze per te</h3>
-              </div>
-              <div className="space-y-3">
-                {trendingTopics.map((trend, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSearchQuery(trend.topic)}
-                    className="w-full text-left p-3 rounded-lg hover:bg-muted transition-colors group"
-                  >
-                    <div className="flex items-start space-x-3">
-                      <HashIcon className="w-5 h-5 text-muted-foreground mt-0.5 group-hover:text-primary-blue transition-colors" />
-                      <div className="flex-1">
-                        <p className="font-medium text-foreground group-hover:text-primary-blue transition-colors">
-                          {trend.topic}
-                        </p>
-                        <p className="text-sm text-muted-foreground">{trend.posts}</p>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
+          <div className="space-y-6 pb-20">
+            <RecentSearches onSelect={handleSearch} />
+            <TrendingTopics onSelect={handleSearch} />
           </div>
         )}
       </div>
