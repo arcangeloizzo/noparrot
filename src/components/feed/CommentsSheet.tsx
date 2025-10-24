@@ -416,6 +416,24 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
           onClose={() => setViewerMedia(null)}
         />
       )}
+
+      {showQuiz && quizData && (
+        <QuizModal
+          questions={quizData.questions}
+          onSubmit={async (answers: Record<string, string>) => {
+            quizData.onSuccess();
+            setShowQuiz(false);
+            setQuizData(null);
+            return { passed: true, wrongIndexes: [] };
+          }}
+          onCancel={() => {
+            quizData.onCancel();
+            setShowQuiz(false);
+            setQuizData(null);
+          }}
+          provider="gemini"
+        />
+      )}
     </>
   );
 };
@@ -515,24 +533,6 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, onMediaClick, 
           </div>
         </div>
       </div>
-
-      {showQuiz && quizData && (
-        <QuizModal
-          questions={quizData.questions}
-          onSubmit={async (answers: Record<string, string>) => {
-            quizData.onSuccess();
-            setShowQuiz(false);
-            setQuizData(null);
-            return { passed: true, wrongIndexes: [] };
-          }}
-          onCancel={() => {
-            quizData.onCancel();
-            setShowQuiz(false);
-            setQuizData(null);
-          }}
-          provider="gemini"
-        />
-      )}
     </div>
   );
 };
