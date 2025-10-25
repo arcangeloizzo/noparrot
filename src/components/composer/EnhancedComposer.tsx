@@ -176,15 +176,15 @@ export function EnhancedComposer({
         trustScore
       });
       
-      // Invalidate e refetch per far apparire il post immediatamente
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
-      await queryClient.refetchQueries({ queryKey: ['posts'] });
-      
       onPostCreated?.(insertedPost);
 
       toast({
         title: "✓ Post pubblicato"
       });
+
+      // Invalida e refetch queries DOPO il toast per mostrare subito il post
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      await queryClient.refetchQueries({ queryKey: ['posts'] });
 
       // Reset form e chiudi
       setText("");

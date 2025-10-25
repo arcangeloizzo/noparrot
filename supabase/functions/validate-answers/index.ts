@@ -90,8 +90,8 @@ serve(async (req) => {
       }
     });
 
-    // NUOVA LOGICA: massimo 2 errori totali E almeno 1 risposta corretta
-    const passed = errorCount <= 2 && score >= 1;
+    // LOGICA CORRETTA: massimo 1 errore E almeno 1 risposta corretta
+    const passed = errorCount <= 1 && score >= 1;
     const completionTime = Date.now() - startTime;
     
     console.log(`Validation complete: ${score}/3 correct, ${errorCount} errors, passed: ${passed}`);

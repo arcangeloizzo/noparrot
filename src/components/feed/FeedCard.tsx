@@ -157,27 +157,23 @@ export const FeedCard = ({
   };
 
   const handleShareToFeed = async () => {
-    // Chiudi ShareSheet
     setShowShareSheet(false);
     
     if (!post.url) {
       // Nessun link: apri composer diretto
       setShowComposer(true);
+      setQuotedPostId(post.id);
       return;
     }
 
     // Ha un link: Gate necessario
-    const doShare = async () => {
-      setShowComposer(true);
-    };
-
-    setIsProcessing(true);
     await runGateBeforeAction({
       linkUrl: post.url,
-      onSuccess: doShare,
-      onCancel: () => {
-        setIsProcessing(false);
+      onSuccess: () => {
+        setShowComposer(true);
+        setQuotedPostId(post.id);
       },
+      onCancel: () => {},
       setIsProcessing,
       setQuizData,
       setShowQuiz
