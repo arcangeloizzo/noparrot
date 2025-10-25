@@ -598,6 +598,21 @@ export const FeedCard = ({
         submessage="Preparazione del Comprehension Gate"
       />
     )}
+
+    {/* ShareSheet */}
+    <ShareSheet
+      isOpen={showShareSheet}
+      onClose={() => setShowShareSheet(false)}
+      onShareToFeed={handleShareToFeed}
+      onShareToFriend={handleShareToFriend}
+    />
+
+    {/* People Picker per condivisione */}
+    <PeoplePicker
+      isOpen={showPeoplePicker}
+      onClose={() => setShowPeoplePicker(false)}
+      onSend={handleSendToFriends}
+    />
   </>
   );
 };
