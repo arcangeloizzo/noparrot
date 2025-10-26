@@ -16,7 +16,7 @@ export const ShareSheet = ({
   onShareToFriend
 }: ShareSheetProps) => {
   return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
+    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <SheetContent side="bottom" className="h-auto">
         <SheetHeader>
           <SheetTitle>Dove vuoi condividere?</SheetTitle>

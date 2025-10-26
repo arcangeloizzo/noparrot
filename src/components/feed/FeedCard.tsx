@@ -153,7 +153,6 @@ export const FeedCard = ({
     setTimeout(() => setShouldBlinkShare(false), 300);
 
     // Mostra SEMPRE lo ShareSheet per scegliere tra feed/amici
-    console.log('[FeedCard] Opening ShareSheet');
     setShowShareSheet(true);
   };
 
