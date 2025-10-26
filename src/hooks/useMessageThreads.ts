@@ -167,6 +167,8 @@ export function useCreateThread() {
         .insert({})
         .select()
         .single();
+      
+      console.log('[useCreateThread] Thread creation result:', { thread, threadError });
 
       if (threadError) {
         console.error('[useCreateThread] Error creating thread:', threadError);

@@ -81,6 +81,11 @@ export const FeedCard = ({
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Debug ShareSheet
+  useEffect(() => {
+    console.log('[FeedCard] ShareSheet state:', showShareSheet);
+  }, [showShareSheet]);
+
   // Generate avatar with initials if no image
   const getAvatarContent = () => {
     if (post.avatar) {
