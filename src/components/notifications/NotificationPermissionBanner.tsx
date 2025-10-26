@@ -37,7 +37,7 @@ export const NotificationPermissionBanner = () => {
 
   return (
     <div className={cn(
-      "fixed top-0 left-0 right-0 z-50 bg-primary text-primary-foreground",
+      "fixed top-0 left-0 right-0 z-[60] bg-primary text-primary-foreground",
       "border-b border-primary-foreground/20 shadow-lg"
     )}>
       <div className="max-w-2xl mx-auto px-4 py-3 flex items-center gap-3">

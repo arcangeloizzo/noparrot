@@ -141,10 +141,6 @@ export const FeedCard = ({
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
     
-    setShouldBlinkShare(true);
-    haptics.light();
-    setTimeout(() => setShouldBlinkShare(false), 300);
-    
     if (!user) {
       toast.error('Login richiesto', {
         description: 'Devi essere autenticato per condividere'
@@ -152,7 +148,12 @@ export const FeedCard = ({
       return;
     }
 
+    setShouldBlinkShare(true);
+    haptics.light();
+    setTimeout(() => setShouldBlinkShare(false), 300);
+
     // Mostra SEMPRE lo ShareSheet per scegliere tra feed/amici
+    console.log('[FeedCard] Opening ShareSheet');
     setShowShareSheet(true);
   };
 

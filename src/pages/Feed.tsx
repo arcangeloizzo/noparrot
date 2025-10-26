@@ -130,7 +130,10 @@ export const Feed = () => {
     <div className="min-h-screen bg-background pb-[calc(6rem+env(safe-area-inset-bottom))]">
       <NotificationPermissionBanner />
       
-      <Header />
+      {/* Header with padding if banner is visible */}
+      <div className="pt-[70px]">
+        <Header />
+      </div>
       
       <div className="mobile-container max-w-[600px] mx-auto">
 
