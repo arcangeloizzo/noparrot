@@ -124,85 +124,22 @@ export function useCreateThread() {
 
   return useMutation({
     mutationFn: async (participantIds: string[]) => {
-      if (!user) {
-        console.error('[useCreateThread] User not authenticated');
-        throw new Error('User not authenticated');
-      }
+      if (!user) throw new Error('User not authenticated');
 
-      // Verifica se esiste già un thread tra questi utenti
       const allParticipants = [user.id, ...participantIds];
       
-      console.log('[useCreateThread] Creating thread for participants:', allParticipants);
-      
-      const { data: existingThreads, error: fetchError } = await supabase
-        .from('thread_participants')
-        .select('thread_id')
-        .in('user_id', allParticipants);
+      const { data, error } = await supabase.rpc('create_or_get_thread', {
+        participant_ids: allParticipants
+      });
 
-      if (fetchError) {
-        console.error('[useCreateThread] Error fetching existing threads:', fetchError);
-        throw fetchError;
-      }
-
-      // Trova thread con esattamente questi partecipanti
-      const threadCounts = existingThreads?.reduce((acc: any, item: any) => {
-        acc[item.thread_id] = (acc[item.thread_id] || 0) + 1;
-        return acc;
-      }, {});
-
-      const existingThreadId = Object.keys(threadCounts || {}).find(
-        threadId => threadCounts[threadId] === allParticipants.length
-      );
-
-      if (existingThreadId) {
-        console.log('[useCreateThread] Found existing thread:', existingThreadId);
-        return { thread_id: existingThreadId };
-      }
-
-      console.log('[useCreateThread] No existing thread found, creating new one');
-
-      // Crea nuovo thread
-      const { data: thread, error: threadError } = await supabase
-        .from('message_threads')
-        .insert({})
-        .select()
-        .single();
-      
-      console.log('[useCreateThread] Thread creation result:', { thread, threadError });
-
-      if (threadError) {
-        console.error('[useCreateThread] Error creating thread:', threadError);
-        throw threadError;
-      }
-
-      console.log('[useCreateThread] Thread created:', thread.id);
-
-      // Aggiungi partecipanti
-      const { error: participantsError } = await supabase
-        .from('thread_participants')
-        .insert(
-          allParticipants.map(userId => ({
-            thread_id: thread.id,
-            user_id: userId
-          }))
-        );
-
-      if (participantsError) {
-        console.error('[useCreateThread] Error adding participants:', participantsError);
-        throw participantsError;
-      }
-
-      console.log('[useCreateThread] Participants added successfully');
-
-      return { thread_id: thread.id };
+      if (error) throw error;
+      return { thread_id: data };
     },
-    onSuccess: (data, threadId) => {
-      console.log('[useCreateThread] Success! Thread ID:', data.thread_id);
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['message-threads'] });
-      queryClient.invalidateQueries({ queryKey: ['messages', threadId] });
     },
     onError: (error) => {
-      console.error('[useCreateThread] Final error:', error);
+      console.error('[useCreateThread] Error:', error);
       toast.error('Impossibile creare la conversazione');
     }
   });

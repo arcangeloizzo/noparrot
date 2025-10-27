@@ -974,6 +974,10 @@ export type Database = {
       }
     }
     Functions: {
+      create_or_get_thread: {
+        Args: { participant_ids: string[] }
+        Returns: string
+      }
       extract_mentions: {
         Args: { content: string }
         Returns: {
