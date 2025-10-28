@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { HomeIcon, SearchIcon, BookmarkIcon, BellIcon, UserIcon } from "@/components/ui/icons";
+import { HomeIcon, SearchIcon, BookmarkIcon, UserIcon } from "@/components/ui/icons";
+import { Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_PROFILE_AS_HOME } from "@/config/brand";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useNotifications } from "@/hooks/useNotifications";
+import { useMessageThreads } from "@/hooks/useMessageThreads";
 
 interface BottomNavigationProps {
   activeTab: string;
@@ -15,12 +16,7 @@ interface BottomNavigationProps {
 
 export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: BottomNavigationProps) => {
   const { user } = useAuth();
-  const { data: notifications = [] } = useNotifications();
-  
-  // Track when user last viewed notifications
-  const [lastViewedAt, setLastViewedAt] = useState<string | null>(
-    localStorage.getItem('notifications-last-viewed')
-  );
+  const { data: threads } = useMessageThreads();
 
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -32,20 +28,8 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
     enabled: !!user,
   });
 
-  // Count notifications created after last viewed timestamp
-  const unreadCount = notifications.filter(n => {
-    if (!lastViewedAt) return !n.read;
-    return new Date(n.created_at) > new Date(lastViewedAt);
-  }).length;
-
-  // Update last viewed timestamp when user enters notifications tab
-  useEffect(() => {
-    if (activeTab === "notifications") {
-      const now = new Date().toISOString();
-      localStorage.setItem('notifications-last-viewed', now);
-      setLastViewedAt(now);
-    }
-  }, [activeTab]);
+  // Calcola messaggi non letti totali
+  const unreadCount = threads?.reduce((sum, thread) => sum + (thread.unread_count || 0), 0) || 0;
 
   const getInitials = (name: string) => {
     return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
@@ -67,7 +51,7 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
     { id: "home", icon: HomeIcon, label: "Home" },
     { id: "search", icon: SearchIcon, label: "Search" },
     { id: "saved", icon: BookmarkIcon, label: "Saved" },
-    { id: "notifications", icon: BellIcon, label: "Notifications" },
+    { id: "messages", icon: Send, label: "Messages", isLucide: true },
     { id: "profile", icon: null, label: "Profile", isAvatar: true },
   ];
 
@@ -78,12 +62,14 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
       paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))'
     }}>
       <div className="flex justify-around items-center h-14 max-w-[600px] mx-auto">
-        {tabs.map(({ id, icon: Icon, label, isAvatar }) => (
+        {tabs.map(({ id, icon: Icon, label, isAvatar, isLucide }) => (
           <button
             key={id}
             onClick={() => {
               if (id === "profile") {
                 onProfileClick?.();
+              } else if (id === "messages") {
+                window.location.href = "/messages";
               } else {
                 onTabChange(id);
               }
@@ -100,7 +86,7 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
             ) : Icon && (
               <div className="relative">
                 <Icon className="w-6 h-6" />
-                {id === "notifications" && unreadCount > 0 && (
+                {id === "messages" && unreadCount > 0 && (
                   <div className="absolute -top-1 -right-1 bg-brand-pink text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-semibold">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </div>

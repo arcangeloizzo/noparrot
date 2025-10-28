@@ -56,7 +56,7 @@ export default function Messages() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/')}
             className="flex-shrink-0"
           >
             <ArrowLeft className="h-5 w-5" />
