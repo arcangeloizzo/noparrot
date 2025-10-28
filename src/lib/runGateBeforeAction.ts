@@ -36,21 +36,42 @@ export async function runGateBeforeAction({
 
     const articleContent = previewData.content;
 
-    // 2. Generate QA
+    // 2. Generate QA with correct parameters
     const { data: qaData, error: qaError } = await supabase.functions.invoke(
       'generate-qa',
-      { body: { content: articleContent, sourceUrl: linkUrl } }
+      { 
+        body: { 
+          title: previewData.title || 'Contenuto condiviso',
+          summary: articleContent,
+          excerpt: '',
+          type: 'article',
+          sourceUrl: linkUrl,
+          isPrePublish: true
+        } 
+      }
     );
 
-    if (qaError || !qaData?.success) {
-      throw new Error(qaData?.error || 'Failed to generate questions');
+    if (qaError) {
+      console.error('QA generation error:', qaError);
+      throw new Error(qaError.message || 'Failed to generate questions');
+    }
+
+    if (!qaData || qaData.insufficient_context) {
+      throw new Error('Contenuto insufficiente per generare il quiz');
+    }
+
+    if (qaData.error) {
+      throw new Error(qaData.error);
+    }
+
+    if (!qaData.questions) {
+      throw new Error('Nessuna domanda generata');
     }
 
     // 3. Show quiz modal
     if (setQuizData && setShowQuiz) {
       setQuizData({
         questions: qaData.questions,
-        correctAnswers: qaData.correctAnswers,
         sourceUrl: linkUrl,
         onSuccess,
         onCancel

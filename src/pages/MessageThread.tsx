@@ -21,10 +21,11 @@ export default function MessageThread() {
 
   // Trova il thread corrente
   const currentThread = threads?.find(t => t.id === threadId);
-  const otherParticipant = currentThread?.participants?.find(
+  const otherParticipants = currentThread?.participants?.filter(
     (p: any) => p.user_id !== user?.id
-  );
-  const otherProfile = otherParticipant?.profile;
+  ) || [];
+  const isGroupChat = otherParticipants.length > 1;
+  const displayProfile = otherParticipants[0]?.profile;
 
   // Scroll to bottom on new messages
   useEffect(() => {
@@ -57,22 +58,36 @@ export default function MessageThread() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
 
-          {otherProfile && (
+          {displayProfile && (
             <>
               <Avatar className="h-9 w-9">
-                <AvatarImage src={otherProfile.avatar_url || undefined} />
+                <AvatarImage src={displayProfile.avatar_url || undefined} />
                 <AvatarFallback>
-                  {otherProfile.username?.[0]?.toUpperCase() || '?'}
+                  {displayProfile.username?.[0]?.toUpperCase() || '?'}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold truncate">
-                  {otherProfile.full_name || otherProfile.username}
-                </p>
-                <p className="text-xs text-muted-foreground truncate">
-                  @{otherProfile.username}
-                </p>
-              </div>
+              {isGroupChat ? (
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold truncate">
+                    {otherParticipants.map(p => p.profile?.full_name || p.profile?.username).join(', ')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {otherParticipants.length} partecipanti
+                  </p>
+                </div>
+              ) : (
+                <button 
+                  onClick={() => navigate(`/user/${displayProfile.id}`)}
+                  className="flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
+                >
+                  <p className="font-semibold truncate">
+                    {displayProfile.full_name || displayProfile.username}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    @{displayProfile.username}
+                  </p>
+                </button>
+              )}
             </>
           )}
         </div>
