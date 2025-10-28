@@ -24,49 +24,70 @@ export async function runGateBeforeAction({
   try {
     if (setIsProcessing) setIsProcessing(true);
 
+    console.log('[runGateBeforeAction] Starting gate for URL:', linkUrl);
+
     // 1. Fetch article preview
     const { data: previewData, error: previewError } = await supabase.functions.invoke(
       'fetch-article-preview',
       { body: { url: linkUrl } }
     );
 
+    console.log('[runGateBeforeAction] Preview response:', { previewData, previewError });
+
     if (previewError || !previewData?.success) {
-      throw new Error(previewData?.error || 'Failed to fetch article preview');
+      const errorMsg = previewData?.error || previewError?.message || 'Failed to fetch article preview';
+      console.error('[runGateBeforeAction] Preview fetch failed:', errorMsg);
+      throw new Error(errorMsg);
     }
 
     const articleContent = previewData.content;
+    console.log('[runGateBeforeAction] Article content length:', articleContent?.length);
 
     // 2. Generate QA with correct parameters
+    const qaPayload = { 
+      title: previewData.title || 'Contenuto condiviso',
+      summary: articleContent,
+      excerpt: '',
+      type: 'article',
+      sourceUrl: linkUrl,
+      isPrePublish: true
+    };
+    
+    console.log('[runGateBeforeAction] Calling generate-qa with payload:', qaPayload);
+
     const { data: qaData, error: qaError } = await supabase.functions.invoke(
       'generate-qa',
-      { 
-        body: { 
-          title: previewData.title || 'Contenuto condiviso',
-          summary: articleContent,
-          excerpt: '',
-          type: 'article',
-          sourceUrl: linkUrl,
-          isPrePublish: true
-        } 
-      }
+      { body: qaPayload }
     );
 
+    console.log('[runGateBeforeAction] QA response:', { qaData, qaError });
+
     if (qaError) {
-      console.error('QA generation error:', qaError);
+      console.error('[runGateBeforeAction] QA generation error:', qaError);
       throw new Error(qaError.message || 'Failed to generate questions');
     }
 
-    if (!qaData || qaData.insufficient_context) {
+    if (!qaData) {
+      console.error('[runGateBeforeAction] No QA data returned');
+      throw new Error('Nessuna risposta dal servizio');
+    }
+
+    if (qaData.insufficient_context) {
+      console.log('[runGateBeforeAction] Insufficient context');
       throw new Error('Contenuto insufficiente per generare il quiz');
     }
 
     if (qaData.error) {
+      console.error('[runGateBeforeAction] QA data contains error:', qaData.error);
       throw new Error(qaData.error);
     }
 
-    if (!qaData.questions) {
-      throw new Error('Nessuna domanda generata');
+    if (!qaData.questions || !Array.isArray(qaData.questions)) {
+      console.error('[runGateBeforeAction] Invalid questions format:', qaData);
+      throw new Error('Formato domande non valido');
     }
+
+    console.log('[runGateBeforeAction] Successfully generated', qaData.questions.length, 'questions');
 
     // 3. Show quiz modal
     if (setQuizData && setShowQuiz) {
@@ -82,12 +103,12 @@ export async function runGateBeforeAction({
       onSuccess();
     }
   } catch (error) {
-    console.error('Gate error:', error);
+    console.error('[runGateBeforeAction] Gate error:', error);
     // Mostra errore tramite setQuizData per renderlo più integrato
     if (setQuizData && setShowQuiz) {
       setQuizData({
         error: true,
-        errorMessage: 'Impossibile verificare il contenuto. Riprova.',
+        errorMessage: error instanceof Error ? error.message : 'Impossibile verificare il contenuto. Riprova.',
         onCancel
       });
       setShowQuiz(true);

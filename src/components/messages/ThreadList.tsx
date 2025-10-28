@@ -11,10 +11,11 @@ interface ThreadListProps {
 }
 
 const ThreadItem = memo(({ thread, userId }: { thread: MessageThread; userId: string }) => {
-  const otherParticipant = thread.participants?.find((p: any) => p.user_id !== userId);
-  const otherProfile = otherParticipant?.profile;
+  const otherParticipants = thread.participants?.filter((p: any) => p.user_id !== userId) || [];
+  const isGroupChat = otherParticipants.length > 1;
+  const displayProfile = otherParticipants[0]?.profile;
 
-  if (!otherProfile) return null;
+  if (!displayProfile) return null;
 
   const isUnread = (thread.unread_count || 0) > 0;
 
@@ -24,16 +25,19 @@ const ThreadItem = memo(({ thread, userId }: { thread: MessageThread; userId: st
       className="flex items-center gap-3 p-4 hover:bg-accent/50 transition-colors"
     >
       <Avatar className="h-12 w-12">
-        <AvatarImage src={otherProfile.avatar_url || undefined} loading="lazy" />
+        <AvatarImage src={displayProfile.avatar_url || undefined} loading="lazy" />
         <AvatarFallback>
-          {otherProfile.username?.[0]?.toUpperCase() || '?'}
+          {displayProfile.username?.[0]?.toUpperCase() || '?'}
         </AvatarFallback>
       </Avatar>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2">
           <span className={`font-semibold truncate ${isUnread ? 'text-foreground' : 'text-foreground/80'}`}>
-            {otherProfile.full_name || otherProfile.username}
+            {isGroupChat 
+              ? otherParticipants.map(p => p.profile?.full_name || p.profile?.username).join(', ')
+              : (displayProfile.full_name || displayProfile.username)
+            }
           </span>
           {thread.last_message && (
             <span className="text-xs text-muted-foreground whitespace-nowrap">
