@@ -992,6 +992,10 @@ export type Database = {
         Returns: boolean
       }
       is_valid_username: { Args: { username: string }; Returns: boolean }
+      user_is_thread_participant: {
+        Args: { check_thread_id: string; check_user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
