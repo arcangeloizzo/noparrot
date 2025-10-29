@@ -139,7 +139,7 @@ export const NewMessageSheet = ({ isOpen, onClose, selectedUsers }: NewMessageSh
         </div>
       </div>
 
-      {showQuiz && quizData && (
+      {showQuiz && quizData && !quizData.error && (
         <QuizModal
           questions={quizData.questions}
           onSubmit={async (answers: Record<string, string>) => {
@@ -155,6 +155,22 @@ export const NewMessageSheet = ({ isOpen, onClose, selectedUsers }: NewMessageSh
           }}
           provider="gemini"
         />
+      )}
+
+      {showQuiz && quizData?.error && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-lg p-6 max-w-sm mx-4">
+            <p className="text-foreground font-semibold mb-2">Errore</p>
+            <p className="text-muted-foreground text-sm mb-4">{quizData.errorMessage}</p>
+            <Button onClick={() => {
+              quizData.onCancel();
+              setShowQuiz(false);
+              setQuizData(null);
+            }}>
+              Chiudi
+            </Button>
+          </div>
+        </div>
       )}
 
       {isProcessing && (
