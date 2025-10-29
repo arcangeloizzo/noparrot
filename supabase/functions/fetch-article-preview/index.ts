@@ -177,6 +177,7 @@ serve(async (req) => {
         }
         
         return new Response(JSON.stringify({
+          success: true,
           title: oembedData.title,
           content: transcript || `Video: ${oembedData.title}`,
           summary: transcript ? transcript.substring(0, 500) + '...' : oembedData.title,
@@ -208,7 +209,7 @@ serve(async (req) => {
       // Try Jina AI Reader first (FREE)
       const jinaResult = await fetchSocialWithJina(url, socialPlatform);
       if (jinaResult) {
-        return new Response(JSON.stringify(jinaResult), {
+        return new Response(JSON.stringify({ success: true, ...jinaResult }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
@@ -253,7 +254,7 @@ serve(async (req) => {
               hostname: 'x.com'
             };
 
-            return new Response(JSON.stringify(result), {
+            return new Response(JSON.stringify({ success: true, ...result }), {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
           }
@@ -357,6 +358,7 @@ serve(async (req) => {
                   const extracted = JSON.parse(cleanContent);
                   
                   const result = {
+                    success: true,
                     title: extracted.title || title || 'Article',
                     summary: extracted.description || description,
                     content: extracted.content || content || extracted.description || description,
@@ -383,6 +385,7 @@ serve(async (req) => {
         
         // Return what we extracted (even if minimal)
         const result = {
+          success: true,
           title: title || 'Article',
           summary: description,
           content: content || description,
@@ -403,6 +406,7 @@ serve(async (req) => {
     
     // Fallback
     const result = {
+      success: true,
       title: 'Article',
       summary: '',
       content: 'Apri il link per leggere il contenuto completo.',
