@@ -346,7 +346,15 @@ serve(async (req) => {
                 console.log('[fetch-article-preview] AI response:', aiContent);
                 
                 try {
-                  const extracted = JSON.parse(aiContent);
+                  // Remove markdown code fences if present
+                  let cleanContent = aiContent.trim();
+                  if (cleanContent.startsWith('```json')) {
+                    cleanContent = cleanContent.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+                  } else if (cleanContent.startsWith('```')) {
+                    cleanContent = cleanContent.replace(/^```\n?/, '').replace(/\n?```$/, '');
+                  }
+                  
+                  const extracted = JSON.parse(cleanContent);
                   
                   const result = {
                     title: extracted.title || title || 'Article',
