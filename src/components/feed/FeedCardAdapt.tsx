@@ -56,11 +56,10 @@ import {
   useRemoveBookmark,
   useHidePost,
   useReportPost,
-  formatKilo, // <-- AGGIUNTA QUESTA RIGA
 } from '@/hooks/usePosts'
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
-import { cn, getDisplayUsername } from '@/lib/utils' 
+import { cn, getDisplayUsername, formatKilo } from '@/lib/utils' 
 
 // --- MODIFICA 2: CORREZIONE DELL'IMPORT ---
 // Questo era l'errore. Ora è corretto.
