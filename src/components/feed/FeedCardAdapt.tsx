@@ -51,11 +51,9 @@ import { ComprehensionTest } from './ComprehensionTest'
 
 // Hooks & Utils
 // --- MODIFICA 2: CORREZIONE BLOCCO IMPORT ---
+// Importiamo SOLO le funzioni che esistono in usePosts.ts
 import {
-  useLikePost, // <-- CORRETTO
-  useUnlikePost, // <-- CORRETTO
-  useBookmarkPost,
-  useRemoveBookmark,
+  useToggleReaction, // <-- QUESTA È LA FUNZIONE CORRETTA
   useHidePost,
   useReportPost,
 } from '@/hooks/usePosts'
@@ -139,10 +137,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({
 
   // --- MODIFICA 5: CORREZIONE MUTAZIONI ---
   // Reazioni e Mutazioni
-  const likeMutation = useLikePost(post.id) // <-- CORRETTO
-  const unlikeMutation = useUnlikePost(post.id, user?.id || '') // <-- CORRETTO
-  const bookmarkMutation = useBookmarkPost()
-  const removeBookmarkMutation = useRemoveBookmark()
+  const toggleReaction = useToggleReaction() // <-- QUESTA È LA FUNZIONE CORRETTA
   const hidePostMutation = useHidePost()
   const reportPostMutation = useReportPost()
   // --- FINE MODIFICA 5 ---
@@ -150,11 +145,13 @@ export const FeedCard: React.FC<FeedCardProps> = ({
   // Controllo se l'utente ha messo 'mi piace' o 'salvato'
   const userHasLiked = useMemo(() => {
     if (!user) return false
+    // Usiamo il tipo corretto dal file usePosts.ts
     return post.likes?.some((like: any) => like.user_id === user.id)
   }, [post.likes, user])
 
   const userHasBookmarked = useMemo(() => {
     if (!user) return false
+    // Usiamo il tipo corretto dal file usePosts.ts
     return post.bookmarks?.some((bookmark: any) => bookmark.user_id === user.id)
   }, [post.bookmarks, user])
 
@@ -209,29 +206,23 @@ export const FeedCard: React.FC<FeedCardProps> = ({
     loadTrustScore()
   }, [post.shared_url, post.content])
 
-  // --- MODIFICA 6: CORREZIONE LOGICA 'handleLike' ---
+  // --- MODIFICA 6: CORREZIONE LOGICA 'handleLike' e 'handleBookmark' ---
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!user) return
     haptics.light()
-    if (userHasLiked) {
-      unlikeMutation.mutate()
-    } else {
-      likeMutation.mutate()
-    }
+    // Usiamo la funzione corretta
+    toggleReaction.mutate({ postId: post.id, reactionType: 'heart' })
   }
-  // --- FINE MODIFICA 6 ---
 
   const handleBookmark = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!user) return
     haptics.selection()
-    if (userHasBookmarked) {
-      removeBookmarkMutation.mutate(post.id)
-    } else {
-      bookmarkMutation.mutate(post.id)
-    }
+    // Usiamo la funzione corretta
+    toggleReaction.mutate({ postId: post.id, reactionType: 'bookmark' })
   }
+  // --- FINE MODIFICA 6 ---
 
   // Handler per i commenti (corretto, senza quiz)
   const handleCommentClick = (e: React.MouseEvent) => {
@@ -239,9 +230,8 @@ export const FeedCard: React.FC<FeedCardProps> = ({
     if (isCommentDisabled) return
     haptics.selection()
     if (isExpanded) {
-      // Non fa nulla se già espanso
     } else {
-      setIsCommentsOpen(true) // Apre lo sheet dei commenti
+      setIsCommentsOpen(true) 
     }
   }
 
@@ -250,7 +240,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({
     e.stopPropagation()
     if (!user) return
     haptics.selection()
-    setIsQuoteModalOpen(true) // Apre il composer per quotare
+    setIsQuoteModalOpen(true) 
   }
 
   // Handler per il menu "Altro"
@@ -285,12 +275,12 @@ export const FeedCard: React.FC<FeedCardProps> = ({
       return
     }
     haptics.selection()
-    setIsShareSheetOpen(true) // Apre solo lo sheet
+    setIsShareSheetOpen(true) 
   }
 
   // Chiamato da ShareSheet -> "Quota sul feed"
   const handleShareToFeed = () => {
-    setIsShareSheetOpen(false) // Chiudi lo sheet
+    setIsShareSheetOpen(false) 
     if (post.source_url && shouldRequireGate(post.source_url)) {
       setPendingShareAction('quote') 
       setIsQuizModalOpen(true) 
@@ -301,7 +291,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({
 
   // Chiamato da ShareSheet -> "Invia a un amico"
   const handleShareWithFriend = () => {
-    setIsShareSheetOpen(false) // Chiudi lo sheet
+    setIsShareSheetOpen(false) 
     if (post.source_url && shouldRequireGate(post.source_url)) {
       setPendingShareAction('dm') 
       setIsQuizModalOpen(true) 
@@ -559,7 +549,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({
               </div>
             )}
 
-            {/* Barra delle icone */}
+            {/* --- MODIFICA 8: Barra delle icone --- */}
             <div className="flex items-center justify-between w-full mt-2 -ml-2">
               
               {/* Icona 1: MI PIACE (Cuore) */}
@@ -605,7 +595,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({
                 variant="ghost"
                 size="icon"
                 className="flex items-center gap-1 text-muted-foreground"
-                onClick={handleBookmark} // Usa il tuo handleBookmark
+                onClick={handleBookmark} 
               >
                 <Bookmark 
                   className={cn(
@@ -615,12 +605,13 @@ export const FeedCard: React.FC<FeedCardProps> = ({
                 />
               </Button>
             </div>
+            {/* --- Fine Modifica 8 --- */}
 
           </div>
         </div>
       </Card>
 
-      {/* --- MODIFICA 8: Assicurati che tutti i modal siano qui --- */}
+      {/* --- MODIFICA 9: Assicurati che tutti i modal siano qui --- */}
 
       {/* Sheet e Modal esistenti */}
       <CommentsSheet
@@ -688,7 +679,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({
         document.body,
       )}
 
-      {/* --- MODIFICA 9: Aggiungiamo i nuovi Sheet --- */}
+      {/* --- MODIFICA 10: Aggiungiamo i nuovi Sheet --- */}
       
       <ShareSheet
         open={isShareSheetOpen}
@@ -703,7 +694,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({
         prefilledMessage={`Guarda questo post: ${post.source_url || post.content.slice(0, 50)}...`}
       />
 
-      {/* --- MODIFICA 10: Aggiungiamo il NUOVO quiz modal --- */}
+      {/* --- MODIFICA 11: Aggiungiamo il NUOVO quiz modal --- */}
       {isQuizModalOpen && (
         <ComprehensionTest
           post={post} // Passa l'intero post
