@@ -13,7 +13,7 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { supabase } from '@/integrations/supabase/client'
-import { PostWithAuthor, PostWithAuthorAndQuotedPost } from '@/integrations/supabase/types'
+import { PostWithAuthor, PostWithAuthorAndQuotedPost } from '@/lib/types'
 
 // UI Components
 import { TrustBadge } from '@/components/ui/trust-badge'
@@ -502,8 +502,8 @@ export const FeedCard: React.FC<FeedCardProps> = ({
             {/* Quoted Post */}
             {post.quoted_post && (
               <QuotedPostCard
-                post={post.quoted_post as PostWithAuthor}
-                className="mt-2"
+                quotedPost={post.quoted_post}
+                parentSources={post.sources || []}
               />
             )}
 
