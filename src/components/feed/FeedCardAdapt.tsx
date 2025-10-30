@@ -50,28 +50,26 @@ import { ComposerModal } from '../composer/ComposerModal'
 import { ComprehensionTest } from './ComprehensionTest' 
 
 // Hooks & Utils
+// --- MODIFICA 2: CORREZIONE BLOCCO IMPORT ---
 import {
-  useToggleReaction,
+  useLikePost, // <-- CORRETTO
+  useUnlikePost, // <-- CORRETTO
   useBookmarkPost,
   useRemoveBookmark,
   useHidePost,
   useReportPost,
 } from '@/hooks/usePosts'
+// --- FINE MODIFICA 2 ---
+
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
-import { cn, getDisplayUsername, formatKilo } from '@/lib/utils' 
-
-// --- MODIFICA 2: CORREZIONE DELL'IMPORT ---
-// Questo era l'errore. Ora è corretto.
-import { fetchTrustScore } from '@/lib/comprehension-gate' 
-import { shouldRequireGate } from '@/lib/shouldRequireGate'
-// --- FINE CORREZIONE ---
-
+import { cn, getDisplayUsername, formatKilo } from '@/lib/utils' // Importiamo formatKilo da qui
+import { fetchTrustScore, shouldRequireGate } from '@/lib/comprehension-gate' 
 import { generateQA, fetchArticlePreview } from '@/lib/ai-helpers'
 import { uniqueSources } from '@/lib/url'
 import { haptics } from '@/lib/haptics'
 
-// Tipi (potrebbero essere già nel tuo file, va bene)
+// Tipi
 type Post = PostWithAuthorAndQuotedPost
 interface FeedCardProps {
   post: Post
@@ -91,6 +89,7 @@ const getHostnameFromUrl = (url: string | undefined): string => {
   }
 }
 
+// --- MODIFICA 3: Rinominato in 'FeedCard' ---
 export const FeedCard: React.FC<FeedCardProps> = ({
   post,
   onRemove,
@@ -111,21 +110,20 @@ export const FeedCard: React.FC<FeedCardProps> = ({
   const [isSimilarContentModalOpen, setIsSimilarContentModalOpen] =
     useState(false)
 
-  // --- MODIFICA 3: Aggiungiamo i nuovi stati per il flusso di condivisione ---
+  // --- MODIFICA 4: Stati per il flusso di condivisione ---
   const [isShareSheetOpen, setIsShareSheetOpen] = useState(false)
   const [isNewMessageSheetOpen, setIsNewMessageSheetOpen] = useState(false)
   const [isQuizModalOpen, setIsQuizModalOpen] = useState(false)
-  // Questo stato "ricorda" cosa voleva fare l'utente (quotare o inviare DM)
   const [pendingShareAction, setPendingShareAction] = useState<
     'quote' | 'dm' | null
   >(null)
-  // --- Fine Modifica 3 ---
+  // --- Fine Modifica 4 ---
 
   // Article preview state
   const [articlePreview, setArticlePreview] = useState<any>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
 
-  // Gate states (Manteniamo i tuoi stati originali se servono altrove)
+  // Gate states
   const [showReader, setShowReader] = useState(false)
   const [showQuiz, setShowQuiz] = useState(false)
   const [readerSource, setReaderSource] = useState<any>(null)
@@ -139,12 +137,15 @@ export const FeedCard: React.FC<FeedCardProps> = ({
   } | null>(null)
   const [loadingTrustScore, setLoadingTrustScore] = useState(false)
 
+  // --- MODIFICA 5: CORREZIONE MUTAZIONI ---
   // Reazioni e Mutazioni
-  const toggleReaction = useToggleReaction()
+  const likeMutation = useLikePost(post.id) // <-- CORRETTO
+  const unlikeMutation = useUnlikePost(post.id, user?.id || '') // <-- CORRETTO
   const bookmarkMutation = useBookmarkPost()
   const removeBookmarkMutation = useRemoveBookmark()
   const hidePostMutation = useHidePost()
   const reportPostMutation = useReportPost()
+  // --- FINE MODIFICA 5 ---
 
   // Controllo se l'utente ha messo 'mi piace' o 'salvato'
   const userHasLiked = useMemo(() => {
@@ -208,13 +209,18 @@ export const FeedCard: React.FC<FeedCardProps> = ({
     loadTrustScore()
   }, [post.shared_url, post.content])
 
-  // Handlers per le icone
+  // --- MODIFICA 6: CORREZIONE LOGICA 'handleLike' ---
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!user) return
     haptics.light()
-    toggleReaction.mutate({ postId: post.id, reactionType: 'heart' })
+    if (userHasLiked) {
+      unlikeMutation.mutate()
+    } else {
+      likeMutation.mutate()
+    }
   }
+  // --- FINE MODIFICA 6 ---
 
   const handleBookmark = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -269,7 +275,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({
     })
   }
 
-  // --- MODIFICA 4: INIZIO NUOVA LOGICA DI CONDIVISIONE ---
+  // --- MODIFICA 7: INIZIO NUOVA LOGICA DI CONDIVISIONE ---
 
   // Chiamato dal click sull'icona del LOGO (Icona 3)
   const handleShareClick = (e: React.MouseEvent) => {
@@ -285,13 +291,10 @@ export const FeedCard: React.FC<FeedCardProps> = ({
   // Chiamato da ShareSheet -> "Quota sul feed"
   const handleShareToFeed = () => {
     setIsShareSheetOpen(false) // Chiudi lo sheet
-    // Controlla se il post ha una fonte e richiede il gate
-    // Usiamo 'post.source_url' come nel tuo file originale
     if (post.source_url && shouldRequireGate(post.source_url)) {
-      setPendingShareAction('quote') // Ricorda l'azione
-      setIsQuizModalOpen(true) // Apri il NUOVO quiz modal
+      setPendingShareAction('quote') 
+      setIsQuizModalOpen(true) 
     } else {
-      // Nessuna fonte, vai dritto alla quota
       setIsQuoteModalOpen(true)
     }
   }
@@ -299,12 +302,10 @@ export const FeedCard: React.FC<FeedCardProps> = ({
   // Chiamato da ShareSheet -> "Invia a un amico"
   const handleShareWithFriend = () => {
     setIsShareSheetOpen(false) // Chiudi lo sheet
-    // Controlla se il post ha una fonte e richiede il gate
     if (post.source_url && shouldRequireGate(post.source_url)) {
-      setPendingShareAction('dm') // Ricorda l'azione
-      setIsQuizModalOpen(true) // Apri il NUOVO quiz modal
+      setPendingShareAction('dm') 
+      setIsQuizModalOpen(true) 
     } else {
-      // Nessuna fonte, vai dritto ai DM
       setIsNewMessageSheetOpen(true)
     }
   }
@@ -313,20 +314,19 @@ export const FeedCard: React.FC<FeedCardProps> = ({
   const handleQuizSuccess = () => {
     setIsQuizModalOpen(false)
     
-    // Esegui l'azione che era in sospeso
     if (pendingShareAction === 'quote') {
       setIsQuoteModalOpen(true)
     } else if (pendingShareAction === 'dm') {
       setIsNewMessageSheetOpen(true)
     }
     
-    setPendingShareAction(null) // Resetta lo stato
+    setPendingShareAction(null) 
   }
 
   // Chiamato se l'utente chiude il quiz senza superarlo
   const handleQuizClose = () => {
     setIsQuizModalOpen(false)
-    setPendingShareAction(null) // Annulla l'azione
+    setPendingShareAction(null) 
   }
 
   // --- FINE NUOVA LOGICA DI CONDIVISIONE ---
@@ -357,7 +357,6 @@ export const FeedCard: React.FC<FeedCardProps> = ({
   const handleQuizSubmit = async (answers: Record<string, string>) => {
      // ...
      // Questa logica gestisce il VECCHIO quiz
-     // (quello che usa 'setShowQuiz' e 'setQuizData')
      // ...
      return { passed: false, score: 0, total: 0, wrongIndexes: [] }
   }
@@ -523,7 +522,6 @@ export const FeedCard: React.FC<FeedCardProps> = ({
                 className="mb-3 mt-2 border rounded-2xl overflow-hidden hover:bg-muted/30 transition-all cursor-pointer group block"
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* ... (Tutta la tua logica di preview rimane invariata) ... */}
                 {(articlePreview?.image || post.preview_img) && !loadingPreview && (
                    <div className="aspect-video w-full overflow-hidden bg-muted">
                      <img 
@@ -561,7 +559,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({
               </div>
             )}
 
-            {/* --- MODIFICA 5: Barra delle icone --- */}
+            {/* Barra delle icone */}
             <div className="flex items-center justify-between w-full mt-2 -ml-2">
               
               {/* Icona 1: MI PIACE (Cuore) */}
@@ -617,13 +615,12 @@ export const FeedCard: React.FC<FeedCardProps> = ({
                 />
               </Button>
             </div>
-            {/* --- Fine Modifica 5 --- */}
 
           </div>
         </div>
       </Card>
 
-      {/* --- MODIFICA 6: Assicurati che tutti i modal siano qui --- */}
+      {/* --- MODIFICA 8: Assicurati che tutti i modal siano qui --- */}
 
       {/* Sheet e Modal esistenti */}
       <CommentsSheet
@@ -691,7 +688,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({
         document.body,
       )}
 
-      {/* --- MODIFICA 7: Aggiungiamo i nuovi Sheet --- */}
+      {/* --- MODIFICA 9: Aggiungiamo i nuovi Sheet --- */}
       
       <ShareSheet
         open={isShareSheetOpen}
@@ -706,8 +703,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({
         prefilledMessage={`Guarda questo post: ${post.source_url || post.content.slice(0, 50)}...`}
       />
 
-      {/* --- MODIFICA 8: Aggiungiamo il NUOVO quiz modal --- */}
-      {/* Questo è separato dal tuo 'showQuiz' e 'quizData' */}
+      {/* --- MODIFICA 10: Aggiungiamo il NUOVO quiz modal --- */}
       {isQuizModalOpen && (
         <ComprehensionTest
           post={post} // Passa l'intero post
