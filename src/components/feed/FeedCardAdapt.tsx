@@ -91,7 +91,7 @@ const getHostnameFromUrl = (url: string | undefined): string => {
   }
 }
 
-export const FeedCardAdapt: React.FC<FeedCardProps> = ({
+export const FeedCard: React.FC<FeedCardProps> = ({
   post,
   onRemove,
   onQuoteShare,
