@@ -1,4 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// supabase/functions/evaluate-trust-score/index.ts
+
+import { serve } from "[https://deno.land/std@0.168.0/http/server.ts](https://deno.land/std@0.168.0/http/server.ts)";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -81,14 +83,14 @@ REGOLE:
 
 IMPORTANTE: Sii conservativo. In caso di dubbio, preferisci MEDIO.`;
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const aiResponse = await fetch('[https://ai.gateway.lovable.dev/v1/chat/completions](https://ai.gateway.lovable.dev/v1/chat/completions)', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${lovableApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-1.5-flash', // <-- MODIFICA 1: Corretto il nome del modello
         messages: [
           { 
             role: 'system', 
@@ -121,12 +123,13 @@ IMPORTANTE: Sii conservativo. In caso di dubbio, preferisci MEDIO.`;
     // Parse JSON from AI response
     let parsedContent;
     try {
-      // Strip markdown code fences
-      content = content.trim();
-      if (content.startsWith('```json')) content = content.slice(7);
-      if (content.startsWith('```')) content = content.slice(3);
-      if (content.endsWith('```')) content = content.slice(0, -3);
-      content = content.trim();
+      // --- MODIFICA 2: Logica di parsing più robusta ---
+      const jsonMatch = content.match(/{[\s\S]*}/); // Cerca il primo { e l'ultimo }
+      if (!jsonMatch) {
+        throw new Error('No valid JSON object found in AI response');
+      }
+      content = jsonMatch[0];
+      // --- Fine Modifica 2 ---
       
       parsedContent = JSON.parse(content);
     } catch (e) {
