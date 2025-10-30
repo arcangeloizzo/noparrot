@@ -47,7 +47,7 @@ import { ShareSheet } from '@/components/share/ShareSheet'
 import { NewMessageSheet } from '@/components/messages/NewMessageSheet'
 import { CommentsSheet } from './CommentsSheet'
 import { ComposerModal } from '../composer/ComposerModal'
-import { ComprehensionTest } from './ComprehensionTest' // <-- Importa il quiz
+import { ComprehensionTest } from './ComprehensionTest' 
 
 // Hooks & Utils
 import {
@@ -60,7 +60,13 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
 import { cn, getDisplayUsername, formatKilo } from '@/lib/utils' 
-import { fetchTrustScore, shouldRequireGate } from '@/lib/comprehension-gate' // <-- MODIFICA 2: Importiamo shouldRequireGate
+
+// --- MODIFICA 2: CORREZIONE DELL'IMPORT ---
+// Questo era l'errore. Ora è corretto.
+import { fetchTrustScore } from '@/lib/comprehension-gate' 
+import { shouldRequireGate } from '@/lib/shouldRequireGate'
+// --- FINE CORREZIONE ---
+
 import { generateQA, fetchArticlePreview } from '@/lib/ai-helpers'
 import { uniqueSources } from '@/lib/url'
 import { haptics } from '@/lib/haptics'
@@ -325,19 +331,14 @@ export const FeedCardAdapt: React.FC<FeedCardProps> = ({
 
   // --- FINE NUOVA LOGICA DI CONDIVISIONE ---
 
-  // NOTA: Le tue funzioni originali 'startComprehensionGate', 
-  // 'handleReaderComplete', e 'handleQuizSubmit' (quelle da 647 righe)
-  // sono ancora qui e gestiranno il *vecchio* flusso se 
-  // viene chiamato da qualche altra parte. La nostra nuova logica
-  // usa 'setIsQuizModalOpen' e 'handleQuizSuccess/Close'.
-  // Questo è sicuro e non crea conflitti.
   
   // (La tua logica originale per 'startComprehensionGate'...)
   const startComprehensionGate = async () => {
      if (!post.shared_url || !user) return;
      // ...
      setReaderSource({
-       /* ... */
+       url: post.shared_url,
+       // ... (il resto della tua logica 'setReaderSource')
      })
      setShowReader(true)
   }
@@ -356,8 +357,8 @@ export const FeedCardAdapt: React.FC<FeedCardProps> = ({
   const handleQuizSubmit = async (answers: Record<string, string>) => {
      // ...
      // Questa logica gestisce il VECCHIO quiz
-     // Dovrà essere integrata o sostituita se 
-     // 'ComprehensionTest' è lo stesso componente
+     // (quello che usa 'setShowQuiz' e 'setQuizData')
+     // ...
      return { passed: false, score: 0, total: 0, wrongIndexes: [] }
   }
 
@@ -532,7 +533,6 @@ export const FeedCardAdapt: React.FC<FeedCardProps> = ({
                      />
                    </div>
                 )}
-                {/* ... (Il resto della tua card di preview) ... */}
                 <div className="p-3">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
                     <span>{getHostnameFromUrl(post.source_url)}</span>
@@ -562,7 +562,6 @@ export const FeedCardAdapt: React.FC<FeedCardProps> = ({
             )}
 
             {/* --- MODIFICA 5: Barra delle icone --- */}
-            {/* Questo è il layout corretto (Cuore, Commento, Logo, Salva) */}
             <div className="flex items-center justify-between w-full mt-2 -ml-2">
               
               {/* Icona 1: MI PIACE (Cuore) */}
@@ -633,7 +632,6 @@ export const FeedCardAdapt: React.FC<FeedCardProps> = ({
         onOpenChange={setIsCommentsOpen}
       />
       
-      {/* Il ComposerModal si apre solo per "Quota" */}
       <ComposerModal
         open={isQuoteModalOpen}
         onOpenChange={setIsQuoteModalOpen}
@@ -648,9 +646,9 @@ export const FeedCardAdapt: React.FC<FeedCardProps> = ({
           onClose={() => {
             setShowReader(false)
             setReaderSource(null)
-            setPendingShareAction(null) // Annulla azione se chiude
+            // NON resettare il pendingShareAction qui
           }}
-          onComplete={handleReaderComplete} // Questa funzione deve avviare il quiz
+          onComplete={handleReaderComplete} 
         />,
         document.body,
       )}
@@ -658,11 +656,11 @@ export const FeedCardAdapt: React.FC<FeedCardProps> = ({
       {showQuiz && quizData && createPortal(
         <QuizModal
           questions={quizData.questions}
-          onSubmit={handleQuizSubmit} // Questa funzione deve chiamare 'executePendingAction'
+          onSubmit={handleQuizSubmit} 
           onCancel={() => {
             setShowQuiz(false)
             setQuizData(null)
-            setPendingShareAction(null) // Annulla azione se chiude
+            // NON resettare il pendingShareAction qui
           }}
         />,
         document.body,
@@ -702,12 +700,22 @@ export const FeedCardAdapt: React.FC<FeedCardProps> = ({
         onShareWithFriend={handleShareWithFriend}
       />
 
-      {/* Assicurati di aver modificato NewMessageSheet per accettare 'prefilledMessage' */}
       <NewMessageSheet
         open={isNewMessageSheetOpen}
         onOpenChange={setIsNewMessageSheetOpen}
         prefilledMessage={`Guarda questo post: ${post.source_url || post.content.slice(0, 50)}...`}
       />
+
+      {/* --- MODIFICA 8: Aggiungiamo il NUOVO quiz modal --- */}
+      {/* Questo è separato dal tuo 'showQuiz' e 'quizData' */}
+      {isQuizModalOpen && (
+        <ComprehensionTest
+          post={post} // Passa l'intero post
+          open={isQuizModalOpen}
+          onOpenChange={handleQuizClose} // Se l'utente chiude il modal
+          onTestPassed={handleQuizSuccess} // Se supera il test
+        />
+      )}
 
     </>
   )
