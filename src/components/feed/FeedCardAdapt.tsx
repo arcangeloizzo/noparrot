@@ -62,7 +62,8 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
 import { cn, getDisplayUsername, formatKilo } from '@/lib/utils' // Importiamo formatKilo da qui
-import { fetchTrustScore, shouldRequireGate } from '@/lib/comprehension-gate' 
+import { fetchTrustScore } from '@/lib/comprehension-gate'
+import { shouldRequireGate } from '@/lib/shouldRequireGate'
 import { generateQA, fetchArticlePreview } from '@/lib/ai-helpers'
 import { uniqueSources } from '@/lib/url'
 import { haptics } from '@/lib/haptics'
