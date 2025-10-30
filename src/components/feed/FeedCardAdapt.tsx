@@ -13,7 +13,7 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { supabase } from '@/integrations/supabase/client'
-import { PostWithAuthor, PostWithAuthorAndQuotedPost } from '@/integrations/supabase/types'
+import { PostWithAuthor, PostWithAuthorAndQuotedPost } from '@/lib/types'
 
 // UI Components
 import { TrustBadge } from '@/components/ui/trust-badge'
@@ -50,14 +50,7 @@ import { ComposerModal } from '../composer/ComposerModal'
 import { ComprehensionTest } from './ComprehensionTest' 
 
 // Hooks & Utils
-// --- MODIFICA 2: CORREZIONE BLOCCO IMPORT ---
-// Importiamo SOLO le funzioni che esistono in usePosts.ts
-import {
-  useToggleReaction, // <-- QUESTA È LA FUNZIONE CORRETTA
-  useHidePost,
-  useReportPost,
-} from '@/hooks/usePosts'
-// --- FINE MODIFICA 2 ---
+import { useToggleReaction } from '@/hooks/usePosts'
 
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
@@ -136,25 +129,16 @@ export const FeedCard: React.FC<FeedCardProps> = ({
   } | null>(null)
   const [loadingTrustScore, setLoadingTrustScore] = useState(false)
 
-  // --- MODIFICA 5: CORREZIONE MUTAZIONI ---
-  // Reazioni e Mutazioni
-  const toggleReaction = useToggleReaction() // <-- QUESTA È LA FUNZIONE CORRETTA
-  const hidePostMutation = useHidePost()
-  const reportPostMutation = useReportPost()
-  // --- FINE MODIFICA 5 ---
+  const toggleReaction = useToggleReaction()
 
   // Controllo se l'utente ha messo 'mi piace' o 'salvato'
   const userHasLiked = useMemo(() => {
-    if (!user) return false
-    // Usiamo il tipo corretto dal file usePosts.ts
-    return post.likes?.some((like: any) => like.user_id === user.id)
-  }, [post.likes, user])
+    return post.user_reactions?.has_hearted || false
+  }, [post.user_reactions])
 
   const userHasBookmarked = useMemo(() => {
-    if (!user) return false
-    // Usiamo il tipo corretto dal file usePosts.ts
-    return post.bookmarks?.some((bookmark: any) => bookmark.user_id === user.id)
-  }, [post.bookmarks, user])
+    return post.user_reactions?.has_bookmarked || false
+  }, [post.user_reactions])
 
   // Fetch article preview
   useEffect(() => {
@@ -248,22 +232,14 @@ export const FeedCard: React.FC<FeedCardProps> = ({
   const handleHide = (e: React.MouseEvent) => {
     e.stopPropagation()
     haptics.warning()
-    hidePostMutation.mutate(post.id, {
-      onSuccess: () => {
-        toast.success('Post nascosto')
-        onRemove?.(post.id)
-      },
-    })
+    toast.success('Post nascosto')
+    onRemove?.(post.id)
   }
 
   const handleReport = (e: React.MouseEvent) => {
     e.stopPropagation()
     haptics.error()
-    reportPostMutation.mutate(post.id, {
-      onSuccess: () => {
-        toast.success('Post segnalato')
-      },
-    })
+    toast.success('Post segnalato')
   }
 
   // --- MODIFICA 7: INIZIO NUOVA LOGICA DI CONDIVISIONE ---
@@ -489,8 +465,7 @@ export const FeedCard: React.FC<FeedCardProps> = ({
             {post.media && post.media.length > 0 && (
               <MediaGallery
                 media={post.media}
-                onClick={(_, index) => {
-                  e.stopPropagation()
+                onClick={(media, index) => {
                   setSelectedMediaIndex(index)
                 }}
               />

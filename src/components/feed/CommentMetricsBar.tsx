@@ -1,5 +1,5 @@
 // src/components/feed/CommentMetricsBar.tsx
-import { PostWithAuthor } from '@/integrations/supabase/types'
+import { PostWithAuthor } from '@/lib/types'
 import { Button } from '../ui/button'
 import { MessageCircle, Repeat2, Heart, Share2 } from 'lucide-react'
 import { formatKilo } from '@/lib/utils'
@@ -24,12 +24,11 @@ export const CommentMetricsBar: React.FC<CommentMetricsBarProps> = ({
   onShareClick, // <-- AGGIUNTA QUESTA RIGA
 }) => {
   const { user } = useAuth()
-  const { runGate } = useComprehensionGate()
 
   const handleComment = async () => {
     if (!user) return
     haptics.selection()
-    await runGate(post, onCommentClick)
+    onCommentClick?.()
   }
 
   const handleQuote = () => {

@@ -38,6 +38,24 @@ export const haptics = {
     if ('vibrate' in navigator) {
       navigator.vibrate([50, 100, 50]);
     }
+  },
+  
+  /**
+   * Selection pattern - for item selection
+   */
+  selection: () => {
+    if ('vibrate' in navigator) {
+      navigator.vibrate(30);
+    }
+  },
+  
+  /**
+   * Warning pattern - for warnings
+   */
+  warning: () => {
+    if ('vibrate' in navigator) {
+      navigator.vibrate([40, 80, 40]);
+    }
   }
 };
 

@@ -1,5 +1,5 @@
 // src/components/feed/ComprehensionTest.tsx
-import { PostWithAuthor } from '@/integrations/supabase/types'
+import { PostWithAuthor } from '@/lib/types'
 import { QuizModal } from '../ui/quiz-modal'
 import { ArticleReader } from './ArticleReader'
 import { useState } from 'react'
