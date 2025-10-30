@@ -55,7 +55,7 @@ async function fetchYouTubeTranscript(videoId: string): Promise<{ transcript: st
       captionTracks = JSON.parse(captionTracksMatch[1]);
       console.log(`Found ${captionTracks.length} caption tracks`);
     } catch (e) {
-      console.log(`Failed to parse captionTracks: ${e.message}`);
+      console.log(`Failed to parse captionTracks: ${e instanceof Error ? e.message : 'Unknown error'}`);
       return null;
     }
     
@@ -127,7 +127,7 @@ async function fetchYouTubeTranscript(videoId: string): Promise<{ transcript: st
     };
     
   } catch (error) {
-    console.error(`Error fetching YouTube transcript for ${videoId}:`, error.message);
+    console.error(`Error fetching YouTube transcript for ${videoId}:`, error instanceof Error ? error.message : 'Unknown error');
     return null;
   }
 }
@@ -199,7 +199,7 @@ serve(async (req) => {
     console.error('Error in transcribe-youtube function:', error);
     return new Response(
       JSON.stringify({ 
-        error: error.message,
+        error: error instanceof Error ? error.message : 'Unknown error',
         transcript: null,
         source: 'none'
       }),
