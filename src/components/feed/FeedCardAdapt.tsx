@@ -13,7 +13,7 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { it } from 'date-fns/locale'
 import { supabase } from '@/integrations/supabase/client'
-import { PostWithAuthor, PostWithAuthorAndQuotedPost } from '@/lib/types'
+import { PostWithAuthor, PostWithAuthorAndQuotedPost } from '@/integrations/supabase/types'
 
 // UI Components
 import { TrustBadge } from '@/components/ui/trust-badge'
@@ -50,13 +50,22 @@ import { ComposerModal } from '../composer/ComposerModal'
 import { ComprehensionTest } from './ComprehensionTest' 
 
 // Hooks & Utils
-import { useToggleReaction } from '@/hooks/usePosts'
+// --- MODIFICA 2: CORREZIONE BLOCCO IMPORT ---
+import {
+  useLikePost, // Corretto
+  useUnlikePost, // Corretto
+  useBookmarkPost,
+  useRemoveBookmark,
+  useHidePost,
+  useReportPost,
+  formatKilo, // Corretto: importato da usePosts
+} from '@/hooks/usePosts'
+// --- FINE MODIFICA 2 ---
 
 import { useAuth } from '@/contexts/AuthContext'
 import { toast } from 'sonner'
-import { cn, getDisplayUsername, formatKilo } from '@/lib/utils' // Importiamo formatKilo da qui
-import { fetchTrustScore } from '@/lib/comprehension-gate'
-import { shouldRequireGate } from '@/lib/shouldRequireGate'
+import { cn, getDisplayUsername } from '@/lib/utils' // Rimosso formatKilo da qui
+import { fetchTrustScore, shouldRequireGate } from '@/lib/comprehension-gate' 
 import { generateQA, fetchArticlePreview } from '@/lib/ai-helpers'
 import { uniqueSources } from '@/lib/url'
 import { haptics } from '@/lib/haptics'
@@ -81,7 +90,7 @@ const getHostnameFromUrl = (url: string | undefined): string => {
   }
 }
 
-// --- MODIFICA 3: Rinominato in 'FeedCard' ---
+// --- MODIFICA 3: Rinominato in 'FeedCard' per correggere l'errore di export ---
 export const FeedCard: React.FC<FeedCardProps> = ({
   post,
   onRemove,
@@ -129,16 +138,26 @@ export const FeedCard: React.FC<FeedCardProps> = ({
   } | null>(null)
   const [loadingTrustScore, setLoadingTrustScore] = useState(false)
 
-  const toggleReaction = useToggleReaction()
+  // --- MODIFICA 5: CORREZIONE MUTAZIONI ---
+  // Reazioni e Mutazioni
+  const likeMutation = useLikePost(post.id) // Corretto
+  const unlikeMutation = useUnlikePost(post.id, user?.id || '') // Corretto
+  const bookmarkMutation = useBookmarkPost()
+  const removeBookmarkMutation = useRemoveBookmark()
+  const hidePostMutation = useHidePost()
+  const reportPostMutation = useReportPost()
+  // --- FINE MODIFICA 5 ---
 
   // Controllo se l'utente ha messo 'mi piace' o 'salvato'
   const userHasLiked = useMemo(() => {
-    return post.user_reactions?.has_hearted || false
-  }, [post.user_reactions])
+    if (!user) return false
+    return post.likes?.some((like: any) => like.user_id === user.id)
+  }, [post.likes, user])
 
   const userHasBookmarked = useMemo(() => {
-    return post.user_reactions?.has_bookmarked || false
-  }, [post.user_reactions])
+    if (!user) return false
+    return post.bookmarks?.some((bookmark: any) => bookmark.user_id === user.id)
+  }, [post.bookmarks, user])
 
   // Fetch article preview
   useEffect(() => {
@@ -191,23 +210,29 @@ export const FeedCard: React.FC<FeedCardProps> = ({
     loadTrustScore()
   }, [post.shared_url, post.content])
 
-  // --- MODIFICA 6: CORREZIONE LOGICA 'handleLike' e 'handleBookmark' ---
+  // --- MODIFICA 6: CORREZIONE LOGICA 'handleLike' ---
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!user) return
     haptics.light()
-    // Usiamo la funzione corretta
-    toggleReaction.mutate({ postId: post.id, reactionType: 'heart' })
+    if (userHasLiked) {
+      unlikeMutation.mutate()
+    } else {
+      likeMutation.mutate()
+    }
   }
+  // --- FINE MODIFICA 6 ---
 
   const handleBookmark = (e: React.MouseEvent) => {
     e.stopPropagation()
     if (!user) return
     haptics.selection()
-    // Usiamo la funzione corretta
-    toggleReaction.mutate({ postId: post.id, reactionType: 'bookmark' })
+    if (userHasBookmarked) {
+      removeBookmarkMutation.mutate(post.id)
+    } else {
+      bookmarkMutation.mutate(post.id)
+    }
   }
-  // --- FINE MODIFICA 6 ---
 
   // Handler per i commenti (corretto, senza quiz)
   const handleCommentClick = (e: React.MouseEvent) => {
@@ -232,14 +257,22 @@ export const FeedCard: React.FC<FeedCardProps> = ({
   const handleHide = (e: React.MouseEvent) => {
     e.stopPropagation()
     haptics.warning()
-    toast.success('Post nascosto')
-    onRemove?.(post.id)
+    hidePostMutation.mutate(post.id, {
+      onSuccess: () => {
+        toast.success('Post nascosto')
+        onRemove?.(post.id)
+      },
+    })
   }
 
   const handleReport = (e: React.MouseEvent) => {
     e.stopPropagation()
     haptics.error()
-    toast.success('Post segnalato')
+    reportPostMutation.mutate(post.id, {
+      onSuccess: () => {
+        toast.success('Post segnalato')
+      },
+    })
   }
 
   // --- MODIFICA 7: INIZIO NUOVA LOGICA DI CONDIVISIONE ---
@@ -302,7 +335,6 @@ export const FeedCard: React.FC<FeedCardProps> = ({
   // (La tua logica originale per 'startComprehensionGate'...)
   const startComprehensionGate = async () => {
      if (!post.shared_url || !user) return;
-     // ...
      setReaderSource({
        url: post.shared_url,
        // ... (il resto della tua logica 'setReaderSource')
@@ -313,18 +345,13 @@ export const FeedCard: React.FC<FeedCardProps> = ({
   // (La tua logica originale per 'handleReaderComplete'...)
   const handleReaderComplete = async () => {
      setShowReader(false)
-     // ...
      const result = await generateQA({ /* ... */ })
-     // ...
      setQuizData({ /* ... */ })
      setShowQuiz(true)
   }
 
   // (La tua logica originale per 'handleQuizSubmit'...)
   const handleQuizSubmit = async (answers: Record<string, string>) => {
-     // ...
-     // Questa logica gestisce il VECCHIO quiz
-     // ...
      return { passed: false, score: 0, total: 0, wrongIndexes: [] }
   }
 
@@ -465,7 +492,8 @@ export const FeedCard: React.FC<FeedCardProps> = ({
             {post.media && post.media.length > 0 && (
               <MediaGallery
                 media={post.media}
-                onClick={(media, index) => {
+                onClick={(_, index) => {
+                  e.stopPropagation()
                   setSelectedMediaIndex(index)
                 }}
               />
@@ -673,10 +701,10 @@ export const FeedCard: React.FC<FeedCardProps> = ({
       {/* --- MODIFICA 11: Aggiungiamo il NUOVO quiz modal --- */}
       {isQuizModalOpen && (
         <ComprehensionTest
-          post={post} // Passa l'intero post
+          post={post} 
           open={isQuizModalOpen}
-          onOpenChange={handleQuizClose} // Se l'utente chiude il modal
-          onTestPassed={handleQuizSuccess} // Se supera il test
+          onOpenChange={handleQuizClose} 
+          onTestPassed={handleQuizSuccess} 
         />
       )}
 
