@@ -1,6 +1,6 @@
 // supabase/functions/evaluate-trust-score/index.ts
 
-import { serve } from "[https://deno.land/std@0.168.0/http/server.ts](https://deno.land/std@0.168.0/http/server.ts)";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -83,7 +83,7 @@ REGOLE:
 
 IMPORTANTE: Sii conservativo. In caso di dubbio, preferisci MEDIO.`;
 
-    const aiResponse = await fetch('[https://ai.gateway.lovable.dev/v1/chat/completions](https://ai.gateway.lovable.dev/v1/chat/completions)', {
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions)', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${lovableApiKey}`,
