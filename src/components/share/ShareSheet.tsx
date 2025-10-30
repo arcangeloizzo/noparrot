@@ -1,59 +1,63 @@
-// src/components/share/ShareSheet.tsx
-import React from 'react'
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
-import { Button } from '@/components/ui/button'
-// 1. MODIFICA: Importiamo le icone
-import { Users, Quote } from 'lucide-react'
+import { Share2, Users } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 
-// 2. MODIFICA: Definiamo le funzioni che il componente deve ricevere
 interface ShareSheetProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onShareToFeed: () => void
-  onShareWithFriend: () => void
+  isOpen: boolean;
+  onClose: () => void;
+  onShareToFeed: () => void;
+  onShareToFriend: () => void;
 }
 
-export const ShareSheet: React.FC<ShareSheetProps> = ({
-  open,
-  onOpenChange,
-  onShareToFeed, // <-- Nuova prop
-  onShareWithFriend, // <-- Nuova prop
-}) => {
+export const ShareSheet = ({
+  isOpen,
+  onClose,
+  onShareToFeed,
+  onShareToFriend
+}: ShareSheetProps) => {
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
+    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent side="bottom" className="h-auto">
         <SheetHeader>
-          <SheetTitle>Condividi post</SheetTitle>
+          <SheetTitle>Dove vuoi condividere?</SheetTitle>
         </SheetHeader>
-        {/* 3. MODIFICA: Aggiungiamo i bottoni */}
-        <div className="flex flex-col space-y-4 p-4">
+
+        <div className="flex flex-col gap-2 mt-4 pb-4">
           <Button
             variant="outline"
-            onClick={onShareToFeed} // <-- Collega la funzione
-            className="justify-start"
+            className="w-full justify-start gap-3 h-14"
+            onClick={() => {
+              onShareToFeed();
+              onClose();
+            }}
           >
-            <Quote className="mr-2 h-4 w-4" />
-            Quota sul tuo feed
+            <Share2 className="h-5 w-5" />
+            <div className="text-left">
+              <div className="font-semibold">Condividi nel Feed</div>
+              <div className="text-xs text-muted-foreground">
+                Pubblica questo contenuto nel tuo feed
+              </div>
+            </div>
           </Button>
 
           <Button
             variant="outline"
-            onClick={onShareWithFriend} // <-- Collega la funzione
-            className="justify-start"
+            className="w-full justify-start gap-3 h-14"
+            onClick={() => {
+              onShareToFriend();
+              onClose();
+            }}
           >
-            <Users className="mr-2 h-4 w-4" />
-            Invia a un amico
+            <Users className="h-5 w-5" />
+            <div className="text-left">
+              <div className="font-semibold">Invia ad un amico</div>
+              <div className="text-xs text-muted-foreground">
+                Condividi tramite messaggio privato
+              </div>
+            </div>
           </Button>
-          
-          {/* Puoi aggiungere altre opzioni qui, come "Copia Link" */}
-          
         </div>
       </SheetContent>
     </Sheet>
-  )
-}
+  );
+};
