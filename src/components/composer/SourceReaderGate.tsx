@@ -11,6 +11,30 @@ import { TypingIndicator } from '@/components/ui/typing-indicator';
 import { cn } from '@/lib/utils';
 import { SourceWithGate } from '@/lib/comprehension-gate-extended';
 
+// Safe iframe extraction utilities
+const extractIframeSrc = (html: string): string | null => {
+  const match = html.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+  return match ? match[1] : null;
+};
+
+const validateEmbedDomain = (url: string): boolean => {
+  try {
+    const parsed = new URL(url);
+    const allowedDomains = [
+      'www.youtube.com',
+      'youtube.com',
+      'www.youtube-nocookie.com',
+      'youtube-nocookie.com',
+      'platform.twitter.com',
+      'twitter.com',
+      'x.com'
+    ];
+    return allowedDomains.includes(parsed.hostname);
+  } catch {
+    return false;
+  }
+};
+
 interface SourceReaderGateProps {
   source: SourceWithGate;
   isOpen: boolean;
