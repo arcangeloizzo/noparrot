@@ -168,7 +168,6 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
           postId: null,
           sourceUrl: quizData.sourceUrl,
           answers,
-          userId: user.id,
           gateType: 'composer'
         }
       });

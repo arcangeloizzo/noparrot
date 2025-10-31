@@ -72,7 +72,10 @@ serve(async (req) => {
 
     if (qaError || !qaData) {
       console.error('Q&A lookup failed:', { postId, sourceUrl, qaError });
-      throw new Error('Q&A not found');
+      return new Response(
+        JSON.stringify({ error: 'Quiz not found', code: 'QA_NOT_FOUND' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Validate answers
@@ -121,9 +124,12 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in validate-answers:', error);
+    console.error('[validate-answers] Error:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'An error occurred' }),
+      JSON.stringify({ 
+        error: 'An error occurred processing your request',
+        code: 'INTERNAL_ERROR'
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

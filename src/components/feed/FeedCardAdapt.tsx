@@ -320,7 +320,6 @@ export const FeedCard = ({
           postId: post.id,
           sourceUrl: quizData.sourceUrl,
           answers,
-          userId: user.id,
           gateType: 'share'
         }
       });
