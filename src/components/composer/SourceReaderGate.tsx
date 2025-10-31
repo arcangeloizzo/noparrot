@@ -347,10 +347,25 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 {/* YouTube Embed */}
                 <div className="w-full">
                   <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden">
-                    <div 
-                      dangerouslySetInnerHTML={{ __html: source.embedHtml }}
-                      className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full"
-                    />
+                    {(() => {
+                      const iframeSrc = extractIframeSrc(source.embedHtml);
+                      const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
+                      
+                      return isValidSrc ? (
+                        <iframe
+                          src={iframeSrc}
+                          className="w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          sandbox="allow-scripts allow-same-origin allow-presentation"
+                          title="Embedded YouTube video"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center h-full p-4 text-destructive">
+                          Invalid embed source
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
                 
@@ -467,27 +482,23 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                   )}
 
                   {/* Try Twitter embed if available */}
-                  {source.embedHtml && source.platform === 'twitter' && (
-                    <div className="mt-4">
-                      {isRenderingTwitter && (
-                        <div className="flex items-center justify-center py-12">
-                          <div className="animate-pulse space-y-3 w-full">
-                            <div className="h-4 bg-muted rounded w-3/4"></div>
-                            <div className="h-4 bg-muted rounded w-1/2"></div>
-                            <div className="h-32 bg-muted rounded"></div>
-                          </div>
-                        </div>
-                      )}
-                      <div 
-                        dangerouslySetInnerHTML={{ __html: source.embedHtml }}
-                        className={cn(
-                          "twitter-embed-container",
-                          isRenderingTwitter && "hidden"
-                        )}
-                        style={{ minHeight: '200px' }}
-                      />
-                    </div>
-                  )}
+                  {source.embedHtml && source.platform === 'twitter' && (() => {
+                    const iframeSrc = extractIframeSrc(source.embedHtml);
+                    const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
+                    
+                    return isValidSrc ? (
+                      <div className="mt-4">
+                        <iframe
+                          src={iframeSrc}
+                          className="w-full"
+                          style={{ minHeight: '200px' }}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media"
+                          sandbox="allow-scripts allow-same-origin allow-presentation"
+                          title="Embedded Twitter/X post"
+                        />
+                      </div>
+                    ) : null;
+                  })()}
 
                   {/* Link to original */}
                   <div className="flex justify-center">
@@ -508,25 +519,27 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               </>
             ) : source.embedHtml ? (
               <>
-                {/* Generic Embed (e.g., older Twitter implementation) */}
+                {/* Generic Embed (safe iframe extraction) */}
                 <div className="max-w-2xl mx-auto">
-                  {isRenderingTwitter && (
-                    <div className="flex items-center justify-center py-12">
-                      <div className="animate-pulse space-y-3 w-full">
-                        <div className="h-4 bg-muted rounded w-3/4"></div>
-                        <div className="h-4 bg-muted rounded w-1/2"></div>
-                        <div className="h-32 bg-muted rounded"></div>
+                  {(() => {
+                    const iframeSrc = extractIframeSrc(source.embedHtml);
+                    const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
+                    
+                    return isValidSrc ? (
+                      <iframe
+                        src={iframeSrc}
+                        className="w-full"
+                        style={{ minHeight: '200px' }}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media"
+                        sandbox="allow-scripts allow-same-origin allow-presentation"
+                        title="Embedded content"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center py-12 text-destructive">
+                        Invalid embed source
                       </div>
-                    </div>
-                  )}
-                  <div 
-                    dangerouslySetInnerHTML={{ __html: source.embedHtml }}
-                    className={cn(
-                      "twitter-embed-container",
-                      isRenderingTwitter && "hidden"
-                    )}
-                    style={{ minHeight: '200px' }}
-                  />
+                    );
+                  })()}
                 </div>
                 
                 {/* Padding per scroll */}
