@@ -28,6 +28,10 @@ import { MediaViewer } from "@/components/media/MediaViewer";
 // Composer Components
 import { SourceReaderGate } from "../composer/SourceReaderGate";
 
+// Share Components
+import { ShareSheet } from "@/components/share/ShareSheet";
+import { PeoplePicker } from "@/components/share/PeoplePicker";
+
 // Hooks & Utils
 import { Post, useQuotedPost } from "@/hooks/usePosts";
 import { useToggleReaction } from "@/hooks/usePosts";
@@ -38,6 +42,8 @@ import { fetchTrustScore } from "@/lib/comprehension-gate";
 import { generateQA, fetchArticlePreview } from "@/lib/ai-helpers";
 import { supabase } from "@/integrations/supabase/client";
 import { uniqueSources } from "@/lib/url";
+import { useCreateThread } from "@/hooks/useMessageThreads";
+import { useSendMessage } from "@/hooks/useMessages";
 
 interface FeedCardProps {
   post: Post;
@@ -67,6 +73,8 @@ export const FeedCard = ({
   const toggleReaction = useToggleReaction();
   const { data: quotedPost } = useQuotedPost(post.quoted_post_id);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
+  const createThread = useCreateThread();
+  const sendMessage = useSendMessage();
   
   // Article preview state
   const [articlePreview, setArticlePreview] = useState<any>(null);
@@ -79,6 +87,11 @@ export const FeedCard = ({
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [readerSource, setReaderSource] = useState<any>(null);
   const [quizData, setQuizData] = useState<any>(null);
+  
+  // Share states
+  const [showShareSheet, setShowShareSheet] = useState(false);
+  const [showPeoplePicker, setShowPeoplePicker] = useState(false);
+  const [shareAction, setShareAction] = useState<'feed' | 'friend' | null>(null);
   
   // Trust Score state
   const [trustScore, setTrustScore] = useState<{
@@ -174,7 +187,7 @@ export const FeedCard = ({
 
   // Swipe functions removed - using button instead
 
-  // Share button handler
+  // Share button handler - MOSTRA PRIMA LO SHEET
   const handleShareClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     
@@ -187,6 +200,14 @@ export const FeedCard = ({
       return;
     }
 
+    // Mostra ShareSheet per far scegliere all'utente
+    setShowShareSheet(true);
+  };
+
+  // Handler per condivisione nel feed
+  const handleShareToFeed = async () => {
+    setShareAction('feed');
+    
     // Se ha shared_url → apri reader
     if (post.shared_url) {
       await startComprehensionGate();
@@ -197,6 +218,7 @@ export const FeedCard = ({
     const wordCount = post.content.trim().split(/\s+/).length;
     
     if (wordCount < 150) {
+      // Passa direttamente il post quotato
       onQuoteShare?.({
         ...post,
         _originalSources: Array.isArray(post.sources) ? post.sources : []
@@ -205,6 +227,31 @@ export const FeedCard = ({
         title: 'Post pronto per la condivisione',
         description: 'Aggiungi un tuo commento'
       });
+    } else {
+      toast({
+        title: 'Lettura richiesta',
+        description: 'Leggi il post per condividerlo'
+      });
+      await startComprehensionGateForPost();
+    }
+  };
+
+  // Handler per condivisione con amico
+  const handleShareToFriend = async () => {
+    setShareAction('friend');
+    
+    // Se ha shared_url → apri reader
+    if (post.shared_url) {
+      await startComprehensionGate();
+      return;
+    }
+
+    // Altrimenti controlla word count
+    const wordCount = post.content.trim().split(/\s+/).length;
+    
+    if (wordCount < 150) {
+      // Apri direttamente il people picker
+      setShowPeoplePicker(true);
     } else {
       toast({
         title: 'Lettura richiesta',
@@ -350,10 +397,19 @@ export const FeedCard = ({
         });
         setShowQuiz(false);
         setQuizData(null);
-        onQuoteShare?.({
-          ...post,
-          _originalSources: Array.isArray(post.sources) ? post.sources : []
-        });
+        
+        // Esegui l'azione scelta dall'utente
+        if (shareAction === 'feed') {
+          onQuoteShare?.({
+            ...post,
+            _originalSources: Array.isArray(post.sources) ? post.sources : []
+          });
+        } else if (shareAction === 'friend') {
+          setShowPeoplePicker(true);
+        }
+        
+        // Reset share action
+        setShareAction(null);
       } else {
         console.warn('Test failed, NOT opening composer');
         toast({
@@ -363,6 +419,7 @@ export const FeedCard = ({
         });
         setShowQuiz(false);
         setQuizData(null);
+        setShareAction(null);
         // NON aprire il composer
       }
       
@@ -639,6 +696,52 @@ export const FeedCard = ({
         />,
         document.body
       )}
+
+      {/* Share Sheet */}
+      <ShareSheet
+        isOpen={showShareSheet}
+        onClose={() => setShowShareSheet(false)}
+        onShareToFeed={handleShareToFeed}
+        onShareToFriend={handleShareToFriend}
+      />
+
+      {/* People Picker */}
+      <PeoplePicker
+        isOpen={showPeoplePicker}
+        onClose={() => setShowPeoplePicker(false)}
+        onSend={async (userIds) => {
+          // Invia il post agli amici selezionati
+          for (const userId of userIds) {
+            try {
+              // Crea o recupera il thread con questo utente
+              const threadResult = await createThread.mutateAsync([userId]);
+              
+              if (threadResult?.thread_id) {
+                // Invia il messaggio
+                const shareMessage = post.shared_url 
+                  ? `${post.content}\n\n${post.shared_url}`
+                  : post.content;
+
+                await sendMessage.mutateAsync({
+                  threadId: threadResult.thread_id,
+                  content: shareMessage,
+                  linkUrl: post.shared_url || undefined
+                });
+              }
+            } catch (error) {
+              console.error('Error sending message:', error);
+            }
+          }
+          
+          toast({
+            title: 'Messaggio inviato',
+            description: `Post condiviso con ${userIds.length} ${userIds.length === 1 ? 'amico' : 'amici'}`
+          });
+          
+          setShowPeoplePicker(false);
+          setShareAction(null);
+        }}
+      />
 
     </>
   );
