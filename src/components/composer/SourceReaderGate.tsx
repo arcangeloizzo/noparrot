@@ -204,6 +204,18 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   // Applica attrito quando velocity troppo alta (Guardrail Mode)
   useEffect(() => {
     if (mode !== 'guardrail' || !hasTrackableContent) return;
+    
+    // Don't apply attrition if reading is already complete
+    const canProceedGuardrail = progress.canUnlock;
+    const canProceedFallback = timeLeft === 0 || hasScrolledToBottom;
+    const isReadyNow = canProceedGuardrail || canProceedFallback;
+    
+    if (isReadyNow) {
+      setAttritionActive(false);
+      setShowVelocityWarning(false);
+      return;
+    }
+    
     if (progress.isScrollingTooFast && !prefersReducedMotion) {
       setAttritionActive(true);
       setShowVelocityWarning(true);
@@ -223,7 +235,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
       return () => clearTimeout(timeout);
     }
-  }, [progress.isScrollingTooFast, prefersReducedMotion, mode, hasTrackableContent]);
+  }, [progress.isScrollingTooFast, progress.canUnlock, prefersReducedMotion, mode, hasTrackableContent, timeLeft, hasScrolledToBottom]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -367,11 +379,19 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                   <span className="text-muted-foreground font-medium">Preparazione Comprehension Gate...</span>
                 </>
               ) : isReady ? (
+                // PRIORITÀ 1: Lettura completata - mostra solo questo
                 <>
                   <Check className="h-4 w-4 text-trust-high" />
                   <span className="text-trust-high font-medium">Lettura Completata</span>
                 </>
+              ) : showVelocityWarning && mode === 'guardrail' && hasTrackableContent ? (
+                // PRIORITÀ 2: Scroll troppo veloce - mostra warning
+                <>
+                  <AlertCircle className="h-4 w-4 text-warning" />
+                  <span className="text-warning font-medium">Rallenta lo scroll...</span>
+                </>
               ) : mode === 'guardrail' && hasTrackableContent ? (
+                // PRIORITÀ 3: Progresso normale
                 <>
                   <span className="text-foreground font-medium">
                     Progresso: {progress.readBlocks} / {progress.totalBlocks} sezioni
@@ -382,6 +402,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                   </span>
                 </>
               ) : (
+                // Fallback: Timer + Scroll
                 <>
                   <span className="text-foreground">
                     Tempo: {timeLeft}s
@@ -405,13 +426,13 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
             )}
           </div>
 
-          {/* Velocity Warning */}
-          {showVelocityWarning && mode === 'guardrail' && hasTrackableContent && (
-            <div className="flex items-center gap-2 text-warning text-xs mb-2 animate-pulse">
-              <AlertCircle className="h-3 w-3" />
-              <span>Rallenta lo scroll per completare la lettura...</span>
-            </div>
-          )}
+            {/* Velocity Warning - nascosto se lettura completata */}
+            {showVelocityWarning && mode === 'guardrail' && hasTrackableContent && !isReady && (
+              <div className="flex items-center gap-2 text-warning text-xs mb-2 animate-pulse">
+                <AlertCircle className="h-3 w-3" />
+                <span>Rallenta lo scroll per completare la lettura...</span>
+              </div>
+            )}
 
           {/* Progress bars */}
           <div className="space-y-2">
