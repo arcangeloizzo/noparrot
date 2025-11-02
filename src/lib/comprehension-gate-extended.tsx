@@ -13,6 +13,36 @@ type QuizResult = { passed: boolean; score: number; attestation?: string };
 
 export type SourceGateState = 'pending' | 'reading' | 'testing' | 'passed' | 'failed';
 
+// -------------------------------------------------------------
+// BLOCK TRACKING TYPES (for Guardrail Mode)
+
+export interface ContentBlock {
+  id: string;
+  index: number;
+  html: string;
+  text: string;
+  words: number;
+  
+  // Stato tracking
+  isRead: boolean;
+  coverage: number;        // 0-1: % blocco visibile in viewport
+  dwellMs: number;         // ms totali di visibilità
+  requiredDwellMs: number; // ms richiesti per considerarlo "letto"
+  isVisible: boolean;      // attualmente nel viewport
+  firstSeenAt?: number;    // timestamp prima visibilità
+  lastSeenAt?: number;     // timestamp ultima visibilità
+}
+
+export interface ReadingProgress {
+  totalBlocks: number;
+  readBlocks: number;
+  readRatio: number;         // 0-1
+  canUnlock: boolean;        // rispetta threshold + grace
+  currentScrollVelocity: number; // px/s
+  isScrollingTooFast: boolean;
+  scrollAttritionActive: boolean;
+}
+
 export interface SourceWithGate {
   id: string;
   url: string;

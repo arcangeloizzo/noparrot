@@ -1,15 +1,20 @@
-// SourceReaderGate - Reading view with countdown and scroll tracking
-// ==================================================================
-// ✅ Displays source content with 10s countdown or scroll to bottom
-// ✅ Unlocks test when reading requirements are met
-// ✅ Shows progress bar and reading status
+// SourceReaderGate - Reading view with Guardrail Mode
+// ====================================================
+// ✅ Segmenta contenuto in blocchi con tracking intelligente
+// ✅ Coverage + Dwell Time + Scroll Velocity per blocco
+// ✅ Unlock test quando ≥80% blocchi letti (con grace)
+// ✅ Attrito non punitivo su scroll veloce
+// ✅ Supporta modalità: soft, guardrail (default), strict
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Check, ExternalLink } from 'lucide-react';
+import { X, Check, ExternalLink, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TypingIndicator } from '@/components/ui/typing-indicator';
 import { cn } from '@/lib/utils';
 import { SourceWithGate } from '@/lib/comprehension-gate-extended';
+import { useBlockTracking } from '@/hooks/useBlockTracking';
+import { READER_GATE_CONFIG } from '@/config/brand';
+import { sendReaderTelemetry } from '@/lib/telemetry';
 
 // Safe iframe extraction utilities
 const extractIframeSrc = (html: string): string | null => {
@@ -48,14 +53,36 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   onClose,
   onComplete
 }) => {
-  const [timeLeft, setTimeLeft] = useState(10);
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const [canProceed, setCanProceed] = useState(false);
-  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [mode] = useState(READER_GATE_CONFIG.mode);
+  const [attritionActive, setAttritionActive] = useState(false);
+  const [showVelocityWarning, setShowVelocityWarning] = useState(false);
   const [twitterScriptLoaded, setTwitterScriptLoaded] = useState(false);
   const [isRenderingTwitter, setIsRenderingTwitter] = useState(false);
   const [showTypingIndicator, setShowTypingIndicator] = useState(false);
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Determina contenuto per Guardrail Mode
+  const contentForTracking = source.content || source.transcript || source.summary || source.excerpt || '';
+  const hasTrackableContent = contentForTracking.length > 100;
+
+  // Hook per block tracking (solo se mode = guardrail e c'è contenuto)
+  const {
+    blocks,
+    progress,
+    containerRef,
+    blockRefs,
+    handleScroll: handleBlockScroll,
+  } = useBlockTracking({
+    contentHtml: hasTrackableContent ? contentForTracking : '',
+    articleId: source.url,
+    config: READER_GATE_CONFIG
+  });
+
+  // Fallback timer per contenuti non segmentabili
+  const [timeLeft, setTimeLeft] = useState(10);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Load and render Twitter widgets with MutationObserver
   useEffect(() => {
@@ -174,37 +201,61 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     };
   }, [source.embedHtml, source.url, isOpen]);
 
+  // Applica attrito quando velocity troppo alta (Guardrail Mode)
+  useEffect(() => {
+    if (mode !== 'guardrail' || !hasTrackableContent) return;
+    if (progress.isScrollingTooFast && !prefersReducedMotion) {
+      setAttritionActive(true);
+      setShowVelocityWarning(true);
+
+      // Applica scroll-snap temporaneo
+      if (containerRef.current) {
+        containerRef.current.style.scrollSnapType = 'y mandatory';
+      }
+
+      const timeout = setTimeout(() => {
+        setAttritionActive(false);
+        setShowVelocityWarning(false);
+        if (containerRef.current) {
+          containerRef.current.style.scrollSnapType = 'none';
+        }
+      }, 2000);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [progress.isScrollingTooFast, prefersReducedMotion, mode, hasTrackableContent]);
+
   useEffect(() => {
     if (!isOpen) {
       setTimeLeft(10);
       setScrollProgress(0);
-      setCanProceed(false);
       setHasScrolledToBottom(false);
       setShowTypingIndicator(false);
+      setAttritionActive(false);
+      setShowVelocityWarning(false);
       return;
     }
-    
+
     // Show typing indicator briefly at start
     setShowTypingIndicator(true);
     const indicatorTimer = setTimeout(() => setShowTypingIndicator(false), 2000);
-    
+
     const cleanup = () => clearTimeout(indicatorTimer);
 
     // Block body scroll when modal is open
     const originalOverflow = document.body.style.overflow;
     const originalPaddingRight = document.body.style.paddingRight;
-    
+
     // Get scrollbar width to prevent layout shift
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-    
+
     document.body.style.overflow = 'hidden';
     document.body.style.paddingRight = `${scrollbarWidth}px`;
 
-    // Timer countdown
+    // Timer countdown (fallback per contenuti non segmentabili)
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
-          setCanProceed(true);
           return 0;
         }
         return prev - 1;
@@ -220,16 +271,22 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     };
   }, [isOpen]);
 
+  // Scroll handler unificato
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    // Se Guardrail Mode e contenuto trackabile, usa block tracking
+    if (mode === 'guardrail' && hasTrackableContent) {
+      handleBlockScroll(e);
+    }
+
+    // Fallback scroll tracking (per contenuti non segmentabili o altre modalità)
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
     const progress = Math.min(100, (scrollTop / (scrollHeight - clientHeight)) * 100);
     setScrollProgress(progress);
-    
+
     const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
-    
+
     if (isAtBottom && !hasScrolledToBottom) {
       setHasScrolledToBottom(true);
-      setCanProceed(true);
     }
   };
 
@@ -239,7 +296,20 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
   if (!isOpen) return null;
 
-  const isReady = canProceed || hasScrolledToBottom;
+  // Determina se può procedere
+  const canProceedGuardrail = mode === 'guardrail' && hasTrackableContent ? progress.canUnlock : false;
+  const canProceedFallback = timeLeft === 0 || hasScrolledToBottom;
+  const isReady = mode === 'soft' || canProceedGuardrail || canProceedFallback;
+
+  const handleComplete = () => {
+    // Telemetria avvio test
+    sendReaderTelemetry({
+      type: 'gate_test_started',
+      articleId: source.url,
+      finalReadRatio: mode === 'guardrail' && hasTrackableContent ? progress.readRatio : 1
+    });
+    onComplete();
+  };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {
@@ -287,8 +357,8 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           </Button>
         </div>
 
-        {/* Progress Bar */}
-        <div className="p-4 bg-muted/50 border-b border-border">
+        {/* Progress Bar - Adattato per Guardrail Mode */}
+        <div className="p-4 bg-muted/50 border-b border-border sticky top-0 z-10">
           <div className="flex items-center justify-between text-sm mb-2">
             <div className="flex items-center gap-2">
               {showTypingIndicator ? (
@@ -300,6 +370,16 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 <>
                   <Check className="h-4 w-4 text-trust-high" />
                   <span className="text-trust-high font-medium">Lettura Completata</span>
+                </>
+              ) : mode === 'guardrail' && hasTrackableContent ? (
+                <>
+                  <span className="text-foreground font-medium">
+                    Progresso: {progress.readBlocks} / {progress.totalBlocks} sezioni
+                  </span>
+                  <span className="text-muted-foreground">•</span>
+                  <span className="text-foreground">
+                    {Math.round(progress.readRatio * 100)}%
+                  </span>
                 </>
               ) : (
                 <>
@@ -313,39 +393,66 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 </>
               )}
             </div>
-            {!isReady && (
+            {!isReady && mode === 'guardrail' && hasTrackableContent && (
+              <span className="text-muted-foreground text-xs">
+                Leggi attentamente le sezioni
+              </span>
+            )}
+            {!isReady && mode !== 'guardrail' && (
               <span className="text-muted-foreground text-xs">
                 Leggi per 10s o scorri tutto
               </span>
             )}
           </div>
-          
+
+          {/* Velocity Warning */}
+          {showVelocityWarning && mode === 'guardrail' && hasTrackableContent && (
+            <div className="flex items-center gap-2 text-warning text-xs mb-2 animate-pulse">
+              <AlertCircle className="h-3 w-3" />
+              <span>Rallenta lo scroll per completare la lettura...</span>
+            </div>
+          )}
+
           {/* Progress bars */}
           <div className="space-y-2">
-            {/* Time progress */}
-            <div className="w-full bg-muted rounded-full h-2">
-              <div 
-                className={cn(
-                  "h-2 rounded-full transition-all ease-linear",
-                  timeLeft === 0 ? "bg-trust-high" : "bg-primary"
-                )}
-                style={{ 
-                  width: `${((10 - timeLeft) / 10) * 100}%`,
-                  transitionDuration: '1000ms'
-                }}
-              />
-            </div>
-            
-            {/* Scroll progress */}
-            <div className="w-full bg-muted rounded-full h-2">
-              <div 
-                className={cn(
-                  "h-2 rounded-full transition-all duration-300",
-                  hasScrolledToBottom ? "bg-trust-high" : "bg-accent"
-                )}
-                style={{ width: `${scrollProgress}%` }}
-              />
-            </div>
+            {mode === 'guardrail' && hasTrackableContent ? (
+              /* Guardrail Mode: Single progress bar per blocchi letti */
+              <div className="w-full bg-muted rounded-full h-2">
+                <div
+                  className={cn(
+                    "h-2 rounded-full transition-all duration-300",
+                    progress.canUnlock ? "bg-trust-high" : "bg-primary"
+                  )}
+                  style={{ width: `${progress.readRatio * 100}%` }}
+                />
+              </div>
+            ) : (
+              /* Fallback Mode: Time + Scroll bars */
+              <>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className={cn(
+                      "h-2 rounded-full transition-all ease-linear",
+                      timeLeft === 0 ? "bg-trust-high" : "bg-primary"
+                    )}
+                    style={{
+                      width: `${((10 - timeLeft) / 10) * 100}%`,
+                      transitionDuration: '1000ms'
+                    }}
+                  />
+                </div>
+
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className={cn(
+                      "h-2 rounded-full transition-all duration-300",
+                      hasScrolledToBottom ? "bg-trust-high" : "bg-accent"
+                    )}
+                    style={{ width: `${scrollProgress}%` }}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -360,10 +467,13 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
         </div>
 
         {/* Content Area */}
-        <div 
-          ref={scrollContainerRef}
+        <div
+          ref={mode === 'guardrail' && hasTrackableContent ? containerRef : scrollContainerRef}
           className="flex-1 p-4 overflow-y-auto"
           onScroll={handleScroll}
+          style={{
+            scrollSnapType: attritionActive && !prefersReducedMotion ? 'y mandatory' : 'none'
+          }}
         >
           <div className="space-y-4 text-sm leading-relaxed">
             {source.embedHtml && source.platform === 'youtube' ? (
@@ -421,9 +531,64 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                     <h4 className="text-base font-semibold text-foreground mb-3">
                       Trascrizione del Video
                     </h4>
-                    <div className="whitespace-pre-wrap text-foreground leading-relaxed bg-muted/30 rounded-lg p-4 border border-border">
-                      {source.transcript}
-                    </div>
+                    
+                    {/* Guardrail Mode: Render transcript in blocchi */}
+                    {mode === 'guardrail' && blocks.length > 0 ? (
+                      <div className="space-y-6 bg-muted/30 rounded-lg p-4 border border-border">
+                        {blocks.map((block) => (
+                          <section
+                            key={block.id}
+                            data-block-id={block.id}
+                            ref={(el) => {
+                              if (el) blockRefs.current.set(block.id, el);
+                            }}
+                            className={cn(
+                              "content-block p-3 rounded-lg transition-all duration-300 scroll-mt-4",
+                              block.isRead && "border-l-4 border-trust-high bg-trust-high/10",
+                              attritionActive && "scroll-snap-align-start"
+                            )}
+                            tabIndex={0}
+                            aria-label={`Sezione trascrizione ${block.index + 1} di ${blocks.length}`}
+                          >
+                            <div
+                              dangerouslySetInnerHTML={{ __html: block.html }}
+                              className="text-foreground leading-relaxed"
+                            />
+
+                            {block.isRead && (
+                              <div className="flex items-center gap-2 mt-2 text-trust-high text-xs animate-in fade-in duration-300">
+                                <Check className="h-3 w-3" />
+                                <span>Sezione completata</span>
+                              </div>
+                            )}
+
+                            {block.isVisible && !block.isRead && (
+                              <div className="text-xs text-muted-foreground mt-2">
+                                {showVelocityWarning ? (
+                                  <div className="flex items-center gap-1 text-warning">
+                                    <AlertCircle className="h-3 w-3" />
+                                    <span>Rallenta...</span>
+                                  </div>
+                                ) : (
+                                  <span>~{Math.ceil((block.requiredDwellMs - block.dwellMs) / 1000)}s</span>
+                                )}
+                              </div>
+                            )}
+
+                            {block.isRead && (
+                              <span className="sr-only">
+                                Sezione trascrizione {block.index + 1} completata
+                              </span>
+                            )}
+                          </section>
+                        ))}
+                      </div>
+                    ) : (
+                      /* Fallback: Transcript non segmentato */
+                      <div className="whitespace-pre-wrap text-foreground leading-relaxed bg-muted/30 rounded-lg p-4 border border-border">
+                        {source.transcript}
+                      </div>
+                    )}
                   </div>
                 )}
                 
@@ -614,13 +779,72 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               </>
             ) : source.content || source.summary || source.excerpt ? (
               <>
-                {/* Show full content with line breaks preserved */}
-                <div className="prose prose-sm max-w-none">
-                  <div className="whitespace-pre-wrap text-foreground leading-relaxed">
-                    {source.content || source.summary || source.excerpt}
+                {/* Guardrail Mode: Render blocchi segmentati */}
+                {mode === 'guardrail' && hasTrackableContent && blocks.length > 0 ? (
+                  <div className="space-y-6">
+                    {blocks.map((block) => (
+                      <section
+                        key={block.id}
+                        data-block-id={block.id}
+                        ref={(el) => {
+                          if (el) blockRefs.current.set(block.id, el);
+                        }}
+                        className={cn(
+                          "content-block p-4 rounded-lg transition-all duration-300 scroll-mt-4",
+                          block.isRead && "border-l-4 border-trust-high bg-trust-high/5",
+                          attritionActive && "scroll-snap-align-start"
+                        )}
+                        tabIndex={0}
+                        aria-label={`Sezione ${block.index + 1} di ${blocks.length}`}
+                      >
+                        {/* Contenuto HTML del blocco */}
+                        <div
+                          dangerouslySetInnerHTML={{ __html: block.html }}
+                          className="prose prose-sm max-w-none text-foreground"
+                        />
+
+                        {/* Feedback visivo: blocco completato */}
+                        {block.isRead && (
+                          <div className="flex items-center gap-2 mt-3 text-trust-high text-sm animate-in fade-in duration-300">
+                            <Check className="h-4 w-4" />
+                            <span>Sezione completata</span>
+                          </div>
+                        )}
+
+                        {/* Warning/Info: blocco visibile ma non completato */}
+                        {block.isVisible && !block.isRead && (
+                          <div className="text-xs text-muted-foreground mt-3">
+                            {showVelocityWarning ? (
+                              <div className="flex items-center gap-1 text-warning">
+                                <AlertCircle className="h-3 w-3" />
+                                <span>Rallenta per completare questa sezione...</span>
+                              </div>
+                            ) : (
+                              <span>
+                                Ancora ~{Math.ceil((block.requiredDwellMs - block.dwellMs) / 1000)}s per completare
+                              </span>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Accessibility: Screen reader announcement */}
+                        {block.isRead && (
+                          <span className="sr-only">
+                            Sezione {block.index + 1} di {blocks.length} completata
+                          </span>
+                        )}
+                      </section>
+                    ))}
                   </div>
-                </div>
-                
+                ) : (
+                  /* Fallback: Contenuto non segmentato */
+                  <div className="prose prose-sm max-w-none">
+                    <div className="whitespace-pre-wrap text-foreground leading-relaxed">
+                      {source.content || source.summary || source.excerpt}
+                    </div>
+                  </div>
+                )}
+
                 {/* Padding per scroll */}
                 <div className="h-32"></div>
               </>
@@ -663,22 +887,38 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
         </div>
 
         {/* Action Button */}
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border bg-background">
+          {/* ARIA live region per screen readers */}
+          {mode === 'guardrail' && hasTrackableContent && (
+            <div
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              className="sr-only"
+            >
+              {isReady
+                ? 'Lettura completata. Puoi ora avviare il test.'
+                : `Hai letto ${progress.readBlocks} su ${progress.totalBlocks} sezioni. Continua la lettura.`}
+            </div>
+          )}
+
           <Button
-            onClick={onComplete}
+            onClick={handleComplete}
             disabled={!isReady}
             className={cn(
               "w-full transition-all duration-300",
-              isReady 
-                ? "bg-primary hover:bg-primary/90 text-primary-foreground" 
+              isReady
+                ? "bg-primary hover:bg-primary/90 text-primary-foreground"
                 : "bg-muted text-muted-foreground cursor-not-allowed"
             )}
           >
             {isReady ? (
               <>
                 <Check className="h-4 w-4 mr-2" />
-                Procedi al Test
+                Avvia Test di Comprensione
               </>
+            ) : mode === 'guardrail' && hasTrackableContent ? (
+              `Completa la lettura (${Math.round(progress.readRatio * 100)}%)`
             ) : (
               `Attendi ${timeLeft}s o scorri fino alla fine`
             )}

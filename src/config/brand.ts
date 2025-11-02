@@ -30,3 +30,36 @@ export const TOOLTIPS = {
   TRUST_SCORE: "Il Trust Score indica l'affidabilità della fonte a cui è collegato questo post, basato su reputazione e qualità storica. Non è un giudizio sul contenuto.",
   NO_SOURCES: "Questo post non include fonti. Per trasparenza non è stato calcolato alcun Trust Score.",
 } as const;
+
+// Reader Gate Configuration
+export const READER_GATE_CONFIG = {
+  // Modalità: soft (nessun blocco), guardrail (default, attrito soft), strict (blocco hard per education)
+  mode: "guardrail" as "soft" | "guardrail" | "strict",
+  
+  // Coverage threshold (0-1): % del blocco che deve essere visibile nel viewport
+  coverageThreshold: 0.85,
+  
+  // Dwell time base (ms) - minimo assoluto per blocchi molto corti
+  minDwellBaseMs: 2500,
+  
+  // Dwell time per 100 parole (ms) - scala dinamicamente con word count
+  dwellPer100wMs: 600,
+  
+  // Dwell time massimo per blocco (ms) - cap per blocchi lunghissimi
+  maxDwellMs: 8000,
+  
+  // Velocità scroll massima (px/s) - oltre questa si applica attrito temporaneo
+  maxScrollVelocityPxPerSec: 2500,
+  
+  // Unlock threshold (0-1): % blocchi letti per sbloccare test
+  unlockThreshold: 0.8,
+  
+  // Grace ratio (0-1): % blocchi saltabili (es. 0.15 ≈ 1 ogni 6)
+  graceRatio: 0.15,
+  
+  // Rispetta prefers-reduced-motion (disabilita animazioni/attrito se true)
+  respectReducedMotion: true,
+  
+  // Debug mode (console logs dettagliati)
+  debug: false
+} as const;
