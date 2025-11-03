@@ -7,7 +7,7 @@
 // ✅ Supporta modalità: soft, guardrail (default), strict
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Check, ExternalLink, AlertCircle } from 'lucide-react';
+import { X, Check, ExternalLink, AlertCircle, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TypingIndicator } from '@/components/ui/typing-indicator';
 import { cn } from '@/lib/utils';
@@ -59,6 +59,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const [twitterScriptLoaded, setTwitterScriptLoaded] = useState(false);
   const [isRenderingTwitter, setIsRenderingTwitter] = useState(false);
   const [showTypingIndicator, setShowTypingIndicator] = useState(false);
+  const [showScrollLockWarning, setShowScrollLockWarning] = useState(false);
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // Determina contenuto per Guardrail Mode
@@ -72,6 +73,8 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     containerRef,
     blockRefs,
     handleScroll: handleBlockScroll,
+    firstIncompleteIndex,
+    visibleUpToIndex
   } = useBlockTracking({
     contentHtml: hasTrackableContent ? contentForTracking : '',
     articleId: source.url,
@@ -283,17 +286,36 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     };
   }, [isOpen]);
 
-  // Scroll handler unificato
+  // Scroll handler unificato con hard scroll lock
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     // Se Guardrail Mode e contenuto trackabile, usa block tracking
     if (mode === 'guardrail' && hasTrackableContent) {
       handleBlockScroll(e);
+      
+      // Hard scroll lock: impedisci scroll oltre visibleUpToIndex
+      if (READER_GATE_CONFIG.hardScrollLock && visibleUpToIndex < blocks.length - 1 && !progress.canUnlock) {
+        const container = e.currentTarget;
+        const lastVisibleBlock = blockRefs.current.get(`block-${visibleUpToIndex}`);
+        
+        if (lastVisibleBlock) {
+          const maxScrollTop = lastVisibleBlock.offsetTop + lastVisibleBlock.offsetHeight - container.clientHeight + 100;
+          
+          if (container.scrollTop > maxScrollTop) {
+            // Forza scroll indietro
+            container.scrollTop = maxScrollTop;
+            
+            // Mostra toast/warning
+            setShowScrollLockWarning(true);
+            setTimeout(() => setShowScrollLockWarning(false), 2000);
+          }
+        }
+      }
     }
 
     // Fallback scroll tracking (per contenuti non segmentabili o altre modalità)
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    const progress = Math.min(100, (scrollTop / (scrollHeight - clientHeight)) * 100);
-    setScrollProgress(progress);
+    const progressValue = Math.min(100, (scrollTop / (scrollHeight - clientHeight)) * 100);
+    setScrollProgress(progressValue);
 
     const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
 
@@ -553,56 +575,84 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                       Trascrizione del Video
                     </h4>
                     
-                    {/* Guardrail Mode: Render transcript in blocchi */}
+                    {/* Guardrail Mode: Render transcript in blocchi con progressive reveal */}
                     {mode === 'guardrail' && blocks.length > 0 ? (
                       <div className="space-y-6 bg-muted/30 rounded-lg p-4 border border-border">
-                        {blocks.map((block) => (
-                          <section
-                            key={block.id}
-                            data-block-id={block.id}
-                            ref={(el) => {
-                              if (el) blockRefs.current.set(block.id, el);
-                            }}
-                            className={cn(
-                              "content-block p-3 rounded-lg transition-all duration-300 scroll-mt-4",
-                              block.isRead && "border-l-4 border-trust-high bg-trust-high/10",
-                              attritionActive && "scroll-snap-align-start"
-                            )}
-                            tabIndex={0}
-                            aria-label={`Sezione trascrizione ${block.index + 1} di ${blocks.length}`}
-                          >
-                            <div
-                              dangerouslySetInnerHTML={{ __html: block.html }}
-                              className="text-foreground leading-relaxed"
-                            />
+                        {blocks.map((block, idx) => {
+                          const isLocked = idx > visibleUpToIndex && !progress.canUnlock;
+                          const showOverlay = isLocked && READER_GATE_CONFIG.showBlockOverlay;
+                          
+                          return (
+                            <section
+                              key={block.id}
+                              data-block-id={block.id}
+                              ref={(el) => {
+                                if (el) blockRefs.current.set(block.id, el);
+                              }}
+                              className={cn(
+                                "content-block p-3 rounded-lg transition-all duration-300 scroll-mt-4 relative",
+                                block.isRead && "border-l-4 border-trust-high bg-trust-high/10",
+                                attritionActive && "scroll-snap-align-start",
+                                isLocked && READER_GATE_CONFIG.blockStyle === 'blur' && "blur-md opacity-30 pointer-events-none",
+                                isLocked && READER_GATE_CONFIG.blockStyle === 'hidden' && "hidden"
+                              )}
+                              style={{
+                                filter: isLocked && READER_GATE_CONFIG.blockStyle === 'blur' ? 'blur(8px)' : 'none',
+                                opacity: isLocked ? 0.3 : 1
+                              }}
+                              tabIndex={isLocked ? -1 : 0}
+                              aria-label={`Sezione trascrizione ${block.index + 1} di ${blocks.length}`}
+                            >
+                              <div
+                                dangerouslySetInnerHTML={{ __html: block.html }}
+                                className="text-foreground leading-relaxed"
+                              />
 
-                            {block.isRead && (
-                              <div className="flex items-center gap-2 mt-2 text-trust-high text-xs animate-in fade-in duration-300">
-                                <Check className="h-3 w-3" />
-                                <span>Sezione completata</span>
-                              </div>
-                            )}
+                              {block.isRead && (
+                                <div className="flex items-center gap-2 mt-2 text-trust-high text-xs animate-in fade-in duration-300">
+                                  <Check className="h-3 w-3" />
+                                  <span>Sezione completata</span>
+                                </div>
+                              )}
 
-                            {block.isVisible && !block.isRead && (
-                              <div className="text-xs text-muted-foreground mt-2">
-                                {showVelocityWarning ? (
-                                  <div className="flex items-center gap-1 text-warning">
-                                    <AlertCircle className="h-3 w-3" />
-                                    <span>Rallenta...</span>
+                              {block.isVisible && !block.isRead && !isLocked && (
+                                <div className="text-xs text-muted-foreground mt-2">
+                                  {showVelocityWarning ? (
+                                    <div className="flex items-center gap-1 text-warning">
+                                      <AlertCircle className="h-3 w-3" />
+                                      <span>Rallenta...</span>
+                                    </div>
+                                  ) : (
+                                    <span>~{Math.ceil((block.requiredDwellMs - block.dwellMs) / 1000)}s</span>
+                                  )}
+                                </div>
+                              )}
+
+                              {block.isRead && (
+                                <span className="sr-only">
+                                  Sezione trascrizione {block.index + 1} completata
+                                </span>
+                              )}
+                              
+                              {/* Overlay per blocco locked */}
+                              {showOverlay && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
+                                  <div className="text-center p-4">
+                                    <Lock className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                                    <p className="text-sm font-medium text-foreground">
+                                      Completa le sezioni precedenti
+                                    </p>
+                                    {firstIncompleteIndex !== -1 && blocks[firstIncompleteIndex] && (
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        Mancano {Math.ceil((blocks[firstIncompleteIndex].requiredDwellMs - blocks[firstIncompleteIndex].dwellMs) / 1000)}s
+                                      </p>
+                                    )}
                                   </div>
-                                ) : (
-                                  <span>~{Math.ceil((block.requiredDwellMs - block.dwellMs) / 1000)}s</span>
-                                )}
-                              </div>
-                            )}
-
-                            {block.isRead && (
-                              <span className="sr-only">
-                                Sezione trascrizione {block.index + 1} completata
-                              </span>
-                            )}
-                          </section>
-                        ))}
+                                </div>
+                              )}
+                            </section>
+                          );
+                        })}
                       </div>
                     ) : (
                       /* Fallback: Transcript non segmentato */
@@ -800,62 +850,90 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               </>
             ) : source.content || source.summary || source.excerpt ? (
               <>
-                {/* Guardrail Mode: Render blocchi segmentati */}
+                {/* Guardrail Mode: Render blocchi segmentati con progressive reveal */}
                 {mode === 'guardrail' && hasTrackableContent && blocks.length > 0 ? (
                   <div className="space-y-6">
-                    {blocks.map((block) => (
-                      <section
-                        key={block.id}
-                        data-block-id={block.id}
-                        ref={(el) => {
-                          if (el) blockRefs.current.set(block.id, el);
-                        }}
-                        className={cn(
-                          "content-block p-4 rounded-lg transition-all duration-300 scroll-mt-4",
-                          block.isRead && "border-l-4 border-trust-high bg-trust-high/5",
-                          attritionActive && "scroll-snap-align-start"
-                        )}
-                        tabIndex={0}
-                        aria-label={`Sezione ${block.index + 1} di ${blocks.length}`}
-                      >
-                        {/* Contenuto HTML del blocco */}
-                        <div
-                          dangerouslySetInnerHTML={{ __html: block.html }}
-                          className="prose prose-sm max-w-none text-foreground"
-                        />
+                    {blocks.map((block, idx) => {
+                      const isLocked = idx > visibleUpToIndex && !progress.canUnlock;
+                      const showOverlay = isLocked && READER_GATE_CONFIG.showBlockOverlay;
+                      
+                      return (
+                        <section
+                          key={block.id}
+                          data-block-id={block.id}
+                          ref={(el) => {
+                            if (el) blockRefs.current.set(block.id, el);
+                          }}
+                          className={cn(
+                            "content-block p-4 rounded-lg transition-all duration-300 scroll-mt-4 relative",
+                            block.isRead && "border-l-4 border-trust-high bg-trust-high/5",
+                            attritionActive && "scroll-snap-align-start",
+                            isLocked && READER_GATE_CONFIG.blockStyle === 'blur' && "blur-md opacity-30 pointer-events-none",
+                            isLocked && READER_GATE_CONFIG.blockStyle === 'hidden' && "hidden"
+                          )}
+                          style={{
+                            filter: isLocked && READER_GATE_CONFIG.blockStyle === 'blur' ? 'blur(8px)' : 'none',
+                            opacity: isLocked ? 0.3 : 1
+                          }}
+                          tabIndex={isLocked ? -1 : 0}
+                          aria-label={`Sezione ${block.index + 1} di ${blocks.length}`}
+                        >
+                          {/* Contenuto HTML del blocco */}
+                          <div
+                            dangerouslySetInnerHTML={{ __html: block.html }}
+                            className="prose prose-sm max-w-none text-foreground"
+                          />
 
-                        {/* Feedback visivo: blocco completato */}
-                        {block.isRead && (
-                          <div className="flex items-center gap-2 mt-3 text-trust-high text-sm animate-in fade-in duration-300">
-                            <Check className="h-4 w-4" />
-                            <span>Sezione completata</span>
-                          </div>
-                        )}
+                          {/* Feedback visivo: blocco completato */}
+                          {block.isRead && (
+                            <div className="flex items-center gap-2 mt-3 text-trust-high text-sm animate-in fade-in duration-300">
+                              <Check className="h-4 w-4" />
+                              <span>Sezione completata</span>
+                            </div>
+                          )}
 
-                        {/* Warning/Info: blocco visibile ma non completato */}
-                        {block.isVisible && !block.isRead && (
-                          <div className="text-xs text-muted-foreground mt-3">
-                            {showVelocityWarning ? (
-                              <div className="flex items-center gap-1 text-warning">
-                                <AlertCircle className="h-3 w-3" />
-                                <span>Rallenta per completare questa sezione...</span>
+                          {/* Warning/Info: blocco visibile ma non completato */}
+                          {block.isVisible && !block.isRead && !isLocked && (
+                            <div className="text-xs text-muted-foreground mt-3">
+                              {showVelocityWarning ? (
+                                <div className="flex items-center gap-1 text-warning">
+                                  <AlertCircle className="h-3 w-3" />
+                                  <span>Rallenta per completare questa sezione...</span>
+                                </div>
+                              ) : (
+                                <span>
+                                  Ancora ~{Math.ceil((block.requiredDwellMs - block.dwellMs) / 1000)}s per completare
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Accessibility: Screen reader announcement */}
+                          {block.isRead && (
+                            <span className="sr-only">
+                              Sezione {block.index + 1} di {blocks.length} completata
+                            </span>
+                          )}
+                          
+                          {/* Overlay per blocco locked */}
+                          {showOverlay && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
+                              <div className="text-center p-4">
+                                <Lock className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
+                                <p className="text-sm font-medium text-foreground">
+                                  Completa le sezioni precedenti
+                                </p>
+                                {firstIncompleteIndex !== -1 && blocks[firstIncompleteIndex] && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    Mancano {Math.ceil((blocks[firstIncompleteIndex].requiredDwellMs - blocks[firstIncompleteIndex].dwellMs) / 1000)}s
+                                  </p>
+                                )}
                               </div>
-                            ) : (
-                              <span>
-                                Ancora ~{Math.ceil((block.requiredDwellMs - block.dwellMs) / 1000)}s per completare
-                              </span>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Accessibility: Screen reader announcement */}
-                        {block.isRead && (
-                          <span className="sr-only">
-                            Sezione {block.index + 1} di {blocks.length} completata
-                          </span>
-                        )}
-                      </section>
-                    ))}
+                            </div>
+                          )}
+                        </section>
+                      );
+                    })}
                   </div>
                 ) : (
                   /* Fallback: Contenuto non segmentato */
@@ -946,6 +1024,20 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           </Button>
         </div>
       </div>
+      
+      {/* Scroll Lock Warning Toast */}
+      {showScrollLockWarning && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[10000] animate-in slide-in-from-bottom-2 duration-300">
+          <div className="bg-warning/90 text-warning-foreground px-4 py-2 rounded-lg shadow-lg">
+            <div className="flex items-center gap-2">
+              <Lock className="h-4 w-4" />
+              <span className="text-sm font-medium">
+                Completa la lettura prima di continuare
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

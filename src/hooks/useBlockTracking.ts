@@ -243,12 +243,20 @@ export function useBlockTracking({
     startTimeRef.current = Date.now();
   };
 
+  // Calcola primo blocco incompleto e finestra visibile
+  const firstIncompleteIndex = blocks.findIndex(b => !b.isRead);
+  const visibleUpToIndex = firstIncompleteIndex === -1 
+    ? blocks.length - 1  // Tutti completati
+    : Math.min(firstIncompleteIndex + config.visibleAheadBlocks, blocks.length - 1);
+
   return {
     blocks,
     progress,
     containerRef,
     blockRefs,
     handleScroll,
-    reset
+    reset,
+    firstIncompleteIndex,
+    visibleUpToIndex
   };
 }

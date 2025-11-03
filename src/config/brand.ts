@@ -61,5 +61,11 @@ export const READER_GATE_CONFIG = {
   respectReducedMotion: true,
   
   // Debug mode (console logs dettagliati)
-  debug: false
+  debug: false,
+  
+  // Progressive Reveal
+  visibleAheadBlocks: 2,                        // Quanti blocchi "ahead" vedere oltre quello corrente
+  blockStyle: 'blur' as 'blur' | 'hidden' | 'locked',  // Stile di blocco: blur, hidden, locked
+  hardScrollLock: true,                          // Impedisci scroll fisicamente oltre limite
+  showBlockOverlay: true,                        // Mostra overlay sui blocchi locked
 } as const;
