@@ -430,21 +430,22 @@
 
 /* Cognitive Capsule - Base */
 .cognitive-capsule {
-  background: var(--capsule-bg);
-  backdrop-filter: var(--glass-blur-capsule);
-  border: 1px solid var(--capsule-border);
-  border-radius: 28px;
-  box-shadow: var(--capsule-shadow);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--capsule-bg) !important;
+  backdrop-filter: var(--glass-blur-capsule) !important;
+  border: 1px solid var(--capsule-border) !important;
+  border-radius: 28px !important;
+  box-shadow: var(--capsule-shadow) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
   position: relative;
   overflow: hidden;
-  margin: 16px;
+  margin: 16px !important;
+  padding: 0 !important;
 }
 
 .cognitive-capsule:hover {
-  box-shadow: var(--capsule-shadow), var(--capsule-glow);
-  border-color: rgba(47, 127, 239, 0.3);
-  transform: translateY(-2px);
+  box-shadow: var(--capsule-shadow), var(--capsule-glow) !important;
+  border-color: rgba(47, 127, 239, 0.3) !important;
+  transform: translateY(-2px) !important;
 }
 
 .cognitive-capsule:active {
@@ -472,7 +473,7 @@
 }
 
 .cognitive-capsule-content {
-  padding: 20px;
+  padding: 20px !important;
   position: relative;
   z-index: 1;
 }
@@ -604,9 +605,9 @@
     180deg,
     rgba(20, 24, 28, 0.95) 0%,
     rgba(20, 24, 28, 0.7) 100%
-  );
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(47, 127, 239, 0.1);
+  ) !important;
+  backdrop-filter: blur(20px) !important;
+  border-bottom: 1px solid rgba(47, 127, 239, 0.1) !important;
   padding: 16px;
   position: sticky;
   top: 0;
@@ -638,26 +639,26 @@
 
 /* Cognitive Navbar */
 .cognitive-navbar {
-  background: var(--glass-navbar);
-  backdrop-filter: blur(25px) saturate(150%);
-  border-top: 1px solid rgba(47, 127, 239, 0.15);
+  background: var(--glass-navbar) !important;
+  backdrop-filter: blur(25px) saturate(150%) !important;
+  border-top: 1px solid rgba(47, 127, 239, 0.15) !important;
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 40;
-  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom)) !important;
 }
 
 .cognitive-navbar-item {
   position: relative;
-  padding: 12px 16px;
-  color: hsl(var(--text-secondary-cognitive));
+  padding: 12px 16px !important;
+  color: hsl(var(--text-secondary-cognitive)) !important;
   transition: color 0.2s ease;
 }
 
 .cognitive-navbar-item.active {
-  color: hsl(var(--cognitive-blue));
+  color: hsl(var(--cognitive-blue)) !important;
 }
 
 .cognitive-navbar-item.active::before {
