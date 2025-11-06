@@ -51,7 +51,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
-  const [snap, setSnap] = useState<number | string | null>(0.6);
+  const [snap, setSnap] = useState<number | string | null>(0.5);
 
   const { data: currentUserProfile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -161,21 +161,10 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
   };
 
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-      document.body.style.position = 'fixed';
-      document.body.style.width = '100%';
-    } else {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
+    if (isOpen && mode === 'reply') {
+      setTimeout(() => textareaRef.current?.focus(), 300);
     }
-    return () => {
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
-    };
-  }, [isOpen]);
+  }, [isOpen, mode]);
 
   useEffect(() => {
     setSelectedMentionIndex(0);
@@ -224,9 +213,10 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
       <Drawer 
         open={isOpen} 
         onOpenChange={(open) => !open && onClose()}
-        snapPoints={[0.6, 1]}
+        snapPoints={[0.5, 1]}
         activeSnapPoint={snap}
         setActiveSnapPoint={setSnap}
+        modal={false}
       >
         <DrawerContent className="cognitive-drawer pb-[env(safe-area-inset-bottom)]">
           {/* Header con Post Originale Compatto */}
@@ -310,8 +300,8 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
           </div>
 
           {/* Fixed Bottom Composer */}
-          <div className="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t border-border z-30">
-            <div className="px-4 py-3">
+          <div className="sticky bottom-0 bg-background border-t border-border z-30 pb-[env(safe-area-inset-bottom)]">
+            <div className="px-4 py-4">
               {replyingTo && (
                 <div className="mb-2 text-xs cognitive-text-secondary flex items-center justify-between">
                   <span>Rispondi a @{comments.find(c => c.id === replyingTo)?.author.username}</span>
@@ -323,9 +313,9 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                   </button>
                 </div>
               )}
-              <div className="cognitive-comment-composer">
+              <div className="cognitive-comment-composer p-3">
                 <div className="flex gap-3 items-start relative">
-                  <div className="flex-shrink-0 pt-1">
+                  <div className="flex-shrink-0 pt-2">
                     {currentUserProfile && getUserAvatar(
                       currentUserProfile.avatar_url, 
                       currentUserProfile.full_name,
@@ -363,13 +353,13 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                           setShowMentions(false);
                         }
                       }}
-                      placeholder={replyingTo ? `Rispondi...` : `Aggiungi un commento...`}
-                      className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[40px] max-h-[120px] leading-normal"
+                      placeholder={replyingTo ? `Rispondi...` : `Scrivi un commento...`}
+                      className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[44px] max-h-[120px] leading-relaxed cognitive-text-primary placeholder:cognitive-text-secondary"
                       maxLength={500}
-                      rows={2}
+                      rows={1}
                       style={{ 
                         height: 'auto',
-                        overflowY: newComment.split('\n').length > 5 ? 'scroll' : 'hidden'
+                        overflowY: newComment.split('\n').length > 4 ? 'scroll' : 'hidden'
                       }}
                       onInput={(e) => {
                         const target = e.target as HTMLTextAreaElement;
@@ -392,8 +382,8 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                       onRemove={removeMedia}
                     />
                     
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex gap-2">
+                    <div className="flex items-center justify-between mt-3">
+                      <div className="flex gap-3">
                         <MediaUploadButton
                           type="image"
                           onFilesSelected={(files) => uploadMedia(files, 'image')}
@@ -410,9 +400,9 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                       
                       <Button
                         onClick={handleSubmit}
-                        disabled={!newComment.trim() || addComment.isPending}
+                        disabled={!newComment.trim() || addComment.isPending || isUploading}
                         size="sm"
-                        className="rounded-full px-4 font-bold"
+                        className="rounded-full px-5 py-2 font-semibold h-9"
                       >
                         {addComment.isPending ? 'Invio...' : (replyingTo ? 'Rispondi' : 'Pubblica')}
                       </Button>
