@@ -52,6 +52,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
   const [snap, setSnap] = useState<number | string | null>(0.7);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const { data: currentUserProfile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -67,16 +68,18 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
     enabled: !!user,
   });
 
-  // Force snap to 0.7 on open
+  // Handle drawer opening animation
   useEffect(() => {
     if (isOpen) {
-      // Small delay to ensure drawer is mounted
+      setIsAnimating(true);
+      setSnap(0.7);
       const timer = setTimeout(() => {
-        setSnap(0.7);
-      }, 50);
+        setIsAnimating(false);
+      }, 150);
       return () => clearTimeout(timer);
     } else {
       setSnap(0.7);
+      setIsAnimating(false);
     }
   }, [isOpen]);
 
@@ -237,7 +240,10 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
         dismissible={true}
         shouldScaleBackground={false}
       >
-        <DrawerContent className="cognitive-drawer pb-[env(safe-area-inset-bottom)]">
+        <DrawerContent className={cn(
+          "cognitive-drawer pb-[env(safe-area-inset-bottom)]",
+          isAnimating && "opacity-0"
+        )}>
           {/* Header con Post Originale Compatto */}
           <DrawerHeader className="border-b border-border sticky top-0 bg-background/95 backdrop-blur-sm z-20 pt-6">
             <DrawerTitle className="text-center cognitive-text-primary mb-3">
