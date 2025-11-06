@@ -226,7 +226,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
         fadeFromIndex={0}
       >
         <DrawerContent 
-          className="cognitive-drawer pb-[env(safe-area-inset-bottom)] [&[data-vaul-drawer-visible='true']]:!translate-y-[30vh] [&[data-vaul-drawer-visible='true'][data-vaul-snap-points-offset='0']]:!translate-y-[30vh]"
+          className="cognitive-drawer pb-[env(safe-area-inset-bottom)]"
         >
           {/* Header con Post Originale Compatto */}
           <DrawerHeader className="border-b border-border sticky top-0 bg-background/95 backdrop-blur-sm z-20 pt-6">
