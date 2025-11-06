@@ -1184,23 +1184,12 @@
   backdrop-filter: blur(4px);
 }
 
-/* Force drawer to open at 70% without animation */
-.cognitive-drawer[data-vaul-drawer][data-vaul-drawer-visible="true"] {
-  transform: translateY(30vh) !important;
-  transition: none !important;
-  animation: none !important;
-}
-
-.cognitive-drawer[data-vaul-drawer][data-vaul-snap-points-offset="1"] {
-  transform: translateY(0) !important;
+/* Force drawer positioning */
+.cognitive-drawer[data-vaul-snap-points-offset="0"] {
   transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1) !important;
 }
 
-/* Remove initial animation completely */
-.cognitive-drawer[data-vaul-drawer] {
-  will-change: transform;
-}
-
-[data-vaul-drawer-wrapper] .cognitive-drawer {
-  animation: none !important;
+.cognitive-drawer[data-vaul-snap-points-offset="1"] {
+  transform: translateY(0) !important;
+  transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1) !important;
 }

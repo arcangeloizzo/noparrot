@@ -52,6 +52,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
   const [snap, setSnap] = useState<number | string | null>(0.7);
+  const [showDrawer, setShowDrawer] = useState(false);
 
   const { data: currentUserProfile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -66,6 +67,21 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
     },
     enabled: !!user,
   });
+
+  // Gestisci apertura drawer senza animazione
+  useEffect(() => {
+    if (isOpen) {
+      setSnap(0.7);
+      // Nascondi durante l'animazione iniziale, poi mostra
+      setShowDrawer(false);
+      const timer = setTimeout(() => {
+        setShowDrawer(true);
+      }, 50);
+      return () => clearTimeout(timer);
+    } else {
+      setShowDrawer(false);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (mode === 'reply' && isOpen) {
@@ -223,10 +239,13 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
         modal={false}
         dismissible={true}
         shouldScaleBackground={false}
-        fadeFromIndex={0}
       >
         <DrawerContent 
           className="cognitive-drawer pb-[env(safe-area-inset-bottom)]"
+          style={{
+            visibility: showDrawer ? 'visible' : 'hidden',
+            transform: 'translateY(30vh)'
+          }}
         >
           {/* Header con Post Originale Compatto */}
           <DrawerHeader className="border-b border-border sticky top-0 bg-background/95 backdrop-blur-sm z-20 pt-6">
