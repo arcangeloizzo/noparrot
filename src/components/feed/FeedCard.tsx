@@ -324,7 +324,7 @@ export const FeedCard = ({
           {/* User Info */}
           <div className="flex items-center gap-1 mb-1">
             <span 
-              className="font-semibold text-foreground text-[15px] hover:underline cursor-pointer" 
+              className="cognitive-text-primary font-semibold text-[15px] hover:underline cursor-pointer" 
               onClick={(e) => {
                 e.stopPropagation();
                 navigate(`/profile/${post.author_id}`);
@@ -332,8 +332,8 @@ export const FeedCard = ({
             >
               {post.authorName}
             </span>
-            <span className="text-muted-foreground text-[15px]">·</span>
-            <span className="text-muted-foreground text-[15px]">{formatTimeAgo(post.minutesAgo)}</span>
+            <span className="cognitive-text-secondary text-[15px]">·</span>
+            <span className="cognitive-text-secondary text-[15px]">{formatTimeAgo(post.minutesAgo)}</span>
             
             {/* More Menu */}
             <DropdownMenu>
@@ -352,14 +352,14 @@ export const FeedCard = ({
           </div>
 
           {/* Comment */}
-          <p className="text-foreground text-[15px] leading-5 mb-3 whitespace-pre-wrap">
+          <p className="cognitive-text-primary text-[15px] leading-5 mb-3 whitespace-pre-wrap">
             {post.userComment}
           </p>
 
           {/* Article Preview */}
           {post.url && (
             <div 
-              className="border border-border rounded-2xl overflow-hidden mb-3"
+              className="cognitive-article-preview border border-border rounded-2xl overflow-hidden mb-3"
               onClick={(e) => e.stopPropagation()}
             >
               {(articlePreview?.image || articlePreview?.previewImg || post.previewImg) && (
@@ -430,18 +430,18 @@ export const FeedCard = ({
                     )}
                   </div>
                 )}
-                <p className="text-xs text-muted-foreground mb-1">
+                <p className="cognitive-meta text-xs mb-1">
                   {getHostnameFromUrl(post.url)}
                 </p>
-                <h3 className="text-sm font-medium text-foreground line-clamp-2 mb-1">
+                <h3 className="cognitive-article-title text-sm font-medium line-clamp-2 mb-1">
                   {post.sharedTitle || articlePreview?.title || 'Articolo condiviso'}
                 </h3>
                 {articlePreview?.content && articlePreview.platform === 'twitter' ? (
-                  <p className="text-sm text-muted-foreground line-clamp-3">
+                  <p className="cognitive-text-secondary text-sm line-clamp-3">
                     {articlePreview.content}
                   </p>
                 ) : (
-                  <p className="text-sm text-muted-foreground line-clamp-3">
+                  <p className="cognitive-text-secondary text-sm line-clamp-3">
                     {articlePreview?.summary || articlePreview?.excerpt}
                   </p>
                 )}
@@ -472,16 +472,16 @@ export const FeedCard = ({
           )}
 
           {/* Actions Bar */}
-          <div className="flex items-center justify-between max-w-md -ml-2">
+          <div className="cognitive-actions flex items-center justify-between max-w-md -ml-2">
             <button 
               onClick={(e) => { 
                 e.stopPropagation();
                 navigate(`/post/${post.id}`);
               }}
-              className="flex items-center gap-2 p-2 rounded-full hover:bg-primary/10 group transition-colors"
+              className="cognitive-action-btn"
             >
-              <MessageCircleIcon className="w-[18px] h-[18px] text-muted-foreground group-hover:text-primary transition-colors" />
-              <span className="text-[13px] text-muted-foreground group-hover:text-primary transition-colors">
+              <MessageCircleIcon className="w-[18px] h-[18px]" />
+              <span className="text-[13px]">
                 {post.reactions.comments}
               </span>
             </button>
@@ -489,12 +489,12 @@ export const FeedCard = ({
             <button 
               onClick={handleShare}
               className={cn(
-                "flex items-center gap-2 p-2 rounded-full hover:bg-green-500/10 group transition-all duration-200",
+                "cognitive-action-btn",
                 shouldBlinkShare && "animate-blink-parrot"
               )}
             >
-              <Share2 className="w-[18px] h-[18px] text-muted-foreground group-hover:text-green-500 transition-colors" />
-              <span className="text-[13px] text-muted-foreground group-hover:text-green-500 transition-colors">
+              <Share2 className="w-[18px] h-[18px]" />
+              <span className="text-[13px]">
                 {Math.floor(post.reactions.heart / 10)}
               </span>
             </button>
@@ -505,18 +505,15 @@ export const FeedCard = ({
                 setIsLiked(!isLiked);
                 haptics.light();
               }}
-              className="flex items-center gap-2 p-2 rounded-full hover:bg-red-500/10 group transition-all duration-200 active:scale-[1.2]"
+              className={cn("cognitive-action-btn", isLiked && "active")}
             >
               <HeartIcon 
                 className={cn(
                   "w-[18px] h-[18px] transition-all duration-200",
-                  isLiked ? "text-[#BFE9E9] fill-[#BFE9E9] scale-110" : "text-muted-foreground group-hover:text-red-500"
+                  isLiked && "fill-current scale-110"
                 )}
               />
-              <span className={cn(
-                "text-[13px] transition-colors",
-                isLiked ? "text-[#BFE9E9]" : "text-muted-foreground group-hover:text-red-500"
-              )}>
+              <span className="text-[13px]">
                 {post.reactions.heart + (isLiked ? 1 : 0)}
               </span>
             </button>
@@ -527,12 +524,12 @@ export const FeedCard = ({
                 setIsBookmarked(!isBookmarked);
                 haptics.light();
               }}
-              className="p-2 rounded-full hover:bg-primary/10 group transition-all duration-200"
+              className={cn("cognitive-action-btn", isBookmarked && "active")}
             >
               <BookmarkIcon 
                 className={cn(
                   "w-[18px] h-[18px] transition-all duration-200",
-                  isBookmarked ? "text-primary fill-primary scale-110" : "text-muted-foreground group-hover:text-primary"
+                  isBookmarked && "fill-current scale-110"
                 )}
               />
             </button>
