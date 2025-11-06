@@ -51,6 +51,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
+  const [snap, setSnap] = useState<number | string | null>(0.6);
 
   const { data: currentUserProfile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -220,8 +221,14 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
 
   return (
     <>
-      <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DrawerContent className="max-h-[90vh] cognitive-drawer pb-[env(safe-area-inset-bottom)]">
+      <Drawer 
+        open={isOpen} 
+        onOpenChange={(open) => !open && onClose()}
+        snapPoints={[0.6, 1]}
+        activeSnapPoint={snap}
+        setActiveSnapPoint={setSnap}
+      >
+        <DrawerContent className="cognitive-drawer pb-[env(safe-area-inset-bottom)]">
           {/* Header con Post Originale Compatto */}
           <DrawerHeader className="border-b border-border sticky top-0 bg-background/95 backdrop-blur-sm z-20 pt-6">
             <DrawerTitle className="text-center cognitive-text-primary mb-3">

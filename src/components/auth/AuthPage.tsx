@@ -40,6 +40,8 @@ export const AuthPage = ({ initialMode = 'login' }: AuthPageProps) => {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
 
   useEffect(() => {
     if (user) navigate("/");
@@ -182,6 +184,24 @@ export const AuthPage = ({ initialMode = 'login' }: AuthPageProps) => {
     }
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Email di recupero inviata! Controlla la tua casella di posta.");
+      setShowResetPassword(false);
+      setResetEmail("");
+    }
+    setIsLoading(false);
+  };
+
   // LOGIN VIEW
   if (isLogin) {
     return (
@@ -192,7 +212,8 @@ export const AuthPage = ({ initialMode = 'login' }: AuthPageProps) => {
             <h1 className="text-2xl font-bold mt-4">Accedi a NoParrot</h1>
           </div>
 
-          <form onSubmit={handleLoginSubmit} className="space-y-4">
+          {!showResetPassword ? (
+            <form onSubmit={handleLoginSubmit} className="space-y-4">
             <Input 
               type="email" 
               placeholder="Email" 
@@ -209,18 +230,57 @@ export const AuthPage = ({ initialMode = 'login' }: AuthPageProps) => {
               className="focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200"
               required 
             />
-            <Button 
-              type="submit" 
-              className="w-full shadow-[inset_0_-2px_4px_rgba(255,255,255,0.1)] transition-all duration-200 hover:scale-[1.02] active:scale-[0.97]" 
-              disabled={isLoading}
-            >
-              {isLoading ? "Caricamento..." : "Accedi"}
-            </Button>
-          </form>
+              <Button 
+                type="submit" 
+                className="w-full shadow-[inset_0_-2px_4px_rgba(255,255,255,0.1)] transition-all duration-200 hover:scale-[1.02] active:scale-[0.97]" 
+                disabled={isLoading}
+              >
+                {isLoading ? "Caricamento..." : "Accedi"}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              <Input 
+                type="email" 
+                placeholder="Email" 
+                value={resetEmail} 
+                onChange={(e) => setResetEmail(e.target.value)} 
+                className="focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200"
+                required 
+              />
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={isLoading}
+              >
+                {isLoading ? "Invio..." : "Invia email di recupero"}
+              </Button>
+              <Button 
+                type="button"
+                variant="ghost" 
+                className="w-full" 
+                onClick={() => setShowResetPassword(false)}
+              >
+                ← Torna al login
+              </Button>
+            </form>
+          )}
 
-          <Button variant="ghost" className="w-full mt-4" onClick={() => { setIsLogin(false); setRegistrationStep(1); }}>
-            Non hai un account? Registrati
-          </Button>
+          {!showResetPassword && (
+            <>
+              <Button 
+                variant="link" 
+                className="w-full mt-2 text-sm" 
+                onClick={() => setShowResetPassword(true)}
+              >
+                Password dimenticata?
+              </Button>
+
+              <Button variant="ghost" className="w-full mt-2" onClick={() => { setIsLogin(false); setRegistrationStep(1); }}>
+                Non hai un account? Registrati
+              </Button>
+            </>
+          )}
 
           <p className="text-xs text-muted-foreground text-center mt-4">
             Accedendo o creando un account, accetti i{" "}

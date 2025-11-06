@@ -5,10 +5,16 @@ import { cn } from "@/lib/utils"
 
 const Drawer = ({
   shouldScaleBackground = true,
+  snapPoints,
+  activeSnapPoint,
+  setActiveSnapPoint,
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Root>) => (
   <DrawerPrimitive.Root
     shouldScaleBackground={shouldScaleBackground}
+    snapPoints={snapPoints}
+    activeSnapPoint={activeSnapPoint}
+    setActiveSnapPoint={setActiveSnapPoint}
     {...props}
   />
 )
