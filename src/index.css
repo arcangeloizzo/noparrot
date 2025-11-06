@@ -1183,3 +1183,14 @@
   background: rgba(0, 0, 0, 0.6) !important;
   backdrop-filter: blur(4px);
 }
+
+/* Force drawer to open at 70% without animation */
+[data-vaul-drawer][data-vaul-drawer-visible="true"] {
+  transform: translateY(30vh) !important;
+  transition: none !important;
+}
+
+[data-vaul-drawer][data-vaul-drawer-visible="true"][data-vaul-snap-points-offset="1"] {
+  transform: translateY(0) !important;
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1) !important;
+}
