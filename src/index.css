@@ -1093,3 +1093,111 @@
 .trust-tooltip-override * {
   opacity: 1 !important;
 }
+
+/* Typography with Apple precision */
+.cognitive-text-primary {
+  color: hsl(var(--text-primary-cognitive)) !important;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.cognitive-text-secondary {
+  color: hsl(var(--text-secondary-cognitive)) !important;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+}
+
+/* ====== COGNITIVE COMMENTS DRAWER ====== */
+.cognitive-drawer {
+  background: linear-gradient(
+    180deg,
+    hsl(var(--cognitive-bg-top)) 0%,
+    hsl(var(--cognitive-bg-bottom)) 100%
+  ) !important;
+  border-radius: 28px 28px 0 0 !important;
+  border: 1px solid rgba(47, 127, 239, 0.2) !important;
+  box-shadow: 
+    0 -8px 32px rgba(0, 0, 0, 0.6),
+    0 0 40px rgba(47, 127, 239, 0.15) !important;
+}
+
+.cognitive-drawer::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 4px;
+  background: rgba(154, 163, 171, 0.5);
+  border-radius: 2px;
+  z-index: 10;
+}
+
+.cognitive-comment-item {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(47, 127, 239, 0.08);
+}
+
+.cognitive-comment-item:hover {
+  background: rgba(47, 127, 239, 0.05);
+  border-radius: 12px;
+  margin: 0 -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+}
+
+.cognitive-comment-composer {
+  background: var(--capsule-bg);
+  backdrop-filter: var(--glass-blur-capsule);
+  border: 1px solid var(--capsule-border);
+  border-radius: 20px;
+  padding: 12px 16px;
+}
+
+.cognitive-comment-composer textarea {
+  background: transparent !important;
+  color: hsl(var(--text-primary-cognitive)) !important;
+  border: none !important;
+}
+
+.cognitive-comment-composer textarea::placeholder {
+  color: hsl(var(--text-secondary-cognitive)) !important;
+  opacity: 0.6;
+}
+
+/* Drawer Animations */
+@keyframes drawer-slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes drawer-slide-down {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+.cognitive-drawer[data-state="open"] {
+  animation: drawer-slide-up 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.cognitive-drawer[data-state="closed"] {
+  animation: drawer-slide-down 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+[data-vaul-overlay] {
+  background: rgba(0, 0, 0, 0.6) !important;
+  backdrop-filter: blur(4px);
+}

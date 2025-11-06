@@ -27,6 +27,7 @@ import { MediaViewer } from "@/components/media/MediaViewer";
 
 // Composer Components
 import { SourceReaderGate } from "../composer/SourceReaderGate";
+import { CommentsDrawer } from "./CommentsDrawer";
 
 // Share Components
 import { ShareSheet } from "@/components/share/ShareSheet";
@@ -87,6 +88,9 @@ export const FeedCard = ({
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [readerSource, setReaderSource] = useState<any>(null);
   const [quizData, setQuizData] = useState<any>(null);
+  
+  // Comments state
+  const [showComments, setShowComments] = useState(false);
   
   // Share states
   const [showShareSheet, setShowShareSheet] = useState(false);
@@ -628,7 +632,7 @@ export const FeedCard = ({
                   className="cognitive-action-btn"
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(`/post/${post.id}`);
+                    setShowComments(true);
                   }}
                 >
                   <MessageCircleIcon className="w-[18px] h-[18px]" />
@@ -747,6 +751,16 @@ export const FeedCard = ({
           setShareAction(null);
         }}
       />
+
+      {/* Comments Drawer */}
+      {showComments && (
+        <CommentsDrawer
+          post={post}
+          isOpen={showComments}
+          onClose={() => setShowComments(false)}
+          mode="view"
+        />
+      )}
 
     </>
   );
