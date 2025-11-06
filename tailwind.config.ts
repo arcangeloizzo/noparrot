@@ -66,6 +66,14 @@ export default {
 				'trust-medium-text': 'hsl(var(--trust-medium-text))',
 				'trust-high': 'hsl(var(--trust-high))',
 				'trust-high-text': 'hsl(var(--trust-high-text))',
+				// Cognitive System
+				'cognitive': {
+					blue: '#2F7FEF',
+					'bg-top': '#1B2024',
+					'bg-bottom': '#14181C',
+					'text-primary': '#F4F7FA',
+					'text-secondary': '#9AA3AB',
+				},
 				// Custom logo colors
 				'logo-no': '#bbe6e4',
 				'logo-parrot': '#0a77ed',

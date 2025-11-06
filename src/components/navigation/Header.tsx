@@ -19,20 +19,18 @@ export const Header = () => {
   }).length;
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-[4.375rem] max-w-screen-xl items-center justify-between px-4">
-        {/* Logo centrale */}
-        <div className="flex-1" />
-        
-        <div className="flex items-center justify-center">
+    <header className="cognitive-header">
+      <div className="container flex h-[4.375rem] max-w-screen-xl items-center justify-center px-4 relative">
+        {/* Logo centrale con glow */}
+        <div className="logo-container">
           <Logo variant="extended" size="md" className="h-8" />
         </div>
 
-        {/* Icona notifiche a destra */}
-        <div className="flex flex-1 items-center justify-end">
+        {/* Icona notifiche a destra (posizione assoluta) */}
+        <div className="absolute right-4 top-1/2 -translate-y-1/2">
           <Link
             to="/notifications"
-            className="relative flex items-center justify-center w-12 h-12 rounded-full hover:bg-accent transition-colors"
+            className="relative flex items-center justify-center w-12 h-12 rounded-full hover:bg-accent/50 transition-colors"
             onClick={() => {
               const now = new Date().toISOString();
               localStorage.setItem('notifications-last-viewed', now);

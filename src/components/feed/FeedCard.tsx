@@ -294,7 +294,10 @@ export const FeedCard = ({
   return (
     <>
       <article 
-        className="px-4 py-3 hover:bg-muted/30 transition-all duration-300 border-t border-[#1F3347] shadow-[0_2px_8px_rgba(0,0,0,0.35)]" 
+        className="cognitive-capsule" 
+        data-read="false"
+        data-reading="false"
+        data-understood="false"
         style={{
           transform: `translateX(-${swipeOffset}px)`,
           transition: swipeOffset === 0 ? 'transform 0.3s ease-out' : 'none'
@@ -303,6 +306,7 @@ export const FeedCard = ({
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
+      <div className="cognitive-capsule-content">
       <div className="flex gap-3">
         {/* Avatar */}
         <div 
@@ -535,6 +539,7 @@ export const FeedCard = ({
           </div>
 
         </div>
+      </div>
       </div>
     </article>
 
