@@ -51,7 +51,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
-  const [snap, setSnap] = useState<number | string | null>(0.5);
+  const [snap, setSnap] = useState<number | string | null>(0.7);
 
   const { data: currentUserProfile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -213,10 +213,11 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
       <Drawer 
         open={isOpen} 
         onOpenChange={(open) => !open && onClose()}
-        snapPoints={[0.5, 1]}
+        snapPoints={[0.7, 1]}
         activeSnapPoint={snap}
         setActiveSnapPoint={setSnap}
-        modal={false}
+        modal={true}
+        dismissible={true}
       >
         <DrawerContent className="cognitive-drawer pb-[env(safe-area-inset-bottom)]">
           {/* Header con Post Originale Compatto */}
@@ -300,81 +301,40 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
           </div>
 
           {/* Fixed Bottom Composer */}
-          <div className="sticky bottom-0 bg-background border-t border-border z-30 pb-[env(safe-area-inset-bottom)]">
-            <div className="px-4 py-4">
+          <div className="sticky bottom-0 bg-background/98 backdrop-blur-xl border-t border-border/50 z-30">
+            <div className="px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
               {replyingTo && (
-                <div className="mb-2 text-xs cognitive-text-secondary flex items-center justify-between">
-                  <span>Rispondi a @{comments.find(c => c.id === replyingTo)?.author.username}</span>
+                <div className="mb-2 px-3 py-2 bg-muted/50 rounded-xl flex items-center justify-between">
+                  <span className="text-xs cognitive-text-secondary">
+                    Rispondi a <span className="font-semibold">@{comments.find(c => c.id === replyingTo)?.author.username}</span>
+                  </span>
                   <button
                     onClick={() => setReplyingTo(null)}
-                    className="text-destructive hover:underline"
+                    className="text-xs text-destructive hover:underline font-medium"
                   >
                     Annulla
                   </button>
                 </div>
               )}
-              <div className="cognitive-comment-composer p-3">
-                <div className="flex gap-3 items-start relative">
-                  <div className="flex-shrink-0 pt-2">
+              <div className="cognitive-comment-composer">
+                <div className="flex gap-3 items-end">
+                  <div className="flex-shrink-0 mb-2">
                     {currentUserProfile && getUserAvatar(
                       currentUserProfile.avatar_url, 
                       currentUserProfile.full_name,
                       currentUserProfile.username
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <textarea
-                      ref={textareaRef}
-                      value={newComment}
-                      onChange={handleTextChange}
-                      onKeyDown={(e) => {
-                        if (!showMentions || mentionUsers.length === 0) {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSubmit();
-                          }
-                          return;
-                        }
-                        
-                        if (e.key === 'ArrowDown') {
-                          e.preventDefault();
-                          setSelectedMentionIndex((prev) => 
-                            (prev + 1) % mentionUsers.length
-                          );
-                        } else if (e.key === 'ArrowUp') {
-                          e.preventDefault();
-                          setSelectedMentionIndex((prev) => 
-                            (prev - 1 + mentionUsers.length) % mentionUsers.length
-                          );
-                        } else if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSelectMention(mentionUsers[selectedMentionIndex]);
-                        } else if (e.key === 'Escape') {
-                          setShowMentions(false);
-                        }
-                      }}
-                      placeholder={replyingTo ? `Rispondi...` : `Scrivi un commento...`}
-                      className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[44px] max-h-[120px] leading-relaxed cognitive-text-primary placeholder:cognitive-text-secondary"
-                      maxLength={500}
-                      rows={1}
-                      style={{ 
-                        height: 'auto',
-                        overflowY: newComment.split('\n').length > 4 ? 'scroll' : 'hidden'
-                      }}
-                      onInput={(e) => {
-                        const target = e.target as HTMLTextAreaElement;
-                        target.style.height = 'auto';
-                        target.style.height = Math.min(target.scrollHeight, 120) + 'px';
-                      }}
-                    />
-                    
+                  <div className="flex-1 min-w-0 relative">
                     {showMentions && (
-                      <MentionDropdown
-                        users={mentionUsers}
-                        selectedIndex={selectedMentionIndex}
-                        onSelect={handleSelectMention}
-                        isLoading={isSearching}
-                      />
+                      <div className="absolute bottom-full left-0 right-0 mb-2">
+                        <MentionDropdown
+                          users={mentionUsers}
+                          selectedIndex={selectedMentionIndex}
+                          onSelect={handleSelectMention}
+                          isLoading={isSearching}
+                        />
+                      </div>
                     )}
                     
                     <MediaPreviewTray
@@ -382,30 +342,70 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                       onRemove={removeMedia}
                     />
                     
-                    <div className="flex items-center justify-between mt-3">
-                      <div className="flex gap-3">
+                    <div className="flex items-end gap-2 bg-muted/30 rounded-[20px] px-4 py-2.5 border border-border/30 focus-within:border-primary/40 focus-within:bg-background/50 transition-all">
+                      <textarea
+                        ref={textareaRef}
+                        value={newComment}
+                        onChange={handleTextChange}
+                        onKeyDown={(e) => {
+                          if (!showMentions || mentionUsers.length === 0) {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              handleSubmit();
+                            }
+                            return;
+                          }
+                          
+                          if (e.key === 'ArrowDown') {
+                            e.preventDefault();
+                            setSelectedMentionIndex((prev) => 
+                              (prev + 1) % mentionUsers.length
+                            );
+                          } else if (e.key === 'ArrowUp') {
+                            e.preventDefault();
+                            setSelectedMentionIndex((prev) => 
+                              (prev - 1 + mentionUsers.length) % mentionUsers.length
+                            );
+                          } else if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSelectMention(mentionUsers[selectedMentionIndex]);
+                          } else if (e.key === 'Escape') {
+                            setShowMentions(false);
+                          }
+                        }}
+                        placeholder="Aggiungi un commento..."
+                        className="flex-1 bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[24px] max-h-[100px] leading-relaxed cognitive-text-primary placeholder:cognitive-text-secondary/60"
+                        maxLength={500}
+                        rows={1}
+                        style={{ 
+                          height: 'auto',
+                          overflowY: newComment.split('\n').length > 3 ? 'scroll' : 'hidden'
+                        }}
+                        onInput={(e) => {
+                          const target = e.target as HTMLTextAreaElement;
+                          target.style.height = 'auto';
+                          target.style.height = Math.min(target.scrollHeight, 100) + 'px';
+                        }}
+                      />
+                      
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         <MediaUploadButton
                           type="image"
                           onFilesSelected={(files) => uploadMedia(files, 'image')}
                           maxFiles={4}
                           disabled={isUploading}
                         />
-                        <MediaUploadButton
-                          type="video"
-                          onFilesSelected={(files) => uploadMedia(files, 'video')}
-                          maxFiles={1}
-                          disabled={isUploading}
-                        />
+                        
+                        <Button
+                          onClick={handleSubmit}
+                          disabled={!newComment.trim() || addComment.isPending || isUploading}
+                          size="sm"
+                          variant={newComment.trim() ? "default" : "ghost"}
+                          className="rounded-full h-8 px-4 font-semibold text-sm transition-all"
+                        >
+                          {addComment.isPending ? '...' : 'Pubblica'}
+                        </Button>
                       </div>
-                      
-                      <Button
-                        onClick={handleSubmit}
-                        disabled={!newComment.trim() || addComment.isPending || isUploading}
-                        size="sm"
-                        className="rounded-full px-5 py-2 font-semibold h-9"
-                      >
-                        {addComment.isPending ? 'Invio...' : (replyingTo ? 'Rispondi' : 'Pubblica')}
-                      </Button>
                     </div>
                   </div>
                 </div>
