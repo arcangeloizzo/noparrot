@@ -67,6 +67,19 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
     enabled: !!user,
   });
 
+  // Force snap to 0.7 on open
+  useEffect(() => {
+    if (isOpen) {
+      // Small delay to ensure drawer is mounted
+      const timer = setTimeout(() => {
+        setSnap(0.7);
+      }, 50);
+      return () => clearTimeout(timer);
+    } else {
+      setSnap(0.7);
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (mode === 'reply' && isOpen) {
       setTimeout(() => textareaRef.current?.focus(), 100);
@@ -212,12 +225,17 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
     <>
       <Drawer 
         open={isOpen} 
-        onOpenChange={(open) => !open && onClose()}
+        onOpenChange={(open) => {
+          if (!open) {
+            onClose();
+          }
+        }}
         snapPoints={[0.7, 1]}
         activeSnapPoint={snap}
         setActiveSnapPoint={setSnap}
-        modal={true}
+        modal={false}
         dismissible={true}
+        shouldScaleBackground={false}
       >
         <DrawerContent className="cognitive-drawer pb-[env(safe-area-inset-bottom)]">
           {/* Header con Post Originale Compatto */}
