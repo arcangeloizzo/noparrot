@@ -243,8 +243,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
         <DrawerContent 
           className="cognitive-drawer pb-[env(safe-area-inset-bottom)]"
           style={{
-            visibility: showDrawer ? 'visible' : 'hidden',
-            transform: 'translateY(30vh)'
+            visibility: showDrawer ? 'visible' : 'hidden'            
           }}
         >
           {/* Header con Post Originale Compatto */}
