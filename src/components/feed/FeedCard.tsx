@@ -291,6 +291,9 @@ export const FeedCard = ({
     setTouchEnd(null);
   };
 
+  // Debug log
+  console.log('[FeedCard] Rendering with cognitive-capsule class');
+
   return (
     <>
       <article 

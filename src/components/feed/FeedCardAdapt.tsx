@@ -445,12 +445,16 @@ export const FeedCard = ({
 
   return (
     <>
-      <div 
-        className="px-4 py-3 border-b border-border hover:bg-muted/30 transition-colors cursor-pointer relative max-w-[600px] mx-auto"
+      <article 
+        className="cognitive-capsule"
+        data-read="false"
+        data-reading="false"
+        data-understood="false"
         onClick={() => {
           navigate(`/post/${post.id}`);
         }}
       >
+        <div className="cognitive-capsule-content">
         <div className="flex gap-3">
           {/* Avatar a sinistra */}
           <div 
@@ -508,7 +512,7 @@ export const FeedCard = ({
             </div>
 
             {/* User Comment - Full content */}
-            <div className="mb-2 text-foreground text-[15px] leading-5 whitespace-pre-wrap break-words">
+            <div className="cognitive-text-primary mb-2 text-[15px] leading-5 whitespace-pre-wrap break-words">
               <MentionText content={post.content} />
             </div>
 
@@ -533,7 +537,7 @@ export const FeedCard = ({
             {/* Article Preview Card */}
             {post.shared_url && (
               <div 
-                className="mb-3 border border-border rounded-2xl overflow-hidden hover:bg-accent/10 hover:border-accent/50 transition-all cursor-pointer group"
+                className="cognitive-article-preview mb-3 border border-border rounded-2xl overflow-hidden hover:bg-accent/10 hover:border-accent/50 transition-all cursor-pointer group"
                 onClick={(e) => {
                   e.stopPropagation();
                   window.open(post.shared_url, '_blank', 'noopener,noreferrer');
@@ -605,23 +609,23 @@ export const FeedCard = ({
             )}
 
             {/* Actions - Like, Comments, Share, Save */}
-            <div className="flex items-center justify-between -ml-2">
+            <div className="cognitive-actions flex items-center justify-between -ml-2">
               <div className="flex items-center gap-4">
                 <button 
-                  className="flex items-center gap-1.5 p-2 rounded-full hover:bg-primary/10 hover:text-primary transition-colors group"
+                  className={cn("cognitive-action-btn", post.user_reactions.has_hearted && "active")}
                   onClick={handleHeart}
                 >
                   <HeartIcon 
                     className={cn(
                       "w-[18px] h-[18px] transition-all",
-                      post.user_reactions.has_hearted && "fill-primary stroke-primary"
+                      post.user_reactions.has_hearted && "fill-current"
                     )}
                   />
                   <span className="text-xs">{post.reactions.hearts}</span>
                 </button>
 
                 <button 
-                  className="flex items-center gap-1.5 p-2 rounded-full hover:bg-primary/10 hover:text-primary transition-colors group"
+                  className="cognitive-action-btn"
                   onClick={(e) => {
                     e.stopPropagation();
                     navigate(`/post/${post.id}`);
@@ -632,7 +636,7 @@ export const FeedCard = ({
                 </button>
 
                 <button 
-                  className="p-2 rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
+                  className="cognitive-action-btn"
                   onClick={handleShareClick}
                   title="Condividi"
                 >
@@ -645,20 +649,21 @@ export const FeedCard = ({
               </div>
 
               <button 
-                className="p-2 rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
+                className={cn("cognitive-action-btn", post.user_reactions.has_bookmarked && "active")}
                 onClick={handleBookmark}
               >
                 <BookmarkIcon 
                   className={cn(
                     "w-[18px] h-[18px] transition-all",
-                    post.user_reactions.has_bookmarked && "fill-primary stroke-primary"
+                    post.user_reactions.has_bookmarked && "fill-current"
                   )}
                 />
               </button>
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      </article>
 
       {/* Reader Modal - Rendered via Portal */}
       {showReader && readerSource && createPortal(
