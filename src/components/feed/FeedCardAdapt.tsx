@@ -607,7 +607,7 @@ export const FeedCard = ({
                   band={trustScore.band}
                   score={trustScore.score}
                   reasons={trustScore.reasons}
-                  size="md"
+                  size="sm"
                 />
               </div>
             )}
@@ -621,11 +621,11 @@ export const FeedCard = ({
                 >
                   <HeartIcon 
                     className={cn(
-                      "w-6 h-6 transition-all",
+                      "w-[18px] h-[18px] transition-all",
                       post.user_reactions.has_hearted && "fill-current"
                     )}
                   />
-                  <span className="text-base">{post.reactions.hearts}</span>
+                  <span className="text-xs">{post.reactions.hearts}</span>
                 </button>
 
                 <button 
@@ -635,8 +635,8 @@ export const FeedCard = ({
                     setShowComments(true);
                   }}
                 >
-                  <MessageCircleIcon className="w-6 h-6" />
-                  <span className="text-base">{post.reactions.comments}</span>
+                  <MessageCircleIcon className="w-[18px] h-[18px]" />
+                  <span className="text-xs">{post.reactions.comments}</span>
                 </button>
 
                 <button 
@@ -647,7 +647,7 @@ export const FeedCard = ({
                   <img 
                     src="/lovable-uploads/f6970c06-9fd9-4430-b863-07384bbb05ce.png"
                     alt="Condividi"
-                    className="w-6 h-6"
+                    className="w-[18px] h-[18px]"
                   />
                 </button>
               </div>
@@ -658,7 +658,7 @@ export const FeedCard = ({
               >
                 <BookmarkIcon 
                   className={cn(
-                    "w-6 h-6 transition-all",
+                    "w-[18px] h-[18px] transition-all",
                     post.user_reactions.has_bookmarked && "fill-current"
                   )}
                 />
