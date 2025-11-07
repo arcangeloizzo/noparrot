@@ -1148,7 +1148,7 @@
 }
 
 
-/* Drawer Animations */
+/* Drawer Animations
 @keyframes drawer-slide-up {
   from {
     transform: translateY(100%);
@@ -1182,9 +1182,9 @@
 [data-vaul-overlay] {
   background: rgba(0, 0, 0, 0.6) !important;
   backdrop-filter: blur(4px);
-}
+} */
 
-/* Force drawer positioning */
+/* Force drawer positioning
 .cognitive-drawer[data-vaul-snap-points-offset="0"] {
   transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1) !important;
 }
@@ -1192,4 +1192,4 @@
 .cognitive-drawer[data-vaul-snap-points-offset="1"] {
   transform: translateY(0) !important;
   transition: transform 0.5s cubic-bezier(0.32, 0.72, 0, 1) !important;
-}
+} */
