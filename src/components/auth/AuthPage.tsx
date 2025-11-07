@@ -22,6 +22,8 @@ export const AuthPage = ({ initialMode = 'login' }: AuthPageProps) => {
   const [isLogin, setIsLogin] = useState(initialMode === 'login');
   const [registrationStep, setRegistrationStep] = useState<1 | 2 | 3>(1);
   const [isLoading, setIsLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
 
   // Step 1 data
   const [email, setEmail] = useState("");
@@ -182,8 +184,68 @@ export const AuthPage = ({ initialMode = 'login' }: AuthPageProps) => {
     }
   };
 
+  const handlePasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: `${window.location.origin}/`,
+    });
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Link di recupero inviato alla tua email!");
+      setShowForgotPassword(false);
+      setResetEmail("");
+    }
+    setIsLoading(false);
+  };
+
   // LOGIN VIEW
   if (isLogin) {
+    if (showForgotPassword) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+          <Card className="w-full max-w-md p-6 shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
+            <div className="text-center mb-6">
+              <Logo />
+              <h1 className="text-2xl font-bold mt-4">Recupera Password</h1>
+              <p className="text-sm text-muted-foreground mt-2">
+                Inserisci la tua email per ricevere il link di recupero
+              </p>
+            </div>
+
+            <form onSubmit={handlePasswordReset} className="space-y-4">
+              <Input 
+                type="email" 
+                placeholder="Email" 
+                value={resetEmail} 
+                onChange={(e) => setResetEmail(e.target.value)} 
+                className="focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200"
+                required 
+              />
+              <Button 
+                type="submit" 
+                className="w-full shadow-[inset_0_-2px_4px_rgba(255,255,255,0.1)] transition-all duration-200 hover:scale-[1.02] active:scale-[0.97]" 
+                disabled={isLoading}
+              >
+                {isLoading ? "Invio..." : "Invia link di recupero"}
+              </Button>
+            </form>
+
+            <Button 
+              variant="ghost" 
+              className="w-full mt-4" 
+              onClick={() => setShowForgotPassword(false)}
+            >
+              ← Torna al login
+            </Button>
+          </Card>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
         <Card className="w-full max-w-md p-6 shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
@@ -218,7 +280,15 @@ export const AuthPage = ({ initialMode = 'login' }: AuthPageProps) => {
             </Button>
           </form>
 
-          <Button variant="ghost" className="w-full mt-4" onClick={() => { setIsLogin(false); setRegistrationStep(1); }}>
+          <Button 
+            variant="ghost" 
+            className="w-full mt-2" 
+            onClick={() => setShowForgotPassword(true)}
+          >
+            Password dimenticata?
+          </Button>
+
+          <Button variant="ghost" className="w-full mt-2" onClick={() => { setIsLogin(false); setRegistrationStep(1); }}>
             Non hai un account? Registrati
           </Button>
 
