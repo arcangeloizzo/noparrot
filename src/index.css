@@ -1189,12 +1189,27 @@
   }
 }
 
-.cognitive-drawer[data-state="open"] {
-  animation: drawer-slide-up 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+/* ========== COGNITIVE DRAWER - FIX ANIMAZIONI ========== */
+
+/* Disabilita completamente l'animazione iniziale del drawer */
+.cognitive-drawer[data-vaul-drawer] {
+  transition: none !important;
+  animation: none !important;
 }
 
-.cognitive-drawer[data-state="closed"] {
-  animation: drawer-slide-down 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+/* Forza posizione al 70% al primo render (30vh = 70% da bottom) */
+.cognitive-drawer[data-vaul-drawer][data-vaul-drawer-visible="true"] {
+  transform: translateY(30vh) !important;
+}
+
+/* Re-abilita transizione smooth SOLO durante drag interattivo */
+.cognitive-drawer[data-vaul-drawer]:active {
+  transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1) !important;
+}
+
+/* Transizione smooth quando cambia snap point */
+.cognitive-drawer[data-vaul-snap-points-offset] {
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1) !important;
 }
 
 [data-vaul-overlay] {

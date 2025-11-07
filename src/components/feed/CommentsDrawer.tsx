@@ -48,6 +48,8 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
   const [isProcessing, setIsProcessing] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizData, setQuizData] = useState<any>(null);
+  const [snap, setSnap] = useState<number | string | null>(0.7);
+  const [showDrawer, setShowDrawer] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
@@ -65,6 +67,16 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
     },
     enabled: !!user,
   });
+
+  useEffect(() => {
+    if (isOpen) {
+      setSnap(0.7);
+      setShowDrawer(false);
+      setTimeout(() => setShowDrawer(true), 50);
+    } else {
+      setShowDrawer(false);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (mode === 'reply' && isOpen) {
@@ -224,9 +236,17 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
         open={isOpen} 
         onOpenChange={(open) => !open && onClose()}
         snapPoints={[0.7, 1]}
+        activeSnapPoint={snap}
+        setActiveSnapPoint={setSnap}
+        modal={true}
+        dismissible={true}
+        shouldScaleBackground={false}
         fadeFromIndex={0}
       >
-        <DrawerContent className="max-h-[90vh] cognitive-drawer pb-[env(safe-area-inset-bottom)]">
+        <DrawerContent 
+          style={{ visibility: showDrawer ? 'visible' : 'hidden' }}
+          className="max-h-[90vh] cognitive-drawer pb-[env(safe-area-inset-bottom)]"
+        >
           {/* Header con Post Originale Compatto */}
           <DrawerHeader className="border-b border-border sticky top-0 bg-background/95 backdrop-blur-sm z-20 pt-6">
             <DrawerTitle className="text-center cognitive-text-primary mb-3">
