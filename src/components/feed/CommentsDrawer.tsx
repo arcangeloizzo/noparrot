@@ -220,7 +220,12 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
 
   return (
     <>
-      <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <Drawer 
+        open={isOpen} 
+        onOpenChange={(open) => !open && onClose()}
+        snapPoints={[0.7, 1]}
+        fadeFromIndex={0}
+      >
         <DrawerContent className="max-h-[90vh] cognitive-drawer pb-[env(safe-area-inset-bottom)]">
           {/* Header con Post Originale Compatto */}
           <DrawerHeader className="border-b border-border sticky top-0 bg-background/95 backdrop-blur-sm z-20 pt-6">
