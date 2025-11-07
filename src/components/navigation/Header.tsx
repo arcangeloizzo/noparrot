@@ -23,7 +23,7 @@ export const Header = () => {
       <div className="container flex h-[4.375rem] max-w-screen-xl items-center justify-center px-4 relative">
         {/* Logo centrale con glow */}
         <div className="logo-container">
-          <Logo variant="extended" size="lg" className="h-10" />
+          <Logo variant="extended" size="xl" />
         </div>
 
         {/* Icona notifiche a destra (posizione assoluta) */}
