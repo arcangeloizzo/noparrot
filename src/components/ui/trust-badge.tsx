@@ -115,22 +115,7 @@ export function TrustBadge({
             )}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={() => setShowTooltip(false)}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (showTooltip) {
-                setShowTooltip(false);
-              } else {
-                handleMouseEnter();
-              }
-            }}
-            onTouchStart={(e) => {
-              e.stopPropagation();
-              if (showTooltip) {
-                setShowTooltip(false);
-              } else {
-                handleMouseEnter();
-              }
-            }}
+            onClick={handleMouseEnter}
           >
             <Info className={config.icon} />
           </Button>
