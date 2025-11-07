@@ -1146,3 +1146,18 @@
   padding-left: 8px;
   padding-right: 8px;
 }
+
+/* Cognitive Drawer Animations */
+.cognitive-drawer[data-vaul-drawer] {
+  transition: none !important;
+  animation: none !important;
+}
+
+.cognitive-drawer[data-vaul-drawer][data-vaul-drawer-visible="true"] {
+  transform: translateY(30vh) !important;
+}
+
+/* Re-abilita transizione solo per drag interattivo */
+.cognitive-drawer[data-vaul-drawer]:active {
+  transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1) !important;
+}
