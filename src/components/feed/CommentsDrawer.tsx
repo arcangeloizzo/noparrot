@@ -51,7 +51,6 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
-  const [snap, setSnap] = useState<number | string | null>(0.7);
 
   const { data: currentUserProfile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -67,12 +66,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
     enabled: !!user,
   });
 
-  // Gestisci apertura drawer senza animazione
-  useEffect(() => {
-    if (isOpen) {
-    setSnap(0.7);
-  }
-}, [isOpen]);
+
 
   useEffect(() => {
     if (mode === 'reply' && isOpen) {
@@ -225,8 +219,6 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
           }
         }}
         snapPoints={[0.7, 1]}
-        activeSnapPoint={snap}
-        setActiveSnapPoint={setSnap}
         modal={false}
         dismissible={true}
         shouldScaleBackground={false}
