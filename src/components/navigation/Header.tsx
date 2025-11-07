@@ -19,15 +19,15 @@ export const Header = () => {
   }).length;
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="max-w-[600px] mx-auto px-4 h-14 flex items-center justify-center relative">
-        {/* Logo centrale */}
-        <div className="absolute left-1/2 -translate-x-1/2">
-          <Logo variant="extended" size="lg" className="h-10" />
+    <header className="cognitive-header">
+      <div className="container flex h-[4.375rem] max-w-screen-xl items-center justify-center px-4 relative">
+        {/* Logo centrale con glow */}
+        <div className="logo-container">
+          <Logo variant="extended" size="md" className="h-8" />
         </div>
 
-        {/* Icona notifiche a destra */}
-        <div className="absolute right-0">
+        {/* Icona notifiche a destra (posizione assoluta) */}
+        <div className="absolute right-4 top-1/2 -translate-y-1/2">
           <Link
             to="/notifications"
             className="relative flex items-center justify-center w-12 h-12 rounded-full hover:bg-accent/50 transition-colors"
