@@ -460,13 +460,13 @@ export const FeedCard = ({
                   band={trustScore.band}
                   score={trustScore.score}
                   reasons={trustScore.reasons}
-                  size="md"
+                  size="sm"
                   className="opacity-60 hover:opacity-100 transition-opacity"
                 />
               ) : loadingTrust ? (
                 <div className="flex items-center gap-2 opacity-60">
-                  <div className="w-6 h-6 rounded-full bg-muted animate-pulse" />
-                  <div className="w-16 h-3 bg-muted animate-pulse rounded" />
+                  <div className="w-5 h-5 rounded-full bg-muted animate-pulse" />
+                  <div className="w-12 h-2.5 bg-muted animate-pulse rounded" />
                 </div>
               ) : (
                 <TrustBadge size="sm" className="opacity-60 hover:opacity-100 transition-opacity" />
@@ -483,8 +483,8 @@ export const FeedCard = ({
               }}
               className="cognitive-action-btn"
             >
-              <MessageCircleIcon className="w-5 h-5" />
-              <span className="text-sm">
+              <MessageCircleIcon className="w-[18px] h-[18px]" />
+              <span className="text-[13px]">
                 {post.reactions.comments}
               </span>
             </button>
@@ -496,8 +496,8 @@ export const FeedCard = ({
                 shouldBlinkShare && "animate-blink-parrot"
               )}
             >
-              <Share2 className="w-5 h-5" />
-              <span className="text-sm">
+              <Share2 className="w-[18px] h-[18px]" />
+              <span className="text-[13px]">
                 {Math.floor(post.reactions.heart / 10)}
               </span>
             </button>
@@ -512,11 +512,11 @@ export const FeedCard = ({
             >
               <HeartIcon 
                 className={cn(
-                  "w-5 h-5 transition-all duration-200",
+                  "w-[18px] h-[18px] transition-all duration-200",
                   isLiked && "fill-current scale-110"
                 )}
               />
-              <span className="text-sm">
+              <span className="text-[13px]">
                 {post.reactions.heart + (isLiked ? 1 : 0)}
               </span>
             </button>
@@ -531,7 +531,7 @@ export const FeedCard = ({
             >
               <BookmarkIcon 
                 className={cn(
-                  "w-5 h-5 transition-all duration-200",
+                  "w-[18px] h-[18px] transition-all duration-200",
                   isBookmarked && "fill-current scale-110"
                 )}
               />
