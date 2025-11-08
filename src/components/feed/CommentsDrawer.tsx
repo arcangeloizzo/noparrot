@@ -38,9 +38,16 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
   const { user } = useAuth();
   const postHasSource = !!post.shared_url;
   
+  console.log('[CommentsDrawer] State:', {
+    postHasSource,
+    postSharedUrl: post.shared_url,
+    postId: post.id
+  });
+  
   const { data: comments = [], isLoading } = useComments(post.id);
   const addComment = useAddComment();
   const deleteComment = useDeleteComment();
+  const toggleReaction = useToggleCommentReaction();
   const [newComment, setNewComment] = useState('');
   const [mentionQuery, setMentionQuery] = useState('');
   const [showMentions, setShowMentions] = useState(false);
@@ -333,7 +340,6 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                       setTimeout(() => textareaRef.current?.focus(), 100);
                     }}
                     onLike={(commentId, isLiked) => {
-                      const toggleReaction = useToggleCommentReaction();
                       toggleReaction.mutate({ commentId, isLiked });
                     }}
                     onDelete={() => deleteComment.mutate(comment.id)}
@@ -530,13 +536,19 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
               {/* Opzione Consapevole */}
               <button
                 onClick={async () => {
+                  if (!post.shared_url) {
+                    sonnerToast.error("Questo post non ha una fonte da verificare");
+                    setShowCommentTypeChoice(false);
+                    return;
+                  }
+                  
                   setShowCommentTypeChoice(false);
                   setIsProcessingGate(true);
                   
                   try {
                     // Apri il gate usando lo stesso pattern del handleSubmit
                     await runGateBeforeAction({
-                      linkUrl: post.shared_url!,
+                      linkUrl: post.shared_url,
                       onSuccess: () => {
                         setSelectedCommentType('informed');
                         setTimeout(() => textareaRef.current?.focus(), 150);
@@ -593,10 +605,46 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
         <QuizModal
           questions={quizData.questions}
           onSubmit={async (answers: Record<string, string>) => {
-            quizData.onSuccess();
-            setShowQuiz(false);
-            setQuizData(null);
-            return { passed: true, wrongIndexes: [] };
+            try {
+              const { data, error } = await supabase.functions.invoke('validate-answers', {
+                body: {
+                  postId: null,
+                  sourceUrl: post.shared_url,
+                  answers,
+                  gateType: 'comment'
+                }
+              });
+
+              if (error) {
+                console.error('[QuizModal] Validation error:', error);
+                sonnerToast.error("Errore durante la validazione del quiz");
+                quizData.onCancel();
+                setShowQuiz(false);
+                setQuizData(null);
+                return { passed: false, wrongIndexes: [] };
+              }
+
+              if (!data?.passed) {
+                console.log('[QuizModal] Quiz failed:', data);
+                quizData.onCancel();
+                setShowQuiz(false);
+                setQuizData(null);
+                return { passed: false, wrongIndexes: data?.wrongIndexes || [] };
+              }
+
+              console.log('[QuizModal] Quiz passed!');
+              quizData.onSuccess();
+              setShowQuiz(false);
+              setQuizData(null);
+              return { passed: true, wrongIndexes: [] };
+            } catch (err) {
+              console.error('[QuizModal] Unexpected error:', err);
+              sonnerToast.error("Errore durante la validazione del quiz");
+              quizData.onCancel();
+              setShowQuiz(false);
+              setQuizData(null);
+              return { passed: false, wrongIndexes: [] };
+            }
           }}
           onCancel={() => {
             quizData.onCancel();
