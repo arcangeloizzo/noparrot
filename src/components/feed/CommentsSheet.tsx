@@ -57,7 +57,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
 
-  const postHasSource = !!(post.shared_url && post.article_content);
+  const postHasSource = !!post.shared_url;
 
   const { data: currentUserProfile } = useQuery({
     queryKey: ["profile", user?.id],
