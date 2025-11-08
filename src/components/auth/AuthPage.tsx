@@ -24,6 +24,9 @@ export const AuthPage = ({ initialMode = 'login' }: AuthPageProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
+  const [showUpdatePassword, setShowUpdatePassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   // Step 1 data
   const [email, setEmail] = useState("");
@@ -43,9 +46,22 @@ export const AuthPage = ({ initialMode = 'login' }: AuthPageProps) => {
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
 
+  // Rileva se siamo in modalità password recovery
   useEffect(() => {
-    if (user) navigate("/");
-  }, [user, navigate]);
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const type = hashParams.get('type');
+    
+    if (type === 'recovery') {
+      setShowUpdatePassword(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    // NON reindirizzare se siamo in modalità update password
+    if (user && !showUpdatePassword) {
+      navigate("/");
+    }
+  }, [user, navigate, showUpdatePassword]);
 
   // Auto-suggerimento username da email
   useEffect(() => {
@@ -201,6 +217,85 @@ export const AuthPage = ({ initialMode = 'login' }: AuthPageProps) => {
     }
     setIsLoading(false);
   };
+
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    if (newPassword !== confirmPassword) {
+      toast.error("Le password non corrispondono");
+      setIsLoading(false);
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error("La password deve essere almeno 6 caratteri");
+      setIsLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.auth.updateUser({ 
+      password: newPassword 
+    });
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Password aggiornata con successo!");
+      setShowUpdatePassword(false);
+      setNewPassword("");
+      setConfirmPassword("");
+      // Pulisci l'hash dall'URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      navigate("/");
+    }
+    setIsLoading(false);
+  };
+
+  // UPDATE PASSWORD VIEW
+  if (showUpdatePassword) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+        <Card className="w-full max-w-md p-6 shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
+          <div className="text-center mb-6">
+            <Logo />
+            <h1 className="text-2xl font-bold mt-4">Imposta Nuova Password</h1>
+            <p className="text-sm text-muted-foreground mt-2">
+              Scegli una nuova password per il tuo account
+            </p>
+          </div>
+
+          <form onSubmit={handleUpdatePassword} className="space-y-4">
+            <Input 
+              type="password" 
+              placeholder="Nuova password" 
+              value={newPassword} 
+              onChange={(e) => setNewPassword(e.target.value)} 
+              className="focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200"
+              required 
+              minLength={6}
+            />
+            <Input 
+              type="password" 
+              placeholder="Conferma password" 
+              value={confirmPassword} 
+              onChange={(e) => setConfirmPassword(e.target.value)} 
+              className="focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200"
+              required 
+              minLength={6}
+            />
+            <Button 
+              type="submit" 
+              className="w-full shadow-[inset_0_-2px_4px_rgba(255,255,255,0.1)] transition-all duration-200 hover:scale-[1.02] active:scale-[0.97]" 
+              disabled={isLoading}
+            >
+              {isLoading ? "Aggiornamento..." : "Aggiorna password"}
+            </Button>
+          </form>
+        </Card>
+      </div>
+    );
+  }
 
   // LOGIN VIEW
   if (isLogin) {
