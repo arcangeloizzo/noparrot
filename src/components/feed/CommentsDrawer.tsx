@@ -38,12 +38,6 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
   const { user } = useAuth();
   const postHasSource = !!post.shared_url;
   
-  console.log('[CommentsDrawer] State:', {
-    postHasSource,
-    postSharedUrl: post.shared_url,
-    postId: post.id
-  });
-  
   const { data: comments = [], isLoading } = useComments(post.id);
   const addComment = useAddComment();
   const deleteComment = useDeleteComment();
@@ -68,6 +62,18 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
   const [selectedCommentType, setSelectedCommentType] = useState<'spontaneous' | 'informed' | null>(null);
   const [isProcessingGate, setIsProcessingGate] = useState(false);
 
+  console.log('[CommentsDrawer] Current state:', {
+    postHasSource,
+    postSharedUrl: post.shared_url,
+    postId: post.id,
+    selectedCommentType,
+    showCommentTypeChoice,
+    isProcessingGate,
+    showQuiz,
+    hasQuizData: !!quizData,
+    isDrawerOpen: isOpen
+  });
+
   const { data: currentUserProfile } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => {
@@ -87,6 +93,20 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
       setTimeout(() => textareaRef.current?.focus(), 100);
     }
   }, [mode, isOpen]);
+
+  // Reset completo dello stato quando il drawer si chiude
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedCommentType(null);
+      setShowCommentTypeChoice(false);
+      setIsProcessingGate(false);
+      setShowQuiz(false);
+      setQuizData(null);
+      setNewComment('');
+      setReplyingTo(null);
+      console.log('[CommentsDrawer] State reset on close');
+    }
+  }, [isOpen]);
 
   const handleSubmit = async () => {
     if (!newComment.trim() || addComment.isPending || isProcessing) return;
@@ -536,6 +556,12 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
               {/* Opzione Consapevole */}
               <button
                 onClick={async () => {
+                  console.log('[Consapevole button] Clicked', { 
+                    hasSharedUrl: !!post.shared_url, 
+                    sharedUrl: post.shared_url,
+                    isProcessing: isProcessingGate 
+                  });
+                  
                   if (!post.shared_url) {
                     sonnerToast.error("Questo post non ha una fonte da verificare");
                     setShowCommentTypeChoice(false);
@@ -550,11 +576,13 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                     await runGateBeforeAction({
                       linkUrl: post.shared_url,
                       onSuccess: () => {
+                        console.log('[Gate] Quiz passed successfully');
                         setSelectedCommentType('informed');
                         setTimeout(() => textareaRef.current?.focus(), 150);
                         sonnerToast.success("Quiz superato! Ora puoi commentare consapevolmente.");
                       },
                       onCancel: () => {
+                        console.log('[Gate] Quiz failed or cancelled');
                         sonnerToast.error("Non hai superato il quiz. Puoi comunque fare un commento spontaneo.");
                       },
                       setIsProcessing: setIsProcessingGate,
@@ -569,7 +597,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                   }
                 }}
                 disabled={isProcessingGate}
-                className="w-full p-4 rounded-xl border-2 border-primary bg-primary/10 hover:bg-primary/20 hover:border-primary transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full p-4 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/10 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <div className="flex items-start gap-3">
                   <img 
