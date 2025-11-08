@@ -93,6 +93,7 @@ export type Database = {
           id: string
           level: number
           parent_id: string | null
+          passed_gate: boolean
           post_id: string
         }
         Insert: {
@@ -102,6 +103,7 @@ export type Database = {
           id?: string
           level?: number
           parent_id?: string | null
+          passed_gate?: boolean
           post_id: string
         }
         Update: {
@@ -111,6 +113,7 @@ export type Database = {
           id?: string
           level?: number
           parent_id?: string | null
+          passed_gate?: boolean
           post_id?: string
         }
         Relationships: [

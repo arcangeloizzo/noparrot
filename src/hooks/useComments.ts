@@ -11,6 +11,7 @@ export interface Comment {
   created_at: string;
   parent_id: string | null;
   level: number;
+  passed_gate: boolean;
   author: {
     id: string;
     username: string;
@@ -42,6 +43,7 @@ export const useComments = (postId: string, sortMode: 'relevance' | 'recent' | '
           created_at,
           parent_id,
           level,
+          passed_gate,
           author:profiles!author_id (
             id,
             username,
@@ -167,12 +169,14 @@ export const useAddComment = () => {
       postId, 
       content, 
       parentId = null,
-      level = 0
+      level = 0,
+      passedGate = false
     }: { 
       postId: string; 
       content: string;
       parentId?: string | null;
       level?: number;
+      passedGate?: boolean;
     }) => {
       if (!user) throw new Error('Not authenticated');
 
@@ -182,6 +186,7 @@ export const useAddComment = () => {
       console.log('[useComments] - author_id:', user.id);
       console.log('[useComments] - parent_id:', parentId);
       console.log('[useComments] - level:', level);
+      console.log('[useComments] - passed_gate:', passedGate);
       console.log('[useComments] - content length:', content.length);
       console.log('[useComments] ==========================================');
 
@@ -192,7 +197,8 @@ export const useAddComment = () => {
           author_id: user.id,
           content,
           parent_id: parentId,
-          level
+          level,
+          passed_gate: passedGate
         })
         .select('id')
         .single();

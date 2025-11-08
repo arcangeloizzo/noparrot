@@ -10,6 +10,7 @@ interface CommentListProps {
   onDelete: (commentId: string) => void;
   focusCommentId?: string | null;
   sortMode: 'relevance' | 'recent' | 'top';
+  postHasSource?: boolean;
 }
 
 interface CommentWithReplies extends Comment {
@@ -24,7 +25,8 @@ export const CommentList = ({
   onLike,
   onDelete,
   focusCommentId,
-  sortMode
+  sortMode,
+  postHasSource = false
 }: CommentListProps) => {
   const [visibleCount, setVisibleCount] = useState(30);
   const [hasAnimated, setHasAnimated] = useState(false);
@@ -139,6 +141,7 @@ export const CommentList = ({
             onLike={onLike}
             onDelete={() => onDelete(comment.id)}
             isHighlighted={comment.id === focusCommentId}
+            postHasSource={postHasSource}
           />
         </div>
       ))}

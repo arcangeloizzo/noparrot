@@ -10,6 +10,14 @@ import { MediaGallery } from '@/components/media/MediaGallery';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import ParrotReadIcon from '@/assets/parrot-comment-read.png';
+import ParrotUnreadIcon from '@/assets/parrot-comment-unread.png';
 
 interface CommentItemProps {
   comment: Comment;
@@ -18,6 +26,7 @@ interface CommentItemProps {
   onLike: (commentId: string, isLiked: boolean) => void;
   onDelete: () => void;
   isHighlighted?: boolean;
+  postHasSource?: boolean;
 }
 
 export const CommentItem = ({
@@ -26,7 +35,8 @@ export const CommentItem = ({
   onReply,
   onLike,
   onDelete,
-  isHighlighted
+  isHighlighted,
+  postHasSource = false
 }: CommentItemProps) => {
   const navigate = useNavigate();
   const { data: reactions } = useCommentReactions(comment.id);
@@ -126,6 +136,28 @@ export const CommentItem = ({
             <span className="font-semibold text-base">
               {comment.author.full_name || getDisplayUsername(comment.author.username)}
             </span>
+            
+            {postHasSource && (
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <img
+                      src={comment.passed_gate ? ParrotReadIcon : ParrotUnreadIcon}
+                      alt={comment.passed_gate ? 'Lettore consapevole' : 'Commento spontaneo'}
+                      className="w-4 h-4"
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <p className="text-xs">
+                      {comment.passed_gate
+                        ? 'Ha letto la fonte prima di commentare'
+                        : 'Non ha letto la fonte'}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+            
             <span className="text-muted-foreground text-sm">
               @{getDisplayUsername(comment.author.username)}
             </span>

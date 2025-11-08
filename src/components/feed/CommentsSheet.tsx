@@ -23,6 +23,10 @@ import { extractFirstUrl } from '@/lib/shouldRequireGate';
 import { runGateBeforeAction } from '@/lib/runGateBeforeAction';
 import { QuizModal } from '@/components/ui/quiz-modal';
 import { toast as sonnerToast } from 'sonner';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import ParrotReadIcon from '@/assets/parrot-comment-read.png';
+import ParrotUnreadIcon from '@/assets/parrot-comment-unread.png';
 
 interface CommentsSheetProps {
   post: Post;
@@ -47,9 +51,13 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   const [isProcessing, setIsProcessing] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizData, setQuizData] = useState<any>(null);
+  const [commentMode, setCommentMode] = useState<'unread' | 'read'>('unread');
+  const [userPassedGate, setUserPassedGate] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
+
+  const postHasSource = !!(post.shared_url && post.article_content);
 
   const { data: currentUserProfile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -71,6 +79,50 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     }
   }, [mode, isOpen]);
 
+  const handleReadAndComment = async () => {
+    if (!post.shared_url || !post.article_content) return;
+
+    setIsProcessing(true);
+    
+    try {
+      await runGateBeforeAction({
+        linkUrl: post.shared_url,
+        onSuccess: () => {
+          sonnerToast.success('Gate superato!', {
+            description: 'Ora puoi commentare come lettore consapevole.'
+          });
+          setUserPassedGate(true);
+          setCommentMode('read');
+          setIsProcessing(false);
+        },
+        onCancel: () => {
+          sonnerToast.info('Test non completato');
+          setCommentMode('unread');
+          setUserPassedGate(false);
+          setIsProcessing(false);
+        },
+        setIsProcessing,
+        setQuizData,
+        setShowQuiz
+      });
+    } catch (error) {
+      console.error('[CommentsSheet] Gate error:', error);
+      setIsProcessing(false);
+    }
+  };
+
+  const handleModeChange = (value: 'unread' | 'read') => {
+    if (value === 'read') {
+      if (!userPassedGate) {
+        handleReadAndComment();
+      } else {
+        setCommentMode('read');
+      }
+    } else {
+      setCommentMode('unread');
+    }
+  };
+
   const handleSubmit = async () => {
     if (!newComment.trim() || addComment.isPending || isProcessing) return;
 
@@ -83,7 +135,8 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
         postId: post.id,
         content: newComment.trim(),
         parentId: replyingTo,
-        level: parentComment ? parentComment.level + 1 : 0
+        level: parentComment ? parentComment.level + 1 : 0,
+        passedGate: commentMode === 'read'
       });
 
       if (uploadedMedia.length > 0 && commentId) {
@@ -104,7 +157,6 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     };
 
     if (linkUrl) {
-      // Gate richiesto per commenti con link
       await runGateBeforeAction({
         linkUrl,
         onSuccess: doSubmit,
@@ -114,7 +166,6 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
         setShowQuiz
       });
     } else {
-      // Pubblica direttamente
       await doSubmit();
     }
   };
@@ -165,6 +216,8 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
+      setCommentMode('unread');
+      setUserPassedGate(false);
     }
     return () => {
       document.body.style.overflow = 'unset';
@@ -262,6 +315,52 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
           </div>
         </div>
 
+        {/* Scelta Gate (solo se il post ha una fonte) */}
+        {postHasSource && (
+          <div className="px-4 py-3 border-b border-border bg-muted/20">
+            <Label className="font-semibold mb-3 block text-sm">
+              Come vuoi commentare?
+            </Label>
+            <RadioGroup
+              value={commentMode}
+              onValueChange={handleModeChange}
+              className="flex gap-4"
+              disabled={isProcessing}
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="unread" id="r-unread" />
+                <Label
+                  htmlFor="r-unread"
+                  className="flex items-center gap-2 cursor-pointer text-sm"
+                >
+                  <img
+                    src={ParrotUnreadIcon}
+                    alt=""
+                    className="w-5 h-5"
+                    aria-hidden="true"
+                  />
+                  Commento spontaneo
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="read" id="r-read" />
+                <Label
+                  htmlFor="r-read"
+                  className="flex items-center gap-2 cursor-pointer text-sm"
+                >
+                  <img
+                    src={ParrotReadIcon}
+                    alt=""
+                    className="w-5 h-5"
+                    aria-hidden="true"
+                  />
+                  Dopo aver letto
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+        )}
+
         {/* Lista commenti */}
         <div className="flex-1 overflow-y-auto pb-32">
           {isLoading ? (
@@ -349,7 +448,13 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                       setShowMentions(false);
                     }
                   }}
-                  placeholder={replyingTo ? `Rispondi...` : `Aggiungi un commento...`}
+                  placeholder={
+                    replyingTo 
+                      ? `Rispondi...` 
+                      : commentMode === 'read'
+                        ? 'Commento consapevole...'
+                        : 'Aggiungi un commento...'
+                  }
                   className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[40px] max-h-[120px] placeholder:text-muted-foreground leading-normal"
                   maxLength={500}
                   rows={2}
