@@ -332,6 +332,10 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                       setReplyingTo(comment.id);
                       setTimeout(() => textareaRef.current?.focus(), 100);
                     }}
+                    onLike={(commentId, isLiked) => {
+                      const toggleReaction = useToggleCommentReaction();
+                      toggleReaction.mutate({ commentId, isLiked });
+                    }}
                     onDelete={() => deleteComment.mutate(comment.id)}
                     onMediaClick={(media, index) => {
                       setViewerMedia(comment.media || []);
@@ -408,12 +412,11 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                       }}
                       placeholder={
                         selectedCommentType === null && postHasSource
-                          ? "Tocca qui per scegliere come commentare..."
+                          ? "👆 Tocca qui per scegliere come commentare"
                           : replyingTo 
                           ? `Rispondi...` 
                           : `Aggiungi un commento...`
                       }
-                      disabled={postHasSource && selectedCommentType === null}
                       className={cn(
                         "w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[40px] max-h-[120px] leading-normal",
                         postHasSource && selectedCommentType === null && "opacity-60 cursor-not-allowed"
@@ -611,13 +614,14 @@ interface CommentItemProps {
   comment: any;
   currentUserId?: string;
   onReply: () => void;
+  onLike: (commentId: string, isLiked: boolean) => void;
   onDelete: () => void;
   onMediaClick: (media: any, index: number) => void;
   getUserAvatar: (avatarUrl: string | null | undefined, name: string | undefined, username?: string) => JSX.Element;
   postHasSource?: boolean;
 }
 
-const CommentItem = ({ comment, currentUserId, onReply, onDelete, onMediaClick, getUserAvatar, postHasSource }: CommentItemProps) => {
+const CommentItem = ({ comment, currentUserId, onReply, onLike, onDelete, onMediaClick, getUserAvatar, postHasSource }: CommentItemProps) => {
   const { data: reactions } = useCommentReactions(comment.id);
   const toggleReaction = useToggleCommentReaction();
 
@@ -657,6 +661,13 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, onMediaClick, 
                 locale: it
               })}
             </span>
+            {postHasSource && (
+              <img 
+                src={comment.passed_gate ? ParrotReadIcon : ParrotUnreadIcon}
+                alt={comment.passed_gate ? 'Consapevole' : 'Spontaneo'}
+                className="w-4 h-4 ml-1"
+              />
+            )}
           </div>
 
           <div className="text-sm cognitive-text-primary mb-2">
@@ -674,7 +685,7 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, onMediaClick, 
 
           <div className="flex items-center gap-4 mt-2">
             <button
-              onClick={handleLike}
+              onClick={() => onLike(comment.id, reactions?.likedByMe || false)}
               className="flex items-center gap-1.5 text-xs cognitive-text-secondary hover:text-primary transition-colors"
             >
               <Heart
