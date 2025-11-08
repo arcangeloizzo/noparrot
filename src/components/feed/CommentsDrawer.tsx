@@ -34,6 +34,14 @@ interface CommentsDrawerProps {
 
 export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerProps) => {
   const { user } = useAuth();
+  const postHasSource = !!post.shared_url;
+  console.log('[CommentsDrawer] Debug:', {
+    postId: post.id,
+    hasSharedUrl: !!post.shared_url,
+    sharedUrl: post.shared_url,
+    postHasSource
+  });
+  
   const { data: comments = [], isLoading } = useComments(post.id);
   const addComment = useAddComment();
   const deleteComment = useDeleteComment();
@@ -262,6 +270,45 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
             </div>
           </DrawerHeader>
 
+          {/* Sezione scelta tipo commento */}
+          {postHasSource && (
+            <div className="px-4 py-4 bg-muted/30 border-b border-border">
+              <p className="text-sm font-semibold cognitive-text-primary mb-3">
+                Prima di commentare:
+              </p>
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg hover:bg-background/50 transition-colors">
+                  <input
+                    type="radio"
+                    name="comment-type"
+                    value="spontaneous"
+                    className="w-4 h-4"
+                  />
+                  <div>
+                    <p className="text-sm font-medium">Commento spontaneo</p>
+                    <p className="text-xs text-muted-foreground">
+                      Commenta senza leggere la fonte
+                    </p>
+                  </div>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg hover:bg-background/50 transition-colors">
+                  <input
+                    type="radio"
+                    name="comment-type"
+                    value="informed"
+                    className="w-4 h-4"
+                  />
+                  <div>
+                    <p className="text-sm font-medium">Dopo aver letto</p>
+                    <p className="text-xs text-muted-foreground">
+                      Leggi prima e supera il test (guadagni trust)
+                    </p>
+                  </div>
+                </label>
+              </div>
+            </div>
+          )}
+
           {/* Lista Commenti Scrollabile */}
           <div className="flex-1 overflow-y-auto px-4">
             {isLoading ? (
@@ -290,6 +337,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                       setViewerInitialIndex(index);
                     }}
                     getUserAvatar={getUserAvatar}
+                    postHasSource={postHasSource}
                   />
                 ))}
               </div>
@@ -448,9 +496,10 @@ interface CommentItemProps {
   onDelete: () => void;
   onMediaClick: (media: any, index: number) => void;
   getUserAvatar: (avatarUrl: string | null | undefined, name: string | undefined, username?: string) => JSX.Element;
+  postHasSource?: boolean;
 }
 
-const CommentItem = ({ comment, currentUserId, onReply, onDelete, onMediaClick, getUserAvatar }: CommentItemProps) => {
+const CommentItem = ({ comment, currentUserId, onReply, onDelete, onMediaClick, getUserAvatar, postHasSource }: CommentItemProps) => {
   const { data: reactions } = useCommentReactions(comment.id);
   const toggleReaction = useToggleCommentReaction();
 
