@@ -13,9 +13,10 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface AuthPageProps {
   initialMode?: 'login' | 'signup';
+  forcePasswordReset?: boolean;
 }
 
-export const AuthPage = ({ initialMode = 'login' }: AuthPageProps) => {
+export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: AuthPageProps) => {
   const navigate = useNavigate();
   const { user, signIn, signUpStep1, verifyEmailOTP, completeProfile } = useAuth();
   
@@ -24,7 +25,7 @@ export const AuthPage = ({ initialMode = 'login' }: AuthPageProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
-  const [showUpdatePassword, setShowUpdatePassword] = useState(false);
+  const [showUpdatePassword, setShowUpdatePassword] = useState(forcePasswordReset);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
@@ -45,16 +46,6 @@ export const AuthPage = ({ initialMode = 'login' }: AuthPageProps) => {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
-
-  // Rileva se siamo in modalità password recovery
-  useEffect(() => {
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const type = hashParams.get('type');
-    
-    if (type === 'recovery') {
-      setShowUpdatePassword(true);
-    }
-  }, []);
 
   useEffect(() => {
     // NON reindirizzare se siamo in modalità update password

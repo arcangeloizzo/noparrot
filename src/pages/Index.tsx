@@ -37,7 +37,7 @@ const Index = () => {
 
   // Password recovery ha priorità su tutto
   if (isPasswordRecovery) {
-    return <AuthPage />;
+    return <AuthPage forcePasswordReset={true} />;
   }
 
   // Non autenticato E ha già visto onboarding → mostra solo login
