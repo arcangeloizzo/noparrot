@@ -94,6 +94,14 @@ export const Post = () => {
   const deleteComment = useDeleteComment();
   const toggleReaction = useToggleCommentReaction();
 
+  const postHasSource = !!post?.shared_url;
+  console.log('[Post.tsx] Debug info:', {
+    postId: post?.id,
+    hasSharedUrl: !!post?.shared_url,
+    sharedUrl: post?.shared_url,
+    postHasSource
+  });
+
   const handleSubmitComment = async (content: string) => {
     if (!postId || !user) return;
 
@@ -318,6 +326,7 @@ export const Post = () => {
         onDelete={handleDelete}
         focusCommentId={focusCommentId}
         sortMode={sortMode}
+        postHasSource={postHasSource}
       />
 
       {/* Sticky Composer */}
