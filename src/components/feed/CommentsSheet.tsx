@@ -58,6 +58,12 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
 
   const postHasSource = !!post.shared_url;
+  console.log('[CommentsSheet] Debug gate:', {
+    postId: post.id,
+    hasSharedUrl: !!post.shared_url,
+    sharedUrl: post.shared_url,
+    postHasSource
+  });
 
   const { data: currentUserProfile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -389,6 +395,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                     setViewerInitialIndex(index);
                   }}
                   getUserAvatar={getUserAvatar}
+                  postHasSource={postHasSource}
                 />
               ))}
             </div>
@@ -550,9 +557,10 @@ interface CommentItemProps {
   onDelete: () => void;
   onMediaClick: (media: any, index: number) => void;
   getUserAvatar: (avatarUrl: string | null | undefined, name: string | undefined, username?: string) => JSX.Element;
+  postHasSource?: boolean;
 }
 
-const CommentItem = ({ comment, currentUserId, onReply, onDelete, onMediaClick, getUserAvatar }: CommentItemProps) => {
+const CommentItem = ({ comment, currentUserId, onReply, onDelete, onMediaClick, getUserAvatar, postHasSource = false }: CommentItemProps) => {
   const { data: reactions } = useCommentReactions(comment.id);
   const toggleReaction = useToggleCommentReaction();
 
