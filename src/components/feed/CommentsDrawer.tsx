@@ -24,6 +24,8 @@ import { extractFirstUrl } from '@/lib/shouldRequireGate';
 import { runGateBeforeAction } from '@/lib/runGateBeforeAction';
 import { QuizModal } from '@/components/ui/quiz-modal';
 import { toast as sonnerToast } from 'sonner';
+import ParrotReadIcon from '@/assets/parrot-comment-read.png';
+import ParrotUnreadIcon from '@/assets/parrot-comment-unread.png';
 
 interface CommentsDrawerProps {
   post: Post;
@@ -35,12 +37,6 @@ interface CommentsDrawerProps {
 export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerProps) => {
   const { user } = useAuth();
   const postHasSource = !!post.shared_url;
-  console.log('[CommentsDrawer] Debug:', {
-    postId: post.id,
-    hasSharedUrl: !!post.shared_url,
-    sharedUrl: post.shared_url,
-    postHasSource
-  });
   
   const { data: comments = [], isLoading } = useComments(post.id);
   const addComment = useAddComment();
@@ -59,6 +55,11 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
+  
+  // Stati per la scelta del tipo di commento
+  const [showCommentTypeChoice, setShowCommentTypeChoice] = useState(false);
+  const [selectedCommentType, setSelectedCommentType] = useState<'spontaneous' | 'informed' | null>(null);
+  const [isProcessingGate, setIsProcessingGate] = useState(false);
 
   const { data: currentUserProfile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -84,6 +85,9 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
     if (!newComment.trim() || addComment.isPending || isProcessing) return;
 
     const linkUrl = extractFirstUrl(newComment);
+    
+    // Determina il valore di passed_gate in base al tipo di commento selezionato
+    const passedGate = selectedCommentType === 'informed';
 
     const doSubmit = async () => {
       const parentComment = replyingTo ? comments.find(c => c.id === replyingTo) : null;
@@ -92,7 +96,8 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
         postId: post.id,
         content: newComment.trim(),
         parentId: replyingTo,
-        level: parentComment ? parentComment.level + 1 : 0
+        level: parentComment ? parentComment.level + 1 : 0,
+        passedGate,
       });
 
       if (uploadedMedia.length > 0 && commentId) {
@@ -109,6 +114,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
       setShowMentions(false);
       setMentionQuery('');
       setReplyingTo(null);
+      setSelectedCommentType(null);
       clearMedia();
     };
 
@@ -192,6 +198,15 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+  
+  // Reset scelta quando chiude il drawer
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedCommentType(null);
+      setShowCommentTypeChoice(false);
+      setIsProcessingGate(false);
+    }
+  }, [isOpen]);
 
   const getInitials = (name: string) => {
     return name
@@ -270,42 +285,28 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
             </div>
           </DrawerHeader>
 
-          {/* Sezione scelta tipo commento */}
-          {postHasSource && (
-            <div className="px-4 py-4 bg-muted/30 border-b border-border">
-              <p className="text-sm font-semibold cognitive-text-primary mb-3">
-                Prima di commentare:
-              </p>
-              <div className="space-y-2">
-                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg hover:bg-background/50 transition-colors">
-                  <input
-                    type="radio"
-                    name="comment-type"
-                    value="spontaneous"
-                    className="w-4 h-4"
-                  />
-                  <div>
-                    <p className="text-sm font-medium">Commento spontaneo</p>
-                    <p className="text-xs text-muted-foreground">
-                      Commenta senza leggere la fonte
-                    </p>
-                  </div>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer p-3 rounded-lg hover:bg-background/50 transition-colors">
-                  <input
-                    type="radio"
-                    name="comment-type"
-                    value="informed"
-                    className="w-4 h-4"
-                  />
-                  <div>
-                    <p className="text-sm font-medium">Dopo aver letto</p>
-                    <p className="text-xs text-muted-foreground">
-                      Leggi prima e supera il test (guadagni trust)
-                    </p>
-                  </div>
-                </label>
+          {/* Badge indicatore tipo commento selezionato */}
+          {selectedCommentType && (
+            <div className="px-4 py-3 bg-muted/30 border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <img 
+                  src={selectedCommentType === 'spontaneous' ? ParrotUnreadIcon : ParrotReadIcon}
+                  alt={selectedCommentType === 'spontaneous' ? 'Spontaneo' : 'Consapevole'}
+                  className="w-5 h-5"
+                />
+                <span className="text-sm font-medium">
+                  {selectedCommentType === 'spontaneous' ? 'Commento spontaneo' : 'Commento consapevole'}
+                </span>
               </div>
+              <button 
+                onClick={() => {
+                  setSelectedCommentType(null);
+                  setNewComment("");
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Cambia
+              </button>
             </div>
           )}
 
@@ -372,6 +373,13 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                       ref={textareaRef}
                       value={newComment}
                       onChange={handleTextChange}
+                      onFocus={() => {
+                        // Se il post ha source E non abbiamo ancora scelto, mostra la scelta
+                        if (postHasSource && selectedCommentType === null && !showCommentTypeChoice) {
+                          setShowCommentTypeChoice(true);
+                          textareaRef.current?.blur();
+                        }
+                      }}
                       onKeyDown={(e) => {
                         if (!showMentions || mentionUsers.length === 0) {
                           if (e.key === 'Enter' && !e.shiftKey) {
@@ -398,8 +406,18 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                           setShowMentions(false);
                         }
                       }}
-                      placeholder={replyingTo ? `Rispondi...` : `Aggiungi un commento...`}
-                      className="w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[40px] max-h-[120px] leading-normal"
+                      placeholder={
+                        selectedCommentType === null && postHasSource
+                          ? "Tocca qui per scegliere come commentare..."
+                          : replyingTo 
+                          ? `Rispondi...` 
+                          : `Aggiungi un commento...`
+                      }
+                      disabled={postHasSource && selectedCommentType === null}
+                      className={cn(
+                        "w-full bg-transparent border-none focus:outline-none resize-none text-[15px] min-h-[40px] max-h-[120px] leading-normal",
+                        postHasSource && selectedCommentType === null && "opacity-60 cursor-not-allowed"
+                      )}
                       maxLength={500}
                       rows={2}
                       style={{ 
@@ -459,6 +477,106 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
           </div>
         </DrawerContent>
       </Drawer>
+
+      {/* Choice UI - Slide Up Sheet */}
+      {showCommentTypeChoice && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-[60] animate-fade-in"
+          onClick={() => setShowCommentTypeChoice(false)}
+        >
+          <div 
+            className="absolute bottom-0 left-0 right-0 bg-background rounded-t-[28px] p-6 shadow-2xl"
+            style={{
+              animation: 'slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Handle bar */}
+            <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-6" />
+            
+            <h3 className="text-lg font-semibold mb-2">Prima di commentare</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Scegli come vuoi partecipare alla discussione
+            </p>
+            
+            <div className="space-y-3 mb-4">
+              {/* Opzione Spontaneo */}
+              <button
+                onClick={() => {
+                  setSelectedCommentType('spontaneous');
+                  setShowCommentTypeChoice(false);
+                  setTimeout(() => textareaRef.current?.focus(), 150);
+                }}
+                className="w-full p-4 rounded-xl border-2 border-border hover:border-muted-foreground hover:bg-muted/30 transition-all text-left group"
+              >
+                <div className="flex items-start gap-3">
+                  <img 
+                    src={ParrotUnreadIcon} 
+                    alt="Spontaneo" 
+                    className="w-10 h-10 transition-transform group-hover:scale-110"
+                  />
+                  <div className="flex-1">
+                    <p className="font-semibold mb-1">Commento spontaneo</p>
+                    <p className="text-sm text-muted-foreground">
+                      Commenta liberamente senza leggere la fonte
+                    </p>
+                  </div>
+                </div>
+              </button>
+              
+              {/* Opzione Consapevole */}
+              <button
+                onClick={async () => {
+                  setShowCommentTypeChoice(false);
+                  setIsProcessingGate(true);
+                  
+                  try {
+                    // Apri il gate usando lo stesso pattern del handleSubmit
+                    await runGateBeforeAction({
+                      linkUrl: post.shared_url!,
+                      onSuccess: () => {
+                        setSelectedCommentType('informed');
+                        setTimeout(() => textareaRef.current?.focus(), 150);
+                        sonnerToast.success("Quiz superato! Ora puoi commentare consapevolmente.");
+                      },
+                      onCancel: () => {
+                        sonnerToast.error("Non hai superato il quiz. Puoi comunque fare un commento spontaneo.");
+                      },
+                      setIsProcessing: setIsProcessingGate,
+                      setQuizData,
+                      setShowQuiz
+                    });
+                  } catch (error) {
+                    console.error("Error running gate:", error);
+                    sonnerToast.error("Errore durante la verifica del contenuto");
+                  } finally {
+                    setIsProcessingGate(false);
+                  }
+                }}
+                disabled={isProcessingGate}
+                className="w-full p-4 rounded-xl border-2 border-primary bg-primary/10 hover:bg-primary/20 hover:border-primary transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <div className="flex items-start gap-3">
+                  <img 
+                    src={ParrotReadIcon} 
+                    alt="Consapevole" 
+                    className="w-10 h-10 transition-transform group-hover:scale-110"
+                  />
+                  <div className="flex-1">
+                    <p className="font-semibold mb-1">Commento consapevole</p>
+                    <p className="text-sm text-muted-foreground">
+                      Leggi la fonte e supera il test per guadagnare trust
+                    </p>
+                    <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                      <span>+Trust Score</span>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {viewerMedia && (
         <MediaViewer
