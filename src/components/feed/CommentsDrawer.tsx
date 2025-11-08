@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useComments, useAddComment, useDeleteComment } from '@/hooks/useComments';
 import { useCommentReactions, useToggleCommentReaction } from '@/hooks/useCommentReactions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -507,119 +508,111 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
         </DrawerContent>
       </Drawer>
 
-      {/* Choice UI - Slide Up Sheet */}
-      {showCommentTypeChoice && (
-        <div 
-          className="fixed inset-0 bg-black/60 z-[60] animate-fade-in"
-          onClick={() => setShowCommentTypeChoice(false)}
-        >
-          <div 
-            className="absolute bottom-0 left-0 right-0 bg-background rounded-t-[28px] p-6 shadow-2xl"
-            style={{
-              animation: 'slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Handle bar */}
-            <div className="w-12 h-1 bg-muted rounded-full mx-auto mb-6" />
-            
-            <h3 className="text-lg font-semibold mb-2">Prima di commentare</h3>
-            <p className="text-sm text-muted-foreground mb-6">
+      {/* Choice UI - Dialog */}
+      <Dialog open={showCommentTypeChoice} onOpenChange={setShowCommentTypeChoice}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Prima di commentare</DialogTitle>
+            <DialogDescription>
               Scegli come vuoi partecipare alla discussione
-            </p>
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-3">
+            {/* Opzione Spontaneo */}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[Spontaneo button] Clicked');
+                setSelectedCommentType('spontaneous');
+                setShowCommentTypeChoice(false);
+                setTimeout(() => textareaRef.current?.focus(), 150);
+              }}
+              className="w-full p-4 rounded-xl border-2 border-border hover:border-muted-foreground hover:bg-muted/30 transition-all text-left group"
+            >
+              <div className="flex items-start gap-3">
+                <img 
+                  src={ParrotUnreadIcon} 
+                  alt="Spontaneo" 
+                  className="w-10 h-10 transition-transform group-hover:scale-110"
+                />
+                <div className="flex-1">
+                  <p className="font-semibold mb-1">Commento spontaneo</p>
+                  <p className="text-sm text-muted-foreground">
+                    Commenta liberamente senza leggere la fonte
+                  </p>
+                </div>
+              </div>
+            </button>
             
-            <div className="space-y-3 mb-4">
-              {/* Opzione Spontaneo */}
-              <button
-                onClick={() => {
-                  setSelectedCommentType('spontaneous');
+            {/* Opzione Consapevole */}
+            <button
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[Consapevole button] Clicked', { 
+                  hasSharedUrl: !!post.shared_url, 
+                  sharedUrl: post.shared_url,
+                  isProcessing: isProcessingGate 
+                });
+                
+                if (!post.shared_url) {
+                  sonnerToast.error("Questo post non ha una fonte da verificare");
                   setShowCommentTypeChoice(false);
-                  setTimeout(() => textareaRef.current?.focus(), 150);
-                }}
-                className="w-full p-4 rounded-xl border-2 border-border hover:border-muted-foreground hover:bg-muted/30 transition-all text-left group"
-              >
-                <div className="flex items-start gap-3">
-                  <img 
-                    src={ParrotUnreadIcon} 
-                    alt="Spontaneo" 
-                    className="w-10 h-10 transition-transform group-hover:scale-110"
-                  />
-                  <div className="flex-1">
-                    <p className="font-semibold mb-1">Commento spontaneo</p>
-                    <p className="text-sm text-muted-foreground">
-                      Commenta liberamente senza leggere la fonte
-                    </p>
-                  </div>
-                </div>
-              </button>
-              
-              {/* Opzione Consapevole */}
-              <button
-                onClick={async () => {
-                  console.log('[Consapevole button] Clicked', { 
-                    hasSharedUrl: !!post.shared_url, 
-                    sharedUrl: post.shared_url,
-                    isProcessing: isProcessingGate 
+                  return;
+                }
+                
+                setShowCommentTypeChoice(false);
+                setIsProcessingGate(true);
+                
+                try {
+                  await runGateBeforeAction({
+                    linkUrl: post.shared_url,
+                    onSuccess: () => {
+                      console.log('[Gate] Quiz passed successfully');
+                      setSelectedCommentType('informed');
+                      setTimeout(() => textareaRef.current?.focus(), 150);
+                      sonnerToast.success("Quiz superato! Ora puoi commentare consapevolmente.");
+                    },
+                    onCancel: () => {
+                      console.log('[Gate] Quiz failed or cancelled');
+                      sonnerToast.error("Non hai superato il quiz. Puoi comunque fare un commento spontaneo.");
+                    },
+                    setIsProcessing: setIsProcessingGate,
+                    setQuizData,
+                    setShowQuiz
                   });
-                  
-                  if (!post.shared_url) {
-                    sonnerToast.error("Questo post non ha una fonte da verificare");
-                    setShowCommentTypeChoice(false);
-                    return;
-                  }
-                  
-                  setShowCommentTypeChoice(false);
-                  setIsProcessingGate(true);
-                  
-                  try {
-                    // Apri il gate usando lo stesso pattern del handleSubmit
-                    await runGateBeforeAction({
-                      linkUrl: post.shared_url,
-                      onSuccess: () => {
-                        console.log('[Gate] Quiz passed successfully');
-                        setSelectedCommentType('informed');
-                        setTimeout(() => textareaRef.current?.focus(), 150);
-                        sonnerToast.success("Quiz superato! Ora puoi commentare consapevolmente.");
-                      },
-                      onCancel: () => {
-                        console.log('[Gate] Quiz failed or cancelled');
-                        sonnerToast.error("Non hai superato il quiz. Puoi comunque fare un commento spontaneo.");
-                      },
-                      setIsProcessing: setIsProcessingGate,
-                      setQuizData,
-                      setShowQuiz
-                    });
-                  } catch (error) {
-                    console.error("Error running gate:", error);
-                    sonnerToast.error("Errore durante la verifica del contenuto");
-                  } finally {
-                    setIsProcessingGate(false);
-                  }
-                }}
-                disabled={isProcessingGate}
-                className="w-full p-4 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/10 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <div className="flex items-start gap-3">
-                  <img 
-                    src={ParrotReadIcon} 
-                    alt="Consapevole" 
-                    className="w-10 h-10 transition-transform group-hover:scale-110"
-                  />
-                  <div className="flex-1">
-                    <p className="font-semibold mb-1">Commento consapevole</p>
-                    <p className="text-sm text-muted-foreground">
-                      Leggi la fonte e supera il test per guadagnare trust
-                    </p>
-                    <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary">
-                      <span>+Trust Score</span>
-                    </div>
+                } catch (error) {
+                  console.error("Error running gate:", error);
+                  sonnerToast.error("Errore durante la verifica del contenuto");
+                } finally {
+                  setIsProcessingGate(false);
+                }
+              }}
+              disabled={isProcessingGate}
+              className="w-full p-4 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/10 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <div className="flex items-start gap-3">
+                <img 
+                  src={ParrotReadIcon} 
+                  alt="Consapevole" 
+                  className="w-10 h-10 transition-transform group-hover:scale-110"
+                />
+                <div className="flex-1">
+                  <p className="font-semibold mb-1">Commento consapevole</p>
+                  <p className="text-sm text-muted-foreground">
+                    Leggi la fonte e supera il test per guadagnare trust
+                  </p>
+                  <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                    <span>+Trust Score</span>
                   </div>
                 </div>
-              </button>
-            </div>
+              </div>
+            </button>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {viewerMedia && (
         <MediaViewer
