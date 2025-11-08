@@ -8,10 +8,18 @@ import { useAuth } from "@/contexts/AuthContext";
 const Index = () => {
   const { user, loading } = useAuth();
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   useEffect(() => {
     const seen = localStorage.getItem('noparrot-onboarding-completed');
     setHasSeenOnboarding(!!seen);
+
+    // Controlla se siamo in modalità password recovery
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const type = hashParams.get('type');
+    if (type === 'recovery') {
+      setIsPasswordRecovery(true);
+    }
   }, []);
 
   const handleOnboardingComplete = () => {
@@ -25,6 +33,11 @@ const Index = () => {
         <div className="text-lg text-muted-foreground">Caricamento...</div>
       </div>
     );
+  }
+
+  // Password recovery ha priorità su tutto
+  if (isPasswordRecovery) {
+    return <AuthPage />;
   }
 
   // Non autenticato E ha già visto onboarding → mostra solo login
