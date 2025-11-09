@@ -301,8 +301,27 @@ serve(async (req) => {
   try {
     const { url } = await req.json();
 
-    if (!url) {
-      throw new Error('URL is required');
+    // FASE 2: Gestione Facebook/HDBlog - Fallback graceful per siti bloccati
+    const urlLower = url.toLowerCase();
+    const hostname = new URL(url).hostname;
+    
+    // FASE 2: Facebook/Instagram/Meta - Restituisci placeholder (bloccano sempre)
+    if (urlLower.includes('facebook.com') || urlLower.includes('fb.watch') || 
+        urlLower.includes('fb.com') || urlLower.includes('m.facebook.com') ||
+        urlLower.includes('instagram.com')) {
+      console.log(`[Preview] 🔴 Rilevato ${hostname}. Sito blocca scraping - restituisco placeholder`);
+      return new Response(JSON.stringify({
+        success: true,
+        title: `Contenuto da ${hostname}`,
+        content: `I contenuti di ${hostname} non possono essere analizzati per limitazioni della piattaforma. Apri l'originale per visualizzare.`,
+        summary: `Contenuto da ${hostname} - apri l'originale`,
+        platform: urlLower.includes('facebook') ? 'facebook' : 'instagram',
+        type: 'social',
+        hostname,
+        contentQuality: 'minimal'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Check if it's a YouTube link
@@ -348,11 +367,19 @@ serve(async (req) => {
             if (transcriptResponse.ok) {
               const transcriptData = await transcriptResponse.json();
               
+              // FASE 2: Logging dettagliato YouTube transcript
+              console.log('[YouTube] 📝 Transcript response:', {
+                hasTranscript: !!transcriptData.transcript,
+                transcriptLength: transcriptData.transcript?.length || 0,
+                transcriptSource: transcriptData.source,
+                error: transcriptData.error
+              });
+              
               if (transcriptData.transcript && transcriptData.transcript.length > 50) {
                 transcript = transcriptData.transcript;
                 transcriptSource = transcriptData.source || 'youtube_captions';
                 transcriptAvailable = true;
-                console.log(`[fetch-article-preview] ✅ Transcript fetched successfully (${transcriptSource}), length: ${transcript.length}`);
+                console.log(`[YouTube] ✅ Transcript fetched successfully (${transcriptSource}), length: ${transcript.length}`);
               } else if (transcriptData.error) {
                 transcriptError = transcriptData.error;
                 console.warn(`[fetch-article-preview] ⚠️ Transcript error: ${transcriptData.error}`);
@@ -425,7 +452,16 @@ serve(async (req) => {
           
           if (response.ok) {
             const data = await response.json();
-            console.log('[TikTok] ✓ oEmbed successful');
+            
+            // FASE 2: Logging dettagliato TikTok embedHtml
+            console.log('[TikTok] 🎬 oEmbed response:', {
+              hasEmbedHtml: !!data.html,
+              embedHtmlLength: data.html?.length || 0,
+              hasTitle: !!data.title,
+              hasAuthor: !!data.author_name,
+              hasThumbnail: !!data.thumbnail_url
+            });
+            console.log('[TikTok] ✅ oEmbed successful');
             
             return new Response(JSON.stringify({
               success: true,
@@ -792,6 +828,29 @@ ${html.substring(0, 20000).replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '').replace(/<
 
   } catch (error) {
     console.error('[fetch-article-preview] Error:', error);
+    
+    // FASE 2: Fallback graceful per errori 403/503 (HDBlog, siti bloccati)
+    if (error.status === 403 || error.status === 503) {
+      try {
+        const hostname = new URL(url).hostname;
+        console.log(`[Preview] 🔴 Sito bloccato (${error.status}): ${hostname} - restituisco placeholder`);
+        return new Response(JSON.stringify({
+          success: true,
+          title: `Contenuto da ${hostname}`,
+          content: `Questo sito (${hostname}) blocca l'analisi automatica. Apri l'originale per visualizzare.`,
+          summary: `Sito bloccato - ${hostname}`,
+          platform: 'article',
+          type: 'article',
+          hostname,
+          contentQuality: 'minimal'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (fallbackError) {
+        console.error('[Preview] Fallback error:', fallbackError);
+      }
+    }
+    
     return new Response(
       JSON.stringify({ 
         error: 'An error occurred fetching article preview',

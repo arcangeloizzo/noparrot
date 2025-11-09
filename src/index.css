@@ -150,15 +150,16 @@
     }
   }
 
-  /* Sticky Header Fix - Force GPU acceleration with !important */
+  /* FASE 5: Sticky Header Fix - Force GPU acceleration with !important */
   .cognitive-header {
     position: sticky !important;
+    position: -webkit-sticky !important;
     top: 0 !important;
-    z-index: 40 !important;
+    z-index: 50 !important;
     background: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background) / 0.95) 100%) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
-    border-bottom: 1px solid hsl(var(--border) / 0.1) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border-bottom: 1px solid hsl(var(--border) / 0.4) !important;
     will-change: transform !important;
     transform: translateZ(0) !important;
     -webkit-transform: translateZ(0) !important;
@@ -376,14 +377,19 @@
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Collapsible Header - Sticky */
+  /* FASE 5: Collapsible Header - Sticky forzato */
   .cognitive-header {
     position: sticky !important;
+    position: -webkit-sticky !important;
     top: 0 !important;
     z-index: 50 !important;
-    background: hsl(var(--background)) !important;
-    border-bottom: 1px solid hsl(var(--border)) !important;
+    background: hsl(var(--background) / 0.95) !important;
+    border-bottom: 1px solid hsl(var(--border) / 0.4) !important;
     backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    will-change: transform !important;
+    transform: translateZ(0) !important;
+    -webkit-transform: translateZ(0) !important;
   }
 
   .collapsible-header {
@@ -622,7 +628,7 @@
   100% { box-shadow: 0 0 0 8px rgba(47, 127, 239, 0); }
 }
 
-/* Cognitive Header */
+/* FASE 5: Cognitive Header - Sticky forzato */
 .cognitive-header {
   background: linear-gradient(
     180deg,
@@ -630,11 +636,16 @@
     rgba(20, 24, 28, 0.7) 100%
   ) !important;
   backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
   border-bottom: 1px solid rgba(47, 127, 239, 0.1) !important;
   padding: 16px !important;
   position: sticky !important;
+  position: -webkit-sticky !important;
   top: 0 !important;
   z-index: 50 !important;
+  will-change: transform !important;
+  transform: translateZ(0) !important;
+  -webkit-transform: translateZ(0) !important;
 }
 
 .cognitive-header .logo-container {
@@ -960,19 +971,24 @@
   100% { box-shadow: 0 0 0 8px rgba(47, 127, 239, 0); }
 }
 
-/* Cognitive Header */
+/* FASE 5: Cognitive Header - Duplicato forzato */
 .cognitive-header {
   background: linear-gradient(
     180deg,
     rgba(20, 24, 28, 0.95) 0%,
     rgba(20, 24, 28, 0.7) 100%
-  );
-  backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(47, 127, 239, 0.1);
-  padding: 16px;
-  position: sticky;
-  top: 0;
-  z-index: 50;
+  ) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-bottom: 1px solid rgba(47, 127, 239, 0.1) !important;
+  padding: 16px !important;
+  position: sticky !important;
+  position: -webkit-sticky !important;
+  top: 0 !important;
+  z-index: 50 !important;
+  will-change: transform !important;
+  transform: translateZ(0) !important;
+  -webkit-transform: translateZ(0) !important;
 }
 
 .cognitive-header .logo-container {

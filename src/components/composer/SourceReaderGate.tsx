@@ -83,8 +83,8 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     config: READER_GATE_CONFIG
   });
 
-  // Fallback timer per contenuti non segmentabili - 10s friction
-  const [timeLeft, setTimeLeft] = useState(10);
+  // Fallback timer per contenuti non segmentabili - FASE 3: 30s friction
+  const [timeLeft, setTimeLeft] = useState(30);
   const [frictionDuration] = useState(10000); // 10s di friction aggressiva
   const [scrollThreshold] = useState(50); // Rallenta scroll >50px/s (più sensibile)
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -240,14 +240,23 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
   useEffect(() => {
     if (!isOpen) {
-      setTimeLeft(10); // 10 secondi di timer // 30 secondi iniziali
+      setTimeLeft(30); // FASE 3: 30 secondi di timer
       setScrollProgress(0);
       setHasScrolledToBottom(false);
       setShowTypingIndicator(false);
       setAttritionActive(false);
       setShowVelocityWarning(false);
+      // FASE 1: Unlock body scroll (CSS puro)
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
       return;
     }
+
+    // FASE 1: Lock body scroll when reader is open (CSS puro)
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
 
     // Show typing indicator briefly at start
     setShowTypingIndicator(true);
@@ -255,21 +264,11 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
     const cleanup = () => clearTimeout(indicatorTimer);
 
-    // Block body scroll when modal is open
-    const originalOverflow = document.body.style.overflow;
-    const originalPaddingRight = document.body.style.paddingRight;
-
-    // Get scrollbar width to prevent layout shift
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-
-    document.body.style.overflow = 'hidden';
-    document.body.style.paddingRight = `${scrollbarWidth}px`;
-
-    // Timer countdown (fallback per contenuti non segmentabili)
+    // FASE 3: Timer countdown (30s fallback per contenuti non segmentabili)
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
-          // NON disattivare friction - rimane attivo fino al gate completion
+          // FASE 3: NON disattivare friction - rimane attivo fino al gate completion
           return 0;
         }
         return prev - 1;
@@ -279,9 +278,10 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     return () => {
       cleanup();
       clearInterval(timer);
-      // Restore body scroll on unmount
-      document.body.style.overflow = originalOverflow;
-      document.body.style.paddingRight = originalPaddingRight;
+      // FASE 1: Unlock body scroll on unmount
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
     };
   }, [isOpen]);
 
@@ -442,7 +442,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
             )}
             {!isReady && mode !== 'guardrail' && (
               <span className="text-muted-foreground text-xs">
-                Leggi per 10s o scorri tutto
+                Leggi per 30s o scorri tutto
               </span>
             )}
           </div>

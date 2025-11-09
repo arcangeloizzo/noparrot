@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { X, Share, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Post } from "@/hooks/usePosts";
-import { disableBodyScroll, enableBodyScroll, clearAllBodyScrollLocks } from 'body-scroll-lock';
 
 interface ArticleReaderProps {
   post: Post;
@@ -24,12 +23,17 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleRea
       setCanProceed(false);
       setHasScrolledToBottom(false);
       setHasCompletedReading(false);
-      enableBodyScroll(document.body);
+      // Unlock body scroll (FASE 1 - CSS puro)
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
       return;
     }
 
-    // Lock body scroll when reader is open
-    disableBodyScroll(document.body);
+    // Lock body scroll when reader is open (FASE 1 - CSS puro)
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
 
     // Timer countdown
     const timer = setInterval(() => {
@@ -45,16 +49,12 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleRea
 
     return () => {
       clearInterval(timer);
-      enableBodyScroll(document.body);
+      // Unlock body scroll on unmount
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
     };
   }, [isOpen]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      clearAllBodyScrollLocks();
-    };
-  }, []);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
