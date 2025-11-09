@@ -362,7 +362,15 @@
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Collapsible Header */
+  /* Collapsible Header - Sticky */
+  .cognitive-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: hsl(var(--background));
+    border-bottom: 1px solid hsl(var(--border));
+  }
+
   .collapsible-header {
     will-change: transform, opacity;
   }

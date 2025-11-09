@@ -15,8 +15,17 @@ serve(async (req) => {
   try {
     const { sourceUrl, postText } = await req.json();
 
+    console.log('[TrustScore Edge] Request received:', {
+      sourceUrl,
+      postTextLength: postText?.length || 0
+    });
+
     if (!sourceUrl) {
-      throw new Error('sourceUrl is required');
+      console.log('[TrustScore Edge] Missing sourceUrl');
+      return new Response(
+        JSON.stringify({ error: 'sourceUrl is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
@@ -162,7 +171,11 @@ IMPORTANTE: Sii conservativo. In caso di dubbio, preferisci MEDIO.`;
     // Limit reasons to 3
     parsedContent.reasons = parsedContent.reasons.slice(0, 3);
 
-    console.log('Trust score evaluated:', parsedContent);
+    console.log('[TrustScore Edge] Returning:', {
+      band: parsedContent.band,
+      score: parsedContent.score,
+      reasonsCount: parsedContent.reasons.length
+    });
 
     return new Response(
       JSON.stringify(parsedContent),

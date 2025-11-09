@@ -84,12 +84,23 @@ export async function fetchTrustScore({
   sources: string[]; 
   userMeta?: any;
 }): Promise<TrustScoreResult | null> {
+  console.log('[TrustScore] Request:', {
+    postTextLength: postText.length,
+    sources,
+    sourcesCount: sources.length,
+    firstSource: sources[0]
+  });
+  
   try {
     const sourceUrl = sources[0];
-    if (!sourceUrl) return null;
+    if (!sourceUrl) {
+      console.log('[TrustScore] No source URL provided, returning null');
+      return null;
+    }
 
     const { supabase } = await import("@/integrations/supabase/client");
     
+    console.log('[TrustScore] Invoking edge function...');
     const { data, error } = await supabase.functions.invoke('evaluate-trust-score', {
       body: {
         sourceUrl,
@@ -97,13 +108,21 @@ export async function fetchTrustScore({
       }
     });
 
+    console.log('[TrustScore] Response:', {
+      data,
+      error,
+      band: data?.band,
+      score: data?.score,
+      reasonsCount: data?.reasons?.length
+    });
+
     if (error) {
-      console.error('Error evaluating trust score:', error);
+      console.error('[TrustScore] Error:', error);
       return null;
     }
 
     // Transform response to match expected format
-    return {
+    const result = {
       band: data.band,
       score: data.score,
       reasons: data.reasons || [],
@@ -112,8 +131,11 @@ export async function fetchTrustScore({
              'hsl(var(--destructive))',
       hasSources: true
     };
+    
+    console.log('[TrustScore] Returning result:', result);
+    return result;
   } catch (error) {
-    console.error('Error in fetchTrustScore:', error);
+    console.error('[TrustScore] Catch error:', error);
     return null;
   }
 }
