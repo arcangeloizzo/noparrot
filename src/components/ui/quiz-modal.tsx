@@ -125,7 +125,13 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
   const allAnswered = Object.keys(answers).length === questions.length;
 
   const handleBackdropClick = (e: React.MouseEvent) => {
+    console.log('[QuizModal] Backdrop clicked', { 
+      target: e.target, 
+      currentTarget: e.currentTarget 
+    });
     if (e.target === e.currentTarget && onCancel) {
+      e.preventDefault();
+      e.stopPropagation();
       onCancel();
     }
   };
@@ -160,7 +166,15 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
               </>
             )}
           </div>
-          <Button onClick={onCancel} className="w-full">
+          <Button 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('[QuizModal] Close result clicked');
+              onCancel?.();
+            }} 
+            className="w-full"
+          >
             Chiudi
           </Button>
         </div>
@@ -233,7 +247,15 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
               return (
                 <button
                   key={choice.id}
-                  onClick={() => handleAnswer(currentQuestion.id, choice.id)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('[QuizModal] Choice clicked:', { 
+                      questionId: currentQuestion.id, 
+                      choiceId: choice.id 
+                    });
+                    handleAnswer(currentQuestion.id, choice.id);
+                  }}
                   disabled={showFeedback}
                   className={buttonClasses}
                 >
@@ -274,7 +296,16 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
         {/* Actions */}
         <div className="flex gap-3">
           {onCancel && (
-            <Button onClick={onCancel} variant="outline" className="flex-1">
+            <Button 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('[QuizModal] Cancel clicked');
+                onCancel?.();
+              }} 
+              variant="outline" 
+              className="flex-1"
+            >
               Annulla
             </Button>
           )}
