@@ -32,7 +32,9 @@ const validateEmbedDomain = (url: string): boolean => {
       'youtube-nocookie.com',
       'platform.twitter.com',
       'twitter.com',
-      'x.com'
+      'x.com',
+      'www.tiktok.com',
+      'tiktok.com'
     ];
     return allowedDomains.includes(parsed.hostname);
   } catch {
@@ -699,6 +701,75 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 
                 {/* Padding per scroll */}
                 <div className="h-32"></div>
+              </>
+            ) : source.platform === 'tiktok' ? (
+              <>
+                {/* TikTok Content */}
+                <div className="max-w-2xl mx-auto space-y-4">
+                  {/* Platform Header */}
+                  <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-lg">
+                    <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center">
+                      <span className="text-lg">🎵</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">TikTok</p>
+                      {source.author && (
+                        <p className="text-sm text-muted-foreground">{source.author}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* TikTok Embed */}
+                  {source.embedHtml ? (
+                    <div className="w-full flex justify-center bg-muted/50 rounded-lg p-4">
+                      {(() => {
+                        const iframeSrc = extractIframeSrc(source.embedHtml);
+                        const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
+                        
+                        return isValidSrc ? (
+                          <iframe
+                            src={iframeSrc}
+                            className="w-full max-w-[325px]"
+                            style={{ height: '738px' }}
+                            allow="encrypted-media"
+                            sandbox="allow-scripts allow-same-origin allow-presentation"
+                            title="Embedded TikTok video"
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center h-64 p-4 text-destructive">
+                            <div className="text-center">
+                              <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+                              <p>Embed TikTok non valido</p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : (
+                    <div className="bg-muted/50 border border-border rounded-lg p-6 text-center">
+                      <p className="text-muted-foreground">
+                        Embed TikTok non disponibile. 
+                        <button 
+                          onClick={() => window.open(source.url, '_blank')}
+                          className="text-primary underline ml-1 hover:text-primary/80"
+                        >
+                          Apri l'originale
+                        </button>
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Caption/Content if available */}
+                  {source.content && (
+                    <div className="prose prose-sm max-w-none">
+                      <div className="whitespace-pre-wrap text-foreground leading-relaxed bg-card rounded-lg p-4 border border-border">
+                        {source.content}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="h-32"></div>
+                </div>
               </>
             ) : source.platform === 'twitter' || source.platform === 'linkedin' || 
                 source.platform === 'instagram' || source.platform === 'threads' ? (

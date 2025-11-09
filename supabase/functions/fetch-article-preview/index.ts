@@ -128,6 +128,12 @@ function detectSocialPlatform(url: string): string | null {
   if (urlLower.includes('instagram.com')) return 'instagram';
   if (urlLower.includes('threads.net')) return 'threads';
   
+  // TikTok
+  if (urlLower.includes('tiktok.com') || urlLower.includes('vm.tiktok.com')) {
+    console.log('[Preview] ✅ Detected TikTok URL:', url);
+    return 'tiktok';
+  }
+  
   // Facebook - supportare TUTTI i formati
   if (urlLower.includes('facebook.com') || 
       urlLower.includes('fb.com') || 
@@ -410,6 +416,54 @@ serve(async (req) => {
       
       console.log(`[fetch-article-preview] ⚠️ Jina AI failed or returned poor content for ${socialPlatform}, trying fallback`);
       
+      // TikTok-specific handling with oEmbed
+      if (socialPlatform === 'tiktok') {
+        console.log('[TikTok] Trying oEmbed API');
+        try {
+          const oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`;
+          const response = await fetch(oembedUrl);
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('[TikTok] ✓ oEmbed successful');
+            
+            return new Response(JSON.stringify({
+              success: true,
+              title: data.title || 'Video TikTok',
+              content: data.title || '',
+              summary: data.title || '',
+              image: data.thumbnail_url || '',
+              previewImg: data.thumbnail_url || '',
+              embedHtml: data.html,
+              author: data.author_name || 'TikTok User',
+              author_username: data.author_name?.replace('@', '') || '',
+              platform: 'tiktok',
+              type: 'video',
+              hostname: 'tiktok.com',
+              contentQuality: 'partial'
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        } catch (error) {
+          console.error('[TikTok] oEmbed failed:', error);
+        }
+        
+        // TikTok fallback
+        return new Response(JSON.stringify({
+          success: true,
+          title: 'Video TikTok',
+          content: '',
+          summary: 'Contenuto TikTok - apri l\'originale per visualizzare',
+          platform: 'tiktok',
+          type: 'video',
+          hostname: 'tiktok.com',
+          contentQuality: 'minimal'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
       // Facebook-specific fallback: Try OpenGraph
       if (socialPlatform === 'facebook') {
         console.log('[Facebook] Trying OpenGraph fallback');
@@ -435,6 +489,23 @@ serve(async (req) => {
           });
         }
         console.log('[Facebook] ✗ Both Jina and OpenGraph failed');
+      }
+      
+      // Instagram-specific fallback
+      if (socialPlatform === 'instagram') {
+        console.log('[Instagram] Providing minimal fallback (Instagram blocks scraping)');
+        return new Response(JSON.stringify({
+          success: true,
+          title: 'Post Instagram',
+          content: 'I contenuti Instagram non sono disponibili per limitazioni della piattaforma.',
+          summary: 'Apri il link originale per visualizzare il contenuto Instagram.',
+          platform: 'instagram',
+          type: 'social',
+          hostname: 'instagram.com',
+          contentQuality: 'minimal'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
       
       // Fallback to oEmbed ONLY for Twitter (last resort)
