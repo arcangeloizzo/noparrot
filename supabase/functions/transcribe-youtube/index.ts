@@ -22,22 +22,52 @@ function extractYouTubeId(url: string): string | null {
   return null;
 }
 
-// Fetch YouTube captions using the timedtext API endpoint
-async function fetchYouTubeTranscript(videoId: string): Promise<{ transcript: string; source: string } | null> {
-  try {
-    console.log(`Fetching transcript for video ${videoId}`);
+// Helper to get rotating user agents
+function getUserAgent(index: number): string {
+  const agents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0'
+  ];
+  return agents[index % agents.length];
+}
+
+// Fetch with retry logic and exponential backoff
+async function fetchWithRetry(url: string, maxRetries = 3): Promise<Response> {
+  for (let i = 0; i < maxRetries; i++) {
+    const delay = Math.min(1000 * Math.pow(2, i), 5000);
+    if (i > 0) {
+      console.log(`[YouTube] Retry ${i}/${maxRetries} after ${delay}ms delay`);
+      await new Promise(r => setTimeout(r, delay));
+    }
     
-    // First, get the video page to find available caption tracks
-    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    const videoResponse = await fetch(videoUrl, {
+    const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept-Language': 'en-US,en;q=0.9'
+        'User-Agent': getUserAgent(i),
+        'Accept-Language': 'it,en;q=0.9'
       }
     });
     
+    if (response.status !== 429) {
+      return response;
+    }
+    console.log(`[YouTube] Rate limited (429), retry ${i + 1}/${maxRetries}`);
+  }
+  throw new Error('Max retries exceeded due to rate limiting');
+}
+
+// Fetch YouTube captions using the timedtext API endpoint
+async function fetchYouTubeTranscript(videoId: string): Promise<{ transcript: string; source: string } | null> {
+  try {
+    console.log(`[YouTube] Fetching transcript for video ${videoId}`);
+    
+    // First, get the video page to find available caption tracks
+    const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    const videoResponse = await fetchWithRetry(videoUrl);
+    
     if (!videoResponse.ok) {
-      console.log(`Failed to fetch video page: ${videoResponse.status}`);
+      console.log(`[YouTube] Failed to fetch video page: ${videoResponse.status}`);
       return null;
     }
     
@@ -53,35 +83,66 @@ async function fetchYouTubeTranscript(videoId: string): Promise<{ transcript: st
     let captionTracks;
     try {
       captionTracks = JSON.parse(captionTracksMatch[1]);
-      console.log(`Found ${captionTracks.length} caption tracks`);
+      console.log(`[YouTube] Found ${captionTracks.length} caption tracks:`, 
+        captionTracks.map((t: any) => ({
+          lang: t.languageCode,
+          name: t.name?.simpleText,
+          auto: t.vssId?.includes('.auto') || t.kind === 'asr'
+        }))
+      );
     } catch (e) {
-      console.log(`Failed to parse captionTracks: ${e instanceof Error ? e.message : 'Unknown error'}`);
+      console.log(`[YouTube] Failed to parse captionTracks: ${e instanceof Error ? e.message : 'Unknown error'}`);
       return null;
     }
     
-    // Find English track (prefer auto-generated)
-    let selectedTrack = captionTracks.find((track: any) => 
-      track.languageCode === 'en' || track.vssId?.includes('.en')
-    );
+    // Priority: IT manual > EN manual > IT auto > EN auto > any available
+    const languagePriority = ['it', 'en'];
+    let selectedTrack = null;
+    
+    // First try to find manual captions in priority order
+    for (const lang of languagePriority) {
+      selectedTrack = captionTracks.find((t: any) => 
+        t.languageCode === lang && !t.vssId?.includes('.auto') && t.kind !== 'asr'
+      );
+      if (selectedTrack) {
+        console.log(`[YouTube] Selected manual ${lang.toUpperCase()} captions`);
+        break;
+      }
+    }
+    
+    // Then try auto-generated captions in priority order
+    if (!selectedTrack) {
+      for (const lang of languagePriority) {
+        selectedTrack = captionTracks.find((t: any) => 
+          t.languageCode === lang || t.vssId?.includes(`.${lang}`)
+        );
+        if (selectedTrack) {
+          console.log(`[YouTube] Selected auto-generated ${lang.toUpperCase()} captions`);
+          break;
+        }
+      }
+    }
     
     // Fallback to any available track
     if (!selectedTrack && captionTracks.length > 0) {
       selectedTrack = captionTracks[0];
+      console.log(`[YouTube] Fallback to first available track: ${selectedTrack.languageCode}`);
     }
     
     if (!selectedTrack || !selectedTrack.baseUrl) {
-      console.log('No valid caption track found');
+      console.log('[YouTube] No valid caption track found');
       return null;
     }
     
-    console.log(`Using caption track: ${selectedTrack.languageCode || selectedTrack.vssId} (${selectedTrack.name?.simpleText || 'auto-generated'})`);
+    const isAuto = selectedTrack.vssId?.includes('.auto') || selectedTrack.kind === 'asr';
+    console.log(`[YouTube] Using ${selectedTrack.languageCode} captions (${isAuto ? 'auto-generated' : 'manual'}): ${selectedTrack.name?.simpleText || 'unnamed'}`);
     
     // Fetch the captions using the baseUrl
     const captionUrl = selectedTrack.baseUrl;
-    const captionResponse = await fetch(captionUrl);
+    const captionResponse = await fetchWithRetry(captionUrl);
     
     if (!captionResponse.ok) {
-      console.log(`Failed to fetch captions: ${captionResponse.status}`);
+      console.log(`[YouTube] Failed to fetch captions: ${captionResponse.status}`);
       return null;
     }
     
@@ -91,7 +152,7 @@ async function fetchYouTubeTranscript(videoId: string): Promise<{ transcript: st
     const textMatches = Array.from(captionXml.matchAll(/<text[^>]*>(.*?)<\/text>/gs));
     
     if (textMatches.length === 0) {
-      console.log('No text segments found in caption XML');
+      console.log('[YouTube] No text segments found in caption XML');
       return null;
     }
     
@@ -110,7 +171,7 @@ async function fetchYouTubeTranscript(videoId: string): Promise<{ transcript: st
     }).filter(text => text.length > 0);
     
     if (transcriptParts.length === 0) {
-      console.log('No text content after parsing');
+      console.log('[YouTube] No text content after parsing');
       return null;
     }
     
@@ -119,15 +180,15 @@ async function fetchYouTubeTranscript(videoId: string): Promise<{ transcript: st
       .replace(/\s+/g, ' ')
       .trim();
     
-    console.log(`Successfully extracted transcript: ${transcript.length} chars from ${transcriptParts.length} segments`);
+    console.log(`[YouTube] ✓ Successfully extracted transcript: ${transcript.length} chars from ${transcriptParts.length} segments (${selectedTrack.languageCode}, ${isAuto ? 'auto' : 'manual'})`);
     
     return {
       transcript,
-      source: 'youtube_captions'
+      source: isAuto ? 'youtube_captions_auto' : 'youtube_captions_manual'
     };
     
   } catch (error) {
-    console.error(`Error fetching YouTube transcript for ${videoId}:`, error instanceof Error ? error.message : 'Unknown error');
+    console.error(`[YouTube] ✗ Error fetching transcript for ${videoId}:`, error instanceof Error ? error.message : 'Unknown error');
     return null;
   }
 }

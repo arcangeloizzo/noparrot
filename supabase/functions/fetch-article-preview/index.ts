@@ -127,14 +127,94 @@ function detectSocialPlatform(url: string): string | null {
   if (urlLower.includes('linkedin.com')) return 'linkedin';
   if (urlLower.includes('instagram.com')) return 'instagram';
   if (urlLower.includes('threads.net')) return 'threads';
-  if (urlLower.includes('facebook.com') || urlLower.includes('fb.com')) return 'facebook';
+  if (urlLower.includes('facebook.com') || urlLower.includes('fb.com') || urlLower.includes('fb.watch')) return 'facebook';
   return null;
+}
+
+// Extract author from Facebook URL
+function extractAuthorFromFacebookUrl(url: string): string {
+  try {
+    const urlObj = new URL(url);
+    const pathParts = urlObj.pathname.split('/').filter(p => p);
+    // facebook.com/username/posts/123 -> username
+    // facebook.com/username/videos/123 -> username
+    if (pathParts.length > 0 && pathParts[0] !== 'share' && pathParts[0] !== 'watch') {
+      return decodeURIComponent(pathParts[0]);
+    }
+  } catch (e) {
+    console.error('[Facebook] Error extracting author:', e);
+  }
+  return 'Facebook User';
+}
+
+// Fetch Open Graph metadata as fallback
+async function fetchOpenGraphData(url: string): Promise<any> {
+  console.log('[OpenGraph] Fetching metadata for:', url);
+  
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; bot/1.0)',
+        'Accept': 'text/html'
+      }
+    });
+    
+    if (!response.ok) {
+      console.log('[OpenGraph] Fetch failed:', response.status);
+      return null;
+    }
+    
+    const html = await response.text();
+    const ogData: any = {};
+    
+    // Parse Open Graph tags
+    const ogRegex = /<meta\s+property="og:([^"]+)"\s+content="([^"]+)"/gi;
+    let match;
+    while ((match = ogRegex.exec(html)) !== null) {
+      ogData[match[1]] = match[2]
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'");
+    }
+    
+    // Also try twitter:card metadata
+    const twitterRegex = /<meta\s+name="twitter:([^"]+)"\s+content="([^"]+)"/gi;
+    while ((match = twitterRegex.exec(html)) !== null) {
+      if (!ogData[match[1]]) {
+        ogData[match[1]] = match[2]
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'");
+      }
+    }
+    
+    console.log('[OpenGraph] Extracted data:', {
+      title: ogData.title,
+      hasDescription: !!ogData.description,
+      hasImage: !!ogData.image
+    });
+    
+    return {
+      title: ogData.title,
+      description: ogData.description,
+      image: ogData.image,
+      author: ogData.site_name || ogData.author,
+      url: ogData.url || url
+    };
+  } catch (error) {
+    console.error('[OpenGraph] Fetch error:', error);
+    return null;
+  }
 }
 
 // Fetch social content using Jina AI Reader (FREE) - Enhanced for all platforms
 async function fetchSocialWithJina(url: string, platform: string) {
   try {
-    console.log(`[fetch-article-preview] Fetching ${platform} content via Jina AI Reader`);
+    console.log(`[Jina] Fetching ${platform} content via Jina AI Reader`);
     
     const jinaUrl = `https://r.jina.ai/${url}`;
     const response = await fetch(jinaUrl, {
@@ -145,15 +225,16 @@ async function fetchSocialWithJina(url: string, platform: string) {
     });
     
     if (!response.ok) {
-      console.error(`[fetch-article-preview] Jina AI fetch failed: ${response.status}`);
+      console.error(`[Jina] Failed for ${platform}: ${response.status}`);
       return null;
     }
     
     const data = await response.json();
-    console.log('[fetch-article-preview] Jina AI extraction successful:', {
+    console.log(`[Jina] ${platform} response:`, {
       title: data.title,
       contentLength: data.content?.length || 0,
       hasImage: !!data.image,
+      hasAuthor: !!data.author,
       platform
     });
     
@@ -168,10 +249,8 @@ async function fetchSocialWithJina(url: string, platform: string) {
       // Extract username from Twitter/X content
       const usernameMatch = data.content.match(/@(\w+)/);
       if (usernameMatch) authorUsername = usernameMatch[1];
-    } else if (platform === 'facebook' && data.content) {
-      // Extract author from Facebook content
-      const fbAuthorMatch = data.content.match(/^([^\n]+)/);
-      if (fbAuthorMatch) author = fbAuthorMatch[1].trim();
+    } else if (platform === 'facebook') {
+      author = data.author || extractAuthorFromFacebookUrl(url);
     }
     
     // Clean content with new function
@@ -191,7 +270,7 @@ async function fetchSocialWithJina(url: string, platform: string) {
       contentQuality: cleanedContent.length > 200 ? 'complete' : 'partial'
     };
   } catch (error) {
-    console.error('[fetch-article-preview] Jina AI error:', error);
+    console.error(`[Jina] Error for ${platform}:`, error);
     return null;
   }
 }
@@ -318,6 +397,33 @@ serve(async (req) => {
       }
       
       console.log(`[fetch-article-preview] ⚠️ Jina AI failed or returned poor content for ${socialPlatform}, trying fallback`);
+      
+      // Facebook-specific fallback: Try OpenGraph
+      if (socialPlatform === 'facebook') {
+        console.log('[Facebook] Trying OpenGraph fallback');
+        const ogData = await fetchOpenGraphData(url);
+        if (ogData && ogData.title) {
+          console.log('[Facebook] ✓ OpenGraph successful');
+          const cleanedContent = cleanReaderText(ogData.description || '');
+          return new Response(JSON.stringify({
+            success: true,
+            title: ogData.title,
+            content: cleanedContent,
+            summary: ogData.description || cleanedContent.slice(0, 200),
+            description: ogData.description,
+            image: ogData.image,
+            previewImg: ogData.image,
+            author: extractAuthorFromFacebookUrl(url),
+            platform: 'facebook',
+            type: 'social',
+            hostname: 'facebook.com',
+            contentQuality: cleanedContent.length > 100 ? 'partial' : 'minimal'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        console.log('[Facebook] ✗ Both Jina and OpenGraph failed');
+      }
       
       // Fallback to oEmbed ONLY for Twitter (last resort)
       if (socialPlatform === 'twitter') {

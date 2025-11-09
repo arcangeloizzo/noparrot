@@ -136,7 +136,7 @@ export function EnhancedComposer({
 
       // NON fare merge delle fonti - il post principale ha solo le sue fonti
       // Il quoted post mantiene le sue fonti separatamente
-      console.log('Creating post with sources:', { newSources: sources, quotedPostId: quotedPost?.id });
+      console.log('[Composer] Creating post with sources:', { newSources: sources, quotedPostId: quotedPost?.id });
 
       // Calculate Trust Score solo sulle fonti del nuovo post
       const trustScore = await fetchTrustScore({
@@ -145,20 +145,39 @@ export function EnhancedComposer({
         userMeta: { verified: false }
       });
 
+      console.log('[Composer] Creating post with:', {
+        contentLength: text.length,
+        sources,
+        sourcesType: typeof sources,
+        sourcesLength: sources.length,
+        trustScore: trustScore?.band
+      });
+
       // Create the post in DB
       const { data: insertedPost, error: postError } = await supabase
         .from('posts')
         .insert({
           content: text,
           author_id: user.id,
-          sources: sources,
+          sources: sources.length > 0 ? sources : null,
           trust_level: trustScore?.band || null,
           quoted_post_id: quotedPost?.id || null
         })
         .select()
         .single();
 
-      if (postError) throw postError;
+      console.log('[Composer] Post created:', { 
+        success: !!insertedPost, 
+        error: postError,
+        postId: insertedPost?.id,
+        savedSources: insertedPost?.sources,
+        savedTrustLevel: insertedPost?.trust_level
+      });
+
+      if (postError) {
+        console.error('[Composer] Error creating post:', postError);
+        throw postError;
+      }
 
       // Salvare post_media
       if (uploadedMedia.length > 0 && insertedPost) {
