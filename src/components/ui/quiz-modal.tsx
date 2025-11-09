@@ -135,8 +135,12 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
       <div 
         className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
         onClick={handleBackdropClick}
+        style={{ pointerEvents: 'auto' }}
       >
-        <div className="bg-card rounded-lg shadow-lg max-w-md w-full p-6 space-y-4">
+        <div 
+          className="bg-card rounded-lg shadow-lg max-w-md w-full p-6 space-y-4"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="text-center">
             {result.passed ? (
               <>
@@ -170,8 +174,12 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
     <div 
       className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
       onClick={handleBackdropClick}
+      style={{ pointerEvents: 'auto' }}
     >
-      <div className="bg-card rounded-lg shadow-lg max-w-2xl w-full p-6 space-y-6">
+      <div 
+        className="bg-card rounded-lg shadow-lg max-w-2xl w-full p-6 space-y-6"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
