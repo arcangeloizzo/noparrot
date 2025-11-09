@@ -5,11 +5,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Extract plain text from HTML
+// Extract plain text from HTML - Enhanced version
 function extractTextFromHtml(html: string): string {
   let text = html
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '') // Remove HTML comments
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
@@ -24,18 +25,81 @@ function extractTextFromHtml(html: string): string {
     .replace(/&#8216;/g, "'")  // left single quote
     .replace(/&#8211;/g, '–')  // en dash
     .replace(/&#8212;/g, '—')  // em dash
+    .replace(/&#8230;/g, '…')  // ellipsis
+    .replace(/&#8203;/g, '')   // zero-width space
+    .replace(/&hellip;/g, '…')
     .replace(/&rsquo;/g, "'")
     .replace(/&lsquo;/g, "'")
     .replace(/&rdquo;/g, '"')
     .replace(/&ldquo;/g, '"')
     .replace(/&mdash;/g, '—')
-    .replace(/&ndash;/g, '–');
+    .replace(/&ndash;/g, '–')
+    .replace(/[\u200B-\u200D\uFEFF]/g, ''); // Remove zero-width characters
   
   // Decode all remaining numeric HTML entities
   text = text.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec));
+  // Decode hex HTML entities
+  text = text.replace(/&#x([0-9a-f]+);/gi, (match, hex) => String.fromCharCode(parseInt(hex, 16)));
   
   return text
     .replace(/\s+/g, ' ')
+    .replace(/\n\s*\n/g, '\n') // Remove excessive newlines
+    .trim();
+}
+
+// Aggressive HTML cleaning for reader (removes ALL HTML, converts lists)
+function cleanReaderText(html: string): string {
+  let text = html
+    // Remove scripts, styles, comments completely
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    // Convert list items to bullet points
+    .replace(/<li[^>]*>/gi, '\n• ')
+    .replace(/<\/li>/gi, '')
+    // Convert headings to uppercase with newlines
+    .replace(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/gi, '\n\n$1\n')
+    // Convert paragraphs to double newlines
+    .replace(/<p[^>]*>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    // Convert breaks to newlines
+    .replace(/<br[^>]*>/gi, '\n')
+    // Remove all remaining HTML tags
+    .replace(/<[^>]+>/g, '')
+    // Decode ALL HTML entities
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#8220;/g, '"')
+    .replace(/&#8221;/g, '"')
+    .replace(/&#8222;/g, '"')
+    .replace(/&#8217;/g, "'")
+    .replace(/&#8216;/g, "'")
+    .replace(/&#8211;/g, '–')
+    .replace(/&#8212;/g, '—')
+    .replace(/&#8230;/g, '…')
+    .replace(/&#8203;/g, '')
+    .replace(/&hellip;/g, '…')
+    .replace(/&rsquo;/g, "'")
+    .replace(/&lsquo;/g, "'")
+    .replace(/&rdquo;/g, '"')
+    .replace(/&ldquo;/g, '"')
+    .replace(/&mdash;/g, '—')
+    .replace(/&ndash;/g, '–')
+    .replace(/[\u200B-\u200D\uFEFF]/g, ''); // Remove zero-width chars
+  
+  // Decode numeric entities
+  text = text.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec));
+  text = text.replace(/&#x([0-9a-f]+);/gi, (match, hex) => String.fromCharCode(parseInt(hex, 16)));
+  
+  // Clean up whitespace while preserving paragraph structure
+  return text
+    .replace(/[ \t]+/g, ' ') // Multiple spaces to single space
+    .replace(/\n{3,}/g, '\n\n') // Max 2 newlines
+    .replace(/^\s+|\s+$/gm, '') // Trim each line
     .trim();
 }
 
@@ -63,10 +127,11 @@ function detectSocialPlatform(url: string): string | null {
   if (urlLower.includes('linkedin.com')) return 'linkedin';
   if (urlLower.includes('instagram.com')) return 'instagram';
   if (urlLower.includes('threads.net')) return 'threads';
+  if (urlLower.includes('facebook.com') || urlLower.includes('fb.com')) return 'facebook';
   return null;
 }
 
-// Fetch social content using Jina AI Reader (FREE)
+// Fetch social content using Jina AI Reader (FREE) - Enhanced for all platforms
 async function fetchSocialWithJina(url: string, platform: string) {
   try {
     console.log(`[fetch-article-preview] Fetching ${platform} content via Jina AI Reader`);
@@ -88,27 +153,42 @@ async function fetchSocialWithJina(url: string, platform: string) {
     console.log('[fetch-article-preview] Jina AI extraction successful:', {
       title: data.title,
       contentLength: data.content?.length || 0,
-      hasImage: !!data.image
+      hasImage: !!data.image,
+      platform
     });
     
-    // Extract author from LinkedIn/Instagram
+    // Extract author - platform-specific logic
     let author = data.author_name || data.author || '';
+    let authorUsername = '';
+    
     if (platform === 'linkedin' && data.content) {
       const authorMatch = data.content.match(/(?:Posted by|By)\s+([^\n]+)/i);
       if (authorMatch) author = authorMatch[1].trim();
+    } else if (platform === 'twitter' && data.content) {
+      // Extract username from Twitter/X content
+      const usernameMatch = data.content.match(/@(\w+)/);
+      if (usernameMatch) authorUsername = usernameMatch[1];
+    } else if (platform === 'facebook' && data.content) {
+      // Extract author from Facebook content
+      const fbAuthorMatch = data.content.match(/^([^\n]+)/);
+      if (fbAuthorMatch) author = fbAuthorMatch[1].trim();
     }
     
+    // Clean content with new function
+    const cleanedContent = cleanReaderText(data.content || '');
+    
     return {
-      title: data.title || `Post from ${platform}`,
-      content: data.content || '',
-      summary: data.description || (data.content ? data.content.substring(0, 300) + '...' : ''),
+      title: data.title || `Post da ${platform}`,
+      content: cleanedContent,
+      summary: data.description || (cleanedContent ? cleanedContent.substring(0, 300) + '...' : ''),
       image: data.image || '',
       previewImg: data.image || '',
       platform,
       type: 'social',
       author,
-      author_username: platform === 'twitter' ? author.replace('@', '') : '',
-      hostname: new URL(url).hostname
+      author_username: authorUsername || (platform === 'twitter' ? author.replace('@', '') : ''),
+      hostname: new URL(url).hostname,
+      contentQuality: cleanedContent.length > 200 ? 'complete' : 'partial'
     };
   } catch (error) {
     console.error('[fetch-article-preview] Jina AI error:', error);
@@ -150,9 +230,12 @@ serve(async (req) => {
         
         let transcript = null;
         let transcriptSource = 'none';
+        let transcriptAvailable = false;
+        let transcriptError = null;
         
         if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           try {
+            console.log(`[fetch-article-preview] Attempting to fetch transcript for video ${youtubeId}`);
             const transcriptResponse = await fetch(
               `${SUPABASE_URL}/functions/v1/transcribe-youtube`,
               {
@@ -167,13 +250,29 @@ serve(async (req) => {
             
             if (transcriptResponse.ok) {
               const transcriptData = await transcriptResponse.json();
-              transcript = transcriptData.transcript;
-              transcriptSource = transcriptData.source || 'none';
-              console.log(`[fetch-article-preview] Transcript ${transcriptSource === 'youtube_captions' ? 'fetched' : 'not available'} for video ${youtubeId}`);
+              
+              if (transcriptData.transcript && transcriptData.transcript.length > 50) {
+                transcript = transcriptData.transcript;
+                transcriptSource = transcriptData.source || 'youtube_captions';
+                transcriptAvailable = true;
+                console.log(`[fetch-article-preview] ✅ Transcript fetched successfully (${transcriptSource}), length: ${transcript.length}`);
+              } else if (transcriptData.error) {
+                transcriptError = transcriptData.error;
+                console.warn(`[fetch-article-preview] ⚠️ Transcript error: ${transcriptData.error}`);
+              } else {
+                console.warn(`[fetch-article-preview] ⚠️ Transcript too short or empty for video ${youtubeId}`);
+              }
+            } else {
+              const errorText = await transcriptResponse.text();
+              transcriptError = `HTTP ${transcriptResponse.status}: ${errorText}`;
+              console.error(`[fetch-article-preview] ❌ Transcript fetch failed: ${transcriptError}`);
             }
-          } catch (transcriptError) {
-            console.error('[fetch-article-preview] Error fetching transcript:', transcriptError);
+          } catch (transcriptFetchError) {
+            transcriptError = transcriptFetchError instanceof Error ? transcriptFetchError.message : 'Unknown error';
+            console.error('[fetch-article-preview] ❌ Exception fetching transcript:', transcriptFetchError);
           }
+        } else {
+          console.warn('[fetch-article-preview] ⚠️ Missing SUPABASE_URL or SERVICE_ROLE_KEY for transcript fetch');
         }
         
         return new Response(JSON.stringify({
@@ -187,8 +286,11 @@ serve(async (req) => {
           embedHtml: oembedData.html,
           transcript: transcript,
           transcriptSource: transcriptSource,
+          transcriptAvailable,
+          transcriptError,
           author: oembedData.author_name,
           authorUrl: oembedData.author_url,
+          contentQuality: transcript && transcript.length > 500 ? 'complete' : 'partial'
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -201,20 +303,23 @@ serve(async (req) => {
       }
     }
 
-    // Check if it's a social media link (Twitter/X, LinkedIn, Instagram, Threads)
+    // Check if it's a social media link (Twitter/X, LinkedIn, Instagram, Threads, Facebook)
     const socialPlatform = detectSocialPlatform(url);
     if (socialPlatform) {
       console.log(`[fetch-article-preview] Detected ${socialPlatform} link`);
       
-      // Try Jina AI Reader first (FREE)
+      // ALWAYS try Jina AI Reader first for ALL social platforms (richer metadata)
       const jinaResult = await fetchSocialWithJina(url, socialPlatform);
-      if (jinaResult) {
+      if (jinaResult && jinaResult.content && jinaResult.content.length > 50) {
+        console.log(`[fetch-article-preview] ✅ Jina AI successful for ${socialPlatform}`);
         return new Response(JSON.stringify({ success: true, ...jinaResult }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       
-      // Fallback to oEmbed for Twitter only
+      console.log(`[fetch-article-preview] ⚠️ Jina AI failed or returned poor content for ${socialPlatform}, trying fallback`);
+      
+      // Fallback to oEmbed ONLY for Twitter (last resort)
       if (socialPlatform === 'twitter') {
         try {
           const twitterUrl = url.replace('x.com', 'twitter.com');
@@ -306,9 +411,9 @@ serve(async (req) => {
         
         console.log('[fetch-article-preview] Extracted data:', { title, hasDescription: !!description, hasImage: !!image });
         
-        // If we got minimal data or short content, try AI extraction
+        // If we got minimal data or short content, try AI extraction with Lovable AI
         if (!title || title === 'Article' || (!description && !content) || content.length < 200) {
-          console.log('[fetch-article-preview] Poor extraction, trying AI fallback');
+          console.log('[fetch-article-preview] Poor extraction, trying Lovable AI fallback');
           
           try {
             const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -328,14 +433,15 @@ serve(async (req) => {
                 messages: [
                   { 
                     role: 'system', 
-                    content: 'Extract article metadata from HTML. Return ONLY valid JSON with fields: title, description, content (extract the FULL article body text with all main paragraphs, at least 500 characters if available). No markdown, no extra text.' 
+                    content: 'You are an expert at extracting clean article content from HTML. Extract the main article text, removing ALL HTML tags, ads, navigation, and formatting. Return ONLY valid JSON with: title (string), description (string, max 300 chars), content (string, the FULL clean article text with all paragraphs, minimum 500 characters if available). Remove all HTML entities and invisible characters. Format content with simple paragraph breaks (\\n\\n).' 
                   },
                   { 
                     role: 'user', 
-                    content: `Extract metadata from this HTML:\n\n${html.substring(0, 15000)}` 
+                    content: `Extract clean text from this HTML page:\n\n${html.substring(0, 20000)}` 
                   }
                 ],
-                temperature: 0.3
+                temperature: 0.2,
+                max_tokens: 2000
               }),
             });
 
@@ -357,19 +463,23 @@ serve(async (req) => {
                   
                   const extracted = JSON.parse(cleanContent);
                   
+                  // Clean the AI-extracted content too
+                  const cleanedAiContent = cleanReaderText(extracted.content || '');
+                  
                   const result = {
                     success: true,
                     title: extracted.title || title || 'Article',
                     summary: extracted.description || description,
-                    content: extracted.content || content || extracted.description || description,
+                    content: cleanedAiContent || content || extracted.description || description,
                     image,
                     previewImg: image,
                     platform: 'generic',
                     type: 'article',
-                    hostname: new URL(url).hostname
+                    hostname: new URL(url).hostname,
+                    contentQuality: cleanedAiContent.length > 500 ? 'complete' : 'partial'
                   };
                   
-                  console.log('[fetch-article-preview] AI extraction successful');
+                  console.log('[fetch-article-preview] ✅ AI extraction successful, content length:', cleanedAiContent.length);
                   return new Response(JSON.stringify(result), {
                     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                   });
@@ -383,17 +493,19 @@ serve(async (req) => {
           }
         }
         
-        // Return what we extracted (even if minimal)
+        // Return what we extracted (even if minimal) - with cleaned content
+        const cleanedContent = cleanReaderText(content || description);
         const result = {
           success: true,
           title: title || 'Article',
           summary: description,
-          content: content || description,
+          content: cleanedContent,
           image,
           previewImg: image,
           platform: 'generic',
           type: 'article',
-          hostname: new URL(url).hostname
+          hostname: new URL(url).hostname,
+          contentQuality: cleanedContent.length > 300 ? 'complete' : 'partial'
         };
         
         return new Response(JSON.stringify(result), {

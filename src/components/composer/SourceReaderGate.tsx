@@ -499,14 +499,29 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           </div>
         </div>
 
-        {/* Source Info */}
+        {/* Source Info with Quality Badge */}
         <div className="p-4 border-b border-border bg-card">
-          <h3 className="font-semibold text-foreground mb-1">
-            {source.title || 'Fonte'}
-          </h3>
-          <p className="text-sm text-muted-foreground break-all">
-            {source.url}
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <h3 className="font-semibold text-foreground mb-1">
+                {source.title || 'Fonte'}
+              </h3>
+              <p className="text-sm text-muted-foreground break-all">
+                {source.url}
+              </p>
+            </div>
+            {/* Content Quality Badge */}
+            {(source as any).contentQuality && (
+              <div className={cn(
+                "px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap",
+                (source as any).contentQuality === 'complete' 
+                  ? "bg-trust-high/20 text-trust-high border border-trust-high/30"
+                  : "bg-warning/20 text-warning border border-warning/30"
+              )}>
+                {(source as any).contentQuality === 'complete' ? '✓ Completo' : '⚠ Parziale'}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Content Area */}
@@ -546,23 +561,42 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                   </div>
                 </div>
                 
-                {/* Transcript Badge */}
-                {source.transcriptSource === 'youtube_captions' && (
+                {/* Transcript Status Badges - Enhanced */}
+                {(source as any).transcriptAvailable === true && source.transcript && (
                   <div className="bg-trust-high/10 border border-trust-high/20 rounded-lg p-3">
                     <div className="flex items-center gap-2">
                       <Check className="h-4 w-4 text-trust-high" />
                       <span className="text-sm font-medium text-trust-high">
-                        Trascrizione disponibile
+                        Trascrizione Completa Disponibile
                       </span>
+                    </div>
+                    <p className="text-xs text-trust-high/70 mt-1">
+                      Lunghezza: {source.transcript.length} caratteri
+                    </p>
+                  </div>
+                )}
+                
+                {(source as any).transcriptAvailable === false && (source as any).transcriptError && (
+                  <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-warning mt-0.5" />
+                      <div className="flex-1">
+                        <span className="text-sm font-medium text-warning block">
+                          Trascrizione Non Disponibile
+                        </span>
+                        <p className="text-xs text-warning/70 mt-1">
+                          {(source as any).transcriptError}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 )}
                 
-                {source.transcriptSource === 'none' && (
+                {source.transcriptSource === 'none' && !(source as any).transcriptError && (
                   <div className="bg-muted/50 border border-border rounded-lg p-3">
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">
-                        ⚠️ Sottotitoli non disponibili per questo video
+                        ℹ️ Questo video non ha sottotitoli disponibili
                       </span>
                     </div>
                   </div>
@@ -721,12 +755,19 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                     )}
                   </div>
 
-                  {/* Content */}
+                  {/* Content - Cleaned */}
                   {source.content && (
                     <div className="prose prose-sm max-w-none">
                       <div className="whitespace-pre-wrap text-foreground leading-relaxed bg-card rounded-lg p-4 border border-border">
                         {source.content}
                       </div>
+                      {/* Content quality indicator for social */}
+                      {(source as any).contentQuality === 'partial' && (
+                        <div className="mt-2 text-xs text-warning flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          <span>Contenuto estratto parzialmente - apri l'originale per vedere tutto</span>
+                        </div>
+                      )}
                     </div>
                   )}
 
