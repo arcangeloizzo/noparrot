@@ -139,56 +139,62 @@ export function EnhancedComposer({
       console.log('[Composer] Creating post with sources:', { newSources: sources, quotedPostId: quotedPost?.id });
 
       console.log('[Composer] ===== POST INSERT DEBUG =====');
-      console.log('[Composer] Sources to save:', {
+      console.log('[Composer] Pre-insert data:', {
         sources,
+        sourcesIsArray: Array.isArray(sources),
+        sourcesLength: sources.length,
         firstSource: sources[0],
-        sourcesType: typeof sources,
-        isArray: Array.isArray(sources),
-        length: sources.length
+        sourcesJson: JSON.stringify(sources),
+        userId: user.id
       });
 
       // Calculate Trust Score solo sulle fonti del nuovo post
-      const trustScore = await fetchTrustScore({
-        postText: text,
-        sources: sources,
-        userMeta: { verified: false }
-      });
+      let trustScore = null;
+      try {
+        trustScore = await fetchTrustScore({
+          postText: text,
+          sources: sources,
+          userMeta: { verified: false }
+        });
+        console.log('[Composer] Trust Score calculated:', {
+          band: trustScore?.band,
+          score: trustScore?.score
+        });
+      } catch (trustError) {
+        console.error('[Composer] ❌ Trust Score error:', trustError);
+      }
 
-      console.log('[Composer] Trust Score:', {
-        trustScore,
-        band: trustScore?.band,
-        score: trustScore?.score
-      });
-
-      console.log('[Composer] Creating post with:', {
-        contentLength: text.length,
-        sources,
-        sourcesType: typeof sources,
-        sourcesLength: sources.length,
-        trustScore: trustScore?.band
-      });
+      const insertPayload = {
+        content: text,
+        author_id: user.id,
+        sources: sources.length > 0 ? sources : null,
+        shared_url: sources.length > 0 ? sources[0] : null,
+        trust_level: trustScore?.band || null,
+        quoted_post_id: quotedPost?.id || null
+      };
+      
+      console.log('[Composer] Insert payload:', JSON.stringify(insertPayload, null, 2));
 
       // Create the post in DB with shared_url (first source)
       const { data: insertedPost, error: postError } = await supabase
         .from('posts')
-        .insert({
-          content: text,
-          author_id: user.id,
-          sources: sources.length > 0 ? sources : null,
-          shared_url: sources.length > 0 ? sources[0] : null, // CRITICAL: Save first source
-          trust_level: trustScore?.band || null,
-          quoted_post_id: quotedPost?.id || null
-        })
+        .insert(insertPayload)
         .select()
         .single();
 
-      console.log('[Composer] Post saved in DB:', {
+      if (postError) {
+        console.error('[Composer] ❌ Database insert error:', postError);
+        throw postError;
+      }
+
+      console.log('[Composer] ✅ Post inserted successfully:', {
         id: insertedPost?.id,
         sources: insertedPost?.sources,
+        sourcesType: typeof insertedPost?.sources,
         shared_url: insertedPost?.shared_url,
-        trust_level: insertedPost?.trust_level,
-        sourcesType: typeof insertedPost?.sources
+        trust_level: insertedPost?.trust_level
       });
+      
       console.log('[Composer] ===== END DEBUG =====');
 
       console.log('[Composer] Post created:', { 

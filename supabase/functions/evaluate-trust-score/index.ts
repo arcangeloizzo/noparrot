@@ -99,7 +99,7 @@ IMPORTANTE: Sii conservativo. In caso di dubbio, preferisci MEDIO.`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-1.5-flash', // <-- MODIFICA 1: Corretto il nome del modello
+        model: 'google/gemini-2.5-flash',
         messages: [
           { 
             role: 'system', 

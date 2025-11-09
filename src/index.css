@@ -364,11 +364,12 @@
 
   /* Collapsible Header - Sticky */
   .cognitive-header {
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    background: hsl(var(--background));
-    border-bottom: 1px solid hsl(var(--border));
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 50 !important;
+    background: hsl(var(--background)) !important;
+    border-bottom: 1px solid hsl(var(--border)) !important;
+    backdrop-filter: blur(20px) !important;
   }
 
   .collapsible-header {
@@ -616,10 +617,10 @@
   ) !important;
   backdrop-filter: blur(20px) !important;
   border-bottom: 1px solid rgba(47, 127, 239, 0.1) !important;
-  padding: 16px;
-  position: sticky;
-  top: 0;
-  z-index: 50;
+  padding: 16px !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 50 !important;
 }
 
 .cognitive-header .logo-container {

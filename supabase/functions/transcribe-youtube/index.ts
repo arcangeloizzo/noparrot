@@ -94,27 +94,38 @@ async function fetchYouTubeTranscript(videoId: string): Promise<{ transcript: st
     // Try multiple patterns to extract caption tracks (YouTube changes HTML often)
     const patterns = [
       /"captionTracks":(\[.*?\])/,
-      /"captions":.*?"playerCaptionsTracklistRenderer":\{"captionTracks":(\[.*?\])/,
-      /"captionsTracklistRenderer":\{"captionTracks":(\[.*?\])/
+      /"playerCaptionsTracklistRenderer":\{"captionTracks":(\[.*?\])/,
+      /"captionsTracklistRenderer":\{"captionTracks":(\[.*?\])/,
+      /"ytInitialPlayerResponse"[^{]*\{[^}]*"captions"[^{]*\{[^}]*"playerCaptionsTracklistRenderer"[^{]*\{[^}]*"captionTracks":(\[[^\]]+\])/,
+      /"captionTracks":\s*(\[[^\]]*\])/
     ];
     
     let captionTracks = null;
     for (const pattern of patterns) {
+      console.log(`[YouTube] Trying pattern: ${pattern.source.slice(0, 60)}...`);
       const match = html.match(pattern);
-      if (match) {
+      if (match && match[1]) {
         try {
           captionTracks = JSON.parse(match[1]);
-          console.log(`[YouTube] ✓ Found ${captionTracks.length} caption tracks using pattern`);
+          console.log(`[YouTube] ✅ Pattern matched! Found ${captionTracks.length} caption tracks`);
           break;
         } catch (e) {
-          console.log(`[YouTube] Failed to parse match from pattern:`, e instanceof Error ? e.message : 'Unknown');
+          console.log(`[YouTube] Pattern matched but JSON parse failed:`, e instanceof Error ? e.message : 'Unknown');
+          continue;
         }
       }
     }
     
     if (!captionTracks) {
-      const snippet = html.slice(0, 1000);
-      console.log('[YouTube] No captionTracks found in page HTML. HTML snippet:', snippet);
+      console.log('[YouTube] ❌ No captionTracks found with any pattern');
+      // Log HTML snippet per debugging
+      const ytPlayerIndex = html.indexOf('ytInitialPlayerResponse');
+      if (ytPlayerIndex !== -1) {
+        const snippet = html.slice(ytPlayerIndex, ytPlayerIndex + 500);
+        console.log('[YouTube] HTML snippet around ytInitialPlayerResponse:', snippet);
+      } else {
+        console.log('[YouTube] ytInitialPlayerResponse not found in HTML');
+      }
       return null;
     }
 

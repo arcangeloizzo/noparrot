@@ -127,7 +127,16 @@ function detectSocialPlatform(url: string): string | null {
   if (urlLower.includes('linkedin.com')) return 'linkedin';
   if (urlLower.includes('instagram.com')) return 'instagram';
   if (urlLower.includes('threads.net')) return 'threads';
-  if (urlLower.includes('facebook.com') || urlLower.includes('fb.com') || urlLower.includes('fb.watch')) return 'facebook';
+  
+  // Facebook - supportare TUTTI i formati
+  if (urlLower.includes('facebook.com') || 
+      urlLower.includes('fb.com') || 
+      urlLower.includes('fb.watch') ||
+      urlLower.includes('m.facebook.com')) {
+    console.log('[Preview] ✅ Detected Facebook URL:', url);
+    return 'facebook';
+  }
+  
   return null;
 }
 
@@ -154,18 +163,21 @@ async function fetchOpenGraphData(url: string): Promise<any> {
   try {
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; bot/1.0)',
-        'Accept': 'text/html'
-      }
+        // User-agent realistico per evitare blocchi Facebook
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7'
+      },
+      redirect: 'follow' // Segui i redirect di Facebook
     });
     
     if (!response.ok) {
-      console.log('[OpenGraph] Fetch failed:', response.status);
+      console.log('[OpenGraph] Fetch failed:', response.status, response.statusText);
       return null;
     }
     
     const html = await response.text();
-    const ogData: any = {};
+    const ogData: Record<string, string> = {};
     
     // Parse Open Graph tags
     const ogRegex = /<meta\s+property="og:([^"]+)"\s+content="([^"]+)"/gi;
@@ -173,40 +185,40 @@ async function fetchOpenGraphData(url: string): Promise<any> {
     while ((match = ogRegex.exec(html)) !== null) {
       ogData[match[1]] = match[2]
         .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
         .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'");
+        .replace(/&#39;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
     }
     
-    // Also try twitter:card metadata
+    // Parse anche Twitter Card tags come fallback
     const twitterRegex = /<meta\s+name="twitter:([^"]+)"\s+content="([^"]+)"/gi;
     while ((match = twitterRegex.exec(html)) !== null) {
       if (!ogData[match[1]]) {
         ogData[match[1]] = match[2]
           .replace(/&amp;/g, '&')
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
           .replace(/&quot;/g, '"')
           .replace(/&#39;/g, "'");
       }
     }
     
-    console.log('[OpenGraph] Extracted data:', {
+    console.log('[OpenGraph] Extracted:', {
       title: ogData.title,
-      hasDescription: !!ogData.description,
-      hasImage: !!ogData.image
+      description: ogData.description?.slice(0, 100),
+      image: ogData.image,
+      site_name: ogData.site_name
     });
     
     return {
-      title: ogData.title,
-      description: ogData.description,
-      image: ogData.image,
-      author: ogData.site_name || ogData.author,
-      url: ogData.url || url
+      title: ogData.title || ogData['twitter:title'] || 'Facebook Post',
+      description: ogData.description || ogData['twitter:description'] || '',
+      image: ogData.image || ogData['twitter:image'] || '',
+      author: ogData.site_name || extractAuthorFromFacebookUrl(url),
+      url: ogData.url || url,
+      platform: 'facebook'
     };
   } catch (error) {
-    console.error('[OpenGraph] Fetch error:', error);
+    console.error('[OpenGraph] Error:', error instanceof Error ? error.message : 'Unknown');
     return null;
   }
 }
