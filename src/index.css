@@ -150,6 +150,14 @@
     }
   }
 
+  /* Sticky Header Fix - Force GPU acceleration */
+  .cognitive-header {
+    @apply sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm;
+    will-change: transform;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+
   .dark {
     --background: var(--dark-blue);
     --foreground: 0 0% 100%;

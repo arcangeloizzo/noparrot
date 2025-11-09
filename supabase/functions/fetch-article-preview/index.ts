@@ -466,29 +466,46 @@ serve(async (req) => {
       
       // Facebook-specific fallback: Try OpenGraph
       if (socialPlatform === 'facebook') {
-        console.log('[Facebook] Trying OpenGraph fallback');
-        const ogData = await fetchOpenGraphData(url);
-        if (ogData && ogData.title) {
-          console.log('[Facebook] ✓ OpenGraph successful');
-          const cleanedContent = cleanReaderText(ogData.description || '');
-          return new Response(JSON.stringify({
-            success: true,
-            title: ogData.title,
-            content: cleanedContent,
-            summary: ogData.description || cleanedContent.slice(0, 200),
-            description: ogData.description,
-            image: ogData.image,
-            previewImg: ogData.image,
-            author: extractAuthorFromFacebookUrl(url),
-            platform: 'facebook',
-            type: 'social',
-            hostname: 'facebook.com',
-            contentQuality: cleanedContent.length > 100 ? 'partial' : 'minimal'
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        console.log('[Facebook] 🔍 Processing Facebook link:', url);
+        
+        try {
+          console.log('[Facebook] 📡 Attempting OpenGraph extraction...');
+          const ogData = await fetchOpenGraphData(url);
+          
+          console.log('[Facebook] OpenGraph data received:', {
+            hasTitle: !!ogData?.title,
+            hasDescription: !!ogData?.description,
+            hasImage: !!ogData?.image,
+            titleLength: ogData?.title?.length || 0,
+            descriptionLength: ogData?.description?.length || 0
           });
+          
+          if (ogData && ogData.title) {
+            console.log('[Facebook] ✅ OpenGraph successful');
+            const cleanedContent = cleanReaderText(ogData.description || '');
+            return new Response(JSON.stringify({
+              success: true,
+              title: ogData.title,
+              content: cleanedContent,
+              summary: ogData.description || cleanedContent.slice(0, 200),
+              description: ogData.description,
+              image: ogData.image,
+              previewImg: ogData.image,
+              author: extractAuthorFromFacebookUrl(url),
+              platform: 'facebook',
+              type: 'social',
+              hostname: 'facebook.com',
+              contentQuality: cleanedContent.length > 100 ? 'partial' : 'minimal'
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          } else {
+            console.log('[Facebook] ⚠️ OpenGraph data incomplete or missing');
+          }
+        } catch (error) {
+          console.error('[Facebook] ❌ OpenGraph fallback failed:', error.message);
         }
-        console.log('[Facebook] ✗ Both Jina and OpenGraph failed');
+        console.log('[Facebook] ✗ All Facebook extraction methods failed');
       }
       
       // Instagram-specific fallback
@@ -622,11 +639,11 @@ serve(async (req) => {
                 messages: [
                   { 
                     role: 'system', 
-                    content: 'You are an expert at extracting clean article content from HTML. Extract the main article text, removing ALL HTML tags, ads, navigation, and formatting. Return ONLY valid JSON with: title (string), description (string, max 300 chars), content (string, the FULL clean article text with all paragraphs, minimum 500 characters if available). Remove all HTML entities and invisible characters. Format content with simple paragraph breaks (\\n\\n).' 
+                    content: 'You are an expert at extracting ONLY the main article body text from news websites. You MUST:\n1. IGNORE all navigation menus, headers, footers, sidebars, ads, newsletter forms, share buttons, cookie notices\n2. Extract ONLY paragraphs that are part of the main article content\n3. The article should read coherently from start to finish\n4. Remove all HTML tags, ads, and formatting\n5. Return ONLY valid JSON with: title, description (max 300 chars), content (full article text, minimum 500 chars)\n6. If you see repeated navigation items (Home, Newsletter, Shop, Regala, etc.) or technical metadata, DO NOT include them\n7. The content should start directly with the article\'s first paragraph, not with navigation or menus' 
                   },
                   { 
                     role: 'user', 
-                    content: `Extract clean text from this HTML page:\n\n${html.substring(0, 20000)}` 
+                    content: `Extract clean text from this HTML page. Remove ALL navigation menus, technical elements, and metadata. Return ONLY the article content:\n\n${html.substring(0, 20000).replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '').replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '').replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '').replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, '').replace(/<menu[^>]*>[\s\S]*?<\/menu>/gi, '')}` 
                   }
                 ],
                 temperature: 0.2,
@@ -652,8 +669,32 @@ serve(async (req) => {
                   
                   const extracted = JSON.parse(cleanContent);
                   
+                  // Post-processing: Filter menu-like lines from AI-extracted content
+                  let cleanedAiContent = extracted.content || '';
+                  if (cleanedAiContent) {
+                    const lines = cleanedAiContent.split('\n').filter((line: string) => {
+                      const trimmed = line.trim();
+                      if (!trimmed || trimmed.length < 20) return false;
+                      
+                      const words = trimmed.split(/\s+/);
+                      if (words.length < 5) return false; // Too short, probably a menu item
+                      
+                      const capitalizedCount = words.filter((w: string) => w[0] === w[0]?.toUpperCase()).length;
+                      // If >60% words are capitalized and line is <150 chars, likely a menu
+                      if (capitalizedCount / words.length > 0.6 && trimmed.length < 150) return false;
+                      
+                      // Filter common navigation patterns
+                      const navPatterns = /^(Home|Newsletter|Podcast|Shop|Regala|Abbonati|Privacy|Terms|Cookie|Menu)/i;
+                      if (navPatterns.test(trimmed)) return false;
+                      
+                      return true;
+                    });
+                    
+                    cleanedAiContent = lines.join('\n\n');
+                  }
+                  
                   // Clean the AI-extracted content too
-                  const cleanedAiContent = cleanReaderText(extracted.content || '');
+                  cleanedAiContent = cleanReaderText(cleanedAiContent);
                   
                   const result = {
                     success: true,

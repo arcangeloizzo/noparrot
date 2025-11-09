@@ -169,6 +169,12 @@ export function EnhancedComposer({
         author_id: user.id,
         sources: sources.length > 0 ? sources : null,
         shared_url: sources.length > 0 ? sources[0] : null,
+        shared_title: urlPreview?.title || null,
+        preview_img: urlPreview?.image || null,
+        article_content: urlPreview?.content || null,
+        embed_html: urlPreview?.embedHtml || null,
+        transcript: urlPreview?.transcript || null,
+        transcript_source: urlPreview?.transcriptSource || null,
         trust_level: trustScore?.band || null,
         quoted_post_id: quotedPost?.id || null
       };

@@ -210,6 +210,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
           shared_title: urlPreview?.title || null,
           preview_img: urlPreview?.image || null,
           article_content: urlPreview?.content || null,
+          embed_html: urlPreview?.embedHtml || null,
+          transcript: urlPreview?.transcript || null,
+          transcript_source: urlPreview?.transcriptSource || null,
           quoted_post_id: quotedPost?.id || null
         })
         .select()

@@ -230,21 +230,15 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
         containerRef.current.style.scrollSnapType = 'y mandatory';
       }
 
-      const timeout = setTimeout(() => {
-        setAttritionActive(false);
-        setShowVelocityWarning(false);
-        if (containerRef.current) {
-          containerRef.current.style.scrollSnapType = 'none';
-        }
-      }, 2000);
-
-      return () => clearTimeout(timeout);
+      // NON disattiviamo più l'attrito automaticamente
+      // Rimane attivo fino al completamento del gate
+      console.log('[SourceReaderGate] 🔒 Attrition persisting until gate completion');
     }
   }, [progress.isScrollingTooFast, progress.canUnlock, prefersReducedMotion, mode, hasTrackableContent, timeLeft, hasScrolledToBottom]);
 
   useEffect(() => {
     if (!isOpen) {
-      setTimeLeft(10);
+      setTimeLeft(30); // 30 secondi iniziali
       setScrollProgress(0);
       setHasScrolledToBottom(false);
       setShowTypingIndicator(false);

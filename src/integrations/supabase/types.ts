@@ -672,6 +672,7 @@ export type Database = {
           author_id: string
           content: string
           created_at: string | null
+          embed_html: string | null
           full_article: string | null
           id: string
           preview_img: string | null
@@ -681,6 +682,8 @@ export type Database = {
           sources: Json | null
           stance: string | null
           topic_tag: string | null
+          transcript: string | null
+          transcript_source: string | null
           trust_level: string | null
         }
         Insert: {
@@ -688,6 +691,7 @@ export type Database = {
           author_id: string
           content: string
           created_at?: string | null
+          embed_html?: string | null
           full_article?: string | null
           id?: string
           preview_img?: string | null
@@ -697,6 +701,8 @@ export type Database = {
           sources?: Json | null
           stance?: string | null
           topic_tag?: string | null
+          transcript?: string | null
+          transcript_source?: string | null
           trust_level?: string | null
         }
         Update: {
@@ -704,6 +710,7 @@ export type Database = {
           author_id?: string
           content?: string
           created_at?: string | null
+          embed_html?: string | null
           full_article?: string | null
           id?: string
           preview_img?: string | null
@@ -713,6 +720,8 @@ export type Database = {
           sources?: Json | null
           stance?: string | null
           topic_tag?: string | null
+          transcript?: string | null
+          transcript_source?: string | null
           trust_level?: string | null
         }
         Relationships: [
