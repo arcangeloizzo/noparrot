@@ -150,12 +150,18 @@
     }
   }
 
-  /* Sticky Header Fix - Force GPU acceleration */
+  /* Sticky Header Fix - Force GPU acceleration with !important */
   .cognitive-header {
-    @apply sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border/50 shadow-sm;
-    will-change: transform;
-    transform: translateZ(0);
-    -webkit-transform: translateZ(0);
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 40 !important;
+    background: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background) / 0.95) 100%) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border-bottom: 1px solid hsl(var(--border) / 0.1) !important;
+    will-change: transform !important;
+    transform: translateZ(0) !important;
+    -webkit-transform: translateZ(0) !important;
   }
 
   .dark {

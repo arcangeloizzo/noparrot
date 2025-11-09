@@ -639,11 +639,22 @@ serve(async (req) => {
                 messages: [
                   { 
                     role: 'system', 
-                    content: 'You are an expert at extracting ONLY the main article body text from news websites. You MUST:\n1. IGNORE all navigation menus, headers, footers, sidebars, ads, newsletter forms, share buttons, cookie notices\n2. Extract ONLY paragraphs that are part of the main article content\n3. The article should read coherently from start to finish\n4. Remove all HTML tags, ads, and formatting\n5. Return ONLY valid JSON with: title, description (max 300 chars), content (full article text, minimum 500 chars)\n6. If you see repeated navigation items (Home, Newsletter, Shop, Regala, etc.) or technical metadata, DO NOT include them\n7. The content should start directly with the article\'s first paragraph, not with navigation or menus' 
+                    content: 'You are an expert at extracting ONLY the main article body text from news websites. You MUST:\n1. IGNORE ALL navigation menus (Home, Shop, Newsletter, etc.), headers, footers, sidebars, ads, cookie notices, social widgets\n2. Extract ONLY paragraphs that are part of the main article content\n3. Remove standalone menu-like lines (e.g. "Home | About | Contact")\n4. The article should read coherently from start to finish\n5. Remove all HTML tags, ads, and formatting\n6. Return ONLY valid JSON with: title, description (max 300 chars), content (full article text, minimum 500 chars)\n7. If you see repeated navigation items or technical metadata (Newsletter, Podcast, Shop, Privacy, Cookie, etc.), DO NOT include them\n8. The content should start directly with the article\'s first paragraph, not with navigation or menus\n9. Each line should be a complete sentence or paragraph, not a menu item' 
                   },
                   { 
                     role: 'user', 
-                    content: `Extract clean text from this HTML page. Remove ALL navigation menus, technical elements, and metadata. Return ONLY the article content:\n\n${html.substring(0, 20000).replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '').replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '').replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '').replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, '').replace(/<menu[^>]*>[\s\S]*?<\/menu>/gi, '')}` 
+                    content: `Extract clean article text from this HTML page. 
+
+CRITICAL RULES:
+- Remove ALL navigation menus, headers, footers, sidebars
+- Remove lines like "Home | About | Contact" or "Newsletter | Podcast | Shop"
+- Remove social media widgets and sharing buttons
+- Remove "Leggi anche", "Ti potrebbe interessare", related articles
+- Remove author bio boxes and tags at the end
+- Return ONLY the main article paragraphs
+
+HTML:
+${html.substring(0, 20000).replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '').replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '').replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '').replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, '').replace(/<menu[^>]*>[\s\S]*?<\/menu>/gi, '').replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')}` 
                   }
                 ],
                 temperature: 0.2,
@@ -674,18 +685,36 @@ serve(async (req) => {
                   if (cleanedAiContent) {
                     const lines = cleanedAiContent.split('\n').filter((line: string) => {
                       const trimmed = line.trim();
-                      if (!trimmed || trimmed.length < 20) return false;
+                      
+                      // Keep empty lines for spacing
+                      if (!trimmed) return true;
+                      
+                      // Skip very short lines unless they're list items
+                      if (trimmed.length < 20 && !/^[\d-•]/.test(trimmed)) return false;
+                      
+                      // Skip lines with multiple pipe separators (menu pattern)
+                      const pipeCount = (trimmed.match(/\|/g) || []).length;
+                      if (pipeCount >= 2) return false;
                       
                       const words = trimmed.split(/\s+/);
-                      if (words.length < 5) return false; // Too short, probably a menu item
                       
-                      const capitalizedCount = words.filter((w: string) => w[0] === w[0]?.toUpperCase()).length;
-                      // If >60% words are capitalized and line is <150 chars, likely a menu
-                      if (capitalizedCount / words.length > 0.6 && trimmed.length < 150) return false;
+                      // Skip short lines (3-8 words) with many capitalized words (menu items)
+                      if (words.length >= 3 && words.length <= 8) {
+                        const capitalizedCount = words.filter((w: string) => /^[A-Z]/.test(w)).length;
+                        if (capitalizedCount / words.length > 0.7) return false;
+                      }
                       
                       // Filter common navigation patterns
-                      const navPatterns = /^(Home|Newsletter|Podcast|Shop|Regala|Abbonati|Privacy|Terms|Cookie|Menu)/i;
-                      if (navPatterns.test(trimmed)) return false;
+                      const navPatterns = [
+                        /^(home|newsletter|podcast|shop|regala|abbonati|privacy|terms|cookie|menu|contatti|chi siamo)/i,
+                        /leggi anche/i,
+                        /ti potrebbe interessare/i,
+                        /vedi anche/i,
+                        /iscriviti/i,
+                        /seguici/i
+                      ];
+                      
+                      if (navPatterns.some(pattern => pattern.test(trimmed))) return false;
                       
                       return true;
                     });

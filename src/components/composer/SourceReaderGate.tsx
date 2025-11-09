@@ -83,8 +83,10 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     config: READER_GATE_CONFIG
   });
 
-  // Fallback timer per contenuti non segmentabili
+  // Fallback timer per contenuti non segmentabili - 10s friction
   const [timeLeft, setTimeLeft] = useState(10);
+  const [frictionDuration] = useState(10000); // 10s di friction aggressiva
+  const [scrollThreshold] = useState(50); // Rallenta scroll >50px/s (più sensibile)
   const [scrollProgress, setScrollProgress] = useState(0);
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -238,7 +240,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
   useEffect(() => {
     if (!isOpen) {
-      setTimeLeft(30); // 30 secondi iniziali
+      setTimeLeft(10); // 10 secondi di timer // 30 secondi iniziali
       setScrollProgress(0);
       setHasScrolledToBottom(false);
       setShowTypingIndicator(false);
@@ -267,6 +269,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
+          // NON disattivare friction - rimane attivo fino al gate completion
           return 0;
         }
         return prev - 1;
