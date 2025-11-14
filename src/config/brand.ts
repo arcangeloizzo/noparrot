@@ -17,8 +17,8 @@ export const TRUST_SCORE_COLORS = {
 } as const;
 
 // Logo constants (using actual PNG assets)
-export const LOGO_BASE = "/lovable-uploads/0bf9714b-07aa-4070-8a61-c1fdcc5b253c.png"; // Now using Logo BG Dark.png
-export const LOGO_BASE_DARK = "/lovable-uploads/0bf9714b-07aa-4070-8a61-c1fdcc5b253c.png";
+export const LOGO_BASE = "/src/assets/Logo.png"; // Now using Logo BG Dark.png
+export const LOGO_BASE_DARK = "/src/assets/Logo.png";
 export const LOGO_EXTENDED = "/src/assets/Logo Orizzontale.png";
 export const LOGO_EXTENDED_DARK = "src/assets/Logo Orizzontale.png";
 
