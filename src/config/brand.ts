@@ -22,8 +22,8 @@ export const TRUST_SCORE_COLORS = {
 // Logo constants (using actual PNG assets)
 export const LOGO_BASE = LOGO_ICON; 
 export const LOGO_BASE_DARK = LOGO_ICON;
-export const LOGO_EXTENDED = LOGO_EXTENDED_ASSET;
-export const LOGO_EXTENDED_DARK = LOGO_EXTENDED_ASSET;
+export const LOGO_EXTENDED = LOGO_ICON;
+export const LOGO_EXTENDED_DARK = LOGO_ICON;
 
 // Navigation Feature Flags
 export const NAV_PROFILE_AS_HOME = false; // Changed: keep Home icon, replace Profile icon with avatar
