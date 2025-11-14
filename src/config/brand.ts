@@ -19,8 +19,8 @@ export const TRUST_SCORE_COLORS = {
 // Logo constants (using actual PNG assets)
 export const LOGO_BASE = "/lovable-uploads/0bf9714b-07aa-4070-8a61-c1fdcc5b253c.png"; // Now using Logo BG Dark.png
 export const LOGO_BASE_DARK = "/lovable-uploads/0bf9714b-07aa-4070-8a61-c1fdcc5b253c.png";
-export const LOGO_EXTENDED = "/lovable-uploads/0bf9714b-07aa-4070-8a61-c1fdcc5b253c.png";
-export const LOGO_EXTENDED_DARK = "/lovable-uploads/2e463915-3b37-49f7-88b3-19a37a0538f2.png";
+export const LOGO_EXTENDED = "/src/assets/Logo Orizzontale.png";
+export const LOGO_EXTENDED_DARK = "src/assets/Logo Orizzontale.png";
 
 // Navigation Feature Flags
 export const NAV_PROFILE_AS_HOME = false; // Changed: keep Home icon, replace Profile icon with avatar
