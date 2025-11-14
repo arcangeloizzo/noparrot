@@ -33,10 +33,10 @@ export const PostHeader = ({
             <img
               src={avatarUrl}
               alt={displayName}
-              className="w-10 h-10 rounded-full object-cover"
+              className="w-12 h-12 rounded-full object-cover"
             />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-sm font-semibold text-primary-foreground">
+            <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-base font-semibold text-primary-foreground">
               {getInitials(displayName)}
             </div>
           )}
@@ -47,20 +47,20 @@ export const PostHeader = ({
       <div className="flex-1 min-w-0 flex items-start justify-between gap-2">
         {/* Name & username row */}
         <div className="flex items-baseline gap-1 min-w-0 flex-wrap">
-          <span className="font-bold text-[15px] text-foreground truncate max-w-[140px]">
+          <span className="font-bold text-base text-foreground truncate max-w-[140px]">
             {displayName}
           </span>
-          <span className="text-[15px] text-muted-foreground truncate">
+          <span className="text-base text-muted-foreground truncate">
             @{getDisplayUsername(username)}
           </span>
         </div>
 
         {/* Meta info - sempre su una riga */}
-        <div className="flex items-center gap-1.5 flex-shrink-0 text-[13px] text-muted-foreground whitespace-nowrap">
+        <div className="flex items-center gap-1.5 flex-shrink-0 text-sm text-muted-foreground whitespace-nowrap">
           {timestamp && <span>{timestamp}</span>}
           {timestamp && label && <span>·</span>}
           {label && (
-            <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+            <span className={`px-2 py-0.5 rounded-full text-sm font-medium ${
               label === 'Condiviso' 
                 ? 'bg-primary/10 text-primary' 
                 : 'bg-destructive/10 text-destructive'
