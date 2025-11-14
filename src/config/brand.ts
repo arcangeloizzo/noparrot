@@ -17,8 +17,8 @@ export const TRUST_SCORE_COLORS = {
 } as const;
 
 // Logo constants (using actual PNG assets)
-export const LOGO_BASE = '/src/assets/Logo.png'; // Now using Logo BG Dark.png
-export const LOGO_BASE_DARK = '/src/assets/Logo.png';
+export const LOGO_BASE = 'src/assets/Logo.png'; // Now using Logo BG Dark.png
+export const LOGO_BASE_DARK = 'src/assets/Logo.png';
 export const LOGO_EXTENDED = "/src/assets/Logo Orizzontale.png";
 export const LOGO_EXTENDED_DARK = "src/assets/Logo Orizzontale.png";
 
