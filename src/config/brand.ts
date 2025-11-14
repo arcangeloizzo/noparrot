@@ -1,3 +1,6 @@
+import LOGO_ICON from '../assets/Logo.png';
+import LOGO_EXTENDED_ASSET from '../assets/Logo Orizzontale.png';
+
 // NOPARROT Brand Configuration
 export const BRAND_COLORS = {
   PRIMARY_BLUE: '#0A7AFF',
@@ -17,10 +20,10 @@ export const TRUST_SCORE_COLORS = {
 } as const;
 
 // Logo constants (using actual PNG assets)
-export const LOGO_BASE = 'src/assets/Logo.png'; // Now using Logo BG Dark.png
-export const LOGO_BASE_DARK = 'src/assets/Logo.png';
-export const LOGO_EXTENDED = "/src/assets/Logo Orizzontale.png";
-export const LOGO_EXTENDED_DARK = "src/assets/Logo Orizzontale.png";
+export const LOGO_BASE = LOGO_ICON; 
+export const LOGO_BASE_DARK = LOGO_ICON;
+export const LOGO_EXTENDED = LOGO_EXTENDED_ASSET;
+export const LOGO_EXTENDED_DARK = LOGO_EXTENDED_ASSET;
 
 // Navigation Feature Flags
 export const NAV_PROFILE_AS_HOME = false; // Changed: keep Home icon, replace Profile icon with avatar
