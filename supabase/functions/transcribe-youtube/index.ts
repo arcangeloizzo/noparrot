@@ -26,59 +26,85 @@ function extractYouTubeId(url: string): string | null {
   return null;
 }
 
-// Fetch YouTube transcript using youtube-transcript package
-async function fetchYouTubeTranscript(videoId: string): Promise<{ transcript: string; source: string } | null> {
+// Utility function for delay with exponential backoff
+async function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Fetch YouTube transcript with retry logic and better error handling
+async function fetchYouTubeTranscript(
+  videoId: string, 
+  maxRetries: number = 3
+): Promise<{ transcript: string; source: string } | null> {
   console.log(`[Transcript] Fetching for video ${videoId}`);
   
-  try {
-    // Try Italian first
-    console.log(`[Transcript] Attempting Italian (it)...`);
+  const languages = [
+    { code: 'it', name: 'Italian' },
+    { code: 'en', name: 'English' },
+    { code: null, name: 'any available language' }
+  ];
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const transcriptData = await YoutubeTranscript.fetchTranscript(videoId, {
-        lang: 'it',
-      });
-      
-      if (transcriptData && transcriptData.length > 0) {
-        const transcript = transcriptData.map((item: any) => item.text).join(' ');
-        console.log(`[Transcript] ✅ Success with Italian, length: ${transcript.length}`);
-        return { transcript, source: 'youtube-it' };
+      // Try each language in order
+      for (const lang of languages) {
+        try {
+          console.log(`[Transcript] Attempt ${attempt}/${maxRetries}: Trying ${lang.name}${lang.code ? ` (${lang.code})` : ''}...`);
+          
+          const transcriptData = await YoutubeTranscript.fetchTranscript(
+            videoId,
+            lang.code ? { lang: lang.code } : undefined
+          );
+          
+          if (transcriptData && transcriptData.length > 0) {
+            const transcript = transcriptData.map((item: any) => item.text).join(' ');
+            const detectedLang = lang.code || 'auto';
+            console.log(`[Transcript] ✅ Success with ${lang.name}, length: ${transcript.length}, detected: ${detectedLang}`);
+            return { transcript, source: `youtube-${detectedLang}` };
+          }
+        } catch (langError: any) {
+          const errorMsg = langError?.message || String(langError);
+          console.log(`[Transcript] ${lang.name} not available: ${errorMsg}`);
+          
+          // If transcript is explicitly disabled, no point in retrying
+          if (errorMsg.includes('Transcript is disabled')) {
+            console.error(`[Transcript] ❌ Transcript explicitly disabled for video ${videoId}`);
+            return null;
+          }
+          
+          // Continue to next language
+          continue;
+        }
       }
-    } catch (itError) {
-      console.log(`[Transcript] Italian not available, trying English...`);
-    }
 
-    // Try English
-    console.log(`[Transcript] Attempting English (en)...`);
-    try {
-      const transcriptData = await YoutubeTranscript.fetchTranscript(videoId, {
-        lang: 'en',
-      });
-      
-      if (transcriptData && transcriptData.length > 0) {
-        const transcript = transcriptData.map((item: any) => item.text).join(' ');
-        console.log(`[Transcript] ✅ Success with English, length: ${transcript.length}`);
-        return { transcript, source: 'youtube-en' };
+      // If we get here, all languages failed for this attempt
+      if (attempt < maxRetries) {
+        const backoffMs = Math.pow(2, attempt) * 1000; // Exponential backoff: 2s, 4s, 8s
+        console.log(`[Transcript] All languages failed on attempt ${attempt}, retrying in ${backoffMs}ms...`);
+        await delay(backoffMs);
       }
-    } catch (enError) {
-      console.log(`[Transcript] English not available, trying any language...`);
+    } catch (error: any) {
+      const errorMsg = error?.message || String(error);
+      console.error(`[Transcript] Attempt ${attempt}/${maxRetries} failed:`, errorMsg);
+      
+      // Don't retry if it's a definitive error
+      if (errorMsg.includes('Transcript is disabled') || 
+          errorMsg.includes('Video unavailable') ||
+          errorMsg.includes('Invalid video')) {
+        console.error(`[Transcript] ❌ Permanent error, stopping retries`);
+        return null;
+      }
+      
+      if (attempt < maxRetries) {
+        const backoffMs = Math.pow(2, attempt) * 1000;
+        console.log(`[Transcript] Retrying in ${backoffMs}ms...`);
+        await delay(backoffMs);
+      }
     }
-
-    // Try any available language
-    console.log(`[Transcript] Attempting any available language...`);
-    const transcriptData = await YoutubeTranscript.fetchTranscript(videoId);
-    
-    if (transcriptData && transcriptData.length > 0) {
-      const transcript = transcriptData.map((item: any) => item.text).join(' ');
-      console.log(`[Transcript] ✅ Success with auto-detected language, length: ${transcript.length}`);
-      return { transcript, source: 'youtube-auto' };
-    }
-
-    console.log(`[Transcript] ❌ No transcript available for video ${videoId}`);
-    return null;
-  } catch (error) {
-    console.error(`[Transcript] ❌ Error fetching transcript:`, error);
-    return null;
   }
+
+  console.error(`[Transcript] ❌ All ${maxRetries} attempts exhausted for video ${videoId}`);
+  return null;
 }
 
 serve(async (req) => {
