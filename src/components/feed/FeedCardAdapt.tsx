@@ -607,7 +607,7 @@ export const FeedCard = ({
               band={trustScore.band}
               score={trustScore.score}
               reasons={trustScore.reasons}
-              size="md"
+              size="sm"
             />
               </div>
             )}
