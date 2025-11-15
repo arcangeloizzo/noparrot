@@ -84,7 +84,19 @@ async function fetchFromSupadata(videoId: string): Promise<{ transcript: string;
     const data = await response.json();
     console.log('[Supadata] 📦 Response:', JSON.stringify(data).substring(0, 500));
     
-    const transcript = data.transcript || data.text || data.content;
+    // Extract transcript from Supadata format
+    let transcript = '';
+    
+    if (data.content && Array.isArray(data.content)) {
+      // Supadata format: { content: [{ text: "...", duration: ..., offset: ... }] }
+      transcript = data.content.map((item: any) => item.text).join(' ');
+    } else if (typeof data.transcript === 'string') {
+      transcript = data.transcript;
+    } else if (typeof data.text === 'string') {
+      transcript = data.text;
+    } else if (typeof data.content === 'string') {
+      transcript = data.content;
+    }
     
     if (!transcript) {
       console.error('[Supadata] ❌ No transcript field found. Available fields:', Object.keys(data));
@@ -96,7 +108,7 @@ async function fetchFromSupadata(videoId: string): Promise<{ transcript: string;
     return { 
       transcript, 
       source: 'supadata',
-      language: data.language 
+      language: data.lang || data.language 
     };
   } catch (error: any) {
     console.error('[Supadata] ❌ Failed:', error?.message || error);
