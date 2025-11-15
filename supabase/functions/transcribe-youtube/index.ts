@@ -76,13 +76,18 @@ async function fetchFromSupadata(videoId: string): Promise<{ transcript: string;
     );
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[Supadata] ❌ HTTP ${response.status}:`, errorText);
       throw new Error(`Supadata API error: ${response.status}`);
     }
 
     const data = await response.json();
-    const transcript = data.transcript || data.text;
+    console.log('[Supadata] 📦 Response:', JSON.stringify(data).substring(0, 500));
+    
+    const transcript = data.transcript || data.text || data.content;
     
     if (!transcript) {
+      console.error('[Supadata] ❌ No transcript field found. Available fields:', Object.keys(data));
       throw new Error('No transcript in Supadata response');
     }
     
