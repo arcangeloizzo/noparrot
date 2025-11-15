@@ -403,7 +403,9 @@ serve(async (req) => {
           success: true,
           title: oembedData.title,
           content: transcript || `Video: ${oembedData.title}`,
-          summary: transcript ? transcript.substring(0, 500) + '...' : oembedData.title,
+          summary: (transcript && typeof transcript === 'string' && transcript.length > 0) 
+            ? transcript.substring(0, 500) + '...' 
+            : oembedData.title,
           image: oembedData.thumbnail_url,
           platform: 'youtube',
           type: 'video',
@@ -414,7 +416,9 @@ serve(async (req) => {
           transcriptError,
           author: oembedData.author_name,
           authorUrl: oembedData.author_url,
-          contentQuality: transcript && transcript.length > 500 ? 'complete' : 'partial'
+          contentQuality: (transcript && typeof transcript === 'string' && transcript.length > 500) 
+            ? 'complete' 
+            : 'partial'
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
