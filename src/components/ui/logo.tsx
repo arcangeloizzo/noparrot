@@ -1,10 +1,10 @@
 import { cn } from "@/lib/utils";
-import { LOGO_BASE, LOGO_EXTENDED } from "@/config/brand";
+import { LOGO_BASE, LOGO_EXTENDED, LOGO_WHITE } from "@/config/brand";
 
 interface LogoProps {
   className?: string;
   size?: "sm" | "md" | "lg" | "xl";
-  variant?: "icon" | "wordmark" | "extended";
+  variant?: "icon" | "wordmark" | "extended" | "white";
   dark?: boolean;
   id?: string;
   onClick?: () => void;
@@ -58,6 +58,18 @@ export const Logo = ({ className, size = "md", variant = "icon", dark = false, i
         src={LOGO_EXTENDED} 
         alt="NOPARROT" 
         className={cn(heightClasses[size], "w-auto", clickableClasses, className)}
+        onClick={onClick}
+      />
+    );
+  }
+
+  if (variant === "white") {
+    return (
+      <img 
+        id={id}
+        src={LOGO_WHITE} 
+        alt="NOPARROT" 
+        className={cn(sizeClasses[size], clickableClasses, className)}
         onClick={onClick}
       />
     );
