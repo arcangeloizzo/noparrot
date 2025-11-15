@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { YoutubeTranscript } from "npm:youtube-transcript@1.2.1";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -29,6 +30,73 @@ function extractYouTubeId(url: string): string | null {
 // Utility function for delay with exponential backoff
 async function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Helper function to save transcript to cache
+async function saveToCache(
+  supabase: any,
+  videoId: string, 
+  transcript: string, 
+  source: string,
+  language?: string
+): Promise<void> {
+  try {
+    await supabase
+      .from('youtube_transcripts_cache')
+      .insert({
+        video_id: videoId,
+        transcript,
+        source,
+        language: language || 'unknown'
+      });
+    console.log(`[Cache] ✅ Saved transcript for ${videoId} (source: ${source})`);
+  } catch (error: any) {
+    console.error('[Cache] ⚠️ Failed to save:', error?.message || error);
+  }
+}
+
+// Fetch from Supadata.ai API as fallback
+async function fetchFromSupadata(videoId: string): Promise<{ transcript: string; source: string; language?: string } | null> {
+  const superdataKey = Deno.env.get('SUPADATA_API_KEY');
+  if (!superdataKey) {
+    console.error('[Supadata] ❌ API key not configured');
+    return null;
+  }
+
+  try {
+    console.log(`[Supadata] Calling API for video ${videoId}...`);
+    const response = await fetch(
+      `https://api.supadata.ai/v1/youtube/transcript?video_id=${videoId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${superdataKey}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Supadata API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const transcript = data.transcript || data.text;
+    
+    if (!transcript) {
+      throw new Error('No transcript in Supadata response');
+    }
+    
+    console.log(`[Supadata] ✅ SUCCESS, length: ${transcript.length}`);
+    
+    return { 
+      transcript, 
+      source: 'supadata',
+      language: data.language 
+    };
+  } catch (error: any) {
+    console.error('[Supadata] ❌ Failed:', error?.message || error);
+    return null;
+  }
 }
 
 // Fetch YouTube transcript with retry logic and better error handling
@@ -140,14 +208,27 @@ serve(async (req) => {
       );
     }
 
-    const result = await fetchYouTubeTranscript(videoId);
-    
-    if (!result) {
+    // Initialize Supabase client with service role key
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // LEVEL 1: Check cache first
+    console.log(`[Cache] Checking cache for video ${videoId}...`);
+    const { data: cached, error: cacheError } = await supabase
+      .from('youtube_transcripts_cache')
+      .select('*')
+      .eq('video_id', videoId)
+      .maybeSingle();
+
+    if (cacheError) {
+      console.error('[Cache] ⚠️ Error reading cache:', cacheError);
+    } else if (cached) {
+      console.log(`[Cache] ✅ HIT for video ${videoId}, source: ${cached.source}`);
       return new Response(
         JSON.stringify({ 
-          error: 'No captions available for this video',
-          transcript: '',
-          source: 'none'
+          transcript: cached.transcript, 
+          source: cached.source 
         }),
         { 
           status: 200,
@@ -156,8 +237,58 @@ serve(async (req) => {
       );
     }
 
+    console.log(`[Cache] ⚠️ MISS for video ${videoId}, fetching...`);
+
+    // LEVEL 2: Try free youtube-transcript method
+    const freeResult = await fetchYouTubeTranscript(videoId);
+    
+    if (freeResult) {
+      // Save to cache
+      await saveToCache(supabase, videoId, freeResult.transcript, freeResult.source);
+      
+      return new Response(
+        JSON.stringify(freeResult),
+        { 
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // LEVEL 3: Fallback to Supadata.ai paid API
+    console.log(`[Supadata] Free methods failed, trying paid API...`);
+    const superdataResult = await fetchFromSupadata(videoId);
+    
+    if (superdataResult) {
+      // Save to cache
+      await saveToCache(
+        supabase, 
+        videoId, 
+        superdataResult.transcript, 
+        superdataResult.source,
+        superdataResult.language
+      );
+      
+      return new Response(
+        JSON.stringify({ 
+          transcript: superdataResult.transcript, 
+          source: superdataResult.source 
+        }),
+        { 
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    // LEVEL 4: All methods failed
+    console.error(`[Transcript] ❌ All methods failed for video ${videoId}`);
     return new Response(
-      JSON.stringify(result),
+      JSON.stringify({ 
+        error: 'No captions available for this video',
+        transcript: '',
+        source: 'none'
+      }),
       { 
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

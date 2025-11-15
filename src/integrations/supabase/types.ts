@@ -923,6 +923,36 @@ export type Database = {
         }
         Relationships: []
       }
+      youtube_transcripts_cache: {
+        Row: {
+          cached_at: string | null
+          created_at: string | null
+          id: string
+          language: string | null
+          source: string
+          transcript: string
+          video_id: string
+        }
+        Insert: {
+          cached_at?: string | null
+          created_at?: string | null
+          id?: string
+          language?: string | null
+          source: string
+          transcript: string
+          video_id: string
+        }
+        Update: {
+          cached_at?: string | null
+          created_at?: string | null
+          id?: string
+          language?: string | null
+          source?: string
+          transcript?: string
+          video_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       post_qa_public: {
