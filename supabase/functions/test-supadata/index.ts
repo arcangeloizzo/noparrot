@@ -17,8 +17,8 @@ serve(async (req) => {
     console.log('[Test Supadata] 🧪 Making first request to activate account...');
     console.log('[Test Supadata] 🔑 Using API key:', supadataKey ? `${supadataKey.substring(0, 10)}...` : 'NOT FOUND');
     
-    const testVideoId = 'dQw4w9WgXcQ'; // Video di test
-    const url = `https://api.supadata.ai/v1/youtube/transcript?video_id=${testVideoId}`;
+    const testVideoId = 'dQw4w9WgXcQ';
+    const url = `https://api.supadata.ai/v1/transcript?url=https://youtu.be/${testVideoId}`;
     
     console.log('[Test Supadata] 📡 Calling:', url);
     
