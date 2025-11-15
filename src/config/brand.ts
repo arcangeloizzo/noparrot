@@ -4,12 +4,17 @@ import LOGO_EXTENDED_ASSET from '../assets/LogoOrizzontale.png';
 
 // NOPARROT Brand Configuration
 export const BRAND_COLORS = {
-  PRIMARY_BLUE: '#0A7AFF',
-  DARK_BLUE: '#1F3347',
-  LIGHT_BLUE: '#BFE9E9',
-  LIGHT_GRAY: '#F2F7F7',
-  BRAND_PINK: '#E41E52',
-  BRAND_YELLOW: '#FFD464',
+  // Colori principali dal logo
+  PRIMARY_BLUE: '#2563EB',      // Blu vivido del pappagallo
+  SECONDARY_BLUE: '#3B82F6',    // Blu più chiaro per varianti
+  DARK_NAVY: '#1E293B',         // Sfondo scuro del logo
+  SLATE_GRAY: '#475569',        // Grigio del becco
+  LIGHT_GRAY: '#F1F5F9',        // Grigio chiaro
+  
+  // Accent colors (manteniamo per funzionalità esistenti)
+  ACCENT_PINK: '#E41E52',       // Per trust score basso
+  ACCENT_YELLOW: '#FFD464',     // Per warning/attenzione
+  ACCENT_GREEN: '#10B981',      // Per trust score alto
 } as const;
 
 // Trust Score Colors (now using Tailwind classes)
