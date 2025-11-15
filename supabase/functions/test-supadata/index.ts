@@ -24,7 +24,7 @@ serve(async (req) => {
     
     const response = await fetch(url, {
       headers: {
-        'Authorization': `Bearer ${supadataKey}`,
+        'x-api-key': supadataKey!,
         'Content-Type': 'application/json'
       }
     });
