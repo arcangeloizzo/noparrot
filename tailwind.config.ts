@@ -52,16 +52,7 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
-				// NOPARROT Brand Colors dal Logo
-				brand: {
-					blue: '#2563EB',
-					'blue-light': '#3B82F6',
-					navy: '#1E293B',
-					slate: '#475569',
-					gray: '#F1F5F9',
-				},
-				'background-dark': '#0F172A',
-				// NOPARROT Brand Colors (legacy)
+				// NOPARROT Brand Colors
 				'primary-blue': 'hsl(var(--primary-blue))',
 				'dark-blue': 'hsl(var(--dark-blue))',
 				'light-blue': 'hsl(var(--light-blue))',
@@ -151,6 +142,7 @@ export default {
 					'50%': { backgroundColor: 'rgba(72, 187, 120, 0.2)' },
 					'100%': { backgroundColor: 'transparent' }
 				},
+				// Apple-style Premium Animations
 				'apple-spring': {
 					'0%': { transform: 'scale(1)' },
 					'50%': { transform: 'scale(0.98)' },
@@ -172,6 +164,7 @@ export default {
 					'0%': { boxShadow: '0 0 0 0 rgba(10, 122, 255, 0.4)' },
 					'100%': { boxShadow: '0 0 0 4px rgba(10, 122, 255, 0.2)' }
 				},
+				// New UX Update Animations
 				'scale-bounce': {
 					'0%': { transform: 'scale(1)' },
 					'50%': { transform: 'scale(1.2)' },
@@ -192,19 +185,7 @@ export default {
 				'pulse-subtle': {
 					'0%, 100%': { transform: 'scale(1)', opacity: '1' },
 					'50%': { transform: 'scale(1.05)', opacity: '0.8' }
-				},
-				'brand-glow': {
-					'0%, 100%': { 
-						boxShadow: '0 0 20px rgba(37, 99, 235, 0.3)' 
-					},
-					'50%': { 
-						boxShadow: '0 0 30px rgba(37, 99, 235, 0.5)' 
-					},
-				},
-				'brand-pulse': {
-					'0%, 100%': { opacity: '1' },
-					'50%': { opacity: '0.7' },
-				},
+				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',

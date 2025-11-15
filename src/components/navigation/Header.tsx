@@ -19,42 +19,31 @@ export const Header = () => {
   }).length;
 
   return (
-    <header className="glass-brand sticky top-0 z-50 safe-top">
-      <div className="mobile-container">
-        <div className="flex items-center justify-center h-[4.375rem] px-4 relative">
-          {/* Logo centrale */}
-          <div className="logo-container">
-            <Logo variant="extended" size="xl" className="h-14 transition-opacity hover:opacity-80" />
-          </div>
+    <header className="cognitive-header">
+      <div className="container flex h-[4.375rem] max-w-screen-xl items-center justify-center px-4 relative">
+        {/* Logo centrale con glow */}
+        <div className="logo-container">
+          <Logo variant="extended" size="xl" className="h-14" />
+        </div>
 
-          {/* Icona notifiche a destra (posizione assoluta) */}
-          <div className="absolute right-4 top-1/2 -translate-y-1/2">
-            <Link
-              to="/notifications"
-              className="relative flex items-center justify-center w-12 h-12 rounded-full transition-colors"
-              style={{
-                backgroundColor: 'rgba(71, 85, 105, 0)',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(71, 85, 105, 0.1)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(71, 85, 105, 0)';
-              }}
-              onClick={() => {
-                const now = new Date().toISOString();
-                localStorage.setItem('notifications-last-viewed', now);
-                setLastViewedAt(now);
-              }}
-            >
-              <Bell className="h-6 w-6" />
-              {unreadCount > 0 && (
-                <div className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-semibold rounded-full min-w-[22px] h-6 flex items-center justify-center px-2">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </div>
-              )}
-            </Link>
-          </div>
+        {/* Icona notifiche a destra (posizione assoluta) */}
+        <div className="absolute right-4 top-1/2 -translate-y-1/2">
+          <Link
+            to="/notifications"
+            className="relative flex items-center justify-center w-12 h-12 rounded-full hover:bg-accent/50 transition-colors"
+            onClick={() => {
+              const now = new Date().toISOString();
+              localStorage.setItem('notifications-last-viewed', now);
+              setLastViewedAt(now);
+            }}
+          >
+            <Bell className="h-6 w-6" />
+            {unreadCount > 0 && (
+              <div className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-semibold rounded-full min-w-[22px] h-6 flex items-center justify-center px-2">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </div>
+            )}
+          </Link>
         </div>
       </div>
     </header>

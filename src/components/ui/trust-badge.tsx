@@ -70,7 +70,7 @@ export function TrustBadge({
       {/* Trust Badge Circle */}
       <div 
         className={cn(
-          "rounded-full flex items-center justify-center font-bold tracking-wide transition-all duration-200 border shadow-sm hover:scale-105",
+          "rounded-full flex items-center justify-center font-bold tracking-wide transition-all duration-200 hover-lift border shadow-sm",
           config.badge,
           !hasData && "opacity-60"
         )}
@@ -82,13 +82,7 @@ export function TrustBadge({
             : band === "ALTO"
             ? "hsl(142 76% 46% / 0.35)"
             : "hsl(0 0% 50% / 0.2)",
-          borderColor: band === "ALTO" 
-            ? "rgba(16, 185, 129, 0.2)"
-            : band === "MEDIO"
-            ? "rgba(245, 158, 11, 0.2)"
-            : band === "BASSO"
-            ? "rgba(239, 68, 68, 0.2)"
-            : "rgba(37, 99, 235, 0.1)",
+          borderColor: "hsl(0 0% 50% / 0.3)",
           color: band === "ALTO" ? "white" : (
             band === "BASSO" ? "hsl(0 84% 60%)" : 
             band === "MEDIO" ? "hsl(38 92% 50%)" : 
