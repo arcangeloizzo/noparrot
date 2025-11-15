@@ -66,10 +66,10 @@ async function fetchFromSupadata(videoId: string): Promise<{ transcript: string;
   try {
     console.log(`[Supadata] Calling API for video ${videoId}...`);
     const response = await fetch(
-      `https://api.supadata.ai/v1/youtube/transcript?video_id=${videoId}`,
+      `https://api.supadata.ai/v1/transcript?url=https://youtu.be/${videoId}`,
       {
         headers: {
-          'Authorization': `Bearer ${superdataKey}`,
+          'x-api-key': superdataKey,
           'Content-Type': 'application/json'
         }
       }
