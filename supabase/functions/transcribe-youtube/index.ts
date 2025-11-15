@@ -56,7 +56,7 @@ async function saveToCache(
 }
 
 // Fetch from Supadata.ai API as fallback
-async function fetchFromSupadata(videoId: string): Promise<{ transcript: string; source: string; language?: string } | null> {
+async function fetchFromSupadata(videoId: string, preferredLang?: string): Promise<{ transcript: string; source: string; language?: string } | null> {
   const superdataKey = Deno.env.get('SUPADATA_API_KEY');
   if (!superdataKey) {
     console.error('[Supadata] ❌ API key not configured');
@@ -64,16 +64,21 @@ async function fetchFromSupadata(videoId: string): Promise<{ transcript: string;
   }
 
   try {
-    console.log(`[Supadata] Calling API for video ${videoId}...`);
-    const response = await fetch(
-      `https://api.supadata.ai/v1/transcript?url=https://youtu.be/${videoId}`,
-      {
-        headers: {
-          'x-api-key': superdataKey,
-          'Content-Type': 'application/json'
-        }
+    // Build URL with language preference
+    let apiUrl = `https://api.supadata.ai/v1/transcript?url=https://youtu.be/${videoId}`;
+    if (preferredLang) {
+      apiUrl += `&lang=${preferredLang}`;
+      console.log(`[Supadata] Calling API for video ${videoId} with lang=${preferredLang}...`);
+    } else {
+      console.log(`[Supadata] Calling API for video ${videoId}...`);
+    }
+    
+    const response = await fetch(apiUrl, {
+      headers: {
+        'x-api-key': superdataKey,
+        'Content-Type': 'application/json'
       }
-    );
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -274,7 +279,17 @@ serve(async (req) => {
 
     // LEVEL 3: Fallback to Supadata.ai paid API
     console.log(`[Supadata] Free methods failed, trying paid API...`);
-    const superdataResult = await fetchFromSupadata(videoId);
+    
+    // Try with Italian first, then English
+    let superdataResult = await fetchFromSupadata(videoId, 'it');
+    if (!superdataResult) {
+      console.log(`[Supadata] Italian not available, trying English...`);
+      superdataResult = await fetchFromSupadata(videoId, 'en');
+    }
+    if (!superdataResult) {
+      console.log(`[Supadata] English not available, trying auto-detect...`);
+      superdataResult = await fetchFromSupadata(videoId);
+    }
     
     if (superdataResult) {
       // Save to cache
