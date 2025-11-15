@@ -55,7 +55,7 @@ export const SplashScreen = ({ onComplete }: SplashScreenProps) => {
           
           {/* Logo with enhanced shadow */}
           <div style={{ filter: 'drop-shadow(0 0 20px rgba(10,122,255,0.3))' }}>
-            <Logo id="introLogoMark" variant="icon" size="xl" className="w-96 h-96 relative z-10" />
+            <Logo id="introLogoMark" variant="icon" size="xl" className="w-96 h-auto relative z-10" />
           </div>
           
           {/* Wordmark with delay */}
