@@ -1,5 +1,5 @@
 import LOGO_ICON from '../assets/Logo.png';
-import LOGO_WHITE_ASSET from '../assets/LogoBianco.png';
+import LOGO_WHITE_ASSET from '../assets/Logo.png';
 import LOGO_EXTENDED_ASSET from '../assets/LogoOrizzontale.png';
 
 // NOPARROT Brand Configuration
