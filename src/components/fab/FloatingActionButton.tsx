@@ -20,7 +20,7 @@ export const FloatingActionButton = ({ onClick }: FloatingActionButtonProps) => 
       <Logo 
         variant="white" 
         size="sm"
-        className="relative z-10 w-auto h-auto"
+        className="relative z-10"
       />
     </button>
   );
