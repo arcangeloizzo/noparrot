@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
-import { HeartIcon, MessageCircleIcon, BookmarkIcon, MoreHorizontal, EyeOff, ExternalLink } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, EyeOff, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -450,7 +450,7 @@ export const FeedCard = ({
   return (
     <>
       <article 
-        className="bg-white rounded-3xl border border-[hsl(var(--capsule-border-subtle))] shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden p-4 will-change-transform hover:-translate-y-0.5 active:scale-[0.99]"
+        className="bg-white rounded-2xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.08)] transition-all duration-200 cursor-pointer overflow-hidden p-5 will-change-transform hover:-translate-y-0.5 active:scale-[0.995]"
         onClick={() => {
           navigate(`/post/${post.id}`);
         }}
@@ -490,7 +490,7 @@ export const FeedCard = ({
                 </div>
               </div>
 
-              {/* Trust Badge Pill - Top Right */}
+              {/* Trust Badge Pill - Top Right with Icon */}
               {trustScore && post.shared_url && (
                 <div 
                   className="flex-shrink-0"
@@ -498,13 +498,16 @@ export const FeedCard = ({
                 >
                   <div 
                     className={cn(
-                      "px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide",
-                      trustScore.band === "ALTO" && "bg-[hsl(var(--trust-pill-high-bg))] text-[hsl(var(--trust-pill-high-text))]",
-                      trustScore.band === "MEDIO" && "bg-[hsl(var(--trust-pill-medium-bg))] text-[hsl(var(--trust-pill-medium-text))]",
-                      trustScore.band === "BASSO" && "bg-[hsl(var(--trust-pill-low-bg))] text-[hsl(var(--trust-pill-low-text))]"
+                      "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium uppercase tracking-wide",
+                      trustScore.band === "ALTO" && "bg-emerald-50 text-emerald-700",
+                      trustScore.band === "MEDIO" && "bg-amber-50 text-amber-700",
+                      trustScore.band === "BASSO" && "bg-red-50 text-red-700"
                     )}
                   >
-                    {trustScore.band}
+                    {trustScore.band === "ALTO" && <ShieldCheck className="w-3 h-3" />}
+                    {trustScore.band === "MEDIO" && <ShieldAlert className="w-3 h-3" />}
+                    {trustScore.band === "BASSO" && <AlertTriangle className="w-3 h-3" />}
+                    <span>{trustScore.band}</span>
                   </div>
                 </div>
               )}
@@ -533,131 +536,100 @@ export const FeedCard = ({
               />
             )}
 
-            {/* Article Preview Card - Bordi arrotondati, bg-gray-50 */}
+            {/* Rich Link Preview Card - Professional, Always Shown */}
             {post.shared_url && (
               <div 
-                className="mb-3 border border-border/40 rounded-xl overflow-hidden bg-gray-50/50 hover:bg-gray-50 hover:border-border/60 transition-all cursor-pointer group"
+                className="mb-3 border border-gray-100 rounded-xl overflow-hidden bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer group"
                 onClick={(e) => {
                   e.stopPropagation();
                   window.open(post.shared_url, '_blank', 'noopener,noreferrer');
                 }}
               >
-                {/* Image preview */}
-                {(articlePreview?.image || articlePreview?.previewImg || post.preview_img) && (
-                  <div className="aspect-video w-full overflow-hidden bg-muted">
+                {/* Image preview - 16:9 aspect ratio */}
+                <div className="relative w-full aspect-[16/9] bg-gradient-to-br from-gray-100 to-gray-50">
+                  {(articlePreview?.image || articlePreview?.previewImg || post.preview_img) ? (
                     <img 
                       src={articlePreview?.image || articlePreview?.previewImg || post.preview_img}
                       alt={articlePreview?.title || post.shared_title || ''}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      className="w-full h-full object-cover"
                     />
-                  </div>
-                )}
-                
-                <div className="p-3">
-                  {/* Tweet author info */}
-                  {articlePreview?.platform === 'twitter' && articlePreview?.author_username && (
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                        <span className="text-xs font-semibold text-primary">
-                          {articlePreview.author_username.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-[hsl(var(--capsule-text-primary))]">
-                          {articlePreview.author_name || articlePreview.author_username}
-                        </span>
-                        <span className="text-xs text-[hsl(var(--capsule-text-muted))]">
-                          @{articlePreview.author_username}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="flex items-center gap-2 text-xs text-[hsl(var(--capsule-text-muted))] mb-1.5">
-                    <span>{getHostnameFromUrl(post.shared_url)}</span>
-                    <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  
-                  {/* Show full tweet content or article title */}
-                  {articlePreview?.content && articlePreview?.platform === 'twitter' ? (
-                    <p className="text-sm text-[hsl(var(--capsule-text-body))] whitespace-pre-wrap leading-relaxed">
-                      {articlePreview.content}
-                    </p>
                   ) : (
-                    <div className="font-semibold text-sm text-[hsl(var(--capsule-text-primary))] line-clamp-2 group-hover:text-[hsl(var(--noparrot-blue))] transition-colors">
-                      {articlePreview?.title || post.shared_title || 'Post condiviso'}
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ExternalLink className="w-8 h-8 text-gray-300" />
                     </div>
                   )}
+                </div>
+                
+                {/* Metadata below image */}
+                <div className="p-3 space-y-1">
+                  <h4 className="font-semibold text-sm text-gray-900 line-clamp-2">
+                    {articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url)}
+                  </h4>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide">
+                    {getHostnameFromUrl(post.shared_url)}
+                  </p>
                 </div>
               </div>
             )}
 
-            {/* Actions - Minimalista con icone outline */}
-            <div className="flex items-center justify-between pt-2 -ml-1">
-              <div className="flex items-center gap-1">
-                {/* Heart */}
+            {/* Action Bar - Outline Icons, Minimal, Clean */}
+            <div className="flex items-center justify-between pt-3 -ml-1">
+              <div className="flex items-center gap-6">
+                {/* Like - Always Outline */}
                 <button 
                   className={cn(
-                    "flex items-center gap-1.5 px-2 py-1.5 rounded-full transition-all hover:bg-[hsl(var(--noparrot-blue))]/10",
-                    post.user_reactions.has_hearted && "text-[hsl(var(--noparrot-blue))]",
-                    !post.user_reactions.has_hearted && "text-[hsl(var(--noparrot-action-gray))] hover:text-[hsl(var(--noparrot-blue))]"
+                    "flex items-center gap-1.5 px-2 py-1.5 rounded-full transition-all",
+                    post.user_reactions.has_hearted 
+                      ? "text-blue-600 hover:bg-blue-50" 
+                      : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
                   )}
                   onClick={handleHeart}
                 >
-                  <HeartIcon 
-                    className={cn(
-                      "w-[18px] h-[18px] transition-all",
-                      post.user_reactions.has_hearted && "fill-current"
-                    )}
-                  />
+                  <Heart className="w-[18px] h-[18px]" />
                   {post.reactions.hearts > 0 && (
-                    <span className="text-xs font-medium">{post.reactions.hearts}</span>
+                    <span className="text-sm">{post.reactions.hearts}</span>
                   )}
                 </button>
 
-                {/* Comments */}
+                {/* Comments - Always Outline */}
                 <button 
-                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[hsl(var(--noparrot-action-gray))] hover:text-[hsl(var(--noparrot-blue))] hover:bg-[hsl(var(--noparrot-blue))]/10 transition-all"
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowComments(true);
                   }}
                 >
-                  <MessageCircleIcon className="w-[18px] h-[18px]" />
+                  <MessageCircle className="w-[18px] h-[18px]" />
                   {post.reactions.comments > 0 && (
-                    <span className="text-xs font-medium">{post.reactions.comments}</span>
+                    <span className="text-sm">{post.reactions.comments}</span>
                   )}
                 </button>
 
-                {/* Share */}
+                {/* Share - Always Outline */}
                 <button 
-                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[hsl(var(--noparrot-action-gray))] hover:text-[hsl(var(--noparrot-blue))] hover:bg-[hsl(var(--noparrot-blue))]/10 transition-all"
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all"
                   onClick={handleShareClick}
                   title="Condividi"
                 >
                   <img 
                     src="/lovable-uploads/f6970c06-9fd9-4430-b863-07384bbb05ce.png"
                     alt="Condividi"
-                    className="w-[18px] h-[18px] opacity-70 group-hover:opacity-100"
+                    className="w-[18px] h-[18px] opacity-60 hover:opacity-80"
                   />
                 </button>
               </div>
 
-              {/* Bookmark - Right side */}
+              {/* Bookmark - Always Outline, Right Side */}
               <button 
                 className={cn(
-                  "flex items-center px-2 py-1.5 rounded-full transition-all hover:bg-[hsl(var(--noparrot-blue))]/10",
-                  post.user_reactions.has_bookmarked && "text-[hsl(var(--noparrot-blue))]",
-                  !post.user_reactions.has_bookmarked && "text-[hsl(var(--noparrot-action-gray))] hover:text-[hsl(var(--noparrot-blue))]"
+                  "flex items-center px-2 py-1.5 rounded-full transition-all",
+                  post.user_reactions.has_bookmarked 
+                    ? "text-blue-600 hover:bg-blue-50" 
+                    : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
                 )}
                 onClick={handleBookmark}
               >
-                <BookmarkIcon 
-                  className={cn(
-                    "w-[18px] h-[18px] transition-all",
-                    post.user_reactions.has_bookmarked && "fill-current"
-                  )}
-                />
+                <Bookmark className="w-[18px] h-[18px]" />
               </button>
             </div>
           </div>

@@ -182,7 +182,7 @@ export const Feed = () => {
       <div className="mobile-container max-w-[600px] mx-auto px-4">
 
         {/* Feed Cards - Capsule View with vertical spacing */}
-        <div className="flex flex-col gap-4 py-4">
+        <div className="flex flex-col gap-6 py-4">
           {dbPosts.map((post) => (
             <FeedCard
               key={post.id}
