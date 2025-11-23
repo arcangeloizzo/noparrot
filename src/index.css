@@ -111,8 +111,12 @@
     
   /* ========== CAPSULE VIEW DESIGN SYSTEM - NOPARROT ========== */
     
-    /* Background */
-    --capsule-feed-bg: 186 33% 97%; /* #F2F7F7 Grigio Chiaro */
+    /* Background - Silicon Valley Clean */
+    --capsule-feed-bg: 210 17% 98%; /* #F9FAFB Grigio Neutro */
+    
+    /* Professional Card Shadows */
+    --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.03);
+    --shadow-card-hover: 0 4px 12px -2px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
     
     /* NoParrot Brand Colors */
     --noparrot-blue: 211 100% 52%; /* #0A7AFF Primary Blue */
@@ -454,13 +458,12 @@
   min-height: 100vh;
 }
 
-/* Capsule Card - White, Rounded, Clean */
+/* Capsule Card - Professional, Clean, Soft Shadows */
 .cognitive-capsule {
   background: hsl(var(--capsule-bg-white)) !important;
-  border: 1px solid hsl(var(--capsule-border-subtle)) !important;
-  border-radius: 24px !important;
-  box-shadow: var(--capsule-shadow-light) !important;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--shadow-card) !important;
+  transition: all 0.2s ease-out !important;
   position: relative;
   overflow: hidden;
   margin: 0 !important;
@@ -469,15 +472,15 @@
   transform: translateZ(0);
 }
 
-/* Hover State - Lift & Enhanced Shadow */
+/* Hover State - Subtle Lift & Soft Shadow */
 .cognitive-capsule:hover {
-  box-shadow: var(--capsule-shadow-hover) !important;
-  transform: translateY(-2px) translateZ(0) !important;
+  box-shadow: var(--shadow-card-hover) !important;
+  transform: translateY(-0.5px) translateZ(0) !important;
 }
 
-/* Active/Tap State - Spring Animation */
+/* Active/Tap State - Minimal Scale */
 .cognitive-capsule:active {
-  transform: scale(0.99) translateZ(0);
+  transform: scale(0.995) translateZ(0);
   transition: transform 0.1s ease-out;
 }
   border-color: rgba(47, 127, 239, 0.4);
