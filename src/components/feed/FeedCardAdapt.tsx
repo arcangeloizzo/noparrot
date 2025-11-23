@@ -452,7 +452,7 @@ export const FeedCard = ({
   return (
     <>
       <article 
-        className="liquid-glass-card p-5 cursor-pointer overflow-hidden"
+        className="feed-card-base p-5 cursor-pointer overflow-hidden"
         onClick={() => {
           navigate(`/post/${post.id}`);
         }}
