@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, EyeOff, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, EyeOff, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle, Info } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -104,6 +104,8 @@ export const FeedCard = ({
     reasons?: string[];
   } | null>(null);
   const [loadingTrustScore, setLoadingTrustScore] = useState(false);
+  const [showTrustTooltip, setShowTrustTooltip] = useState(false);
+  const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
 
   // Fetch article preview dynamically
   useEffect(() => {
@@ -579,13 +581,20 @@ export const FeedCard = ({
 
                   {/* Info Icon con Tooltip */}
                   {trustScore.reasons && trustScore.reasons.length > 0 && (
-                    <TrustBadge 
-                      band={trustScore.band}
-                      score={trustScore.score}
-                      reasons={trustScore.reasons}
-                      size="sm"
-                      className="!bg-transparent !border-0 !shadow-none !px-0 !py-0 !backdrop-blur-none"
-                    />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setTooltipPosition({ 
+                          top: rect.bottom + 8, 
+                          left: rect.left 
+                        });
+                        setShowTrustTooltip(!showTrustTooltip);
+                      }}
+                      className="ml-1 hover:opacity-70 transition-opacity"
+                    >
+                      <Info className="w-3.5 h-3.5" />
+                    </button>
                   )}
                 </div>
               </div>
@@ -748,6 +757,35 @@ export const FeedCard = ({
           setShareAction(null);
         }}
       />
+
+      {/* Trust Score Tooltip */}
+      {showTrustTooltip && trustScore?.reasons && createPortal(
+        <>
+          <div 
+            className="fixed inset-0 z-[9998]" 
+            onClick={() => setShowTrustTooltip(false)}
+          />
+          <div
+            className="fixed z-[9999] bg-background/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg max-w-[280px]"
+            style={{
+              top: `${tooltipPosition.top}px`,
+              left: `${tooltipPosition.left}px`,
+              transform: 'translateX(-50%)'
+            }}
+          >
+            <p className="text-xs font-semibold mb-2 text-foreground">Motivi del punteggio:</p>
+            <ul className="space-y-1">
+              {trustScore.reasons.map((reason, idx) => (
+                <li key={idx} className="text-xs text-muted-foreground flex items-start gap-2">
+                  <span className="text-primary mt-0.5">•</span>
+                  <span>{reason}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </>,
+        document.body
+      )}
 
       {/* Comments Drawer */}
       {showComments && (
