@@ -20,7 +20,7 @@ export const Header = () => {
 
   return (
     <header className="cognitive-header liquid-glass-navbar border-b-0">
-      <div className="container flex h-10 max-w-screen-xl items-center justify-center px-4 relative">
+      <div className="container flex h-8 max-w-screen-xl items-center justify-center px-4 relative">
         {/* Logo centrale con glow */}
         <div className="logo-container">
           <Logo variant="extended" size="md" className="h-8" />
