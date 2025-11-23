@@ -18,7 +18,19 @@ export default {
 			}
 		},
 		extend: {
-			colors: {
+		colors: {
+				// NoParrot Capsule View Colors
+				'capsule-feed-bg': 'hsl(var(--capsule-feed-bg))',
+				'noparrot-blue': 'hsl(var(--noparrot-blue))',
+				'noparrot-dark': 'hsl(var(--noparrot-dark))',
+				'noparrot-light-blue': 'hsl(var(--noparrot-light-blue))',
+				'noparrot-action-gray': 'hsl(var(--noparrot-action-gray))',
+				'capsule-bg-white': 'hsl(var(--capsule-bg-white))',
+				'capsule-border-subtle': 'hsl(var(--capsule-border-subtle))',
+				'capsule-text-primary': 'hsl(var(--capsule-text-primary))',
+				'capsule-text-body': 'hsl(var(--capsule-text-body))',
+				'capsule-text-muted': 'hsl(var(--capsule-text-muted))',
+				
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
 				ring: 'hsl(var(--ring))',

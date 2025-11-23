@@ -450,33 +450,29 @@ export const FeedCard = ({
   return (
     <>
       <article 
-        className="cognitive-capsule"
-        data-read="false"
-        data-reading="false"
-        data-understood="false"
+        className="bg-white rounded-3xl border border-[hsl(var(--capsule-border-subtle))] shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer overflow-hidden p-4 will-change-transform hover:-translate-y-0.5 active:scale-[0.99]"
         onClick={() => {
           navigate(`/post/${post.id}`);
         }}
       >
-        <div className="cognitive-capsule-content">
         <div className="flex gap-3">
-          {/* Avatar a sinistra */}
+          {/* Avatar circolare a sinistra */}
           <div 
-            className="flex-shrink-0 cursor-pointer"
+            className="flex-shrink-0 cursor-pointer transition-opacity hover:opacity-80"
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/profile/${post.author.id}`);
             }}
           >
-            <div className="w-10 h-10 rounded-full overflow-hidden">
+            <div className="w-10 h-10 rounded-full overflow-hidden ring-1 ring-border/20">
               {getAvatarContent()}
             </div>
           </div>
           
-          {/* Content a destra, allineato con l'avatar */}
+          {/* Content a destra */}
           <div className="flex-1 min-w-0">
-            {/* Header SENZA avatar */}
-            <div className="flex items-start justify-between gap-2 mb-1">
+            {/* Header: Nome + Badge Trust a destra */}
+            <div className="flex items-start justify-between gap-2 mb-2">
               <div 
                 className="flex-1 min-w-0 cursor-pointer" 
                 onClick={(e) => {
@@ -484,39 +480,38 @@ export const FeedCard = ({
                   navigate(`/profile/${post.author.id}`);
                 }}
               >
-                <PostHeader
-                  displayName={post.author.full_name || getDisplayUsername(post.author.username)}
-                  username={getDisplayUsername(post.author.username)}
-                  timestamp={timeAgo}
-                  label={post.stance === 'Condiviso' ? 'Condiviso' : post.stance === 'Confutato' ? 'Confutato' : undefined}
-                  avatarUrl={null}
-                />
+                <div className="flex items-baseline gap-2">
+                  <span className="font-semibold text-[15px] text-[hsl(var(--capsule-text-primary))] truncate">
+                    {post.author.full_name || getDisplayUsername(post.author.username)}
+                  </span>
+                  <span className="text-[13px] text-[hsl(var(--capsule-text-muted))]">
+                    {timeAgo}
+                  </span>
+                </div>
               </div>
 
-              {/* Actions Menu */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button 
-                    className="p-1.5 hover:bg-primary/10 rounded-full transition-colors text-muted-foreground hover:text-primary flex-shrink-0"
-                    onClick={(e) => e.stopPropagation()}
+              {/* Trust Badge Pill - Top Right */}
+              {trustScore && post.shared_url && (
+                <div 
+                  className="flex-shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div 
+                    className={cn(
+                      "px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide",
+                      trustScore.band === "ALTO" && "bg-[hsl(var(--trust-pill-high-bg))] text-[hsl(var(--trust-pill-high-text))]",
+                      trustScore.band === "MEDIO" && "bg-[hsl(var(--trust-pill-medium-bg))] text-[hsl(var(--trust-pill-medium-text))]",
+                      trustScore.band === "BASSO" && "bg-[hsl(var(--trust-pill-low-bg))] text-[hsl(var(--trust-pill-low-text))]"
+                    )}
                   >
-                    <MoreHorizontal className="w-5 h-5" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={(e) => {
-                    e.stopPropagation();
-                    onRemove?.();
-                  }}>
-                    <EyeOff className="w-4 h-4 mr-2" />
-                    Nascondi post
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    {trustScore.band}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* User Comment - Full content */}
-            <div className="cognitive-text-primary mb-2 text-[15px] leading-5 whitespace-pre-wrap break-words">
+            {/* User Comment - Interlinea rilassata */}
+            <div className="text-[15px] leading-relaxed text-[hsl(var(--capsule-text-body))] mb-3 whitespace-pre-wrap break-words">
               <MentionText content={post.content} />
             </div>
 
@@ -538,10 +533,10 @@ export const FeedCard = ({
               />
             )}
 
-            {/* Article Preview Card */}
+            {/* Article Preview Card - Bordi arrotondati, bg-gray-50 */}
             {post.shared_url && (
               <div 
-                className="cognitive-article-preview mb-3 border border-border rounded-2xl overflow-hidden hover:bg-accent/10 hover:border-accent/50 transition-all cursor-pointer group"
+                className="mb-3 border border-border/40 rounded-xl overflow-hidden bg-gray-50/50 hover:bg-gray-50 hover:border-border/60 transition-all cursor-pointer group"
                 onClick={(e) => {
                   e.stopPropagation();
                   window.open(post.shared_url, '_blank', 'noopener,noreferrer');
@@ -553,7 +548,7 @@ export const FeedCard = ({
                     <img 
                       src={articlePreview?.image || articlePreview?.previewImg || post.preview_img}
                       alt={articlePreview?.title || post.shared_title || ''}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   </div>
                 )}
@@ -568,28 +563,28 @@ export const FeedCard = ({
                         </span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-sm font-semibold text-foreground">
+                        <span className="text-sm font-semibold text-[hsl(var(--capsule-text-primary))]">
                           {articlePreview.author_name || articlePreview.author_username}
                         </span>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-[hsl(var(--capsule-text-muted))]">
                           @{articlePreview.author_username}
                         </span>
                       </div>
                     </div>
                   )}
                   
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                  <div className="flex items-center gap-2 text-xs text-[hsl(var(--capsule-text-muted))] mb-1.5">
                     <span>{getHostnameFromUrl(post.shared_url)}</span>
                     <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                   
                   {/* Show full tweet content or article title */}
                   {articlePreview?.content && articlePreview?.platform === 'twitter' ? (
-                    <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
+                    <p className="text-sm text-[hsl(var(--capsule-text-body))] whitespace-pre-wrap leading-relaxed">
                       {articlePreview.content}
                     </p>
                   ) : (
-                    <div className="font-semibold text-sm text-foreground line-clamp-2 group-hover:text-accent transition-colors">
+                    <div className="font-semibold text-sm text-[hsl(var(--capsule-text-primary))] line-clamp-2 group-hover:text-[hsl(var(--noparrot-blue))] transition-colors">
                       {articlePreview?.title || post.shared_title || 'Post condiviso'}
                     </div>
                   )}
@@ -597,75 +592,75 @@ export const FeedCard = ({
               </div>
             )}
 
-            {/* Trust Badge - Mostra solo per post con fonte */}
-            {trustScore && post.shared_url && (
-              <div 
-                className="mb-3 flex items-center gap-2"
-                onClick={(e) => e.stopPropagation()}
-              >
-            <TrustBadge 
-              band={trustScore.band}
-              score={trustScore.score}
-              reasons={trustScore.reasons}
-              size="sm"
-            />
-              </div>
-            )}
-
-            {/* Actions - Like, Comments, Share, Save */}
-            <div className="cognitive-actions flex items-center justify-between -ml-2">
-              <div className="flex items-center gap-4">
+            {/* Actions - Minimalista con icone outline */}
+            <div className="flex items-center justify-between pt-2 -ml-1">
+              <div className="flex items-center gap-1">
+                {/* Heart */}
                 <button 
-                  className={cn("cognitive-action-btn", post.user_reactions.has_hearted && "active")}
+                  className={cn(
+                    "flex items-center gap-1.5 px-2 py-1.5 rounded-full transition-all hover:bg-[hsl(var(--noparrot-blue))]/10",
+                    post.user_reactions.has_hearted && "text-[hsl(var(--noparrot-blue))]",
+                    !post.user_reactions.has_hearted && "text-[hsl(var(--noparrot-action-gray))] hover:text-[hsl(var(--noparrot-blue))]"
+                  )}
                   onClick={handleHeart}
                 >
                   <HeartIcon 
                     className={cn(
-                      "w-5 h-5 transition-all",
+                      "w-[18px] h-[18px] transition-all",
                       post.user_reactions.has_hearted && "fill-current"
                     )}
                   />
-                  <span className="text-sm">{post.reactions.hearts}</span>
+                  {post.reactions.hearts > 0 && (
+                    <span className="text-xs font-medium">{post.reactions.hearts}</span>
+                  )}
                 </button>
 
+                {/* Comments */}
                 <button 
-                  className="cognitive-action-btn"
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[hsl(var(--noparrot-action-gray))] hover:text-[hsl(var(--noparrot-blue))] hover:bg-[hsl(var(--noparrot-blue))]/10 transition-all"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowComments(true);
                   }}
                 >
-                  <MessageCircleIcon className="w-5 h-5" />
-                  <span className="text-sm">{post.reactions.comments}</span>
+                  <MessageCircleIcon className="w-[18px] h-[18px]" />
+                  {post.reactions.comments > 0 && (
+                    <span className="text-xs font-medium">{post.reactions.comments}</span>
+                  )}
                 </button>
 
+                {/* Share */}
                 <button 
-                  className="cognitive-action-btn"
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-[hsl(var(--noparrot-action-gray))] hover:text-[hsl(var(--noparrot-blue))] hover:bg-[hsl(var(--noparrot-blue))]/10 transition-all"
                   onClick={handleShareClick}
                   title="Condividi"
                 >
                   <img 
                     src="/lovable-uploads/f6970c06-9fd9-4430-b863-07384bbb05ce.png"
                     alt="Condividi"
-                    className="w-5 h-5"
+                    className="w-[18px] h-[18px] opacity-70 group-hover:opacity-100"
                   />
                 </button>
               </div>
 
+              {/* Bookmark - Right side */}
               <button 
-                className={cn("cognitive-action-btn", post.user_reactions.has_bookmarked && "active")}
+                className={cn(
+                  "flex items-center px-2 py-1.5 rounded-full transition-all hover:bg-[hsl(var(--noparrot-blue))]/10",
+                  post.user_reactions.has_bookmarked && "text-[hsl(var(--noparrot-blue))]",
+                  !post.user_reactions.has_bookmarked && "text-[hsl(var(--noparrot-action-gray))] hover:text-[hsl(var(--noparrot-blue))]"
+                )}
                 onClick={handleBookmark}
               >
                 <BookmarkIcon 
                   className={cn(
-                    "w-5 h-5 transition-all",
+                    "w-[18px] h-[18px] transition-all",
                     post.user_reactions.has_bookmarked && "fill-current"
                   )}
                 />
               </button>
             </div>
           </div>
-        </div>
         </div>
       </article>
 

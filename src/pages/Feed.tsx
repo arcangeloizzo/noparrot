@@ -179,10 +179,10 @@ export const Feed = () => {
         </div>
       )}
       
-      <div className="mobile-container max-w-[600px] mx-auto">
+      <div className="mobile-container max-w-[600px] mx-auto px-4">
 
-        {/* Feed Cards - Linear X Style */}
-        <div className="divide-y divide-border">
+        {/* Feed Cards - Capsule View with vertical spacing */}
+        <div className="flex flex-col gap-4 py-4">
           {dbPosts.map((post) => (
             <FeedCard
               key={post.id}
