@@ -450,7 +450,7 @@ export const FeedCard = ({
   return (
     <>
       <article 
-        className="bg-white rounded-2xl shadow-[0_1px_3px_0_rgba(0,0,0,0.05)] hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.08)] transition-all duration-200 cursor-pointer overflow-hidden p-5 will-change-transform hover:-translate-y-0.5 active:scale-[0.995]"
+        className="bg-gradient-to-br from-white to-blue-50/30 rounded-2xl shadow-[0_2px_4px_0_rgba(0,0,0,0.06)] hover:shadow-[0_6px_16px_-4px_rgba(0,0,0,0.1)] transition-all duration-200 cursor-pointer overflow-hidden p-5 will-change-transform hover:-translate-y-0.5 active:scale-[0.995]"
         onClick={() => {
           navigate(`/post/${post.id}`);
         }}
@@ -471,8 +471,8 @@ export const FeedCard = ({
           
           {/* Content a destra */}
           <div className="flex-1 min-w-0">
-            {/* Header: Nome + Badge Trust a destra */}
-            <div className="flex items-start justify-between gap-2 mb-2">
+            {/* Header: Nome utente e timestamp - clean */}
+            <div className="flex items-baseline gap-2 mb-2">
               <div 
                 className="flex-1 min-w-0 cursor-pointer" 
                 onClick={(e) => {
@@ -480,37 +480,13 @@ export const FeedCard = ({
                   navigate(`/profile/${post.author.id}`);
                 }}
               >
-                <div className="flex items-baseline gap-2">
-                  <span className="font-semibold text-[15px] text-[hsl(var(--capsule-text-primary))] truncate">
-                    {post.author.full_name || getDisplayUsername(post.author.username)}
-                  </span>
-                  <span className="text-[13px] text-[hsl(var(--capsule-text-muted))]">
-                    {timeAgo}
-                  </span>
-                </div>
+                <span className="font-semibold text-[15px] text-[hsl(var(--capsule-text-primary))] truncate">
+                  {post.author.full_name || getDisplayUsername(post.author.username)}
+                </span>
               </div>
-
-              {/* Trust Badge Pill - Top Right with Icon */}
-              {trustScore && post.shared_url && (
-                <div 
-                  className="flex-shrink-0"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div 
-                    className={cn(
-                      "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium uppercase tracking-wide",
-                      trustScore.band === "ALTO" && "bg-emerald-50 text-emerald-700",
-                      trustScore.band === "MEDIO" && "bg-amber-50 text-amber-700",
-                      trustScore.band === "BASSO" && "bg-red-50 text-red-700"
-                    )}
-                  >
-                    {trustScore.band === "ALTO" && <ShieldCheck className="w-3 h-3" />}
-                    {trustScore.band === "MEDIO" && <ShieldAlert className="w-3 h-3" />}
-                    {trustScore.band === "BASSO" && <AlertTriangle className="w-3 h-3" />}
-                    <span>{trustScore.band}</span>
-                  </div>
-                </div>
-              )}
+              <span className="text-[13px] text-[hsl(var(--capsule-text-muted))] flex-shrink-0">
+                {timeAgo}
+              </span>
             </div>
 
             {/* User Comment - Interlinea rilassata */}
@@ -572,8 +548,25 @@ export const FeedCard = ({
               </div>
             )}
 
-            {/* Action Bar - Outline Icons, Minimal, Clean */}
-            <div className="flex items-center justify-between pt-3 -ml-1">
+            {/* Trust Badge - Positioned between content and action bar */}
+            {trustScore && post.shared_url && (
+              <div 
+                className="flex items-center justify-start mb-3"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <TrustBadge 
+                  band={trustScore.band}
+                  score={trustScore.score}
+                  reasons={trustScore.reasons}
+                  size="sm"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Action Bar - Aligned with avatar */}
+        <div className="flex items-center justify-between pt-3 pl-[52px]">
               <div className="flex items-center gap-6">
                 {/* Like - Always Outline */}
                 <button 
@@ -620,20 +613,18 @@ export const FeedCard = ({
               </div>
 
               {/* Bookmark - Always Outline, Right Side */}
-              <button 
-                className={cn(
-                  "flex items-center px-2 py-1.5 rounded-full transition-all",
-                  post.user_reactions.has_bookmarked 
-                    ? "text-blue-600 hover:bg-blue-50" 
-                    : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
-                )}
-                onClick={handleBookmark}
-              >
-                <Bookmark className="w-[18px] h-[18px]" />
-              </button>
-            </div>
+            <button 
+              className={cn(
+                "flex items-center px-2 py-1.5 rounded-full transition-all",
+                post.user_reactions.has_bookmarked 
+                  ? "text-blue-600 hover:bg-blue-50" 
+                  : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+              )}
+              onClick={handleBookmark}
+            >
+              <Bookmark className="w-[18px] h-[18px]" />
+            </button>
           </div>
-        </div>
       </article>
 
       {/* Reader Modal - Rendered via Portal */}
