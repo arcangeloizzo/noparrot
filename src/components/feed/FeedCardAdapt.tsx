@@ -450,7 +450,7 @@ export const FeedCard = ({
   return (
     <>
       <article 
-        className="bg-gradient-to-br from-white to-blue-50/30 rounded-2xl shadow-[0_2px_4px_0_rgba(0,0,0,0.06)] hover:shadow-[0_6px_16px_-4px_rgba(0,0,0,0.1)] transition-all duration-200 cursor-pointer overflow-hidden p-5 will-change-transform hover:-translate-y-0.5 active:scale-[0.995]"
+        className="bg-[#F0F8FF] rounded-2xl shadow-[0_2px_4px_0_rgba(0,0,0,0.06)] hover:shadow-[0_6px_16px_-4px_rgba(0,0,0,0.1)] transition-all duration-200 cursor-pointer overflow-hidden p-5 will-change-transform hover:-translate-y-0.5 active:scale-[0.995]"
         onClick={() => {
           navigate(`/post/${post.id}`);
         }}
@@ -565,8 +565,11 @@ export const FeedCard = ({
           </div>
         </div>
 
-        {/* Action Bar - Aligned with avatar */}
-        <div className="flex items-center justify-between pt-3 pl-[52px]">
+        {/* Action Bar - Aligned with avatar using spacer */}
+        <div className="flex gap-3 pt-3">
+          <div className="w-10 flex-shrink-0" /> {/* Avatar spacer */}
+          <div className="flex-1">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-6">
                 {/* Like - Always Outline */}
                 <button 
@@ -613,18 +616,20 @@ export const FeedCard = ({
               </div>
 
               {/* Bookmark - Always Outline, Right Side */}
-            <button 
-              className={cn(
-                "flex items-center px-2 py-1.5 rounded-full transition-all",
-                post.user_reactions.has_bookmarked 
-                  ? "text-blue-600 hover:bg-blue-50" 
-                  : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
-              )}
-              onClick={handleBookmark}
-            >
-              <Bookmark className="w-[18px] h-[18px]" />
-            </button>
+              <button 
+                className={cn(
+                  "flex items-center px-2 py-1.5 rounded-full transition-all",
+                  post.user_reactions.has_bookmarked 
+                    ? "text-blue-600 hover:bg-blue-50" 
+                    : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                )}
+                onClick={handleBookmark}
+              >
+                <Bookmark className="w-[18px] h-[18px]" />
+              </button>
+            </div>
           </div>
+        </div>
       </article>
 
       {/* Reader Modal - Rendered via Portal */}
