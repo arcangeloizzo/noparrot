@@ -1,6 +1,7 @@
 // supabase/functions/evaluate-trust-score/index.ts
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,6 +15,11 @@ serve(async (req) => {
 
   try {
     const { sourceUrl, postText } = await req.json();
+    
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     console.log('[TrustScore Edge] Request received:', {
       sourceUrl,
@@ -48,6 +54,28 @@ serve(async (req) => {
     }
 
     const normalizedSourceUrl = normalizeYouTubeUrl(sourceUrl);
+
+    // Check cache first
+    const { data: cachedScore } = await supabase
+      .from('trust_scores')
+      .select('*')
+      .eq('source_url', normalizedSourceUrl)
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle();
+
+    if (cachedScore) {
+      console.log('[TrustScore Edge] Cache hit:', normalizedSourceUrl);
+      return new Response(
+        JSON.stringify({
+          band: cachedScore.band,
+          score: cachedScore.score,
+          reasons: cachedScore.reasons
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('[TrustScore Edge] Cache miss, calling AI:', normalizedSourceUrl);
 
     const prompt = `Sei un esperto valutatore di fonti e contenuti web.
 
@@ -99,7 +127,7 @@ IMPORTANTE: Sii conservativo. In caso di dubbio, preferisci MEDIO.`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-2.5-flash-lite',
         messages: [
           { 
             role: 'system', 
@@ -171,7 +199,21 @@ IMPORTANTE: Sii conservativo. In caso di dubbio, preferisci MEDIO.`;
     // Limit reasons to 3
     parsedContent.reasons = parsedContent.reasons.slice(0, 3);
 
-    console.log('[TrustScore Edge] Returning:', {
+    // Save to cache
+    await supabase
+      .from('trust_scores')
+      .upsert({
+        source_url: normalizedSourceUrl,
+        band: parsedContent.band,
+        score: parsedContent.score,
+        reasons: parsedContent.reasons,
+        calculated_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      }, {
+        onConflict: 'source_url'
+      });
+
+    console.log('[TrustScore Edge] Cached and returning:', {
       band: parsedContent.band,
       score: parsedContent.score,
       reasonsCount: parsedContent.reasons.length

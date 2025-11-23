@@ -905,6 +905,36 @@ export type Database = {
           },
         ]
       }
+      trust_scores: {
+        Row: {
+          band: string
+          calculated_at: string
+          expires_at: string
+          id: string
+          reasons: Json
+          score: number
+          source_url: string
+        }
+        Insert: {
+          band: string
+          calculated_at?: string
+          expires_at?: string
+          id?: string
+          reasons: Json
+          score: number
+          source_url: string
+        }
+        Update: {
+          band?: string
+          calculated_at?: string
+          expires_at?: string
+          id?: string
+          reasons?: Json
+          score?: number
+          source_url?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
