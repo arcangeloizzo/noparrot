@@ -69,7 +69,7 @@ export const Logo = ({ className, size = "md", variant = "icon", dark = false, i
         id={id}
         src={LOGO_WHITE} 
         alt="NOPARROT" 
-        className={cn(heightClasses[size], "w-auto", clickableClasses, className)}
+        className={cn(sizeClasses[size], clickableClasses, className)}
         onClick={onClick}
       />
     );
