@@ -452,10 +452,7 @@ export const FeedCard = ({
   return (
     <>
       <article 
-        className="feed-card-base p-5 cursor-pointer overflow-hidden"
-        onClick={() => {
-          navigate(`/post/${post.id}`);
-        }}
+        className="feed-card-base p-5 overflow-hidden"
       >
         <div className="flex gap-3">
           {/* Avatar circolare a sinistra */}
