@@ -557,15 +557,29 @@ export const FeedCard = ({
             )}
 
             {/* Trust Badge - Liquid Glass Pill ESATTAMENTE tra Preview e Action Bar */}
-            {/* Trust Badge con tooltip */}
+            {/* Trust Badge - Liquid Glass Pill */}
             {trustScore && post.shared_url && (
-              <div className="flex items-center justify-start mb-3">
-                <TrustBadge 
-                  band={trustScore.band}
-                  score={trustScore.score}
-                  reasons={trustScore.reasons}
-                  size="sm"
-                />
+              <div 
+                className="flex items-center justify-start mb-3"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div 
+                  className={cn(
+                    "inline-flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md transition-all duration-200",
+                    trustScore.band === "ALTO" && "trust-badge-high",
+                    trustScore.band === "MEDIO" && "trust-badge-medium",
+                    trustScore.band === "BASSO" && "trust-badge-low"
+                  )}
+                >
+                  {/* Icona Lucchetto */}
+                  {trustScore.band === "ALTO" && <ShieldCheck className="w-4 h-4" />}
+                  {trustScore.band === "MEDIO" && <ShieldAlert className="w-4 h-4" />}
+                  {trustScore.band === "BASSO" && <AlertTriangle className="w-4 h-4" />}
+                  
+                  <span className="text-xs font-bold uppercase tracking-wider">
+                    {trustScore.band}
+                  </span>
+                </div>
               </div>
             )}
           </div>
