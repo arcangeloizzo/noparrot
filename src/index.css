@@ -109,38 +109,35 @@
     --safe-area-bottom: env(safe-area-inset-bottom, 0px);
     --mobile-width: 375px;
     
-    /* ========== COGNITIVE FEED - CAPSULE VIEW ========== */
+  /* ========== CAPSULE VIEW DESIGN SYSTEM - NOPARROT ========== */
     
-    /* Cognitive Dark Gradients */
-    --cognitive-bg-top: 210 18% 11%; /* #1B2024 */
-    --cognitive-bg-bottom: 210 20% 8%; /* #14181C */
-    --cognitive-bg-alt: 210 22% 6%; /* #0E1419 */
+    /* Background */
+    --capsule-feed-bg: 186 33% 97%; /* #F2F7F7 Grigio Chiaro */
     
-    /* Cognitive Blue (Cenerino) */
-    --cognitive-blue: 210 88% 56%; /* #2F7FEF */
-    --cognitive-blue-subtle: rgba(47, 127, 239, 0.15);
-    --cognitive-blue-glow: rgba(47, 127, 239, 0.25);
+    /* NoParrot Brand Colors */
+    --noparrot-blue: 211 100% 52%; /* #0A7AFF Primary Blue */
+    --noparrot-dark: 210 48% 20%; /* #1F3347 Dark Blue */
+    --noparrot-light-blue: 180 49% 84%; /* #BFE9E9 Light Blue Accents */
+    --noparrot-action-gray: 210 12% 67%; /* #9AA3AB Action Icons Base */
     
-    /* Typography Cenerino */
-    --text-primary-cognitive: 210 25% 97%; /* #F4F7FA */
-    --text-secondary-cognitive: 210 12% 67%; /* #9AA3AB */
+    /* Capsule Card */
+    --capsule-bg-white: 0 0% 100%; /* #FFFFFF */
+    --capsule-border-subtle: 220 9% 90%; /* #E5E7EB */
+    --capsule-shadow-light: 0 1px 3px rgba(0, 0, 0, 0.05);
+    --capsule-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08);
     
-    /* Glass Effects */
-    --glass-capsule: rgba(31, 47, 71, 0.5);
-    --glass-navbar: rgba(20, 24, 28, 0.8);
-    --glass-blur-capsule: blur(20px);
+    /* Trust Badge Pill Colors (Dynamic) */
+    --trust-pill-high-bg: 140 45% 95%; /* bg-emerald-100 */
+    --trust-pill-high-text: 140 60% 30%; /* text-emerald-700 */
+    --trust-pill-medium-bg: 38 90% 90%; /* bg-amber-100 */
+    --trust-pill-medium-text: 38 92% 35%; /* text-amber-700 */
+    --trust-pill-low-bg: 0 85% 95%; /* bg-red-100 */
+    --trust-pill-low-text: 0 84% 40%; /* text-red-700 */
     
-    /* Capsule Colors */
-    --capsule-bg: rgba(31, 47, 71, 0.6);
-    --capsule-border: rgba(47, 127, 239, 0.15);
-    --capsule-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-    --capsule-glow: 0 0 20px rgba(47, 127, 239, 0.25);
-    --capsule-glow-active: 0 0 30px rgba(47, 127, 239, 0.4);
-    
-    /* Capsule States */
-    --capsule-unread: rgba(31, 47, 71, 0.5);
-    --capsule-reading: rgba(47, 127, 239, 0.08);
-    --capsule-read: rgba(47, 127, 239, 0.12);
+    /* Typography */
+    --capsule-text-primary: 210 48% 20%; /* #1F3347 Dark Blue for names */
+    --capsule-text-body: 210 15% 30%; /* Body text */
+    --capsule-text-muted: 210 12% 67%; /* #9AA3AB Muted/timestamps */
   }
   
   /* Safe area support for iOS */
@@ -449,55 +446,40 @@
     }
   }
 
-/* ========== COGNITIVE FEED STYLES ========== */
+/* ========== CAPSULE VIEW - NOPARROT FEED STYLES ========== */
 
-/* Feed Container */
+/* Feed Container - Light Gray Background */
 .cognitive-feed-container {
-  background: transparent;
+  background: hsl(var(--capsule-feed-bg));
   min-height: 100vh;
 }
 
-/* Cognitive Capsule - Base */
+/* Capsule Card - White, Rounded, Clean */
 .cognitive-capsule {
-  background: var(--capsule-bg) !important;
-  backdrop-filter: var(--glass-blur-capsule) !important;
-  border: 1px solid var(--capsule-border) !important;
-  border-radius: 28px !important;
-  box-shadow: var(--capsule-shadow) !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  background: hsl(var(--capsule-bg-white)) !important;
+  border: 1px solid hsl(var(--capsule-border-subtle)) !important;
+  border-radius: 24px !important;
+  box-shadow: var(--capsule-shadow-light) !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   position: relative;
   overflow: hidden;
-  margin: 16px !important;
+  margin: 0 !important;
   padding: 0 !important;
+  will-change: transform, box-shadow;
+  transform: translateZ(0);
 }
 
+/* Hover State - Lift & Enhanced Shadow */
 .cognitive-capsule:hover {
-  box-shadow: var(--capsule-shadow), var(--capsule-glow) !important;
-  border-color: rgba(47, 127, 239, 0.3) !important;
-  transform: translateY(-2px) !important;
+  box-shadow: var(--capsule-shadow-hover) !important;
+  transform: translateY(-2px) translateZ(0) !important;
 }
 
+/* Active/Tap State - Spring Animation */
 .cognitive-capsule:active {
-  transform: scale(0.995);
+  transform: scale(0.99) translateZ(0);
+  transition: transform 0.1s ease-out;
 }
-
-/* Capsule - Stati Cognitivi */
-.cognitive-capsule[data-read="false"] {
-  background: var(--capsule-unread);
-  opacity: 0.85;
-}
-
-.cognitive-capsule[data-reading="true"] {
-  background: var(--capsule-reading);
-  box-shadow: var(--capsule-shadow), 
-              0 0 15px rgba(47, 127, 239, 0.2),
-              inset 0 0 30px rgba(47, 127, 239, 0.05);
-  border-bottom: 2px solid hsl(var(--cognitive-blue));
-}
-
-.cognitive-capsule[data-understood="true"] {
-  background: var(--capsule-read);
-  box-shadow: var(--capsule-shadow), var(--capsule-glow-active);
   border-color: rgba(47, 127, 239, 0.4);
 }
 
@@ -761,7 +743,6 @@
   font-size: 13px;
   font-weight: 400;
 }
-  }
 
   .animate-slide-up {
     animation: slide-up 0.3s ease-out;
