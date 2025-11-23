@@ -19,7 +19,7 @@ export const Header = () => {
   }).length;
 
   return (
-    <header className="cognitive-header">
+    <header className="cognitive-header liquid-glass-navbar border-b-0">
       <div className="container flex h-[4.375rem] max-w-screen-xl items-center justify-center px-4 relative">
         {/* Logo centrale con glow */}
         <div className="logo-container">
@@ -30,16 +30,16 @@ export const Header = () => {
         <div className="absolute right-4 top-1/2 -translate-y-1/2">
           <Link
             to="/notifications"
-            className="relative flex items-center justify-center w-12 h-12 rounded-full hover:bg-accent/50 transition-colors"
+            className="relative flex items-center justify-center w-12 h-12 rounded-full hover:bg-white/10 transition-colors"
             onClick={() => {
               const now = new Date().toISOString();
               localStorage.setItem('notifications-last-viewed', now);
               setLastViewedAt(now);
             }}
           >
-            <Bell className="h-6 w-6" />
+            <Bell className="h-6 w-6 text-white icon-glow" />
             {unreadCount > 0 && (
-              <div className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground text-xs font-semibold rounded-full min-w-[22px] h-6 flex items-center justify-center px-2">
+              <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-semibold rounded-full min-w-[22px] h-6 flex items-center justify-center px-2 shadow-[0_0_8px_rgba(239,68,68,0.6)]">
                 {unreadCount > 99 ? '99+' : unreadCount}
               </div>
             )}

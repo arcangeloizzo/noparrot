@@ -14,13 +14,13 @@ export const FloatingActionButton = ({ onClick }: FloatingActionButtonProps) => 
   return (
     <button
       onClick={handleClick}
-      className="cognitive-fab flex items-center justify-center"
+      className="liquid-glass-fab fixed bottom-20 right-6 w-14 h-14 rounded-full flex items-center justify-center z-30 transition-all duration-300 active:scale-95"
       aria-label="Crea post"
     >
       <Logo 
         variant="white" 
         size="lg"
-        className="w-8 h-8 relative z-10"
+        className="w-8 h-8 relative z-10 icon-glow"
       />
     </button>
   );
