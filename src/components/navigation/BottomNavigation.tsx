@@ -56,7 +56,7 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
   ];
 
   return (
-    <nav className="cognitive-navbar">
+    <nav className="liquid-glass-navbar fixed bottom-0 left-0 right-0 z-40">
       <div className="flex justify-around items-center h-14 max-w-[600px] mx-auto">
         {tabs.map(({ id, icon: Icon, label, isAvatar, isLucide }) => (
           <button
@@ -71,23 +71,35 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
               }
             }}
             className={cn(
-              "cognitive-navbar-item flex flex-col items-center justify-center gap-0.5 px-4 h-full transition-colors relative",
-              activeTab === id && "active"
+              "flex flex-col items-center justify-center gap-0.5 px-4 h-full transition-all duration-200 relative",
+              activeTab === id ? "text-white" : "text-gray-400 hover:text-white"
             )}
           >
             {isAvatar ? (
-              getAvatarContent()
+              <div className="ring-2 ring-white/20 rounded-full">
+                {getAvatarContent()}
+              </div>
             ) : Icon && (
               <div className="relative">
-                <Icon className="w-6 h-6" />
+                <Icon className={cn(
+                  "w-6 h-6 transition-all",
+                  activeTab === id ? "icon-glow" : "hover:icon-glow"
+                )} />
                 {id === "messages" && unreadCount > 0 && (
-                  <div className="absolute -top-1 -right-1 bg-brand-pink text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-semibold">
+                  <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-semibold shadow-[0_0_8px_rgba(239,68,68,0.6)]">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </div>
                 )}
               </div>
             )}
-            {!isAvatar && <span className="text-[10px] font-medium">{label}</span>}
+            {!isAvatar && (
+              <span className={cn(
+                "text-[10px] font-medium transition-all",
+                activeTab === id ? "text-white" : "text-gray-400"
+              )}>
+                {label}
+              </span>
+            )}
           </button>
         ))}
       </div>

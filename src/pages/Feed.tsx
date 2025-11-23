@@ -165,7 +165,8 @@ export const Feed = () => {
   return (
     <div 
       ref={scrollContainerRef}
-      className="cognitive-feed-container min-h-screen pb-[calc(6rem+env(safe-area-inset-bottom))] overflow-y-auto"
+      className="min-h-screen pb-[calc(6rem+env(safe-area-inset-bottom))] overflow-y-auto"
+      style={{ background: 'transparent' }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

@@ -450,7 +450,7 @@ export const FeedCard = ({
   return (
     <>
       <article 
-        className="bg-[#F0F8FF] rounded-2xl shadow-[0_2px_4px_0_rgba(0,0,0,0.06)] hover:shadow-[0_6px_16px_-4px_rgba(0,0,0,0.1)] transition-all duration-200 cursor-pointer overflow-hidden p-5 will-change-transform hover:-translate-y-0.5 active:scale-[0.995]"
+        className="liquid-glass-card p-5 cursor-pointer overflow-hidden"
         onClick={() => {
           navigate(`/post/${post.id}`);
         }}
@@ -480,17 +480,17 @@ export const FeedCard = ({
                   navigate(`/profile/${post.author.id}`);
                 }}
               >
-                <span className="font-semibold text-[15px] text-[hsl(var(--capsule-text-primary))] truncate">
+                <span className="font-semibold text-[15px] text-white truncate">
                   {post.author.full_name || getDisplayUsername(post.author.username)}
                 </span>
               </div>
-              <span className="text-[13px] text-[hsl(var(--capsule-text-muted))] flex-shrink-0">
+              <span className="text-[13px] text-gray-400 flex-shrink-0">
                 {timeAgo}
               </span>
             </div>
 
             {/* User Comment - Interlinea rilassata */}
-            <div className="text-[15px] leading-relaxed text-[hsl(var(--capsule-text-body))] mb-3 whitespace-pre-wrap break-words">
+            <div className="text-[15px] leading-relaxed text-gray-100 mb-3 whitespace-pre-wrap break-words">
               <MentionText content={post.content} />
             </div>
 
@@ -512,60 +512,79 @@ export const FeedCard = ({
               />
             )}
 
-            {/* Rich Link Preview Card - Professional, Always Shown */}
+            {/* Rich Link Preview Card - Liquid Glass Nested Panel */}
             {post.shared_url && (
               <div 
-                className="mb-3 border border-gray-100 rounded-xl overflow-hidden bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer group"
+                className="mb-3 liquid-glass-nested overflow-hidden hover:bg-[rgba(255,255,255,0.06)] transition-all duration-200 cursor-pointer group"
                 onClick={(e) => {
                   e.stopPropagation();
                   window.open(post.shared_url, '_blank', 'noopener,noreferrer');
                 }}
               >
                 {/* Image preview - 16:9 aspect ratio */}
-                <div className="relative w-full aspect-[16/9] bg-gradient-to-br from-gray-100 to-gray-50">
+                <div className="relative w-full aspect-[16/9] bg-gradient-to-br from-gray-900 to-gray-800">
                   {(articlePreview?.image || articlePreview?.previewImg || post.preview_img) ? (
                     <img 
                       src={articlePreview?.image || articlePreview?.previewImg || post.preview_img}
                       alt={articlePreview?.title || post.shared_title || ''}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover opacity-80"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <ExternalLink className="w-8 h-8 text-gray-300" />
+                      <ExternalLink className="w-10 h-10 text-gray-600" />
                     </div>
                   )}
+                  {/* Overlay gradient per leggibilità */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                 </div>
                 
                 {/* Metadata below image */}
                 <div className="p-3 space-y-1">
-                  <h4 className="font-semibold text-sm text-gray-900 line-clamp-2">
+                  <h4 className="font-semibold text-sm text-white line-clamp-2">
                     {articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url)}
                   </h4>
-                  <p className="text-xs text-gray-500 uppercase tracking-wide">
+                  <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1">
+                    {articlePreview?.platform === "youtube" && (
+                      <span className="text-red-400">▶</span>
+                    )}
+                    {articlePreview?.platform === "instagram" && (
+                      <span className="text-pink-400">📷</span>
+                    )}
                     {getHostnameFromUrl(post.shared_url)}
                   </p>
                 </div>
               </div>
             )}
 
-            {/* Trust Badge - Positioned between content and action bar */}
+            {/* Trust Badge - Liquid Glass Pill ESATTAMENTE tra Preview e Action Bar */}
             {trustScore && post.shared_url && (
               <div 
                 className="flex items-center justify-start mb-3"
                 onClick={(e) => e.stopPropagation()}
               >
-                <TrustBadge 
-                  band={trustScore.band}
-                  score={trustScore.score}
-                  reasons={trustScore.reasons}
-                  size="sm"
-                />
+                <div 
+                  className={cn(
+                    "inline-flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md transition-all duration-200",
+                    trustScore.band === "ALTO" && "trust-badge-high",
+                    trustScore.band === "MEDIO" && "trust-badge-medium",
+                    trustScore.band === "BASSO" && "trust-badge-low"
+                  )}
+                >
+                  {/* Icona Lucchetto con glow */}
+                  {trustScore.band === "ALTO" && <ShieldCheck className="w-4 h-4 icon-glow" />}
+                  {trustScore.band === "MEDIO" && <ShieldAlert className="w-4 h-4 icon-glow" />}
+                  {trustScore.band === "BASSO" && <AlertTriangle className="w-4 h-4 icon-glow" />}
+                  
+                  <span className="text-xs font-bold uppercase tracking-wider">
+                    {trustScore.band}
+                  </span>
+                </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Action Bar - Aligned with avatar using spacer */}
+        {/* Action Bar - Aligned with avatar using spacer - Liquid Glass Icons */}
         <div className="flex gap-3 pt-3">
           <div className="w-10 flex-shrink-0" /> {/* Avatar spacer */}
           <div className="flex-1">
@@ -574,14 +593,17 @@ export const FeedCard = ({
                 {/* Like - Always Outline */}
                 <button 
                   className={cn(
-                    "flex items-center gap-1.5 px-2 py-1.5 rounded-full transition-all",
+                    "flex items-center gap-1.5 px-2 py-1.5 rounded-full transition-all group",
                     post.user_reactions.has_hearted 
-                      ? "text-blue-600 hover:bg-blue-50" 
-                      : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                      ? "text-red-400" 
+                      : "text-gray-400 hover:text-white"
                   )}
                   onClick={handleHeart}
                 >
-                  <Heart className="w-[18px] h-[18px]" />
+                  <Heart className={cn(
+                    "w-[18px] h-[18px] transition-all",
+                    post.user_reactions.has_hearted ? "icon-glow" : "group-hover:icon-glow"
+                  )} />
                   {post.reactions.hearts > 0 && (
                     <span className="text-sm">{post.reactions.hearts}</span>
                   )}
@@ -589,13 +611,13 @@ export const FeedCard = ({
 
                 {/* Comments - Always Outline */}
                 <button 
-                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all"
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-gray-400 hover:text-white transition-all group"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowComments(true);
                   }}
                 >
-                  <MessageCircle className="w-[18px] h-[18px]" />
+                  <MessageCircle className="w-[18px] h-[18px] group-hover:icon-glow" />
                   {post.reactions.comments > 0 && (
                     <span className="text-sm">{post.reactions.comments}</span>
                   )}
@@ -603,14 +625,14 @@ export const FeedCard = ({
 
                 {/* Share - Always Outline */}
                 <button 
-                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all"
+                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-gray-400 hover:text-white transition-all group"
                   onClick={handleShareClick}
                   title="Condividi"
                 >
                   <img 
                     src="/lovable-uploads/f6970c06-9fd9-4430-b863-07384bbb05ce.png"
                     alt="Condividi"
-                    className="w-[18px] h-[18px] opacity-60 hover:opacity-80"
+                    className="w-[18px] h-[18px] opacity-60 group-hover:opacity-100 group-hover:icon-glow"
                   />
                 </button>
               </div>
@@ -620,12 +642,15 @@ export const FeedCard = ({
                 className={cn(
                   "flex items-center px-2 py-1.5 rounded-full transition-all",
                   post.user_reactions.has_bookmarked 
-                    ? "text-blue-600 hover:bg-blue-50" 
-                    : "text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+                    ? "text-blue-400" 
+                    : "text-gray-400 hover:text-white"
                 )}
                 onClick={handleBookmark}
               >
-                <Bookmark className="w-[18px] h-[18px]" />
+                <Bookmark className={cn(
+                  "w-[18px] h-[18px]",
+                  post.user_reactions.has_bookmarked ? "icon-glow" : "hover:icon-glow"
+                )} />
               </button>
             </div>
           </div>
