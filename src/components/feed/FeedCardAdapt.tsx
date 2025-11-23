@@ -464,9 +464,9 @@ export const FeedCard = ({
               navigate(`/profile/${post.author.id}`);
             }}
           >
-            <div className="w-10 h-10 rounded-full overflow-hidden ring-1 ring-border/20">
-              {getAvatarContent()}
-            </div>
+          <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-border/20">
+            {getAvatarContent()}
+          </div>
           </div>
           
           {/* Content a destra */}
@@ -557,28 +557,15 @@ export const FeedCard = ({
             )}
 
             {/* Trust Badge - Liquid Glass Pill ESATTAMENTE tra Preview e Action Bar */}
+            {/* Trust Badge con tooltip */}
             {trustScore && post.shared_url && (
-              <div 
-                className="flex items-center justify-start mb-3"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div 
-                  className={cn(
-                    "inline-flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md transition-all duration-200",
-                    trustScore.band === "ALTO" && "trust-badge-high",
-                    trustScore.band === "MEDIO" && "trust-badge-medium",
-                    trustScore.band === "BASSO" && "trust-badge-low"
-                  )}
-                >
-                  {/* Icona Lucchetto con glow */}
-                  {trustScore.band === "ALTO" && <ShieldCheck className="w-4 h-4 icon-glow" />}
-                  {trustScore.band === "MEDIO" && <ShieldAlert className="w-4 h-4 icon-glow" />}
-                  {trustScore.band === "BASSO" && <AlertTriangle className="w-4 h-4 icon-glow" />}
-                  
-                  <span className="text-xs font-bold uppercase tracking-wider">
-                    {trustScore.band}
-                  </span>
-                </div>
+              <div className="flex items-center justify-start mb-3">
+                <TrustBadge 
+                  band={trustScore.band}
+                  score={trustScore.score}
+                  reasons={trustScore.reasons}
+                  size="sm"
+                />
               </div>
             )}
           </div>
@@ -586,7 +573,7 @@ export const FeedCard = ({
 
         {/* Action Bar - Aligned with avatar using spacer - Liquid Glass Icons */}
         <div className="flex gap-3 pt-3">
-          <div className="w-10 flex-shrink-0" /> {/* Avatar spacer */}
+          <div className="w-8 flex-shrink-0" /> {/* Avatar spacer */}
           <div className="flex-1">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-6">
