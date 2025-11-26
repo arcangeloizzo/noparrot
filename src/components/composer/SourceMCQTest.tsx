@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { SourceWithGate } from '@/lib/comprehension-gate-extended';
 import { fetchArticlePreview, generateQA, type QuizQuestion } from '@/lib/ai-helpers';
+import { getWordCount, getTestModeWithSource } from '@/lib/gate-utils';
 
 interface SourceMCQTestProps {
   source: SourceWithGate;
@@ -68,7 +69,14 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
         type: preview.type
       });
       
-      // 2. Generate AI questions
+      // 2. Calcola testMode se c'è testo utente
+      const userText = (source as any).userText || '';
+      const userWordCount = getWordCount(userText);
+      const testMode = userText ? getTestModeWithSource(userWordCount) : 'SOURCE_ONLY';
+
+      console.log('[SourceMCQTest] Test mode:', testMode, 'userWordCount:', userWordCount);
+      
+      // 3. Generate AI questions
       const result = await generateQA({
         contentId: null,
         isPrePublish: true,
@@ -76,7 +84,9 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
         summary: preview.content || preview.summary || preview.excerpt || '',
         excerpt: preview.excerpt || '',
         type: preview.type as any || 'article',
-        sourceUrl: source.url
+        sourceUrl: source.url,
+        userText: userText,
+        testMode: testMode,
       });
       
       console.log('[SourceMCQTest] Generate QA result:', {
