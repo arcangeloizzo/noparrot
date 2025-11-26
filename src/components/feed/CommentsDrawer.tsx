@@ -623,7 +623,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                   setIsProcessingGate(false);
                 }
               }}
-              disabled={isProcessingGate || !newComment.trim()}
+              disabled={isProcessingGate}
               className="w-full p-5 rounded-2xl border-2 border-[hsl(var(--cognitive-correct))] hover:border-[hsl(var(--cognitive-glow-blue))] hover:shadow-[0_0_12px_4px_rgba(10,122,255,0.3)] hover:bg-[hsl(var(--cognitive-glow-blue))]/5 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="flex items-start gap-4">
@@ -676,16 +676,18 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                 return { passed: false, wrongIndexes: [] };
               }
 
-              if (!data?.passed) {
+              const actualPassed = data.passed && (data.total - data.score) <= 2;
+              
+              if (!actualPassed) {
                 console.log('[QuizModal] Quiz failed:', data);
-                sonnerToast.error(`Non hai superato il quiz (${data.score}/${data.total} corrette). Puoi comunque fare un commento spontaneo.`);
+                sonnerToast.error('Serve ancora un po\' di chiarezza. Puoi comunque fare un commento spontaneo.');
                 setShowQuiz(false);
                 setQuizData(null);
                 return { passed: false, wrongIndexes: data?.wrongIndexes || [] };
               }
 
               console.log('[QuizModal] Quiz passed!');
-              sonnerToast.success("Quiz superato! Ora puoi commentare consapevolmente.");
+              sonnerToast.success('Possiamo procedere. Il tuo commento avrà il segno di NoParrot.');
               setSelectedCommentType('informed');
               setShowQuiz(false);
               setQuizData(null);
@@ -700,7 +702,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
             }
           }}
           onCancel={() => {
-            sonnerToast.info("Quiz annullato. Puoi fare un commento spontaneo.");
+            sonnerToast.info("Puoi fare un commento spontaneo.");
             setShowQuiz(false);
             setQuizData(null);
           }}
