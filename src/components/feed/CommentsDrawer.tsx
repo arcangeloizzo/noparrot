@@ -26,6 +26,8 @@ import { runGateBeforeAction } from '@/lib/runGateBeforeAction';
 import { QuizModal } from '@/components/ui/quiz-modal';
 import { toast as sonnerToast } from 'sonner';
 import { LOGO_BASE } from '@/config/brand';
+import { getWordCount, getTestModeWithSource } from '@/lib/gate-utils';
+import { generateQA, fetchArticlePreview } from '@/lib/ai-helpers';
 
 interface CommentsDrawerProps {
   post: Post;
@@ -553,7 +555,8 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                 console.log('[Consapevole button] Clicked', { 
                   hasSharedUrl: !!post.shared_url, 
                   sharedUrl: post.shared_url,
-                  isProcessing: isProcessingGate 
+                  isProcessing: isProcessingGate,
+                  newCommentLength: newComment.length
                 });
                 
                 if (!post.shared_url) {
@@ -566,30 +569,61 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                 setIsProcessingGate(true);
                 
                 try {
-                  await runGateBeforeAction({
-                    linkUrl: post.shared_url,
-                    onSuccess: () => {
-                      console.log('[Gate] Quiz passed successfully');
-                      setSelectedCommentType('informed');
-                      setTimeout(() => textareaRef.current?.focus(), 150);
-                      sonnerToast.success("Quiz superato! Ora puoi commentare consapevolmente.");
-                    },
-                    onCancel: () => {
-                      console.log('[Gate] Quiz failed or cancelled');
-                      sonnerToast.error("Non hai superato il quiz. Puoi comunque fare un commento spontaneo.");
-                    },
-                    setIsProcessing: setIsProcessingGate,
-                    setQuizData,
-                    setShowQuiz
+                  // Calcola word count e testMode
+                  const userWordCount = getWordCount(newComment);
+                  const testMode = getTestModeWithSource(userWordCount);
+                  
+                  sonnerToast.info("Caricamento contenuto...");
+                  
+                  // Fetch article preview
+                  const preview = await fetchArticlePreview(post.shared_url);
+                  
+                  if (!preview) {
+                    sonnerToast.error("Impossibile recuperare il contenuto della fonte");
+                    setIsProcessingGate(false);
+                    return;
+                  }
+                  
+                  sonnerToast.info(`Generazione quiz (${testMode === 'SOURCE_ONLY' ? 'sulla fonte' : testMode === 'MIXED' ? 'misto' : 'sul tuo commento'})...`);
+                  
+                  // Generate Q&A with new logic
+                  const fullContent = preview.content || preview.summary || preview.excerpt || '';
+                  const result = await generateQA({
+                    contentId: post.id,
+                    title: preview.title || post.shared_title || '',
+                    summary: fullContent,
+                    userText: newComment,
+                    sourceUrl: post.shared_url,
+                    testMode,
                   });
+                  
+                  if (result.insufficient_context) {
+                    sonnerToast.error("Contenuto troppo breve per generare il quiz");
+                    setIsProcessingGate(false);
+                    return;
+                  }
+                  
+                  if (result.error || !result.questions) {
+                    sonnerToast.error(result.error || "Errore generazione quiz");
+                    setIsProcessingGate(false);
+                    return;
+                  }
+                  
+                  // Show quiz
+                  setQuizData({
+                    questions: result.questions,
+                    sourceUrl: post.shared_url
+                  });
+                  setShowQuiz(true);
+                  
                 } catch (error) {
-                  console.error("Error running gate:", error);
+                  console.error("Error running informed comment gate:", error);
                   sonnerToast.error("Errore durante la verifica del contenuto");
                 } finally {
                   setIsProcessingGate(false);
                 }
               }}
-              disabled={isProcessingGate}
+              disabled={isProcessingGate || !newComment.trim()}
               className="w-full p-4 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/10 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <div className="flex items-start gap-3">
@@ -628,8 +662,8 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
             try {
               const { data, error } = await supabase.functions.invoke('validate-answers', {
                 body: {
-                  postId: null,
-                  sourceUrl: post.shared_url,
+                  postId: post.id,
+                  sourceUrl: quizData.sourceUrl,
                   answers,
                   gateType: 'comment'
                 }
@@ -638,7 +672,6 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
               if (error) {
                 console.error('[QuizModal] Validation error:', error);
                 sonnerToast.error("Errore durante la validazione del quiz");
-                quizData.onCancel();
                 setShowQuiz(false);
                 setQuizData(null);
                 return { passed: false, wrongIndexes: [] };
@@ -646,28 +679,29 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
 
               if (!data?.passed) {
                 console.log('[QuizModal] Quiz failed:', data);
-                quizData.onCancel();
+                sonnerToast.error(`Non hai superato il quiz (${data.score}/${data.total} corrette). Puoi comunque fare un commento spontaneo.`);
                 setShowQuiz(false);
                 setQuizData(null);
                 return { passed: false, wrongIndexes: data?.wrongIndexes || [] };
               }
 
               console.log('[QuizModal] Quiz passed!');
-              quizData.onSuccess();
+              sonnerToast.success("Quiz superato! Ora puoi commentare consapevolmente.");
+              setSelectedCommentType('informed');
               setShowQuiz(false);
               setQuizData(null);
+              setTimeout(() => textareaRef.current?.focus(), 150);
               return { passed: true, wrongIndexes: [] };
             } catch (err) {
               console.error('[QuizModal] Unexpected error:', err);
               sonnerToast.error("Errore durante la validazione del quiz");
-              quizData.onCancel();
               setShowQuiz(false);
               setQuizData(null);
               return { passed: false, wrongIndexes: [] };
             }
           }}
           onCancel={() => {
-            quizData.onCancel();
+            sonnerToast.info("Quiz annullato. Puoi fare un commento spontaneo.");
             setShowQuiz(false);
             setQuizData(null);
           }}
