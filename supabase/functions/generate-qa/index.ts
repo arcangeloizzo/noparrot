@@ -43,12 +43,19 @@ serve(async (req) => {
         .substring(0, 16)
     );
 
+    console.log('[generate-qa] Query params:', { 
+      sourceUrl, 
+      contentId, 
+      isPrePublish, 
+      testMode, 
+      questionCount 
+    });
     console.log('[generate-qa] Content hash:', contentHash);
     console.log('[generate-qa] Content text length:', contentText.length);
     console.log('[generate-qa] Title:', title);
     console.log('[generate-qa] Summary preview:', summary?.substring(0, 100));
 
-    // Check if Q&A already exists with same content hash
+    // Check if Q&A already exists - IMPROVED CACHE LOOKUP
     let query = supabase
       .from('post_qa')
       .select('*')
@@ -60,15 +67,35 @@ serve(async (req) => {
       query = query.eq('post_id', contentId);
     }
     
-    const { data: existing } = await query.maybeSingle();
+    let { data: existing } = await query.maybeSingle();
 
-    // If exists and content hash matches, return cached version
+    // FALLBACK: se non trovato e non è prePublish, cerca anche con post_id = null
+    if (!existing && !isPrePublish && sourceUrl) {
+      console.log('[generate-qa] Cache MISS with specific post_id, trying fallback with post_id = null');
+      const { data: fallback } = await supabase
+        .from('post_qa')
+        .select('*')
+        .eq('source_url', sourceUrl)
+        .is('post_id', null)
+        .maybeSingle();
+      existing = fallback;
+    }
+
+    // VALIDATE: cache esiste, content hash corrisponde E numero domande corrisponde
     if (existing && existing.content_hash === contentHash) {
-      console.log('[generate-qa] Q&A cache HIT with matching content hash');
-      return new Response(
-        JSON.stringify({ questions: existing.questions }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      const cachedQuestionCount = existing.questions?.length || 0;
+      const requiredCount = questionCount || 3;
+      
+      if (cachedQuestionCount === requiredCount) {
+        console.log('[generate-qa] Q&A cache HIT with matching content hash and question count');
+        return new Response(
+          JSON.stringify({ questions: existing.questions }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      } else {
+        console.log(`[generate-qa] Cache invalidated: expected ${requiredCount} questions, cached has ${cachedQuestionCount}`);
+        // Continua a generare nuovo quiz
+      }
     }
 
     if (existing && existing.content_hash !== contentHash) {

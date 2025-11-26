@@ -364,7 +364,7 @@ export const FeedCard = ({
       contentId: post.id,
       title: readerSource.title,
       summary: fullContent,
-      userText: userText,
+      userText: userText || '',
       sourceUrl: isOriginalPost ? undefined : readerSource.url,
       testMode,
       questionCount,
@@ -379,10 +379,12 @@ export const FeedCard = ({
       return;
     }
 
-    if (result.error || !result.questions) {
+    // VALIDAZIONE ROBUSTA: controlla che questions sia un array valido
+    if (result.error || !result.questions || !Array.isArray(result.questions) || result.questions.length === 0) {
+      console.error('Invalid quiz result:', result);
       toast({
         title: 'Errore generazione quiz',
-        description: result.error || 'Impossibile generare Q&A',
+        description: result.error || 'Quiz non valido, riprova',
         variant: 'destructive'
       });
       return;
