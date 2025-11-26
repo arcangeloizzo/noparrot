@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Heart } from 'lucide-react';
+import { Heart, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -25,8 +25,7 @@ import { extractFirstUrl } from '@/lib/shouldRequireGate';
 import { runGateBeforeAction } from '@/lib/runGateBeforeAction';
 import { QuizModal } from '@/components/ui/quiz-modal';
 import { toast as sonnerToast } from 'sonner';
-import ParrotReadIcon from '@/assets/parrot-comment-read.png';
-import ParrotUnreadIcon from '@/assets/parrot-comment-unread.png';
+import { LOGO_BASE } from '@/config/brand';
 
 interface CommentsDrawerProps {
   post: Post;
@@ -317,11 +316,15 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
           {selectedCommentType && (
             <div className="px-4 py-3 bg-muted/30 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <img 
-                  src={selectedCommentType === 'spontaneous' ? ParrotUnreadIcon : ParrotReadIcon}
-                  alt={selectedCommentType === 'spontaneous' ? 'Spontaneo' : 'Consapevole'}
-                  className="w-5 h-5"
-                />
+                {selectedCommentType === 'informed' ? (
+                  <img 
+                    src={LOGO_BASE}
+                    alt="Consapevole"
+                    className="w-5 h-5"
+                  />
+                ) : (
+                  <MessageCircle className="w-5 h-5" />
+                )}
                 <span className="text-sm font-medium">
                   {selectedCommentType === 'spontaneous' ? 'Commento spontaneo' : 'Commento consapevole'}
                 </span>
@@ -532,11 +535,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
               className="w-full p-4 rounded-xl border-2 border-border hover:border-muted-foreground hover:bg-muted/30 transition-all text-left group"
             >
               <div className="flex items-start gap-3">
-                <img 
-                  src={ParrotUnreadIcon} 
-                  alt="Spontaneo" 
-                  className="w-10 h-10 transition-transform group-hover:scale-110"
-                />
+                <MessageCircle className="w-10 h-10 transition-transform group-hover:scale-110" />
                 <div className="flex-1">
                   <p className="font-semibold mb-1">Commento spontaneo</p>
                   <p className="text-sm text-muted-foreground">
@@ -595,7 +594,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
             >
               <div className="flex items-start gap-3">
                 <img 
-                  src={ParrotReadIcon} 
+                  src={LOGO_BASE} 
                   alt="Consapevole" 
                   className="w-10 h-10 transition-transform group-hover:scale-110"
                 />
@@ -730,11 +729,11 @@ const CommentItem = ({ comment, currentUserId, onReply, onLike, onDelete, onMedi
                 locale: it
               })}
             </span>
-            {postHasSource && (
+            {postHasSource && comment.passed_gate && (
               <img 
-                src={comment.passed_gate ? ParrotReadIcon : ParrotUnreadIcon}
-                alt={comment.passed_gate ? 'Consapevole' : 'Spontaneo'}
-                className="w-4 h-4 ml-1"
+                src={LOGO_BASE}
+                alt="Consapevole"
+                className="w-5 h-5 ml-1"
               />
             )}
           </div>
