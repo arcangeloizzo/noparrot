@@ -517,14 +517,14 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
       <Dialog open={showCommentTypeChoice} onOpenChange={setShowCommentTypeChoice}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Prima di commentare</DialogTitle>
-            <DialogDescription>
-              Scegli come vuoi partecipare alla discussione
+            <DialogTitle className="text-center text-xl">Come vuoi entrare nella conversazione?</DialogTitle>
+            <DialogDescription className="text-center">
+              Scegli il tuo approccio
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-3">
-            {/* Opzione Spontaneo */}
+          <div className="space-y-4">
+            {/* Opzione Spontaneo - Card */}
             <button
               onClick={(e) => {
                 e.preventDefault();
@@ -534,20 +534,20 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                 setShowCommentTypeChoice(false);
                 setTimeout(() => textareaRef.current?.focus(), 150);
               }}
-              className="w-full p-4 rounded-xl border-2 border-border hover:border-muted-foreground hover:bg-muted/30 transition-all text-left group"
+              className="w-full p-5 rounded-2xl border-2 border-[hsl(var(--cognitive-light))] hover:border-[hsl(var(--cognitive-light))] hover:bg-muted/20 transition-all text-left group"
             >
-              <div className="flex items-start gap-3">
-                <MessageCircle className="w-10 h-10 transition-transform group-hover:scale-110" />
+              <div className="flex items-start gap-4">
+                <MessageCircle className="w-10 h-10 text-muted-foreground transition-transform group-hover:scale-110 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="font-semibold mb-1">Commento spontaneo</p>
-                  <p className="text-sm text-muted-foreground">
-                    Commenta liberamente senza leggere la fonte
+                  <p className="font-bold text-base mb-2">Partecipa subito</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Rispondi in modo diretto, senza consultare la fonte.
                   </p>
                 </div>
               </div>
             </button>
             
-            {/* Opzione Consapevole */}
+            {/* Opzione Consapevole - Card con Glow */}
             <button
               onClick={async (e) => {
                 e.preventDefault();
@@ -573,7 +573,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                   const userWordCount = getWordCount(newComment);
                   const testMode = getTestModeWithSource(userWordCount);
                   
-                  sonnerToast.info("Caricamento contenuto...");
+                  sonnerToast.info("Sto preparando ciò che ti serve per orientarti…");
                   
                   // Fetch article preview
                   const preview = await fetchArticlePreview(post.shared_url);
@@ -584,7 +584,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                     return;
                   }
                   
-                  sonnerToast.info(`Generazione quiz (${testMode === 'SOURCE_ONLY' ? 'sulla fonte' : testMode === 'MIXED' ? 'misto' : 'sul tuo commento'})...`);
+                  sonnerToast.info(`Sto creando le domande giuste per capire davvero…`);
                   
                   // Generate Q&A with new logic
                   const fullContent = preview.content || preview.summary || preview.excerpt || '';
@@ -624,22 +624,21 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                 }
               }}
               disabled={isProcessingGate || !newComment.trim()}
-              className="w-full p-4 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/10 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full p-5 rounded-2xl border-2 border-[hsl(var(--cognitive-correct))] hover:border-[hsl(var(--cognitive-glow-blue))] hover:shadow-[0_0_12px_4px_rgba(10,122,255,0.3)] hover:bg-[hsl(var(--cognitive-glow-blue))]/5 transition-all text-left group disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-4">
                 <img 
                   src={LOGO_BASE} 
                   alt="Consapevole" 
-                  className="w-10 h-10 transition-transform group-hover:scale-110"
+                  className="w-10 h-10 transition-transform group-hover:scale-110 flex-shrink-0"
                 />
                 <div className="flex-1">
-                  <p className="font-semibold mb-1">Commento consapevole</p>
-                  <p className="text-sm text-muted-foreground">
-                    Leggi la fonte e supera il test per guadagnare trust
+                  <p className="font-bold text-base mb-2 flex items-center gap-2">
+                    Entra con consapevolezza 🧠
                   </p>
-                  <div className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary">
-                    <span>+Trust Score</span>
-                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Leggi la fonte e procedi con il percorso. Il tuo commento porterà il segno di NoParrot.
+                  </p>
                 </div>
               </div>
             </button>
