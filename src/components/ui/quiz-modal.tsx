@@ -161,7 +161,10 @@ export function QuizModal({ questions, onSubmit, onCancel, provider = 'gemini' }
                 <XCircle className="h-16 w-16 text-destructive mx-auto mb-4" />
                 <h3 className="text-xl font-semibold mb-2">Non Superato</h3>
                 <p className="text-muted-foreground">
-                  Servono almeno 2 risposte corrette su 3. Riprova dopo aver riletto il contenuto.
+                  {questions.length === 1 
+                    ? 'La risposta deve essere corretta per procedere. Riprova dopo aver riletto il contenuto.'
+                    : 'Servono almeno 2 risposte corrette su 3. Riprova dopo aver riletto il contenuto.'
+                  }
                 </p>
               </>
             )}
