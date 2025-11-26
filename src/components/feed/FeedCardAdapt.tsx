@@ -343,10 +343,10 @@ export const FeedCard = ({
     }
     
     toast({
-      title: 'Generazione Q&A...',
+      title: 'Stiamo mettendo a fuoco ciò che conta…',
       description: isOriginalPost 
-        ? `Creazione del test (${questionCount} ${questionCount === 1 ? 'domanda' : 'domande'})`
-        : `Creazione del test di comprensione (${testMode === 'SOURCE_ONLY' ? 'sulla fonte' : testMode === 'MIXED' ? 'misto' : 'sul tuo testo'})`
+        ? `Sto creando le domande giuste per capire davvero…`
+        : `Sto selezionando i punti che contano…`
     });
 
     // Use FULL content for quiz generation
@@ -433,8 +433,8 @@ export const FeedCard = ({
       
       if (actualPassed) {
         toast({
-          title: '✅ Test superato!',
-          description: 'Ora puoi condividere il post'
+          title: 'Possiamo procedere.',
+          description: 'Hai messo a fuoco.'
         });
         setShowQuiz(false);
         setQuizData(null);
@@ -454,9 +454,8 @@ export const FeedCard = ({
       } else {
         console.warn('Test failed, NOT opening composer');
         toast({
-          title: 'Test Non Superato',
-          description: `Punteggio: ${data.score}/${data.total} (${((data.score / data.total) * 100).toFixed(0)}%). Serve almeno 66%!`,
-          variant: 'destructive'
+          title: "Serve ancora un po' di chiarezza.",
+          description: 'Rileggi il contenuto e riprova.'
         });
         setShowQuiz(false);
         setQuizData(null);

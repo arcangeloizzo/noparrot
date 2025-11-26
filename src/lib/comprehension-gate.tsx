@@ -318,7 +318,7 @@ const QuizModal = {
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-gray-700">
                 <h2 className="text-lg font-semibold text-white">
-                  Test di Comprensione
+                  Mettiamo a fuoco.
                 </h2>
                 <button
                   onClick={onClose}

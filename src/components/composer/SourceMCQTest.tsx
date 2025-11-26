@@ -172,8 +172,8 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
       <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
         <div className="bg-background rounded-2xl w-[90vw] max-w-md p-8 text-center border border-border">
           <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-foreground font-medium mb-2">Generazione domande...</p>
-          <p className="text-sm text-muted-foreground">Analizzando il contenuto della fonte</p>
+          <p className="text-foreground font-medium mb-2">Stiamo mettendo a fuoco ciò che conta…</p>
+          <p className="text-sm text-muted-foreground">Sto selezionando i punti che contano…</p>
         </div>
       </div>
     );
@@ -209,21 +209,21 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
       <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
         <div className="bg-background rounded-2xl w-[90vw] max-w-md p-6 text-center border border-border">
           <div className="mb-6">
-            <div className="w-16 h-16 bg-trust-high/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Check className="w-8 h-8 text-trust-high animate-bounce-check" />
+            <div className="w-16 h-16 bg-[hsl(var(--cognitive-correct))]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-8 h-8 text-[hsl(var(--cognitive-correct))] animate-bounce-check" />
             </div>
             <h2 className="text-xl font-semibold mb-2 text-foreground">
-              Test Superato!
+              Possiamo procedere.
             </h2>
             <p className="text-muted-foreground">
-              Hai dimostrato di aver compreso la fonte.
+              Hai messo a fuoco. Ora puoi continuare.
             </p>
           </div>
           
           <div className="space-y-3">
             <Button 
               onClick={() => onComplete(true)} 
-              className="w-full bg-trust-high hover:bg-trust-high/90 text-trust-high-text"
+              className="w-full bg-[hsl(var(--cognitive-correct))] hover:bg-[hsl(var(--cognitive-correct))]/90 text-white"
             >
               Continua
             </Button>
@@ -244,10 +244,10 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-3">
             <h2 className="font-semibold text-foreground">
-              Test di Comprensione
+              Mettiamo a fuoco.
             </h2>
             <span className="text-sm text-muted-foreground">
-              ({currentQuestion + 1}/{questions.length})
+              Passo {currentQuestion + 1} di {questions.length}
             </span>
           </div>
           <Button
@@ -271,8 +271,8 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
         <div className="p-4 flex-1 overflow-y-auto">
           <div className={cn(
             "mb-6 p-4 rounded-lg border-2 transition-all duration-300",
-            showResult === 'correct' && "bg-trust-high/10 border-trust-high animate-mint-flash",
-            showResult === 'wrong' && "bg-trust-low/10 border-trust-low animate-shake",
+            showResult === 'correct' && "bg-[hsl(var(--cognitive-correct))]/10 border-[hsl(var(--cognitive-correct))] animate-mint-flash",
+            showResult === 'wrong' && "bg-[hsl(var(--cognitive-incorrect))]/20 border-[hsl(var(--cognitive-incorrect))] animate-shake",
             !showResult && "bg-card border-border"
           )}>
             <div className="flex items-center justify-between mb-4">
@@ -284,11 +284,11 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
                   {questionType === 'macro' ? 'Comprensione' : 'Dettaglio'}
                 </span>
                 {showResult === 'correct' && (
-                  <Check className="w-5 h-5 text-trust-high animate-bounce-check" />
+                  <Check className="w-5 h-5 text-[hsl(var(--cognitive-correct))] animate-bounce-check" />
                 )}
               </div>
               {questionAttempts > 0 && (
-                <span className="text-xs text-trust-low">
+                <span className="text-xs text-[hsl(var(--cognitive-incorrect))]">
                   Tentativo {questionAttempts + 1}/2
                 </span>
               )}
@@ -314,10 +314,10 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
           </div>
 
           {questionAttempts > 0 && showResult !== 'correct' && (
-            <div className="p-3 bg-trust-low/10 border border-trust-low/20 rounded-lg">
-              <p className="text-sm text-trust-low">
+            <div className="p-3 bg-[hsl(var(--cognitive-incorrect))]/10 border border-[hsl(var(--cognitive-incorrect))]/20 rounded-lg">
+              <p className="text-sm text-[hsl(var(--cognitive-incorrect))]">
                 {questionAttempts === 1 
-                  ? "Risposta errata. Hai un altro tentativo." 
+                  ? "Non è questa la prospettiva giusta. Hai un altro tentativo." 
                   : "Ultimo tentativo disponibile."}
               </p>
             </div>
@@ -328,7 +328,7 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
         <div className="p-4 border-t border-border">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-muted-foreground">
-              Domanda {currentQuestion + 1} di {questions.length}
+              Passo {currentQuestion + 1} di {questions.length}
             </span>
             <span className="text-sm text-muted-foreground">
               {Object.keys(answers).length} risposte corrette
