@@ -366,19 +366,10 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       <div className="bg-background rounded-2xl w-[90vw] h-[84vh] flex flex-col border border-border animate-slide-up-blur">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <div className="flex items-center gap-3">
-            <h2 className="font-semibold text-lg text-foreground">
-              Lettura Fonte
+          <div className="flex items-center justify-center w-full">
+            <h2 className="font-semibold text-lg text-foreground text-center">
+              Prima comprendiamo.
             </h2>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={openSource}
-              className="text-xs"
-            >
-              <ExternalLink className="h-3 w-3 mr-1" />
-              Apri Originale
-            </Button>
           </div>
           <Button
             variant="ghost"
@@ -397,13 +388,13 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               {showTypingIndicator ? (
                 <>
                   <TypingIndicator className="mr-2" />
-                  <span className="text-muted-foreground font-medium">Preparazione Comprehension Gate...</span>
+                  <span className="text-muted-foreground font-medium">Sto preparando ciò che ti serve per orientarti…</span>
                 </>
               ) : isReady ? (
                 // PRIORITÀ 1: Lettura completata - mostra solo questo
                 <>
-                  <Check className="h-4 w-4 text-trust-high" />
-                  <span className="text-trust-high font-medium">Lettura Completata</span>
+                  <Check className="h-4 w-4 text-[hsl(var(--cognitive-correct))]" />
+                  <span className="text-[hsl(var(--cognitive-correct))] font-medium">Hai visto abbastanza per capire. Procediamo.</span>
                 </>
               ) : showVelocityWarning && mode === 'guardrail' && hasTrackableContent ? (
                 // PRIORITÀ 2: Scroll troppo veloce - mostra warning
@@ -415,11 +406,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 // PRIORITÀ 3: Progresso normale
                 <>
                   <span className="text-foreground font-medium">
-                    Progresso: {progress.readBlocks} / {progress.totalBlocks} sezioni
-                  </span>
-                  <span className="text-muted-foreground">•</span>
-                  <span className="text-foreground">
-                    {Math.round(progress.readRatio * 100)}%
+                    Progresso lettura: stai entrando nel cuore del contenuto.
                   </span>
                 </>
               ) : (
@@ -437,7 +424,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
             </div>
             {!isReady && mode === 'guardrail' && hasTrackableContent && (
               <span className="text-muted-foreground text-xs">
-                Leggi attentamente le sezioni
+                Continua: ogni riga apre una finestra in più.
               </span>
             )}
             {!isReady && mode !== 'guardrail' && (
@@ -459,11 +446,11 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           <div className="space-y-2">
             {mode === 'guardrail' && hasTrackableContent ? (
               /* Guardrail Mode: Single progress bar per blocchi letti */
-              <div className="w-full bg-muted rounded-full h-2">
+              <div className="w-full bg-muted rounded-full h-[5px]">
                 <div
                   className={cn(
-                    "h-2 rounded-full transition-all duration-300",
-                    progress.canUnlock ? "bg-trust-high" : "bg-primary"
+                    "h-[5px] rounded-full transition-all duration-500",
+                    progress.canUnlock ? "bg-[hsl(var(--cognitive-correct))]" : "bg-primary"
                   )}
                   style={{ width: `${progress.readRatio * 100}%` }}
                 />
