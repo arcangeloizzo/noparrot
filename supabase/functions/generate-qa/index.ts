@@ -12,7 +12,18 @@ serve(async (req) => {
   }
 
   try {
-    const { contentId, isPrePublish, title, summary, excerpt, type, sourceUrl } = await req.json();
+    const { 
+      contentId, 
+      isPrePublish, 
+      title, 
+      summary, 
+      excerpt, 
+      type, 
+      sourceUrl,
+      userText,
+      testMode,
+      questionCount 
+    } = await req.json();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -79,21 +90,78 @@ serve(async (req) => {
     }
 
     const isVideo = type === 'video';
+    const expectedQuestions = questionCount || 3;
+
+    // Costruzione prompt dinamico basato su testMode e questionCount
+    let contentDescription = '';
+    let questionRules = '';
+
+    if (testMode === 'SOURCE_ONLY') {
+      // 3 domande solo sulla fonte
+      contentDescription = `${isVideo ? 'CONTENUTO VIDEO DA ANALIZZARE:' : 'CONTENUTO FONTE DA ANALIZZARE:'}
+Titolo: ${title || ''}
+Descrizione: ${summary || ''}
+${excerpt ? `Dettagli: ${excerpt}` : ''}`;
+      
+      questionRules = `1. Genera ESATTAMENTE 3 domande sulla FONTE${isVideo ? ' (sul contenuto del video)' : ''}:
+   - Domanda 1 (MACRO): Sul tema principale della fonte
+   - Domanda 2 (MACRO): Su evidenza, impatto o punto chiave della fonte
+   - Domanda 3 (DETTAGLIO): Su un dato specifico, cifra o fatto nella fonte`;
+
+    } else if (testMode === 'MIXED') {
+      // 1 domanda sul testo utente, 2 sulla fonte
+      contentDescription = `TESTO UTENTE DA ANALIZZARE:
+${userText || ''}
+
+CONTENUTO FONTE DA ANALIZZARE:
+Titolo: ${title || ''}
+Descrizione: ${summary || ''}
+${excerpt ? `Dettagli: ${excerpt}` : ''}`;
+
+      questionRules = `1. Genera ESATTAMENTE 3 domande:
+   - Domanda 1: Sul TESTO DELL'UTENTE (tema, argomento o opinione espressa)
+   - Domanda 2: Sulla FONTE (tema principale o punto chiave)
+   - Domanda 3: Sulla FONTE (dettaglio specifico, dato o fatto)`;
+
+    } else if (testMode === 'USER_ONLY') {
+      // 3 domande solo sul testo utente
+      contentDescription = `TESTO DA ANALIZZARE:
+${userText || summary || ''}`;
+
+      questionRules = `1. Genera ESATTAMENTE 3 domande sul TESTO:
+   - Domanda 1 (MACRO): Sul tema principale o idea centrale
+   - Domanda 2 (MACRO): Su un punto chiave, argomento o conseguenza
+   - Domanda 3 (DETTAGLIO): Su un dettaglio specifico, fatto o informazione`;
+
+    } else if (!testMode && questionCount === 1) {
+      // 1 domanda per contenuto originale breve
+      contentDescription = `TESTO DA ANALIZZARE:
+${userText || summary || ''}`;
+
+      questionRules = `1. Genera ESATTAMENTE 1 domanda sul TESTO:
+   - Domanda di comprensione sul tema o punto principale del testo`;
+
+    } else {
+      // Default: 3 domande sul contenuto disponibile
+      contentDescription = `${isVideo ? 'CONTENUTO VIDEO DA ANALIZZARE:' : 'CONTENUTO DA ANALIZZARE:'}
+Titolo: ${title || ''}
+Descrizione: ${summary || ''}
+${excerpt ? `Dettagli: ${excerpt}` : ''}`;
+
+      questionRules = `1. Genera ESATTAMENTE ${expectedQuestions} domande${isVideo ? ' sul contenuto del video' : ''}:
+   - Domanda 1 (MACRO): Sul tema principale
+   - Domanda 2 (MACRO): Su evidenza, impatto o punto chiave
+   ${expectedQuestions === 3 ? '- Domanda 3 (DETTAGLIO): Su un dato specifico, cifra o fatto' : ''}`;
+    }
 
     const prompt = `Sei un assistente esperto nella valutazione della comprensione.
 
-${isVideo ? 'CONTENUTO VIDEO DA ANALIZZARE:' : 'CONTENUTO DA ANALIZZARE:'}
-Titolo: ${title || ''}
-Descrizione: ${summary || ''}
-${excerpt ? `Dettagli: ${excerpt}` : ''}
+${contentDescription}
 
 REGOLE GENERAZIONE:
-1. Genera ESATTAMENTE 3 domande${isVideo ? ' sul contenuto del video' : ''}:
-   - Domanda 1 (MACRO): Sul tema principale${isVideo ? ' o argomento del video' : ' o idea centrale'}
-   - Domanda 2 (MACRO): Su evidenza, impatto${isVideo ? ', punto chiave discusso' : ' o conseguenza descritta'}
-   - Domanda 3 (DETTAGLIO): Su un dato specifico${isVideo ? ', fatto menzionato' : ', cifra, nome o metodologia'}
+${questionRules}
    
-${isVideo ? `NOTA: Poiché questo è un video, focalizzati su:
+${isVideo && testMode === 'SOURCE_ONLY' ? `NOTA: Poiché questo è un video, focalizzati su:
 - Tema e argomento principale del video
 - Punti chiave menzionati nella descrizione
 - Informazioni fattuali evidenti dal titolo/descrizione
@@ -118,7 +186,27 @@ ${isVideo ? `NOTA: Poiché questo è un video, focalizzati su:
         {"id": "c", "text": "Opzione plausibile errata"}
       ],
       "correctId": "a"
-    }
+    }${expectedQuestions > 1 ? `,
+    {
+      "id": "q2",
+      "stem": "Domanda 2 qui",
+      "choices": [
+        {"id": "a", "text": "Opzione"},
+        {"id": "b", "text": "Opzione"},
+        {"id": "c", "text": "Opzione"}
+      ],
+      "correctId": "b"
+    }` : ''}${expectedQuestions === 3 ? `,
+    {
+      "id": "q3",
+      "stem": "Domanda 3 qui",
+      "choices": [
+        {"id": "a", "text": "Opzione"},
+        {"id": "b", "text": "Opzione"},
+        {"id": "c", "text": "Opzione"}
+      ],
+      "correctId": "c"
+    }` : ''}
   ]
 }
 
@@ -198,8 +286,9 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
     }
 
     // Validate schema
-    if (!parsedContent.questions || parsedContent.questions.length !== 3) {
-      throw new Error('Invalid Q&A schema');
+    if (!parsedContent.questions || parsedContent.questions.length !== expectedQuestions) {
+      console.error(`Expected ${expectedQuestions} questions, got ${parsedContent.questions?.length}`);
+      throw new Error(`Invalid Q&A schema: expected ${expectedQuestions} questions`);
     }
 
     // Shuffle choices for each question to randomize answer positions

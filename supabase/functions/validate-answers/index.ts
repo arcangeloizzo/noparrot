@@ -83,6 +83,7 @@ serve(async (req) => {
     let score = 0;
     let errorCount = 0;
     const wrongIndexes: string[] = [];
+    const totalQuestions = correctAnswers.length;
 
     correctAnswers.forEach((correct: any) => {
       if (answers[correct.id] === correct.correctId) {
@@ -93,11 +94,14 @@ serve(async (req) => {
       }
     });
 
-    // LOGICA CORRETTA: massimo 1 errore E almeno 1 risposta corretta
-    const passed = errorCount <= 1 && score >= 1;
+    // Logica di validazione basata sul numero di domande:
+    // - 3 domande: max 1 errore (almeno 2/3 corrette)
+    // - 1 domanda: nessun errore (1/1 corretta)
+    const maxAllowedErrors = totalQuestions === 1 ? 0 : 1;
+    const passed = errorCount <= maxAllowedErrors;
     const completionTime = Date.now() - startTime;
     
-    console.log(`Validation complete: ${score}/3 correct, ${errorCount} errors, passed: ${passed}`);
+    console.log(`Validation complete: ${score}/${totalQuestions} correct, ${errorCount} errors, passed: ${passed}`);
 
     // Save attempt to database with verified userId
     await supabase.from('post_gate_attempts').insert({
@@ -116,7 +120,7 @@ serve(async (req) => {
       JSON.stringify({ 
         passed, 
         score, 
-        total: 3, 
+        total: totalQuestions, 
         wrongIndexes,
         completionTime 
       }),

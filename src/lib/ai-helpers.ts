@@ -32,9 +32,12 @@ export async function generateQA(params: {
   isPrePublish?: boolean;
   title?: string;
   summary: string;
+  userText?: string;
   excerpt?: string;
   type?: 'article' | 'video' | 'audio' | 'image';
   sourceUrl?: string;
+  testMode?: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY';
+  questionCount?: 1 | 3;
 }): Promise<QAGenerationResult> {
   try {
     const { data, error } = await supabase.functions.invoke('generate-qa', {

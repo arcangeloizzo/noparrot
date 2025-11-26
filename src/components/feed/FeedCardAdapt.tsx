@@ -45,6 +45,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { uniqueSources } from "@/lib/url";
 import { useCreateThread } from "@/hooks/useMessageThreads";
 import { useSendMessage } from "@/hooks/useMessages";
+import { getWordCount, getTestModeWithSource, getQuestionCountWithoutSource } from "@/lib/gate-utils";
 
 interface FeedCardProps {
   post: Post;
@@ -214,17 +215,20 @@ export const FeedCard = ({
   const handleShareToFeed = async () => {
     setShareAction('feed');
     
-    // Se ha shared_url → apri reader
+    const userText = post.content;
+    const userWordCount = getWordCount(userText);
+    
+    // CASO 1: Post CON fonte esterna
     if (post.shared_url) {
       await startComprehensionGate();
       return;
     }
 
-    // Altrimenti controlla word count
-    const wordCount = post.content.trim().split(/\s+/).length;
+    // CASO 2: Post SENZA fonte (contenuto originale)
+    const questionCount = getQuestionCountWithoutSource(userWordCount);
     
-    if (wordCount < 150) {
-      // Passa direttamente il post quotato
+    if (questionCount === 0) {
+      // Nessun gate richiesto (≤50 parole)
       onQuoteShare?.({
         ...post,
         _originalSources: Array.isArray(post.sources) ? post.sources : []
@@ -234,9 +238,10 @@ export const FeedCard = ({
         description: 'Aggiungi un tuo commento'
       });
     } else {
+      // Gate richiesto (1 o 3 domande)
       toast({
         title: 'Lettura richiesta',
-        description: 'Leggi il post per condividerlo'
+        description: `Leggi il post per condividerlo (${questionCount} ${questionCount === 1 ? 'domanda' : 'domande'})`
       });
       await startComprehensionGateForPost();
     }
@@ -246,22 +251,26 @@ export const FeedCard = ({
   const handleShareToFriend = async () => {
     setShareAction('friend');
     
-    // Se ha shared_url → apri reader
+    const userText = post.content;
+    const userWordCount = getWordCount(userText);
+    
+    // CASO 1: Post CON fonte esterna
     if (post.shared_url) {
       await startComprehensionGate();
       return;
     }
 
-    // Altrimenti controlla word count
-    const wordCount = post.content.trim().split(/\s+/).length;
+    // CASO 2: Post SENZA fonte (contenuto originale)
+    const questionCount = getQuestionCountWithoutSource(userWordCount);
     
-    if (wordCount < 150) {
-      // Apri direttamente il people picker
+    if (questionCount === 0) {
+      // Nessun gate richiesto (≤50 parole)
       setShowPeoplePicker(true);
     } else {
+      // Gate richiesto (1 o 3 domande)
       toast({
         title: 'Lettura richiesta',
-        description: 'Leggi il post per condividerlo'
+        description: `Leggi il post per condividerlo (${questionCount} ${questionCount === 1 ? 'domanda' : 'domande'})`
       });
       await startComprehensionGateForPost();
     }
@@ -318,23 +327,47 @@ export const FeedCard = ({
     // Check if it's an original post
     const isOriginalPost = readerSource.isOriginalPost;
     
+    const userText = post.content;
+    const userWordCount = getWordCount(userText);
+    
+    // Determina parametri in base al tipo di contenuto
+    let testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY' | undefined;
+    let questionCount: 1 | 3 | undefined;
+    
+    if (isOriginalPost) {
+      // Contenuto originale senza fonte
+      questionCount = getQuestionCountWithoutSource(userWordCount) as 1 | 3;
+    } else {
+      // Contenuto con fonte
+      testMode = getTestModeWithSource(userWordCount);
+    }
+    
     toast({
       title: 'Generazione Q&A...',
       description: isOriginalPost 
-        ? 'Creazione del test sul post'
-        : 'Creazione del test di comprensione'
+        ? `Creazione del test (${questionCount} ${questionCount === 1 ? 'domanda' : 'domande'})`
+        : `Creazione del test di comprensione (${testMode === 'SOURCE_ONLY' ? 'sulla fonte' : testMode === 'MIXED' ? 'misto' : 'sul tuo testo'})`
     });
 
     // Use FULL content for quiz generation
     const fullContent = readerSource.content || readerSource.summary || readerSource.excerpt || post.content;
     
-    console.log('Generating QA with full content length:', fullContent.length);
+    console.log('Generating QA with params:', { 
+      fullContentLength: fullContent.length,
+      userWordCount,
+      testMode,
+      questionCount,
+      isOriginalPost
+    });
 
     const result = await generateQA({
-      contentId: isOriginalPost ? post.id : post.id,
+      contentId: post.id,
       title: readerSource.title,
       summary: fullContent,
+      userText: userText,
       sourceUrl: isOriginalPost ? undefined : readerSource.url,
+      testMode,
+      questionCount,
     });
 
     if (result.insufficient_context) {
