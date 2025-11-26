@@ -235,7 +235,7 @@ export function EnhancedComposer({
       onPostCreated?.(insertedPost);
 
       toast({
-        title: "✓ Post pubblicato"
+        title: "Condiviso."
       });
 
       // Invalida e refetch queries DOPO il toast per mostrare subito il post

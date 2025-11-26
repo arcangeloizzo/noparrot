@@ -134,7 +134,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     const userWordCount = getWordCount(content);
     const testMode = getTestModeWithSource(userWordCount);
 
-    toast.loading(`Generazione Q&A (${testMode === 'SOURCE_ONLY' ? 'sulla fonte' : testMode === 'MIXED' ? 'misto' : 'sul tuo testo'})...`);
+    toast.loading('Stiamo mettendo a fuoco ciò che conta…');
 
     const result = await generateQA({
       contentId: null,
@@ -184,11 +184,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       const actualPassed = data.passed && (data.total - data.score) <= 2;
       
       if (actualPassed) {
-        toast.success('Test superato!');
+        toast.success('Possiamo procedere.');
         setShowQuiz(false);
         await publishPost();
       } else {
-        toast.error(`Test non superato: ${data.score}/${data.total}`);
+        toast.error("Serve ancora un po' di chiarezza.");
         setShowQuiz(false);
       }
       
@@ -242,7 +242,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       await queryClient.invalidateQueries({ queryKey: ['posts'] });
       await queryClient.refetchQueries({ queryKey: ['posts'] });
       
-      toast.success('Post pubblicato!');
+      toast.success('Condiviso.');
       setContent('');
       setDetectedUrl(null);
       setUrlPreview(null);
@@ -327,7 +327,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                       setShowMentions(false);
                     }
                   }}
-                  placeholder="Scrivi qui il tuo Knowledge Drop... Usa @ per menzionare"
+                  placeholder="Scrivi il tuo pensiero… Usa @ per menzionare"
                   className="min-h-[120px] resize-none text-[15px]"
                   rows={5}
                 />

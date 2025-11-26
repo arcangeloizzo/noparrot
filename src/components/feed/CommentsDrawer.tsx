@@ -444,7 +444,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                       }}
                       placeholder={
                         selectedCommentType === null && postHasSource
-                          ? "👆 Tocca qui per scegliere come commentare"
+                          ? "👆 Scegli come vuoi entrare nella conversazione."
                           : replyingTo 
                           ? `Rispondi...` 
                           : `Aggiungi un commento...`

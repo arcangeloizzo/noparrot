@@ -214,7 +214,7 @@ export const useAddComment = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['comments', variables.postId] });
       queryClient.invalidateQueries({ queryKey: ['posts'] });
-      toast.success('Commento pubblicato!');
+      toast.success('Il tuo punto di vista è arrivato.');
     },
     onError: (error) => {
       toast.error('Errore nella pubblicazione del commento');

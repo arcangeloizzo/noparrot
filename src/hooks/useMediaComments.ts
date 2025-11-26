@@ -97,7 +97,7 @@ export const useAddMediaComment = () => {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['media-comments', variables.mediaId] });
-      toast.success('Commento pubblicato!');
+      toast.success('Il tuo punto di vista è arrivato.');
     },
     onError: () => {
       toast.error('Errore nella pubblicazione del commento');

@@ -100,12 +100,12 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
       <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
         <div className="bg-gray-900 rounded-2xl w-[90vw] max-h-[84vh] p-6 text-center border border-gray-700">
           <div className="mb-6">
-            <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Check className="w-8 h-8 text-green-500" />
+            <div className="w-16 h-16 bg-[hsl(var(--cognitive-correct))]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Check className="w-8 h-8 text-[hsl(var(--cognitive-correct))]" />
             </div>
-            <h2 className="text-xl font-semibold mb-2 text-white">Test Superato!</h2>
+            <h2 className="text-xl font-semibold mb-2 text-white">Possiamo procedere.</h2>
             <p className="text-gray-300">
-              Hai dimostrato di aver compreso l'articolo.
+              Hai messo a fuoco. Le tue parole ora hanno peso.
             </p>
           </div>
           
@@ -140,7 +140,7 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-700">
           <h2 className="font-semibold text-white">
-            Test di Comprensione ({currentQuestion + 1}/{questions.length})
+            Mettiamo a fuoco. — Passo {currentQuestion + 1} di {questions.length}
           </h2>
           <Button
             variant="ghost"
@@ -156,14 +156,14 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
         <div className="p-4 flex-1 overflow-y-auto">
           <div className={cn(
             "mb-6 p-4 rounded-lg border-2 transition-all duration-300",
-            showResult === 'correct' && "bg-green-500/10 border-green-500 animate-mint-flash",
-            showResult === 'wrong' && "bg-red-500/10 border-red-500 animate-shake",
+            showResult === 'correct' && "bg-[hsl(var(--cognitive-correct))]/10 border-[hsl(var(--cognitive-correct))] animate-mint-flash",
+            showResult === 'wrong' && "bg-[hsl(var(--cognitive-incorrect))]/20 border-[hsl(var(--cognitive-incorrect))] animate-shake",
             !showResult && "bg-gray-800 border-gray-700"
           )}>
             <h3 className="font-medium mb-4 flex items-center text-white">
               {question.question}
               {showResult === 'correct' && (
-                <Check className="w-5 h-5 text-green-500 ml-2 animate-bounce-check" />
+                <Check className="w-5 h-5 text-[hsl(var(--cognitive-correct))] ml-2 animate-bounce-check" />
               )}
             </h3>
             
@@ -183,7 +183,7 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
           </div>
 
           {attempts[currentQuestion] > 0 && showResult !== 'correct' && (
-            <p className="text-sm text-red-400 mb-4">
+            <p className="text-sm text-[hsl(var(--cognitive-incorrect))] mb-4">
               Tentativo {attempts[currentQuestion]}/2. 
               {attempts[currentQuestion] === 1 && " Riprova."}
             </p>
