@@ -1110,7 +1110,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
             {isReady ? (
               <>
                 <Check className="h-4 w-4 mr-2" />
-                Avvia Test di Comprensione
+                Procediamo.
               </>
             ) : mode === 'guardrail' && hasTrackableContent ? (
               `Completa la lettura (${Math.round(progress.readRatio * 100)}%)`

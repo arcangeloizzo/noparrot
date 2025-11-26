@@ -152,14 +152,14 @@ export function QuizModal({ questions, onSubmit, onCancel }: QuizModalProps) {
               </div>
 
               <div className="p-6">
-                <p className="text-sm text-muted-foreground mb-2">Domanda {currentStep + 1} — facciamo chiarezza su questo punto.</p>
+                <p className="text-sm text-muted-foreground mb-2">Passo {currentStep + 1} — facciamo chiarezza su questo punto.</p>
                 <h3 className="text-lg font-semibold mb-6">{currentQuestion.stem}</h3>
 
                 <div className="space-y-3">
                   {currentQuestion.choices.map((choice) => {
                     const isSelected = selectedChoice === choice.id;
-                    const isCorrectChoice = showFeedback && choice.id === currentQuestion.correctId;
-                    const isWrong = showFeedback && isSelected && !isCorrectChoice;
+                    const isRightAndSelected = showFeedback && isSelected && choice.id === currentQuestion.correctId;
+                    const isWrong = showFeedback && isSelected && choice.id !== currentQuestion.correctId;
 
                     return (
                       <button key={choice.id} onClick={() => !showFeedback && handleAnswer(currentQuestion.id, choice.id)}
@@ -167,9 +167,9 @@ export function QuizModal({ questions, onSubmit, onCancel }: QuizModalProps) {
                         className={cn("w-full p-5 rounded-2xl text-left transition-all border-2",
                           !showFeedback && !isSelected && "border-border bg-muted/20 hover:border-muted-foreground hover:bg-muted/40",
                           !showFeedback && isSelected && "border-[hsl(var(--cognitive-glow-blue))] bg-[hsl(var(--cognitive-glow-blue))]/10",
-                          isCorrectChoice && "border-[hsl(var(--cognitive-correct))] bg-[hsl(var(--cognitive-correct))]/10",
+                          isRightAndSelected && "border-[hsl(var(--cognitive-correct))] bg-[hsl(var(--cognitive-correct))]/10",
                           isWrong && "border-[hsl(var(--cognitive-incorrect))] bg-[hsl(var(--cognitive-incorrect))]/20")}>
-                        <span className={cn("flex-1 leading-relaxed", (isCorrectChoice || isWrong) && "font-medium")}>{choice.text}</span>
+                        <span className={cn("flex-1 leading-relaxed", (isRightAndSelected || isWrong) && "font-medium")}>{choice.text}</span>
                       </button>
                     );
                   })}
