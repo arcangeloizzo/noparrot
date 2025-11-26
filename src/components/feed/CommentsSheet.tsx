@@ -25,8 +25,7 @@ import { QuizModal } from '@/components/ui/quiz-modal';
 import { toast as sonnerToast } from 'sonner';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import ParrotReadIcon from '@/assets/parrot-comment-read.png';
-import ParrotUnreadIcon from '@/assets/parrot-comment-unread.png';
+import { LOGO_BASE } from '@/config/brand';
 
 interface CommentsSheetProps {
   post: Post;
@@ -339,12 +338,6 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                   htmlFor="r-unread"
                   className="flex items-center gap-2 cursor-pointer text-sm"
                 >
-                  <img
-                    src={ParrotUnreadIcon}
-                    alt=""
-                    className="w-5 h-5"
-                    aria-hidden="true"
-                  />
                   Commento spontaneo
                 </Label>
               </div>
@@ -355,7 +348,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                   className="flex items-center gap-2 cursor-pointer text-sm"
                 >
                   <img
-                    src={ParrotReadIcon}
+                    src={LOGO_BASE}
                     alt=""
                     className="w-5 h-5"
                     aria-hidden="true"
@@ -590,6 +583,13 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, onMediaClick, 
             <span className="font-semibold text-sm">
               {comment.author.full_name || getDisplayUsername(comment.author.username)}
             </span>
+            {postHasSource && comment.passed_gate && (
+              <img 
+                src={LOGO_BASE}
+                alt="Consapevole"
+                className="w-5 h-5"
+              />
+            )}
             <span className="text-muted-foreground text-xs">
               @{getDisplayUsername(comment.author.username)}
             </span>

@@ -16,8 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import ParrotReadIcon from '@/assets/parrot-comment-read.png';
-import ParrotUnreadIcon from '@/assets/parrot-comment-unread.png';
+import { LOGO_BASE } from '@/config/brand';
 
 interface CommentItemProps {
   comment: Comment;
@@ -137,21 +136,19 @@ export const CommentItem = ({
               {comment.author.full_name || getDisplayUsername(comment.author.username)}
             </span>
             
-            {postHasSource && (
+            {postHasSource && comment.passed_gate && (
               <TooltipProvider delayDuration={200}>
                 <Tooltip>
                   <TooltipTrigger>
                     <img
-                      src={comment.passed_gate ? ParrotReadIcon : ParrotUnreadIcon}
-                      alt={comment.passed_gate ? 'Lettore consapevole' : 'Commento spontaneo'}
-                      className="w-4 h-4"
+                      src={LOGO_BASE}
+                      alt="Lettore consapevole"
+                      className="w-5 h-5"
                     />
                   </TooltipTrigger>
                   <TooltipContent side="top">
                     <p className="text-xs">
-                      {comment.passed_gate
-                        ? 'Ha letto la fonte prima di commentare'
-                        : 'Non ha letto la fonte'}
+                      Ha letto la fonte prima di commentare
                     </p>
                   </TooltipContent>
                 </Tooltip>
