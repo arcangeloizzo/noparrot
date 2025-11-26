@@ -14,6 +14,7 @@ import { QuotedPostCard } from "@/components/feed/QuotedPostCard";
 import { SourceReaderGate } from "./SourceReaderGate";
 import { generateQA } from "@/lib/ai-helpers";
 import { QuizModal } from "@/components/ui/quiz-modal";
+import { getWordCount, getTestModeWithSource } from '@/lib/gate-utils';
 import { MentionDropdown } from "@/components/feed/MentionDropdown";
 import { useUserSearch } from "@/hooks/useUserSearch";
 import { useQueryClient } from "@tanstack/react-query";
@@ -129,7 +130,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     
     if (!urlPreview || !user) return;
 
-    toast.loading('Generazione Q&A...');
+    // Calcola testMode basato sul testo utente
+    const userWordCount = getWordCount(content);
+    const testMode = getTestModeWithSource(userWordCount);
+
+    toast.loading(`Generazione Q&A (${testMode === 'SOURCE_ONLY' ? 'sulla fonte' : testMode === 'MIXED' ? 'misto' : 'sul tuo testo'})...`);
 
     const result = await generateQA({
       contentId: null,
@@ -137,6 +142,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       title: urlPreview.title || '',
       summary: urlPreview.content || urlPreview.summary || urlPreview.excerpt || '',
       sourceUrl: detectedUrl || undefined,
+      userText: content,
+      testMode: testMode,
     });
 
     toast.dismiss();
