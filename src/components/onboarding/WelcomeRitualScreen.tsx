@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { getRandomWelcomePhrase } from '@/data/welcomePhrases';
-import logoLight from '@/assets/LogoBianco.png';
+import { Logo } from '@/components/ui/logo';
 
 interface WelcomeRitualScreenProps {
   onEnter: () => void;
@@ -35,10 +35,9 @@ export const WelcomeRitualScreen = ({ onEnter }: WelcomeRitualScreenProps) => {
     >
       {/* Logo */}
       <div className="mb-16">
-        <img 
-          src={logoLight} 
-          alt="NoParrot Logo" 
-          className="h-16 md:h-20 w-auto"
+        <Logo 
+          variant="white" 
+          className="h-16 md:h-20"
         />
       </div>
 
