@@ -77,14 +77,13 @@ export const ProfileSideSheet = ({ isOpen, onClose }: ProfileSideSheetProps) => 
       
       {/* Side Sheet */}
       <div className={cn(
-        "fixed top-0 bottom-0 right-0 w-80 bg-background border-l border-border z-50",
+        "fixed top-0 bottom-0 right-0 w-80 bg-background/80 backdrop-blur-xl border-l border-white/10 z-50",
         "transform transition-transform duration-300 ease-out",
         isOpen ? "translate-x-0" : "translate-x-full"
       )}>
         <div className="h-full overflow-y-auto pb-24">
           {/* Header con testo introduttivo */}
           <div className="p-6 border-b border-border">
-            <p className="text-xs text-[#9AA3AB] mb-4 tracking-wide uppercase">Il tuo spazio di quiete</p>
             
             <div className="flex items-center space-x-3 mb-4">
               {profile?.avatar_url ? (

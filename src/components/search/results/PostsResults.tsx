@@ -1,26 +1,72 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FeedCard } from "@/components/feed/FeedCardAdapt";
 import type { SearchFiltersState } from "../SearchFilters";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ReactNode } from 'react';
+import { useNavigate } from "react-router-dom";
+import { formatDistanceToNow } from "date-fns";
+import { it } from "date-fns/locale";
 
 interface PostsResultsProps {
   query: string;
   filters: SearchFiltersState;
 }
 
-// Funzione per evidenziare parole cercate
-const highlightSearchTerm = (text: string, query: string): ReactNode => {
-  if (!query || !text) return text;
-  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-  const parts = text.split(regex);
-  return parts.map((part, i) => 
-    regex.test(part) ? (
-      <mark key={i} className="bg-[#0A7AFF]/30 text-foreground px-0.5 rounded">
-        {part}
-      </mark>
-    ) : part
+// Component for individual search result card
+const SearchResultCard = ({ post, query }: { post: any; query: string }) => {
+  const navigate = useNavigate();
+  
+  const highlightText = (text: string) => {
+    if (!query || !text) return text;
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    return parts.map((part, i) => 
+      regex.test(part) ? (
+        <mark key={i} className="bg-[#0A7AFF]/40 text-foreground px-0.5 rounded">
+          {part}
+        </mark>
+      ) : part
+    );
+  };
+  
+  const timeAgo = formatDistanceToNow(new Date(post.created_at), {
+    addSuffix: true,
+    locale: it
+  });
+  
+  return (
+    <div 
+      onClick={() => navigate(`/post/${post.id}`)}
+      className="bg-[#141A1E] border border-white/10 rounded-2xl p-4 cursor-pointer hover:bg-[#1A2329] transition-colors"
+    >
+      {/* Author */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-full overflow-hidden bg-primary/20 flex items-center justify-center">
+          {post.author?.avatar_url ? (
+            <img src={post.author.avatar_url} className="w-full h-full object-cover" alt="" />
+          ) : (
+            <span className="text-sm font-semibold">
+              {(post.author?.full_name || post.author?.username || 'U').charAt(0).toUpperCase()}
+            </span>
+          )}
+        </div>
+        <div className="flex-1">
+          <div className="font-medium">{post.author?.full_name || post.author?.username || 'Utente'}</div>
+          <div className="text-xs text-muted-foreground">{timeAgo}</div>
+        </div>
+      </div>
+      
+      {/* Content with highlighting */}
+      <p className="text-sm text-foreground/90 line-clamp-4 mb-3">
+        {highlightText(post.content || '')}
+      </p>
+      
+      {/* Category */}
+      {post.category && (
+        <span className="text-xs bg-[#2AD2C9]/20 text-[#2AD2C9] px-2 py-0.5 rounded-full">
+          {post.category}
+        </span>
+      )}
+    </div>
   );
 };
 
@@ -130,31 +176,10 @@ export const PostsResults = ({ query, filters }: PostsResultsProps) => {
   }
 
   return (
-    <div className="space-y-4 p-4 bg-transparent">
-      {posts.map((post: any) => {
-        // Format post data with highlighted content
-        const formattedPost = {
-          ...post,
-          authorName: post.author?.full_name || post.author?.username || 'Utente',
-          avatar: post.author?.avatar_url,
-          userComment: post.content || '',
-          minutesAgo: Math.floor((Date.now() - new Date(post.created_at).getTime()) / 60000),
-          reactions: {
-            heart: post.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
-            comments: post.comments?.[0]?.count || 0
-          },
-          user_reactions: {
-            has_hearted: false,
-            has_bookmarked: false
-          }
-        };
-        
-        return (
-          <div key={post.id} className="cognitive-capsule-search">
-            <FeedCard post={formattedPost} />
-          </div>
-        );
-      })}
+    <div className="space-y-3 p-4">
+      {posts.map((post: any) => (
+        <SearchResultCard key={post.id} post={post} query={query} />
+      ))}
     </div>
   );
 };
