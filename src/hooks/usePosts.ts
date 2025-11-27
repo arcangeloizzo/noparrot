@@ -68,6 +68,7 @@ export const usePosts = () => {
 
   return useQuery({
     queryKey: ['posts', user?.id],
+    staleTime: 0, // Pre-carica sempre dati freschi per welcome screen
     queryFn: async () => {
       const { data, error } = await supabase
         .from('posts')

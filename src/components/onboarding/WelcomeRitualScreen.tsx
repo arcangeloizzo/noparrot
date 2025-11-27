@@ -25,19 +25,20 @@ export const WelcomeRitualScreen = ({ onEnter }: WelcomeRitualScreenProps) => {
 
   const handleEnter = () => {
     setIsVisible(false);
-    setTimeout(() => onEnter(), 300);
+    setTimeout(() => onEnter(), 600);
   };
 
   return (
     <div 
-      className="fixed inset-0 z-[100] transition-opacity duration-300"
+      className="fixed inset-0 z-[100] transition-all duration-700 ease-out"
       style={{ 
-        opacity: isVisible ? 1 : 0
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible ? 'scale(1)' : 'scale(1.05)'
       }}
     >
       {/* Feed in background con blur - Liquid Glass Effect */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="max-w-[600px] mx-auto h-full overflow-y-auto blur-xl opacity-50 scale-105">
+        <div className="max-w-[600px] mx-auto h-full overflow-y-auto blur-2xl opacity-60 scale-110">
           <div className="divide-y divide-border pt-20">
             {posts.slice(0, 5).map(post => (
               <FeedCard key={post.id} post={post} />
@@ -46,15 +47,15 @@ export const WelcomeRitualScreen = ({ onEnter }: WelcomeRitualScreenProps) => {
         </div>
       </div>
 
-      {/* Overlay con gradiente ridotto - Frosted Glass */}
+      {/* Overlay con gradiente più leggero - Frosted Glass */}
       <div 
         className="absolute inset-0 flex flex-col items-center justify-center px-6"
         style={{
-          background: 'linear-gradient(180deg, rgba(14, 20, 26, 0.70) 0%, rgba(14, 20, 26, 0.50) 50%, rgba(14, 20, 26, 0.70) 100%)'
+          background: 'linear-gradient(180deg, rgba(14, 20, 26, 0.50) 0%, rgba(14, 20, 26, 0.30) 50%, rgba(14, 20, 26, 0.50) 100%)'
         }}
       >
         {/* Logo */}
-        <div className="mb-16 backdrop-blur-sm">
+        <div className="mb-16 backdrop-blur-lg bg-background/10 rounded-3xl p-6 border border-white/10">
           <Logo 
             variant="white" 
             className="h-16 md:h-20 w-auto"
@@ -62,8 +63,8 @@ export const WelcomeRitualScreen = ({ onEnter }: WelcomeRitualScreenProps) => {
         </div>
 
         {/* Frase centrale */}
-        <div className="max-w-2xl w-full text-center mb-12 backdrop-blur-sm">
-          <p className="text-foreground text-2xl md:text-3xl font-light leading-relaxed tracking-wide drop-shadow-lg">
+        <div className="max-w-2xl w-full text-center mb-12 backdrop-blur-lg bg-background/10 rounded-3xl p-8 border border-white/10">
+          <p className="text-foreground text-2xl md:text-3xl font-light leading-relaxed tracking-wide drop-shadow-2xl">
             {phrase}
           </p>
         </div>
@@ -72,7 +73,7 @@ export const WelcomeRitualScreen = ({ onEnter }: WelcomeRitualScreenProps) => {
         <Button
           onClick={handleEnter}
           size="lg"
-          className="rounded-full px-12 py-6 text-lg font-medium bg-[#0A7AFF] hover:bg-[#0A7AFF]/90 text-white shadow-lg transition-all duration-200 backdrop-blur-sm"
+          className="rounded-full px-12 py-6 text-lg font-medium bg-[#0A7AFF] hover:bg-[#0A7AFF]/90 text-white shadow-2xl transition-all duration-500 backdrop-blur-lg border border-white/20"
         >
           Entra
         </Button>
