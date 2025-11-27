@@ -217,7 +217,7 @@ export const Profile = () => {
               : getDisplayUsername(profile?.username || '')}
           </h1>
           <p className="text-xs text-[#9AA3AB] tracking-wide">
-            In cammino verso una comprensione più chiara.
+            Le tue letture. I tuoi percorsi. In un'unica vista.
           </p>
         </div>
 
@@ -242,16 +242,6 @@ export const Profile = () => {
         {/* Nebulosa Cognitiva */}
         <div className="px-6 py-8 border-t border-border">
           <CognitiveMap cognitiveDensity={cognitiveDensity} />
-        </div>
-
-        {/* Identità Cognitiva */}
-        <div className="px-6 py-8 border-t border-border">
-          <CognitiveIdentity cognitiveDensity={cognitiveDensity} />
-        </div>
-
-        {/* Percorsi condivisi */}
-        <div className="px-6 py-8 border-t border-border">
-          <SharedPaths posts={userPosts} />
         </div>
 
         {/* Modifica profilo discreto in fondo */}

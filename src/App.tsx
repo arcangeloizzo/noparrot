@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import Profile from "./pages/Profile";
 import ProfileEdit from "./pages/ProfileEdit";
 import UserProfile from "./pages/UserProfile";
+import CompletedPaths from "./pages/CompletedPaths";
 import { Post } from "./pages/Post";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
@@ -35,6 +36,7 @@ const App = () => (
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/:userId" element={<UserProfile />} />
             <Route path="/profile/edit" element={<ProfileEdit />} />
+            <Route path="/completed-paths" element={<CompletedPaths />} />
             <Route path="/post/:postId" element={<Post />} />
             <Route path="/post/:postId/comments" element={<Post />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />

@@ -1,4 +1,4 @@
-import { UserIcon, InfoIcon, Compass } from "lucide-react";
+import { UserIcon, InfoIcon, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
@@ -56,8 +56,8 @@ export const ProfileSideSheet = ({ isOpen, onClose }: ProfileSideSheetProps) => 
   }
 
   const menuItems = [
-    { icon: UserIcon, label: "Profilo", id: "profile", enabled: true, onClick: () => { navigate("/profile"); onClose(); } },
-    { icon: Compass, label: "Percorso Cognitivo", id: "cognitive", enabled: true, onClick: () => { navigate("/profile#nebulosa"); onClose(); } },
+    { icon: UserIcon, label: "Profilo", description: "Il tuo viaggio di comprensione, in un'unica vista.", id: "profile", enabled: true, onClick: () => { navigate("/profile"); onClose(); } },
+    { icon: BookOpen, label: "Percorsi completati", description: "Accedi ai contenuti che hai elaborato.", id: "completed", enabled: true, onClick: () => { navigate("/completed-paths"); onClose(); } },
     { icon: InfoIcon, label: "Impostazioni e privacy", id: "settings", enabled: true, onClick: () => { navigate("/settings/privacy"); onClose(); } },
   ];
 
@@ -71,7 +71,7 @@ export const ProfileSideSheet = ({ isOpen, onClose }: ProfileSideSheetProps) => 
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/50 z-40 transition-opacity"
+        className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 transition-opacity"
         onClick={onClose}
       />
       
@@ -110,22 +110,6 @@ export const ProfileSideSheet = ({ isOpen, onClose }: ProfileSideSheetProps) => 
             </div>
           </div>
 
-          {/* Blocco Mappa Cognitiva */}
-          <div 
-            className="p-4 mx-4 my-4 bg-[#141A1E] rounded-xl border border-[#2AD2C9]/20 cursor-pointer hover:bg-[#141A1E]/80 transition-colors"
-            onClick={() => { navigate("/profile#nebulosa"); onClose(); }}
-          >
-            <div className="flex items-start space-x-3">
-              <Compass className="w-5 h-5 text-[#2AD2C9] mt-0.5" />
-              <div>
-                <div className="font-medium text-foreground mb-1">Mappa Cognitiva</div>
-                <div className="text-xs text-muted-foreground">Entra nel tuo viaggio di comprensione</div>
-              </div>
-            </div>
-          </div>
-
-          <Separator className="mx-4 my-2" />
-
           {/* Menu Items */}
           <div className="py-2">
             {menuItems.map((item) => (
@@ -134,12 +118,17 @@ export const ProfileSideSheet = ({ isOpen, onClose }: ProfileSideSheetProps) => 
                 onClick={item.onClick}
                 disabled={!item.enabled}
                 className={cn(
-                  "w-full flex items-center space-x-4 px-6 py-4 text-left transition-colors",
+                  "w-full flex items-start gap-3 px-6 py-4 text-left transition-colors",
                   item.enabled ? "hover:bg-muted/50 cursor-pointer" : "opacity-50 cursor-not-allowed"
                 )}
               >
-                <item.icon className="w-5 h-5" />
-                <span className="font-medium">{item.label}</span>
+                <item.icon className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium mb-0.5">{item.label}</div>
+                  {item.description && (
+                    <div className="text-xs text-muted-foreground">{item.description}</div>
+                  )}
+                </div>
               </button>
             ))}
           </div>

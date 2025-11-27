@@ -682,14 +682,14 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
               
               if (!actualPassed) {
                 console.log('[QuizModal] Quiz failed:', data);
-                sonnerToast.error('Serve ancora un po\' di chiarezza. Puoi comunque fare un commento spontaneo.');
+                sonnerToast.error('Non ancora chiaro. Puoi comunque fare un commento spontaneo.');
                 setShowQuiz(false);
                 setQuizData(null);
                 return { passed: false, wrongIndexes: data?.wrongIndexes || [] };
               }
 
               console.log('[QuizModal] Quiz passed!');
-              sonnerToast.success('Possiamo procedere. Il tuo commento avrà il segno di NoParrot.');
+              sonnerToast.success('Hai fatto chiarezza. Il tuo commento avrà il segno di NoParrot.');
               setSelectedCommentType('informed');
               setShowQuiz(false);
               setQuizData(null);
