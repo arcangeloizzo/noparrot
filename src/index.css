@@ -142,9 +142,12 @@
     
     /* Capsule Card */
     --capsule-bg-white: 0 0% 100%; /* #FFFFFF */
+    --capsule-bg-dark: 220 20% 8%; /* #141A1E for dark mode */
     --capsule-border-subtle: 220 9% 90%; /* #E5E7EB */
+    --capsule-border-dark: 0 0% 100% / 0.1; /* rgba(255,255,255,0.1) */
     --capsule-shadow-light: 0 1px 3px rgba(0, 0, 0, 0.05);
     --capsule-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --capsule-shadow-dark: 0 2px 8px rgba(0, 0, 0, 0.3);
     
     /* Trust Badge Pill Colors (Dynamic) */
     --trust-pill-high-bg: 140 45% 95%; /* bg-emerald-100 */
@@ -367,6 +370,18 @@
   /* Cognitive System Style */
   .cognitive-feed-container {
     background: transparent;
+  }
+
+  /* Capsule per risultati Search - Dark mode */
+  .cognitive-capsule-search {
+    background: hsl(var(--capsule-bg-dark)) !important;
+    border: 1px solid hsl(var(--capsule-border-dark)) !important;
+    border-radius: 16px !important;
+    box-shadow: var(--capsule-shadow-dark) !important;
+  }
+
+  .cognitive-capsule-search .cognitive-capsule-content {
+    background: transparent !important;
   }
 
   /* ===== LIQUID GLASS COMPONENT CLASSES ===== */

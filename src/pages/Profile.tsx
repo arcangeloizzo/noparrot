@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
+import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 import { CognitiveMap } from "@/components/profile/CognitiveMap";
 import { CognitiveIdentity } from "@/components/profile/CognitiveIdentity";
 import { SharedPaths } from "@/components/profile/SharedPaths";
@@ -276,13 +277,11 @@ export const Profile = () => {
         onProfileClick={() => setShowProfileSheet(true)}
       />
       
-      {showProfileSheet && (
-        <div className="fixed inset-0 z-50 bg-black/50" onClick={() => setShowProfileSheet(false)}>
-          <div className="absolute right-0 top-0 bottom-0 w-80 bg-background p-6">
-            <p className="text-foreground">Profile Sheet (implementa qui)</p>
-          </div>
-        </div>
-      )}
+      {/* Profile Sheet */}
+      <ProfileSideSheet 
+        isOpen={showProfileSheet}
+        onClose={() => setShowProfileSheet(false)}
+      />
     </div>
   );
 };

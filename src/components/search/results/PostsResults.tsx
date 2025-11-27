@@ -1,13 +1,28 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FeedCard } from "@/components/feed/FeedCard";
+import { FeedCard } from "@/components/feed/FeedCardAdapt";
 import type { SearchFiltersState } from "../SearchFilters";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReactNode } from 'react';
 
 interface PostsResultsProps {
   query: string;
   filters: SearchFiltersState;
 }
+
+// Funzione per evidenziare parole cercate
+const highlightSearchTerm = (text: string, query: string): ReactNode => {
+  if (!query || !text) return text;
+  const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+  const parts = text.split(regex);
+  return parts.map((part, i) => 
+    regex.test(part) ? (
+      <mark key={i} className="bg-[#0A7AFF]/30 text-foreground px-0.5 rounded">
+        {part}
+      </mark>
+    ) : part
+  );
+};
 
 export const PostsResults = ({ query, filters }: PostsResultsProps) => {
   const { data: posts, isLoading, error } = useQuery({
@@ -115,9 +130,9 @@ export const PostsResults = ({ query, filters }: PostsResultsProps) => {
   }
 
   return (
-    <div className="divide-y divide-border">
+    <div className="space-y-4 p-4 bg-transparent">
       {posts.map((post: any) => {
-        // Format post data to match FeedCard expectations
+        // Format post data with highlighted content
         const formattedPost = {
           ...post,
           authorName: post.author?.full_name || post.author?.username || 'Utente',
@@ -133,7 +148,12 @@ export const PostsResults = ({ query, filters }: PostsResultsProps) => {
             has_bookmarked: false
           }
         };
-        return <FeedCard key={post.id} post={formattedPost} />;
+        
+        return (
+          <div key={post.id} className="cognitive-capsule-search">
+            <FeedCard post={formattedPost} />
+          </div>
+        );
       })}
     </div>
   );
