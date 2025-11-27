@@ -77,8 +77,8 @@ export const ProfileSideSheet = ({ isOpen, onClose }: ProfileSideSheetProps) => 
       
       {/* Side Sheet */}
       <div className={cn(
-        "fixed top-0 bottom-0 right-0 w-80 bg-background/20 backdrop-blur-3xl border-l border-white/20 z-50",
-        "shadow-[0_0_40px_rgba(0,0,0,0.3)]",
+        "fixed top-0 bottom-0 right-0 w-80 bg-background/10 backdrop-blur-[40px] border-l border-white/30 z-50",
+        "shadow-[0_8px_60px_rgba(0,0,0,0.4)]",
         "transform transition-transform duration-300 ease-out",
         isOpen ? "translate-x-0" : "translate-x-full"
       )}>
@@ -100,7 +100,9 @@ export const ProfileSideSheet = ({ isOpen, onClose }: ProfileSideSheetProps) => 
               )}
               <div className="flex-1">
                 <div className="text-lg font-semibold text-foreground">{profile?.full_name}</div>
-                <div className="text-sm text-muted-foreground">@{profile?.username}</div>
+                {profile?.username && (
+                  <div className="text-sm text-muted-foreground">@{profile.username}</div>
+                )}
               </div>
             </div>
             
