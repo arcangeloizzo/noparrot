@@ -52,3 +52,61 @@ export async function updateCognitiveDensity(userId: string, category: string) {
     console.error('❌ [cognitiveDensity] Unexpected error:', error);
   }
 }
+
+/**
+ * Calcola la cognitive_density retroattivamente basandosi sui post pubblicati dall'utente
+ * Utile per popolare la nebulosa per utenti che hanno già pubblicato post prima dell'implementazione del sistema
+ */
+export async function recalculateCognitiveDensityFromPosts(userId: string) {
+  console.log('🔄 [cognitiveDensity] Recalculating from posts for user:', userId);
+  
+  if (!userId) {
+    console.error('❌ [cognitiveDensity] Missing userId');
+    return;
+  }
+
+  try {
+    // 1. Fetch tutti i post dell'utente con categoria
+    const { data: posts, error: postsError } = await supabase
+      .from('posts')
+      .select('category')
+      .eq('author_id', userId)
+      .not('category', 'is', null);
+
+    if (postsError) {
+      console.error('❌ [cognitiveDensity] Error fetching posts:', postsError);
+      return;
+    }
+
+    if (!posts || posts.length === 0) {
+      console.log('ℹ️ [cognitiveDensity] No posts with category found');
+      return;
+    }
+
+    // 2. Conta i post per categoria
+    const densityMap: Record<string, number> = {};
+    posts.forEach(post => {
+      if (post.category) {
+        densityMap[post.category] = (densityMap[post.category] || 0) + 1;
+      }
+    });
+
+    console.log('📊 [cognitiveDensity] Calculated density from posts:', densityMap);
+
+    // 3. Aggiorna il profilo
+    const { error: updateError } = await supabase
+      .from('profiles')
+      .update({ cognitive_density: densityMap })
+      .eq('id', userId);
+
+    if (updateError) {
+      console.error('❌ [cognitiveDensity] Error updating profile:', updateError);
+      return;
+    }
+
+    console.log(`✅ [cognitiveDensity] Recalculated density from ${posts.length} posts`);
+    return densityMap;
+  } catch (error) {
+    console.error('❌ [cognitiveDensity] Unexpected error:', error);
+  }
+}
