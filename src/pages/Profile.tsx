@@ -9,6 +9,7 @@ import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { FeedCard } from "@/components/feed/FeedCardAdapt";
 import { CognitiveMap } from "@/components/profile/CognitiveMap";
 import { cn, getDisplayUsername } from "@/lib/utils";
+import { recalculateCognitiveDensityFromPosts } from "@/lib/cognitiveDensity";
 
 export const Profile = () => {
   const { user } = useAuth();
@@ -17,7 +18,7 @@ export const Profile = () => {
   const [navTab, setNavTab] = useState("");
   const [showProfileSheet, setShowProfileSheet] = useState(false);
 
-  const { data: profile, isLoading, error } = useQuery({
+  const { data: profile, isLoading, error, refetch } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => {
       if (!user) {
@@ -34,6 +35,25 @@ export const Profile = () => {
         throw error;
       }
       console.log("✅ Profile fetched:", data);
+      
+      // Se cognitive_density è vuoto, prova a ricalcolarlo dai post
+      const density = data?.cognitive_density as Record<string, number> | null;
+      const isEmpty = !density || Object.keys(density).length === 0;
+      
+      if (isEmpty) {
+        console.log('🔄 Cognitive density is empty, recalculating from posts...');
+        await recalculateCognitiveDensityFromPosts(user.id);
+        
+        // Rileggi il profilo aggiornato
+        const { data: updatedData } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", user.id)
+          .single();
+        
+        return updatedData || data;
+      }
+      
       return data;
     },
     enabled: !!user,

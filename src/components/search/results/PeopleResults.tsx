@@ -12,34 +12,35 @@ interface PeopleResultsProps {
 
 export const PeopleResults = ({ query }: PeopleResultsProps) => {
   const { data: users, isLoading, error } = useQuery({
-    queryKey: ["search-people", query],
+    queryKey: ['search-users', query],
     queryFn: async () => {
-      if (!query || query.length < 2) return [];
-
       console.log('🔍 [PeopleResults] Searching for:', query);
-
+      
+      // Remove @ symbol if present for better matching
+      const cleanQuery = query.replace('@', '');
+      
       const { data, error } = await supabase
-        .from("profiles")
-        .select("id, username, full_name, avatar_url, bio")
-        .or(`username.ilike.%${query}%,full_name.ilike.%${query}%,bio.ilike.%${query}%`)
+        .from('profiles')
+        .select('id, username, full_name, avatar_url, bio')
+        .or(`username.ilike.%${cleanQuery}%,full_name.ilike.%${cleanQuery}%,bio.ilike.%${cleanQuery}%`)
         .limit(20);
 
       if (error) {
-        console.error("❌ [PeopleResults] Search error:", error);
+        console.error('❌ [PeopleResults] Error:', error);
         throw error;
       }
-
-      console.log('✅ [PeopleResults] Found', data?.length || 0, 'users');
+      
+      console.log('✅ [PeopleResults] Found users:', data?.length || 0, data);
       
       // Clean usernames to hide emails
       const cleanedData = data?.map(user => ({
         ...user,
         username: getDisplayUsername(user.username)
       }));
-
+      
       return cleanedData || [];
     },
-    enabled: !!query && query.length >= 2,
+    enabled: query.length >= 2
   });
 
   if (isLoading) {

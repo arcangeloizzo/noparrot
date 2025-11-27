@@ -35,9 +35,9 @@ export const WelcomeRitualScreen = ({ onEnter }: WelcomeRitualScreenProps) => {
         opacity: isVisible ? 1 : 0
       }}
     >
-      {/* Feed in background con blur */}
+      {/* Feed in background con blur - Liquid Glass Effect */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="max-w-[600px] mx-auto h-full overflow-y-auto blur-md opacity-30 scale-105">
+        <div className="max-w-[600px] mx-auto h-full overflow-y-auto blur-xl opacity-50 scale-105">
           <div className="divide-y divide-border pt-20">
             {posts.slice(0, 5).map(post => (
               <FeedCard key={post.id} post={post} />
@@ -46,11 +46,11 @@ export const WelcomeRitualScreen = ({ onEnter }: WelcomeRitualScreenProps) => {
         </div>
       </div>
 
-      {/* Overlay con gradiente e contenuto */}
+      {/* Overlay con gradiente ridotto - Frosted Glass */}
       <div 
         className="absolute inset-0 flex flex-col items-center justify-center px-6"
         style={{
-          background: 'linear-gradient(180deg, rgba(14, 20, 26, 0.95) 0%, rgba(14, 20, 26, 0.85) 50%, rgba(14, 20, 26, 0.95) 100%)'
+          background: 'linear-gradient(180deg, rgba(14, 20, 26, 0.70) 0%, rgba(14, 20, 26, 0.50) 50%, rgba(14, 20, 26, 0.70) 100%)'
         }}
       >
         {/* Logo */}
