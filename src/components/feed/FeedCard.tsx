@@ -81,6 +81,7 @@ export const FeedCard = ({
   const [quotedPostId, setQuotedPostId] = useState<string | null>(null);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Generate avatar with initials if no image
   const getAvatarContent = () => {
@@ -356,9 +357,24 @@ export const FeedCard = ({
           </div>
 
           {/* Comment */}
-          <p className="cognitive-text-primary text-[15px] leading-5 mb-3 whitespace-pre-wrap">
-            {post.userComment}
-          </p>
+          <div className="cognitive-text-primary text-[15px] leading-5 mb-3 whitespace-pre-wrap">
+            {post.userComment.length > 300 && !isExpanded ? (
+              <>
+                {post.userComment.slice(0, 300)}...
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsExpanded(true);
+                  }}
+                  className="text-primary hover:underline ml-1 font-medium"
+                >
+                  mostra di più
+                </button>
+              </>
+            ) : (
+              post.userComment
+            )}
+          </div>
 
           {/* Category Chip */}
           {post.category && (

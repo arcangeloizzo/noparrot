@@ -40,7 +40,7 @@ export const SearchBar = ({ value, onChange, onSearch }: SearchBarProps) => {
         <Input
           ref={inputRef}
           type="text"
-          placeholder="Cerca post, persone, argomenti o fonti…"
+          placeholder="Cerca concetti, non rumore..."
           value={value}
           onChange={(e) => {
             onChange(e.target.value);
