@@ -298,8 +298,11 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let url = '';
+  
   try {
-    const { url } = await req.json();
+    const body = await req.json();
+    url = body.url;
 
     // FASE 2: Gestione Facebook/HDBlog - Fallback graceful per siti bloccati
     const urlLower = url.toLowerCase();
@@ -834,10 +837,11 @@ ${html.substring(0, 20000).replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '').replace(/<
     console.error('[fetch-article-preview] Error:', error);
     
     // FASE 2: Fallback graceful per errori 403/503 (HDBlog, siti bloccati)
-    if (error.status === 403 || error.status === 503) {
+    const errorStatus = (error as any)?.status;
+    if (url && (errorStatus === 403 || errorStatus === 503)) {
       try {
         const hostname = new URL(url).hostname;
-        console.log(`[Preview] 🔴 Sito bloccato (${error.status}): ${hostname} - restituisco placeholder`);
+        console.log(`[Preview] 🔴 Sito bloccato (${errorStatus}): ${hostname} - restituisco placeholder`);
         return new Response(JSON.stringify({
           success: true,
           title: `Contenuto da ${hostname}`,
