@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { getRandomWelcomePhrase } from '@/data/welcomePhrases';
+import logoLight from '@/assets/LogoBianco.png';
 
 interface WelcomeRitualScreenProps {
   onEnter: () => void;
@@ -32,6 +33,15 @@ export const WelcomeRitualScreen = ({ onEnter }: WelcomeRitualScreenProps) => {
         opacity: isVisible ? 1 : 0
       }}
     >
+      {/* Logo */}
+      <div className="mb-16">
+        <img 
+          src={logoLight} 
+          alt="NoParrot Logo" 
+          className="h-16 md:h-20 w-auto"
+        />
+      </div>
+
       {/* Frase centrale */}
       <div className="max-w-2xl w-full text-center mb-12">
         <p className="text-foreground text-2xl md:text-3xl font-light leading-relaxed tracking-wide">
