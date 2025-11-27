@@ -6,8 +6,9 @@ import { QuickFilters } from "@/components/search/QuickFilters";
 import { SearchTabs, SearchTab } from "@/components/search/SearchTabs";
 import { SearchFilters, SearchFiltersState } from "@/components/search/SearchFilters";
 import { SearchResults } from "@/components/search/SearchResults";
-import { RecentSearches } from "@/components/search/RecentSearches";
-import { TrendingTopics } from "@/components/search/TrendingTopics";
+import { CategoryExplorer } from "@/components/search/CategoryExplorer";
+import { usePosts } from "@/hooks/usePosts";
+import { FeedCard } from "@/components/feed/FeedCardAdapt";
 
 const defaultFilters: SearchFiltersState = {
   dateRange: "30days",
@@ -25,6 +26,9 @@ export const Search = () => {
   );
   const [filters, setFilters] = useState<SearchFiltersState>(defaultFilters);
   const [quickFilters, setQuickFilters] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  
+  const { data: posts = [] } = usePosts();
 
   // Sync URL with state
   useEffect(() => {
@@ -103,9 +107,37 @@ export const Search = () => {
             quickFilters={quickFilters}
           />
         ) : (
-          <div className="space-y-6 pb-20">
-            <RecentSearches onSelect={handleSearch} />
-            <TrendingTopics onSelect={handleSearch} />
+          <div className="pb-20">
+            <CategoryExplorer 
+              selectedCategory={selectedCategory}
+              onCategorySelect={setSelectedCategory}
+            />
+            
+            {selectedCategory && (
+              <div className="mt-6">
+                <div className="px-4 mb-4">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Trending in {selectedCategory}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Post popolari in questa categoria
+                  </p>
+                </div>
+                <div className="divide-y divide-border">
+                  {posts
+                    .filter(post => post.category === selectedCategory)
+                    .slice(0, 10)
+                    .map(post => (
+                      <FeedCard key={post.id} post={post} />
+                    ))}
+                  {posts.filter(post => post.category === selectedCategory).length === 0 && (
+                    <div className="px-4 py-8 text-center text-muted-foreground">
+                      <p>Nessun post trovato in questa categoria</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -98,6 +98,7 @@ export const FeedCard = ({
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showPeoplePicker, setShowPeoplePicker] = useState(false);
   const [shareAction, setShareAction] = useState<'feed' | 'friend' | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
   
   // Trust Score state
   const [trustScore, setTrustScore] = useState<{
@@ -525,7 +526,22 @@ export const FeedCard = ({
 
             {/* User Comment - Interlinea rilassata */}
             <div className="text-[15px] leading-relaxed text-gray-100 mb-3 whitespace-pre-wrap break-words">
-              <MentionText content={post.content} />
+              {post.content.length > 300 && !isExpanded ? (
+                <>
+                  <MentionText content={post.content.slice(0, 300) + '...'} />
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsExpanded(true);
+                    }}
+                    className="text-primary hover:underline ml-1 font-medium"
+                  >
+                    mostra di più
+                  </button>
+                </>
+              ) : (
+                <MentionText content={post.content} />
+              )}
             </div>
 
             {/* Category Chip */}

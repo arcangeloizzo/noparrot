@@ -34,6 +34,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const [isPublishing, setIsPublishing] = useState(false);
   const [detectedUrl, setDetectedUrl] = useState<string | null>(null);
   const [urlPreview, setUrlPreview] = useState<any>(null);
+  const [contentCategory, setContentCategory] = useState<string | null>(null);
   const [showReader, setShowReader] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizData, setQuizData] = useState<any>(null);
@@ -104,6 +105,15 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
           ...preview
         });
         console.log('[Composer] Preview set successfully');
+        
+        // Classifica il contenuto immediatamente dopo aver caricato la preview
+        const category = await classifyContent({
+          text: content,
+          title: preview.title,
+          summary: preview.content || preview.summary || preview.excerpt
+        });
+        console.log('[Composer] Content classified as:', category);
+        setContentCategory(category);
       } else {
         console.log('[Composer] No preview data returned');
       }
@@ -451,7 +461,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             setQuizData(null);
           }}
           provider="Comprehension Gate"
-          postCategory={urlPreview?.category}
+          postCategory={contentCategory}
         />
       )}
     </>
