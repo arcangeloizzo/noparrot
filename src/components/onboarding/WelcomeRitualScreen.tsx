@@ -37,7 +37,7 @@ export const WelcomeRitualScreen = ({ onEnter }: WelcomeRitualScreenProps) => {
       <div className="mb-16">
         <Logo 
           variant="white" 
-          className="h-16 md:h-20"
+          className="h-16 md:h-20 w-auto"
         />
       </div>
 
