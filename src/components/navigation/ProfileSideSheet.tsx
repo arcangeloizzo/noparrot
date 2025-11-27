@@ -77,7 +77,8 @@ export const ProfileSideSheet = ({ isOpen, onClose }: ProfileSideSheetProps) => 
       
       {/* Side Sheet */}
       <div className={cn(
-        "fixed top-0 bottom-0 right-0 w-80 bg-background/80 backdrop-blur-xl border-l border-white/10 z-50",
+        "fixed top-0 bottom-0 right-0 w-80 bg-background/20 backdrop-blur-3xl border-l border-white/20 z-50",
+        "shadow-[0_0_40px_rgba(0,0,0,0.3)]",
         "transform transition-transform duration-300 ease-out",
         isOpen ? "translate-x-0" : "translate-x-full"
       )}>
