@@ -537,6 +537,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
             setQuizData(null);
           }}
           provider="gemini"
+          postCategory={post.category}
         />
       )}
     </>

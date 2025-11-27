@@ -708,6 +708,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
             setQuizData(null);
           }}
           provider="gemini"
+          postCategory={post.category}
         />,
         document.body
       )}

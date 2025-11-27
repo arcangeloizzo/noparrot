@@ -451,6 +451,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             setQuizData(null);
           }}
           provider="Comprehension Gate"
+          postCategory={urlPreview?.category}
         />
       )}
     </>

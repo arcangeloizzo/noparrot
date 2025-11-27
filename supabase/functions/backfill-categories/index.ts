@@ -6,14 +6,14 @@ const corsHeaders = {
 };
 
 const CATEGORIES = [
-  'Politics & Society',
-  'Technology & Innovation', 
-  'Science & Health',
-  'Business & Economy',
-  'Culture & Entertainment',
-  'Sports',
-  'Environment & Climate',
-  'Education & Learning'
+  'Società & Politica',
+  'Economia & Business',
+  'Scienza & Tecnologia',
+  'Cultura & Arte',
+  'Pianeta & Ambiente',
+  'Sport & Lifestyle',
+  'Salute & Benessere',
+  'Media & Comunicazione'
 ];
 
 async function classifyContent(text: string, title?: string, summary?: string): Promise<string | null> {
