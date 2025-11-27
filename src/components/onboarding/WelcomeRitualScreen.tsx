@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { getRandomWelcomePhrase } from '@/data/welcomePhrases';
 import { Logo } from '@/components/ui/logo';
+import { usePosts } from '@/hooks/usePosts';
+import { FeedCard } from '@/components/feed/FeedCardAdapt';
 
 interface WelcomeRitualScreenProps {
   onEnter: () => void;
@@ -10,6 +12,7 @@ interface WelcomeRitualScreenProps {
 export const WelcomeRitualScreen = ({ onEnter }: WelcomeRitualScreenProps) => {
   const [phrase, setPhrase] = useState('');
   const [isVisible, setIsVisible] = useState(false);
+  const { data: posts = [] } = usePosts();
 
   useEffect(() => {
     // Seleziona frase casuale
@@ -27,35 +30,53 @@ export const WelcomeRitualScreen = ({ onEnter }: WelcomeRitualScreenProps) => {
 
   return (
     <div 
-      className="fixed inset-0 z-[100] flex flex-col items-center justify-center px-6 transition-opacity duration-300"
+      className="fixed inset-0 z-[100] transition-opacity duration-300"
       style={{ 
-        backgroundColor: '#0E141A',
         opacity: isVisible ? 1 : 0
       }}
     >
-      {/* Logo */}
-      <div className="mb-16">
-        <Logo 
-          variant="white" 
-          className="h-16 md:h-20 w-auto"
-        />
+      {/* Feed in background con blur */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="max-w-[600px] mx-auto h-full overflow-y-auto blur-md opacity-30 scale-105">
+          <div className="divide-y divide-border pt-20">
+            {posts.slice(0, 5).map(post => (
+              <FeedCard key={post.id} post={post} />
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Frase centrale */}
-      <div className="max-w-2xl w-full text-center mb-12">
-        <p className="text-foreground text-2xl md:text-3xl font-light leading-relaxed tracking-wide">
-          {phrase}
-        </p>
-      </div>
-
-      {/* Bottone Entra */}
-      <Button
-        onClick={handleEnter}
-        size="lg"
-        className="rounded-full px-12 py-6 text-lg font-medium bg-[#0A7AFF] hover:bg-[#0A7AFF]/90 text-white shadow-lg transition-all duration-200"
+      {/* Overlay con gradiente e contenuto */}
+      <div 
+        className="absolute inset-0 flex flex-col items-center justify-center px-6"
+        style={{
+          background: 'linear-gradient(180deg, rgba(14, 20, 26, 0.95) 0%, rgba(14, 20, 26, 0.85) 50%, rgba(14, 20, 26, 0.95) 100%)'
+        }}
       >
-        Entra
-      </Button>
+        {/* Logo */}
+        <div className="mb-16 backdrop-blur-sm">
+          <Logo 
+            variant="white" 
+            className="h-16 md:h-20 w-auto"
+          />
+        </div>
+
+        {/* Frase centrale */}
+        <div className="max-w-2xl w-full text-center mb-12 backdrop-blur-sm">
+          <p className="text-foreground text-2xl md:text-3xl font-light leading-relaxed tracking-wide drop-shadow-lg">
+            {phrase}
+          </p>
+        </div>
+
+        {/* Bottone Entra */}
+        <Button
+          onClick={handleEnter}
+          size="lg"
+          className="rounded-full px-12 py-6 text-lg font-medium bg-[#0A7AFF] hover:bg-[#0A7AFF]/90 text-white shadow-lg transition-all duration-200 backdrop-blur-sm"
+        >
+          Entra
+        </Button>
+      </div>
     </div>
   );
 };

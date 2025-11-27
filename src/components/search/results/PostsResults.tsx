@@ -10,10 +10,12 @@ interface PostsResultsProps {
 }
 
 export const PostsResults = ({ query, filters }: PostsResultsProps) => {
-  const { data: posts, isLoading } = useQuery({
+  const { data: posts, isLoading, error } = useQuery({
     queryKey: ["search-posts", query, filters],
     queryFn: async () => {
       if (!query || query.length < 2) return [];
+
+      console.log('🔍 [PostsResults] Searching for:', query);
 
       let queryBuilder = supabase
         .from("posts")
@@ -71,10 +73,11 @@ export const PostsResults = ({ query, filters }: PostsResultsProps) => {
       const { data, error } = await queryBuilder;
 
       if (error) {
-        console.error("Search error:", error);
+        console.error("❌ [PostsResults] Search error:", error);
         throw error;
       }
       
+      console.log('✅ [PostsResults] Found', data?.length || 0, 'posts');
       return data || [];
     },
     enabled: !!query && query.length >= 2,
@@ -90,12 +93,24 @@ export const PostsResults = ({ query, filters }: PostsResultsProps) => {
     );
   }
 
+  if (error) {
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        <p>Errore nella ricerca</p>
+      </div>
+    );
+  }
+
   if (!posts || posts.length === 0) {
-    return null;
+    return (
+      <div className="p-8 text-center text-muted-foreground">
+        <p>Nessun post trovato per "{query}"</p>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-0">
+    <div className="divide-y divide-border">
       {posts.map((post: any) => (
         <FeedCard key={post.id} post={post} />
       ))}

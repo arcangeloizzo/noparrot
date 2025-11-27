@@ -76,25 +76,26 @@ export const Search = () => {
                   onSearch={handleSearch}
                 />
               </div>
-              <SearchFilters
-                filters={filters}
-                onFiltersChange={setFilters}
-              />
+              {query && (
+                <SearchFilters
+                  filters={filters}
+                  onFiltersChange={setFilters}
+                />
+              )}
             </div>
+          </div>
 
-            {query && (
+          {query && (
+            <>
               <QuickFilters
                 activeFilters={quickFilters}
                 onToggle={handleQuickFilterToggle}
               />
-            )}
-          </div>
-
-          {query && (
-            <SearchTabs
-              activeTab={activeTab}
-              onTabChange={handleTabChange}
-            />
+              <SearchTabs
+                activeTab={activeTab}
+                onTabChange={handleTabChange}
+              />
+            </>
           )}
         </div>
 
