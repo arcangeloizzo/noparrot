@@ -3,15 +3,19 @@ import { Button } from "./button";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { QuizQuestion } from "@/lib/ai-helpers";
 import { cn } from "@/lib/utils";
+import { updateCognitiveDensity } from "@/lib/cognitiveDensity";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface QuizModalProps {
   questions: QuizQuestion[];
   onSubmit: (answers: Record<string, string>) => Promise<{ passed: boolean; score?: number; total?: number; wrongIndexes: string[] }>;
   onCancel?: () => void;
   provider?: string;
+  postCategory?: string;
 }
 
-export function QuizModal({ questions, onSubmit, onCancel }: QuizModalProps) {
+export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizModalProps) {
+  const { user } = useAuth();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<{ passed: boolean; score?: number; total?: number; wrongIndexes: string[] } | null>(null);
@@ -96,6 +100,11 @@ export function QuizModal({ questions, onSubmit, onCancel }: QuizModalProps) {
     try {
       const validationResult = await onSubmit(answers);
       setResult(validationResult);
+      
+      // Se passato e c'è una categoria, incrementa cognitive_density
+      if (validationResult.passed && user && postCategory) {
+        await updateCognitiveDensity(user.id, postCategory);
+      }
     } catch (error) {
       console.error('Error submitting quiz:', error);
     } finally {

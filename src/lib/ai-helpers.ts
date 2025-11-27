@@ -123,3 +123,28 @@ export async function checkGatePassed(postId: string, userId: string): Promise<b
     return false;
   }
 }
+
+/**
+ * Classifica il contenuto di un post in una delle macro-categorie
+ */
+export async function classifyContent(params: {
+  text?: string;
+  title?: string;
+  summary?: string;
+}): Promise<string | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke('classify-content', {
+      body: params
+    });
+
+    if (error) {
+      console.error('Error classifying content:', error);
+      return null;
+    }
+
+    return data?.category || null;
+  } catch (error) {
+    console.error('Error classifying content:', error);
+    return null;
+  }
+}

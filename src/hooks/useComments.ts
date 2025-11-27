@@ -32,7 +32,6 @@ export const useComments = (postId: string, sortMode: 'relevance' | 'recent' | '
   return useQuery({
     queryKey: ['comments', postId, sortMode],
     queryFn: async () => {
-      // Fetch comments
       const { data: commentsData, error: commentsError } = await supabase
         .from('comments')
         .select(`
@@ -67,7 +66,6 @@ export const useComments = (postId: string, sortMode: 'relevance' | 'recent' | '
 
       if (commentsError) throw commentsError;
 
-      // Map comments with media
       const comments = (commentsData || []).map((comment: any) => ({
         ...comment,
         media: (comment.comment_media || [])
@@ -76,7 +74,6 @@ export const useComments = (postId: string, sortMode: 'relevance' | 'recent' | '
           .filter(Boolean)
       }));
 
-      // Fetch reactions count for each comment
       const commentsWithReactions = await Promise.all(
         comments.map(async (c: any) => {
           const { data: reactionsData } = await supabase
@@ -98,31 +95,24 @@ export const useComments = (postId: string, sortMode: 'relevance' | 'recent' | '
         })
       );
 
-      // Sort comments based on mode
       return sortCommentsByMode(commentsWithReactions, sortMode);
     },
     enabled: !!postId
   });
 };
 
-// Helper to calculate relevance score
 const calculateRelevance = (comment: any): number => {
   const likesWeight = (comment.likesCount || 0) * 2;
   const repliesWeight = (comment.repliesCount || 0) * 3;
-  
-  // Boost if created in last 24h
   const hoursSinceCreation = (Date.now() - new Date(comment.created_at).getTime()) / (1000 * 60 * 60);
   const recencyBoost = hoursSinceCreation < 24 ? 5 : 0;
-  
   return likesWeight + repliesWeight + recencyBoost;
 };
 
-// Sort comments by mode (per-thread, not global)
 const sortCommentsByMode = (comments: any[], mode: string): any[] => {
   const topLevel = comments.filter(c => !c.parent_id);
   const repliesMap = new Map<string, any[]>();
   
-  // Group replies by parent_id
   comments.filter(c => c.parent_id).forEach(comment => {
     const parentId = comment.parent_id!;
     if (!repliesMap.has(parentId)) {
@@ -131,28 +121,17 @@ const sortCommentsByMode = (comments: any[], mode: string): any[] => {
     repliesMap.get(parentId)!.push(comment);
   });
   
-  // Sort siblings based on mode
   const sortSiblings = (siblings: any[]) => {
     if (mode === 'recent') {
-      return siblings.sort((a, b) => 
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
+      return siblings.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     } else if (mode === 'top') {
-      return siblings.sort((a, b) => 
-        (b.likesCount || 0) - (a.likesCount || 0)
-      );
+      return siblings.sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0));
     } else {
-      // relevance
-      return siblings.sort((a, b) => 
-        calculateRelevance(b) - calculateRelevance(a)
-      );
+      return siblings.sort((a, b) => calculateRelevance(b) - calculateRelevance(a));
     }
   };
   
-  // Sort top level
-  const sortedTopLevel = sortSiblings([...topLevel]);
-  
-  // Sort replies for each parent
+  sortSiblings([...topLevel]);
   repliesMap.forEach((replies, parentId) => {
     repliesMap.set(parentId, sortSiblings(replies));
   });
@@ -180,15 +159,21 @@ export const useAddComment = () => {
     }) => {
       if (!user) throw new Error('Not authenticated');
 
-      console.log('[useComments] ==========================================');
-      console.log('[useComments] Inserting comment into database:');
-      console.log('[useComments] - post_id:', postId);
-      console.log('[useComments] - author_id:', user.id);
-      console.log('[useComments] - parent_id:', parentId);
-      console.log('[useComments] - level:', level);
-      console.log('[useComments] - passed_gate:', passedGate);
-      console.log('[useComments] - content length:', content.length);
-      console.log('[useComments] ==========================================');
+      // Recupera categoria del post e cognitive_density dell'utente
+      const { data: postData } = await supabase
+        .from('posts')
+        .select('category')
+        .eq('id', postId)
+        .single();
+
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('cognitive_density')
+        .eq('id', user.id)
+        .single();
+
+      const postCategory = postData?.category || null;
+      const userDensity = profileData?.cognitive_density || {};
 
       const { data, error } = await supabase
         .from('comments')
@@ -198,17 +183,14 @@ export const useAddComment = () => {
           content,
           parent_id: parentId,
           level,
-          passed_gate: passedGate
+          passed_gate: passedGate,
+          post_category: postCategory,
+          user_density_before_comment: userDensity
         })
         .select('id')
         .single();
 
-      if (error) {
-        console.error('[useAddComment] Error inserting comment:', error);
-        throw error;
-      }
-      
-      console.log('[useAddComment] Comment inserted successfully:', data.id);
+      if (error) throw error;
       return data.id;
     },
     onSuccess: (_, variables) => {

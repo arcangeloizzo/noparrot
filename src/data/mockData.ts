@@ -15,6 +15,7 @@ export interface MockPost {
   sources: string[];
   trust: "BASSO" | "MEDIO" | "ALTO" | null;
   stance: "Condiviso" | "Confutato" | null;
+  category?: string;
   reactions: {
     heart: number;
     comments: number;

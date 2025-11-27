@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.test-supadata]
 verify_jwt = false
+
+[functions.classify-content]
+verify_jwt = true

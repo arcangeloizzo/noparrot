@@ -94,7 +94,9 @@ export type Database = {
           level: number
           parent_id: string | null
           passed_gate: boolean
+          post_category: string | null
           post_id: string
+          user_density_before_comment: Json | null
         }
         Insert: {
           author_id: string
@@ -104,7 +106,9 @@ export type Database = {
           level?: number
           parent_id?: string | null
           passed_gate?: boolean
+          post_category?: string | null
           post_id: string
+          user_density_before_comment?: Json | null
         }
         Update: {
           author_id?: string
@@ -114,7 +118,9 @@ export type Database = {
           level?: number
           parent_id?: string | null
           passed_gate?: boolean
+          post_category?: string | null
           post_id?: string
+          user_density_before_comment?: Json | null
         }
         Relationships: [
           {
@@ -670,6 +676,7 @@ export type Database = {
         Row: {
           article_content: string | null
           author_id: string
+          category: string | null
           content: string
           created_at: string | null
           embed_html: string | null
@@ -689,6 +696,7 @@ export type Database = {
         Insert: {
           article_content?: string | null
           author_id: string
+          category?: string | null
           content: string
           created_at?: string | null
           embed_html?: string | null
@@ -708,6 +716,7 @@ export type Database = {
         Update: {
           article_content?: string | null
           author_id?: string
+          category?: string | null
           content?: string
           created_at?: string | null
           embed_html?: string | null
@@ -752,6 +761,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bio: string | null
+          cognitive_density: Json | null
           created_at: string | null
           date_of_birth: string | null
           full_name: string | null
@@ -761,6 +771,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           bio?: string | null
+          cognitive_density?: Json | null
           created_at?: string | null
           date_of_birth?: string | null
           full_name?: string | null
@@ -770,6 +781,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           bio?: string | null
+          cognitive_density?: Json | null
           created_at?: string | null
           date_of_birth?: string | null
           full_name?: string | null

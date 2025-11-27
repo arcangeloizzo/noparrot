@@ -24,6 +24,7 @@ import { runGateBeforeAction } from "@/lib/runGateBeforeAction";
 import { haptics } from "@/lib/haptics";
 import { ComposerModal } from "@/components/composer/ComposerModal";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
+import { CategoryChip } from "@/components/ui/category-chip";
 
 interface FeedCardProps {
   post: MockPost;
@@ -358,6 +359,13 @@ export const FeedCard = ({
           <p className="cognitive-text-primary text-[15px] leading-5 mb-3 whitespace-pre-wrap">
             {post.userComment}
           </p>
+
+          {/* Category Chip */}
+          {post.category && (
+            <div className="mb-3">
+              <CategoryChip category={post.category} />
+            </div>
+          )}
 
           {/* Article Preview */}
           {post.url && (
