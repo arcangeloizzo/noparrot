@@ -21,17 +21,22 @@ export const PostsResults = ({ query, filters }: PostsResultsProps) => {
         .from("posts")
         .select(`
           *,
-          profiles!posts_author_id_fkey (
+          author:profiles!author_id (
             id,
             username,
             full_name,
             avatar_url
           ),
-          quoted_post:posts!posts_quoted_post_id_fkey (
+          reactions (
+            reaction_type,
+            user_id
+          ),
+          comments(count),
+          quoted_post:posts!quoted_post_id (
             id,
             content,
             created_at,
-            profiles!posts_author_id_fkey (
+            author:profiles!author_id (
               username,
               full_name,
               avatar_url
@@ -111,9 +116,21 @@ export const PostsResults = ({ query, filters }: PostsResultsProps) => {
 
   return (
     <div className="divide-y divide-border">
-      {posts.map((post: any) => (
-        <FeedCard key={post.id} post={post} />
-      ))}
+      {posts.map((post: any) => {
+        // Format post data to match FeedCard expectations
+        const formattedPost = {
+          ...post,
+          reactions: {
+            hearts: post.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
+            comments: post.comments?.[0]?.count || 0
+          },
+          user_reactions: {
+            has_hearted: false,
+            has_bookmarked: false
+          }
+        };
+        return <FeedCard key={post.id} post={formattedPost} />;
+      })}
     </div>
   );
 };

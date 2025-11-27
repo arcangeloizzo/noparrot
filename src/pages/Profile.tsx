@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar } from "lucide-react";
@@ -18,7 +18,9 @@ export const Profile = () => {
   const [navTab, setNavTab] = useState("");
   const [showProfileSheet, setShowProfileSheet] = useState(false);
 
-  const { data: profile, isLoading, error, refetch } = useQuery({
+  const queryClient = useQueryClient();
+
+  const { data: profile, isLoading, error } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => {
       if (!user) {
@@ -35,29 +37,35 @@ export const Profile = () => {
         throw error;
       }
       console.log("✅ Profile fetched:", data);
-      
-      // Se cognitive_density è vuoto, prova a ricalcolarlo dai post
-      const density = data?.cognitive_density as Record<string, number> | null;
-      const isEmpty = !density || Object.keys(density).length === 0;
-      
-      if (isEmpty) {
-        console.log('🔄 Cognitive density is empty, recalculating from posts...');
-        await recalculateCognitiveDensityFromPosts(user.id);
-        
-        // Rileggi il profilo aggiornato
-        const { data: updatedData } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .single();
-        
-        return updatedData || data;
-      }
-      
       return data;
     },
     enabled: !!user,
   });
+
+  // Ricalcola cognitive density se vuoto - separato in useEffect
+  useEffect(() => {
+    const recalculateIfNeeded = async () => {
+      if (profile && user?.id) {
+        const density = profile.cognitive_density as Record<string, number> | null;
+        const isEmpty = !density || Object.keys(density).length === 0;
+        
+        if (isEmpty) {
+          console.log('🔄 Cognitive density vuoto, ricalcolo dai post...');
+          const result = await recalculateCognitiveDensityFromPosts(user.id);
+          
+          if (result && Object.keys(result).length > 0) {
+            console.log('✅ Cognitive density ricalcolato:', result);
+            // Invalida la query per forzare refetch
+            queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
+          } else {
+            console.log('⚠️ Nessun post con categoria trovato');
+          }
+        }
+      }
+    };
+    
+    recalculateIfNeeded();
+  }, [profile?.id, user?.id, queryClient]);
 
 
   const { data: stats } = useQuery({

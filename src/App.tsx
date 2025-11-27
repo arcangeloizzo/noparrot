@@ -17,6 +17,8 @@ import SettingsPrivacy from "./pages/SettingsPrivacy";
 import Messages from "./pages/Messages";
 import MessageThread from "./pages/MessageThread";
 import { Notifications } from "./pages/Notifications";
+import { Search } from "./pages/Search";
+import { Saved } from "./pages/Saved";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +43,8 @@ const App = () => (
             <Route path="/messages" element={<Messages />} />
             <Route path="/messages/:threadId" element={<MessageThread />} />
             <Route path="/notifications" element={<Notifications />} />
+            <Route path="/search" element={<Search />} />
+            <Route path="/saved" element={<Saved />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
