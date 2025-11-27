@@ -64,11 +64,9 @@ export const Feed = () => {
 
   const handleTouchEnd = async () => {
     if (pullDistance.current > 80 && !isRefreshing) {
-      setIsRefreshing(true);
-      await refetch();
-      setTimeout(() => {
-        setIsRefreshing(false);
-      }, 500);
+      // Setta flag per mostrare Welcome Screen e ricarica
+      sessionStorage.setItem('noparrot-show-welcome', 'true');
+      window.location.href = '/';
     }
     touchStartY.current = 0;
     pullDistance.current = 0;
@@ -204,7 +202,15 @@ export const Feed = () => {
       <FloatingActionButton onClick={handleCreatePost} />
       <BottomNavigation 
         activeTab={activeNavTab} 
-        onTabChange={setActiveNavTab}
+        onTabChange={(tab) => {
+          if (tab === 'home' && activeNavTab === 'home') {
+            // Già sul feed, clicca home → mostra Welcome Screen
+            sessionStorage.setItem('noparrot-show-welcome', 'true');
+            window.location.href = '/';
+          } else {
+            setActiveNavTab(tab);
+          }
+        }}
         onProfileClick={() => setShowProfileSheet(true)}
       />
 
