@@ -22,10 +22,7 @@ const Index = () => {
     if (type === 'recovery') {
       setIsPasswordRecovery(true);
     }
-
-    // Controlla se l'utente ha già "entrato" in questa sessione
-    const entered = sessionStorage.getItem('noparrot-session-entered');
-    setHasEnteredSession(!!entered);
+    // hasEnteredSession parte sempre da false, così il Welcome Screen appare ad ogni refresh
   }, []);
 
   const handleOnboardingComplete = () => {
@@ -61,7 +58,6 @@ const Index = () => {
     return (
       <WelcomeRitualScreen 
         onEnter={() => {
-          sessionStorage.setItem('noparrot-session-entered', 'true');
           setHasEnteredSession(true);
         }}
       />
