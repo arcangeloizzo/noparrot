@@ -4,17 +4,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar } from "lucide-react";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
-import { FeedCard } from "@/components/feed/FeedCardAdapt";
 import { CognitiveMap } from "@/components/profile/CognitiveMap";
-import { cn, getDisplayUsername } from "@/lib/utils";
+import { CognitiveIdentity } from "@/components/profile/CognitiveIdentity";
+import { SharedPaths } from "@/components/profile/SharedPaths";
+import { getDisplayUsername } from "@/lib/utils";
 import { recalculateCognitiveDensityFromPosts } from "@/lib/cognitiveDensity";
 
 export const Profile = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"posts" | "replies">("posts");
   const [navTab, setNavTab] = useState("");
   const [showProfileSheet, setShowProfileSheet] = useState(false);
 
@@ -71,7 +70,7 @@ export const Profile = () => {
   const { data: stats } = useQuery({
     queryKey: ["profile-stats", user?.id],
     queryFn: async () => {
-      if (!user) return { following: 0, followers: 0, posts: 0 };
+      if (!user) return { following: 0, followers: 0, posts: 0, activeTopics: 0 };
 
       const [followingRes, followersRes, postsRes] = await Promise.all([
         supabase.from("followers").select("id", { count: "exact" }).eq("follower_id", user.id),
@@ -79,13 +78,18 @@ export const Profile = () => {
         supabase.from("posts").select("id", { count: "exact" }).eq("author_id", user.id),
       ]);
 
+      // Calcola ambiti attivi dalla cognitive density
+      const cognitiveDensity = (profile?.cognitive_density as Record<string, number>) || {};
+      const activeTopics = Object.values(cognitiveDensity).filter(val => val > 0).length;
+
       return {
         following: followingRes.count || 0,
         followers: followersRes.count || 0,
         posts: postsRes.count || 0,
+        activeTopics,
       };
     },
-    enabled: !!user,
+    enabled: !!user && !!profile,
   });
 
   const { data: userPosts = [], error: postsError } = useQuery({
@@ -182,194 +186,82 @@ export const Profile = () => {
     userPostsLength: userPosts?.length 
   });
 
+  const cognitiveDensity = (profile?.cognitive_density as Record<string, number>) || {};
+  const totalPaths = Object.values(cognitiveDensity).reduce((sum, val) => sum + val, 0);
+  const activeTopics = Object.values(cognitiveDensity).filter(val => val > 0).length;
+
   return (
     <div className="min-h-screen bg-background pb-24">
       <div className="max-w-[600px] mx-auto">
-        {/* Header */}
-        <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-50 border-b border-border">
-          <div className="flex items-center p-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div className="ml-4">
-              <h1 className="text-xl font-bold">
-                {profile?.full_name?.trim() && !profile.full_name.includes('@') && profile.full_name.includes(' ')
-                  ? profile.full_name 
-                  : getDisplayUsername(profile?.username || '')}
-              </h1>
-              <p className="text-sm text-muted-foreground">{stats?.posts || 0} Post</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Cover Image */}
-        <div className="h-48 bg-primary/10" />
-
-        {/* Profile Info */}
-        <div className="px-4 pb-4 border-b border-border">
-          {/* Avatar */}
-          <div className="relative -mt-16 mb-4">
+        {/* Header centrato con sottotitolo cognitivo */}
+        <div className="px-6 pt-12 pb-6 text-center">
+          {/* Avatar grande con alone cognitivo */}
+          <div className="flex justify-center mb-4">
             {profile?.avatar_url ? (
               <img
                 src={profile.avatar_url}
                 alt="Avatar"
-                className="w-32 h-32 rounded-full border-4 border-background object-cover"
+                className="w-24 h-24 rounded-full object-cover shadow-[0_0_20px_rgba(10,122,255,0.15)]"
               />
             ) : (
-              <div className="w-32 h-32 rounded-full border-4 border-background bg-primary flex items-center justify-center text-4xl font-semibold text-primary-foreground">
+              <div className="w-24 h-24 rounded-full bg-primary flex items-center justify-center text-3xl font-semibold text-primary-foreground shadow-[0_0_20px_rgba(10,122,255,0.15)]">
                 {getInitials(getDisplayUsername(profile?.username || "U"))}
               </div>
             )}
           </div>
 
-          {/* Edit Profile Button */}
-          <div className="flex justify-end mb-4">
-            <Button
-              variant="outline"
-              className="rounded-full"
-              onClick={() => navigate("/profile/edit")}
-            >
-              Modifica profilo
-            </Button>
-          </div>
-
-          {/* Nome e username */}
-          <div className="mb-3">
-            <h2 className="text-xl font-bold">
-              {profile?.full_name?.trim() && !profile.full_name.includes('@') && profile.full_name.includes(' ')
-                ? profile.full_name 
-                : getDisplayUsername(profile?.username || '')}
-            </h2>
-            <p className="text-muted-foreground">@{getDisplayUsername(profile?.username || '')}</p>
-          </div>
-
-          {/* Bio */}
-          {profile?.bio && <p className="mb-3 whitespace-pre-wrap">{profile.bio}</p>}
-
-          {/* Metadata */}
-          <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3 flex-wrap">
-            {profile?.date_of_birth && (
-              <div className="flex items-center gap-1">
-                <Calendar className="w-4 h-4" />
-                <span>
-                  Nato il{" "}
-                  {new Date(profile.date_of_birth).toLocaleDateString("it-IT", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </span>
-              </div>
-            )}
-            {profile?.created_at && (
-              <div className="flex items-center gap-1">
-                <Calendar className="w-4 h-4" />
-                <span>
-                  Iscritto a{" "}
-                  {new Date(profile.created_at).toLocaleDateString("it-IT", {
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Following/Follower - Discreti */}
-          <div className="flex items-center gap-4 text-xs text-muted-foreground">
-            <button className="hover:underline">
-              <span className="font-medium">{stats?.following || 0}</span>{" "}
-              <span>Following</span>
-            </button>
-            <button className="hover:underline">
-              <span className="font-medium">{stats?.followers || 0}</span>{" "}
-              <span>Follower</span>
-            </button>
-          </div>
+          <h1 className="text-2xl font-bold mb-2">
+            {profile?.full_name?.trim() && !profile.full_name.includes('@') && profile.full_name.includes(' ')
+              ? profile.full_name 
+              : getDisplayUsername(profile?.username || '')}
+          </h1>
+          <p className="text-xs text-[#9AA3AB] tracking-wide">
+            In cammino verso una comprensione più chiara.
+          </p>
         </div>
 
-        {/* Nebulosa Cognitiva Hero Section */}
-        <div className="p-6 border-b border-border">
-          <CognitiveMap cognitiveDensity={(profile?.cognitive_density as Record<string, number>) || {}} />
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-border">
-          <button
-            className={cn(
-              "flex-1 py-4 text-sm font-semibold transition-colors relative",
-              activeTab === "posts" ? "text-foreground" : "text-muted-foreground hover:bg-muted/50"
-            )}
-            onClick={() => setActiveTab("posts")}
-          >
-            Post
-            {activeTab === "posts" && (
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-            )}
-          </button>
-          <button
-            className={cn(
-              "flex-1 py-4 text-sm font-semibold transition-colors relative",
-              activeTab === "replies" ? "text-foreground" : "text-muted-foreground hover:bg-muted/50"
-            )}
-            onClick={() => setActiveTab("replies")}
-          >
-            Risposte
-            {activeTab === "replies" && (
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-            )}
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="divide-y divide-border">
-          {activeTab === "posts" && (
-            <>
-              {postsError ? (
-                <div className="py-12 text-center">
-                  <p className="text-destructive mb-2">Errore nel caricamento dei post</p>
-                  <p className="text-sm text-muted-foreground">Riprova più tardi</p>
-                </div>
-              ) : userPosts.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground">
-                  <p>Nessun post ancora</p>
-                </div>
-              ) : (
-                <>
-                  {userPosts.map((post: any) => {
-                    console.log("🔍 Rendering post:", post.id, {
-                      hasAuthor: !!post.author,
-                      hasReactions: !!post.reactions,
-                      authorData: post.author
-                    });
-                    
-                    try {
-                      if (!post.author) {
-                        return (
-                          <div key={post.id} className="p-4 text-sm text-destructive border-b border-border">
-                            Errore: Post senza autore (ID: {post.id})
-                          </div>
-                        );
-                      }
-                      return <FeedCard key={post.id} post={post} />;
-                    } catch (err) {
-                      console.error("❌ Error rendering post:", post.id, err);
-                      return (
-                        <div key={post.id} className="p-4 text-sm text-destructive border-b border-border">
-                          Errore rendering post (ID: {post.id})
-                        </div>
-                      );
-                    }
-                  })}
-                </>
-              )}
-            </>
-          )}
-          {activeTab === "replies" && (
-            <div className="py-12 text-center text-muted-foreground">
-              <p>Nessuna risposta ancora</p>
+        {/* Micro-cards: Percorsi / Ambiti / Connessioni */}
+        <div className="px-4 mb-8">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-[#141A1E] p-4 rounded-xl text-center">
+              <div className="text-2xl font-bold text-foreground mb-1">{totalPaths}</div>
+              <div className="text-xs text-muted-foreground">Percorsi completati</div>
             </div>
-          )}
+            <div className="bg-[#141A1E] p-4 rounded-xl text-center">
+              <div className="text-2xl font-bold text-foreground mb-1">{activeTopics}</div>
+              <div className="text-xs text-muted-foreground">Ambiti attivi</div>
+            </div>
+            <div className="bg-[#141A1E] p-4 rounded-xl text-center">
+              <div className="text-2xl font-bold text-foreground mb-1">{stats?.following || 0}</div>
+              <div className="text-xs text-muted-foreground">Connessioni</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Nebulosa Cognitiva */}
+        <div className="px-6 py-8 border-t border-border">
+          <CognitiveMap cognitiveDensity={cognitiveDensity} />
+        </div>
+
+        {/* Identità Cognitiva */}
+        <div className="px-6 py-8 border-t border-border">
+          <CognitiveIdentity cognitiveDensity={cognitiveDensity} />
+        </div>
+
+        {/* Percorsi condivisi */}
+        <div className="px-6 py-8 border-t border-border">
+          <SharedPaths posts={userPosts} />
+        </div>
+
+        {/* Modifica profilo discreto in fondo */}
+        <div className="px-6 py-8 border-t border-border flex justify-center">
+          <Button
+            variant="outline"
+            className="rounded-full text-sm"
+            onClick={() => navigate("/profile/edit")}
+          >
+            Modifica profilo
+          </Button>
         </div>
       </div>
 

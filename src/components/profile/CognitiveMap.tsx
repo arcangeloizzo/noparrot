@@ -36,57 +36,68 @@ export const CognitiveMap = ({ cognitiveDensity = {} }: CognitiveMapProps) => {
 
   const maxValue = Math.max(...data.map(d => d.value), 10); // Almeno 10 come max
 
+  // Lista ordinata per densità
+  const sortedCategories = CATEGORIES
+    .map(cat => ({ name: cat, value: cognitiveDensity[cat] || 0 }))
+    .filter(cat => cat.value > 0)
+    .sort((a, b) => b.value - a.value);
+
   return (
-    <div className="w-full">
+    <div className="w-full" id="nebulosa">
       <div className="mb-6">
         <h3 className="text-xl font-semibold mb-2">Nebulosa Cognitiva</h3>
         <p className="text-sm text-muted-foreground">
-          Mappa dei tuoi percorsi cognitivi completati per area tematica
+          La mappa dei tuoi percorsi di comprensione, tema dopo tema.
         </p>
       </div>
 
-      {/* Radar Chart */}
+      {/* Radar Chart - più morbido */}
       <div className="w-full h-[400px] mb-6">
         <ResponsiveContainer width="100%" height="100%">
           <RadarChart data={data}>
-            <PolarGrid stroke="hsl(var(--border))" />
+            <PolarGrid stroke="hsl(var(--border))" strokeWidth={0.5} />
             <PolarAngleAxis 
               dataKey="category" 
-              tick={{ fill: 'hsl(var(--foreground))', fontSize: 12 }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
             />
             <PolarRadiusAxis 
               angle={90} 
               domain={[0, maxValue]}
-              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }}
             />
             <Radar
               name="Densità"
               dataKey="value"
-              stroke="hsl(var(--primary))"
-              fill="hsl(var(--primary))"
-              fillOpacity={0.3}
+              stroke="#BFE9E9"
+              fill="#BFE9E9"
+              fillOpacity={0.15}
+              strokeWidth={1}
             />
           </RadarChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Legend con dettaglio numerico */}
-      <div className="grid grid-cols-2 gap-3">
-        {CATEGORIES.map(category => (
-          <div key={category} className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2">
-              <div 
-                className="w-3 h-3 rounded-full"
-                style={{ backgroundColor: CATEGORY_COLORS[category] }}
-              />
-              <span className="text-xs text-muted-foreground">{category}</span>
+      {/* Lista riepilogativa ordinata */}
+      {sortedCategories.length > 0 && (
+        <div className="mb-6 space-y-2">
+          {sortedCategories.map(cat => (
+            <div key={cat.name} className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div 
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: CATEGORY_COLORS[cat.name] }}
+                />
+                <span className="text-sm text-muted-foreground font-normal">
+                  {cat.name}
+                </span>
+              </div>
+              <span className="text-sm text-muted-foreground">
+                {cat.value} Percors{cat.value === 1 ? 'o' : 'i'}
+              </span>
             </div>
-            <span className="text-xs font-semibold">
-              {cognitiveDensity[category] || 0}
-            </span>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Totale percorsi */}
       <div className="mt-6 p-4 bg-muted/30 rounded-xl">
