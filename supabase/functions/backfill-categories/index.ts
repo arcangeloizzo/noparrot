@@ -5,6 +5,62 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const CATEGORIES = [
+  'Politics & Society',
+  'Technology & Innovation', 
+  'Science & Health',
+  'Business & Economy',
+  'Culture & Entertainment',
+  'Sports',
+  'Environment & Climate',
+  'Education & Learning'
+];
+
+async function classifyContent(text: string, title?: string, summary?: string): Promise<string | null> {
+  try {
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      console.error('LOVABLE_API_KEY not configured');
+      return null;
+    }
+
+    const contentToClassify = [text, title, summary].filter(Boolean).join('\n\n');
+    
+    const systemPrompt = `You are a content classifier. Classify the following content into ONE of these categories:
+${CATEGORIES.map((c, i) => `${i + 1}. ${c}`).join('\n')}
+
+Respond with ONLY the category name, nothing else.`;
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: contentToClassify }
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('AI Gateway error:', response.status, await response.text());
+      return null;
+    }
+
+    const data = await response.json();
+    const category = data.choices?.[0]?.message?.content?.trim();
+    
+    return CATEGORIES.includes(category) ? category : null;
+  } catch (error) {
+    console.error('Classification error:', error);
+    return null;
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -53,26 +109,12 @@ Deno.serve(async (req) => {
       try {
         console.log(`Processing post ${post.id}...`);
 
-        // Call classify-content function
-        const { data: classifyData, error: classifyError } = await supabaseClient.functions.invoke(
-          'classify-content',
-          {
-            body: {
-              text: post.content,
-              title: post.shared_title,
-              summary: post.article_content,
-            },
-          }
+        // Classify content directly
+        const category = await classifyContent(
+          post.content,
+          post.shared_title || undefined,
+          post.article_content || undefined
         );
-
-        if (classifyError) {
-          console.error(`Classification error for post ${post.id}:`, classifyError);
-          failedCount++;
-          errors.push({ postId: post.id, error: classifyError.message });
-          continue;
-        }
-
-        const category = classifyData?.category;
 
         if (!category) {
           console.warn(`No category returned for post ${post.id}`);
@@ -82,6 +124,11 @@ Deno.serve(async (req) => {
         }
 
         // Update post with category
+        const supabaseClient = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        );
+        
         const { error: updateError } = await supabaseClient
           .from('posts')
           .update({ category })
