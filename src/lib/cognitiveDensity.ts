@@ -5,8 +5,10 @@ import { supabase } from '@/integrations/supabase/client';
  * Viene chiamato dopo il completamento con successo di un Cognitive Journey
  */
 export async function updateCognitiveDensity(userId: string, category: string) {
+  console.log('🧠 [cognitiveDensity] Called with:', { userId, category });
+  
   if (!userId || !category) {
-    console.error('[cognitiveDensity] Missing userId or category');
+    console.error('❌ [cognitiveDensity] Missing userId or category');
     return;
   }
 
@@ -19,9 +21,11 @@ export async function updateCognitiveDensity(userId: string, category: string) {
       .single();
 
     if (fetchError) {
-      console.error('[cognitiveDensity] Error fetching profile:', fetchError);
+      console.error('❌ [cognitiveDensity] Error fetching profile:', fetchError);
       return;
     }
+
+    console.log('📊 [cognitiveDensity] Current density:', profile?.cognitive_density);
 
     // 2. Incrementa il contatore per la categoria
     const currentDensity = (profile?.cognitive_density as Record<string, number>) || {};
@@ -30,6 +34,8 @@ export async function updateCognitiveDensity(userId: string, category: string) {
       [category]: (currentDensity[category] || 0) + 1
     };
 
+    console.log('📈 [cognitiveDensity] New density:', newDensity);
+
     // 3. Aggiorna il profilo
     const { error: updateError } = await supabase
       .from('profiles')
@@ -37,12 +43,12 @@ export async function updateCognitiveDensity(userId: string, category: string) {
       .eq('id', userId);
 
     if (updateError) {
-      console.error('[cognitiveDensity] Error updating profile:', updateError);
+      console.error('❌ [cognitiveDensity] Error updating profile:', updateError);
       return;
     }
 
-    console.log(`[cognitiveDensity] Updated ${category}: ${newDensity[category]}`);
+    console.log(`✅ [cognitiveDensity] Updated ${category}: ${newDensity[category]}`);
   } catch (error) {
-    console.error('[cognitiveDensity] Unexpected error:', error);
+    console.error('❌ [cognitiveDensity] Unexpected error:', error);
   }
 }
