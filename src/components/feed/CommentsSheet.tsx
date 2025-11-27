@@ -93,15 +93,13 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
       await runGateBeforeAction({
         linkUrl: post.shared_url,
         onSuccess: () => {
-          sonnerToast.success('Gate superato!', {
-            description: 'Ora puoi commentare come lettore consapevole.'
-          });
+          sonnerToast.success('Hai fatto chiarezza.');
           setUserPassedGate(true);
           setCommentMode('read');
           setIsProcessing(false);
         },
         onCancel: () => {
-          sonnerToast.info('Test non completato');
+          sonnerToast.info('Non ancora chiaro.');
           setCommentMode('unread');
           setUserPassedGate(false);
           setIsProcessing(false);

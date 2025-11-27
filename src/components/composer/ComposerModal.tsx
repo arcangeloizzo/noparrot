@@ -194,11 +194,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       const actualPassed = data.passed && (data.total - data.score) <= 2;
       
       if (actualPassed) {
-        toast.success('Possiamo procedere.');
+        toast.success('Hai fatto chiarezza.');
         setShowQuiz(false);
         await publishPost();
       } else {
-        toast.error("Serve ancora un po' di chiarezza.");
+        toast.error("Non ancora chiaro.");
         setShowQuiz(false);
       }
       
