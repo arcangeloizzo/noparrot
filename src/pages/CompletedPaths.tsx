@@ -142,6 +142,35 @@ export default function CompletedPaths() {
     }
   };
 
+  const extractTitleFromUrl = (url: string | null): string => {
+    if (!url) return "Contenuto senza titolo";
+    try {
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split('/').filter(Boolean);
+      
+      // Trova la parte che sembra un titolo (esclude date, numeri)
+      const titlePart = pathParts.find(part => 
+        part.length > 10 && 
+        isNaN(Number(part)) && 
+        !part.match(/^\d{4}-\d{2}-\d{2}$/)
+      );
+      
+      if (titlePart) {
+        // Converti slug in titolo leggibile
+        return titlePart
+          .replace(/-/g, ' ')
+          .replace(/\?.*$/, '') // Rimuovi query params
+          .split(' ')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+      }
+      
+      return "Articolo da " + urlObj.hostname.replace('www.', '');
+    } catch {
+      return "Contenuto senza titolo";
+    }
+  };
+
   if (!user) {
     navigate("/auth");
     return null;
@@ -239,7 +268,7 @@ export default function CompletedPaths() {
 
                 {/* Title */}
                 <h3 className="font-semibold mb-1 line-clamp-2">
-                  {attempt.post?.shared_title || "Contenuto senza titolo"}
+                  {attempt.post?.shared_title || extractTitleFromUrl(attempt.source_url)}
                 </h3>
 
                 {/* Category & Type */}

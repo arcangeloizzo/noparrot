@@ -62,9 +62,9 @@ export const WelcomeRitualScreen = ({ onEnter }: WelcomeRitualScreenProps) => {
           />
         </div>
 
-        {/* Frase centrale - Solo testo con backdrop blur sottile */}
+        {/* Frase centrale - Solo testo con shadow */}
         <div className="max-w-2xl w-full text-center mb-12">
-          <p className="text-foreground text-2xl md:text-3xl font-light leading-relaxed tracking-wide backdrop-blur-sm drop-shadow-[0_0_20px_rgba(0,0,0,0.5)] [text-shadow:0_2px_10px_rgba(0,0,0,0.3)]" style={{ backdropFilter: 'blur(8px)' }}>
+          <p className="text-foreground text-2xl md:text-3xl font-light leading-relaxed tracking-wide drop-shadow-[0_0_20px_rgba(0,0,0,0.5)] [text-shadow:0_2px_10px_rgba(0,0,0,0.3)]">
             {phrase}
           </p>
         </div>
