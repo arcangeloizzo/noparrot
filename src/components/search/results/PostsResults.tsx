@@ -120,8 +120,12 @@ export const PostsResults = ({ query, filters }: PostsResultsProps) => {
         // Format post data to match FeedCard expectations
         const formattedPost = {
           ...post,
+          authorName: post.author?.full_name || post.author?.username || 'Utente',
+          avatar: post.author?.avatar_url,
+          userComment: post.content || '',
+          minutesAgo: Math.floor((Date.now() - new Date(post.created_at).getTime()) / 60000),
           reactions: {
-            hearts: post.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
+            heart: post.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
             comments: post.comments?.[0]?.count || 0
           },
           user_reactions: {
