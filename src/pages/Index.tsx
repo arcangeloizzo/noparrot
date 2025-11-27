@@ -4,11 +4,13 @@ import { OnboardingFlow } from "./OnboardingFlow";
 import { Feed } from "./Feed";
 import { AuthPage } from "@/components/auth/AuthPage";
 import { useAuth } from "@/contexts/AuthContext";
+import { WelcomeRitualScreen } from "@/components/onboarding/WelcomeRitualScreen";
 
 const Index = () => {
   const { user, loading } = useAuth();
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const [hasEnteredSession, setHasEnteredSession] = useState(false);
 
   useEffect(() => {
     const seen = localStorage.getItem('noparrot-onboarding-completed');
@@ -20,6 +22,10 @@ const Index = () => {
     if (type === 'recovery') {
       setIsPasswordRecovery(true);
     }
+
+    // Controlla se l'utente ha già "entrato" in questa sessione
+    const entered = sessionStorage.getItem('noparrot-session-entered');
+    setHasEnteredSession(!!entered);
   }, []);
 
   const handleOnboardingComplete = () => {
@@ -50,7 +56,19 @@ const Index = () => {
     return <OnboardingFlow onComplete={handleOnboardingComplete} />;
   }
 
-  // Autenticato → mostra feed
+  // Autenticato ma non ha ancora "entrato" → mostra Welcome Screen
+  if (!hasEnteredSession) {
+    return (
+      <WelcomeRitualScreen 
+        onEnter={() => {
+          sessionStorage.setItem('noparrot-session-entered', 'true');
+          setHasEnteredSession(true);
+        }}
+      />
+    );
+  }
+
+  // Autenticato e ha "entrato" → mostra feed
   return (
     <CGProvider policy={{ minReadSeconds: 10, minScrollRatio: 0.8, passingRule: ">=2_of_3" }}>
       <Feed />

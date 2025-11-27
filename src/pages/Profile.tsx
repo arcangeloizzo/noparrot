@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar } from "lucide-react";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { FeedCard } from "@/components/feed/FeedCardAdapt";
+import { CognitiveMap } from "@/components/profile/CognitiveMap";
 import { cn, getDisplayUsername } from "@/lib/utils";
 
 export const Profile = () => {
@@ -246,17 +247,22 @@ export const Profile = () => {
             )}
           </div>
 
-          {/* Following/Follower */}
-          <div className="flex items-center gap-4 text-sm">
+          {/* Following/Follower - Discreti */}
+          <div className="flex items-center gap-4 text-xs text-muted-foreground">
             <button className="hover:underline">
-              <span className="font-semibold">{stats?.following || 0}</span>{" "}
-              <span className="text-muted-foreground">Following</span>
+              <span className="font-medium">{stats?.following || 0}</span>{" "}
+              <span>Following</span>
             </button>
             <button className="hover:underline">
-              <span className="font-semibold">{stats?.followers || 0}</span>{" "}
-              <span className="text-muted-foreground">Follower</span>
+              <span className="font-medium">{stats?.followers || 0}</span>{" "}
+              <span>Follower</span>
             </button>
           </div>
+        </div>
+
+        {/* Nebulosa Cognitiva Hero Section */}
+        <div className="p-6 border-b border-border">
+          <CognitiveMap cognitiveDensity={(profile?.cognitive_density as Record<string, number>) || {}} />
         </div>
 
         {/* Tabs */}

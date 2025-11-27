@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { MediaUploadButton } from "@/components/media/MediaUploadButton";
 import { MediaPreviewTray } from "@/components/media/MediaPreviewTray";
-import { fetchArticlePreview } from "@/lib/ai-helpers";
+import { fetchArticlePreview, classifyContent } from "@/lib/ai-helpers";
 import { QuotedPostCard } from "@/components/feed/QuotedPostCard";
 import { SourceReaderGate } from "./SourceReaderGate";
 import { generateQA } from "@/lib/ai-helpers";
@@ -208,6 +208,15 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       // Rimuovi tutti gli URL dal contenuto prima di pubblicare
       const cleanContent = content.replace(URL_REGEX, '').trim();
       
+      // Classifica il contenuto usando AI
+      const category = await classifyContent({
+        text: cleanContent,
+        title: urlPreview?.title,
+        summary: urlPreview?.content || urlPreview?.summary || urlPreview?.excerpt
+      });
+
+      console.log('[ComposerModal] Content classified as:', category);
+      
       const { data: insertedPost, error: postError } = await supabase
         .from('posts')
         .insert({
@@ -220,7 +229,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
           embed_html: urlPreview?.embedHtml || null,
           transcript: urlPreview?.transcript || null,
           transcript_source: urlPreview?.transcriptSource || null,
-          quoted_post_id: quotedPost?.id || null
+          quoted_post_id: quotedPost?.id || null,
+          category: category || null
         })
         .select()
         .single();
