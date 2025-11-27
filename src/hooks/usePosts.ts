@@ -22,6 +22,7 @@ export interface Post {
   sources: string[];
   created_at: string;
   quoted_post_id: string | null;
+  category: string | null;
   _originalSources?: string[];
   quoted_post?: {
     id: string;
@@ -130,6 +131,7 @@ export const usePosts = () => {
         sources: post.sources || [],
         created_at: post.created_at,
         quoted_post_id: post.quoted_post_id,
+        category: post.category || null,
         quoted_post: post.quoted_post || null,
         media: (post.post_media || [])
           .sort((a: any, b: any) => a.order_idx - b.order_idx)
@@ -249,6 +251,7 @@ export const useSavedPosts = () => {
           sources: post.sources || [],
           created_at: post.created_at,
           quoted_post_id: post.quoted_post_id,
+          category: post.category || null,
           quoted_post: null,
           reactions: {
             hearts: post.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,

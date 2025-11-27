@@ -65,6 +65,7 @@ export const Post = () => {
         sources: (Array.isArray(data.sources) ? data.sources : []) as string[],
         created_at: data.created_at,
         quoted_post_id: data.quoted_post_id,
+        category: data.category || null,
         quoted_post: null,
         media: [],
         reactions: {

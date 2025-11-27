@@ -7,6 +7,7 @@ import { it } from "date-fns/locale";
 
 // UI Components
 import { TrustBadge } from "@/components/ui/trust-badge";
+import { CategoryChip } from "@/components/ui/category-chip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -526,6 +527,13 @@ export const FeedCard = ({
             <div className="text-[15px] leading-relaxed text-gray-100 mb-3 whitespace-pre-wrap break-words">
               <MentionText content={post.content} />
             </div>
+
+            {/* Category Chip */}
+            {post.category && (
+              <div className="mb-3">
+                <CategoryChip category={post.category} />
+              </div>
+            )}
 
             {/* Media Gallery */}
             {post.media && post.media.length > 0 && (
