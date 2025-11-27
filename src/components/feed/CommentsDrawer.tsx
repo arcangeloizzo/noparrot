@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Heart, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
@@ -654,7 +655,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
         />
       )}
 
-      {showQuiz && quizData && (
+      {showQuiz && quizData && createPortal(
         <QuizModal
           questions={quizData.questions}
           onSubmit={async (answers: Record<string, string>) => {
@@ -707,7 +708,8 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
             setQuizData(null);
           }}
           provider="gemini"
-        />
+        />,
+        document.body
       )}
     </>
   );

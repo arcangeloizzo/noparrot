@@ -21,6 +21,7 @@ export function QuizModal({ questions, onSubmit, onCancel }: QuizModalProps) {
   const [showFeedback, setShowFeedback] = useState(false);
   const [questionAttempts, setQuestionAttempts] = useState<Record<string, number>>({});
   const [totalErrors, setTotalErrors] = useState(0);
+  const [showRetryMessage, setShowRetryMessage] = useState(false);
 
   const currentQuestion = questions[currentStep];
 
@@ -47,8 +48,14 @@ export function QuizModal({ questions, onSubmit, onCancel }: QuizModalProps) {
       const newTotalErrors = totalErrors + 1;
       setTotalErrors(newTotalErrors);
       
+      // Mostra messaggio "riprova" solo se ha ancora tentativi GLOBALI disponibili
+      setShowRetryMessage(newTotalErrors < 2 && attempts < 2);
+      
       if (newTotalErrors >= 2) {
-        setTimeout(() => handleFinalSubmit(), 1500);
+        // Non chiamare onSubmit, decidere localmente che è fallito
+        setTimeout(() => {
+          setResult({ passed: false, score: 0, total: questions.length, wrongIndexes: [] });
+        }, 1500);
         return;
       }
       
@@ -66,6 +73,7 @@ export function QuizModal({ questions, onSubmit, onCancel }: QuizModalProps) {
       }
     } else {
       setAnswers(prev => ({ ...prev, [questionId]: choiceId }));
+      setShowRetryMessage(false);
       setTimeout(() => {
         if (currentStep < questions.length - 1) {
           setCurrentStep(prev => prev + 1);
@@ -182,7 +190,7 @@ export function QuizModal({ questions, onSubmit, onCancel }: QuizModalProps) {
                     <p className={cn("font-medium text-[15px]", isCorrect ? "text-[hsl(var(--cognitive-correct))]" : "text-foreground")}>
                       {isCorrect ? "Ottimo. Continuiamo." : "Questa parte non è ancora limpida. Riguardiamola insieme."}
                     </p>
-                    {!isCorrect && (questionAttempts[currentQuestion.id] || 0) < 2 && (
+                    {!isCorrect && showRetryMessage && (
                       <p className="text-sm mt-2 opacity-80">Hai ancora 1 tentativo disponibile.</p>
                     )}
                   </div>
