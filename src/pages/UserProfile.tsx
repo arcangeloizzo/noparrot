@@ -104,21 +104,40 @@ export const UserProfile = () => {
   // Ricalcola cognitive density se vuoto
   useEffect(() => {
     const recalculateIfNeeded = async () => {
-      if (profile && userId) {
-        const density = profile.cognitive_density as Record<string, number> | null;
-        const isEmpty = !density || Object.keys(density).length === 0;
-        
-        if (isEmpty) {
-          console.log('🔄 [UserProfile] Cognitive density vuoto, ricalcolo dai post...');
+      if (!profile || !userId) {
+        console.log('🔄 [UserProfile] Waiting for profile data...');
+        return;
+      }
+      
+      const density = profile.cognitive_density as Record<string, number> | null;
+      const isEmpty = !density || Object.keys(density).length === 0;
+      
+      console.log('🔍 [UserProfile] Checking cognitive density:', {
+        userId,
+        username: profile.username,
+        density,
+        isEmpty
+      });
+      
+      if (isEmpty) {
+        console.log('🔄 [UserProfile] Cognitive density vuoto, ricalcolo dai post...');
+        try {
           const result = await recalculateCognitiveDensityFromPosts(userId);
           
           if (result && Object.keys(result).length > 0) {
             console.log('✅ [UserProfile] Cognitive density ricalcolato:', result);
             queryClient.invalidateQueries({ queryKey: ['user-profile', userId] });
+          } else {
+            console.log('ℹ️ [UserProfile] Nessun post con categoria trovato');
           }
+        } catch (error) {
+          console.error('❌ [UserProfile] Errore nel ricalcolo:', error);
         }
+      } else {
+        console.log('✅ [UserProfile] Cognitive density già presente');
       }
     };
+    
     recalculateIfNeeded();
   }, [profile, userId, queryClient]);
 
