@@ -6,6 +6,7 @@ import { InsightCard } from "@/components/search/InsightCard";
 import { CategoryFilterDrawer } from "@/components/search/CategoryFilterDrawer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import parrotLogo from "@/assets/parrot-logo.png";
 
 const MOCK_INSIGHTS = [
   {
@@ -22,7 +23,8 @@ const MOCK_INSIGHTS = [
     trustScore: "Alto" as const
   },
   {
-    label: "🦜 COMMUNITY",
+    label: "COMMUNITY",
+    labelIcon: parrotLogo,
     labelColor: "bg-[#2AD2C9]/20 text-[#2AD2C9]",
     title: "Il dibattito sull'AI Act nel feed",
     summary: "La community NoParrot sta discutendo le implicazioni dell'AI Act europeo. I temi più dibattuti riguardano la trasparenza algoritmica, i diritti dei creatori e l'impatto sulle piccole startup tecnologiche.",
@@ -68,7 +70,9 @@ const CATEGORY_LABELS: Record<string, string> = {
   science: '🔬 Scienza',
   culture: '🎨 Cultura',
   planet: '🌍 Pianeta',
-  sport: '⚽ Sport'
+  sport: '⚽ Sport',
+  health: '💊 Salute',
+  media: '📡 Media'
 };
 
 export const Search = () => {

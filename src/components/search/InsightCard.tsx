@@ -8,6 +8,7 @@ interface Source {
 
 interface InsightCardProps {
   label: string;
+  labelIcon?: string;
   labelColor: string;
   title: string;
   summary: string;
@@ -19,6 +20,7 @@ interface InsightCardProps {
 
 export const InsightCard = ({
   label,
+  labelIcon,
   labelColor,
   title,
   summary,
@@ -39,8 +41,9 @@ export const InsightCard = ({
       <div className="flex items-center justify-between">
         <Badge 
           variant="outline" 
-          className={`${labelColor} border-0 text-xs font-medium`}
+          className={`${labelColor} border-0 text-xs font-medium flex items-center gap-1.5`}
         >
+          {labelIcon && <img src={labelIcon} alt="" className="w-4 h-4" />}
           {label}
         </Badge>
         <span className={`text-xs font-medium ${trustColors[trustScore]}`}>
