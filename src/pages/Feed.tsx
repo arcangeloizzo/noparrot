@@ -64,9 +64,11 @@ export const Feed = () => {
 
   const handleTouchEnd = async () => {
     if (pullDistance.current > 80 && !isRefreshing) {
-      // Setta flag per mostrare Welcome Screen e ricarica
-      sessionStorage.setItem('noparrot-show-welcome', 'true');
-      window.location.href = '/';
+      // Refresh dei dati
+      setIsRefreshing(true);
+      await queryClient.invalidateQueries({ queryKey: ['posts'] });
+      await refetch();
+      setIsRefreshing(false);
     }
     touchStartY.current = 0;
     pullDistance.current = 0;
@@ -204,9 +206,8 @@ export const Feed = () => {
         activeTab={activeNavTab} 
         onTabChange={(tab) => {
           if (tab === 'home' && activeNavTab === 'home') {
-            // Già sul feed, clicca home → mostra Welcome Screen
-            sessionStorage.setItem('noparrot-show-welcome', 'true');
-            window.location.href = '/';
+            // Già sul feed, clicca home → scroll to top
+            scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
           } else {
             setActiveNavTab(tab);
           }
