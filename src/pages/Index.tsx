@@ -15,9 +15,6 @@ const Index = () => {
   const [hasEnteredSession, setHasEnteredSession] = useState(() => {
     return sessionStorage.getItem('noparrot-session-entered') === 'true';
   });
-  
-  // Flag per forzare il Welcome Screen (da feed refresh/home)
-  const [forceWelcome, setForceWelcome] = useState(false);
 
   useEffect(() => {
     const seen = localStorage.getItem('noparrot-onboarding-completed');
@@ -29,14 +26,6 @@ const Index = () => {
     if (type === 'recovery') {
       setIsPasswordRecovery(true);
     }
-    
-    // Controlla se c'è un flag per mostrare il Welcome Screen
-    const showWelcome = sessionStorage.getItem('noparrot-show-welcome');
-    if (showWelcome === 'true') {
-      setForceWelcome(true);
-      setHasEnteredSession(false);
-      sessionStorage.removeItem('noparrot-show-welcome');
-    }
   }, []);
 
   const handleOnboardingComplete = () => {
@@ -47,7 +36,6 @@ const Index = () => {
   const handleEnterSession = () => {
     sessionStorage.setItem('noparrot-session-entered', 'true');
     setHasEnteredSession(true);
-    setForceWelcome(false);
   };
 
   if (loading) {
@@ -73,8 +61,8 @@ const Index = () => {
     return <OnboardingFlow onComplete={handleOnboardingComplete} />;
   }
 
-  // Autenticato ma non ha ancora "entrato" OPPURE forceWelcome → mostra Welcome Screen
-  if (!hasEnteredSession || forceWelcome) {
+  // Autenticato ma non ha ancora "entrato" → mostra Welcome Screen
+  if (!hasEnteredSession) {
     return (
       <WelcomeRitualScreen 
         onEnter={handleEnterSession}
