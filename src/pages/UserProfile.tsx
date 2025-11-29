@@ -8,6 +8,8 @@ import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { CognitiveMap } from "@/components/profile/CognitiveMap";
 import { getDisplayUsername } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { recalculateCognitiveDensityFromPosts } from "@/lib/cognitiveDensity";
+import { useEffect } from "react";
 
 export const UserProfile = () => {
   const { userId } = useParams();
@@ -98,6 +100,27 @@ export const UserProfile = () => {
       });
     },
   });
+
+  // Ricalcola cognitive density se vuoto
+  useEffect(() => {
+    const recalculateIfNeeded = async () => {
+      if (profile && userId) {
+        const density = profile.cognitive_density as Record<string, number> | null;
+        const isEmpty = !density || Object.keys(density).length === 0;
+        
+        if (isEmpty) {
+          console.log('🔄 [UserProfile] Cognitive density vuoto, ricalcolo dai post...');
+          const result = await recalculateCognitiveDensityFromPosts(userId);
+          
+          if (result && Object.keys(result).length > 0) {
+            console.log('✅ [UserProfile] Cognitive density ricalcolato:', result);
+            queryClient.invalidateQueries({ queryKey: ['user-profile', userId] });
+          }
+        }
+      }
+    };
+    recalculateIfNeeded();
+  }, [profile, userId, queryClient]);
 
   const getInitials = (name: string) => {
     return name
