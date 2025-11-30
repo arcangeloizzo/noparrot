@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Logo } from "@/components/ui/logo";
 import { Header } from "@/components/navigation/Header";
 import { FeedCard } from "@/components/feed/FeedCardAdapt";
+import { ExternalFocusCard } from "@/components/feed/ExternalFocusCard";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 import { FloatingActionButton } from "@/components/fab/FloatingActionButton";
@@ -15,6 +16,49 @@ import { usePosts, useToggleReaction, Post } from "@/hooks/usePosts";
 import { useToast } from "@/hooks/use-toast";
 import { NotificationPermissionBanner } from "@/components/notifications/NotificationPermissionBanner";
 import { useQueryClient } from "@tanstack/react-query";
+
+// Mock Data per External Focus Cards
+const MOCK_DAILY_FOCUS = {
+  type: 'daily' as const,
+  title: "La Fusione Nucleare: Svolta Storica al MIT",
+  summary: "I ricercatori del MIT hanno raggiunto un traguardo senza precedenti nella fusione nucleare, aprendo la strada a una fonte di energia pulita e illimitata. L'esperimento ha dimostrato per la prima volta un guadagno netto di energia.",
+  sources: [
+    { icon: "📰", name: "NYT" },
+    { icon: "📄", name: "Repubblica" },
+    { icon: "🔬", name: "Nature" }
+  ],
+  trustScore: 'Alto' as const,
+  reactions: { likes: 234, comments: 89, shares: 45 }
+};
+
+const MOCK_INTEREST_FOCUS = [
+  {
+    type: 'interest' as const,
+    category: 'TECH',
+    title: "Apple annuncia il nuovo chip M4: rivoluzione nelle prestazioni",
+    summary: "Il nuovo processore M4 di Apple promette prestazioni rivoluzionarie con un'efficienza energetica senza precedenti. Gli sviluppatori potranno sfruttare capacità AI integrate direttamente nel silicio.",
+    sources: [
+      { icon: "🍎", name: "Apple" },
+      { icon: "📱", name: "The Verge" },
+      { icon: "💻", name: "Ars Technica" }
+    ],
+    trustScore: 'Alto' as const,
+    reactions: { likes: 156, comments: 34, shares: 28 }
+  },
+  {
+    type: 'interest' as const,
+    category: 'ARTE',
+    title: "Biennale di Venezia: le opere più discusse dell'edizione 2024",
+    summary: "La community dell'arte contemporanea dibatte sulle installazioni più controverse della Biennale. Temi come AI, sostenibilità e identità digitale dominano le discussioni.",
+    sources: [
+      { icon: "🎨", name: "Artforum" },
+      { icon: "🖼️", name: "Biennale" },
+      { icon: "📰", name: "Il Sole 24 Ore" }
+    ],
+    trustScore: 'Alto' as const,
+    reactions: { likes: 98, comments: 23, shares: 15 }
+  }
+];
 
 export const Feed = () => {
   const { data: dbPosts = [], isLoading, refetch } = usePosts();
@@ -31,6 +75,33 @@ export const Feed = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number>(0);
   const pullDistance = useRef<number>(0);
+
+  // Build mixed feed: Daily Focus + User Posts + Interest Focus every 6 posts
+  const buildMixedFeed = () => {
+    const items: Array<{ type: 'daily' | 'interest' | 'post'; data: any; id: string }> = [];
+    
+    // 1. Daily Focus always at top
+    items.push({ type: 'daily', data: MOCK_DAILY_FOCUS, id: 'daily-focus' });
+    
+    // 2. Intercalate user posts with Interest Focus every 6
+    dbPosts.forEach((post, index) => {
+      items.push({ type: 'post', data: post, id: post.id });
+      
+      // Insert Interest Focus after every 6 posts
+      const interestIndex = Math.floor(index / 6);
+      if ((index + 1) % 6 === 0 && MOCK_INTEREST_FOCUS[interestIndex]) {
+        items.push({ 
+          type: 'interest', 
+          data: MOCK_INTEREST_FOCUS[interestIndex],
+          id: `interest-focus-${interestIndex}`
+        });
+      }
+    });
+    
+    return items;
+  };
+
+  const mixedFeed = buildMixedFeed();
 
 
   useEffect(() => {
@@ -182,17 +253,58 @@ export const Feed = () => {
       
       <div className="mobile-container max-w-[600px] mx-auto px-4">
 
-        {/* Feed Cards - Capsule View with vertical spacing */}
+        {/* Mixed Feed - Daily Focus + User Posts + Interest Focus */}
         <div className="flex flex-col gap-6 py-4">
-          {dbPosts.map((post) => (
-            <FeedCard
-              key={post.id}
-              post={post}
-              onRemove={() => handleRemovePost(post.id)}
-              onQuoteShare={handleQuoteShare}
-            />
-          ))}
-          {dbPosts.length === 0 && (
+          {mixedFeed.map((item) => {
+            if (item.type === 'daily' || item.type === 'interest') {
+              return (
+                <ExternalFocusCard
+                  key={item.id}
+                  type={item.type}
+                  category={item.data.category}
+                  title={item.data.title}
+                  summary={item.data.summary}
+                  sources={item.data.sources}
+                  trustScore={item.data.trustScore}
+                  reactions={item.data.reactions}
+                  onClick={() => {
+                    toast({
+                      title: "External Focus View",
+                      description: "Visualizzazione dettagliata della notizia (da implementare)"
+                    });
+                  }}
+                  onLike={() => {
+                    toast({
+                      title: "Like",
+                      description: "Funzionalità like su Focus Card (da implementare)"
+                    });
+                  }}
+                  onComment={() => {
+                    toast({
+                      title: "Commenti",
+                      description: "Apertura commenti Focus Card (da implementare)"
+                    });
+                  }}
+                  onShare={() => {
+                    toast({
+                      title: "Condividi",
+                      description: "Conta rilanci nel feed (da implementare)"
+                    });
+                  }}
+                />
+              );
+            } else {
+              return (
+                <FeedCard
+                  key={item.id}
+                  post={item.data}
+                  onRemove={() => handleRemovePost(item.data.id)}
+                  onQuoteShare={handleQuoteShare}
+                />
+              );
+            }
+          })}
+          {mixedFeed.length === 1 && (
             <div className="py-12 text-center text-muted-foreground">
               <p>Nessun post disponibile.</p>
               <p className="text-sm mt-2">Crea il primo post!</p>
