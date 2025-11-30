@@ -36,16 +36,22 @@ function parseClusteredArticles(html: string): Array<{ title: string; source: st
   console.log('Parsing clustered articles from HTML description');
   const articles: Array<{ title: string; source: string; link: string }> = [];
   
-  // Google News description format: <a href="URL">Title</a>&nbsp;&nbsp;<font color="#6f6f6f">Source</font>
-  const articleRegex = /<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>(?:&nbsp;)*(?:<font[^>]*>([^<]+)<\/font>)?/gi;
+  // Split by <li> tags for cleaner parsing
+  const listItems = html.split(/<li[^>]*>/i);
   
-  let match;
-  while ((match = articleRegex.exec(html)) !== null) {
-    const link = match[1];
-    const title = match[2].replace(/&quot;/g, '"').replace(/&amp;/g, '&').trim();
-    const source = match[3]?.trim() || extractSourceFromUrl(link);
+  for (const item of listItems) {
+    // Extract link and title: <a href="URL">Title</a>
+    const linkMatch = item.match(/<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/i);
+    if (!linkMatch) continue;
     
-    articles.push({ title, source, link });
+    // Extract source from <font color="#6f6f6f">Source Name</font>
+    const sourceMatch = item.match(/<font[^>]*color="#6f6f6f"[^>]*>([^<]+)<\/font>/i);
+    
+    articles.push({
+      link: linkMatch[1],
+      title: linkMatch[2].replace(/&quot;/g, '"').replace(/&amp;/g, '&').trim(),
+      source: sourceMatch ? sourceMatch[1].trim() : extractSourceFromUrl(linkMatch[1])
+    });
   }
   
   console.log(`Found ${articles.length} clustered articles`);

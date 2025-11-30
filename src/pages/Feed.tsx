@@ -73,6 +73,8 @@ export const Feed = () => {
   const pullDistance = useRef<number>(0);
   const [focusDetailOpen, setFocusDetailOpen] = useState(false);
   const [selectedFocus, setSelectedFocus] = useState<any>(null);
+  const [focusCommentsOpen, setFocusCommentsOpen] = useState(false);
+  const [selectedFocusForComments, setSelectedFocusForComments] = useState<any>(null);
 
   // Build mixed feed: Daily Focus + User Posts + Interest Focus every 6 posts
   const mixedFeed = useMemo(() => {
@@ -355,6 +357,23 @@ export const Feed = () => {
           title={selectedFocus.data.title}
           summary={selectedFocus.data.summary}
           sources={selectedFocus.data.sources}
+        />
+      )}
+
+      {selectedFocusForComments && (
+        <CommentsSheet
+          open={focusCommentsOpen}
+          onOpenChange={setFocusCommentsOpen}
+          postId={selectedFocusForComments.data.id}
+          postContent={selectedFocusForComments.data.title}
+          postAuthor={{
+            username: selectedFocusForComments.type === 'daily' ? 'Daily Focus' : 'Interest Focus',
+            full_name: selectedFocusForComments.type === 'daily' ? 'Daily Focus' : `Focus ${selectedFocusForComments.data.category}`,
+            avatar_url: null
+          }}
+          onCommentAdded={() => {
+            // Refresh comments if needed
+          }}
         />
       )}
     </div>

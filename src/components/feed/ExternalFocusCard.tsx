@@ -83,13 +83,15 @@ export const ExternalFocusCard = ({
         {/* Sources */}
         <div className="flex items-center gap-2 flex-wrap">
           {sources.map((source, idx) => (
-            <div 
-              key={idx}
-              className="flex items-center gap-1 text-xs text-gray-500"
-            >
-              <span>{source.icon}</span>
-              <span>{source.name}</span>
-            </div>
+            <React.Fragment key={idx}>
+              <div className="flex items-center gap-1 text-xs text-gray-500">
+                <span>{source.icon}</span>
+                <span>{source.name}</span>
+              </div>
+              {idx < sources.length - 1 && (
+                <span className="text-gray-600">·</span>
+              )}
+            </React.Fragment>
           ))}
         </div>
       </div>
