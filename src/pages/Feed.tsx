@@ -71,6 +71,8 @@ export const Feed = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number>(0);
   const pullDistance = useRef<number>(0);
+  const [focusDetailOpen, setFocusDetailOpen] = useState(false);
+  const [selectedFocus, setSelectedFocus] = useState<any>(null);
 
   // Build mixed feed: Daily Focus + User Posts + Interest Focus every 6 posts
   const mixedFeed = useMemo(() => {
@@ -265,10 +267,8 @@ export const Feed = () => {
                   trustScore={item.data.trust_score}
                   reactions={item.data.reactions}
                   onClick={() => {
-                    toast({
-                      title: "External Focus View",
-                      description: "Visualizzazione dettagliata della notizia (da implementare)"
-                    });
+                    setSelectedFocus(item);
+                    setFocusDetailOpen(true);
                   }}
                   onLike={() => {
                     toast({
@@ -343,6 +343,18 @@ export const Feed = () => {
           isOpen={showSimilarContent}
           onClose={handleCloseSimilarContent}
           originalPost={selectedPost}
+        />
+      )}
+
+      {selectedFocus && (
+        <FocusDetailSheet
+          open={focusDetailOpen}
+          onOpenChange={setFocusDetailOpen}
+          type={selectedFocus.type === 'daily' ? 'daily' : 'interest'}
+          category={selectedFocus.data.category}
+          title={selectedFocus.data.title}
+          summary={selectedFocus.data.summary}
+          sources={selectedFocus.data.sources}
         />
       )}
     </div>
