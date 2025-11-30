@@ -6,15 +6,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Map categorie NoParrot -> RSS topics Google News
-const CATEGORY_TO_RSS: Record<string, string> = {
-  'Tecnologia': 'TECHNOLOGY',
-  'Scienza': 'SCIENCE',
-  'Società & Politica': 'NATION',
-  'Salute': 'HEALTH',
-  'Economia': 'BUSINESS',
-  'Sport': 'SPORTS',
-  'Intrattenimento': 'ENTERTAINMENT'
+// Map categorie NoParrot -> Topic IDs Google News
+const CATEGORY_TOPIC_IDS: Record<string, string> = {
+  'Tecnologia': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRGRqTVhZU0FtbDBHZ0pKVkNnQVAB',
+  'Scienza': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp0Y1RjU0FtbDBHZ0pKVkNnQVAB',
+  'Società & Politica': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZ4ZERBU0FtbDBHZ0pKVkNnQVAB',
+  'Salute': 'CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtbDBLQUFQAQ',
+  'Economia': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6YUdFU0FtbDBHZ0pKVkNnQVAB',
+  'Sport': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp1ZEdvU0FtbDBHZ0pKVkNnQVAB',
+  'Intrattenimento': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNREpxYW5RU0FtbDBHZ0pKVkNnQVAB'
 };
 
 // Helper to extract text from XML tags (handles CDATA and simple tags)
@@ -31,6 +31,17 @@ function extractText(xml: string, tag: string): string | null {
   return null;
 }
 
+// Helper to extract source name from URL
+function extractSourceFromUrl(url: string): string {
+  try {
+    const hostname = new URL(url).hostname;
+    const domain = hostname.replace('www.', '').split('.')[0];
+    return domain.charAt(0).toUpperCase() + domain.slice(1);
+  } catch {
+    return 'Fonte';
+  }
+}
+
 // Parse clustered articles from Google News description HTML
 function parseClusteredArticles(html: string): Array<{ title: string; source: string; link: string }> {
   console.log('Parsing clustered articles from HTML description');
@@ -43,7 +54,7 @@ function parseClusteredArticles(html: string): Array<{ title: string; source: st
   while ((match = articleRegex.exec(html)) !== null) {
     const link = match[1];
     const title = match[2].replace(/&quot;/g, '"').replace(/&amp;/g, '&').trim();
-    const source = match[3]?.trim() || 'Fonte';
+    const source = match[3]?.trim() || extractSourceFromUrl(link);
     
     articles.push({ title, source, link });
   }
@@ -61,12 +72,12 @@ async function fetchTopCategoryStoryWithClusteredSources(
 }> {
   console.log(`Fetching top story for category: ${category}`);
   
-  const topic = CATEGORY_TO_RSS[category];
-  if (!topic) {
+  const topicId = CATEGORY_TOPIC_IDS[category];
+  if (!topicId) {
     throw new Error(`Category not mapped: ${category}`);
   }
   
-  const rssUrl = `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx1YlY4U0FtbDBHZ0pKVkNnQVAB?hl=it&gl=IT&ceid=IT:it`;
+  const rssUrl = `https://news.google.com/rss/topics/${topicId}?hl=it&gl=IT&ceid=IT:it`;
   
   const response = await fetch(rssUrl, {
     headers: { 

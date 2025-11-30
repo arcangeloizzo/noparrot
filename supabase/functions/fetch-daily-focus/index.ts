@@ -6,6 +6,17 @@ const corsHeaders = {
 };
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+// Helper to extract source name from URL
+function extractSourceFromUrl(url: string): string {
+  try {
+    const hostname = new URL(url).hostname;
+    const domain = hostname.replace('www.', '').split('.')[0];
+    return domain.charAt(0).toUpperCase() + domain.slice(1);
+  } catch {
+    return 'Fonte';
+  }
+}
+
 // Helper to extract text from XML tags (handles CDATA and simple tags)
 function extractText(xml: string, tag: string): string | null {
   const cdataRegex = new RegExp(`<${tag}><!\\[CDATA\\[(.+?)\\]\\]></${tag}>`, 's');
@@ -32,7 +43,7 @@ function parseClusteredArticles(html: string): Array<{ title: string; source: st
   while ((match = articleRegex.exec(html)) !== null) {
     const link = match[1];
     const title = match[2].replace(/&quot;/g, '"').replace(/&amp;/g, '&').trim();
-    const source = match[3]?.trim() || 'Fonte';
+    const source = match[3]?.trim() || extractSourceFromUrl(link);
     
     articles.push({ title, source, link });
   }
