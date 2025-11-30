@@ -33,51 +33,61 @@ function extractText(xml: string, tag: string): string | null {
 
 // Extract source name from RSS item (prioritize <source> tag, then parse from title)
 function extractSourceName(itemXml: string, title: string): string {
-  // Try <source> tag first
-  const sourceTag = extractText(itemXml, 'source');
-  if (sourceTag && sourceTag.trim() !== '') {
-    console.log('Extracted source from <source> tag:', sourceTag);
-    return sourceTag.trim();
+  // Google News format: <source url="...">Source Name</source>
+  const sourceMatch = itemXml.match(/<source[^>]*>([^<]+)<\/source>/);
+  if (sourceMatch && sourceMatch[1].trim()) {
+    console.log('Extracted source from <source> tag:', sourceMatch[1]);
+    return sourceMatch[1].trim();
   }
   
-  // Fallback: parse from title (format "Title - Source")
+  // Fallback: parse from title
   const titleParts = title.split(' - ');
   if (titleParts.length >= 2) {
-    const possibleSource = titleParts[titleParts.length - 1].trim();
-    console.log('Extracted source from title:', possibleSource);
-    return possibleSource;
+    const source = titleParts[titleParts.length - 1].trim();
+    console.log('Extracted source from title:', source);
+    return source;
   }
   
-  // Last fallback: use URL
+  // Last fallback
   const link = extractText(itemXml, 'link') || '';
   return extractSourceFromUrl(link);
 }
 
 // Extract image from RSS item
 function extractImage(itemXml: string): string | null {
-  // Try <media:content> tag (most common in Google News)
+  // Google News puts images in <description> as HTML
+  const description = extractText(itemXml, 'description');
+  if (description) {
+    const imgMatch = description.match(/<img[^>]*src="([^"]+)"/);
+    if (imgMatch) {
+      console.log('Image found in description:', imgMatch[1]);
+      return imgMatch[1];
+    }
+  }
+  
+  // Fallback: check media:content
   const mediaMatch = itemXml.match(/<media:content[^>]*url="([^"]+)"/);
   if (mediaMatch) return mediaMatch[1];
   
-  // Try <enclosure> tag
+  // Fallback: check enclosure
   const enclosureMatch = itemXml.match(/<enclosure[^>]*url="([^"]+)"/);
   if (enclosureMatch) return enclosureMatch[1];
   
-  // Try og:image from description HTML
-  const imgMatch = itemXml.match(/<img[^>]*src="([^"]+)"/);
-  if (imgMatch) return imgMatch[1];
-  
+  console.log('No image found in RSS item');
   return null;
 }
 
 // Search for related articles about the same story using Google News search
 async function searchRelatedArticles(mainTitle: string): Promise<Array<{ title: string; source: string; link: string }>> {
-  console.log('Searching for related articles:', mainTitle);
+  // Clean title: remove source and common words like LIVE
+  let cleanTitle = mainTitle.split(' - ')[0].trim();
+  cleanTitle = cleanTitle.replace(/\bLIVE\b/gi, '').trim();
+  // Limit to first 6 keywords for broader search
+  const keywords = cleanTitle.split(' ').slice(0, 6).join(' ');
   
-  // Clean title for search (remove source name if present)
-  const cleanTitle = mainTitle.split(' - ')[0].trim();
-  const searchQuery = encodeURIComponent(cleanTitle);
-  const searchUrl = `https://news.google.com/rss/search?q=${searchQuery}&hl=it&gl=IT&ceid=IT:it`;
+  console.log(`Searching for related articles with keywords: ${keywords}`);
+  
+  const searchUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(keywords)}&hl=it&gl=IT&ceid=IT:it`;
   
   const response = await fetch(searchUrl, {
     headers: { 
