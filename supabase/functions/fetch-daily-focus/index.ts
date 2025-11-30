@@ -21,30 +21,43 @@ function extractText(xml: string, tag: string): string | null {
   return null;
 }
 
-// Parse Google News RSS
-async function fetchGoogleNewsRSS() {
-  const rssUrl = 'https://news.google.com/rss?topic=WORLD&hl=it&gl=IT&ceid=IT:it';
+// Estrae keywords da un titolo per la ricerca
+function extractKeywords(title: string): string {
+  // Rimuovi articoli, preposizioni comuni e caratteri speciali
+  const stopWords = ['il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'uno', 'una', 'di', 'da', 'a', 'in', 'con', 'su', 'per', 'tra', 'fra', 'e', 'o'];
+  const words = title.toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 3 && !stopWords.includes(w));
   
-  console.log('Fetching RSS from:', rssUrl);
+  // Prendi le prime 3-4 parole più significative
+  return words.slice(0, 4).join(' ');
+}
+
+// Cerca articoli su Google News per una specifica query
+async function searchGoogleNews(query: string, maxResults = 5) {
+  const searchUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=it&gl=IT&ceid=IT:it`;
   
-  const response = await fetch(rssUrl, {
+  console.log('Searching Google News:', searchUrl);
+  
+  const response = await fetch(searchUrl, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (compatible; NoParrotBot/1.0)'
     }
   });
   
   if (!response.ok) {
-    console.error('RSS fetch failed:', response.status, response.statusText);
-    throw new Error(`RSS fetch failed: ${response.status}`);
+    console.error('Search failed:', response.status, response.statusText);
+    throw new Error(`Search failed: ${response.status}`);
   }
   
   const text = await response.text();
-  console.log('RSS response length:', text.length);
-  
-  // Parse XML
   const items: Array<{ title: string; description: string; link: string; source: string }> = [];
   const itemRegex = /<item>(.*?)<\/item>/gs;
   const matches = text.matchAll(itemRegex);
+  
+  // Traccia fonti già viste per garantire diversità
+  const seenSources = new Set<string>();
   
   for (const match of matches) {
     const itemXml = match[1];
@@ -53,36 +66,100 @@ async function fetchGoogleNewsRSS() {
     const link = extractText(itemXml, 'link');
     const source = extractText(itemXml, 'source');
     
-    if (title && link) {
-      items.push({
-        title,
-        description: description || '',
-        link,
-        source: source || 'Google News'
-      });
+    if (title && link && source) {
+      const sourceKey = source.split(' - ')[0].toLowerCase();
+      
+      // Prendi solo una notizia per fonte per garantire diversità
+      if (!seenSources.has(sourceKey)) {
+        items.push({
+          title,
+          description: description || '',
+          link,
+          source
+        });
+        seenSources.add(sourceKey);
+      }
     }
     
-    if (items.length >= 5) break; // Top 5 news
+    if (items.length >= maxResults) break;
   }
   
-  console.log('Parsed items:', items.length);
+  console.log('Found articles from different sources:', items.length);
   return items;
 }
 
-// Sintetizza con Lovable AI
+// Recupera la notizia più importante e trova articoli correlati da fonti diverse
+async function fetchTopStoryWithMultipleSources() {
+  // 1. Prendi la top headline
+  const rssUrl = 'https://news.google.com/rss?topic=WORLD&hl=it&gl=IT&ceid=IT:it';
+  
+  console.log('Fetching top headline from:', rssUrl);
+  
+  const response = await fetch(rssUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; NoParrotBot/1.0)'
+    }
+  });
+  
+  if (!response.ok) {
+    throw new Error(`RSS fetch failed: ${response.status}`);
+  }
+  
+  const text = await response.text();
+  const itemRegex = /<item>(.*?)<\/item>/gs;
+  const match = text.match(itemRegex);
+  
+  if (!match || match.length === 0) {
+    throw new Error('No top headline found');
+  }
+  
+  // Estrai la prima notizia
+  const firstItemXml = match[0];
+  const topTitle = extractText(firstItemXml, 'title');
+  
+  if (!topTitle) {
+    throw new Error('Could not extract top headline title');
+  }
+  
+  console.log('Top headline:', topTitle);
+  
+  // 2. Estrai keywords e cerca articoli correlati
+  const keywords = extractKeywords(topTitle);
+  console.log('Search keywords:', keywords);
+  
+  const relatedArticles = await searchGoogleNews(keywords, 5);
+  
+  if (relatedArticles.length === 0) {
+    throw new Error('No related articles found');
+  }
+  
+  return relatedArticles;
+}
+
+// Sintetizza con Lovable AI stile Perplexity: analizza diverse fonti sulla stessa notizia
 async function synthesizeWithAI(articles: Array<{ title: string; description: string; source: string }>) {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
 
-  const prompt = `Sei un giornalista senior. Sintetizza queste notizie italiane del giorno in un'unica storia coerente e accattivante.
+  const prompt = `Sei un giornalista investigativo esperto. Analizza questi ${articles.length} articoli che parlano della STESSA notizia da fonti diverse e crea una sintesi autorevole in stile Perplexity.
 
-Notizie:
-${articles.map((a, i) => `${i + 1}. ${a.title}\n   ${a.description}\n   Fonte: ${a.source}`).join('\n\n')}
+ARTICOLI DA FONTI DIVERSE:
+${articles.map((a, i) => `
+Fonte ${i + 1}: ${a.source}
+Titolo: ${a.title}
+${a.description ? `Descrizione: ${a.description}` : ''}
+`).join('\n')}
 
-Rispondi SOLO con un oggetto JSON in questo formato (nessun testo aggiuntivo):
+ISTRUZIONI:
+1. Identifica il FATTO CENTRALE comune a tutti gli articoli
+2. Analizza come le diverse fonti presentano la notizia
+3. Evidenzia eventuali prospettive o dettagli unici da ciascuna fonte
+4. Crea una sintesi che integri tutte le prospettive in modo coerente
+
+Rispondi SOLO con un oggetto JSON (nessun testo aggiuntivo):
 {
-  "title": "Titolo accattivante max 60 caratteri",
-  "summary": "Sintesi coinvolgente 3-4 frasi che catturi l'essenza della giornata, max 250 caratteri"
+  "title": "Titolo chiaro e diretto del fatto principale (max 60 caratteri)",
+  "summary": "Sintesi della notizia che integra le prospettive delle diverse fonti, evidenziando il fatto centrale e le sfumature importanti (max 280 caratteri)"
 }`;
 
   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -134,13 +211,13 @@ serve(async (req) => {
       });
     }
 
-    // 2. Fetch news da Google RSS
-    console.log('Fetching fresh news from Google RSS...');
+    // 2. Fetch top story con articoli da fonti multiple
+    console.log('Fetching top story from multiple sources...');
     let articles;
     try {
-      articles = await fetchGoogleNewsRSS();
+      articles = await fetchTopStoryWithMultipleSources();
     } catch (error) {
-      console.error('RSS fetch error:', error);
+      console.error('Multi-source fetch error:', error);
       articles = [];
     }
     
@@ -169,14 +246,14 @@ serve(async (req) => {
       });
     }
 
-    // 3. Sintetizza con AI
-    console.log('Synthesizing with AI...');
+    // 3. Sintetizza con AI stile Perplexity
+    console.log(`Synthesizing ${articles.length} articles from different sources with AI...`);
     const { title, summary } = await synthesizeWithAI(articles);
 
-    // 4. Prepara sources
+    // 4. Prepara sources da fonti diverse
     const sources = articles.slice(0, 3).map((a, i) => ({
       icon: ['📰', '📄', '🗞️'][i],
-      name: a.source.split(' - ')[0].substring(0, 20),
+      name: a.source.split(' - ')[0].substring(0, 25),
       url: a.link
     }));
 
