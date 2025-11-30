@@ -8,6 +8,7 @@ export interface DailyFocus {
   sources: Array<{ icon: string; name: string; url?: string }>;
   trust_score: 'Alto' | 'Medio' | 'Basso';
   category?: string;
+  image_url?: string;
   reactions: {
     likes: number;
     comments: number;

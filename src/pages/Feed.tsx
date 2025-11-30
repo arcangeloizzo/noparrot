@@ -268,6 +268,7 @@ export const Feed = () => {
                   summary={item.data.summary}
                   sources={item.data.sources}
                   trustScore={item.data.trust_score}
+                  imageUrl={item.data.image_url}
                   reactions={item.data.reactions}
                   onClick={() => {
                     setSelectedFocus(item);

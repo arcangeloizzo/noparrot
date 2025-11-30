@@ -16,6 +16,7 @@ interface ExternalFocusCardProps {
   summary: string;
   sources: Source[];
   trustScore: 'Alto' | 'Medio' | 'Basso';
+  imageUrl?: string;
   reactions: {
     likes: number;
     comments: number;
@@ -37,6 +38,7 @@ export const ExternalFocusCard = ({
   summary,
   sources,
   trustScore,
+  imageUrl,
   reactions,
   userReactions,
   onClick,
@@ -65,6 +67,17 @@ export const ExternalFocusCard = ({
       )}
       onClick={onClick}
     >
+      {/* Image */}
+      {imageUrl && (
+        <div className="aspect-video w-full overflow-hidden">
+          <img 
+            src={imageUrl} 
+            alt={title}
+            className="w-full h-full object-cover"
+          />
+        </div>
+      )}
+
       {/* Header */}
       <div className="p-4 pb-3">
         <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0")}>
