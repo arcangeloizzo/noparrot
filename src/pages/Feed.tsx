@@ -3,6 +3,7 @@ import { Logo } from "@/components/ui/logo";
 import { Header } from "@/components/navigation/Header";
 import { FeedCard } from "@/components/feed/FeedCardAdapt";
 import { ExternalFocusCard } from "@/components/feed/ExternalFocusCard";
+import { FocusDetailSheet } from "@/components/feed/FocusDetailSheet";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 import { FloatingActionButton } from "@/components/fab/FloatingActionButton";

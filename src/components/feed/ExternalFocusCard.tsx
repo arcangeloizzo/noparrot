@@ -65,13 +65,10 @@ export const ExternalFocusCard = ({
       onClick={onClick}
     >
       {/* Header */}
-      <div className="p-4 pb-3 flex items-center justify-between">
+      <div className="p-4 pb-3">
         <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0")}>
           {isDailyFocus ? '🌍 DAILY FOCUS' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
         </Badge>
-        <span className={cn("text-xs font-medium", trustColors[trustScore])}>
-          Trust: {trustScore}
-        </span>
       </div>
 
       {/* Body */}
