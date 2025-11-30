@@ -149,9 +149,12 @@ async function fetchTopCategoryStoryWithClusteredSources(
   // Parse clustered articles from description HTML
   const clusteredArticles = parseClusteredArticles(description);
   
+  // Extract real source from RSS <source> tag
+  const mainSource = extractText(firstItemXml, 'source') || extractSourceFromUrl(mainLink);
+  
   // Add main article as first source
   const articles = [
-    { title: mainTitle, source: extractSourceFromUrl(mainLink), link: mainLink },
+    { title: mainTitle, source: mainSource, link: mainLink },
     ...clusteredArticles.slice(0, 4) // Take up to 4 additional sources
   ];
   
