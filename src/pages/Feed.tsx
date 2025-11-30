@@ -4,6 +4,7 @@ import { Header } from "@/components/navigation/Header";
 import { FeedCard } from "@/components/feed/FeedCardAdapt";
 import { ExternalFocusCard } from "@/components/feed/ExternalFocusCard";
 import { FocusDetailSheet } from "@/components/feed/FocusDetailSheet";
+import { CommentsSheet } from "@/components/feed/CommentsSheet";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 import { FloatingActionButton } from "@/components/fab/FloatingActionButton";
@@ -362,18 +363,33 @@ export const Feed = () => {
 
       {selectedFocusForComments && (
         <CommentsSheet
-          open={focusCommentsOpen}
-          onOpenChange={setFocusCommentsOpen}
-          postId={selectedFocusForComments.data.id}
-          postContent={selectedFocusForComments.data.title}
-          postAuthor={{
-            username: selectedFocusForComments.type === 'daily' ? 'Daily Focus' : 'Interest Focus',
-            full_name: selectedFocusForComments.type === 'daily' ? 'Daily Focus' : `Focus ${selectedFocusForComments.data.category}`,
-            avatar_url: null
-          }}
-          onCommentAdded={() => {
-            // Refresh comments if needed
-          }}
+          post={{
+            id: selectedFocusForComments.data.id,
+            content: selectedFocusForComments.data.summary,
+            author_id: 'system',
+            created_at: selectedFocusForComments.data.created_at || new Date().toISOString(),
+            author: {
+              id: 'system',
+              username: selectedFocusForComments.type === 'daily' ? 'Daily Focus' : 'Interest Focus',
+              full_name: selectedFocusForComments.type === 'daily' ? 'Daily Focus' : `Focus ${selectedFocusForComments.data.category}`,
+              avatar_url: null
+            },
+            topic_tag: null,
+            shared_title: selectedFocusForComments.data.title,
+            shared_url: null,
+            preview_img: null,
+            full_article: null,
+            article_content: null,
+            trust_level: null,
+            stance: null,
+            sources: selectedFocusForComments.data.sources?.map((s: any) => s.url).filter(Boolean) || [],
+            quoted_post_id: null,
+            category: selectedFocusForComments.data.category || null,
+            reactions: selectedFocusForComments.data.reactions || { likes: 0, comments: 0, shares: 0 }
+          } as unknown as Post}
+          isOpen={focusCommentsOpen}
+          onClose={() => setFocusCommentsOpen(false)}
+          mode="reply"
         />
       )}
     </div>

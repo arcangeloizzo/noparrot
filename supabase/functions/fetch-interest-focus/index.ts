@@ -10,11 +10,16 @@ const corsHeaders = {
 const CATEGORY_TOPIC_IDS: Record<string, string> = {
   'Tecnologia': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRGRqTVhZU0FtbDBHZ0pKVkNnQVAB',
   'Scienza': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp0Y1RjU0FtbDBHZ0pKVkNnQVAB',
-  'Società & Politica': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZ4ZERBU0FtbDBHZ0pKVkNnQVAB',
+  'Scienza & Tecnologia': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp0Y1RjU0FtbDBHZ0pKVkNnQVAB',
+  'Società & Politica': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRFZ4ZURBU0FtbDBHZ0pKVkNnQVAB',
+  'Cultura & Arte': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNREpxYW5RU0FtbDBHZ0pKVkNnQVAB',
   'Salute': 'CAAqIQgKIhtDQkFTRGdvSUwyMHZNR3QwTlRFU0FtbDBLQUFQAQ',
   'Economia': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6YUdFU0FtbDBHZ0pKVkNnQVAB',
+  'Economia & Business': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx6YUdFU0FtbDBHZ0pKVkNnQVAB',
   'Sport': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp1ZEdvU0FtbDBHZ0pKVkNnQVAB',
-  'Intrattenimento': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNREpxYW5RU0FtbDBHZ0pKVkNnQVAB'
+  'Sport & Lifestyle': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRFp1ZEdvU0FtbDBHZ0pKVkNnQVAB',
+  'Intrattenimento': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNREpxYW5RU0FtbDBHZ0pKVkNnQVAB',
+  'Media & Comunicazione': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNREpxYW5RU0FtbDBHZ0pKVkNnQVAB'
 };
 
 // Helper to extract text from XML tags (handles CDATA and simple tags)
