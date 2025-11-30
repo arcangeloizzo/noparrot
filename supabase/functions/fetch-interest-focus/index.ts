@@ -47,35 +47,85 @@ function extractSourceFromUrl(url: string): string {
   }
 }
 
-// Parse clustered articles from Google News description HTML
-function parseClusteredArticles(html: string): Array<{ title: string; source: string; link: string }> {
-  console.log('Parsing clustered articles from HTML description');
-  const articles: Array<{ title: string; source: string; link: string }> = [];
-  
-  // Split by <li> tags for cleaner parsing
-  const listItems = html.split(/<li[^>]*>/i);
-  
-  for (const item of listItems) {
-    // Extract link and title: <a href="URL">Title</a>
-    const linkMatch = item.match(/<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>/i);
-    if (!linkMatch) continue;
-    
-    // Extract source from <font color="#6f6f6f">Source Name</font>
-    const sourceMatch = item.match(/<font[^>]*color="#6f6f6f"[^>]*>([^<]+)<\/font>/i);
-    
-    articles.push({
-      link: linkMatch[1],
-      title: linkMatch[2].replace(/&quot;/g, '"').replace(/&amp;/g, '&').trim(),
-      source: sourceMatch ? sourceMatch[1].trim() : extractSourceFromUrl(linkMatch[1])
-    });
+// Extract source name from RSS item (prioritize <source> tag, then parse from title)
+function extractSourceName(itemXml: string, title: string): string {
+  // Try <source> tag first
+  const sourceTag = extractText(itemXml, 'source');
+  if (sourceTag && sourceTag.trim() !== '') {
+    console.log('Extracted source from <source> tag:', sourceTag);
+    return sourceTag.trim();
   }
   
-  console.log(`Found ${articles.length} clustered articles`);
+  // Fallback: parse from title (format "Title - Source")
+  const titleParts = title.split(' - ');
+  if (titleParts.length >= 2) {
+    const possibleSource = titleParts[titleParts.length - 1].trim();
+    console.log('Extracted source from title:', possibleSource);
+    return possibleSource;
+  }
+  
+  // Last fallback: use URL
+  const link = extractText(itemXml, 'link') || '';
+  return extractSourceFromUrl(link);
+}
+
+// Search for related articles about the same story using Google News search
+async function searchRelatedArticles(mainTitle: string): Promise<Array<{ title: string; source: string; link: string }>> {
+  console.log('Searching for related articles:', mainTitle);
+  
+  // Clean title for search (remove source name if present)
+  const cleanTitle = mainTitle.split(' - ')[0].trim();
+  const searchQuery = encodeURIComponent(cleanTitle);
+  const searchUrl = `https://news.google.com/rss/search?q=${searchQuery}&hl=it&gl=IT&ceid=IT:it`;
+  
+  const response = await fetch(searchUrl, {
+    headers: { 
+      'User-Agent': 'Mozilla/5.0 (compatible; NoParrotBot/1.0)',
+      'Accept': 'application/xml, text/xml, */*'
+    }
+  });
+  
+  if (!response.ok) {
+    console.error('Failed to search related articles:', response.statusText);
+    return [];
+  }
+  
+  const text = await response.text();
+  const itemRegex = /<item>(.*?)<\/item>/gs;
+  const items = text.match(itemRegex);
+  
+  if (!items || items.length === 0) {
+    console.log('No related articles found in search');
+    return [];
+  }
+  
+  // Extract up to 8 articles from different sources
+  const articles: Array<{ title: string; source: string; link: string }> = [];
+  const seenSources = new Set<string>();
+  
+  for (const itemXml of items.slice(0, 15)) { // Check first 15 to get 8 unique sources
+    const title = extractText(itemXml, 'title');
+    const link = extractText(itemXml, 'link');
+    
+    if (!title || !link) continue;
+    
+    const source = extractSourceName(itemXml, title);
+    
+    // Skip duplicates from same source
+    if (seenSources.has(source.toLowerCase())) continue;
+    seenSources.add(source.toLowerCase());
+    
+    articles.push({ title, source, link });
+    
+    if (articles.length >= 8) break;
+  }
+  
+  console.log(`Found ${articles.length} unique sources for this story`);
   return articles;
 }
 
-// Fetch top story for category with clustered sources
-async function fetchTopCategoryStoryWithClusteredSources(
+// Fetch top story for category and search for multi-source coverage
+async function fetchTopCategoryStoryWithMultiSourceCoverage(
   category: string
 ): Promise<{
   mainTitle: string;
@@ -129,38 +179,27 @@ async function fetchTopCategoryStoryWithClusteredSources(
   
   console.log('Top headline for category:', mainTitle);
   
-  // Extract main link
-  const mainLink = extractText(firstItemXml, 'link') || '';
+  // PHASE 2: Search for related articles from multiple sources
+  const relatedArticles = await searchRelatedArticles(mainTitle);
   
-  // Extract description which contains HTML with clustered articles
-  const description = extractText(firstItemXml, 'description');
-  if (!description) {
-    console.log('No description found, using only main article');
+  if (relatedArticles.length === 0) {
+    // Fallback to just the main article if search fails
+    const mainLink = extractText(firstItemXml, 'link') || '';
+    const mainSource = extractSourceName(firstItemXml, mainTitle);
+    
     return {
       mainTitle,
       articles: [{
         title: mainTitle,
-        source: 'Google News',
+        source: mainSource,
         link: mainLink
       }]
     };
   }
   
-  // Parse clustered articles from description HTML
-  const clusteredArticles = parseClusteredArticles(description);
+  console.log(`Found ${relatedArticles.length} sources covering this story`);
   
-  // Extract real source from RSS <source> tag
-  const mainSource = extractText(firstItemXml, 'source') || extractSourceFromUrl(mainLink);
-  
-  // Add main article as first source
-  const articles = [
-    { title: mainTitle, source: mainSource, link: mainLink },
-    ...clusteredArticles.slice(0, 4) // Take up to 4 additional sources
-  ];
-  
-  console.log(`Total articles about this story: ${articles.length}`);
-  
-  return { mainTitle, articles };
+  return { mainTitle, articles: relatedArticles };
 }
 
 // Synthesize articles about the SAME story for a specific category
@@ -272,9 +311,9 @@ serve(async (req) => {
       });
     }
     
-    // 2. Fetch fresh data using clustering
+    // 2. Fetch fresh data using multi-source search
     console.log(`Fetching fresh interest focus for ${category}...`);
-    const { mainTitle, articles } = await fetchTopCategoryStoryWithClusteredSources(category);
+    const { mainTitle, articles } = await fetchTopCategoryStoryWithMultiSourceCoverage(category);
     
     if (articles.length === 0) {
       console.log('No articles found, using fallback');
@@ -299,8 +338,8 @@ serve(async (req) => {
     // 3. Synthesize with AI
     const { title, summary } = await synthesizeForCategory(category, mainTitle, articles);
     
-    // 4. Format sources
-    const sources = articles.slice(0, 3).map(a => ({
+    // 4. Format sources (take up to 5 diverse sources)
+    const sources = articles.slice(0, 5).map(a => ({
       icon: '📰',
       name: a.source,
       url: a.link
