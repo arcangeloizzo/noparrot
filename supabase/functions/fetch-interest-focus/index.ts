@@ -88,7 +88,14 @@ async function fetchTopCategoryStoryWithClusteredSources(
     throw new Error(`Category not mapped: ${category}`);
   }
   
-  const rssUrl = `https://news.google.com/rss/topics/${topicId}?hl=it&gl=IT&ceid=IT:it`;
+  // Fallback per "Società & Politica" che usa ricerca invece di topic
+  let rssUrl: string;
+  if (category === 'Società & Politica') {
+    console.log('Using search-based RSS for Società & Politica');
+    rssUrl = 'https://news.google.com/rss/search?q=politica+italia&hl=it&gl=IT&ceid=IT:it';
+  } else {
+    rssUrl = `https://news.google.com/rss/topics/${topicId}?hl=it&gl=IT&ceid=IT:it`;
+  }
   
   const response = await fetch(rssUrl, {
     headers: { 
@@ -144,7 +151,7 @@ async function fetchTopCategoryStoryWithClusteredSources(
   
   // Add main article as first source
   const articles = [
-    { title: mainTitle, source: 'Fonte principale', link: mainLink },
+    { title: mainTitle, source: extractSourceFromUrl(mainLink), link: mainLink },
     ...clusteredArticles.slice(0, 4) // Take up to 4 additional sources
   ];
   
