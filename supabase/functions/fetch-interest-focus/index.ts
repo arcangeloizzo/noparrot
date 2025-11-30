@@ -1,170 +1,168 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Mapping categorie NoParrot → RSS topics Google News
+// Map categorie NoParrot -> RSS topics Google News
 const CATEGORY_TO_RSS: Record<string, string> = {
+  'Tecnologia': 'TECHNOLOGY',
+  'Scienza': 'SCIENCE',
   'Società & Politica': 'NATION',
-  'Economia & Business': 'BUSINESS',
-  'Scienza & Tecnologia': 'TECHNOLOGY',
-  'Cultura & Arte': 'ENTERTAINMENT',
-  'Pianeta & Ambiente': 'SCIENCE',
-  'Sport & Lifestyle': 'SPORTS',
-  'Salute & Benessere': 'HEALTH',
-  'Media & Comunicazione': 'TECHNOLOGY'
+  'Salute': 'HEALTH',
+  'Economia': 'BUSINESS',
+  'Sport': 'SPORTS',
+  'Intrattenimento': 'ENTERTAINMENT'
 };
 
-// Helper per estrarre testo da XML (gestisce CDATA e testo semplice)
+// Helper to extract text from XML tags (handles CDATA and simple tags)
 function extractText(xml: string, tag: string): string | null {
-  // Prima prova formato CDATA: <tag><![CDATA[content]]></tag>
-  const cdataRegex = new RegExp(`<${tag}><!\\[CDATA\\[([^\\]]*?)\\]\\]><\\/${tag}>`, 'i');
-  const cdataMatch = xml.match(cdataRegex);
-  if (cdataMatch) return cdataMatch[1];
+  const cdataRegex = new RegExp(`<${tag}><!\\[CDATA\\[(.+?)\\]\\]></${tag}>`, 's');
+  const simpleRegex = new RegExp(`<${tag}>(.+?)</${tag}>`, 's');
   
-  // Poi prova formato semplice: <tag>content</tag>
-  const simpleRegex = new RegExp(`<${tag}>([^<]*?)<\\/${tag}>`, 'i');
+  const cdataMatch = xml.match(cdataRegex);
+  if (cdataMatch) return cdataMatch[1].trim();
+  
   const simpleMatch = xml.match(simpleRegex);
-  if (simpleMatch) return simpleMatch[1];
+  if (simpleMatch) return simpleMatch[1].trim();
   
   return null;
 }
 
-// Estrae keywords da un titolo per la ricerca
-function extractKeywords(title: string): string {
-  const stopWords = ['il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'uno', 'una', 'di', 'da', 'a', 'in', 'con', 'su', 'per', 'tra', 'fra', 'e', 'o'];
-  const words = title.toLowerCase()
-    .replace(/[^\w\s]/g, '')
-    .split(/\s+/)
-    .filter(w => w.length > 3 && !stopWords.includes(w));
+// Parse clustered articles from Google News description HTML
+function parseClusteredArticles(html: string): Array<{ title: string; source: string; link: string }> {
+  console.log('Parsing clustered articles from HTML description');
+  const articles: Array<{ title: string; source: string; link: string }> = [];
   
-  return words.slice(0, 4).join(' ');
-}
-
-// Cerca articoli su Google News per una specifica query
-async function searchGoogleNews(query: string, maxResults = 5) {
-  const searchUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=it&gl=IT&ceid=IT:it`;
+  // Google News description format: <a href="URL">Title</a>&nbsp;&nbsp;<font color="#6f6f6f">Source</font>
+  const articleRegex = /<a\s+href="([^"]+)"[^>]*>([^<]+)<\/a>(?:&nbsp;)*(?:<font[^>]*>([^<]+)<\/font>)?/gi;
   
-  console.log('Searching Google News:', searchUrl);
-  
-  const response = await fetch(searchUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; NoParrotBot/1.0)'
-    }
-  });
-  
-  if (!response.ok) {
-    throw new Error(`Search failed: ${response.status}`);
+  let match;
+  while ((match = articleRegex.exec(html)) !== null) {
+    const link = match[1];
+    const title = match[2].replace(/&quot;/g, '"').replace(/&amp;/g, '&').trim();
+    const source = match[3]?.trim() || 'Fonte';
+    
+    articles.push({ title, source, link });
   }
   
-  const text = await response.text();
-  const items: Array<{ title: string; description: string; link: string; source: string }> = [];
-  const itemRegex = /<item>(.*?)<\/item>/gs;
-  const matches = text.matchAll(itemRegex);
-  
-  const seenSources = new Set<string>();
-  
-  for (const match of matches) {
-    const itemXml = match[1];
-    const title = extractText(itemXml, 'title');
-    const description = extractText(itemXml, 'description');
-    const link = extractText(itemXml, 'link');
-    const source = extractText(itemXml, 'source');
-    
-    if (title && link && source) {
-      const sourceKey = source.split(' - ')[0].toLowerCase();
-      
-      if (!seenSources.has(sourceKey)) {
-        items.push({
-          title,
-          description: description || '',
-          link,
-          source
-        });
-        seenSources.add(sourceKey);
-      }
-    }
-    
-    if (items.length >= maxResults) break;
-  }
-  
-  console.log('Found articles from different sources:', items.length);
-  return items;
+  console.log(`Found ${articles.length} clustered articles`);
+  return articles;
 }
 
-// Recupera la top story per categoria e trova articoli correlati da fonti diverse
-async function fetchTopCategoryStoryWithMultipleSources(category: string) {
-  const rssTopic = CATEGORY_TO_RSS[category] || 'TECHNOLOGY';
-  const rssUrl = `https://news.google.com/rss?topic=${rssTopic}&hl=it&gl=IT&ceid=IT:it`;
+// Fetch top story for category with clustered sources
+async function fetchTopCategoryStoryWithClusteredSources(
+  category: string
+): Promise<{
+  mainTitle: string;
+  articles: Array<{ title: string; source: string; link: string }>;
+}> {
+  console.log(`Fetching top story for category: ${category}`);
   
-  console.log(`Fetching top headline for ${category}:`, rssUrl);
+  const topic = CATEGORY_TO_RSS[category];
+  if (!topic) {
+    throw new Error(`Category not mapped: ${category}`);
+  }
+  
+  const rssUrl = `https://news.google.com/rss/topics/CAAqJggKIiBDQkFTRWdvSUwyMHZNRGx1YlY4U0FtbDBHZ0pKVkNnQVAB?hl=it&gl=IT&ceid=IT:it`;
   
   const response = await fetch(rssUrl, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; NoParrotBot/1.0)'
+    headers: { 
+      'User-Agent': 'Mozilla/5.0 (compatible; NoParrotBot/1.0)',
+      'Accept': 'application/xml, text/xml, */*'
     }
   });
   
   if (!response.ok) {
-    throw new Error(`RSS fetch failed: ${response.status}`);
+    throw new Error(`Failed to fetch category RSS: ${response.statusText}`);
   }
   
   const text = await response.text();
+  console.log('Fetched category RSS feed successfully');
+  
+  // Extract first item (top headline for this category)
   const itemRegex = /<item>(.*?)<\/item>/gs;
-  const match = text.match(itemRegex);
+  const items = text.match(itemRegex);
   
-  if (!match || match.length === 0) {
-    throw new Error('No top headline found');
+  if (!items || items.length === 0) {
+    throw new Error('No articles found in category RSS feed');
   }
   
-  const firstItemXml = match[0];
-  const topTitle = extractText(firstItemXml, 'title');
+  const firstItemXml = items[0];
   
-  if (!topTitle) {
-    throw new Error('Could not extract top headline title');
+  // Extract main title
+  const mainTitle = extractText(firstItemXml, 'title');
+  if (!mainTitle) {
+    throw new Error('Could not extract main title from top story');
   }
   
-  console.log('Top headline:', topTitle);
+  console.log('Top headline for category:', mainTitle);
   
-  const keywords = extractKeywords(topTitle);
-  console.log('Search keywords:', keywords);
+  // Extract main link
+  const mainLink = extractText(firstItemXml, 'link') || '';
   
-  const relatedArticles = await searchGoogleNews(keywords, 5);
-  
-  if (relatedArticles.length === 0) {
-    throw new Error('No related articles found');
+  // Extract description which contains HTML with clustered articles
+  const description = extractText(firstItemXml, 'description');
+  if (!description) {
+    console.log('No description found, using only main article');
+    return {
+      mainTitle,
+      articles: [{
+        title: mainTitle,
+        source: 'Google News',
+        link: mainLink
+      }]
+    };
   }
   
-  return relatedArticles;
+  // Parse clustered articles from description HTML
+  const clusteredArticles = parseClusteredArticles(description);
+  
+  // Add main article as first source
+  const articles = [
+    { title: mainTitle, source: 'Fonte principale', link: mainLink },
+    ...clusteredArticles.slice(0, 4) // Take up to 4 additional sources
+  ];
+  
+  console.log(`Total articles about this story: ${articles.length}`);
+  
+  return { mainTitle, articles };
 }
 
-// Sintetizza con Lovable AI stile Perplexity per categoria specifica
-async function synthesizeForCategory(category: string, articles: Array<{ title: string; description: string; source: string }>) {
+// Synthesize articles about the SAME story for a specific category
+async function synthesizeForCategory(
+  category: string,
+  mainTitle: string,
+  articles: Array<{ title: string; source: string }>
+): Promise<{ title: string; summary: string }> {
+  console.log(`Synthesizing story for category: ${category}`);
+  
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
+  if (!LOVABLE_API_KEY) {
+    throw new Error('LOVABLE_API_KEY not configured');
+  }
+  
+  const prompt = `Analizza questi articoli di ${category} che parlano della STESSA NOTIZIA da fonti diverse.
 
-  const prompt = `Sei un giornalista investigativo esperto in ${category}. Analizza questi ${articles.length} articoli che parlano della STESSA notizia da fonti diverse e crea una sintesi autorevole in stile Perplexity.
+NOTIZIA PRINCIPALE:
+"${mainTitle}"
 
-ARTICOLI DA FONTI DIVERSE:
-${articles.map((a, i) => `
-Fonte ${i + 1}: ${a.source}
-Titolo: ${a.title}
-${a.description ? `Descrizione: ${a.description}` : ''}
-`).join('\n')}
+COPERTURA DA DIVERSE FONTI:
+${articles.map((a, i) => `${i + 1}. ${a.source}: "${a.title}"`).join('\n')}
 
-ISTRUZIONI:
-1. Identifica il FATTO CENTRALE comune a tutti gli articoli
-2. Analizza come le diverse fonti presentano la notizia nel contesto di ${category}
-3. Evidenzia eventuali prospettive o dettagli unici da ciascuna fonte
-4. Spiega perché questa notizia è rilevante per chi segue ${category}
+ISTRUZIONI RIGOROSE:
+1. Questa è UNA SOLA notizia di ${category} vista da prospettive diverse
+2. NON mescolare storie diverse - concentrati SOLO sul fatto principale
+3. Il titolo deve essere chiaro e specifico sul singolo evento
+4. Il summary deve spiegare il fatto centrale in modo oggettivo e sintetico
+5. Mantieni il focus sulla categoria ${category}
 
-Rispondi SOLO con un oggetto JSON (nessun testo aggiuntivo):
+Rispondi SOLO con JSON (nessun testo extra):
 {
-  "title": "Titolo chiaro e specifico per ${category} (max 60 caratteri)",
-  "summary": "Sintesi che integra le prospettive delle diverse fonti e spiega la rilevanza per ${category} (max 280 caratteri)"
+  "title": "Titolo specifico del singolo evento (max 50 caratteri)",
+  "summary": "Cosa è successo, chi è coinvolto, perché è importante - UN SOLO FATTO (max 250 caratteri)"
 }`;
 
   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -175,37 +173,57 @@ Rispondi SOLO con un oggetto JSON (nessun testo aggiuntivo):
     },
     body: JSON.stringify({
       model: 'google/gemini-2.5-flash',
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
+      messages: [
+        { role: 'user', content: prompt }
+      ],
+      temperature: 0.3,
+      max_tokens: 500
     }),
   });
 
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('AI API error:', response.status, errorText);
+    throw new Error(`AI synthesis failed: ${response.statusText}`);
+  }
+
   const data = await response.json();
-  const content = data.choices?.[0]?.message?.content || '{}';
+  const content = data.choices[0].message.content;
   
+  // Extract JSON from response (handles markdown code blocks)
   const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) throw new Error('Invalid AI response format');
+  if (!jsonMatch) {
+    throw new Error('Could not extract JSON from AI response');
+  }
   
-  return JSON.parse(jsonMatch[0]);
+  const result = JSON.parse(jsonMatch[0]);
+  console.log('AI synthesis completed:', result.title);
+  
+  return {
+    title: result.title,
+    summary: result.summary
+  };
 }
 
 serve(async (req) => {
+  // Handle CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { category } = await req.json();
+    console.log(`fetch-interest-focus invoked for category: ${category}`);
     
     if (!category) {
       throw new Error('Category is required');
     }
-
+    
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // 1. Check cache (valido per 12 ore)
+    
+    // 1. Check cache (valid for 12 hours)
     const { data: cached } = await supabase
       .from('interest_focus')
       .select('*')
@@ -214,87 +232,87 @@ serve(async (req) => {
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-
+    
     if (cached) {
       console.log(`Returning cached interest focus for ${category}`);
       return new Response(JSON.stringify(cached), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
-    }
-
-    // 2. Fetch top story per categoria con articoli da fonti multiple
-    console.log(`Fetching top story for category ${category} from multiple sources...`);
-    let articles;
-    try {
-      articles = await fetchTopCategoryStoryWithMultipleSources(category);
-    } catch (error) {
-      console.error(`Multi-source fetch error for ${category}:`, error);
-      articles = [];
     }
     
+    // 2. Fetch fresh data using clustering
+    console.log(`Fetching fresh interest focus for ${category}...`);
+    const { mainTitle, articles } = await fetchTopCategoryStoryWithClusteredSources(category);
+    
     if (articles.length === 0) {
-      console.log(`No articles found for ${category}, using fallback`);
-      
-      const fallbackFocus = {
+      console.log('No articles found, using fallback');
+      const fallback = {
+        id: crypto.randomUUID(),
         category,
-        title: `Novità in ${category}`,
-        summary: `Segui le discussioni della community per restare aggiornato su ${category}.`,
-        sources: [{ icon: "🗞️", name: "NoParrot" }],
-        trust_score: 'Medio',
-        reactions: { likes: 0, comments: 0, shares: 0 }
+        title: `Nessuna notizia di ${category}`,
+        summary: 'Al momento non ci sono notizie disponibili per questa categoria.',
+        sources: [{ icon: '📰', name: 'Google News', url: '' }],
+        trust_score: 'Medio' as const,
+        reactions: { likes: 0, comments: 0, shares: 0 },
+        created_at: new Date().toISOString(),
+        expires_at: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString()
       };
       
-      const { data: newFocus, error } = await supabase
-        .from('interest_focus')
-        .insert(fallbackFocus)
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      return new Response(JSON.stringify(newFocus), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      await supabase.from('interest_focus').insert(fallback);
+      return new Response(JSON.stringify(fallback), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-
-    // 3. Sintetizza con AI stile Perplexity
-    console.log(`Synthesizing ${articles.length} articles from different sources for ${category}...`);
-    const { title, summary } = await synthesizeForCategory(category, articles);
-
-    // 4. Prepara sources da fonti diverse
-    const sources = articles.slice(0, 3).map((a, i) => ({
-      icon: ['📰', '📄', '🗞️'][i],
-      name: a.source.split(' - ')[0].substring(0, 25),
+    
+    // 3. Synthesize with AI
+    const { title, summary } = await synthesizeForCategory(category, mainTitle, articles);
+    
+    // 4. Format sources
+    const sources = articles.slice(0, 3).map(a => ({
+      icon: '📰',
+      name: a.source,
       url: a.link
     }));
-
-    // 5. Salva nel database
-    const { data: newFocus, error } = await supabase
+    
+    // 5. Create interest focus record
+    const interestFocus = {
+      id: crypto.randomUUID(),
+      category,
+      title,
+      summary,
+      sources,
+      trust_score: 'Alto' as const, // Multi-source = higher trust
+      reactions: { likes: 0, comments: 0, shares: 0 },
+      created_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString()
+    };
+    
+    // 6. Store in database
+    const { error: insertError } = await supabase
       .from('interest_focus')
-      .insert({
-        category,
-        title,
-        summary,
-        sources,
-        trust_score: 'Alto',
-        reactions: { likes: 0, comments: 0, shares: 0 }
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    console.log(`Interest focus created for ${category}:`, newFocus.id);
-
-    return new Response(JSON.stringify(newFocus), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      .insert(interestFocus);
+    
+    if (insertError) {
+      console.error('Error inserting interest focus:', insertError);
+      throw insertError;
+    }
+    
+    console.log(`Interest focus created successfully for ${category}`);
+    
+    return new Response(JSON.stringify(interestFocus), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
-
+    
   } catch (error) {
     console.error('Error in fetch-interest-focus:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      }),
+      { 
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
   }
 });
