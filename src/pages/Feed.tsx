@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Logo } from "@/components/ui/logo";
 import { Header } from "@/components/navigation/Header";
 import { FeedCard } from "@/components/feed/FeedCardAdapt";
@@ -16,54 +16,49 @@ import { usePosts, useToggleReaction, Post } from "@/hooks/usePosts";
 import { useToast } from "@/hooks/use-toast";
 import { NotificationPermissionBanner } from "@/components/notifications/NotificationPermissionBanner";
 import { useQueryClient } from "@tanstack/react-query";
-
-// Mock Data per External Focus Cards
-const MOCK_DAILY_FOCUS = {
-  type: 'daily' as const,
-  title: "La Fusione Nucleare: Svolta Storica al MIT",
-  summary: "I ricercatori del MIT hanno raggiunto un traguardo senza precedenti nella fusione nucleare, aprendo la strada a una fonte di energia pulita e illimitata. L'esperimento ha dimostrato per la prima volta un guadagno netto di energia.",
-  sources: [
-    { icon: "📰", name: "NYT" },
-    { icon: "📄", name: "Repubblica" },
-    { icon: "🔬", name: "Nature" }
-  ],
-  trustScore: 'Alto' as const,
-  reactions: { likes: 234, comments: 89, shares: 45 }
-};
-
-const MOCK_INTEREST_FOCUS = [
-  {
-    type: 'interest' as const,
-    category: 'TECH',
-    title: "Apple annuncia il nuovo chip M4: rivoluzione nelle prestazioni",
-    summary: "Il nuovo processore M4 di Apple promette prestazioni rivoluzionarie con un'efficienza energetica senza precedenti. Gli sviluppatori potranno sfruttare capacità AI integrate direttamente nel silicio.",
-    sources: [
-      { icon: "🍎", name: "Apple" },
-      { icon: "📱", name: "The Verge" },
-      { icon: "💻", name: "Ars Technica" }
-    ],
-    trustScore: 'Alto' as const,
-    reactions: { likes: 156, comments: 34, shares: 28 }
-  },
-  {
-    type: 'interest' as const,
-    category: 'ARTE',
-    title: "Biennale di Venezia: le opere più discusse dell'edizione 2024",
-    summary: "La community dell'arte contemporanea dibatte sulle installazioni più controverse della Biennale. Temi come AI, sostenibilità e identità digitale dominano le discussioni.",
-    sources: [
-      { icon: "🎨", name: "Artforum" },
-      { icon: "🖼️", name: "Biennale" },
-      { icon: "📰", name: "Il Sole 24 Ore" }
-    ],
-    trustScore: 'Alto' as const,
-    reactions: { likes: 98, comments: 23, shares: 15 }
-  }
-];
+import { useDailyFocus } from "@/hooks/useDailyFocus";
+import { useInterestFocus } from "@/hooks/useInterestFocus";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Feed = () => {
+  const { user } = useAuth();
   const { data: dbPosts = [], isLoading, refetch } = usePosts();
   const toggleReaction = useToggleReaction();
   const queryClient = useQueryClient();
+  
+  // Fetch real Daily Focus
+  const { data: dailyFocus, isLoading: loadingDaily } = useDailyFocus();
+  
+  // Get user's profile to extract cognitive density
+  const [userCategories, setUserCategories] = useState<string[]>([]);
+  
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (!user?.id) return;
+      
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('cognitive_density')
+        .eq('id', user.id)
+        .single();
+      
+      if (profile?.cognitive_density) {
+        // Estrai top 2 categorie
+        const categories = Object.entries(profile.cognitive_density as Record<string, number>)
+          .sort(([, a], [, b]) => (b as number) - (a as number))
+          .slice(0, 2)
+          .map(([cat]) => cat);
+        
+        setUserCategories(categories);
+      }
+    };
+    
+    fetchUserProfile();
+  }, [user?.id]);
+  
+  // Fetch real Interest Focus based on user categories
+  const { data: interestFocus = [], isLoading: loadingInterest } = useInterestFocus(userCategories);
   const [activeNavTab, setActiveNavTab] = useState("home");
   const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
@@ -77,31 +72,32 @@ export const Feed = () => {
   const pullDistance = useRef<number>(0);
 
   // Build mixed feed: Daily Focus + User Posts + Interest Focus every 6 posts
-  const buildMixedFeed = () => {
+  const mixedFeed = useMemo(() => {
     const items: Array<{ type: 'daily' | 'interest' | 'post'; data: any; id: string }> = [];
     
-    // 1. Daily Focus always at top
-    items.push({ type: 'daily', data: MOCK_DAILY_FOCUS, id: 'daily-focus' });
+    // 1. Daily Focus always at top (REAL DATA)
+    if (dailyFocus) {
+      items.push({ type: 'daily', data: dailyFocus, id: dailyFocus.id });
+    }
     
     // 2. Intercalate user posts with Interest Focus every 6
+    let interestIndex = 0;
     dbPosts.forEach((post, index) => {
       items.push({ type: 'post', data: post, id: post.id });
       
-      // Insert Interest Focus after every 6 posts
-      const interestIndex = Math.floor(index / 6);
-      if ((index + 1) % 6 === 0 && MOCK_INTEREST_FOCUS[interestIndex]) {
+      // Insert Interest Focus after every 6 posts (REAL DATA)
+      if ((index + 1) % 6 === 0 && interestFocus[interestIndex]) {
         items.push({ 
           type: 'interest', 
-          data: MOCK_INTEREST_FOCUS[interestIndex],
-          id: `interest-focus-${interestIndex}`
+          data: interestFocus[interestIndex],
+          id: interestFocus[interestIndex].id
         });
+        interestIndex++;
       }
     });
     
     return items;
-  };
-
-  const mixedFeed = buildMixedFeed();
+  }, [dailyFocus, dbPosts, interestFocus]);
 
 
   useEffect(() => {
@@ -225,7 +221,7 @@ export const Feed = () => {
     );
   }
 
-  if (isLoading) {
+  if (isLoading || loadingDaily) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-lg text-muted-foreground">Caricamento feed...</div>
