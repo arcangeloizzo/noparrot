@@ -33,30 +33,39 @@ function extractText(xml: string, tag: string): string | null {
   return null;
 }
 
-// Fetch category-specific RSS
-async function fetchCategoryRSS(category: string) {
-  const rssTopic = CATEGORY_TO_RSS[category] || 'TECHNOLOGY';
-  const rssUrl = `https://news.google.com/rss?topic=${rssTopic}&hl=it&gl=IT&ceid=IT:it`;
+// Estrae keywords da un titolo per la ricerca
+function extractKeywords(title: string): string {
+  const stopWords = ['il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'uno', 'una', 'di', 'da', 'a', 'in', 'con', 'su', 'per', 'tra', 'fra', 'e', 'o'];
+  const words = title.toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .split(/\s+/)
+    .filter(w => w.length > 3 && !stopWords.includes(w));
   
-  console.log(`Fetching RSS for ${category} from:`, rssUrl);
+  return words.slice(0, 4).join(' ');
+}
+
+// Cerca articoli su Google News per una specifica query
+async function searchGoogleNews(query: string, maxResults = 5) {
+  const searchUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=it&gl=IT&ceid=IT:it`;
   
-  const response = await fetch(rssUrl, {
+  console.log('Searching Google News:', searchUrl);
+  
+  const response = await fetch(searchUrl, {
     headers: {
       'User-Agent': 'Mozilla/5.0 (compatible; NoParrotBot/1.0)'
     }
   });
   
   if (!response.ok) {
-    console.error('RSS fetch failed:', response.status, response.statusText);
-    throw new Error(`RSS fetch failed: ${response.status}`);
+    throw new Error(`Search failed: ${response.status}`);
   }
   
   const text = await response.text();
-  console.log(`RSS response length for ${category}:`, text.length);
-  
   const items: Array<{ title: string; description: string; link: string; source: string }> = [];
   const itemRegex = /<item>(.*?)<\/item>/gs;
   const matches = text.matchAll(itemRegex);
+  
+  const seenSources = new Set<string>();
   
   for (const match of matches) {
     const itemXml = match[1];
@@ -65,36 +74,97 @@ async function fetchCategoryRSS(category: string) {
     const link = extractText(itemXml, 'link');
     const source = extractText(itemXml, 'source');
     
-    if (title && link) {
-      items.push({
-        title,
-        description: description || '',
-        link,
-        source: source || 'Google News'
-      });
+    if (title && link && source) {
+      const sourceKey = source.split(' - ')[0].toLowerCase();
+      
+      if (!seenSources.has(sourceKey)) {
+        items.push({
+          title,
+          description: description || '',
+          link,
+          source
+        });
+        seenSources.add(sourceKey);
+      }
     }
     
-    if (items.length >= 4) break;
+    if (items.length >= maxResults) break;
   }
   
-  console.log(`Parsed items for ${category}:`, items.length);
+  console.log('Found articles from different sources:', items.length);
   return items;
 }
 
-// Sintetizza con AI
+// Recupera la top story per categoria e trova articoli correlati da fonti diverse
+async function fetchTopCategoryStoryWithMultipleSources(category: string) {
+  const rssTopic = CATEGORY_TO_RSS[category] || 'TECHNOLOGY';
+  const rssUrl = `https://news.google.com/rss?topic=${rssTopic}&hl=it&gl=IT&ceid=IT:it`;
+  
+  console.log(`Fetching top headline for ${category}:`, rssUrl);
+  
+  const response = await fetch(rssUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; NoParrotBot/1.0)'
+    }
+  });
+  
+  if (!response.ok) {
+    throw new Error(`RSS fetch failed: ${response.status}`);
+  }
+  
+  const text = await response.text();
+  const itemRegex = /<item>(.*?)<\/item>/gs;
+  const match = text.match(itemRegex);
+  
+  if (!match || match.length === 0) {
+    throw new Error('No top headline found');
+  }
+  
+  const firstItemXml = match[0];
+  const topTitle = extractText(firstItemXml, 'title');
+  
+  if (!topTitle) {
+    throw new Error('Could not extract top headline title');
+  }
+  
+  console.log('Top headline:', topTitle);
+  
+  const keywords = extractKeywords(topTitle);
+  console.log('Search keywords:', keywords);
+  
+  const relatedArticles = await searchGoogleNews(keywords, 5);
+  
+  if (relatedArticles.length === 0) {
+    throw new Error('No related articles found');
+  }
+  
+  return relatedArticles;
+}
+
+// Sintetizza con Lovable AI stile Perplexity per categoria specifica
 async function synthesizeForCategory(category: string, articles: Array<{ title: string; description: string; source: string }>) {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY) throw new Error('LOVABLE_API_KEY not configured');
 
-  const prompt = `Sei un giornalista specializzato in ${category}. Sintetizza queste notizie italiane in un'unica storia coerente per utenti interessati a questa area.
+  const prompt = `Sei un giornalista investigativo esperto in ${category}. Analizza questi ${articles.length} articoli che parlano della STESSA notizia da fonti diverse e crea una sintesi autorevole in stile Perplexity.
 
-Notizie su ${category}:
-${articles.map((a, i) => `${i + 1}. ${a.title}\n   ${a.description}\n   Fonte: ${a.source}`).join('\n\n')}
+ARTICOLI DA FONTI DIVERSE:
+${articles.map((a, i) => `
+Fonte ${i + 1}: ${a.source}
+Titolo: ${a.title}
+${a.description ? `Descrizione: ${a.description}` : ''}
+`).join('\n')}
+
+ISTRUZIONI:
+1. Identifica il FATTO CENTRALE comune a tutti gli articoli
+2. Analizza come le diverse fonti presentano la notizia nel contesto di ${category}
+3. Evidenzia eventuali prospettive o dettagli unici da ciascuna fonte
+4. Spiega perché questa notizia è rilevante per chi segue ${category}
 
 Rispondi SOLO con un oggetto JSON (nessun testo aggiuntivo):
 {
-  "title": "Titolo accattivante specifico per ${category}, max 60 caratteri",
-  "summary": "Sintesi coinvolgente 3-4 frasi, max 250 caratteri"
+  "title": "Titolo chiaro e specifico per ${category} (max 60 caratteri)",
+  "summary": "Sintesi che integra le prospettive delle diverse fonti e spiega la rilevanza per ${category} (max 280 caratteri)"
 }`;
 
   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -152,24 +222,24 @@ serve(async (req) => {
       });
     }
 
-    // 2. Fetch news per categoria
-    console.log(`Fetching news for category: ${category}`);
+    // 2. Fetch top story per categoria con articoli da fonti multiple
+    console.log(`Fetching top story for category ${category} from multiple sources...`);
     let articles;
     try {
-      articles = await fetchCategoryRSS(category);
+      articles = await fetchTopCategoryStoryWithMultipleSources(category);
     } catch (error) {
-      console.error(`RSS fetch error for ${category}:`, error);
+      console.error(`Multi-source fetch error for ${category}:`, error);
       articles = [];
     }
     
     if (articles.length === 0) {
       console.log(`No articles found for ${category}, using fallback`);
-      // Fallback graceful
+      
       const fallbackFocus = {
         category,
-        title: `Scopri ${category} su NoParrot`,
-        summary: "Segui le discussioni della community per rimanere aggiornato su questo argomento.",
-        sources: [{ icon: "🔍", name: "NoParrot" }],
+        title: `Novità in ${category}`,
+        summary: `Segui le discussioni della community per restare aggiornato su ${category}.`,
+        sources: [{ icon: "🗞️", name: "NoParrot" }],
         trust_score: 'Medio',
         reactions: { likes: 0, comments: 0, shares: 0 }
       };
@@ -187,14 +257,14 @@ serve(async (req) => {
       });
     }
 
-    // 3. Sintetizza con AI
-    console.log('Synthesizing with AI...');
+    // 3. Sintetizza con AI stile Perplexity
+    console.log(`Synthesizing ${articles.length} articles from different sources for ${category}...`);
     const { title, summary } = await synthesizeForCategory(category, articles);
 
-    // 4. Prepara sources
+    // 4. Prepara sources da fonti diverse
     const sources = articles.slice(0, 3).map((a, i) => ({
-      icon: ['🔍', '📱', '💡'][i],
-      name: a.source.split(' - ')[0].substring(0, 20),
+      icon: ['📰', '📄', '🗞️'][i],
+      name: a.source.split(' - ')[0].substring(0, 25),
       url: a.link
     }));
 
