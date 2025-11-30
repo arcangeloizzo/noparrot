@@ -18,13 +18,41 @@ const CATEGORY_TO_RSS: Record<string, string> = {
   'Media & Comunicazione': 'TECHNOLOGY'
 };
 
+// Helper per estrarre testo da XML (gestisce CDATA e testo semplice)
+function extractText(xml: string, tag: string): string | null {
+  // Prima prova formato CDATA: <tag><![CDATA[content]]></tag>
+  const cdataRegex = new RegExp(`<${tag}><!\\[CDATA\\[([^\\]]*?)\\]\\]><\\/${tag}>`, 'i');
+  const cdataMatch = xml.match(cdataRegex);
+  if (cdataMatch) return cdataMatch[1];
+  
+  // Poi prova formato semplice: <tag>content</tag>
+  const simpleRegex = new RegExp(`<${tag}>([^<]*?)<\\/${tag}>`, 'i');
+  const simpleMatch = xml.match(simpleRegex);
+  if (simpleMatch) return simpleMatch[1];
+  
+  return null;
+}
+
 // Fetch category-specific RSS
 async function fetchCategoryRSS(category: string) {
   const rssTopic = CATEGORY_TO_RSS[category] || 'TECHNOLOGY';
   const rssUrl = `https://news.google.com/rss?topic=${rssTopic}&hl=it&gl=IT&ceid=IT:it`;
   
-  const response = await fetch(rssUrl);
+  console.log(`Fetching RSS for ${category} from:`, rssUrl);
+  
+  const response = await fetch(rssUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; NoParrotBot/1.0)'
+    }
+  });
+  
+  if (!response.ok) {
+    console.error('RSS fetch failed:', response.status, response.statusText);
+    throw new Error(`RSS fetch failed: ${response.status}`);
+  }
+  
   const text = await response.text();
+  console.log(`RSS response length for ${category}:`, text.length);
   
   const items: Array<{ title: string; description: string; link: string; source: string }> = [];
   const itemRegex = /<item>(.*?)<\/item>/gs;
@@ -32,23 +60,24 @@ async function fetchCategoryRSS(category: string) {
   
   for (const match of matches) {
     const itemXml = match[1];
-    const titleMatch = itemXml.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/);
-    const descMatch = itemXml.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/);
-    const linkMatch = itemXml.match(/<link>(.*?)<\/link>/);
-    const sourceMatch = itemXml.match(/<source[^>]*>(.*?)<\/source>/);
+    const title = extractText(itemXml, 'title');
+    const description = extractText(itemXml, 'description');
+    const link = extractText(itemXml, 'link');
+    const source = extractText(itemXml, 'source');
     
-    if (titleMatch && linkMatch) {
+    if (title && link) {
       items.push({
-        title: titleMatch[1],
-        description: descMatch ? descMatch[1] : '',
-        link: linkMatch[1],
-        source: sourceMatch ? sourceMatch[1] : 'Google News'
+        title,
+        description: description || '',
+        link,
+        source: source || 'Google News'
       });
     }
     
     if (items.length >= 4) break;
   }
   
+  console.log(`Parsed items for ${category}:`, items.length);
   return items;
 }
 
@@ -125,10 +154,37 @@ serve(async (req) => {
 
     // 2. Fetch news per categoria
     console.log(`Fetching news for category: ${category}`);
-    const articles = await fetchCategoryRSS(category);
+    let articles;
+    try {
+      articles = await fetchCategoryRSS(category);
+    } catch (error) {
+      console.error(`RSS fetch error for ${category}:`, error);
+      articles = [];
+    }
     
     if (articles.length === 0) {
-      throw new Error(`No articles found for category: ${category}`);
+      console.log(`No articles found for ${category}, using fallback`);
+      // Fallback graceful
+      const fallbackFocus = {
+        category,
+        title: `Scopri ${category} su NoParrot`,
+        summary: "Segui le discussioni della community per rimanere aggiornato su questo argomento.",
+        sources: [{ icon: "🔍", name: "NoParrot" }],
+        trust_score: 'Medio',
+        reactions: { likes: 0, comments: 0, shares: 0 }
+      };
+      
+      const { data: newFocus, error } = await supabase
+        .from('interest_focus')
+        .insert(fallbackFocus)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      return new Response(JSON.stringify(newFocus), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // 3. Sintetizza con AI

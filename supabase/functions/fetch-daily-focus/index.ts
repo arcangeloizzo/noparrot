@@ -6,36 +6,66 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper per estrarre testo da XML (gestisce CDATA e testo semplice)
+function extractText(xml: string, tag: string): string | null {
+  // Prima prova formato CDATA: <tag><![CDATA[content]]></tag>
+  const cdataRegex = new RegExp(`<${tag}><!\\[CDATA\\[([^\\]]*?)\\]\\]><\\/${tag}>`, 'i');
+  const cdataMatch = xml.match(cdataRegex);
+  if (cdataMatch) return cdataMatch[1];
+  
+  // Poi prova formato semplice: <tag>content</tag>
+  const simpleRegex = new RegExp(`<${tag}>([^<]*?)<\\/${tag}>`, 'i');
+  const simpleMatch = xml.match(simpleRegex);
+  if (simpleMatch) return simpleMatch[1];
+  
+  return null;
+}
+
 // Parse Google News RSS
 async function fetchGoogleNewsRSS() {
   const rssUrl = 'https://news.google.com/rss?topic=WORLD&hl=it&gl=IT&ceid=IT:it';
-  const response = await fetch(rssUrl);
-  const text = await response.text();
   
-  // Parse XML (semplice parser regex per RSS)
+  console.log('Fetching RSS from:', rssUrl);
+  
+  const response = await fetch(rssUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (compatible; NoParrotBot/1.0)'
+    }
+  });
+  
+  if (!response.ok) {
+    console.error('RSS fetch failed:', response.status, response.statusText);
+    throw new Error(`RSS fetch failed: ${response.status}`);
+  }
+  
+  const text = await response.text();
+  console.log('RSS response length:', text.length);
+  
+  // Parse XML
   const items: Array<{ title: string; description: string; link: string; source: string }> = [];
   const itemRegex = /<item>(.*?)<\/item>/gs;
   const matches = text.matchAll(itemRegex);
   
   for (const match of matches) {
     const itemXml = match[1];
-    const titleMatch = itemXml.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/);
-    const descMatch = itemXml.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/);
-    const linkMatch = itemXml.match(/<link>(.*?)<\/link>/);
-    const sourceMatch = itemXml.match(/<source[^>]*>(.*?)<\/source>/);
+    const title = extractText(itemXml, 'title');
+    const description = extractText(itemXml, 'description');
+    const link = extractText(itemXml, 'link');
+    const source = extractText(itemXml, 'source');
     
-    if (titleMatch && linkMatch) {
+    if (title && link) {
       items.push({
-        title: titleMatch[1],
-        description: descMatch ? descMatch[1] : '',
-        link: linkMatch[1],
-        source: sourceMatch ? sourceMatch[1] : 'Google News'
+        title,
+        description: description || '',
+        link,
+        source: source || 'Google News'
       });
     }
     
     if (items.length >= 5) break; // Top 5 news
   }
   
+  console.log('Parsed items:', items.length);
   return items;
 }
 
@@ -106,10 +136,37 @@ serve(async (req) => {
 
     // 2. Fetch news da Google RSS
     console.log('Fetching fresh news from Google RSS...');
-    const articles = await fetchGoogleNewsRSS();
+    let articles;
+    try {
+      articles = await fetchGoogleNewsRSS();
+    } catch (error) {
+      console.error('RSS fetch error:', error);
+      articles = [];
+    }
     
     if (articles.length === 0) {
-      throw new Error('No articles found');
+      console.log('No articles found, using fallback');
+      // Fallback graceful
+      const fallbackFocus = {
+        title: "Resta informato con NoParrot",
+        summary: "Segui le discussioni della community per restare aggiornato sulle notizie del giorno.",
+        sources: [{ icon: "🗞️", name: "NoParrot" }],
+        trust_score: 'Medio',
+        category: 'Mondo',
+        reactions: { likes: 0, comments: 0, shares: 0 }
+      };
+      
+      const { data: newFocus, error } = await supabase
+        .from('daily_focus')
+        .insert(fallbackFocus)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      return new Response(JSON.stringify(newFocus), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // 3. Sintetizza con AI
