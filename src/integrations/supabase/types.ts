@@ -153,6 +153,69 @@ export type Database = {
           },
         ]
       }
+      daily_focus: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          reactions: Json | null
+          sources: Json
+          summary: string
+          title: string
+          trust_score: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          reactions?: Json | null
+          sources: Json
+          summary: string
+          title: string
+          trust_score?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          reactions?: Json | null
+          sources?: Json
+          summary?: string
+          title?: string
+          trust_score?: string | null
+        }
+        Relationships: []
+      }
+      focus_reactions: {
+        Row: {
+          created_at: string | null
+          focus_id: string
+          focus_type: string
+          id: string
+          reaction_type: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          focus_id: string
+          focus_type: string
+          id?: string
+          reaction_type: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          focus_id?: string
+          focus_type?: string
+          id?: string
+          reaction_type?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       followers: {
         Row: {
           created_at: string | null
@@ -202,6 +265,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      interest_focus: {
+        Row: {
+          category: string
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          reactions: Json | null
+          sources: Json
+          summary: string
+          title: string
+          trust_score: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          reactions?: Json | null
+          sources: Json
+          summary: string
+          title: string
+          trust_score?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          reactions?: Json | null
+          sources?: Json
+          summary?: string
+          title?: string
+          trust_score?: string | null
+        }
+        Relationships: []
       }
       media: {
         Row: {
