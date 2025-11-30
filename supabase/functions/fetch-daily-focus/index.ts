@@ -121,7 +121,7 @@ async function fetchTopStoryWithClusteredSources(): Promise<{
   
   // Add main article as first source
   const articles = [
-    { title: mainTitle, source: 'Fonte principale', link: mainLink },
+    { title: mainTitle, source: extractSourceFromUrl(mainLink), link: mainLink },
     ...clusteredArticles.slice(0, 4) // Take up to 4 additional sources
   ];
   
