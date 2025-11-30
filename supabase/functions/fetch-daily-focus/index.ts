@@ -1,4 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // Helper to extract text from XML tags (handles CDATA and simple tags)
@@ -182,6 +187,11 @@ Rispondi SOLO con JSON (nessun testo extra):
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   try {
     console.log('fetch-daily-focus invoked');
     
@@ -201,7 +211,7 @@ serve(async (req) => {
     if (cached) {
       console.log('Returning cached daily focus');
       return new Response(JSON.stringify(cached), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
     
@@ -224,7 +234,7 @@ serve(async (req) => {
       
       await supabase.from('daily_focus').insert(fallback);
       return new Response(JSON.stringify(fallback), {
-        headers: { 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
     
@@ -263,7 +273,7 @@ serve(async (req) => {
     console.log('Daily focus created successfully');
     
     return new Response(JSON.stringify(dailyFocus), {
-      headers: { 'Content-Type': 'application/json' }
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
     
   } catch (error) {
@@ -274,7 +284,7 @@ serve(async (req) => {
       }),
       { 
         status: 500,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }

@@ -261,7 +261,7 @@ export const Feed = () => {
                   title={item.data.title}
                   summary={item.data.summary}
                   sources={item.data.sources}
-                  trustScore={item.data.trustScore}
+                  trustScore={item.data.trust_score}
                   reactions={item.data.reactions}
                   onClick={() => {
                     toast({
