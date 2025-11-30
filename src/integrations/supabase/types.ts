@@ -159,6 +159,7 @@ export type Database = {
           created_at: string | null
           expires_at: string | null
           id: string
+          image_url: string | null
           reactions: Json | null
           sources: Json
           summary: string
@@ -170,6 +171,7 @@ export type Database = {
           created_at?: string | null
           expires_at?: string | null
           id?: string
+          image_url?: string | null
           reactions?: Json | null
           sources: Json
           summary: string
@@ -181,6 +183,7 @@ export type Database = {
           created_at?: string | null
           expires_at?: string | null
           id?: string
+          image_url?: string | null
           reactions?: Json | null
           sources?: Json
           summary?: string
@@ -272,6 +275,7 @@ export type Database = {
           created_at: string | null
           expires_at: string | null
           id: string
+          image_url: string | null
           reactions: Json | null
           sources: Json
           summary: string
@@ -283,6 +287,7 @@ export type Database = {
           created_at?: string | null
           expires_at?: string | null
           id?: string
+          image_url?: string | null
           reactions?: Json | null
           sources: Json
           summary: string
@@ -294,6 +299,7 @@ export type Database = {
           created_at?: string | null
           expires_at?: string | null
           id?: string
+          image_url?: string | null
           reactions?: Json | null
           sources?: Json
           summary?: string

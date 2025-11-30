@@ -69,6 +69,23 @@ function extractSourceName(itemXml: string, title: string): string {
   return extractSourceFromUrl(link);
 }
 
+// Extract image from RSS item
+function extractImage(itemXml: string): string | null {
+  // Try <media:content> tag (most common in Google News)
+  const mediaMatch = itemXml.match(/<media:content[^>]*url="([^"]+)"/);
+  if (mediaMatch) return mediaMatch[1];
+  
+  // Try <enclosure> tag
+  const enclosureMatch = itemXml.match(/<enclosure[^>]*url="([^"]+)"/);
+  if (enclosureMatch) return enclosureMatch[1];
+  
+  // Try og:image from description HTML
+  const imgMatch = itemXml.match(/<img[^>]*src="([^"]+)"/);
+  if (imgMatch) return imgMatch[1];
+  
+  return null;
+}
+
 // Search for related articles about the same story using Google News search
 async function searchRelatedArticles(mainTitle: string): Promise<Array<{ title: string; source: string; link: string }>> {
   console.log('Searching for related articles:', mainTitle);
@@ -130,6 +147,7 @@ async function fetchTopCategoryStoryWithMultiSourceCoverage(
 ): Promise<{
   mainTitle: string;
   articles: Array<{ title: string; source: string; link: string }>;
+  imageUrl: string | null;
 }> {
   console.log(`Fetching top story for category: ${category}`);
   
@@ -171,13 +189,15 @@ async function fetchTopCategoryStoryWithMultiSourceCoverage(
   
   const firstItemXml = items[0];
   
-  // Extract main title
+  // Extract main title and image
   const mainTitle = extractText(firstItemXml, 'title');
   if (!mainTitle) {
     throw new Error('Could not extract main title from top story');
   }
   
+  const imageUrl = extractImage(firstItemXml);
   console.log('Top headline for category:', mainTitle);
+  if (imageUrl) console.log('Image found:', imageUrl);
   
   // PHASE 2: Search for related articles from multiple sources
   const relatedArticles = await searchRelatedArticles(mainTitle);
@@ -193,13 +213,14 @@ async function fetchTopCategoryStoryWithMultiSourceCoverage(
         title: mainTitle,
         source: mainSource,
         link: mainLink
-      }]
+      }],
+      imageUrl
     };
   }
   
   console.log(`Found ${relatedArticles.length} sources covering this story`);
   
-  return { mainTitle, articles: relatedArticles };
+  return { mainTitle, articles: relatedArticles, imageUrl };
 }
 
 // Synthesize articles about the SAME story for a specific category
@@ -227,13 +248,13 @@ ISTRUZIONI RIGOROSE:
 1. Questa è UNA SOLA notizia di ${category} vista da prospettive diverse
 2. NON mescolare storie diverse - concentrati SOLO sul fatto principale
 3. Il titolo deve essere chiaro e specifico sul singolo evento
-4. Il summary deve spiegare il fatto centrale in modo oggettivo e sintetico
+4. Il summary deve essere informativo e completo: spiega cosa è successo, chi è coinvolto, il contesto, perché è importante per ${category}, e quali sono le implicazioni. Fornisci dettagli sufficienti per comprendere la notizia senza dover leggere le fonti (400-600 caratteri).
 5. Mantieni il focus sulla categoria ${category}
 
 Rispondi SOLO con JSON (nessun testo extra):
 {
   "title": "Titolo specifico del singolo evento (max 50 caratteri)",
-  "summary": "Cosa è successo, chi è coinvolto, perché è importante - UN SOLO FATTO (max 250 caratteri)"
+  "summary": "Spiegazione completa: cosa è successo, chi è coinvolto, contesto, perché è importante, implicazioni (400-600 caratteri)"
 }`;
 
   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -248,7 +269,7 @@ Rispondi SOLO con JSON (nessun testo extra):
         { role: 'user', content: prompt }
       ],
       temperature: 0.3,
-      max_tokens: 500
+      max_tokens: 800
     }),
   });
 
@@ -313,7 +334,7 @@ serve(async (req) => {
     
     // 2. Fetch fresh data using multi-source search
     console.log(`Fetching fresh interest focus for ${category}...`);
-    const { mainTitle, articles } = await fetchTopCategoryStoryWithMultiSourceCoverage(category);
+    const { mainTitle, articles, imageUrl } = await fetchTopCategoryStoryWithMultiSourceCoverage(category);
     
     if (articles.length === 0) {
       console.log('No articles found, using fallback');
@@ -325,6 +346,7 @@ serve(async (req) => {
         sources: [{ icon: '📰', name: 'Google News', url: '' }],
         trust_score: 'Medio' as const,
         reactions: { likes: 0, comments: 0, shares: 0 },
+        image_url: null,
         created_at: new Date().toISOString(),
         expires_at: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString()
       };
@@ -354,6 +376,7 @@ serve(async (req) => {
       sources,
       trust_score: 'Alto' as const, // Multi-source = higher trust
       reactions: { likes: 0, comments: 0, shares: 0 },
+      image_url: imageUrl,
       created_at: new Date().toISOString(),
       expires_at: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString()
     };
