@@ -236,7 +236,11 @@ export const FocusDetailSheet = ({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={onComment}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log('[FocusDetailSheet] Comment button clicked');
+                  onComment?.();
+                }}
                 className="flex items-center gap-2 text-gray-400 hover:text-primary"
               >
                 <MessageCircle className="w-5 h-5" />
