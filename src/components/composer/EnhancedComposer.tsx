@@ -18,6 +18,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { MentionDropdown } from "@/components/feed/MentionDropdown";
 import { useUserSearch } from "@/hooks/useUserSearch";
 import { useQueryClient } from "@tanstack/react-query";
+import { updateCognitiveDensityWeighted } from "@/lib/cognitiveDensity";
+import { classifyContent } from "@/lib/ai-helpers";
 
 interface EnhancedComposerProps {
   isOpen: boolean;
@@ -225,6 +227,18 @@ export function EnhancedComposer({
             order_idx: i
           });
         }
+      }
+
+      // Classifica il contenuto e aggiorna cognitive density
+      const category = await classifyContent({
+        text: text,
+        title: urlPreview?.title,
+        summary: urlPreview?.content || urlPreview?.summary
+      });
+
+      if (category) {
+        const action = quotedPost?.id ? 'SHARE_POST' : 'CREATE_POST';
+        await updateCognitiveDensityWeighted(user.id, category, action);
       }
 
       setPublishedPost({

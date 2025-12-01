@@ -18,6 +18,7 @@ import { getWordCount, getTestModeWithSource } from '@/lib/gate-utils';
 import { MentionDropdown } from "@/components/feed/MentionDropdown";
 import { useUserSearch } from "@/hooks/useUserSearch";
 import { useQueryClient } from "@tanstack/react-query";
+import { updateCognitiveDensityWeighted } from "@/lib/cognitiveDensity";
 
 interface ComposerModalProps {
   isOpen: boolean;
@@ -256,6 +257,12 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             order_idx: i
           });
         }
+      }
+
+      // Aggiorna cognitive density con peso
+      if (category) {
+        const action = quotedPost?.id ? 'SHARE_POST' : 'CREATE_POST';
+        await updateCognitiveDensityWeighted(user.id, category, action);
       }
 
       // Invalida queries per ricaricare il feed immediatamente
