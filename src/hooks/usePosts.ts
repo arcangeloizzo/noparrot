@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { updateCognitiveDensityWeighted } from '@/lib/cognitiveDensity';
 
 export interface Post {
   id: string;
@@ -181,11 +182,13 @@ export const useToggleReaction = () => {
         .maybeSingle();
 
       if (existing) {
+        // Rimuovi reazione
         await supabase
           .from('reactions')
           .delete()
           .eq('id', existing.id);
       } else {
+        // Aggiungi reazione
         await supabase
           .from('reactions')
           .insert({
@@ -193,6 +196,19 @@ export const useToggleReaction = () => {
             user_id: user.id,
             reaction_type: reactionType,
           });
+
+        // Se è un like (heart), aggiorna cognitive density
+        if (reactionType === 'heart') {
+          const { data: postData } = await supabase
+            .from('posts')
+            .select('category')
+            .eq('id', postId)
+            .single();
+          
+          if (postData?.category) {
+            await updateCognitiveDensityWeighted(user.id, postData.category, 'LIKE');
+          }
+        }
       }
     },
     onSuccess: () => {

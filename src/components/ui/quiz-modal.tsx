@@ -3,8 +3,9 @@ import { Button } from "./button";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { QuizQuestion } from "@/lib/ai-helpers";
 import { cn } from "@/lib/utils";
-import { updateCognitiveDensity } from "@/lib/cognitiveDensity";
+import { updateCognitiveDensityWeighted } from "@/lib/cognitiveDensity";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface QuizModalProps {
   questions: QuizQuestion[];
@@ -101,9 +102,9 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
       const validationResult = await onSubmit(answers);
       setResult(validationResult);
       
-      // Se passato e c'è una categoria, incrementa cognitive_density
+      // Se passato e c'è una categoria, incrementa cognitive_density con peso COMMENT_WITH_GATE
       if (validationResult.passed && user && postCategory) {
-        await updateCognitiveDensity(user.id, postCategory);
+        await updateCognitiveDensityWeighted(user.id, postCategory, 'COMMENT_WITH_GATE');
       }
     } catch (error) {
       console.error('Error submitting quiz:', error);
