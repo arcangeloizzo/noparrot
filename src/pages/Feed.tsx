@@ -4,6 +4,7 @@ import { Header } from "@/components/navigation/Header";
 import { FeedCard } from "@/components/feed/FeedCardAdapt";
 import { ExternalFocusCard } from "@/components/feed/ExternalFocusCard";
 import { FocusDetailSheet } from "@/components/feed/FocusDetailSheet";
+import { FocusCommentChoiceSheet } from "@/components/feed/FocusCommentChoiceSheet";
 import { CommentsSheet } from "@/components/feed/CommentsSheet";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
@@ -76,6 +77,7 @@ export const Feed = () => {
   const [selectedFocus, setSelectedFocus] = useState<any>(null);
   const [focusCommentsOpen, setFocusCommentsOpen] = useState(false);
   const [selectedFocusForComments, setSelectedFocusForComments] = useState<any>(null);
+  const [commentChoiceOpen, setCommentChoiceOpen] = useState(false);
 
   // Build mixed feed: Daily Focus + User Posts + Interest Focus every 6 posts
   const mixedFeed = useMemo(() => {
@@ -349,17 +351,54 @@ export const Feed = () => {
       )}
 
       {selectedFocus && (
-        <FocusDetailSheet
-          open={focusDetailOpen}
-          onOpenChange={setFocusDetailOpen}
-          type={selectedFocus.type === 'daily' ? 'daily' : 'interest'}
-          category={selectedFocus.data.category}
-          title={selectedFocus.data.title}
-          summary={selectedFocus.data.summary}
-          sources={selectedFocus.data.sources}
-          imageUrl={selectedFocus.data.image_url}
-          focusId={selectedFocus.data.id}
-        />
+        <>
+          <FocusDetailSheet
+            open={focusDetailOpen}
+            onOpenChange={setFocusDetailOpen}
+            type={selectedFocus.type === 'daily' ? 'daily' : 'interest'}
+            category={selectedFocus.data.category}
+            title={selectedFocus.data.title}
+            deepContent={selectedFocus.data.deep_content}
+            sources={selectedFocus.data.sources}
+            imageUrl={selectedFocus.data.image_url}
+            focusId={selectedFocus.data.id}
+            reactions={selectedFocus.data.reactions}
+            onLike={() => {
+              toast({
+                title: "Like",
+                description: "Funzionalità like Focus (da implementare)"
+              });
+            }}
+            onComment={() => {
+              setCommentChoiceOpen(true);
+            }}
+            onShare={() => {
+              toast({
+                title: "Condividi",
+                description: "Funzionalità share Focus (da implementare)"
+              });
+            }}
+          />
+          
+          <FocusCommentChoiceSheet
+            open={commentChoiceOpen}
+            onOpenChange={setCommentChoiceOpen}
+            onAwareComment={() => {
+              // TODO: Implementare gate comprehension
+              toast({
+                title: "Commento Consapevole",
+                description: "Gate comprehension da implementare"
+              });
+            }}
+            onQuickComment={() => {
+              // Open comment directly (no gate)
+              toast({
+                title: "Commento Rapido",
+                description: "Aggiungi il tuo commento"
+              });
+            }}
+          />
+        </>
       )}
 
       {selectedFocusForComments && (
