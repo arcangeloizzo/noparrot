@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Clock, Hash, User, Link as LinkIcon } from "lucide-react";
 import { useUserSearch } from "@/hooks/useUserSearch";
+import { usePopularTopics } from "@/hooks/usePopularTopics";
+import { usePopularSources } from "@/hooks/usePopularSources";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface SearchSuggestionsProps {
@@ -9,12 +11,11 @@ interface SearchSuggestionsProps {
   onClose: () => void;
 }
 
-const POPULAR_TOPICS = ["Politica", "Tecnologia", "Scienza", "Sport", "Economia"];
-const POPULAR_SOURCES = ["ilpost.it", "repubblica.it", "corriere.it", "ansa.it"];
-
 export const SearchSuggestions = ({ query, onSelect, onClose }: SearchSuggestionsProps) => {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const { data: users = [] } = useUserSearch(query);
+  const { data: popularTopics = [] } = usePopularTopics();
+  const { data: popularSources = [] } = usePopularSources();
 
   useEffect(() => {
     const recent = JSON.parse(localStorage.getItem("recentSearches") || "[]");
@@ -34,11 +35,11 @@ export const SearchSuggestions = ({ query, onSelect, onClose }: SearchSuggestion
   }, [onClose]);
 
   const filteredTopics = query
-    ? POPULAR_TOPICS.filter(t => t.toLowerCase().includes(query.toLowerCase()))
+    ? popularTopics.filter(t => t.toLowerCase().includes(query.toLowerCase()))
     : [];
 
   const filteredSources = query
-    ? POPULAR_SOURCES.filter(s => s.toLowerCase().includes(query.toLowerCase()))
+    ? popularSources.filter(s => s.toLowerCase().includes(query.toLowerCase()))
     : [];
 
   if (!query && recentSearches.length === 0) {
@@ -91,7 +92,7 @@ export const SearchSuggestions = ({ query, onSelect, onClose }: SearchSuggestion
       {filteredTopics.length > 0 && (
         <div className="p-2 border-t border-border">
           <div className="px-3 py-2 text-xs font-medium text-muted-foreground">Argomenti</div>
-          {filteredTopics.map((topic, i) => (
+          {filteredTopics.slice(0, 5).map((topic, i) => (
             <button
               key={i}
               onClick={() => onSelect(`#${topic}`)}
@@ -108,7 +109,7 @@ export const SearchSuggestions = ({ query, onSelect, onClose }: SearchSuggestion
       {filteredSources.length > 0 && (
         <div className="p-2 border-t border-border">
           <div className="px-3 py-2 text-xs font-medium text-muted-foreground">Fonti</div>
-          {filteredSources.map((source, i) => (
+          {filteredSources.slice(0, 5).map((source, i) => (
             <button
               key={i}
               onClick={() => onSelect(`site:${source}`)}

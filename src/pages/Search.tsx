@@ -1,89 +1,83 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/navigation/Header";
 import { SearchBar } from "@/components/search/SearchBar";
+import { SearchTabs, SearchTab } from "@/components/search/SearchTabs";
+import { SearchResults } from "@/components/search/SearchResults";
+import { SearchFilters, SearchFiltersState } from "@/components/search/SearchFilters";
+import { QuickFilters } from "@/components/search/QuickFilters";
 import { TrendingTopicCard } from "@/components/search/TrendingTopicCard";
-import { useToast } from "@/hooks/use-toast";
-
-// Mock Data per Trending Topics (discussioni community interne)
-const MOCK_TRENDING_TOPICS = [
-  {
-    id: '1',
-    title: 'Il caso Ferragni',
-    summary: 'La community discute sulla strategia comunicativa di Chiara Ferragni post-pandoro. I temi più dibattuti riguardano la trasparenza degli influencer e le responsabilità verso i follower.',
-    postCount: 450
-  },
-  {
-    id: '2',
-    title: "L'AI Act europeo",
-    summary: "La community NoParrot sta discutendo le implicazioni dell'AI Act europeo. I temi più dibattuti riguardano la trasparenza algoritmica, i diritti dei creatori e l'impatto sulle piccole startup tecnologiche.",
-    postCount: 328
-  },
-  {
-    id: '3',
-    title: 'Crisi climatica e greenwashing',
-    summary: "Discussione accesa sulle pratiche di greenwashing delle grandi aziende. Gli utenti condividono casi di studio e analizzano le strategie di comunicazione ambientale.",
-    postCount: 267
-  },
-  {
-    id: '4',
-    title: 'Il futuro del lavoro remoto',
-    summary: "La community dibatte sulle nuove politiche aziendali post-pandemia. Tra i temi: produttività, work-life balance e l'impatto sul mercato immobiliare.",
-    postCount: 189
-  },
-  {
-    id: '5',
-    title: 'Salute mentale e social media',
-    summary: "Discussione approfondita sull'impatto dei social media sulla salute mentale dei giovani. Gli utenti condividono ricerche e esperienze personali.",
-    postCount: 156
-  },
-  {
-    id: '6',
-    title: 'Geopolitica: tensioni nel Mar Cinese',
-    summary: "Analisi approfondita delle tensioni geopolitiche nella regione. La community discute le implicazioni per l'economia globale e la sicurezza internazionale.",
-    postCount: 134
-  },
-  {
-    id: '7',
-    title: 'NFT e proprietà digitale',
-    summary: "Dibattito sul futuro degli NFT oltre l'arte. Gli utenti esplorano applicazioni in ambito gaming, ticketing e certificazione.",
-    postCount: 112
-  },
-  {
-    id: '8',
-    title: 'Medicina personalizzata e AI',
-    summary: "La community medica discute l'integrazione dell'intelligenza artificiale nella diagnosi personalizzata. Focus su etica e privacy dei dati sanitari.",
-    postCount: 98
-  }
-];
+import { useTrendingTopics } from "@/hooks/useTrendingTopics";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Search = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryParam = searchParams.get("q") || "";
+  const tabParam = (searchParams.get("tab") || "posts") as SearchTab;
+  
+  const [searchQuery, setSearchQuery] = useState(queryParam);
+  const [activeTab, setActiveTab] = useState<SearchTab>(tabParam);
+  const [filters, setFilters] = useState<SearchFiltersState>({
+    dateRange: "30days",
+    language: "auto",
+    contentType: [],
+    trustScore: "all",
+    sortBy: "relevance"
+  });
+  const [quickFilters, setQuickFilters] = useState<string[]>([]);
+
+  const handleQuickFilterToggle = (filter: string) => {
+    setQuickFilters(prev => 
+      prev.includes(filter) 
+        ? prev.filter(f => f !== filter)
+        : [...prev, filter]
+    );
+  };
+
+  const { data: trendingTopics, isLoading } = useTrendingTopics();
+
+  // Sync URL params with state
+  useEffect(() => {
+    setSearchQuery(queryParam);
+    setActiveTab(tabParam);
+  }, [queryParam, tabParam]);
 
   const handleSearch = (query: string) => {
     console.log("Searching for:", query);
     
+    // Save to recent searches
     const recentSearches = JSON.parse(localStorage.getItem('recentSearches') || '[]');
     if (query && !recentSearches.includes(query)) {
       const updated = [query, ...recentSearches].slice(0, 5);
       localStorage.setItem('recentSearches', JSON.stringify(updated));
     }
+
+    // Update URL params
+    setSearchParams({ q: query, tab: activeTab });
   };
 
-  const handleTopicClick = (topic: typeof MOCK_TRENDING_TOPICS[0]) => {
-    toast({
-      title: "Navigazione ai post",
-      description: `Apertura lista post filtrati per: ${topic.title}`
-    });
+  const handleTabChange = (tab: SearchTab) => {
+    setActiveTab(tab);
+    if (searchQuery) {
+      setSearchParams({ q: searchQuery, tab });
+    }
   };
+
+  const handleTopicClick = (category: string) => {
+    const query = `#${category}`;
+    setSearchQuery(query);
+    setSearchParams({ q: query, tab: "posts" });
+  };
+
+  const hasActiveQuery = searchQuery.trim().length > 0;
 
   return (
-    <div className="min-h-screen bg-[#0E141A] pb-20">
+    <div className="min-h-screen bg-background pb-20">
       <Header />
       
       <div className="mobile-container max-w-[600px] mx-auto">
         {/* Sticky Search Bar */}
-        <div className="sticky top-0 bg-[#0E141A]/95 backdrop-blur-sm z-20 p-4">
+        <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-20 p-4">
           <SearchBar 
             value={searchQuery}
             onChange={setSearchQuery}
@@ -91,30 +85,73 @@ export const Search = () => {
           />
         </div>
 
-        {/* Trending Topics - Polso Interno della Community */}
-        <div className="p-4 space-y-4">
-          <div className="space-y-1">
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <span>🔥</span>
-              <span>Di cosa parla la community</span>
-            </h2>
-            <p className="text-sm text-gray-400">
-              Le discussioni più attive del momento
-            </p>
+        {!hasActiveQuery ? (
+          /* Trending Topics View */
+          <div className="p-4 space-y-4">
+            <div className="space-y-1">
+              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                <span>🔥</span>
+                <span>Di cosa parla la community</span>
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Le discussioni più attive degli ultimi 7 giorni
+              </p>
+            </div>
+            
+            <div className="space-y-3">
+              {isLoading ? (
+                // Loading skeletons
+                Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="bg-muted rounded-xl p-4 space-y-2">
+                    <Skeleton className="h-5 w-3/4" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-2/3" />
+                  </div>
+                ))
+              ) : trendingTopics && trendingTopics.length > 0 ? (
+                trendingTopics.map((topic) => (
+                  <TrendingTopicCard
+                    key={topic.category}
+                    title={topic.category}
+                    summary={topic.summary}
+                    postCount={topic.postCount}
+                    onClick={() => handleTopicClick(topic.category)}
+                  />
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>Nessuna discussione attiva al momento</p>
+                </div>
+              )}
+            </div>
           </div>
-          
-          <div className="space-y-3">
-            {MOCK_TRENDING_TOPICS.map((topic) => (
-              <TrendingTopicCard
-                key={topic.id}
-                title={topic.title}
-                summary={topic.summary}
-                postCount={topic.postCount}
-                onClick={() => handleTopicClick(topic)}
+        ) : (
+          /* Search Results View */
+          <div className="space-y-4">
+            {/* Tabs */}
+            <SearchTabs activeTab={activeTab} onTabChange={handleTabChange} />
+
+            {/* Filters */}
+            <div className="px-4 space-y-3">
+              <QuickFilters
+                activeFilters={quickFilters}
+                onToggle={handleQuickFilterToggle}
               />
-            ))}
+              <SearchFilters
+                filters={filters}
+                onFiltersChange={setFilters}
+              />
+            </div>
+
+            {/* Results */}
+            <SearchResults
+              query={searchQuery}
+              tab={activeTab}
+              filters={filters}
+              quickFilters={quickFilters}
+            />
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
