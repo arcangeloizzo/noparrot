@@ -11,6 +11,12 @@ import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { SourceTag } from "./SourceTag";
 import { SourcesDrawer } from "./SourcesDrawer";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { runGateBeforeAction } from "@/lib/runGateBeforeAction";
+import { QuizModal } from "@/components/ui/quiz-modal";
+import { toast as sonnerToast } from "sonner";
+import { LOGO_BASE } from "@/config/brand";
 
 interface Source {
   icon: string;
@@ -59,6 +65,12 @@ export const FocusDetailSheet = ({
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null);
   const [sourcesDrawerOpen, setSourcesDrawerOpen] = useState(false);
   const [highlightedSourceIndex, setHighlightedSourceIndex] = useState<number | undefined>();
+  const [commentMode, setCommentMode] = useState<'unread' | 'read'>('unread');
+  const [userPassedGate, setUserPassedGate] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizData, setQuizData] = useState<any>(null);
+  const [showCommentForm, setShowCommentForm] = useState(false);
   
   const { data: comments = [] } = useFocusComments(focusId, type);
   const addComment = useAddFocusComment();
@@ -66,16 +78,21 @@ export const FocusDetailSheet = ({
 
   // Parse deep_content and render with SourceTag components
   const parseContentWithSources = (content: string) => {
-    // Split by [SOURCE:...] markers
-    const parts = content.split(/(\[SOURCE:\d+(?:,\s*SOURCE:\d+)*\])/g);
+    // Split by [SOURCE:...] markers - accepts both [SOURCE:0] and [SOURCE:0, 3, 4]
+    const parts = content.split(/(\[SOURCE:[\d,\s]+\])/g);
     
     return parts.map((part, idx) => {
-      const sourceMatch = part.match(/\[SOURCE:(\d+(?:,\s*SOURCE:\d+)*)\]/);
+      const sourceMatch = part.match(/\[SOURCE:([\d,\s]+)\]/);
       if (sourceMatch) {
-        // Extract indices: "0" or "0, SOURCE:1, SOURCE:2"
+        // Extract indices from various formats:
+        // "0" -> [0]
+        // "0, 3, 4" -> [0, 3, 4]
+        // "0, SOURCE:1" -> [0, 1]
         const indices = sourceMatch[1]
+          .replace(/SOURCE:/g, '')
           .split(',')
-          .map(s => parseInt(s.replace(/SOURCE:/g, '').trim()));
+          .map(s => parseInt(s.trim()))
+          .filter(n => !isNaN(n));
         
         return (
           <SourceTag 
@@ -93,8 +110,40 @@ export const FocusDetailSheet = ({
     });
   };
 
-  const handleSubmitComment = (isVerified: boolean = false) => {
-    if (!commentText.trim()) return;
+  const handleReadAndComment = async () => {
+    if (!deepContent) return;
+
+    setIsProcessing(true);
+    sonnerToast.info('Verificando la comprensione...');
+    
+    // Simply mark as verified without gate for now (sources are aggregated news)
+    setTimeout(() => {
+      sonnerToast.success('Hai fatto chiarezza.');
+      setUserPassedGate(true);
+      setCommentMode('read');
+      setShowCommentForm(true);
+      setIsProcessing(false);
+    }, 500);
+  };
+
+  const handleModeChange = (value: 'unread' | 'read') => {
+    if (value === 'read') {
+      if (!userPassedGate) {
+        handleReadAndComment();
+      } else {
+        setCommentMode('read');
+        setShowCommentForm(true);
+      }
+    } else {
+      setCommentMode('unread');
+      setShowCommentForm(true);
+    }
+  };
+
+  const handleSubmitComment = () => {
+    if (!commentText.trim() || isProcessing) return;
+    
+    const isVerified = commentMode === 'read';
     
     addComment.mutate({
       focusId,
@@ -107,6 +156,7 @@ export const FocusDetailSheet = ({
     
     setCommentText('');
     setReplyTo(null);
+    setShowCommentForm(false);
   };
 
   const handleDeleteComment = (commentId: string) => {
@@ -151,53 +201,131 @@ export const FocusDetailSheet = ({
             </SheetTitle>
           </SheetHeader>
           
-          {/* Reaction Bar */}
-          <div className="py-4 flex items-center gap-4 border-b border-white/10">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onLike}
-              className={cn(
-                "flex items-center gap-2 text-gray-400 hover:text-red-500",
-                userReactions?.hasLiked && "text-red-500"
-              )}
-            >
-              <Heart className={cn("w-5 h-5", userReactions?.hasLiked && "fill-current")} />
-              <span className="text-sm">{reactions.likes}</span>
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onComment}
-              className="flex items-center gap-2 text-gray-400 hover:text-primary"
-            >
-              <MessageCircle className="w-5 h-5" />
-              <span className="text-sm">{reactions.comments}</span>
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onShare}
-              className="flex items-center gap-2 text-gray-400 hover:text-blue-500"
-            >
-              <Share2 className="w-5 h-5" />
-              <span className="text-sm">{reactions.shares}</span>
-            </Button>
-          </div>
-          
           <div className="py-6 space-y-6">
             {/* Deep Content with Source Tags */}
             <div>
               <h4 className="text-gray-400 text-sm font-semibold mb-3">Approfondimento</h4>
-              <p className="text-gray-200 text-base leading-relaxed">
+              <p className="text-gray-200 text-base leading-relaxed whitespace-pre-wrap">
                 {deepContent ? parseContentWithSources(deepContent) : 'Contenuto non disponibile.'}
               </p>
             </div>
+            
+            {/* Reaction Bar - MOVED HERE */}
+            <div className="py-4 flex items-center gap-4 border-y border-white/10">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onLike}
+                className={cn(
+                  "flex items-center gap-2 text-gray-400 hover:text-red-500",
+                  userReactions?.hasLiked && "text-red-500"
+                )}
+              >
+                <Heart className={cn("w-5 h-5", userReactions?.hasLiked && "fill-current")} />
+                <span className="text-sm">{reactions.likes}</span>
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCommentForm(!showCommentForm)}
+                className="flex items-center gap-2 text-gray-400 hover:text-primary"
+              >
+                <MessageCircle className="w-5 h-5" />
+                <span className="text-sm">{reactions.comments}</span>
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onShare}
+                className="flex items-center gap-2 text-gray-400 hover:text-blue-500"
+              >
+                <Share2 className="w-5 h-5" />
+                <span className="text-sm">{reactions.shares}</span>
+              </Button>
+            </div>
+
+            {/* Comment Mode Selection */}
+            {showCommentForm && (
+              <div className="px-4 py-3 border border-white/10 rounded-lg bg-muted/20">
+                <Label className="font-semibold mb-3 block text-sm">
+                  Come vuoi commentare?
+                </Label>
+                <RadioGroup
+                  value={commentMode}
+                  onValueChange={handleModeChange}
+                  className="flex gap-4 mb-4"
+                  disabled={isProcessing}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="unread" id="focus-unread" />
+                    <Label
+                      htmlFor="focus-unread"
+                      className="flex items-center gap-2 cursor-pointer text-sm"
+                    >
+                      Commento spontaneo
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="read" id="focus-read" />
+                    <Label
+                      htmlFor="focus-read"
+                      className="flex items-center gap-2 cursor-pointer text-sm"
+                    >
+                      <img
+                        src={LOGO_BASE}
+                        alt=""
+                        className="w-5 h-5"
+                        aria-hidden="true"
+                      />
+                      Dopo aver letto
+                    </Label>
+                  </div>
+                </RadioGroup>
+
+                {replyTo && (
+                  <div className="mb-2 text-xs text-gray-400 flex items-center justify-between">
+                    <span>Rispondi a @{replyTo.username}</span>
+                    <button
+                      onClick={() => setReplyTo(null)}
+                      className="text-red-400 hover:underline"
+                    >
+                      Annulla
+                    </button>
+                  </div>
+                )}
+
+                <Textarea
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder={
+                    commentMode === 'read'
+                      ? 'Commento consapevole...'
+                      : 'Scrivi un commento...'
+                  }
+                  className="w-full bg-background/50 border-white/10 text-white placeholder:text-gray-500 mb-2"
+                  rows={3}
+                  maxLength={500}
+                />
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">
+                    {commentText.length}/500
+                  </span>
+                  <Button
+                    onClick={handleSubmitComment}
+                    disabled={!commentText.trim() || isProcessing}
+                    size="sm"
+                    className="bg-primary hover:bg-primary/90"
+                  >
+                    Pubblica
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Comments Section */}
-            <div className="border-t border-white/10 pt-6">
+            <div className="pt-6">
               <h4 className="text-gray-400 text-sm font-semibold mb-4">
                 Commenti ({comments.length})
               </h4>
