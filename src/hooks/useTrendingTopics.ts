@@ -29,22 +29,52 @@ export const useTrendingTopics = () => {
           const existing = categoryMap.get(post.category);
           if (existing) {
             existing.count++;
-            existing.contents.push(post.content);
+            if (existing.contents.length < 10) {
+              existing.contents.push(post.content);
+            }
           } else {
             categoryMap.set(post.category, { count: 1, contents: [post.content] });
           }
         }
       });
 
-      // Convert to array and sort by count
-      const trending: TrendingTopic[] = Array.from(categoryMap.entries())
-        .map(([category, data]) => ({
-          category,
-          postCount: data.count,
-          summary: `La community sta discutendo attivamente su temi di ${category.toLowerCase()}. ${data.count} post negli ultimi 7 giorni.`
-        }))
-        .sort((a, b) => b.postCount - a.postCount)
+      // Sort by count and get top 8
+      const topCategories = Array.from(categoryMap.entries())
+        .sort((a, b) => b[1].count - a[1].count)
         .slice(0, 8);
+
+      // Generate AI summaries for each category
+      const trending: TrendingTopic[] = await Promise.all(
+        topCategories.map(async ([category, data]) => {
+          let summary = `La community sta discutendo attivamente su temi di ${category.toLowerCase()}. ${data.count} post negli ultimi 7 giorni.`;
+          
+          try {
+            const { data: summaryData, error: summaryError } = await supabase.functions.invoke(
+              'generate-trending-summary',
+              {
+                body: {
+                  category,
+                  contents: data.contents.filter(c => c && c.trim().length > 0)
+                }
+              }
+            );
+
+            if (!summaryError && summaryData?.summary) {
+              summary = summaryData.summary;
+            } else if (summaryError) {
+              console.warn(`[useTrendingTopics] Failed to generate summary for ${category}:`, summaryError);
+            }
+          } catch (err) {
+            console.warn(`[useTrendingTopics] Error generating summary for ${category}:`, err);
+          }
+
+          return {
+            category,
+            postCount: data.count,
+            summary
+          };
+        })
+      );
 
       return trending;
     },
