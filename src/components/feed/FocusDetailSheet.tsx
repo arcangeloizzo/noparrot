@@ -2,7 +2,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Heart, MessageCircle, Share2, Trash2, Shield } from "lucide-react";
+import { Heart, MessageCircle, Share2, Trash2, Shield, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFocusComments, useAddFocusComment, useDeleteFocusComment } from "@/hooks/useFocusComments";
 import { useAuth } from "@/contexts/AuthContext";
@@ -202,12 +202,24 @@ export const FocusDetailSheet = ({
         <SheetContent 
           side="bottom" 
           className="h-[85vh] bg-[#0E141A] border-white/10 flex flex-col"
+          hideClose={true}
         >
-          {/* Header fisso con badge - la X è già absolute quindi resta sempre visibile */}
+          {/* Header fisso con badge e X allineati orizzontalmente */}
           <div className="sticky top-0 z-10 bg-[#0E141A] pt-4 pb-3 border-b border-white/10">
-            <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0 w-fit")}>
-              {isDailyFocus ? '🌍 DAILY FOCUS' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
-            </Badge>
+            <div className="flex items-center justify-between">
+              <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0")}>
+                {isDailyFocus ? '🌍 DAILY FOCUS' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
+              </Badge>
+              
+              {/* X custom più grande e cliccabile */}
+              <button 
+                onClick={() => onOpenChange(false)}
+                className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+                aria-label="Chiudi"
+              >
+                <X className="w-6 h-6 text-white/70" />
+              </button>
+            </div>
           </div>
 
           {/* Contenuto scrollabile */}
