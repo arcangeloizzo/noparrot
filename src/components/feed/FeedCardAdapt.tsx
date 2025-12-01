@@ -663,23 +663,20 @@ export const FeedCard = ({
           <div className="flex-1">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-6">
-                {/* Like - Always Outline */}
+                {/* Like */}
                 <button 
                   className={cn(
-                    "flex items-center gap-1.5 px-2 py-1.5 rounded-full transition-all group",
-                    post.user_reactions.has_hearted 
-                      ? "text-red-400" 
-                      : "text-gray-400 hover:text-white"
+                    "reaction-btn-heart",
+                    post.user_reactions.has_hearted && "liked"
                   )}
                   onClick={handleHeart}
                 >
-                  <Heart className={cn(
-                    "w-[18px] h-[18px] transition-all",
-                    post.user_reactions.has_hearted ? "icon-glow" : "group-hover:icon-glow"
-                  )} />
-                  {post.reactions.hearts > 0 && (
-                    <span className="text-sm">{post.reactions.hearts}</span>
-                  )}
+                  <Heart 
+                    className="w-5 h-5 transition-all"
+                    fill={post.user_reactions.has_hearted ? "currentColor" : "none"}
+                    strokeWidth={post.user_reactions.has_hearted ? 0 : 2}
+                  />
+                  <span>{post.reactions.hearts}</span>
                 </button>
 
                 {/* Comments - Always Outline */}
