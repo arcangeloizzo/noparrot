@@ -22,7 +22,6 @@ import { useDailyFocus } from "@/hooks/useDailyFocus";
 import { useInterestFocus } from "@/hooks/useInterestFocus";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useToggleFocusReaction } from "@/hooks/useFocusReactions";
 import { haptics } from "@/lib/haptics";
 import { toast as sonnerToast } from "sonner";
 
@@ -30,7 +29,6 @@ export const Feed = () => {
   const { user } = useAuth();
   const { data: dbPosts = [], isLoading, refetch } = usePosts();
   const toggleReaction = useToggleReaction();
-  const toggleFocusReaction = useToggleFocusReaction();
   const queryClient = useQueryClient();
   
   // Fetch real Daily Focus
@@ -266,6 +264,7 @@ export const Feed = () => {
               return (
                 <ExternalFocusCard
                   key={item.id}
+                  focusId={item.data.id}
                   type={item.type}
                   category={item.data.category}
                   title={item.data.title}
@@ -277,19 +276,6 @@ export const Feed = () => {
                   onClick={() => {
                     setSelectedFocus(item);
                     setFocusDetailOpen(true);
-                  }}
-                  onLike={() => {
-                    if (!user) {
-                      sonnerToast.error('Devi effettuare il login per mettere like');
-                      return;
-                    }
-                    if (item.type === 'daily' || item.type === 'interest') {
-                      toggleFocusReaction.mutate({
-                        focusId: item.data.id,
-                        focusType: item.type,
-                      });
-                      haptics.light();
-                    }
                   }}
                   onComment={() => {
                     setSelectedFocusForComments(item);
@@ -378,10 +364,7 @@ export const Feed = () => {
                 return;
               }
               if (selectedFocus.type === 'daily' || selectedFocus.type === 'interest') {
-                toggleFocusReaction.mutate({
-                  focusId: selectedFocus.data.id,
-                  focusType: selectedFocus.type,
-                });
+                // Nessuna azione necessaria qui, gestita internamente
                 haptics.light();
               }
             }}

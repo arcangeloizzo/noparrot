@@ -2,6 +2,9 @@ import React from "react";
 import { Heart, MessageCircle, Share2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useFocusReactions, useToggleFocusReaction } from "@/hooks/useFocusReactions";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 interface Source {
   icon: string;
@@ -10,6 +13,7 @@ interface Source {
 }
 
 interface ExternalFocusCardProps {
+  focusId: string;
   type: 'daily' | 'interest';
   category?: string;
   title: string;
@@ -22,16 +26,13 @@ interface ExternalFocusCardProps {
     comments: number;
     shares: number;
   };
-  userReactions?: {
-    hasLiked: boolean;
-  };
   onClick?: () => void;
-  onLike?: () => void;
   onComment?: () => void;
   onShare?: () => void;
 }
 
 export const ExternalFocusCard = ({
+  focusId,
   type,
   category,
   title,
@@ -40,12 +41,13 @@ export const ExternalFocusCard = ({
   trustScore,
   imageUrl,
   reactions,
-  userReactions,
   onClick,
-  onLike,
   onComment,
   onShare,
 }: ExternalFocusCardProps) => {
+  const { user } = useAuth();
+  const { data: reactionsData } = useFocusReactions(focusId, type);
+  const toggleReaction = useToggleFocusReaction();
   const isDailyFocus = type === 'daily';
   
   const badgeBg = isDailyFocus ? 'bg-[#0A7AFF]' : 'bg-[#A98FF8]/20';
@@ -114,19 +116,23 @@ export const ExternalFocusCard = ({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            onLike?.();
+            if (!user) {
+              toast.error('Devi effettuare il login per mettere like');
+              return;
+            }
+            toggleReaction.mutate({ focusId, focusType: type });
           }}
           className={cn(
             "reaction-btn-heart",
-            userReactions?.hasLiked && "liked"
+            reactionsData?.likedByMe && "liked"
           )}
         >
           <Heart 
             className="w-5 h-5 transition-all" 
-            fill={userReactions?.hasLiked ? "currentColor" : "none"}
-            strokeWidth={userReactions?.hasLiked ? 0 : 2}
+            fill={reactionsData?.likedByMe ? "currentColor" : "none"}
+            strokeWidth={reactionsData?.likedByMe ? 0 : 2}
           />
-          <span>{reactions.likes}</span>
+          <span>{reactionsData?.likes ?? reactions.likes}</span>
         </button>
 
         <button
