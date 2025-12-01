@@ -4,8 +4,7 @@ import { Header } from "@/components/navigation/Header";
 import { FeedCard } from "@/components/feed/FeedCardAdapt";
 import { ExternalFocusCard } from "@/components/feed/ExternalFocusCard";
 import { FocusDetailSheet } from "@/components/feed/FocusDetailSheet";
-import { FocusCommentChoiceSheet } from "@/components/feed/FocusCommentChoiceSheet";
-import { CommentsSheet } from "@/components/feed/CommentsSheet";
+import { CommentsDrawer } from "@/components/feed/CommentsDrawer";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 import { FloatingActionButton } from "@/components/fab/FloatingActionButton";
@@ -77,8 +76,6 @@ export const Feed = () => {
   const [selectedFocus, setSelectedFocus] = useState<any>(null);
   const [focusCommentsOpen, setFocusCommentsOpen] = useState(false);
   const [selectedFocusForComments, setSelectedFocusForComments] = useState<any>(null);
-  const [commentChoiceOpen, setCommentChoiceOpen] = useState(false);
-  const [focusCommentMode, setFocusCommentMode] = useState<'aware' | 'quick' | null>(null);
 
   // Build mixed feed: Daily Focus + User Posts + Interest Focus every 6 posts
   const mixedFeed = useMemo(() => {
@@ -285,7 +282,7 @@ export const Feed = () => {
                   }}
                   onComment={() => {
                     setSelectedFocusForComments(item);
-                    setCommentChoiceOpen(true);
+                    setFocusCommentsOpen(true);
                   }}
                   onShare={() => {
                     toast({
@@ -374,7 +371,7 @@ export const Feed = () => {
               console.log('[Feed] onComment clicked for focus:', selectedFocus);
               setSelectedFocusForComments(selectedFocus);
               setFocusDetailOpen(false);
-              setTimeout(() => setCommentChoiceOpen(true), 150);
+              setTimeout(() => setFocusCommentsOpen(true), 150);
             }}
             onShare={() => {
               toast({
@@ -386,21 +383,8 @@ export const Feed = () => {
         </>
       )}
 
-      <FocusCommentChoiceSheet
-        open={commentChoiceOpen}
-        onOpenChange={setCommentChoiceOpen}
-        onAwareComment={() => {
-          setFocusCommentMode('aware');
-          setFocusCommentsOpen(true);
-        }}
-        onQuickComment={() => {
-          setFocusCommentMode('quick');
-          setFocusCommentsOpen(true);
-        }}
-      />
-
       {selectedFocusForComments && (
-        <CommentsSheet
+        <CommentsDrawer
           post={{
             id: selectedFocusForComments.data.id,
             content: selectedFocusForComments.data.summary,
@@ -428,9 +412,6 @@ export const Feed = () => {
           isOpen={focusCommentsOpen}
           onClose={() => setFocusCommentsOpen(false)}
           mode="reply"
-          isFocus={true}
-          focusType={selectedFocusForComments.type === 'daily' ? 'daily' : 'interest'}
-          focusCommentMode={focusCommentMode}
         />
       )}
     </div>

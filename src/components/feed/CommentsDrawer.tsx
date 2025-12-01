@@ -577,22 +577,36 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                   
                   sonnerToast.info("Sto preparando ciò che ti serve per orientarti…");
                   
-                  // Fetch article preview
-                  const preview = await fetchArticlePreview(post.shared_url);
+                  // Se è un Focus, usa il deep_content già disponibile
+                  const isFocusContent = post.shared_url === 'focus://internal';
+                  let fullContent = '';
+                  let contentTitle = '';
                   
-                  if (!preview) {
-                    sonnerToast.error("Impossibile recuperare il contenuto della fonte");
-                    setIsProcessingGate(false);
-                    return;
+                  if (isFocusContent && post.article_content) {
+                    // È un Focus - usa direttamente article_content (deep_content)
+                    fullContent = post.article_content;
+                    contentTitle = post.shared_title || '';
+                    console.log('[CommentsDrawer] Using Focus deep_content:', fullContent.substring(0, 100));
+                  } else {
+                    // Post normale - fetch articolo esterno
+                    const preview = await fetchArticlePreview(post.shared_url);
+                    
+                    if (!preview) {
+                      sonnerToast.error("Impossibile recuperare il contenuto della fonte");
+                      setIsProcessingGate(false);
+                      return;
+                    }
+                    
+                    fullContent = preview.content || preview.summary || preview.excerpt || '';
+                    contentTitle = preview.title || post.shared_title || '';
                   }
                   
                   sonnerToast.info(`Sto creando le domande giuste per capire davvero…`);
                   
                   // Generate Q&A with new logic
-                  const fullContent = preview.content || preview.summary || preview.excerpt || '';
                   const result = await generateQA({
                     contentId: post.id,
-                    title: preview.title || post.shared_title || '',
+                    title: contentTitle,
                     summary: fullContent,
                     userText: newComment,
                     sourceUrl: post.shared_url,
