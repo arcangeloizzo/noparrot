@@ -252,26 +252,57 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
     setSelectedMentionIndex(0);
   }, [mentionUsers]);
 
-  // Gestione keyboard iOS con visualViewport
+  // Gestione keyboard iOS con visualViewport + fallback
   useEffect(() => {
-    if (!isOpen || typeof window === 'undefined' || !window.visualViewport) return;
+    if (!isOpen) return;
     
-    const handleResize = () => {
-      if (!window.visualViewport) return;
-      const offsetFromBottom = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
-      setKeyboardOffset(Math.max(0, offsetFromBottom));
+    // Metodo 1: visualViewport API (moderno)
+    if (typeof window !== 'undefined' && window.visualViewport) {
+      const handleResize = () => {
+        if (!window.visualViewport) return;
+        const viewport = window.visualViewport;
+        const offsetFromBottom = window.innerHeight - viewport.height - viewport.offsetTop;
+        setKeyboardOffset(Math.max(0, offsetFromBottom));
+      };
+      
+      window.visualViewport.addEventListener('resize', handleResize);
+      window.visualViewport.addEventListener('scroll', handleResize);
+      handleResize(); // Chiamata iniziale
+      
+      return () => {
+        if (window.visualViewport) {
+          window.visualViewport.removeEventListener('resize', handleResize);
+          window.visualViewport.removeEventListener('scroll', handleResize);
+        }
+        setKeyboardOffset(0);
+      };
+    }
+    
+    // Metodo 2: Fallback per iOS più vecchi - ascolta focus del textarea
+    const handleFocus = () => {
+      // Su iOS, quando la tastiera appare, window.innerHeight diminuisce
+      // Sposta il form verso l'alto per compensare
+      setTimeout(() => {
+        const keyboardHeight = window.innerHeight < 500 ? 300 : 0;
+        setKeyboardOffset(keyboardHeight);
+      }, 300);
     };
     
-    window.visualViewport.addEventListener('resize', handleResize);
-    window.visualViewport.addEventListener('scroll', handleResize);
-    
-    return () => {
-      if (window.visualViewport) {
-        window.visualViewport.removeEventListener('resize', handleResize);
-        window.visualViewport.removeEventListener('scroll', handleResize);
-      }
-      setKeyboardOffset(0);
+    const handleBlur = () => {
+      setTimeout(() => setKeyboardOffset(0), 100);
     };
+    
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.addEventListener('focus', handleFocus);
+      textarea.addEventListener('blur', handleBlur);
+      
+      return () => {
+        textarea.removeEventListener('focus', handleFocus);
+        textarea.removeEventListener('blur', handleBlur);
+        setKeyboardOffset(0);
+      };
+    }
   }, [isOpen]);
 
   const getInitials = (name: string) => {

@@ -316,6 +316,49 @@ async function fetchTopStoryWithMultiSourceCoverage(): Promise<{
   return { mainTitle, articles: relatedArticles, imageUrl };
 }
 
+// Validate and fix deep_content to ensure every paragraph has source markers
+function validateAndFixSources(deepContent: string, maxSourceIndex: number): string {
+  if (!deepContent) return '';
+  
+  // Split into paragraphs (separated by double newlines)
+  const paragraphs = deepContent.split(/\n\n+/).filter(p => p.trim());
+  
+  const fixedParagraphs = paragraphs.map((paragraph, idx) => {
+    const trimmed = paragraph.trim();
+    
+    // Check if paragraph ends with [SOURCE:N] pattern
+    const hasSourceAtEnd = /\[SOURCE:\d+\](\s*\[SOURCE:\d+\])*\s*$/.test(trimmed);
+    
+    if (!hasSourceAtEnd) {
+      // Add [SOURCE:0] if no source marker found at end
+      console.log(`[Validation] Paragraph ${idx} missing source marker, adding [SOURCE:0]`);
+      return `${trimmed} [SOURCE:0]`;
+    }
+    
+    // Validate that all source indices are within range
+    const sourceMatches = trimmed.match(/\[SOURCE:(\d+)\]/g);
+    if (sourceMatches) {
+      const invalidIndices = sourceMatches
+        .map(m => parseInt(m.match(/\d+/)![0]))
+        .filter(index => index >= maxSourceIndex);
+      
+      if (invalidIndices.length > 0) {
+        console.warn(`[Validation] Found invalid source indices: ${invalidIndices.join(', ')} (max: ${maxSourceIndex - 1})`);
+        // Replace invalid indices with [SOURCE:0]
+        let fixed = trimmed;
+        invalidIndices.forEach(invalid => {
+          fixed = fixed.replace(new RegExp(`\\[SOURCE:${invalid}\\]`, 'g'), '[SOURCE:0]');
+        });
+        return fixed;
+      }
+    }
+    
+    return trimmed;
+  });
+  
+  return fixedParagraphs.join('\n\n');
+}
+
 // Synthesize articles about the SAME story using AI
 async function synthesizeWithAI(
   mainTitle: string,
@@ -417,10 +460,22 @@ Rispondi SOLO con JSON valido:
     const result = JSON.parse(jsonMatch[0]);
     console.log('AI synthesis completed:', result.title);
     
+    // Validate and fix deep_content: ensure every paragraph has source markers
+    const fixedDeepContent = validateAndFixSources(result.deep_content, articles.length);
+    
     return {
       title: result.title,
       summary: result.summary,
-      deep_content: result.deep_content
+      deep_content: fixedDeepContent
+    };
+    
+    // Validate and fix deep_content: ensure every paragraph has source markers
+    const fixedDeepContent = validateAndFixSources(result.deep_content, articles.length);
+    
+    return {
+      title: result.title,
+      summary: result.summary,
+      deep_content: fixedDeepContent
     };
   } catch (error) {
     console.error('AI synthesis error:', error);
