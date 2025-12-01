@@ -57,6 +57,15 @@ function extractSourceFromUrl(url: string): string {
   }
 }
 
+// Validate image URL (exclude Google News placeholders and logos)
+function isValidImage(url: string | null): boolean {
+  if (!url) return false;
+  if (url.includes('google.com') || url.includes('gstatic.com')) return false;
+  if (url.includes('news.google')) return false;
+  if (url.toLowerCase().includes('logo')) return false;
+  return true;
+}
+
 // Extract source name from RSS item (prioritize <source> tag, then parse from title)
 function extractSourceName(itemXml: string, title: string): string {
   // Google News format: <source url="...">Source Name</source>
@@ -68,15 +77,6 @@ function extractSourceName(itemXml: string, title: string): string {
   
   // Fallback: parse from title
   const titleParts = title.split(' - ');
-
-// Validate image URL (exclude Google News placeholders and logos)
-function isValidImage(url: string | null): boolean {
-  if (!url) return false;
-  if (url.includes('google.com') || url.includes('gstatic.com')) return false;
-  if (url.includes('news.google')) return false;
-  if (url.toLowerCase().includes('logo')) return false;
-  return true;
-}
   if (titleParts.length >= 2) {
     const source = titleParts[titleParts.length - 1].trim();
     console.log('Extracted source from title:', source);
