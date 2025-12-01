@@ -283,8 +283,8 @@ export const Feed = () => {
                     });
                   }}
                   onComment={() => {
-                    setSelectedFocus(item);
-                    setFocusDetailOpen(true);
+                    setSelectedFocusForComments(item);
+                    setFocusCommentsOpen(true);
                   }}
                   onShare={() => {
                     toast({
@@ -370,31 +370,13 @@ export const Feed = () => {
               });
             }}
             onComment={() => {
-              setCommentChoiceOpen(true);
+              setSelectedFocusForComments(selectedFocus);
+              setFocusCommentsOpen(true);
             }}
             onShare={() => {
               toast({
                 title: "Condividi",
                 description: "Funzionalità share Focus (da implementare)"
-              });
-            }}
-          />
-          
-          <FocusCommentChoiceSheet
-            open={commentChoiceOpen}
-            onOpenChange={setCommentChoiceOpen}
-            onAwareComment={() => {
-              // TODO: Implementare gate comprehension
-              toast({
-                title: "Commento Consapevole",
-                description: "Gate comprehension da implementare"
-              });
-            }}
-            onQuickComment={() => {
-              // Open comment directly (no gate)
-              toast({
-                title: "Commento Rapido",
-                description: "Aggiungi il tuo commento"
               });
             }}
           />
@@ -416,10 +398,10 @@ export const Feed = () => {
             },
             topic_tag: null,
             shared_title: selectedFocusForComments.data.title,
-            shared_url: null,
-            preview_img: null,
+            shared_url: 'focus://internal',
+            preview_img: selectedFocusForComments.data.image_url,
             full_article: null,
-            article_content: null,
+            article_content: selectedFocusForComments.data.deep_content,
             trust_level: null,
             stance: null,
             sources: selectedFocusForComments.data.sources?.map((s: any) => s.url).filter(Boolean) || [],
