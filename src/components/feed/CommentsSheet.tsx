@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { ArrowLeft, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useComments, useAddComment, useDeleteComment } from '@/hooks/useComments';
+import { useFocusComments, useAddFocusComment, useDeleteFocusComment } from '@/hooks/useFocusComments';
 import { useCommentReactions, useToggleCommentReaction } from '@/hooks/useCommentReactions';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
@@ -32,13 +33,19 @@ interface CommentsSheetProps {
   isOpen: boolean;
   onClose: () => void;
   mode: 'view' | 'reply';
+  isFocus?: boolean;
+  focusType?: 'daily' | 'interest';
 }
 
-export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProps) => {
+export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, focusType = 'daily' }: CommentsSheetProps) => {
   const { user } = useAuth();
-  const { data: comments = [], isLoading } = useComments(post.id);
+  const { data: comments = [], isLoading } = isFocus 
+    ? useFocusComments(post.id, focusType)
+    : useComments(post.id);
   const addComment = useAddComment();
+  const addFocusComment = useAddFocusComment();
   const deleteComment = useDeleteComment();
+  const deleteFocusComment = useDeleteFocusComment();
   const [newComment, setNewComment] = useState('');
   const [mentionQuery, setMentionQuery] = useState('');
   const [showMentions, setShowMentions] = useState(false);
@@ -132,15 +139,28 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
     const linkUrl = extractFirstUrl(newComment);
 
     const doSubmit = async () => {
-      const parentComment = replyingTo ? comments.find(c => c.id === replyingTo) : null;
+      const parentComment = replyingTo ? comments.find((c: any) => c.id === replyingTo) : null;
 
-      const commentId = await addComment.mutateAsync({
-        postId: post.id,
-        content: newComment.trim(),
-        parentId: replyingTo,
-        level: parentComment ? parentComment.level + 1 : 0,
-        passedGate: commentMode === 'read'
-      });
+      let commentId: string;
+      
+      if (isFocus) {
+        commentId = await addFocusComment.mutateAsync({
+          focusId: post.id,
+          focusType: focusType,
+          content: newComment.trim(),
+          parentId: replyingTo,
+          level: parentComment ? parentComment.level + 1 : 0,
+          isVerified: commentMode === 'read'
+        });
+      } else {
+        commentId = await addComment.mutateAsync({
+          postId: post.id,
+          content: newComment.trim(),
+          parentId: replyingTo,
+          level: parentComment ? parentComment.level + 1 : 0,
+          passedGate: commentMode === 'read'
+        });
+      }
 
       if (uploadedMedia.length > 0 && commentId) {
         for (let i = 0; i < uploadedMedia.length; i++) {
@@ -380,7 +400,13 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode }: CommentsSheetProp
                     setReplyingTo(comment.id);
                     setTimeout(() => textareaRef.current?.focus(), 100);
                   }}
-                  onDelete={() => deleteComment.mutate(comment.id)}
+                  onDelete={() => {
+                    if (isFocus) {
+                      deleteFocusComment.mutate({ commentId: comment.id, focusId: post.id, focusType });
+                    } else {
+                      deleteComment.mutate(comment.id);
+                    }
+                  }}
                   onMediaClick={(media, index) => {
                     setViewerMedia(comment.media || []);
                     setViewerInitialIndex(index);

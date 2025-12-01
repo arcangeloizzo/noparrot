@@ -94,20 +94,19 @@ export const ExternalFocusCard = ({
           {summary.replace(/\[SOURCE:[\d,\s]+\]/g, '')}
         </p>
         
-        {/* Sources */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {sources.map((source, idx) => (
-            <React.Fragment key={idx}>
-              <div className="flex items-center gap-1 text-xs text-gray-500">
-                <span>{source.icon}</span>
-                <span>{source.name}</span>
-              </div>
-              {idx < sources.length - 1 && (
-                <span className="text-gray-600">·</span>
-              )}
-            </React.Fragment>
-          ))}
-        </div>
+        {/* Sources - Aggregated Tag */}
+        {sources.length > 0 && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              // This could open SourcesDrawer if needed
+            }}
+            className="inline-flex items-center px-2.5 py-1 bg-primary/10 hover:bg-primary/20 rounded-md text-xs text-primary font-medium cursor-pointer transition-colors border border-primary/20"
+          >
+            {sources[0]?.name?.toLowerCase() || 'fonti'}
+            {sources.length > 1 && ` +${sources.length - 1}`}
+          </button>
+        )}
       </div>
 
       {/* Footer - Reactions */}
