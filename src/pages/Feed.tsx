@@ -411,7 +411,7 @@ export const Feed = () => {
           } as unknown as Post}
           isOpen={focusCommentsOpen}
           onClose={() => setFocusCommentsOpen(false)}
-          mode="reply"
+          mode="view"
         />
       )}
     </div>
