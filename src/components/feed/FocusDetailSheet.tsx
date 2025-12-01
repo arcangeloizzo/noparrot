@@ -228,7 +228,7 @@ export const FocusDetailSheet = ({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setShowCommentForm(!showCommentForm)}
+                onClick={onComment}
                 className="flex items-center gap-2 text-gray-400 hover:text-primary"
               >
                 <MessageCircle className="w-5 h-5" />
@@ -246,85 +246,7 @@ export const FocusDetailSheet = ({
               </Button>
             </div>
 
-            {/* Comment Mode Selection */}
-            {showCommentForm && (
-              <div className="px-4 py-3 border border-white/10 rounded-lg bg-muted/20">
-                <Label className="font-semibold mb-3 block text-sm">
-                  Come vuoi commentare?
-                </Label>
-                <RadioGroup
-                  value={commentMode}
-                  onValueChange={handleModeChange}
-                  className="flex gap-4 mb-4"
-                  disabled={isProcessing}
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="unread" id="focus-unread" />
-                    <Label
-                      htmlFor="focus-unread"
-                      className="flex items-center gap-2 cursor-pointer text-sm"
-                    >
-                      Commento spontaneo
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="read" id="focus-read" />
-                    <Label
-                      htmlFor="focus-read"
-                      className="flex items-center gap-2 cursor-pointer text-sm"
-                    >
-                      <img
-                        src={LOGO_BASE}
-                        alt=""
-                        className="w-5 h-5"
-                        aria-hidden="true"
-                      />
-                      Dopo aver letto
-                    </Label>
-                  </div>
-                </RadioGroup>
-
-                {replyTo && (
-                  <div className="mb-2 text-xs text-gray-400 flex items-center justify-between">
-                    <span>Rispondi a @{replyTo.username}</span>
-                    <button
-                      onClick={() => setReplyTo(null)}
-                      className="text-red-400 hover:underline"
-                    >
-                      Annulla
-                    </button>
-                  </div>
-                )}
-
-                <Textarea
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  placeholder={
-                    commentMode === 'read'
-                      ? 'Commento consapevole...'
-                      : 'Scrivi un commento...'
-                  }
-                  className="w-full bg-background/50 border-white/10 text-white placeholder:text-gray-500 mb-2"
-                  rows={3}
-                  maxLength={500}
-                />
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500">
-                    {commentText.length}/500
-                  </span>
-                  <Button
-                    onClick={handleSubmitComment}
-                    disabled={!commentText.trim() || isProcessing}
-                    size="sm"
-                    className="bg-primary hover:bg-primary/90"
-                  >
-                    Pubblica
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Comments Section */}
+            {/* Comments Section - View only, add comments via CommentsSheet */}
             <div className="pt-6">
               <h4 className="text-gray-400 text-sm font-semibold mb-4">
                 Commenti ({comments.length})
