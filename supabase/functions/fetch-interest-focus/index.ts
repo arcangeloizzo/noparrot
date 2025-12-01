@@ -566,13 +566,6 @@ serve(async (req) => {
     }
     
     console.log(`[fetch-interest-focus] Final image URL for ${category}:`, finalImageUrl);
-    };
-    
-    // Fallback to category-specific image if all else fails
-    if (!finalImageUrl) {
-      console.log('Using fallback image for category:', category);
-      finalImageUrl = FALLBACK_IMAGES[category] || FALLBACK_IMAGES['default'];
-    }
     
     // 4. Format sources (take up to 5 diverse sources)
     const sources = articles.slice(0, 5).map(a => ({
