@@ -12,6 +12,17 @@ interface PostsResultsProps {
   searchType?: "text" | "category";
 }
 
+// Utility to extract hostname from URL
+const getHostnameFromUrl = (url: string | undefined): string => {
+  if (!url) return 'Fonte';
+  try {
+    const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
+    return new URL(urlWithProtocol).hostname;
+  } catch {
+    return 'Fonte';
+  }
+};
+
 // Component for individual search result card
 const SearchResultCard = ({ post, query }: { post: any; query: string }) => {
   const navigate = useNavigate();
@@ -33,6 +44,9 @@ const SearchResultCard = ({ post, query }: { post: any; query: string }) => {
     addSuffix: true,
     locale: it
   });
+
+  const hasContent = post.content && post.content.trim().length > 0;
+  const hasSharedLink = post.shared_url;
   
   return (
     <div 
@@ -57,9 +71,34 @@ const SearchResultCard = ({ post, query }: { post: any; query: string }) => {
       </div>
       
       {/* Content with highlighting */}
-      <p className="text-sm text-foreground/90 line-clamp-4 mb-3">
-        {highlightText(post.content || '')}
-      </p>
+      {hasContent && (
+        <p className="text-sm text-foreground/90 line-clamp-4 mb-3">
+          {highlightText(post.content || '')}
+        </p>
+      )}
+
+      {/* Link preview for posts without content */}
+      {!hasContent && hasSharedLink && (
+        <div className="border border-white/5 rounded-xl overflow-hidden mb-3 bg-[#0F1417]">
+          {post.preview_img && (
+            <div className="w-full aspect-video bg-muted/50">
+              <img 
+                src={post.preview_img} 
+                alt="Preview" 
+                className="w-full h-full object-cover"
+              />
+            </div>
+          )}
+          <div className="p-3">
+            <p className="text-xs text-muted-foreground mb-1">
+              {getHostnameFromUrl(post.shared_url)}
+            </p>
+            <h4 className="text-sm font-medium text-foreground line-clamp-2">
+              {post.shared_title || 'Link condiviso'}
+            </h4>
+          </div>
+        </div>
+      )}
       
       {/* Category */}
       {post.category && (

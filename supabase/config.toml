@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.fetch-interest-focus]
 verify_jwt = false
+
+[functions.generate-trending-summary]
+verify_jwt = false
