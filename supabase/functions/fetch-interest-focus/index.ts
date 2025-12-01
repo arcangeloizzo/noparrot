@@ -68,6 +68,15 @@ function extractSourceName(itemXml: string, title: string): string {
   
   // Fallback: parse from title
   const titleParts = title.split(' - ');
+
+// Validate image URL (exclude Google News placeholders and logos)
+function isValidImage(url: string | null): boolean {
+  if (!url) return false;
+  if (url.includes('google.com') || url.includes('gstatic.com')) return false;
+  if (url.includes('news.google')) return false;
+  if (url.toLowerCase().includes('logo')) return false;
+  return true;
+}
   if (titleParts.length >= 2) {
     const source = titleParts[titleParts.length - 1].trim();
     console.log('Extracted source from title:', source);
@@ -368,19 +377,21 @@ Il tuo compito è creare:
    - Implicazioni e sviluppi futuri
    - Scrivi in modo discorsivo, coinvolgente, NO elenchi puntati
 
-REGOLE CRITICHE PER I MARKER [SOURCE:N]:
-- Inserisci i marker SOLO alla FINE di ogni paragrafo o affermazione completa
-- MAI a metà frase o all'interno di una proposizione
-- Usa marker SEPARATI, uno per fonte: [SOURCE:0] [SOURCE:1] [SOURCE:2]
-- NON usare il formato [SOURCE:0, 1, 2] ma sempre marker distinti
-- Ogni paragrafo dovrebbe terminare con i marker delle fonti usate
+⚠️ REGOLA CRITICA PER I MARKER [SOURCE:N]:
+- I marker [SOURCE:N] vanno ESCLUSIVAMENTE come ULTIMA cosa prima del punto finale di ogni paragrafo
+- MAI all'interno di una frase, MAI prima di una virgola, MAI a metà proposizione
+- OGNI paragrafo DEVE terminare con almeno un marker [SOURCE:N]
+- Se un paragrafo usa più fonti, elencale alla fine come marker separati: [SOURCE:0] [SOURCE:1] [SOURCE:2]
+- NON usare MAI il formato [SOURCE:0, 1, 2] - usa SEMPRE marker separati
 
-ESEMPIO CORRETTO:
-"Il presidente ha annunciato una nuova politica economica che cambierà il panorama industriale del paese. Questa decisione, attesa da mesi, rappresenta un punto di svolta significativo per l'economia nazionale. [SOURCE:0] [SOURCE:1]
+STRUTTURA CORRETTA DI OGNI PARAGRAFO:
+"Frase 1. Frase 2. Frase 3 che conclude l'idea del paragrafo. [SOURCE:0] [SOURCE:1]"
 
-I critici sostengono che la misura non sia sufficiente e che serviranno ulteriori interventi per sostenere le imprese in difficoltà. [SOURCE:2]
+ESEMPIO ERRATO ❌:
+"La compagnia ha annunciato [SOURCE:0] un nuovo prodotto che rivoluzionerà il mercato"
 
-Gli analisti internazionali prevedono che questa mossa potrebbe influenzare le politiche di altri paesi europei nei prossimi mesi. [SOURCE:3] [SOURCE:4]"
+ESEMPIO CORRETTO ✅:
+"La compagnia ha annunciato un nuovo prodotto che rivoluzionerà il mercato, segnando una svolta significativa nell'evoluzione del settore. [SOURCE:0] [SOURCE:1]"
 
 Rispondi SOLO con JSON valido:
 {
@@ -515,28 +526,37 @@ serve(async (req) => {
     // 3. Synthesize with AI
     const { title, summary, deep_content } = await synthesizeForCategory(category, mainTitle, articles);
     
-    // Try to fetch OG image from first source if RSS image not available
-    let finalImageUrl = rssImageUrl;
+    // 4. Image handling with strict validation
+    let finalImageUrl = isValidImage(rssImageUrl) ? rssImageUrl : null;
+    
+    // Try OG fetch only if we don't have a valid image
     if (!finalImageUrl && articles.length > 0 && articles[0].link) {
-      console.log('No RSS image, trying OG image from first source...');
-      finalImageUrl = await fetchOgImage(articles[0].link);
+      console.log(`[fetch-interest-focus] No valid RSS image for ${category}, attempting OG fetch from:`, articles[0].link);
+      const ogImage = await fetchOgImage(articles[0].link);
+      finalImageUrl = isValidImage(ogImage) ? ogImage : null;
     }
     
-    // Category-based fallback images
-    const FALLBACK_IMAGES: Record<string, string> = {
-      'Società & Politica': 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800&q=80',
-      'Sport & Lifestyle': 'https://images.unsplash.com/photo-1461896836934-bbe879ee9b27?w=800&q=80',
-      'Tecnologia': 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80',
-      'Scienza & Tecnologia': 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=800&q=80',
-      'Scienza': 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=800&q=80',
-      'Economia & Business': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80',
-      'Economia': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80',
-      'Cultura & Arte': 'https://images.unsplash.com/photo-1499781350541-7783f6c6a0c8?w=800&q=80',
-      'Intrattenimento': 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80',
-      'Media & Comunicazione': 'https://images.unsplash.com/photo-1495020689067-958852a7765e?w=800&q=80',
-      'Salute': 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&q=80',
-      'Sport': 'https://images.unsplash.com/photo-1461896836934-bbe879ee9b27?w=800&q=80',
-      'default': 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&q=80', // news
+    // Always ensure we have a fallback image for the category
+    if (!finalImageUrl) {
+      console.log(`[fetch-interest-focus] No valid image found for ${category}, using category fallback`);
+      const CATEGORY_FALLBACK_IMAGES: Record<string, string> = {
+        'Società & Politica': 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=600&h=400&fit=crop',
+        'Sport & Lifestyle': 'https://images.unsplash.com/photo-1461896836934-bbe879ee9b27?w=600&h=400&fit=crop',
+        'Tecnologia': 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&h=400&fit=crop',
+        'Scienza & Tecnologia': 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=600&h=400&fit=crop',
+        'Scienza': 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=600&h=400&fit=crop',
+        'Economia & Business': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=400&fit=crop',
+        'Economia': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=400&fit=crop',
+        'Cultura & Arte': 'https://images.unsplash.com/photo-1499781350541-7783f6c6a0c8?w=600&h=400&fit=crop',
+        'Intrattenimento': 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&h=400&fit=crop',
+        'Media & Comunicazione': 'https://images.unsplash.com/photo-1495020689067-958852a7765e?w=600&h=400&fit=crop',
+        'Salute': 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&h=400&fit=crop',
+        'Sport': 'https://images.unsplash.com/photo-1461896836934-bbe879ee9b27?w=600&h=400&fit=crop',
+      };
+      finalImageUrl = CATEGORY_FALLBACK_IMAGES[category] || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=600&h=400&fit=crop';
+    }
+    
+    console.log(`[fetch-interest-focus] Final image URL for ${category}:`, finalImageUrl);
     };
     
     // Fallback to category-specific image if all else fails
