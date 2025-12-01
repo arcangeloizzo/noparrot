@@ -339,7 +339,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
         </div>
 
         {/* Scelta Gate (solo se il post ha una fonte) */}
-        {postHasSource && (
+        {!isFocus && postHasSource && (
           <div className="px-4 py-3 border-b border-border bg-muted/20">
             <Label className="font-semibold mb-3 block text-sm">
               Come vuoi commentare?

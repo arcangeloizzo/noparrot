@@ -78,16 +78,24 @@ export const FocusDetailSheet = ({
 
   // Parse deep_content and render with SourceTag components
   const parseContentWithSources = (content: string) => {
-    // Split by [SOURCE:...] markers - accepts both [SOURCE:0] and [SOURCE:0, 3, 4]
-    const parts = content.split(/(\[SOURCE:[\d,\s]+\])/g);
+    // Step 1: Aggregate consecutive [SOURCE:N] markers into [SOURCE:N,M,...]
+    const aggregatedContent = content.replace(
+      /(\[SOURCE:\d+\](?:\s*\[SOURCE:\d+\])+)/g,
+      (match) => {
+        // Extract all indices from consecutive markers
+        const indices = [...match.matchAll(/\[SOURCE:(\d+)\]/g)]
+          .map(m => parseInt(m[1]));
+        return `[SOURCE:${indices.join(',')}]`;
+      }
+    );
+    
+    // Step 2: Split by [SOURCE:...] markers - accepts both [SOURCE:0] and [SOURCE:0,3,4]
+    const parts = aggregatedContent.split(/(\[SOURCE:[\d,\s]+\])/g);
     
     return parts.map((part, idx) => {
       const sourceMatch = part.match(/\[SOURCE:([\d,\s]+)\]/);
       if (sourceMatch) {
-        // Extract indices from various formats:
-        // "0" -> [0]
-        // "0, 3, 4" -> [0, 3, 4]
-        // "0, SOURCE:1" -> [0, 1]
+        // Extract indices from comma-separated format
         const indices = sourceMatch[1]
           .replace(/SOURCE:/g, '')
           .split(',')
