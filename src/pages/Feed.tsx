@@ -372,7 +372,8 @@ export const Feed = () => {
             onComment={() => {
               console.log('[Feed] onComment clicked for focus:', selectedFocus);
               setSelectedFocusForComments(selectedFocus);
-              setFocusCommentsOpen(true);
+              setFocusDetailOpen(false);
+              setTimeout(() => setFocusCommentsOpen(true), 150);
             }}
             onShare={() => {
               toast({
