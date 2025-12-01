@@ -59,6 +59,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
   const [quizData, setQuizData] = useState<any>(null);
   const [commentMode, setCommentMode] = useState<'unread' | 'read'>('unread');
   const [userPassedGate, setUserPassedGate] = useState(false);
+  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
@@ -251,6 +252,28 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
     setSelectedMentionIndex(0);
   }, [mentionUsers]);
 
+  // Gestione keyboard iOS con visualViewport
+  useEffect(() => {
+    if (!isOpen || typeof window === 'undefined' || !window.visualViewport) return;
+    
+    const handleResize = () => {
+      if (!window.visualViewport) return;
+      const offsetFromBottom = window.innerHeight - window.visualViewport.height - window.visualViewport.offsetTop;
+      setKeyboardOffset(Math.max(0, offsetFromBottom));
+    };
+    
+    window.visualViewport.addEventListener('resize', handleResize);
+    window.visualViewport.addEventListener('scroll', handleResize);
+    
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleResize);
+        window.visualViewport.removeEventListener('scroll', handleResize);
+      }
+      setKeyboardOffset(0);
+    };
+  }, [isOpen]);
+
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -282,7 +305,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
 
   return (
     <>
-      <div className="fixed inset-0 bg-background z-50 flex flex-col">
+      <div className="fixed inset-0 bg-background z-[60] flex flex-col">
         {/* Header */}
         <div className="sticky top-0 bg-background border-b border-border px-4 py-3 flex items-center justify-between z-20">
           <button
@@ -420,7 +443,10 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
         </div>
 
         {/* Form commento fisso in basso */}
-        <div className="fixed bottom-0 left-0 right-0 bg-background border-t border-border z-30">
+        <div 
+          className="fixed left-0 right-0 bg-background border-t border-border z-[70] pb-[env(safe-area-inset-bottom)]"
+          style={{ bottom: `${keyboardOffset}px` }}
+        >
           <div className="px-4 py-3">
             {replyingTo && (
               <div className="mb-2 text-xs text-muted-foreground flex items-center justify-between">
