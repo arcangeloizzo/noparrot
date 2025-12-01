@@ -346,12 +346,21 @@ Il tuo compito è creare:
    - Implicazioni e sviluppi futuri
    - Scrivi in modo discorsivo, coinvolgente, NO elenchi puntati
 
-⚠️ REGOLA CRITICA PER I MARKER [SOURCE:N]:
-- I marker [SOURCE:N] vanno ESCLUSIVAMENTE come ULTIMA cosa prima del punto finale di ogni paragrafo
-- MAI all'interno di una frase, MAI prima di una virgola, MAI a metà proposizione
-- OGNI paragrafo DEVE terminare con almeno un marker [SOURCE:N]
-- Se un paragrafo usa più fonti, elencale alla fine come marker separati: [SOURCE:0] [SOURCE:1] [SOURCE:2]
-- NON usare MAI il formato [SOURCE:0, 1, 2] - usa SEMPRE marker separati
+⚠️ CRITICAL RULES FOR [SOURCE:N] MARKERS - MUST BE FOLLOWED EXACTLY:
+1. VALID INDEX RANGE: You have ${articles.length} sources (indices 0 to ${articles.length - 1})
+   - ONLY use indices in this range: ${Array.from({length: articles.length}, (_, i) => i).join(', ')}
+   - NEVER use indices ${articles.length} or higher
+   - Example: If you have 5 sources, ONLY use [SOURCE:0] through [SOURCE:4]
+
+2. PLACEMENT RULES:
+   - Place markers ONLY at the END of paragraphs, NEVER mid-sentence
+   - NEVER place [SOURCE:N] before commas or conjunctions
+   - EVERY paragraph MUST end with at least one valid [SOURCE:N] marker
+
+3. FORMAT RULES:
+   - Multiple sources: [SOURCE:0] [SOURCE:1] [SOURCE:2] ✅
+   - NEVER use comma format: [SOURCE:0, 1, 2] ❌
+   - Space-separated individual markers ONLY
 
 STRUTTURA CORRETTA DI OGNI PARAGRAFO:
 "Frase 1. Frase 2. Frase 3 che conclude l'idea del paragrafo. [SOURCE:0] [SOURCE:1]"

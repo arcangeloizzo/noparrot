@@ -412,6 +412,8 @@ export const Feed = () => {
           isOpen={focusCommentsOpen}
           onClose={() => setFocusCommentsOpen(false)}
           mode="reply"
+          isFocus={true}
+          focusType={selectedFocusForComments.type === 'daily' ? 'daily' : 'interest'}
         />
       )}
     </div>
