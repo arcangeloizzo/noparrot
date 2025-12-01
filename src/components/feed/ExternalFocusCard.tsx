@@ -117,11 +117,11 @@ export const ExternalFocusCard = ({
             onLike?.();
           }}
           className={cn(
-            "flex items-center gap-1.5 text-sm transition-colors",
-            userReactions?.hasLiked ? "text-red-500" : "text-gray-400 hover:text-red-500"
+            "reaction-btn-heart",
+            userReactions?.hasLiked && "liked"
           )}
         >
-          <Heart className={cn("w-4 h-4", userReactions?.hasLiked && "fill-current")} />
+          <Heart className={cn("w-5 h-5 transition-all", userReactions?.hasLiked && "fill-current")} />
           <span>{reactions.likes}</span>
         </button>
 
