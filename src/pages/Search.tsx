@@ -14,6 +14,7 @@ export const Search = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryParam = searchParams.get("q") || "";
   const tabParam = (searchParams.get("tab") || "posts") as SearchTab;
+  const typeParam = searchParams.get("type") as "text" | "category" | null;
   
   const [searchQuery, setSearchQuery] = useState(queryParam);
   const [activeTab, setActiveTab] = useState<SearchTab>(tabParam);
@@ -64,9 +65,8 @@ export const Search = () => {
   };
 
   const handleTopicClick = (category: string) => {
-    const query = `#${category}`;
-    setSearchQuery(query);
-    setSearchParams({ q: query, tab: "posts" });
+    setSearchQuery(category);
+    setSearchParams({ q: category, tab: "posts", type: "category" });
   };
 
   const hasActiveQuery = searchQuery.trim().length > 0;
@@ -149,6 +149,7 @@ export const Search = () => {
               tab={activeTab}
               filters={filters}
               quickFilters={quickFilters}
+              searchType={typeParam || undefined}
             />
           </div>
         )}

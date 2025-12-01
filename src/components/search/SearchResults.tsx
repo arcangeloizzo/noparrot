@@ -11,14 +11,15 @@ interface SearchResultsProps {
   tab: SearchTab;
   filters: SearchFiltersState;
   quickFilters: string[];
+  searchType?: "text" | "category";
 }
 
-export const SearchResults = ({ query, tab, filters, quickFilters }: SearchResultsProps) => {
+export const SearchResults = ({ query, tab, filters, quickFilters, searchType }: SearchResultsProps) => {
   if (!query) return null;
 
   return (
     <div className="pb-20">
-      {tab === "posts" && <PostsResults query={query} filters={filters} />}
+      {tab === "posts" && <PostsResults query={query} filters={filters} searchType={searchType} />}
       {tab === "people" && <PeopleResults query={query} />}
       {tab === "topics" && <TopicsResults query={query} />}
       {tab === "media" && <MediaResults query={query} />}
