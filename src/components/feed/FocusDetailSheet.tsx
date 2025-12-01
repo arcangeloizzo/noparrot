@@ -269,7 +269,11 @@ export const FocusDetailSheet = ({
                   reactionsData?.likedByMe && "liked"
                 )}
               >
-                <Heart className={cn("w-5 h-5 transition-all", reactionsData?.likedByMe && "fill-current")} />
+                <Heart 
+                  className="w-5 h-5 transition-all"
+                  fill={reactionsData?.likedByMe ? "currentColor" : "none"}
+                  strokeWidth={reactionsData?.likedByMe ? 0 : 2}
+                />
                 <span className="text-sm">{reactionsData?.likes || reactions.likes || 0}</span>
               </button>
               

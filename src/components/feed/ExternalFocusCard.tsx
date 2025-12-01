@@ -121,7 +121,11 @@ export const ExternalFocusCard = ({
             userReactions?.hasLiked && "liked"
           )}
         >
-          <Heart className={cn("w-5 h-5 transition-all", userReactions?.hasLiked && "fill-current")} />
+          <Heart 
+            className="w-5 h-5 transition-all" 
+            fill={userReactions?.hasLiked ? "currentColor" : "none"}
+            strokeWidth={userReactions?.hasLiked ? 0 : 2}
+          />
           <span>{reactions.likes}</span>
         </button>
 
