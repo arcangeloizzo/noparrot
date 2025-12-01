@@ -9,6 +9,7 @@ import { it } from "date-fns/locale";
 interface PostsResultsProps {
   query: string;
   filters: SearchFiltersState;
+  searchType?: "text" | "category";
 }
 
 // Component for individual search result card
@@ -70,7 +71,7 @@ const SearchResultCard = ({ post, query }: { post: any; query: string }) => {
   );
 };
 
-export const PostsResults = ({ query, filters }: PostsResultsProps) => {
+export const PostsResults = ({ query, filters, searchType }: PostsResultsProps) => {
   const { data: posts, isLoading, error } = useQuery({
     queryKey: ["search-posts", query, filters],
     queryFn: async () => {
@@ -106,11 +107,17 @@ export const PostsResults = ({ query, filters }: PostsResultsProps) => {
         `)
         .order("created_at", { ascending: false });
 
-      // Search in content, title, or topic
-      const searchPattern = `%${query}%`;
-      queryBuilder = queryBuilder.or(
-        `content.ilike.${searchPattern},shared_title.ilike.${searchPattern},topic_tag.ilike.${searchPattern}`
-      );
+      // Search logic based on type
+      if (searchType === "category") {
+        // Exact category match
+        queryBuilder = queryBuilder.eq("category", query);
+      } else {
+        // Text search in content, title, topic, and category
+        const searchPattern = `%${query}%`;
+        queryBuilder = queryBuilder.or(
+          `content.ilike.${searchPattern},shared_title.ilike.${searchPattern},topic_tag.ilike.${searchPattern},category.ilike.${searchPattern}`
+        );
+      }
 
       // Apply date range filter
       const now = new Date();
