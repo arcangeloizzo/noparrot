@@ -201,15 +201,19 @@ export const FocusDetailSheet = ({
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent 
           side="bottom" 
-          className="h-[85vh] bg-[#0E141A] border-white/10 overflow-y-auto"
+          className="h-[85vh] bg-[#0E141A] border-white/10 flex flex-col"
         >
-          <SheetHeader className="space-y-4 pb-6 border-b border-white/10">
+          {/* Header fisso con badge - la X è già absolute quindi resta sempre visibile */}
+          <div className="sticky top-0 z-10 bg-[#0E141A] pt-4 pb-3 border-b border-white/10">
             <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0 w-fit")}>
               {isDailyFocus ? '🌍 DAILY FOCUS' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
             </Badge>
-            
+          </div>
+
+          {/* Contenuto scrollabile */}
+          <div className="flex-1 overflow-y-auto">
             {imageUrl && (
-              <div className="w-full h-48 rounded-lg overflow-hidden">
+              <div className="w-full h-48 rounded-lg overflow-hidden mt-4">
                 <img 
                   src={imageUrl} 
                   alt="" 
@@ -218,12 +222,11 @@ export const FocusDetailSheet = ({
               </div>
             )}
             
-            <SheetTitle className="text-white text-2xl font-bold text-left leading-tight">
+            <h2 className="text-white text-2xl font-bold text-left leading-tight mt-4 pb-4 border-b border-white/10">
               {title}
-            </SheetTitle>
-          </SheetHeader>
+            </h2>
           
-          <div className="py-6 space-y-6">
+            <div className="py-6 space-y-6">
             {/* Deep Content with Source Tags */}
             <div>
               <h4 className="text-gray-400 text-sm font-semibold mb-3">Approfondimento</h4>
@@ -311,6 +314,7 @@ export const FocusDetailSheet = ({
                 )}
               </div>
             </div>
+          </div>
           </div>
         </SheetContent>
       </Sheet>
