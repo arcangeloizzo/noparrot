@@ -22,11 +22,15 @@ import { useDailyFocus } from "@/hooks/useDailyFocus";
 import { useInterestFocus } from "@/hooks/useInterestFocus";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useToggleFocusReaction } from "@/hooks/useFocusReactions";
+import { haptics } from "@/lib/haptics";
+import { toast as sonnerToast } from "sonner";
 
 export const Feed = () => {
   const { user } = useAuth();
   const { data: dbPosts = [], isLoading, refetch } = usePosts();
   const toggleReaction = useToggleReaction();
+  const toggleFocusReaction = useToggleFocusReaction();
   const queryClient = useQueryClient();
   
   // Fetch real Daily Focus
@@ -275,10 +279,17 @@ export const Feed = () => {
                     setFocusDetailOpen(true);
                   }}
                   onLike={() => {
-                    toast({
-                      title: "Like",
-                      description: "Funzionalità like su Focus Card (da implementare)"
-                    });
+                    if (!user) {
+                      sonnerToast.error('Devi effettuare il login per mettere like');
+                      return;
+                    }
+                    if (item.type === 'daily' || item.type === 'interest') {
+                      toggleFocusReaction.mutate({
+                        focusId: item.data.id,
+                        focusType: item.type,
+                      });
+                      haptics.light();
+                    }
                   }}
                   onComment={() => {
                     setSelectedFocusForComments(item);
@@ -362,10 +373,17 @@ export const Feed = () => {
             focusId={selectedFocus.data.id}
             reactions={selectedFocus.data.reactions}
             onLike={() => {
-              toast({
-                title: "Like",
-                description: "Funzionalità like Focus (da implementare)"
-              });
+              if (!user) {
+                sonnerToast.error('Devi effettuare il login per mettere like');
+                return;
+              }
+              if (selectedFocus.type === 'daily' || selectedFocus.type === 'interest') {
+                toggleFocusReaction.mutate({
+                  focusId: selectedFocus.data.id,
+                  focusType: selectedFocus.type,
+                });
+                haptics.light();
+              }
             }}
             onComment={() => {
               console.log('[Feed] onComment clicked for focus:', selectedFocus);

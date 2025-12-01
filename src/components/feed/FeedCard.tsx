@@ -532,12 +532,12 @@ export const FeedCard = ({
                 setIsLiked(!isLiked);
                 haptics.light();
               }}
-              className={cn("cognitive-action-btn", isLiked && "active")}
+              className={cn("reaction-btn-heart", isLiked && "liked")}
             >
               <HeartIcon 
                 className={cn(
-                  "w-5 h-5 transition-all duration-200",
-                  isLiked && "fill-current scale-110"
+                  "w-5 h-5 transition-all",
+                  isLiked && "fill-current"
                 )}
               />
               <span className="text-sm">

@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Heart, MessageCircle, Share2, Trash2, Shield, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFocusComments, useAddFocusComment, useDeleteFocusComment } from "@/hooks/useFocusComments";
+import { useFocusReactions, useToggleFocusReaction } from "@/hooks/useFocusReactions";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
@@ -17,6 +18,7 @@ import { runGateBeforeAction } from "@/lib/runGateBeforeAction";
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { toast as sonnerToast } from "sonner";
 import { LOGO_BASE } from "@/config/brand";
+import { haptics } from "@/lib/haptics";
 
 interface Source {
   icon: string;
@@ -75,6 +77,10 @@ export const FocusDetailSheet = ({
   const { data: comments = [] } = useFocusComments(focusId, type);
   const addComment = useAddFocusComment();
   const deleteComment = useDeleteFocusComment();
+  
+  // Hook per le reazioni
+  const { data: reactionsData } = useFocusReactions(focusId, type);
+  const toggleReaction = useToggleFocusReaction();
 
   // Parse deep_content and render with SourceTag components
   const parseContentWithSources = (content: string) => {
@@ -249,18 +255,23 @@ export const FocusDetailSheet = ({
             
             {/* Reaction Bar - MOVED HERE */}
             <div className="py-4 flex items-center gap-4 border-y border-white/10">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onLike}
+              <button
+                onClick={() => {
+                  if (!user) {
+                    sonnerToast.error('Devi effettuare il login per mettere like');
+                    return;
+                  }
+                  toggleReaction.mutate({ focusId, focusType: type });
+                  haptics.light();
+                }}
                 className={cn(
-                  "flex items-center gap-2 text-gray-400 hover:text-red-500",
-                  userReactions?.hasLiked && "text-red-500"
+                  "reaction-btn-heart",
+                  reactionsData?.likedByMe && "liked"
                 )}
               >
-                <Heart className={cn("w-5 h-5", userReactions?.hasLiked && "fill-current")} />
-                <span className="text-sm">{reactions.likes}</span>
-              </Button>
+                <Heart className={cn("w-5 h-5 transition-all", reactionsData?.likedByMe && "fill-current")} />
+                <span className="text-sm">{reactionsData?.likes || reactions.likes || 0}</span>
+              </button>
               
               <Button
                 variant="ghost"
