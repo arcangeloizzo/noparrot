@@ -359,24 +359,34 @@ ${articles.map((a, idx) => `[${idx}] ${a.source}: "${a.title}"`).join('\n')}
 
 Il tuo compito è creare:
 1. Un TITOLO FINALE chiaro e conciso (max 80 caratteri)
-2. Un SUMMARY per la card (400-500 caratteri, sintesi rapida per chi scorre il feed)
+2. Un SUMMARY per la card (400-500 caratteri, SENZA marker [SOURCE:N])
 3. Un APPROFONDIMENTO ESTESO (deep_content) di 1500-2000 caratteri con:
    - Spiegazione dettagliata di cosa è successo
    - Contesto storico/politico/settoriale quando rilevante
    - Chi sono i protagonisti e perché è importante
-   - Cosa dicono le diverse fonti (usa marker [SOURCE:N] dopo ogni affermazione)
+   - Cosa dicono le diverse fonti
    - Implicazioni e sviluppi futuri
    - Scrivi in modo discorsivo, coinvolgente, NO elenchi puntati
-   - Inserisci marker [SOURCE:N] dove appropriato (es: "Secondo il NYT [SOURCE:0], il presidente ha...")
 
-ESEMPIO DI MARKER:
-"Il presidente ha commutato la pena di morte [SOURCE:0]. Questa decisione rappresenta un cambiamento storico [SOURCE:1] che potrebbe influenzare future politiche [SOURCE:2]."
+REGOLE CRITICHE PER I MARKER [SOURCE:N]:
+- Inserisci i marker SOLO alla FINE di ogni paragrafo o affermazione completa
+- MAI a metà frase o all'interno di una proposizione
+- Usa marker SEPARATI, uno per fonte: [SOURCE:0] [SOURCE:1] [SOURCE:2]
+- NON usare il formato [SOURCE:0, 1, 2] ma sempre marker distinti
+- Ogni paragrafo dovrebbe terminare con i marker delle fonti usate
+
+ESEMPIO CORRETTO:
+"Il presidente ha annunciato una nuova politica economica che cambierà il panorama industriale del paese. Questa decisione, attesa da mesi, rappresenta un punto di svolta significativo per l'economia nazionale. [SOURCE:0] [SOURCE:1]
+
+I critici sostengono che la misura non sia sufficiente e che serviranno ulteriori interventi per sostenere le imprese in difficoltà. [SOURCE:2]
+
+Gli analisti internazionali prevedono che questa mossa potrebbe influenzare le politiche di altri paesi europei nei prossimi mesi. [SOURCE:3] [SOURCE:4]"
 
 Rispondi SOLO con JSON valido:
 {
   "title": "Titolo conciso e chiaro",
-  "summary": "Sintesi per card (400-500 caratteri)",
-  "deep_content": "Approfondimento esteso con marker [SOURCE:N] (1500-2000 caratteri)"
+  "summary": "Sintesi per card SENZA marker (400-500 caratteri)",
+  "deep_content": "Approfondimento esteso con marker [SOURCE:N] SOLO a fine paragrafo (1500-2000 caratteri)"
 }`;
 
   try {
@@ -510,6 +520,29 @@ serve(async (req) => {
     if (!finalImageUrl && articles.length > 0 && articles[0].link) {
       console.log('No RSS image, trying OG image from first source...');
       finalImageUrl = await fetchOgImage(articles[0].link);
+    }
+    
+    // Category-based fallback images
+    const FALLBACK_IMAGES: Record<string, string> = {
+      'Società & Politica': 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=800&q=80',
+      'Sport & Lifestyle': 'https://images.unsplash.com/photo-1461896836934-bbe879ee9b27?w=800&q=80',
+      'Tecnologia': 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80',
+      'Scienza & Tecnologia': 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=800&q=80',
+      'Scienza': 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=800&q=80',
+      'Economia & Business': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80',
+      'Economia': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80',
+      'Cultura & Arte': 'https://images.unsplash.com/photo-1499781350541-7783f6c6a0c8?w=800&q=80',
+      'Intrattenimento': 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&q=80',
+      'Media & Comunicazione': 'https://images.unsplash.com/photo-1495020689067-958852a7765e?w=800&q=80',
+      'Salute': 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&q=80',
+      'Sport': 'https://images.unsplash.com/photo-1461896836934-bbe879ee9b27?w=800&q=80',
+      'default': 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&q=80', // news
+    };
+    
+    // Fallback to category-specific image if all else fails
+    if (!finalImageUrl) {
+      console.log('Using fallback image for category:', category);
+      finalImageUrl = FALLBACK_IMAGES[category] || FALLBACK_IMAGES['default'];
     }
     
     // 4. Format sources (take up to 5 diverse sources)

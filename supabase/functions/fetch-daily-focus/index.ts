@@ -328,24 +328,34 @@ ${articles.map((a, idx) => `[${idx}] ${a.source}: "${a.title}"`).join('\n')}
 
 Il tuo compito è creare:
 1. Un TITOLO FINALE chiaro e conciso (max 80 caratteri)
-2. Un SUMMARY per la card (400-500 caratteri, sintesi rapida per chi scorre il feed)
+2. Un SUMMARY per la card (400-500 caratteri, SENZA marker [SOURCE:N])
 3. Un APPROFONDIMENTO ESTESO (deep_content) di 1500-2000 caratteri con:
    - Spiegazione dettagliata di cosa è successo
    - Contesto storico/politico quando rilevante
    - Chi sono i protagonisti e perché è importante
-   - Cosa dicono le diverse fonti (usa marker [SOURCE:N] dopo ogni affermazione)
+   - Cosa dicono le diverse fonti
    - Implicazioni e sviluppi futuri
    - Scrivi in modo discorsivo, coinvolgente, NO elenchi puntati
-   - Inserisci marker [SOURCE:N] dove appropriato (es: "Secondo il NYT [SOURCE:0], il presidente ha...")
 
-ESEMPIO DI MARKER:
-"Il presidente ha commutato la pena di morte [SOURCE:0]. Questa decisione rappresenta un cambiamento storico [SOURCE:1] che potrebbe influenzare future politiche [SOURCE:2]."
+REGOLE CRITICHE PER I MARKER [SOURCE:N]:
+- Inserisci i marker SOLO alla FINE di ogni paragrafo o affermazione completa
+- MAI a metà frase o all'interno di una proposizione
+- Usa marker SEPARATI, uno per fonte: [SOURCE:0] [SOURCE:1] [SOURCE:2]
+- NON usare il formato [SOURCE:0, 1, 2] ma sempre marker distinti
+- Ogni paragrafo dovrebbe terminare con i marker delle fonti usate
+
+ESEMPIO CORRETTO:
+"Il presidente ha annunciato una nuova politica economica che cambierà il panorama industriale del paese. Questa decisione, attesa da mesi, rappresenta un punto di svolta significativo per l'economia nazionale. [SOURCE:0] [SOURCE:1]
+
+I critici sostengono che la misura non sia sufficiente e che serviranno ulteriori interventi per sostenere le imprese in difficoltà. [SOURCE:2]
+
+Gli analisti internazionali prevedono che questa mossa potrebbe influenzare le politiche di altri paesi europei nei prossimi mesi. [SOURCE:3] [SOURCE:4]"
 
 Rispondi SOLO con JSON valido:
 {
   "title": "Titolo conciso e chiaro",
-  "summary": "Sintesi per card (400-500 caratteri)",
-  "deep_content": "Approfondimento esteso con marker [SOURCE:N] (1500-2000 caratteri)"
+  "summary": "Sintesi per card SENZA marker (400-500 caratteri)",
+  "deep_content": "Approfondimento esteso con marker [SOURCE:N] SOLO a fine paragrafo (1500-2000 caratteri)"
 }`;
 
   try {
@@ -465,6 +475,17 @@ serve(async (req) => {
     if (!finalImageUrl && articles.length > 0 && articles[0].link) {
       console.log('No RSS image, trying OG image from first source...');
       finalImageUrl = await fetchOgImage(articles[0].link);
+    }
+    
+    // Category-based fallback images
+    const FALLBACK_IMAGES: Record<string, string> = {
+      'default': 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&q=80', // news
+    };
+    
+    // Fallback to default news image if all else fails
+    if (!finalImageUrl) {
+      console.log('Using fallback image');
+      finalImageUrl = FALLBACK_IMAGES['default'];
     }
     
     // 4. Format sources (take up to 5 diverse sources)

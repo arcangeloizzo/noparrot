@@ -91,7 +91,7 @@ export const ExternalFocusCard = ({
           {title}
         </h3>
         <p className="text-sm text-gray-400 leading-relaxed mb-3 line-clamp-6">
-          {summary}
+          {summary.replace(/\[SOURCE:[\d,\s]+\]/g, '')}
         </p>
         
         {/* Sources */}
