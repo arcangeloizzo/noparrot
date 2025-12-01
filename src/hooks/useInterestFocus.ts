@@ -6,6 +6,7 @@ export interface InterestFocus {
   category: string;
   title: string;
   summary: string;
+  deep_content?: string;
   sources: Array<{ icon: string; name: string; url?: string }>;
   trust_score: 'Alto' | 'Medio' | 'Basso';
   image_url?: string;
@@ -45,7 +46,7 @@ export const useInterestFocus = (userCategories: string[]) => {
 
             if (cached) {
               console.log(`Using cached interest focus for ${category}`);
-              return cached as InterestFocus;
+              return cached as unknown as InterestFocus;
             }
 
             // 2. Fetch fresh da edge function
@@ -59,7 +60,7 @@ export const useInterestFocus = (userCategories: string[]) => {
               throw error;
             }
 
-            return data as InterestFocus;
+            return data as unknown as InterestFocus;
           } catch (error) {
             console.error(`Failed to fetch interest focus for ${category}:`, error);
             throw error;

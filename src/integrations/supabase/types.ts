@@ -157,6 +157,7 @@ export type Database = {
         Row: {
           category: string | null
           created_at: string | null
+          deep_content: string | null
           expires_at: string | null
           id: string
           image_url: string | null
@@ -169,6 +170,7 @@ export type Database = {
         Insert: {
           category?: string | null
           created_at?: string | null
+          deep_content?: string | null
           expires_at?: string | null
           id?: string
           image_url?: string | null
@@ -181,6 +183,7 @@ export type Database = {
         Update: {
           category?: string | null
           created_at?: string | null
+          deep_content?: string | null
           expires_at?: string | null
           id?: string
           image_url?: string | null
@@ -200,6 +203,7 @@ export type Database = {
           focus_id: string
           focus_type: string
           id: string
+          is_verified: boolean | null
           level: number
           parent_id: string | null
         }
@@ -210,6 +214,7 @@ export type Database = {
           focus_id: string
           focus_type: string
           id?: string
+          is_verified?: boolean | null
           level?: number
           parent_id?: string | null
         }
@@ -220,6 +225,7 @@ export type Database = {
           focus_id?: string
           focus_type?: string
           id?: string
+          is_verified?: boolean | null
           level?: number
           parent_id?: string | null
         }
@@ -328,6 +334,7 @@ export type Database = {
         Row: {
           category: string
           created_at: string | null
+          deep_content: string | null
           expires_at: string | null
           id: string
           image_url: string | null
@@ -340,6 +347,7 @@ export type Database = {
         Insert: {
           category: string
           created_at?: string | null
+          deep_content?: string | null
           expires_at?: string | null
           id?: string
           image_url?: string | null
@@ -352,6 +360,7 @@ export type Database = {
         Update: {
           category?: string
           created_at?: string | null
+          deep_content?: string | null
           expires_at?: string | null
           id?: string
           image_url?: string | null

@@ -5,6 +5,7 @@ export interface DailyFocus {
   id: string;
   title: string;
   summary: string;
+  deep_content?: string;
   sources: Array<{ icon: string; name: string; url?: string }>;
   trust_score: 'Alto' | 'Medio' | 'Basso';
   category?: string;
@@ -37,7 +38,7 @@ export const useDailyFocus = () => {
 
       if (cached) {
         console.log('Using cached daily focus');
-        return cached as DailyFocus;
+        return cached as unknown as DailyFocus;
       }
 
       // 2. Se non c'è cache, trigger edge function
@@ -49,7 +50,7 @@ export const useDailyFocus = () => {
         return null;
       }
 
-      return data as DailyFocus;
+      return data as unknown as DailyFocus;
     },
     staleTime: 1000 * 60 * 30, // 30 minuti
     refetchOnWindowFocus: false,

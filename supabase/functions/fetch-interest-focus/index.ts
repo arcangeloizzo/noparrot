@@ -97,6 +97,46 @@ function extractImage(itemXml: string): string | null {
   return null;
 }
 
+// Fetch Open Graph image from URL
+async function fetchOgImage(url: string): Promise<string | null> {
+  try {
+    console.log(`Fetching OG image from: ${url}`);
+    const response = await fetch(url, { 
+      headers: { 
+        'User-Agent': 'Mozilla/5.0 (compatible; NoParrotBot/1.0)' 
+      },
+      redirect: 'follow'
+    });
+    
+    if (!response.ok) {
+      console.log(`Failed to fetch URL: ${response.status}`);
+      return null;
+    }
+    
+    const html = await response.text();
+    
+    // Try og:image
+    const ogMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i);
+    if (ogMatch) {
+      console.log(`Found og:image: ${ogMatch[1]}`);
+      return ogMatch[1];
+    }
+    
+    // Fallback: twitter:image
+    const twitterMatch = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i);
+    if (twitterMatch) {
+      console.log(`Found twitter:image: ${twitterMatch[1]}`);
+      return twitterMatch[1];
+    }
+    
+    console.log('No OG or Twitter image found');
+    return null;
+  } catch (error) {
+    console.error(`Error fetching OG image: ${error}`);
+    return null;
+  }
+}
+
 // Search for related articles about the same story using Google News search
 async function searchRelatedArticles(mainTitle: string): Promise<Array<{ title: string; source: string; link: string }>> {
   // Clean title: remove source and common words like LIVE
@@ -240,89 +280,119 @@ async function fetchTopCategoryStoryWithMultiSourceCoverage(
 // Synthesize articles about the SAME story for a specific category
 async function synthesizeForCategory(
   category: string,
-  mainTitle: string,
-  articles: Array<{ title: string; source: string }>
-): Promise<{ title: string; summary: string }> {
-  console.log(`Synthesizing story for category: ${category}`);
+  mainTitle: string, 
+  articles: Array<{ title: string; source: string; link: string }>
+): Promise<{ title: string; summary: string; deep_content: string }> {
+  console.log(`Synthesizing for category ${category}...`);
   
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY) {
     throw new Error('LOVABLE_API_KEY not configured');
   }
-  
-  const prompt = `Analizza questi articoli di ${category} che parlano della STESSA NOTIZIA da fonti diverse.
 
-NOTIZIA PRINCIPALE:
-"${mainTitle}"
+  const prompt = `Sei un giornalista esperto specializzato in ${category}.
 
-COPERTURA DA DIVERSE FONTI:
-${articles.map((a, i) => `${i + 1}. ${a.source}: "${a.title}"`).join('\n')}
+TITOLO PRINCIPALE: ${mainTitle}
 
-ISTRUZIONI RIGOROSE:
-1. Questa è UNA SOLA notizia di ${category} vista da prospettive diverse
-2. NON mescolare storie diverse - concentrati SOLO sul fatto principale
-3. Il titolo deve essere chiaro e specifico sul singolo evento
-4. Il summary deve essere informativo e completo: spiega cosa è successo, chi è coinvolto, il contesto, perché è importante per ${category}, e quali sono le implicazioni. Fornisci dettagli sufficienti per comprendere la notizia senza dover leggere le fonti (400-600 caratteri).
-5. Mantieni il focus sulla categoria ${category}
+FONTI DISPONIBILI:
+${articles.map((a, idx) => `[${idx}] ${a.source}: "${a.title}"`).join('\n')}
 
-Rispondi SOLO con JSON (nessun testo extra):
+Il tuo compito è creare:
+1. Un TITOLO FINALE chiaro e conciso (max 80 caratteri)
+2. Un SUMMARY per la card (400-500 caratteri, sintesi rapida per chi scorre il feed)
+3. Un APPROFONDIMENTO ESTESO (deep_content) di 1500-2000 caratteri con:
+   - Spiegazione dettagliata di cosa è successo
+   - Contesto storico/politico/settoriale quando rilevante
+   - Chi sono i protagonisti e perché è importante
+   - Cosa dicono le diverse fonti (usa marker [SOURCE:N] dopo ogni affermazione)
+   - Implicazioni e sviluppi futuri
+   - Scrivi in modo discorsivo, coinvolgente, NO elenchi puntati
+   - Inserisci marker [SOURCE:N] dove appropriato (es: "Secondo il NYT [SOURCE:0], il presidente ha...")
+
+ESEMPIO DI MARKER:
+"Il presidente ha commutato la pena di morte [SOURCE:0]. Questa decisione rappresenta un cambiamento storico [SOURCE:1] che potrebbe influenzare future politiche [SOURCE:2]."
+
+Rispondi SOLO con JSON valido:
 {
-  "title": "Titolo specifico del singolo evento (max 50 caratteri)",
-  "summary": "Spiegazione completa: cosa è successo, chi è coinvolto, contesto, perché è importante, implicazioni (400-600 caratteri)"
+  "title": "Titolo conciso e chiaro",
+  "summary": "Sintesi per card (400-500 caratteri)",
+  "deep_content": "Approfondimento esteso con marker [SOURCE:N] (1500-2000 caratteri)"
 }`;
 
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        { role: 'user', content: prompt }
-      ],
-      temperature: 0.3,
-      max_tokens: 800
-    }),
-  });
+  try {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { 
+            role: 'system', 
+            content: 'Sei un giornalista esperto. Rispondi SOLO con JSON valido, nessun testo prima o dopo.' 
+          },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+        max_tokens: 3000
+      }),
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('AI API error:', response.status, errorText);
-    throw new Error(`AI synthesis failed: ${response.statusText}`);
-  }
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('AI API error:', response.status, errorText);
+      throw new Error(`AI synthesis failed: ${response.statusText}`);
+    }
 
-  const data = await response.json();
-  const content = data.choices[0].message.content;
-  
-  // Extract JSON from response (handles markdown code blocks)
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error('Could not extract JSON from AI response');
+    const data = await response.json();
+    const content = data.choices[0].message.content;
+    
+    // Extract JSON from response (handles markdown code blocks)
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error('Could not extract JSON from AI response');
+    }
+    
+    const result = JSON.parse(jsonMatch[0]);
+    console.log('AI synthesis completed:', result.title);
+    
+    return {
+      title: result.title,
+      summary: result.summary,
+      deep_content: result.deep_content
+    };
+  } catch (error) {
+    console.error('AI synthesis error:', error);
+    
+    return {
+      title: mainTitle,
+      summary: `Sintesi automatica: ${mainTitle}. Questa notizia è stata aggregata da ${articles.length} fonti diverse.`,
+      deep_content: `${mainTitle}\n\nQuesta notizia è stata riportata da diverse fonti:\n${articles.map((a, idx) => `\n[SOURCE:${idx}] ${a.source}: ${a.title}`).join('')}\n\nPer maggiori dettagli, consulta le fonti originali.`
+    };
   }
-  
-  const result = JSON.parse(jsonMatch[0]);
-  console.log('AI synthesis completed:', result.title);
-  
-  return {
-    title: result.title,
-    summary: result.summary
-  };
 }
 
 serve(async (req) => {
-  // Handle CORS
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    console.log('fetch-interest-focus invoked');
+    
     const { category } = await req.json();
-    console.log(`fetch-interest-focus invoked for category: ${category}`);
     
     if (!category) {
-      throw new Error('Category is required');
+      return new Response(
+        JSON.stringify({ error: 'Category is required' }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -340,23 +410,24 @@ serve(async (req) => {
       .maybeSingle();
     
     if (cached) {
-      console.log(`Returning cached interest focus for ${category}`);
+      console.log(`Returning cached interest focus for category: ${category}`);
       return new Response(JSON.stringify(cached), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
     
-    // 2. Fetch fresh data using multi-source search
-    console.log(`Fetching fresh interest focus for ${category}...`);
-    const { mainTitle, articles, imageUrl } = await fetchTopCategoryStoryWithMultiSourceCoverage(category);
+    // 2. Fetch fresh data
+    console.log(`Fetching fresh interest focus for category: ${category}...`);
+    const { mainTitle, articles, imageUrl: rssImageUrl } = await fetchTopCategoryStoryWithMultiSourceCoverage(category);
     
     if (articles.length === 0) {
       console.log('No articles found, using fallback');
       const fallback = {
         id: crypto.randomUUID(),
         category,
-        title: `Nessuna notizia di ${category}`,
-        summary: 'Al momento non ci sono notizie disponibili per questa categoria.',
+        title: `Nessuna notizia disponibile per ${category}`,
+        summary: 'Al momento non ci sono notizie disponibili per questa categoria. Riprova più tardi.',
+        deep_content: 'Nessun contenuto disponibile.',
         sources: [{ icon: '📰', name: 'Google News', url: '' }],
         trust_score: 'Medio' as const,
         reactions: { likes: 0, comments: 0, shares: 0 },
@@ -372,7 +443,14 @@ serve(async (req) => {
     }
     
     // 3. Synthesize with AI
-    const { title, summary } = await synthesizeForCategory(category, mainTitle, articles);
+    const { title, summary, deep_content } = await synthesizeForCategory(category, mainTitle, articles);
+    
+    // Try to fetch OG image from first source if RSS image not available
+    let finalImageUrl = rssImageUrl;
+    if (!finalImageUrl && articles.length > 0 && articles[0].link) {
+      console.log('No RSS image, trying OG image from first source...');
+      finalImageUrl = await fetchOgImage(articles[0].link);
+    }
     
     // 4. Format sources (take up to 5 diverse sources)
     const sources = articles.slice(0, 5).map(a => ({
@@ -387,10 +465,11 @@ serve(async (req) => {
       category,
       title,
       summary,
+      deep_content,
       sources,
-      trust_score: 'Alto' as const, // Multi-source = higher trust
+      trust_score: 'Alto' as const,
       reactions: { likes: 0, comments: 0, shares: 0 },
-      image_url: imageUrl,
+      image_url: finalImageUrl,
       created_at: new Date().toISOString(),
       expires_at: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString()
     };
@@ -405,7 +484,7 @@ serve(async (req) => {
       throw insertError;
     }
     
-    console.log(`Interest focus created successfully for ${category}`);
+    console.log(`Interest focus created successfully for category: ${category}`);
     
     return new Response(JSON.stringify(interestFocus), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
