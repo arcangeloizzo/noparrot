@@ -535,10 +535,9 @@ export const FeedCard = ({
               className={cn("reaction-btn-heart", isLiked && "liked")}
             >
               <HeartIcon 
-                className={cn(
-                  "w-5 h-5 transition-all",
-                  isLiked && "fill-current"
-                )}
+                className="w-5 h-5 transition-all"
+                fill={isLiked ? "currentColor" : "none"}
+                strokeWidth={isLiked ? 0 : 2}
               />
               <span className="text-sm">
                 {post.reactions.heart + (isLiked ? 1 : 0)}
