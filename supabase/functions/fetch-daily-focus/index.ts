@@ -81,6 +81,15 @@ function extractImage(itemXml: string): string | null {
   return null;
 }
 
+// Validate image URL (exclude Google News placeholders and logos)
+function isValidImage(url: string | null): boolean {
+  if (!url) return false;
+  if (url.includes('google.com') || url.includes('gstatic.com')) return false;
+  if (url.includes('news.google')) return false;
+  if (url.toLowerCase().includes('logo')) return false;
+  return true;
+}
+
 // Fetch Open Graph image from URL with full redirect handling
 async function fetchOgImage(url: string): Promise<string | null> {
   try {
@@ -337,19 +346,21 @@ Il tuo compito è creare:
    - Implicazioni e sviluppi futuri
    - Scrivi in modo discorsivo, coinvolgente, NO elenchi puntati
 
-REGOLE CRITICHE PER I MARKER [SOURCE:N]:
-- Inserisci i marker SOLO alla FINE di ogni paragrafo o affermazione completa
-- MAI a metà frase o all'interno di una proposizione
-- Usa marker SEPARATI, uno per fonte: [SOURCE:0] [SOURCE:1] [SOURCE:2]
-- NON usare il formato [SOURCE:0, 1, 2] ma sempre marker distinti
-- Ogni paragrafo dovrebbe terminare con i marker delle fonti usate
+⚠️ REGOLA CRITICA PER I MARKER [SOURCE:N]:
+- I marker [SOURCE:N] vanno ESCLUSIVAMENTE come ULTIMA cosa prima del punto finale di ogni paragrafo
+- MAI all'interno di una frase, MAI prima di una virgola, MAI a metà proposizione
+- OGNI paragrafo DEVE terminare con almeno un marker [SOURCE:N]
+- Se un paragrafo usa più fonti, elencale alla fine come marker separati: [SOURCE:0] [SOURCE:1] [SOURCE:2]
+- NON usare MAI il formato [SOURCE:0, 1, 2] - usa SEMPRE marker separati
 
-ESEMPIO CORRETTO:
-"Il presidente ha annunciato una nuova politica economica che cambierà il panorama industriale del paese. Questa decisione, attesa da mesi, rappresenta un punto di svolta significativo per l'economia nazionale. [SOURCE:0] [SOURCE:1]
+STRUTTURA CORRETTA DI OGNI PARAGRAFO:
+"Frase 1. Frase 2. Frase 3 che conclude l'idea del paragrafo. [SOURCE:0] [SOURCE:1]"
 
-I critici sostengono che la misura non sia sufficiente e che serviranno ulteriori interventi per sostenere le imprese in difficoltà. [SOURCE:2]
+ESEMPIO ERRATO ❌:
+"Trump ha affermato [SOURCE:0] che ci sono buone chance per un accordo"
 
-Gli analisti internazionali prevedono che questa mossa potrebbe influenzare le politiche di altri paesi europei nei prossimi mesi. [SOURCE:3] [SOURCE:4]"
+ESEMPIO CORRETTO ✅:
+"Trump ha affermato che ci sono buone chance per un accordo tra le due nazioni, un'affermazione attesa da tempo che potrebbe cambiare gli equilibri diplomatici. [SOURCE:0] [SOURCE:1]"
 
 Rispondi SOLO con JSON valido:
 {
@@ -470,23 +481,26 @@ serve(async (req) => {
     // 3. Synthesize with AI
     const { title, summary, deep_content } = await synthesizeWithAI(mainTitle, articles);
     
-    // Try to fetch OG image from first source if RSS image not available
-    let finalImageUrl = rssImageUrl;
+    // 4. Image handling with strict validation
+    let finalImageUrl = isValidImage(rssImageUrl) ? rssImageUrl : null;
+    
+    // Try OG fetch only if we don't have a valid image
     if (!finalImageUrl && articles.length > 0 && articles[0].link) {
-      console.log('No RSS image, trying OG image from first source...');
-      finalImageUrl = await fetchOgImage(articles[0].link);
+      console.log('[fetch-daily-focus] No valid RSS image, attempting OG fetch from:', articles[0].link);
+      const ogImage = await fetchOgImage(articles[0].link);
+      finalImageUrl = isValidImage(ogImage) ? ogImage : null;
     }
     
-    // Category-based fallback images
-    const FALLBACK_IMAGES: Record<string, string> = {
-      'default': 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&q=80', // news
-    };
-    
-    // Fallback to default news image if all else fails
+    // Always ensure we have a fallback image
     if (!finalImageUrl) {
-      console.log('Using fallback image');
+      console.log('[fetch-daily-focus] No valid image found, using default fallback');
+      const FALLBACK_IMAGES: Record<string, string> = {
+        'default': 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=600&h=400&fit=crop'
+      };
       finalImageUrl = FALLBACK_IMAGES['default'];
     }
+    
+    console.log('[fetch-daily-focus] Final image URL:', finalImageUrl);
     
     // 4. Format sources (take up to 5 diverse sources)
     const sources = articles.slice(0, 5).map(a => ({
