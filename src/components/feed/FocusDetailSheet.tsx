@@ -2,13 +2,15 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ExternalLink, MessageCircle, Trash2 } from "lucide-react";
+import { Heart, MessageCircle, Share2, Trash2, Shield } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFocusComments, useAddFocusComment, useDeleteFocusComment } from "@/hooks/useFocusComments";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
+import { SourceTag } from "./SourceTag";
+import { SourcesDrawer } from "./SourcesDrawer";
 
 interface Source {
   icon: string;
@@ -22,10 +24,15 @@ interface FocusDetailSheetProps {
   type: 'daily' | 'interest';
   category?: string;
   title: string;
-  summary: string;
+  deepContent?: string;
   sources: Source[];
   imageUrl?: string;
   focusId: string;
+  reactions: { likes: number; comments: number; shares: number };
+  userReactions?: { hasLiked: boolean };
+  onLike?: () => void;
+  onComment?: () => void; // Apre scelta consapevole/rapido
+  onShare?: () => void;
 }
 
 export const FocusDetailSheet = ({
@@ -34,10 +41,15 @@ export const FocusDetailSheet = ({
   type,
   category,
   title,
-  summary,
+  deepContent,
   sources,
   imageUrl,
   focusId,
+  reactions,
+  userReactions,
+  onLike,
+  onComment,
+  onShare,
 }: FocusDetailSheetProps) => {
   const isDailyFocus = type === 'daily';
   const badgeBg = isDailyFocus ? 'bg-[#0A7AFF]' : 'bg-[#A98FF8]/20';
@@ -45,12 +57,43 @@ export const FocusDetailSheet = ({
   const { user } = useAuth();
   const [commentText, setCommentText] = useState('');
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null);
+  const [sourcesDrawerOpen, setSourcesDrawerOpen] = useState(false);
+  const [highlightedSourceIndex, setHighlightedSourceIndex] = useState<number | undefined>();
   
   const { data: comments = [] } = useFocusComments(focusId, type);
   const addComment = useAddFocusComment();
   const deleteComment = useDeleteFocusComment();
 
-  const handleSubmitComment = () => {
+  // Parse deep_content and render with SourceTag components
+  const parseContentWithSources = (content: string) => {
+    // Split by [SOURCE:...] markers
+    const parts = content.split(/(\[SOURCE:\d+(?:,\s*SOURCE:\d+)*\])/g);
+    
+    return parts.map((part, idx) => {
+      const sourceMatch = part.match(/\[SOURCE:(\d+(?:,\s*SOURCE:\d+)*)\]/);
+      if (sourceMatch) {
+        // Extract indices: "0" or "0, SOURCE:1, SOURCE:2"
+        const indices = sourceMatch[1]
+          .split(',')
+          .map(s => parseInt(s.replace(/SOURCE:/g, '').trim()));
+        
+        return (
+          <SourceTag 
+            key={idx}
+            sourceIndices={indices}
+            sources={sources}
+            onClick={() => {
+              setHighlightedSourceIndex(indices[0]);
+              setSourcesDrawerOpen(true);
+            }}
+          />
+        );
+      }
+      return <span key={idx}>{part}</span>;
+    });
+  };
+
+  const handleSubmitComment = (isVerified: boolean = false) => {
     if (!commentText.trim()) return;
     
     addComment.mutate({
@@ -58,7 +101,8 @@ export const FocusDetailSheet = ({
       focusType: type,
       content: commentText,
       parentId: replyTo?.id || null,
-      level: replyTo ? 1 : 0
+      level: replyTo ? 1 : 0,
+      isVerified
     });
     
     setCommentText('');
@@ -81,141 +125,128 @@ export const FocusDetailSheet = ({
   });
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent 
-        side="bottom" 
-        className="h-[85vh] bg-[#0E141A] border-white/10 overflow-y-auto"
-      >
-        <SheetHeader className="space-y-4 pb-6 border-b border-white/10">
-          <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0 w-fit")}>
-            {isDailyFocus ? '🌍 DAILY FOCUS' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
-          </Badge>
-          
-          {imageUrl && (
-            <div className="w-full h-48 rounded-lg overflow-hidden">
-              <img 
-                src={imageUrl} 
-                alt="" 
-                className="w-full h-full object-cover"
-              />
-            </div>
-          )}
-          
-          <SheetTitle className="text-white text-2xl font-bold text-left leading-tight">
-            {title}
-          </SheetTitle>
-        </SheetHeader>
-        
-        <div className="py-6 space-y-6">
-          <div>
-            <h4 className="text-gray-400 text-sm font-semibold mb-2">Sintesi</h4>
-            <p className="text-gray-200 text-base leading-relaxed">{summary}</p>
-          </div>
-          
-          <div>
-            <h4 className="text-gray-400 text-sm font-semibold mb-3">
-              Fonti ({sources.length})
-            </h4>
-            <div className="space-y-2">
-              {sources.map((source, idx) => (
-                <a
-                  key={idx}
-                  href={source.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={cn(
-                    "flex items-center gap-3 p-4 rounded-lg transition-colors",
-                    "bg-white/5 hover:bg-white/10",
-                    !source.url && "opacity-50 pointer-events-none"
-                  )}
-                >
-                  <span className="text-2xl">{source.icon}</span>
-                  <span className="text-white font-medium flex-1">{source.name}</span>
-                  {source.url && (
-                    <ExternalLink className="w-5 h-5 text-gray-400" />
-                  )}
-                </a>
-              ))}
-            </div>
-          </div>
-
-          {/* Comments Section */}
-          <div className="border-t border-white/10 pt-6">
-            <h4 className="text-gray-400 text-sm font-semibold mb-4">
-              Commenti ({comments.length})
-            </h4>
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent 
+          side="bottom" 
+          className="h-[85vh] bg-[#0E141A] border-white/10 overflow-y-auto"
+        >
+          <SheetHeader className="space-y-4 pb-6 border-b border-white/10">
+            <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0 w-fit")}>
+              {isDailyFocus ? '🌍 DAILY FOCUS' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
+            </Badge>
             
-            {/* Comment Composer */}
-            {user && (
-              <div className="mb-6 space-y-2">
-                {replyTo && (
-                  <div className="flex items-center justify-between px-3 py-2 bg-white/5 rounded-lg">
-                    <span className="text-sm text-gray-400">
-                      Rispondi a @{replyTo.username}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setReplyTo(null)}
-                      className="h-6 text-gray-400"
-                    >
-                      Annulla
-                    </Button>
-                  </div>
-                )}
-                <Textarea
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="Aggiungi un commento..."
-                  className="bg-white/5 border-white/10 text-white placeholder:text-gray-500"
-                  rows={3}
+            {imageUrl && (
+              <div className="w-full h-48 rounded-lg overflow-hidden">
+                <img 
+                  src={imageUrl} 
+                  alt="" 
+                  className="w-full h-full object-cover"
                 />
-                <Button
-                  onClick={handleSubmitComment}
-                  disabled={!commentText.trim() || addComment.isPending}
-                  className="w-full"
-                >
-                  {addComment.isPending ? 'Pubblicazione...' : 'Pubblica'}
-                </Button>
               </div>
             )}
-
-            {/* Comments List */}
-            <div className="space-y-4">
-              {commentTree.map((comment) => (
-                <div key={comment.id}>
-                  <CommentItem 
-                    comment={comment}
-                    onReply={(id, username) => setReplyTo({ id, username })}
-                    onDelete={handleDeleteComment}
-                    currentUserId={user?.id}
-                  />
-                  {repliesMap.has(comment.id) && (
-                    <div className="ml-6 mt-2 space-y-2 border-l-2 border-white/10 pl-4">
-                      {repliesMap.get(comment.id)!.map((reply) => (
-                        <CommentItem
-                          key={reply.id}
-                          comment={reply}
-                          onReply={(id, username) => setReplyTo({ id, username })}
-                          onDelete={handleDeleteComment}
-                          currentUserId={user?.id}
-                          isReply
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-              {comments.length === 0 && (
-                <p className="text-center text-gray-500 py-8">
-                  Nessun commento. Sii il primo a commentare!
-                </p>
+            
+            <SheetTitle className="text-white text-2xl font-bold text-left leading-tight">
+              {title}
+            </SheetTitle>
+          </SheetHeader>
+          
+          {/* Reaction Bar */}
+          <div className="py-4 flex items-center gap-4 border-b border-white/10">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onLike}
+              className={cn(
+                "flex items-center gap-2 text-gray-400 hover:text-red-500",
+                userReactions?.hasLiked && "text-red-500"
               )}
+            >
+              <Heart className={cn("w-5 h-5", userReactions?.hasLiked && "fill-current")} />
+              <span className="text-sm">{reactions.likes}</span>
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onComment}
+              className="flex items-center gap-2 text-gray-400 hover:text-primary"
+            >
+              <MessageCircle className="w-5 h-5" />
+              <span className="text-sm">{reactions.comments}</span>
+            </Button>
+            
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onShare}
+              className="flex items-center gap-2 text-gray-400 hover:text-blue-500"
+            >
+              <Share2 className="w-5 h-5" />
+              <span className="text-sm">{reactions.shares}</span>
+            </Button>
+          </div>
+          
+          <div className="py-6 space-y-6">
+            {/* Deep Content with Source Tags */}
+            <div>
+              <h4 className="text-gray-400 text-sm font-semibold mb-3">Approfondimento</h4>
+              <p className="text-gray-200 text-base leading-relaxed">
+                {deepContent ? parseContentWithSources(deepContent) : 'Contenuto non disponibile.'}
+              </p>
+            </div>
+
+            {/* Comments Section */}
+            <div className="border-t border-white/10 pt-6">
+              <h4 className="text-gray-400 text-sm font-semibold mb-4">
+                Commenti ({comments.length})
+              </h4>
+
+              {/* Comments List */}
+              <div className="space-y-4">
+                {commentTree.map((comment) => (
+                  <div key={comment.id}>
+                    <CommentItem 
+                      comment={comment}
+                      onReply={(id, username) => setReplyTo({ id, username })}
+                      onDelete={handleDeleteComment}
+                      currentUserId={user?.id}
+                    />
+                    {repliesMap.has(comment.id) && (
+                      <div className="ml-6 mt-2 space-y-2 border-l-2 border-white/10 pl-4">
+                        {repliesMap.get(comment.id)!.map((reply) => (
+                          <CommentItem
+                            key={reply.id}
+                            comment={reply}
+                            onReply={(id, username) => setReplyTo({ id, username })}
+                            onDelete={handleDeleteComment}
+                            currentUserId={user?.id}
+                            isReply
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {comments.length === 0 && (
+                  <p className="text-center text-gray-500 py-8">
+                    Nessun commento. Sii il primo a commentare!
+                  </p>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </SheetContent>
-    </Sheet>
+        </SheetContent>
+      </Sheet>
+
+      {/* Sources Drawer */}
+      <SourcesDrawer
+        open={sourcesDrawerOpen}
+        onOpenChange={setSourcesDrawerOpen}
+        sources={sources}
+        highlightIndex={highlightedSourceIndex}
+      />
+    </>
   );
 };
 
@@ -235,10 +266,13 @@ const CommentItem = ({ comment, onReply, onDelete, currentUserId, isReply }: Com
           {comment.author.username[0].toUpperCase()}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-white text-sm">
               @{comment.author.username}
             </span>
+            {comment.is_verified && (
+              <Shield className="w-3 h-3 text-primary fill-current" />
+            )}
             <span className="text-xs text-gray-500">
               {formatDistanceToNow(new Date(comment.created_at), { 
                 addSuffix: true,

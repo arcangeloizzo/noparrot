@@ -97,13 +97,15 @@ function extractImage(itemXml: string): string | null {
   return null;
 }
 
-// Fetch Open Graph image from URL
+// Fetch Open Graph image from URL with full redirect handling
 async function fetchOgImage(url: string): Promise<string | null> {
   try {
     console.log(`Fetching OG image from: ${url}`);
+    
+    // First attempt: follow redirects
     const response = await fetch(url, { 
       headers: { 
-        'User-Agent': 'Mozilla/5.0 (compatible; NoParrotBot/1.0)' 
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
       },
       redirect: 'follow'
     });
@@ -113,28 +115,86 @@ async function fetchOgImage(url: string): Promise<string | null> {
       return null;
     }
     
+    const finalUrl = response.url;
+    console.log(`Final URL after redirects: ${finalUrl}`);
+    
+    // If still on Google News, extract real redirect from HTML
+    if (finalUrl.includes('news.google.com')) {
+      console.log('Still on Google News, extracting real article URL from HTML...');
+      const html = await response.text();
+      
+      // Google News uses different redirect patterns
+      const redirectPatterns = [
+        /href="(https?:\/\/[^"]+)"[^>]*>(?:Click here|Continua a leggere)/i,
+        /<a[^>]*href="(https?:\/\/(?!news\.google)[^"]+)"[^>]*>/i,
+        /url=(https?:\/\/(?!news\.google)[^&"']+)/i
+      ];
+      
+      for (const pattern of redirectPatterns) {
+        const match = html.match(pattern);
+        if (match && match[1] && !match[1].includes('google.com')) {
+          const realUrl = decodeURIComponent(match[1]);
+          console.log(`Found real article URL: ${realUrl}`);
+          
+          // Fetch the actual article
+          try {
+            const articleResponse = await fetch(realUrl, {
+              headers: { 
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+              },
+              redirect: 'follow'
+            });
+            
+            if (articleResponse.ok) {
+              const articleHtml = await articleResponse.text();
+              const ogImage = extractOgImageFromHtml(articleHtml);
+              if (ogImage) return ogImage;
+            }
+          } catch (e) {
+            console.log('Failed to fetch real article:', e);
+          }
+        }
+      }
+      
+      console.log('Could not extract real URL from Google News redirect');
+      return null;
+    }
+    
+    // Extract OG image from final HTML
     const html = await response.text();
+    return extractOgImageFromHtml(html);
     
-    // Try og:image
-    const ogMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i);
-    if (ogMatch) {
-      console.log(`Found og:image: ${ogMatch[1]}`);
-      return ogMatch[1];
-    }
-    
-    // Fallback: twitter:image
-    const twitterMatch = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i);
-    if (twitterMatch) {
-      console.log(`Found twitter:image: ${twitterMatch[1]}`);
-      return twitterMatch[1];
-    }
-    
-    console.log('No OG or Twitter image found');
-    return null;
   } catch (error) {
     console.error(`Error fetching OG image: ${error}`);
     return null;
   }
+}
+
+// Helper to extract OG image from HTML
+function extractOgImageFromHtml(html: string): string | null {
+  // Try og:image
+  const ogMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i);
+  if (ogMatch) {
+    console.log(`Found og:image: ${ogMatch[1]}`);
+    return ogMatch[1];
+  }
+  
+  // Try content first (some sites have different order)
+  const ogMatchAlt = html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+  if (ogMatchAlt) {
+    console.log(`Found og:image (alt format): ${ogMatchAlt[1]}`);
+    return ogMatchAlt[1];
+  }
+  
+  // Fallback: twitter:image
+  const twitterMatch = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i);
+  if (twitterMatch) {
+    console.log(`Found twitter:image: ${twitterMatch[1]}`);
+    return twitterMatch[1];
+  }
+  
+  console.log('No OG or Twitter image found');
+  return null;
 }
 
 // Search for related articles about the same story using Google News search
