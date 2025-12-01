@@ -281,10 +281,8 @@ export const Feed = () => {
                     });
                   }}
                   onComment={() => {
-                    toast({
-                      title: "Commenti",
-                      description: "Apertura commenti Focus Card (da implementare)"
-                    });
+                    setSelectedFocus(item);
+                    setFocusDetailOpen(true);
                   }}
                   onShare={() => {
                     toast({
@@ -359,6 +357,8 @@ export const Feed = () => {
           title={selectedFocus.data.title}
           summary={selectedFocus.data.summary}
           sources={selectedFocus.data.sources}
+          imageUrl={selectedFocus.data.image_url}
+          focusId={selectedFocus.data.id}
         />
       )}
 

@@ -6,6 +6,16 @@ const corsHeaders = {
 };
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
+// Decode HTML entities from XML
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&#39;/g, "'");
+}
+
 // Helper to extract source name from URL
 function extractSourceFromUrl(url: string): string {
   try {
@@ -55,23 +65,17 @@ function extractSourceName(itemXml: string, title: string): string {
 
 // Extract image from RSS item
 function extractImage(itemXml: string): string | null {
-  // Google News puts images in <description> as HTML
+  // Google News puts images in <description> as HTML entities
   const description = extractText(itemXml, 'description');
   if (description) {
-    const imgMatch = description.match(/<img[^>]*src="([^"]+)"/);
+    // Decode HTML entities first
+    const decoded = decodeHtmlEntities(description);
+    const imgMatch = decoded.match(/<img[^>]*src="([^"]+)"/);
     if (imgMatch) {
       console.log('Image found in description:', imgMatch[1]);
       return imgMatch[1];
     }
   }
-  
-  // Fallback: check media:content
-  const mediaMatch = itemXml.match(/<media:content[^>]*url="([^"]+)"/);
-  if (mediaMatch) return mediaMatch[1];
-  
-  // Fallback: check enclosure
-  const enclosureMatch = itemXml.match(/<enclosure[^>]*url="([^"]+)"/);
-  if (enclosureMatch) return enclosureMatch[1];
   
   console.log('No image found in RSS item');
   return null;
