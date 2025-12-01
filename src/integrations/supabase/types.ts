@@ -192,6 +192,61 @@ export type Database = {
         }
         Relationships: []
       }
+      focus_comments: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string | null
+          focus_id: string
+          focus_type: string
+          id: string
+          level: number
+          parent_id: string | null
+        }
+        Insert: {
+          author_id: string
+          content: string
+          created_at?: string | null
+          focus_id: string
+          focus_type: string
+          id?: string
+          level?: number
+          parent_id?: string | null
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string | null
+          focus_id?: string
+          focus_type?: string
+          id?: string
+          level?: number
+          parent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "focus_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "focus_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "focus_comments_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "focus_comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       focus_reactions: {
         Row: {
           created_at: string | null
