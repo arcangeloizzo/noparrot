@@ -35,9 +35,10 @@ interface CommentsSheetProps {
   mode: 'view' | 'reply';
   isFocus?: boolean;
   focusType?: 'daily' | 'interest';
+  focusCommentMode?: 'aware' | 'quick' | null;
 }
 
-export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, focusType = 'daily' }: CommentsSheetProps) => {
+export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, focusType = 'daily', focusCommentMode }: CommentsSheetProps) => {
   const { user } = useAuth();
   const { data: comments = [], isLoading } = isFocus 
     ? useFocusComments(post.id, focusType)
@@ -59,7 +60,6 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
   const [quizData, setQuizData] = useState<any>(null);
   const [commentMode, setCommentMode] = useState<'unread' | 'read'>('unread');
   const [userPassedGate, setUserPassedGate] = useState(false);
-  const [keyboardOffset, setKeyboardOffset] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
@@ -238,6 +238,11 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      // Imposta commentMode basato su focusCommentMode per isFocus
+      if (isFocus && focusCommentMode) {
+        setCommentMode(focusCommentMode === 'aware' ? 'read' : 'unread');
+        setUserPassedGate(focusCommentMode === 'aware');
+      }
     } else {
       document.body.style.overflow = 'unset';
       setCommentMode('unread');
@@ -246,64 +251,11 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
     return () => {
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen]);
+  }, [isOpen, isFocus, focusCommentMode]);
 
   useEffect(() => {
     setSelectedMentionIndex(0);
   }, [mentionUsers]);
-
-  // Gestione keyboard iOS con visualViewport + fallback
-  useEffect(() => {
-    if (!isOpen) return;
-    
-    // Metodo 1: visualViewport API (moderno)
-    if (typeof window !== 'undefined' && window.visualViewport) {
-      const handleResize = () => {
-        if (!window.visualViewport) return;
-        const viewport = window.visualViewport;
-        const offsetFromBottom = window.innerHeight - viewport.height - viewport.offsetTop;
-        setKeyboardOffset(Math.max(0, offsetFromBottom));
-      };
-      
-      window.visualViewport.addEventListener('resize', handleResize);
-      window.visualViewport.addEventListener('scroll', handleResize);
-      handleResize(); // Chiamata iniziale
-      
-      return () => {
-        if (window.visualViewport) {
-          window.visualViewport.removeEventListener('resize', handleResize);
-          window.visualViewport.removeEventListener('scroll', handleResize);
-        }
-        setKeyboardOffset(0);
-      };
-    }
-    
-    // Metodo 2: Fallback per iOS più vecchi - ascolta focus del textarea
-    const handleFocus = () => {
-      // Su iOS, quando la tastiera appare, window.innerHeight diminuisce
-      // Sposta il form verso l'alto per compensare
-      setTimeout(() => {
-        const keyboardHeight = window.innerHeight < 500 ? 300 : 0;
-        setKeyboardOffset(keyboardHeight);
-      }, 300);
-    };
-    
-    const handleBlur = () => {
-      setTimeout(() => setKeyboardOffset(0), 100);
-    };
-    
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.addEventListener('focus', handleFocus);
-      textarea.addEventListener('blur', handleBlur);
-      
-      return () => {
-        textarea.removeEventListener('focus', handleFocus);
-        textarea.removeEventListener('blur', handleBlur);
-        setKeyboardOffset(0);
-      };
-    }
-  }, [isOpen]);
 
   const getInitials = (name: string) => {
     return name
@@ -336,7 +288,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
 
   return (
     <>
-      <div className="fixed inset-0 bg-background z-[60] flex flex-col">
+      <div className="fixed inset-0 bg-background z-[60] flex flex-col h-[100dvh]">
         {/* Header */}
         <div className="sticky top-0 bg-background border-b border-border px-4 py-3 flex items-center justify-between z-20">
           <button
@@ -349,8 +301,10 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
           <div className="w-10" />
         </div>
 
-        {/* Post originale */}
-        <div className="px-4 py-3 border-b border-border bg-background flex-shrink-0">
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Post originale */}
+          <div className="px-4 py-3 border-b border-border bg-background flex-shrink-0">
           <div className="flex gap-3">
             <div className="flex-shrink-0">
               {getUserAvatar(post.author.avatar_url, post.author.full_name || post.author.username)}
@@ -433,7 +387,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
         )}
 
         {/* Lista commenti */}
-        <div className="flex-1 overflow-y-auto pb-32">
+        <div className="pb-4">
           {isLoading ? (
             <div className="text-center text-muted-foreground py-8">
               Caricamento commenti...
@@ -472,12 +426,10 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
             </div>
           )}
         </div>
+      </div>
 
-        {/* Form commento fisso in basso */}
-        <div 
-          className="fixed left-0 right-0 bg-background border-t border-border z-[70] pb-[env(safe-area-inset-bottom)]"
-          style={{ bottom: `${keyboardOffset}px` }}
-        >
+      {/* Form commento sticky */}
+      <div className="sticky bottom-0 left-0 right-0 bg-background border-t border-border z-[70] pb-[env(safe-area-inset-bottom)]">
           <div className="px-4 py-3">
             {replyingTo && (
               <div className="mb-2 text-xs text-muted-foreground flex items-center justify-between">
