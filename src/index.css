@@ -525,12 +525,13 @@
   }
 
   .reaction-btn-heart.liked {
-    color: #f43f5e;
+    color: #ff3b4a;
   }
 
   .reaction-btn-heart.liked svg {
+    fill: #ff3b4a;
     animation: heart-scale 0.25s ease-out;
-    filter: drop-shadow(0 0 8px rgba(244, 63, 94, 0.6));
+    filter: drop-shadow(0 0 8px rgba(255, 59, 74, 0.6));
   }
 
   @keyframes heart-scale {
