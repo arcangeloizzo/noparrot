@@ -78,8 +78,22 @@ export const FocusDetailSheet = ({
 
   // Parse deep_content and render with SourceTag components
   const parseContentWithSources = (content: string) => {
+    // Step 0: Add fallback [SOURCE:0] to paragraphs without sources
+    const paragraphs = content.split('\n\n');
+    const contentWithFallback = paragraphs
+      .map(p => {
+        const trimmed = p.trim();
+        if (!trimmed) return '';
+        // Check if paragraph ends with [SOURCE:N]
+        if (!/\[SOURCE:\d+\]$/.test(trimmed)) {
+          return `${trimmed} [SOURCE:0]`;
+        }
+        return trimmed;
+      })
+      .join('\n\n');
+    
     // Step 1: Aggregate consecutive [SOURCE:N] markers into [SOURCE:N,M,...]
-    const aggregatedContent = content.replace(
+    const aggregatedContent = contentWithFallback.replace(
       /(\[SOURCE:\d+\](?:\s*\[SOURCE:\d+\])+)/g,
       (match) => {
         // Extract all indices from consecutive markers
