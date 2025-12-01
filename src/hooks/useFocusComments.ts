@@ -12,6 +12,7 @@ export interface FocusComment {
   created_at: string;
   parent_id: string | null;
   level: number;
+  is_verified: boolean | null;
   author: {
     id: string;
     username: string;
@@ -35,6 +36,7 @@ export const useFocusComments = (focusId: string, focusType: 'daily' | 'interest
           created_at,
           parent_id,
           level,
+          is_verified,
           author:profiles!author_id (
             id,
             username,
@@ -84,13 +86,15 @@ export const useAddFocusComment = () => {
       focusType,
       content, 
       parentId = null,
-      level = 0
+      level = 0,
+      isVerified = false
     }: { 
       focusId: string;
       focusType: 'daily' | 'interest';
       content: string;
       parentId?: string | null;
       level?: number;
+      isVerified?: boolean;
     }) => {
       if (!user) throw new Error('Not authenticated');
 
@@ -102,7 +106,8 @@ export const useAddFocusComment = () => {
           author_id: user.id,
           content,
           parent_id: parentId,
-          level
+          level,
+          is_verified: isVerified
         })
         .select('id')
         .single();
