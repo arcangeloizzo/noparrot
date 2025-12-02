@@ -84,10 +84,63 @@ function extractImage(itemXml: string): string | null {
 // Validate image URL (exclude Google News placeholders and logos)
 function isValidImage(url: string | null): boolean {
   if (!url) return false;
-  if (url.includes('google.com') || url.includes('gstatic.com')) return false;
-  if (url.includes('news.google')) return false;
-  if (url.toLowerCase().includes('logo')) return false;
+  const urlLower = url.toLowerCase();
+  
+  // Esclude Google
+  if (urlLower.includes('google.com') || urlLower.includes('gstatic.com')) return false;
+  if (urlLower.includes('news.google')) return false;
+  
+  // Esclude loghi e placeholder comuni
+  if (urlLower.includes('logo')) return false;
+  if (urlLower.includes('placeholder')) return false;
+  if (urlLower.includes('default')) return false;
+  if (urlLower.includes('avatar')) return false;
+  if (urlLower.includes('favicon')) return false;
+  if (urlLower.includes('icon')) return false;
+  
+  // Deve essere HTTPS
+  if (!url.startsWith('https://')) return false;
+  
   return true;
+}
+
+// Fetch article image using Jina AI Reader
+async function fetchArticleImageWithJina(url: string): Promise<string | null> {
+  try {
+    console.log('[Jina] Fetching image from:', url);
+    
+    const jinaUrl = `https://r.jina.ai/${url}`;
+    const response = await fetch(jinaUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'X-Return-Format': 'json'
+      },
+      signal: AbortSignal.timeout(10000) // 10s timeout
+    });
+    
+    if (!response.ok) {
+      console.log('[Jina] Failed with status:', response.status);
+      return null;
+    }
+    
+    const data = await response.json();
+    
+    if (data.data?.image && isValidImage(data.data.image)) {
+      console.log('[Jina] ✅ Image found:', data.data.image);
+      return data.data.image;
+    }
+    
+    if (data.image && isValidImage(data.image)) {
+      console.log('[Jina] ✅ Image found:', data.image);
+      return data.image;
+    }
+    
+    console.log('[Jina] No valid image in response');
+    return null;
+  } catch (error) {
+    console.log('[Jina] ❌ Error:', error);
+    return null;
+  }
 }
 
 // Fetch Open Graph image from URL with full redirect handling
@@ -536,23 +589,33 @@ serve(async (req) => {
     // 3. Synthesize with AI
     const { title, summary, deep_content } = await synthesizeWithAI(mainTitle, articles);
     
-    // 4. Image handling with strict validation
+    // 4. Image handling with Jina AI Reader
     let finalImageUrl = isValidImage(rssImageUrl) ? rssImageUrl : null;
     
-    // Try OG fetch only if we don't have a valid image
-    if (!finalImageUrl && articles.length > 0 && articles[0].link) {
-      console.log('[fetch-daily-focus] No valid RSS image, attempting OG fetch from:', articles[0].link);
-      const ogImage = await fetchOgImage(articles[0].link);
-      finalImageUrl = isValidImage(ogImage) ? ogImage : null;
+    // Try Jina AI Reader on multiple articles (up to 4)
+    if (!finalImageUrl && articles.length > 0) {
+      console.log('[Image] Trying Jina AI on multiple articles...');
+      
+      for (let i = 0; i < Math.min(4, articles.length); i++) {
+        const article = articles[i];
+        if (!article.link) continue;
+        
+        console.log(`[Image] Attempt ${i + 1}/${Math.min(4, articles.length)}: ${article.source}`);
+        const jinaImage = await fetchArticleImageWithJina(article.link);
+        
+        if (jinaImage) {
+          finalImageUrl = jinaImage;
+          console.log(`[Image] ✅ Got image from ${article.source}`);
+          break;
+        }
+      }
     }
     
-    // Always ensure we have a fallback image
+    // Dynamic fallback based on title hash for variety but consistency
     if (!finalImageUrl) {
-      console.log('[fetch-daily-focus] No valid image found, using default fallback');
-      const FALLBACK_IMAGES: Record<string, string> = {
-        'default': 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=600&h=400&fit=crop'
-      };
-      finalImageUrl = FALLBACK_IMAGES['default'];
+      const titleHash = title.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+      finalImageUrl = `https://picsum.photos/seed/${titleHash}/800/450`;
+      console.log('[Image] Using dynamic fallback:', finalImageUrl);
     }
     
     console.log('[fetch-daily-focus] Final image URL:', finalImageUrl);

@@ -60,10 +60,63 @@ function extractSourceFromUrl(url: string): string {
 // Validate image URL (exclude Google News placeholders and logos)
 function isValidImage(url: string | null): boolean {
   if (!url) return false;
-  if (url.includes('google.com') || url.includes('gstatic.com')) return false;
-  if (url.includes('news.google')) return false;
-  if (url.toLowerCase().includes('logo')) return false;
+  const urlLower = url.toLowerCase();
+  
+  // Esclude Google
+  if (urlLower.includes('google.com') || urlLower.includes('gstatic.com')) return false;
+  if (urlLower.includes('news.google')) return false;
+  
+  // Esclude loghi e placeholder comuni
+  if (urlLower.includes('logo')) return false;
+  if (urlLower.includes('placeholder')) return false;
+  if (urlLower.includes('default')) return false;
+  if (urlLower.includes('avatar')) return false;
+  if (urlLower.includes('favicon')) return false;
+  if (urlLower.includes('icon')) return false;
+  
+  // Deve essere HTTPS
+  if (!url.startsWith('https://')) return false;
+  
   return true;
+}
+
+// Fetch article image using Jina AI Reader
+async function fetchArticleImageWithJina(url: string): Promise<string | null> {
+  try {
+    console.log('[Jina] Fetching image from:', url);
+    
+    const jinaUrl = `https://r.jina.ai/${url}`;
+    const response = await fetch(jinaUrl, {
+      headers: {
+        'Accept': 'application/json',
+        'X-Return-Format': 'json'
+      },
+      signal: AbortSignal.timeout(10000) // 10s timeout
+    });
+    
+    if (!response.ok) {
+      console.log('[Jina] Failed with status:', response.status);
+      return null;
+    }
+    
+    const data = await response.json();
+    
+    if (data.data?.image && isValidImage(data.data.image)) {
+      console.log('[Jina] ✅ Image found:', data.data.image);
+      return data.data.image;
+    }
+    
+    if (data.image && isValidImage(data.image)) {
+      console.log('[Jina] ✅ Image found:', data.image);
+      return data.image;
+    }
+    
+    console.log('[Jina] No valid image in response');
+    return null;
+  } catch (error) {
+    console.log('[Jina] ❌ Error:', error);
+    return null;
+  }
 }
 
 // Extract source name from RSS item (prioritize <source> tag, then parse from title)
@@ -581,34 +634,34 @@ serve(async (req) => {
     // 3. Synthesize with AI
     const { title, summary, deep_content } = await synthesizeForCategory(category, mainTitle, articles);
     
-    // 4. Image handling with strict validation
+    // 4. Image handling with Jina AI Reader
     let finalImageUrl = isValidImage(rssImageUrl) ? rssImageUrl : null;
     
-    // Try OG fetch only if we don't have a valid image
-    if (!finalImageUrl && articles.length > 0 && articles[0].link) {
-      console.log(`[fetch-interest-focus] No valid RSS image for ${category}, attempting OG fetch from:`, articles[0].link);
-      const ogImage = await fetchOgImage(articles[0].link);
-      finalImageUrl = isValidImage(ogImage) ? ogImage : null;
+    // Try Jina AI Reader on multiple articles (up to 4)
+    if (!finalImageUrl && articles.length > 0) {
+      console.log('[Image] Trying Jina AI on multiple articles...');
+      
+      for (let i = 0; i < Math.min(4, articles.length); i++) {
+        const article = articles[i];
+        if (!article.link) continue;
+        
+        console.log(`[Image] Attempt ${i + 1}/${Math.min(4, articles.length)}: ${article.source}`);
+        const jinaImage = await fetchArticleImageWithJina(article.link);
+        
+        if (jinaImage) {
+          finalImageUrl = jinaImage;
+          console.log(`[Image] ✅ Got image from ${article.source}`);
+          break;
+        }
+      }
     }
     
-    // Always ensure we have a fallback image for the category
+    // Dynamic fallback based on title + category hash for variety but consistency
     if (!finalImageUrl) {
-      console.log(`[fetch-interest-focus] No valid image found for ${category}, using category fallback`);
-      const CATEGORY_FALLBACK_IMAGES: Record<string, string> = {
-        'Società & Politica': 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=800&auto=format&q=80',
-        'Sport & Lifestyle': 'https://images.unsplash.com/photo-1461896836934-bbe879ee9b27?w=800&auto=format&q=80',
-        'Tecnologia': 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&q=80',
-        'Scienza & Tecnologia': 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=800&auto=format&q=80',
-        'Scienza': 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=800&auto=format&q=80',
-        'Economia & Business': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&q=80',
-        'Economia': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&q=80',
-        'Cultura & Arte': 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=800&auto=format&q=80',
-        'Intrattenimento': 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&q=80',
-        'Media & Comunicazione': 'https://images.unsplash.com/photo-1495020689067-958852a7765e?w=800&auto=format&q=80',
-        'Salute': 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&auto=format&q=80',
-        'Sport': 'https://images.unsplash.com/photo-1461896836934-bbe879ee9b27?w=800&auto=format&q=80',
-      };
-      finalImageUrl = CATEGORY_FALLBACK_IMAGES[category] || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&auto=format&q=80';
+      const hashSource = `${title}-${category}`;
+      const hash = hashSource.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+      finalImageUrl = `https://picsum.photos/seed/${hash}/800/450`;
+      console.log('[Image] Using dynamic fallback:', finalImageUrl);
     }
     
     console.log(`[fetch-interest-focus] Final image URL for ${category}:`, finalImageUrl);
