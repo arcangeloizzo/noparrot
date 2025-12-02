@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Heart, MessageCircle, Share2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -48,11 +48,13 @@ export const ExternalFocusCard = ({
   const { user } = useAuth();
   const { data: reactionsData } = useFocusReactions(focusId, type);
   const toggleReaction = useToggleFocusReaction();
+  const [imageError, setImageError] = useState(false);
   const isDailyFocus = type === 'daily';
   
   const badgeBg = isDailyFocus ? 'bg-[#0A7AFF]' : 'bg-[#A98FF8]/20';
   const badgeText = isDailyFocus ? 'text-white' : 'text-[#A98FF8]';
   const borderColor = isDailyFocus ? 'border-[#0A7AFF]' : 'border-[#A98FF8]';
+  const gradientBg = isDailyFocus ? 'from-[#0A7AFF]/20 to-[#0A7AFF]/5' : 'from-[#A98FF8]/20 to-[#A98FF8]/5';
   
   const trustColors = {
     'Alto': 'text-green-400',
@@ -70,15 +72,25 @@ export const ExternalFocusCard = ({
       onClick={onClick}
     >
       {/* Image */}
-      {imageUrl && (
+      {imageUrl && !imageError ? (
         <div className="aspect-video w-full overflow-hidden">
           <img 
             src={imageUrl} 
             alt={title}
             className="w-full h-full object-cover"
+            onError={() => setImageError(true)}
           />
         </div>
-      )}
+      ) : imageUrl && imageError ? (
+        <div className={cn(
+          "aspect-video w-full overflow-hidden bg-gradient-to-br flex items-center justify-center",
+          gradientBg
+        )}>
+          <span className="text-6xl opacity-30">
+            {isDailyFocus ? '🌍' : '🧠'}
+          </span>
+        </div>
+      ) : null}
 
       {/* Header */}
       <div className="p-4 pb-3">
