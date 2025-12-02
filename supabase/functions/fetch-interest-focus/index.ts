@@ -595,20 +595,20 @@ serve(async (req) => {
     if (!finalImageUrl) {
       console.log(`[fetch-interest-focus] No valid image found for ${category}, using category fallback`);
       const CATEGORY_FALLBACK_IMAGES: Record<string, string> = {
-        'Società & Politica': 'https://images.unsplash.com/photo-1529107386315-e1a2ed48a620?w=600&h=400&fit=crop',
-        'Sport & Lifestyle': 'https://images.unsplash.com/photo-1461896836934-bbe879ee9b27?w=600&h=400&fit=crop',
-        'Tecnologia': 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&h=400&fit=crop',
-        'Scienza & Tecnologia': 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=600&h=400&fit=crop',
-        'Scienza': 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=600&h=400&fit=crop',
-        'Economia & Business': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=400&fit=crop',
-        'Economia': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=400&fit=crop',
-        'Cultura & Arte': 'https://images.unsplash.com/photo-1499781350541-7783f6c6a0c8?w=600&h=400&fit=crop',
-        'Intrattenimento': 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600&h=400&fit=crop',
-        'Media & Comunicazione': 'https://images.unsplash.com/photo-1495020689067-958852a7765e?w=600&h=400&fit=crop',
-        'Salute': 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&h=400&fit=crop',
-        'Sport': 'https://images.unsplash.com/photo-1461896836934-bbe879ee9b27?w=600&h=400&fit=crop',
+        'Società & Politica': 'https://images.unsplash.com/photo-1541872703-74c5e44368f9?w=800&auto=format&q=80',
+        'Sport & Lifestyle': 'https://images.unsplash.com/photo-1461896836934-bbe879ee9b27?w=800&auto=format&q=80',
+        'Tecnologia': 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&q=80',
+        'Scienza & Tecnologia': 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=800&auto=format&q=80',
+        'Scienza': 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=800&auto=format&q=80',
+        'Economia & Business': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&q=80',
+        'Economia': 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&auto=format&q=80',
+        'Cultura & Arte': 'https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?w=800&auto=format&q=80',
+        'Intrattenimento': 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=800&auto=format&q=80',
+        'Media & Comunicazione': 'https://images.unsplash.com/photo-1495020689067-958852a7765e?w=800&auto=format&q=80',
+        'Salute': 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&auto=format&q=80',
+        'Sport': 'https://images.unsplash.com/photo-1461896836934-bbe879ee9b27?w=800&auto=format&q=80',
       };
-      finalImageUrl = CATEGORY_FALLBACK_IMAGES[category] || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=600&h=400&fit=crop';
+      finalImageUrl = CATEGORY_FALLBACK_IMAGES[category] || 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=800&auto=format&q=80';
     }
     
     console.log(`[fetch-interest-focus] Final image URL for ${category}:`, finalImageUrl);
