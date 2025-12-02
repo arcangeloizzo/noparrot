@@ -313,12 +313,18 @@ export const Feed = () => {
       <BottomNavigation 
         activeTab={activeNavTab} 
         onTabChange={(tab) => {
-          if (tab === 'home' && activeNavTab === 'home') {
-            // Già sul feed, clicca home → scroll to top
+          if (tab === 'home') {
+            // Scroll to top sempre quando si clicca home
             scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-          } else {
-            setActiveNavTab(tab);
+            
+            // Se già sul feed, invalida le query per refreshare i dati
+            if (activeNavTab === 'home') {
+              queryClient.invalidateQueries({ queryKey: ['posts'] });
+              queryClient.invalidateQueries({ queryKey: ['daily-focus'] });
+              queryClient.invalidateQueries({ queryKey: ['interest-focus'] });
+            }
           }
+          setActiveNavTab(tab);
         }}
         onProfileClick={() => setShowProfileSheet(true)}
       />

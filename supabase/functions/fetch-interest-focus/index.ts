@@ -16,6 +16,39 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&#39;/g, "'");
 }
 
+// Decode Google News URL from Base64-encoded format
+function decodeGoogleNewsUrl(googleNewsUrl: string): string | null {
+  try {
+    // Extract the CBMi parameter from the URL
+    const match = googleNewsUrl.match(/articles\/(CBMi[A-Za-z0-9_-]+)/);
+    if (!match) return null;
+    
+    const encoded = match[1];
+    
+    // Convert from URL-safe base64 to standard base64
+    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    
+    // Add padding if necessary
+    const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+    
+    // Decode
+    const decoded = atob(padded);
+    
+    // The real URL is typically after the first header bytes
+    // Pattern: search for https:// in the decoded string
+    const urlMatch = decoded.match(/https?:\/\/[^\s\x00-\x1f"'<>]+/);
+    if (urlMatch) {
+      console.log('[GoogleNews] Decoded URL:', urlMatch[0]);
+      return urlMatch[0];
+    }
+    
+    return null;
+  } catch (error) {
+    console.log('[GoogleNews] Decode failed:', error);
+    return null;
+  }
+}
+
 // Map categorie NoParrot -> Topic IDs Google News
 const CATEGORY_TOPIC_IDS: Record<string, string> = {
   'Tecnologia': 'CAAqJggKIiBDQkFTRWdvSUwyMHZNRGRqTVhZU0FtbDBHZ0pKVkNnQVAB',
@@ -645,8 +678,18 @@ serve(async (req) => {
         const article = articles[i];
         if (!article.link) continue;
         
-        console.log(`[Image] Attempt ${i + 1}/${Math.min(4, articles.length)}: ${article.source}`);
-        const jinaImage = await fetchArticleImageWithJina(article.link);
+        // Decode Google News URL to get the real article URL
+        const realUrl = article.link.includes('news.google.com') 
+          ? decodeGoogleNewsUrl(article.link) 
+          : article.link;
+        
+        if (!realUrl) {
+          console.log(`[Image] Could not decode URL for ${article.source}`);
+          continue;
+        }
+        
+        console.log(`[Image] Attempt ${i + 1}/${Math.min(4, articles.length)}: ${article.source} - ${realUrl}`);
+        const jinaImage = await fetchArticleImageWithJina(realUrl);
         
         if (jinaImage) {
           finalImageUrl = jinaImage;
