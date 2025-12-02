@@ -66,6 +66,21 @@ export const Feed = () => {
   const [activeNavTab, setActiveNavTab] = useState("home");
   const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
+
+  // Handler completo per navigazione tab
+  const handleTabChange = (tab: string) => {
+    setActiveNavTab(tab);
+    
+    if (tab === 'home') {
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      // Invalida le query per refreshare i dati
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['daily-focus'] });
+      queryClient.invalidateQueries({ queryKey: ['interest-focus'] });
+    }
+  };
   const [showSimilarContent, setShowSimilarContent] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [quotedPost, setQuotedPost] = useState<Post | null>(null);
@@ -184,7 +199,7 @@ export const Feed = () => {
         <Search />
         <BottomNavigation 
           activeTab={activeNavTab} 
-          onTabChange={setActiveNavTab}
+          onTabChange={handleTabChange}
           onProfileClick={() => setShowProfileSheet(true)}
         />
         <ProfileSideSheet 
@@ -201,7 +216,7 @@ export const Feed = () => {
         <Saved />
         <BottomNavigation 
           activeTab={activeNavTab} 
-          onTabChange={setActiveNavTab}
+          onTabChange={handleTabChange}
           onProfileClick={() => setShowProfileSheet(true)}
         />
         <ProfileSideSheet 
@@ -218,7 +233,7 @@ export const Feed = () => {
         <Notifications />
         <BottomNavigation 
           activeTab={activeNavTab} 
-          onTabChange={setActiveNavTab}
+          onTabChange={handleTabChange}
           onProfileClick={() => setShowProfileSheet(true)}
         />
         <ProfileSideSheet 
@@ -312,22 +327,7 @@ export const Feed = () => {
       <FloatingActionButton onClick={handleCreatePost} />
       <BottomNavigation 
         activeTab={activeNavTab} 
-        onTabChange={(tab) => {
-          const wasOnHome = activeNavTab === 'home';
-          
-          // Aggiorna il tab prima di tutto
-          setActiveNavTab(tab);
-          
-          if (tab === 'home') {
-            // Scroll to top sempre quando si clicca home
-            scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-            
-            // Invalida le query per refreshare i dati
-            queryClient.invalidateQueries({ queryKey: ['posts'] });
-            queryClient.invalidateQueries({ queryKey: ['daily-focus'] });
-            queryClient.invalidateQueries({ queryKey: ['interest-focus'] });
-          }
-        }}
+        onTabChange={handleTabChange}
         onProfileClick={() => setShowProfileSheet(true)}
       />
 
