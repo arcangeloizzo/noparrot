@@ -16,14 +16,37 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&#39;/g, "'");
 }
 
+// Lista di pattern per identificare "meta-news" (rassegne stampa)
+const META_NEWS_PATTERNS = [
+  /rassegna\s+stampa/i,
+  /prime\s+pagine/i,
+  /quotidiani\s+di\s+oggi/i,
+  /titoli\s+dei\s+giornali/i,
+  /i\s+titoli\s+di\s+oggi/i,
+  /giornali\s+in\s+edicola/i,
+  /le\s+notizie\s+del\s+giorno/i,
+  /le\s+notizie\s+di\s+oggi/i,
+  /prima\s+pagina/i
+];
+
+function isMetaNews(title: string): boolean {
+  return META_NEWS_PATTERNS.some(pattern => pattern.test(title));
+}
+
 // Decode Google News URL from Base64-encoded format
 function decodeGoogleNewsUrl(googleNewsUrl: string): string | null {
+  console.log('[GoogleNews] Attempting to decode:', googleNewsUrl);
+  
   try {
-    // Extract article ID - handle both formats: /articles/CBMi... and /articles/CBMi...?oc=5
-    const match = googleNewsUrl.match(/articles\/([A-Za-z0-9_-]+)(?:\?|$)/);
-    if (!match) return null;
+    // Regex più flessibile: cattura tutto dopo 'articles/' o 'read/'
+    const match = googleNewsUrl.match(/(?:articles|read|rss\/articles)\/([A-Za-z0-9_-]+)/);
+    if (!match) {
+      console.log('[GoogleNews] ❌ No article ID found in URL');
+      return null;
+    }
     
     const encoded = match[1];
+    console.log('[GoogleNews] Extracted encoded ID:', encoded.substring(0, 20) + '...');
     
     // Convert from URL-safe base64 to standard base64
     let base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
@@ -41,13 +64,14 @@ function decodeGoogleNewsUrl(googleNewsUrl: string): string | null {
       // Clean trailing binary characters
       let url = urlMatch[0];
       url = url.replace(/[\x00-\x1f]+$/, '');
-      console.log('[GoogleNews] Decoded URL:', url);
+      console.log('[GoogleNews] ✅ Decoded URL:', url);
       return url;
     }
     
+    console.log('[GoogleNews] ❌ No URL found in decoded data');
     return null;
   } catch (error) {
-    console.log('[GoogleNews] Decode failed:', error);
+    console.log('[GoogleNews] ❌ Decode failed:', error);
     return null;
   }
 }
@@ -300,8 +324,8 @@ async function searchRelatedArticles(mainTitle: string): Promise<Array<{ title: 
   // Clean title: remove source and common words like LIVE
   let cleanTitle = mainTitle.split(' - ')[0].trim();
   cleanTitle = cleanTitle.replace(/\bLIVE\b/gi, '').trim();
-  // Limit to first 6 keywords for broader search
-  const keywords = cleanTitle.split(' ').slice(0, 6).join(' ');
+  // Use 8 keywords instead of 6 for better coverage
+  const keywords = cleanTitle.split(' ').slice(0, 8).join(' ');
   
   console.log(`Searching for related articles with keywords: ${keywords}`);
   
@@ -337,6 +361,12 @@ async function searchRelatedArticles(mainTitle: string): Promise<Array<{ title: 
     const link = extractText(itemXml, 'link');
     
     if (!title || !link) continue;
+    
+    // Skip meta-news from search results
+    if (isMetaNews(title)) {
+      console.log(`[Search] Skipping meta-news: ${title}`);
+      continue;
+    }
     
     const source = extractSourceName(itemXml, title);
     
@@ -391,7 +421,7 @@ async function fetchTopCategoryStoryWithMultiSourceCoverage(
   const text = await response.text();
   console.log('Fetched category RSS feed successfully');
   
-  // Extract first item (top headline for this category)
+  // Extract all items
   const itemRegex = /<item>(.*?)<\/item>/gs;
   const items = text.match(itemRegex);
   
@@ -399,12 +429,32 @@ async function fetchTopCategoryStoryWithMultiSourceCoverage(
     throw new Error('No articles found in category RSS feed');
   }
   
-  const firstItemXml = items[0];
+  // Iterate through items to find first NON-meta-news article
+  let firstItemXml: string | null = null;
+  let mainTitle: string | null = null;
   
-  // Extract main title and image
-  const mainTitle = extractText(firstItemXml, 'title');
-  if (!mainTitle) {
-    throw new Error('Could not extract main title from top story');
+  console.log(`[RSS ${category}] Checking ${items.length} items for first real news (skipping meta-news)...`);
+  
+  for (let i = 0; i < Math.min(items.length, 10); i++) {
+    const itemXml = items[i];
+    const title = extractText(itemXml, 'title');
+    
+    if (!title) continue;
+    
+    if (isMetaNews(title)) {
+      console.log(`[RSS ${category}] Skipping meta-news at position ${i}: ${title}`);
+      continue;
+    }
+    
+    // Found first real news!
+    console.log(`[RSS ${category}] ✅ Found real news at position ${i}: ${title}`);
+    firstItemXml = itemXml;
+    mainTitle = title;
+    break;
+  }
+  
+  if (!mainTitle || !firstItemXml) {
+    throw new Error('Could not find any real news (all items were meta-news)');
   }
   
   const imageUrl = extractImage(firstItemXml);
@@ -685,6 +735,18 @@ serve(async (req) => {
         const realUrl = article.link.includes('news.google.com') 
           ? decodeGoogleNewsUrl(article.link) 
           : article.link;
+        
+        if (!realUrl && article.link.includes('news.google.com')) {
+          // Fallback: se decode fallisce, prova Jina direttamente su URL Google News
+          console.log(`[Image] Decode failed, trying Jina directly on Google News URL for ${article.source}`);
+          const jinaImage = await fetchArticleImageWithJina(article.link);
+          if (jinaImage) {
+            finalImageUrl = jinaImage;
+            console.log(`[Image] ✅ Got image from Google News redirect: ${article.source}`);
+            break;
+          }
+          continue;
+        }
         
         if (!realUrl) {
           console.log(`[Image] Could not decode URL for ${article.source}`);
