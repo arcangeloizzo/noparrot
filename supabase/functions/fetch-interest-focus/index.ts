@@ -499,12 +499,6 @@ Rispondi SOLO con JSON valido:
       summary: result.summary,
       deep_content: fixedDeepContent
     };
-    
-    return {
-      title: result.title,
-      summary: result.summary,
-      deep_content: result.deep_content
-    };
   } catch (error) {
     console.error('AI synthesis error:', error);
     

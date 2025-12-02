@@ -468,15 +468,6 @@ Rispondi SOLO con JSON valido:
       summary: result.summary,
       deep_content: fixedDeepContent
     };
-    
-    // Validate and fix deep_content: ensure every paragraph has source markers
-    const fixedDeepContent = validateAndFixSources(result.deep_content, articles.length);
-    
-    return {
-      title: result.title,
-      summary: result.summary,
-      deep_content: fixedDeepContent
-    };
   } catch (error) {
     console.error('AI synthesis error:', error);
     
