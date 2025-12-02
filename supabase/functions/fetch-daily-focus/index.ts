@@ -19,27 +19,30 @@ function decodeHtmlEntities(text: string): string {
 // Decode Google News URL from Base64-encoded format
 function decodeGoogleNewsUrl(googleNewsUrl: string): string | null {
   try {
-    // Extract the CBMi parameter from the URL
-    const match = googleNewsUrl.match(/articles\/(CBMi[A-Za-z0-9_-]+)/);
+    // Extract article ID - handle both formats: /articles/CBMi... and /articles/CBMi...?oc=5
+    const match = googleNewsUrl.match(/articles\/([A-Za-z0-9_-]+)(?:\?|$)/);
     if (!match) return null;
     
     const encoded = match[1];
     
     // Convert from URL-safe base64 to standard base64
-    const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+    let base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
     
     // Add padding if necessary
-    const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+    const padding = (4 - base64.length % 4) % 4;
+    base64 += '='.repeat(padding);
     
     // Decode
-    const decoded = atob(padded);
+    const decoded = atob(base64);
     
-    // The real URL is typically after the first header bytes
-    // Pattern: search for https:// in the decoded string
-    const urlMatch = decoded.match(/https?:\/\/[^\s\x00-\x1f"'<>]+/);
+    // Search for HTTP/HTTPS URL in the decoded protobuf data
+    const urlMatch = decoded.match(/https?:\/\/[^\x00-\x1f\s"'<>]+/);
     if (urlMatch) {
-      console.log('[GoogleNews] Decoded URL:', urlMatch[0]);
-      return urlMatch[0];
+      // Clean trailing binary characters
+      let url = urlMatch[0];
+      url = url.replace(/[\x00-\x1f]+$/, '');
+      console.log('[GoogleNews] Decoded URL:', url);
+      return url;
     }
     
     return null;
@@ -457,21 +460,27 @@ async function synthesizeWithAI(
     throw new Error('LOVABLE_API_KEY not configured');
   }
   
-  const prompt = `Sei un giornalista esperto che deve sintetizzare una notizia da fonti multiple.
+  const prompt = `Sei un giornalista esperto. Il tuo compito è sintetizzare UNA SINGOLA NOTIZIA specifica, NON una rassegna stampa generica.
 
-TITOLO PRINCIPALE: ${mainTitle}
+TITOLO PRINCIPALE DAL RSS: ${mainTitle}
 
 FONTI DISPONIBILI:
 ${articles.map((a, idx) => `[${idx}] ${a.source}: "${a.title}"`).join('\n')}
 
+⚠️ REGOLA FONDAMENTALE: Devi parlare di UNA SOLA NOTIZIA SPECIFICA, quella più importante tra le fonti.
+- NON creare una "rassegna stampa" o "panoramica delle notizie"
+- NON elencare multiple notizie diverse
+- FOCALIZZATI su UN evento/fatto specifico
+- Il titolo deve essere specifico (es. "Inter batte l'Atletico in Champions" NON "Le notizie sportive di oggi")
+
 Il tuo compito è creare:
-1. Un TITOLO FINALE chiaro e conciso (max 80 caratteri)
-2. Un SUMMARY per la card (400-500 caratteri, SENZA marker [SOURCE:N])
-3. Un APPROFONDIMENTO ESTESO (deep_content) di 1500-2000 caratteri con:
-   - Spiegazione dettagliata di cosa è successo
+1. Un TITOLO FINALE chiaro e specifico sull'evento principale (max 80 caratteri)
+2. Un SUMMARY per la card che descrive SOLO questo evento (400-500 caratteri, SENZA marker [SOURCE:N])
+3. Un APPROFONDIMENTO ESTESO (deep_content) di 1500-2000 caratteri FOCALIZZATO su questo evento con:
+   - Spiegazione dettagliata di cosa è successo in QUESTO evento specifico
    - Contesto storico/politico quando rilevante
    - Chi sono i protagonisti e perché è importante
-   - Cosa dicono le diverse fonti
+   - Cosa dicono le diverse fonti su QUESTO evento
    - Implicazioni e sviluppi futuri
    - Scrivi in modo discorsivo, coinvolgente, NO elenchi puntati
 
