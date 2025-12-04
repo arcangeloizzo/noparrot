@@ -283,7 +283,9 @@ export const FeedCard = ({
 
     // Show reader with the post content
     setReaderSource({
-      url: '', // No URL for original posts
+      id: post.id,
+      state: 'reading' as const,
+      url: `post://${post.id}`, // Pseudo-URL for original posts
       title: `Post di @${post.author.username}`,
       content: post.content,
       isOriginalPost: true, // Flag to distinguish from external sources
@@ -313,6 +315,8 @@ export const FeedCard = ({
 
     // Show Reader with FULL content - use content field which contains full tweet text
     setReaderSource({
+      id: post.id,
+      state: 'reading' as const,
       url: post.shared_url,
       title: preview.title || post.shared_title || '',
       content: preview.content || preview.summary || preview.excerpt || '',
@@ -326,77 +330,125 @@ export const FeedCard = ({
     
     if (!readerSource || !user) return;
 
-    // Check if it's an original post
-    const isOriginalPost = readerSource.isOriginalPost;
-    
-    const userText = post.content;
-    const userWordCount = getWordCount(userText);
-    
-    // Determina parametri in base al tipo di contenuto
-    let testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY' | undefined;
-    let questionCount: 1 | 3 | undefined;
-    
-    if (isOriginalPost) {
-      // Contenuto originale senza fonte
-      questionCount = getQuestionCountWithoutSource(userWordCount) as 1 | 3;
-    } else {
-      // Contenuto con fonte
-      testMode = getTestModeWithSource(userWordCount);
-    }
-    
-    toast({
-      title: 'Stiamo mettendo a fuoco ciò che conta…',
-      description: isOriginalPost 
-        ? `Sto creando le domande giuste per capire davvero…`
-        : `Sto selezionando i punti che contano…`
-    });
+    console.log('[Gate] handleReaderComplete started', { readerSource, shareAction });
 
-    // Use FULL content for quiz generation
-    const fullContent = readerSource.content || readerSource.summary || readerSource.excerpt || post.content;
-    
-    console.log('Generating QA with params:', { 
-      fullContentLength: fullContent.length,
-      userWordCount,
-      testMode,
-      questionCount,
-      isOriginalPost
-    });
-
-    const result = await generateQA({
-      contentId: post.id,
-      title: readerSource.title,
-      summary: fullContent,
-      userText: userText || '',
-      sourceUrl: isOriginalPost ? undefined : readerSource.url,
-      testMode,
-      questionCount,
-    });
-
-    if (result.insufficient_context) {
+    try {
+      // Check if it's an original post
+      const isOriginalPost = readerSource.isOriginalPost;
+      
+      const userText = post.content;
+      const userWordCount = getWordCount(userText);
+      
+      // Determina parametri in base al tipo di contenuto
+      let testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY' | undefined;
+      let questionCount: 1 | 3 | undefined;
+      
+      if (isOriginalPost) {
+        // Contenuto originale senza fonte
+        questionCount = getQuestionCountWithoutSource(userWordCount) as 1 | 3;
+      } else {
+        // Contenuto con fonte
+        testMode = getTestModeWithSource(userWordCount);
+      }
+      
       toast({
-        title: 'Contenuto troppo breve',
-        description: 'Puoi comunque condividere questo post',
+        title: 'Stiamo mettendo a fuoco ciò che conta…',
+        description: isOriginalPost 
+          ? `Sto creando le domande giuste per capire davvero…`
+          : `Sto selezionando i punti che contano…`
       });
-      onQuoteShare?.(post);
-      return;
-    }
 
-    // VALIDAZIONE ROBUSTA: controlla che questions sia un array valido
-    if (result.error || !result.questions || !Array.isArray(result.questions) || result.questions.length === 0) {
-      console.error('Invalid quiz result:', result);
+      // Use FULL content for quiz generation
+      const fullContent = readerSource.content || readerSource.summary || readerSource.excerpt || post.content;
+      
+      console.log('[Gate] Generating QA with params:', { 
+        fullContentLength: fullContent.length,
+        userWordCount,
+        testMode,
+        questionCount,
+        isOriginalPost
+      });
+
+      const result = await generateQA({
+        contentId: post.id,
+        title: readerSource.title,
+        summary: fullContent,
+        userText: userText || '',
+        sourceUrl: isOriginalPost ? undefined : readerSource.url,
+        testMode,
+        questionCount,
+      });
+
+      console.log('[Gate] generateQA result', { 
+        hasQuestions: !!result?.questions, 
+        questionCount: result?.questions?.length,
+        error: result?.error,
+        insufficient_context: result?.insufficient_context
+      });
+
+      if (result.insufficient_context) {
+        toast({
+          title: 'Contenuto troppo breve',
+          description: 'Puoi comunque condividere questo post',
+        });
+        onQuoteShare?.(post);
+        setReaderSource(null);
+        setShareAction(null);
+        return;
+      }
+
+      // VALIDAZIONE ROBUSTA
+      if (!result) {
+        console.error('[Gate] generateQA returned null/undefined');
+        toast({ title: 'Errore', description: 'Risposta non valida dal server', variant: 'destructive' });
+        setReaderSource(null);
+        setShareAction(null);
+        return;
+      }
+
+      if (result.error) {
+        console.error('[Gate] generateQA error:', result.error);
+        toast({ title: 'Errore', description: result.error, variant: 'destructive' });
+        setReaderSource(null);
+        setShareAction(null);
+        return;
+      }
+
+      if (!result.questions || !Array.isArray(result.questions) || result.questions.length === 0) {
+        console.error('[Gate] Invalid questions array:', result.questions);
+        toast({ title: 'Errore', description: 'Quiz non valido, riprova', variant: 'destructive' });
+        setReaderSource(null);
+        setShareAction(null);
+        return;
+      }
+
+      // Validate each question has required fields
+      const invalidQuestion = result.questions.find(q => !q.id || !q.stem || !q.choices || !q.correctId);
+      if (invalidQuestion) {
+        console.error('[Gate] Invalid question format:', invalidQuestion);
+        toast({ title: 'Errore', description: 'Formato domanda non valido', variant: 'destructive' });
+        setReaderSource(null);
+        setShareAction(null);
+        return;
+      }
+
+      setQuizData({
+        questions: result.questions,
+        sourceUrl: readerSource.url || ''
+      });
+      setShowQuiz(true);
+    } catch (error) {
+      console.error('[Gate] Error in handleReaderComplete:', error);
       toast({
-        title: 'Errore generazione quiz',
-        description: result.error || 'Quiz non valido, riprova',
+        title: 'Errore',
+        description: 'Si è verificato un errore. Riprova.',
         variant: 'destructive'
       });
-      return;
+      // Reset state to avoid stuck UI
+      setQuizData(null);
+      setReaderSource(null);
+      setShareAction(null);
     }
-
-    setQuizData({
-      questions: result.questions,
-      sourceUrl: readerSource.url || ''
-    });
-    setShowQuiz(true);
   };
 
   const handleQuizSubmit = async (answers: Record<string, string>) => {
