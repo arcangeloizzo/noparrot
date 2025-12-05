@@ -390,63 +390,73 @@ export const FocusDetailSheet = ({
       />
       
       {/* Quiz Modal for Focus Gate - use createPortal to escape Sheet context */}
-      {showQuiz && quizData && !quizData.error && quizData.questions && createPortal(
-        <QuizModal
-          questions={quizData.questions}
-          onSubmit={async (answers: Record<string, string>) => {
-            try {
-              // For Focus items, validate locally since questions are generated on-the-fly
-              // and not stored in the database
-              const questions = quizData.questions;
-              let correctCount = 0;
-              const wrongIndexes: string[] = [];
-              
-              questions.forEach((q: any, index: number) => {
-                const userAnswer = answers[q.id];
-                if (userAnswer === q.correctId) {
-                  correctCount++;
-                } else {
-                  wrongIndexes.push(index.toString());
+      {showQuiz && quizData && !quizData.error && quizData.questions && (() => {
+        // Capture questions in a stable reference for the onSubmit callback
+        const questionsSnapshot = [...quizData.questions];
+        
+        return createPortal(
+          <QuizModal
+            questions={questionsSnapshot}
+            onSubmit={async (answers: Record<string, string>) => {
+              try {
+                // For Focus items, validate locally since questions are generated on-the-fly
+                // and not stored in the database
+                let correctCount = 0;
+                const wrongIndexes: string[] = [];
+                
+                console.log('[FocusDetailSheet] Validating with snapshot:', { 
+                  questionsCount: questionsSnapshot.length, 
+                  answersCount: Object.keys(answers).length 
+                });
+                
+                questionsSnapshot.forEach((q: any, index: number) => {
+                  const userAnswer = answers[q.id];
+                  console.log(`[FocusDetailSheet] Q${index}: user=${userAnswer}, correct=${q.correctId}`);
+                  if (userAnswer === q.correctId) {
+                    correctCount++;
+                  } else {
+                    wrongIndexes.push(index.toString());
+                  }
+                });
+                
+                const total = questionsSnapshot.length;
+                const passed = correctCount >= Math.ceil(total * 0.6); // 60% threshold
+                
+                console.log('[FocusDetailSheet] Local validation result:', { correctCount, total, passed, wrongIndexes });
+                
+                if (!passed) {
+                  sonnerToast.error('Non ancora chiaro. Riprova più tardi.');
+                  setShowQuiz(false);
+                  setQuizData(null);
+                  return { passed: false, score: correctCount, total, wrongIndexes };
                 }
-              });
-              
-              const total = questions.length;
-              const passed = correctCount >= Math.ceil(total * 0.6); // 60% threshold
-              
-              console.log('[FocusDetailSheet] Local validation:', { correctCount, total, passed, wrongIndexes });
-              
-              if (!passed) {
-                sonnerToast.error('Non ancora chiaro. Riprova più tardi.');
+
+                haptics.success();
+                sonnerToast.success('Hai fatto chiarezza. Il tuo commento sarà verificato.');
+                setUserPassedGate(true);
+                setCommentMode('read');
+                setShowCommentForm(true);
                 setShowQuiz(false);
                 setQuizData(null);
-                return { passed: false, score: correctCount, total, wrongIndexes };
+                return { passed: true, score: correctCount, total, wrongIndexes: [] };
+              } catch (err) {
+                console.error('[FocusDetailSheet] Unexpected error:', err);
+                sonnerToast.error("Errore durante la validazione");
+                setShowQuiz(false);
+                setQuizData(null);
+                return { passed: false, wrongIndexes: [] };
               }
-
-              haptics.success();
-              sonnerToast.success('Hai fatto chiarezza. Il tuo commento sarà verificato.');
-              setUserPassedGate(true);
-              setCommentMode('read');
-              setShowCommentForm(true);
-              setShowQuiz(false);
-              setQuizData(null);
-              return { passed: true, score: correctCount, total, wrongIndexes: [] };
-            } catch (err) {
-              console.error('[FocusDetailSheet] Unexpected error:', err);
-              sonnerToast.error("Errore durante la validazione");
-              setShowQuiz(false);
-              setQuizData(null);
-              return { passed: false, wrongIndexes: [] };
-            }
-          }}
+            }}
           onCancel={() => {
             sonnerToast.info("Quiz annullato.");
             setShowQuiz(false);
             setQuizData(null);
           }}
           provider="gemini"
-        />,
-        document.body
-      )}
+          />,
+          document.body
+        );
+      })()}
       
       {/* Error state for quiz loading failure */}
       {showQuiz && quizData?.error && createPortal(
