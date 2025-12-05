@@ -887,7 +887,7 @@ const CommentItem = ({ comment, currentUserId, onReply, onLike, onDelete, onMedi
                 locale: it
               })}
             </span>
-            {postHasSource && comment.passed_gate && (
+            {postHasSource && (comment.passed_gate || comment.is_verified) && (
               <img 
                 src={LOGO_BASE}
                 alt="Consapevole"
