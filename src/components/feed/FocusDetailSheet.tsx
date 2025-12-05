@@ -14,11 +14,11 @@ import { SourceTag } from "./SourceTag";
 import { SourcesDrawer } from "./SourcesDrawer";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { runGateBeforeAction } from "@/lib/runGateBeforeAction";
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { toast as sonnerToast } from "sonner";
 import { LOGO_BASE } from "@/config/brand";
 import { haptics } from "@/lib/haptics";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Source {
   icon: string;
@@ -142,16 +142,50 @@ export const FocusDetailSheet = ({
     if (!deepContent) return;
 
     setIsProcessing(true);
-    sonnerToast.info('Verificando la comprensione...');
+    sonnerToast.info('Generando il quiz di comprensione...');
     
-    // Simply mark as verified without gate for now (sources are aggregated news)
-    setTimeout(() => {
-      sonnerToast.success('Hai fatto chiarezza.');
-      setUserPassedGate(true);
-      setCommentMode('read');
-      setShowCommentForm(true);
+    try {
+      // Generate quiz questions for the focus content
+      const { data: qaData, error: qaError } = await supabase.functions.invoke('generate-qa', {
+        body: {
+          contentId: focusId,
+          title: title,
+          summary: deepContent,
+          type: 'article',
+          sourceUrl: 'focus://internal',
+          testMode: 'SOURCE_ONLY'
+        }
+      });
+
+      if (qaError) {
+        console.error('[FocusDetailSheet] QA generation error:', qaError);
+        sonnerToast.error('Errore nella generazione del quiz');
+        setIsProcessing(false);
+        return;
+      }
+
+      if (!qaData?.questions || qaData.questions.length === 0) {
+        console.error('[FocusDetailSheet] No questions generated');
+        sonnerToast.error('Impossibile generare le domande');
+        setIsProcessing(false);
+        return;
+      }
+
+      console.log('[FocusDetailSheet] Quiz questions generated:', qaData.questions.length);
+      
+      // Show the quiz modal
+      setQuizData({
+        questions: qaData.questions,
+        sourceUrl: 'focus://internal'
+      });
+      setShowQuiz(true);
       setIsProcessing(false);
-    }, 500);
+      
+    } catch (error) {
+      console.error('[FocusDetailSheet] Error:', error);
+      sonnerToast.error('Errore nella verifica');
+      setIsProcessing(false);
+    }
   };
 
   const handleModeChange = (value: 'unread' | 'read') => {
@@ -353,6 +387,83 @@ export const FocusDetailSheet = ({
         sources={sources}
         highlightIndex={highlightedSourceIndex}
       />
+      
+      {/* Quiz Modal for Focus Gate */}
+      {showQuiz && quizData && !quizData.error && quizData.questions && (
+        <QuizModal
+          questions={quizData.questions}
+          onSubmit={async (answers: Record<string, string>) => {
+            try {
+              const { data, error } = await supabase.functions.invoke('validate-answers', {
+                body: {
+                  postId: focusId,
+                  sourceUrl: 'focus://internal',
+                  answers,
+                  gateType: 'comment'
+                }
+              });
+
+              if (error) {
+                console.error('[FocusDetailSheet] Validation error:', error);
+                sonnerToast.error("Errore durante la validazione");
+                setShowQuiz(false);
+                setQuizData(null);
+                return { passed: false, wrongIndexes: [] };
+              }
+
+              const actualPassed = data.passed && (data.total - data.score) <= 2;
+              
+              if (!actualPassed) {
+                sonnerToast.error('Non ancora chiaro. Riprova più tardi.');
+                setShowQuiz(false);
+                setQuizData(null);
+                return { passed: false, wrongIndexes: data?.wrongIndexes || [] };
+              }
+
+              haptics.success();
+              sonnerToast.success('Hai fatto chiarezza. Il tuo commento sarà verificato.');
+              setUserPassedGate(true);
+              setCommentMode('read');
+              setShowCommentForm(true);
+              setShowQuiz(false);
+              setQuizData(null);
+              return { passed: true, wrongIndexes: [] };
+            } catch (err) {
+              console.error('[FocusDetailSheet] Unexpected error:', err);
+              sonnerToast.error("Errore durante la validazione");
+              setShowQuiz(false);
+              setQuizData(null);
+              return { passed: false, wrongIndexes: [] };
+            }
+          }}
+          onCancel={() => {
+            sonnerToast.info("Quiz annullato.");
+            setShowQuiz(false);
+            setQuizData(null);
+          }}
+          provider="gemini"
+        />
+      )}
+      
+      {/* Error state for quiz loading failure */}
+      {showQuiz && quizData?.error && (
+        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
+          <div className="bg-card rounded-2xl w-full max-w-md p-8 text-center shadow-2xl border border-border">
+            <h2 className="text-xl font-bold mb-4 text-foreground">Errore</h2>
+            <p className="text-muted-foreground mb-6">{quizData.errorMessage || 'Impossibile caricare il quiz'}</p>
+            <Button 
+              onClick={() => {
+                setShowQuiz(false);
+                setQuizData(null);
+              }} 
+              variant="outline" 
+              className="w-full"
+            >
+              Chiudi
+            </Button>
+          </div>
+        </div>
+      )}
     </>
   );
 };
