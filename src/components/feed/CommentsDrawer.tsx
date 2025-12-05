@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useComments, useAddComment, useDeleteComment } from '@/hooks/useComments';
+import { useFocusComments, useAddFocusComment, useDeleteFocusComment } from '@/hooks/useFocusComments';
 import { useCommentReactions, useToggleCommentReaction } from '@/hooks/useCommentReactions';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
@@ -40,10 +41,25 @@ interface CommentsDrawerProps {
 export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerProps) => {
   const { user } = useAuth();
   const postHasSource = !!post.shared_url;
+  const isFocusContent = post.shared_url === 'focus://internal';
   
-  const { data: comments = [], isLoading } = useComments(post.id);
+  // Determine focus type from post data
+  const focusType: 'daily' | 'interest' = post.author?.username === 'Daily Focus' ? 'daily' : 'interest';
+  
+  // Use appropriate hooks based on content type
+  const { data: regularComments = [], isLoading: regularLoading } = useComments(post.id);
+  const { data: focusComments = [], isLoading: focusLoading } = useFocusComments(
+    isFocusContent ? post.id : '', 
+    focusType
+  );
+  
+  const comments = isFocusContent ? focusComments : regularComments;
+  const isLoading = isFocusContent ? focusLoading : regularLoading;
+  
   const addComment = useAddComment();
+  const addFocusComment = useAddFocusComment();
   const deleteComment = useDeleteComment();
+  const deleteFocusComment = useDeleteFocusComment();
   const toggleReaction = useToggleCommentReaction();
   const [newComment, setNewComment] = useState('');
   const [mentionQuery, setMentionQuery] = useState('');
@@ -58,6 +74,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
   const [quizData, setQuizData] = useState<any>(null);
   const [contentCategory, setContentCategory] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const composerContainerRef = useRef<HTMLDivElement>(null);
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
   
@@ -70,6 +87,8 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
     postHasSource,
     postSharedUrl: post.shared_url,
     postId: post.id,
+    isFocusContent,
+    focusType,
     selectedCommentType,
     showCommentTypeChoice,
     isProcessingGate,
@@ -113,7 +132,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
   }, [isOpen]);
 
   const handleSubmit = async () => {
-    if (!newComment.trim() || addComment.isPending || isProcessing) return;
+    if (!newComment.trim() || addComment.isPending || addFocusComment.isPending || isProcessing) return;
 
     const linkUrl = extractFirstUrl(newComment);
     
@@ -121,23 +140,38 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
     const passedGate = selectedCommentType === 'informed';
 
     const doSubmit = async () => {
-      const parentComment = replyingTo ? comments.find(c => c.id === replyingTo) : null;
+      const parentComment = replyingTo ? comments.find((c: any) => c.id === replyingTo) : null;
 
-      const commentId = await addComment.mutateAsync({
-        postId: post.id,
-        content: newComment.trim(),
-        parentId: replyingTo,
-        level: parentComment ? parentComment.level + 1 : 0,
-        passedGate,
-      });
+      let commentId: string;
+      
+      if (isFocusContent) {
+        // Use focus comments for Focus content
+        commentId = await addFocusComment.mutateAsync({
+          focusId: post.id,
+          focusType,
+          content: newComment.trim(),
+          parentId: replyingTo,
+          level: parentComment ? parentComment.level + 1 : 0,
+          isVerified: passedGate,
+        });
+      } else {
+        // Use regular comments for posts
+        commentId = await addComment.mutateAsync({
+          postId: post.id,
+          content: newComment.trim(),
+          parentId: replyingTo,
+          level: parentComment ? parentComment.level + 1 : 0,
+          passedGate,
+        });
 
-      if (uploadedMedia.length > 0 && commentId) {
-        for (let i = 0; i < uploadedMedia.length; i++) {
-          await supabase.from('comment_media').insert({
-            comment_id: commentId,
-            media_id: uploadedMedia[i].id,
-            order_idx: i
-          });
+        if (uploadedMedia.length > 0 && commentId) {
+          for (let i = 0; i < uploadedMedia.length; i++) {
+            await supabase.from('comment_media').insert({
+              comment_id: commentId,
+              media_id: uploadedMedia[i].id,
+              order_idx: i
+            });
+          }
         }
       }
 
@@ -358,7 +392,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
               </div>
             ) : (
               <div>
-                {comments.map((comment) => (
+                {comments.map((comment: any) => (
                   <CommentItem
                     key={comment.id}
                     comment={comment}
@@ -370,7 +404,13 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                     onLike={(commentId, isLiked) => {
                       toggleReaction.mutate({ commentId, isLiked });
                     }}
-                    onDelete={() => deleteComment.mutate(comment.id)}
+                    onDelete={() => {
+                      if (isFocusContent) {
+                        deleteFocusComment.mutate({ commentId: comment.id, focusId: post.id, focusType });
+                      } else {
+                        deleteComment.mutate(comment.id);
+                      }
+                    }}
                     onMediaClick={(media, index) => {
                       setViewerMedia(comment.media || []);
                       setViewerInitialIndex(index);
@@ -398,7 +438,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                 </div>
               )}
               <div className="cognitive-comment-composer">
-                <div className="flex gap-3 items-start relative">
+                <div className="flex gap-3 items-start relative" ref={composerContainerRef}>
                   <div className="flex-shrink-0 pt-1">
                     {currentUserProfile && getUserAvatar(
                       currentUserProfile.avatar_url, 
@@ -474,6 +514,8 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                         selectedIndex={selectedMentionIndex}
                         onSelect={handleSelectMention}
                         isLoading={isSearching}
+                        position="below"
+                        containerRef={composerContainerRef}
                       />
                     )}
                     

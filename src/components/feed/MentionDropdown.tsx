@@ -1,5 +1,6 @@
 import { cn, getDisplayUsername } from '@/lib/utils';
 import { UserSearchResult } from '@/hooks/useUserSearch';
+import { useEffect, useRef, useState } from 'react';
 
 interface MentionDropdownProps {
   users: UserSearchResult[];
@@ -7,6 +8,7 @@ interface MentionDropdownProps {
   onSelect: (user: UserSearchResult) => void;
   isLoading: boolean;
   position?: 'above' | 'below';
+  containerRef?: React.RefObject<HTMLElement>;
 }
 
 export const MentionDropdown = ({ 
@@ -14,17 +16,42 @@ export const MentionDropdown = ({
   selectedIndex, 
   onSelect, 
   isLoading, 
-  position = 'above' 
+  position = 'above',
+  containerRef
 }: MentionDropdownProps) => {
-  const positionClass = position === 'below' 
-    ? 'absolute top-full left-0 mt-2' 
-    : 'absolute bottom-full left-0 mb-2';
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [actualPosition, setActualPosition] = useState(position);
+  
+  // Check if dropdown fits above, otherwise show below
+  useEffect(() => {
+    if (dropdownRef.current && containerRef?.current) {
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const dropdownHeight = dropdownRef.current.offsetHeight || 200;
+      const spaceAbove = containerRect.top;
+      
+      if (position === 'above' && spaceAbove < dropdownHeight + 20) {
+        setActualPosition('below');
+      } else {
+        setActualPosition(position);
+      }
+    }
+  }, [users, position, containerRef]);
+
+  // Force below on mobile when space is limited
+  const positionClass = actualPosition === 'below' 
+    ? 'left-0 right-0 mt-2' 
+    : 'left-0 right-0 mb-2';
+  
+  const positionStyle = actualPosition === 'below'
+    ? { top: '100%', bottom: 'auto' }
+    : { bottom: '100%', top: 'auto' };
 
   if (isLoading) {
     return (
       <div 
-        className={`${positionClass} w-full max-w-sm bg-card border border-border rounded-lg shadow-xl p-3`}
-        style={{ zIndex: 9999 }}
+        ref={dropdownRef}
+        className={`absolute ${positionClass} max-w-sm bg-card border border-border rounded-lg shadow-xl p-3`}
+        style={{ zIndex: 9999999, ...positionStyle }}
       >
         <div className="text-sm text-muted-foreground">Ricerca...</div>
       </div>
@@ -44,8 +71,9 @@ export const MentionDropdown = ({
 
   return (
     <div 
-      className={`${positionClass} w-full max-w-sm bg-card border-2 border-primary rounded-lg shadow-2xl overflow-hidden`}
-      style={{ zIndex: 9999999 }}
+      ref={dropdownRef}
+      className={`absolute ${positionClass} max-w-sm bg-card border-2 border-primary rounded-lg shadow-2xl overflow-hidden max-h-48 overflow-y-auto`}
+      style={{ zIndex: 9999999, ...positionStyle }}
     >
       {users.map((user, index) => (
         <div
