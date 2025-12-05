@@ -22,11 +22,24 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+// Parse iOS version from user agent
+function parseIOSVersion(userAgent: string): number | null {
+  const match = userAgent.match(/OS (\d+)_/);
+  return match ? parseInt(match[1], 10) : null;
+}
+
 export const usePushNotifications = () => {
   const { user } = useAuth();
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [isSupported, setIsSupported] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
+  
+  // iOS/PWA detection
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  const isPWA = typeof window !== 'undefined' && 
+    (window.matchMedia('(display-mode: standalone)').matches || 
+     (window.navigator as any).standalone === true);
+  const iOSVersion = isIOS ? parseIOSVersion(navigator.userAgent) : null;
 
   useEffect(() => {
     // Check if Push API is supported
@@ -39,7 +52,10 @@ export const usePushNotifications = () => {
       hasNotification,
       hasServiceWorker,
       hasPushManager,
-      supported
+      supported,
+      isIOS,
+      isPWA,
+      iOSVersion
     });
     
     setIsSupported(supported);
@@ -223,6 +239,9 @@ export const usePushNotifications = () => {
     permission,
     isSupported,
     isSubscribed,
+    isIOS,
+    isPWA,
+    iOSVersion,
     requestPermission,
     unsubscribeFromPush,
     sendNotification
