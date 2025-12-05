@@ -3,19 +3,57 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 
+// VAPID Public Key - safe to expose in frontend
+const VAPID_PUBLIC_KEY = 'BGAkXaYkzxnwUzhyyr9OzfO_arJiEAV-i1Ev5UjTpQ2M40JoYYPqa72Bfh6vF6Ph1UfBrn5-n2f44thf_sqc_k8';
+
+// Convert VAPID key to Uint8Array for PushManager
+function urlBase64ToUint8Array(base64String: string): Uint8Array {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 export const usePushNotifications = () => {
   const { user } = useAuth();
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [isSupported, setIsSupported] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
 
   useEffect(() => {
     // Check if Push API is supported
-    setIsSupported('Notification' in window && 'serviceWorker' in navigator);
+    const supported = 'Notification' in window && 
+                     'serviceWorker' in navigator && 
+                     'PushManager' in window;
+    setIsSupported(supported);
     
     if ('Notification' in window) {
       setPermission(Notification.permission);
     }
-  }, []);
+
+    // Check if already subscribed
+    if (supported && user) {
+      checkExistingSubscription();
+    }
+  }, [user]);
+
+  const checkExistingSubscription = async () => {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      setIsSubscribed(!!subscription);
+    } catch (error) {
+      console.error('Error checking subscription:', error);
+    }
+  };
 
   const requestPermission = async () => {
     if (!isSupported) {
@@ -32,14 +70,16 @@ export const usePushNotifications = () => {
       setPermission(result);
 
       if (result === 'granted') {
-        toast({
-          title: 'Notifiche attivate!',
-          description: 'Riceverai notifiche per nuovi like, commenti e menzioni'
-        });
-        
         // Subscribe to push notifications
-        await subscribeToPush();
-        return true;
+        const subscribed = await subscribeToPush();
+        
+        if (subscribed) {
+          toast({
+            title: 'Notifiche attivate!',
+            description: 'Riceverai notifiche per nuovi like, commenti, menzioni e messaggi'
+          });
+          return true;
+        }
       } else if (result === 'denied') {
         toast({
           title: 'Permesso negato',
@@ -59,23 +99,99 @@ export const usePushNotifications = () => {
     }
   };
 
-  const subscribeToPush = async () => {
-    if (!user) return;
+  const subscribeToPush = async (): Promise<boolean> => {
+    if (!user) {
+      console.error('No user logged in');
+      return false;
+    }
 
     try {
-      // Register service worker for push notifications
-      const registration = await navigator.serviceWorker.ready;
+      // Register service worker if not already registered
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.ready;
       
-      // For now, we'll use web notifications without a push server
-      // To enable push notifications, you'll need to:
-      // 1. Generate VAPID keys
-      // 2. Set up a push server
-      // 3. Store subscription in database
+      console.log('Service Worker registered:', registration);
+
+      // Check for existing subscription
+      let subscription = await registration.pushManager.getSubscription();
       
-      console.log('Service Worker ready for notifications');
+      if (!subscription) {
+        // Create new subscription
+        const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: applicationServerKey.buffer as ArrayBuffer
+        });
+        console.log('Created new push subscription:', subscription);
+      }
+
+      // Extract subscription details
+      const subscriptionJson = subscription.toJSON();
+      const endpoint = subscription.endpoint;
+      const p256dh = subscriptionJson.keys?.p256dh || '';
+      const auth = subscriptionJson.keys?.auth || '';
+
+      if (!p256dh || !auth) {
+        console.error('Missing subscription keys');
+        return false;
+      }
+
+      // Save subscription to database
+      const { error } = await supabase
+        .from('push_subscriptions')
+        .upsert({
+          user_id: user.id,
+          endpoint,
+          p256dh,
+          auth,
+        }, {
+          onConflict: 'user_id,endpoint'
+        });
+
+      if (error) {
+        console.error('Error saving subscription:', error);
+        return false;
+      }
+
+      setIsSubscribed(true);
+      console.log('Push subscription saved successfully');
+      return true;
 
     } catch (error) {
       console.error('Error subscribing to push:', error);
+      return false;
+    }
+  };
+
+  const unsubscribeFromPush = async (): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      
+      if (subscription) {
+        // Unsubscribe from push
+        await subscription.unsubscribe();
+        
+        // Remove from database
+        await supabase
+          .from('push_subscriptions')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('endpoint', subscription.endpoint);
+      }
+
+      setIsSubscribed(false);
+      toast({
+        title: 'Notifiche disattivate',
+        description: 'Non riceverai più notifiche push'
+      });
+      return true;
+
+    } catch (error) {
+      console.error('Error unsubscribing:', error);
+      return false;
     }
   };
 
@@ -96,7 +212,9 @@ export const usePushNotifications = () => {
   return {
     permission,
     isSupported,
+    isSubscribed,
     requestPermission,
+    unsubscribeFromPush,
     sendNotification
   };
 };
