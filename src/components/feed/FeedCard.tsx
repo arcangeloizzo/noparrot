@@ -11,6 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
 import { CommentReplySheet } from "./CommentReplySheet";
 import { generateQA, validateAnswers, fetchArticlePreview } from "@/lib/ai-helpers";
 import { QuizModal } from "@/components/ui/quiz-modal";
@@ -585,7 +586,7 @@ export const FeedCard = ({
     )}
 
     {/* Quiz Modal for Share Gate */}
-    {showQuiz && quizData && user && (
+    {showQuiz && quizData && user && !quizData.error && quizData.questions && (
       <QuizModal
         questions={quizData.questions}
         provider="gemini"
@@ -617,6 +618,27 @@ export const FeedCard = ({
           setQuizData(null);
         }}
       />
+    )}
+    
+    {/* Error state for quiz loading failure */}
+    {showQuiz && quizData?.error && (
+      <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
+        <div className="bg-card rounded-2xl w-full max-w-md p-8 text-center shadow-2xl border border-border">
+          <h2 className="text-xl font-bold mb-4 text-foreground">Errore</h2>
+          <p className="text-muted-foreground mb-6">{quizData.errorMessage || 'Impossibile caricare il quiz'}</p>
+          <Button 
+            onClick={() => {
+              if (quizData.onCancel) quizData.onCancel();
+              setShowQuiz(false);
+              setQuizData(null);
+            }} 
+            variant="outline" 
+            className="w-full"
+          >
+            Chiudi
+          </Button>
+        </div>
+      </div>
     )}
 
     {/* Loading Overlay */}
