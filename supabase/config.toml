@@ -32,6 +32,3 @@ verify_jwt = false
 
 [functions.generate-trending-summary]
 verify_jwt = false
-
-[functions.fetch-daily-focus-perplexity]
-verify_jwt = false
