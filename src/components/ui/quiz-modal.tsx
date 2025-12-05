@@ -28,7 +28,25 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
   const [totalErrors, setTotalErrors] = useState(0);
   const [showRetryMessage, setShowRetryMessage] = useState(false);
 
-  const currentQuestion = questions[currentStep];
+  const currentQuestion = questions?.[currentStep];
+
+  // Safety check - if no valid questions, show error state
+  if (!questions || questions.length === 0 || !currentQuestion) {
+    return (
+      <div 
+        className="fixed inset-0 bg-black/80 z-[100]"
+        onClick={(e) => e.target === e.currentTarget && onCancel?.()}
+      >
+        <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
+          <div className="bg-background rounded-2xl w-full max-w-2xl p-8 text-center">
+            <h2 className="text-xl font-bold mb-4">Errore nel caricamento</h2>
+            <p className="text-muted-foreground mb-6">Non è stato possibile caricare le domande.</p>
+            <Button onClick={() => onCancel?.()} variant="outline" className="w-full">Chiudi</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -174,7 +192,7 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
                 <h3 className="text-lg font-semibold mb-6">{currentQuestion.stem}</h3>
 
                 <div className="space-y-3">
-                  {currentQuestion.choices.map((choice) => {
+                  {(currentQuestion.choices || []).map((choice) => {
                     const isSelected = selectedChoice === choice.id;
                     const isRightAndSelected = showFeedback && isSelected && choice.id === currentQuestion.correctId;
                     const isWrong = showFeedback && isSelected && choice.id !== currentQuestion.correctId;

@@ -319,13 +319,49 @@ function extractOgImageFromHtml(html: string): string | null {
   return null;
 }
 
+// Extract key entities/terms from title for relevance checking
+function extractKeyTerms(title: string): string[] {
+  // Clean title
+  const cleanTitle = title.split(' - ')[0].trim().toLowerCase();
+  
+  // Remove common stopwords
+  const stopwords = ['il', 'la', 'lo', 'le', 'gli', 'un', 'una', 'dei', 'delle', 'di', 'da', 'in', 'su', 'per', 'con', 'tra', 'fra', 'a', 'e', 'o', 'che', 'non', 'è', 'sono', 'ha', 'hanno', 'come', 'più', 'anche', 'cosa', 'fa', 'al', 'alla', 'allo', 'alle', 'agli', 'nel', 'nella', 'nello', 'nelle', 'negli', 'del', 'dello', 'della', 'delle', 'degli', 'sul', 'sulla', 'sullo', 'sulle', 'sugli', 'dal', 'dalla', 'dallo', 'dalle', 'dagli'];
+  
+  const words = cleanTitle.split(/\s+/).filter(w => w.length > 2 && !stopwords.includes(w));
+  
+  // Extract the most important terms (first 4-5 content words, likely the subject)
+  return words.slice(0, 5);
+}
+
+// Check if article is semantically relevant to the main story
+function isRelevantToMainStory(articleTitle: string, keyTerms: string[]): boolean {
+  const lowerTitle = articleTitle.toLowerCase();
+  
+  // Article must contain at least 2 key terms from the main story
+  let matchCount = 0;
+  for (const term of keyTerms) {
+    if (lowerTitle.includes(term)) {
+      matchCount++;
+    }
+  }
+  
+  // Require at least 40% of key terms to match (2 out of 5)
+  const threshold = Math.max(2, Math.floor(keyTerms.length * 0.4));
+  return matchCount >= threshold;
+}
+
 // Search for related articles about the same story using Google News search
 async function searchRelatedArticles(mainTitle: string): Promise<Array<{ title: string; source: string; link: string }>> {
   // Clean title: remove source and common words like LIVE
   let cleanTitle = mainTitle.split(' - ')[0].trim();
   cleanTitle = cleanTitle.replace(/\bLIVE\b/gi, '').trim();
-  // Use 8 keywords instead of 6 for better coverage
-  const keywords = cleanTitle.split(' ').slice(0, 8).join(' ');
+  
+  // Extract key terms for relevance filtering
+  const keyTerms = extractKeyTerms(cleanTitle);
+  console.log(`[Search] Key terms for relevance: ${keyTerms.join(', ')}`);
+  
+  // Use more specific keywords (first 6 significant words)
+  const keywords = cleanTitle.split(' ').slice(0, 6).join(' ');
   
   console.log(`Searching for related articles with keywords: ${keywords}`);
   
@@ -352,11 +388,11 @@ async function searchRelatedArticles(mainTitle: string): Promise<Array<{ title: 
     return [];
   }
   
-  // Extract up to 8 articles from different sources
+  // Extract up to 8 articles from different sources, but ONLY if relevant
   const articles: Array<{ title: string; source: string; link: string }> = [];
   const seenSources = new Set<string>();
   
-  for (const itemXml of items.slice(0, 15)) { // Check first 15 to get 8 unique sources
+  for (const itemXml of items.slice(0, 25)) { // Check more items to find relevant ones
     const title = extractText(itemXml, 'title');
     const link = extractText(itemXml, 'link');
     
@@ -364,7 +400,13 @@ async function searchRelatedArticles(mainTitle: string): Promise<Array<{ title: 
     
     // Skip meta-news from search results
     if (isMetaNews(title)) {
-      console.log(`[Search] Skipping meta-news: ${title}`);
+      console.log(`[Search] Skipping meta-news: ${title.substring(0, 50)}...`);
+      continue;
+    }
+    
+    // CRITICAL: Check if article is about the SAME story, not just similar words
+    if (!isRelevantToMainStory(title, keyTerms)) {
+      console.log(`[Search] Skipping irrelevant article (not same story): ${title.substring(0, 60)}...`);
       continue;
     }
     
@@ -375,11 +417,12 @@ async function searchRelatedArticles(mainTitle: string): Promise<Array<{ title: 
     seenSources.add(source.toLowerCase());
     
     articles.push({ title, source, link });
+    console.log(`[Search] ✅ Added relevant article from ${source}: ${title.substring(0, 50)}...`);
     
-    if (articles.length >= 8) break;
+    if (articles.length >= 6) break; // Reduced to 6 to ensure quality
   }
   
-  console.log(`Found ${articles.length} unique sources for this story`);
+  console.log(`Found ${articles.length} unique RELEVANT sources for this story`);
   return articles;
 }
 
