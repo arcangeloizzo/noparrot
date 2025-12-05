@@ -17,39 +17,24 @@ export interface DailyFocus {
   };
   created_at: string;
   expires_at: string;
+  provider?: string;
+  cached?: boolean;
 }
 
 export const useDailyFocus = () => {
   return useQuery({
     queryKey: ['daily-focus'],
     queryFn: async (): Promise<DailyFocus | null> => {
-      // 1. Check cache in table (valido per 24 ore)
-      const { data: cached, error: cacheError } = await supabase
-        .from('daily_focus')
-        .select('*')
-        .gte('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (cacheError) {
-        console.error('Error fetching cached daily focus:', cacheError);
-      }
-
-      if (cached) {
-        console.log('Using cached daily focus');
-        return cached as unknown as DailyFocus;
-      }
-
-      // 2. Se non c'è cache, trigger edge function
-      console.log('Fetching fresh daily focus...');
-      const { data, error } = await supabase.functions.invoke('fetch-daily-focus');
+      console.log('Fetching daily focus from Perplexity...');
+      
+      const { data, error } = await supabase.functions.invoke('fetch-daily-focus-perplexity');
 
       if (error) {
         console.error('Error fetching daily focus:', error);
         return null;
       }
 
+      console.log(`Daily Focus loaded (provider: ${data?.provider}, cached: ${data?.cached})`);
       return data as unknown as DailyFocus;
     },
     staleTime: 1000 * 60 * 30, // 30 minuti
