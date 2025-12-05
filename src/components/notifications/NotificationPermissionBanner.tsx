@@ -9,14 +9,16 @@ export const NotificationPermissionBanner = () => {
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    // Check if user has dismissed the banner before
-    const wasDismissed = localStorage.getItem('notification-banner-dismissed');
+    // Cleanup old key
+    localStorage.removeItem('notification-banner-dismissed');
+    // Check new versioned key
+    const wasDismissed = localStorage.getItem('notification-banner-dismissed-v2');
     setDismissed(wasDismissed === 'true');
   }, []);
 
   const handleDismiss = () => {
     setDismissed(true);
-    localStorage.setItem('notification-banner-dismissed', 'true');
+    localStorage.setItem('notification-banner-dismissed-v2', 'true');
   };
 
   const handleEnable = async () => {
