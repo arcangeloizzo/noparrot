@@ -30,12 +30,22 @@ export const usePushNotifications = () => {
 
   useEffect(() => {
     // Check if Push API is supported
-    const supported = 'Notification' in window && 
-                     'serviceWorker' in navigator && 
-                     'PushManager' in window;
+    const hasNotification = 'Notification' in window;
+    const hasServiceWorker = 'serviceWorker' in navigator;
+    const hasPushManager = 'PushManager' in window;
+    const supported = hasNotification && hasServiceWorker && hasPushManager;
+    
+    console.log('[usePushNotifications] Browser support check:', {
+      hasNotification,
+      hasServiceWorker,
+      hasPushManager,
+      supported
+    });
+    
     setIsSupported(supported);
     
-    if ('Notification' in window) {
+    if (hasNotification) {
+      console.log('[usePushNotifications] Current permission:', Notification.permission);
       setPermission(Notification.permission);
     }
 

@@ -14,7 +14,25 @@ export const NotificationPermissionBanner = () => {
     // Check new versioned key
     const wasDismissed = localStorage.getItem('notification-banner-dismissed-v2');
     setDismissed(wasDismissed === 'true');
+    
+    // Debug logging
+    console.log('[NotificationBanner] Init:', {
+      isSupported,
+      permission,
+      wasDismissed,
+      willShow: isSupported && permission !== 'granted' && wasDismissed !== 'true' && permission !== 'denied'
+    });
   }, []);
+  
+  // Additional debug on state changes
+  useEffect(() => {
+    console.log('[NotificationBanner] State changed:', {
+      isSupported,
+      permission,
+      dismissed,
+      willShow: isSupported && permission !== 'granted' && !dismissed && permission !== 'denied'
+    });
+  }, [isSupported, permission, dismissed]);
 
   const handleDismiss = () => {
     setDismissed(true);
