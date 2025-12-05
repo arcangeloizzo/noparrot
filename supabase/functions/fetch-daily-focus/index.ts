@@ -26,11 +26,27 @@ const META_NEWS_PATTERNS = [
   /giornali\s+in\s+edicola/i,
   /le\s+notizie\s+del\s+giorno/i,
   /le\s+notizie\s+di\s+oggi/i,
-  /prima\s+pagina/i
+  /prima\s+pagina/i,
+  /anteprima\s+notizie/i,
+  /edizioni\/il-/i,
+  /\/\d{4}-\d{2}-\d{2}$/i, // URLs ending with date only
+];
+
+// URL patterns that indicate meta-news pages
+const META_NEWS_URL_PATTERNS = [
+  /\/edizioni\//i,
+  /prima-pagina/i,
+  /anteprima-notizie/i,
+  /\/\d{4}-\d{2}-\d{2}$/i, // URLs ending with just a date
+  /vivere\.it\/\d{4}/i, // vivere.it date pages
 ];
 
 function isMetaNews(title: string): boolean {
   return META_NEWS_PATTERNS.some(pattern => pattern.test(title));
+}
+
+function isMetaNewsUrl(url: string): boolean {
+  return META_NEWS_URL_PATTERNS.some(pattern => pattern.test(url));
 }
 
 // Decode Google News URL from Base64-encoded format
@@ -340,15 +356,20 @@ async function searchRelatedArticles(mainTitle: string): Promise<Array<{ title: 
   const articles: Array<{ title: string; source: string; link: string }> = [];
   const seenSources = new Set<string>();
   
-  for (const itemXml of items.slice(0, 15)) { // Check first 15 to get 8 unique sources
+  for (const itemXml of items.slice(0, 20)) { // Check more items to get 8 unique real sources
     const title = extractText(itemXml, 'title');
     const link = extractText(itemXml, 'link');
     
     if (!title || !link) continue;
     
-    // Skip meta-news from search results
+    // Skip meta-news from search results (both by title and URL)
     if (isMetaNews(title)) {
-      console.log(`[Search] Skipping meta-news: ${title}`);
+      console.log(`[Search] Skipping meta-news (title): ${title}`);
+      continue;
+    }
+    
+    if (isMetaNewsUrl(link)) {
+      console.log(`[Search] Skipping meta-news (URL): ${link}`);
       continue;
     }
     
@@ -359,11 +380,12 @@ async function searchRelatedArticles(mainTitle: string): Promise<Array<{ title: 
     seenSources.add(source.toLowerCase());
     
     articles.push({ title, source, link });
+    console.log(`[Search] Added article from ${source}: ${title.substring(0, 50)}...`);
     
     if (articles.length >= 8) break;
   }
   
-  console.log(`Found ${articles.length} unique sources for this story`);
+  console.log(`Found ${articles.length} unique real news sources for this story`);
   return articles;
 }
 
