@@ -29,9 +29,18 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
   const [showRetryMessage, setShowRetryMessage] = useState(false);
 
   const currentQuestion = questions?.[currentStep];
+  const hasValidQuestions = questions && questions.length > 0 && currentQuestion;
+
+  // useEffect MUST be called before any conditional returns
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
 
   // Safety check - if no valid questions, show error state
-  if (!questions || questions.length === 0 || !currentQuestion) {
+  if (!hasValidQuestions) {
     return (
       <div 
         className="fixed inset-0 bg-black/80 z-[100]"
@@ -47,13 +56,6 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
       </div>
     );
   }
-
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, []);
 
   const handleAnswer = async (questionId: string, choiceId: string) => {
     if (showFeedback) return;
