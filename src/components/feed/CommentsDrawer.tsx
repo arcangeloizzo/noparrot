@@ -670,7 +670,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
         />
       )}
 
-      {showQuiz && quizData && createPortal(
+      {showQuiz && quizData && !quizData.error && quizData.questions && createPortal(
         <QuizModal
           questions={quizData.questions}
           onSubmit={async (answers: Record<string, string>) => {
@@ -725,6 +725,28 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
           provider="gemini"
           postCategory={post.category}
         />,
+        document.body
+      )}
+      
+      {/* Error state for quiz loading failure */}
+      {showQuiz && quizData?.error && createPortal(
+        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
+          <div className="bg-card rounded-2xl w-full max-w-md p-8 text-center shadow-2xl border border-border">
+            <h2 className="text-xl font-bold mb-4 text-foreground">Errore</h2>
+            <p className="text-muted-foreground mb-6">{quizData.errorMessage || 'Impossibile caricare il quiz'}</p>
+            <Button 
+              onClick={() => {
+                if (quizData.onCancel) quizData.onCancel();
+                setShowQuiz(false);
+                setQuizData(null);
+              }} 
+              variant="outline" 
+              className="w-full"
+            >
+              Chiudi
+            </Button>
+          </div>
+        </div>,
         document.body
       )}
     </>

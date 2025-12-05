@@ -28,9 +28,6 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
   const [totalErrors, setTotalErrors] = useState(0);
   const [showRetryMessage, setShowRetryMessage] = useState(false);
 
-  const currentQuestion = questions?.[currentStep];
-  const hasValidQuestions = questions && questions.length > 0 && currentQuestion;
-
   // useEffect MUST be called before any conditional returns
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -39,17 +36,31 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
     };
   }, []);
 
+  // Debugging: log questions received
+  useEffect(() => {
+    console.log('[QuizModal] Received questions:', questions);
+    console.log('[QuizModal] Questions type:', typeof questions);
+    console.log('[QuizModal] Is array:', Array.isArray(questions));
+    console.log('[QuizModal] Length:', questions?.length);
+  }, [questions]);
+
+  // Validate questions is actually an array
+  const validQuestions = Array.isArray(questions) ? questions : [];
+  const currentQuestion = validQuestions[currentStep];
+  const hasValidQuestions = validQuestions.length > 0 && currentQuestion;
+
   // Safety check - if no valid questions, show error state
   if (!hasValidQuestions) {
+    console.log('[QuizModal] No valid questions - showing error state');
     return (
       <div 
         className="fixed inset-0 bg-black/80 z-[100]"
         onClick={(e) => e.target === e.currentTarget && onCancel?.()}
       >
         <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
-          <div className="bg-background rounded-2xl w-full max-w-2xl p-8 text-center">
-            <h2 className="text-xl font-bold mb-4">Errore nel caricamento</h2>
-            <p className="text-muted-foreground mb-6">Non è stato possibile caricare le domande.</p>
+          <div className="bg-card rounded-2xl w-full max-w-md p-8 text-center shadow-2xl border border-border">
+            <h2 className="text-xl font-bold mb-4 text-foreground">Errore nel caricamento</h2>
+            <p className="text-muted-foreground mb-6">Non è stato possibile caricare le domande. Riprova più tardi.</p>
             <Button onClick={() => onCancel?.()} variant="outline" className="w-full">Chiudi</Button>
           </div>
         </div>
@@ -79,14 +90,14 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
       if (newTotalErrors >= 2) {
         // Non chiamare onSubmit, decidere localmente che è fallito
         setTimeout(() => {
-          setResult({ passed: false, score: 0, total: questions.length, wrongIndexes: [] });
+          setResult({ passed: false, score: 0, total: validQuestions.length, wrongIndexes: [] });
         }, 1500);
         return;
       }
       
       if (attempts >= 2) {
         setTimeout(() => {
-          if (currentStep < questions.length - 1) {
+          if (currentStep < validQuestions.length - 1) {
             setCurrentStep(prev => prev + 1);
             resetFeedback();
           } else {
@@ -100,7 +111,7 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
       setAnswers(prev => ({ ...prev, [questionId]: choiceId }));
       setShowRetryMessage(false);
       setTimeout(() => {
-        if (currentStep < questions.length - 1) {
+        if (currentStep < validQuestions.length - 1) {
           setCurrentStep(prev => prev + 1);
           resetFeedback();
         } else {
@@ -181,7 +192,7 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
                 <h2 className="text-xl font-bold text-center">Mettiamo a fuoco.</h2>
                 <p className="text-sm text-muted-foreground text-center mt-2">Una domanda alla volta, per vedere più chiaro.</p>
                 <div className="flex justify-center gap-2 mt-4">
-                  {questions.map((_, idx) => (
+                  {validQuestions.map((_, idx) => (
                     <div key={idx} className={cn("w-2 h-2 rounded-full transition-all duration-200",
                       idx < currentStep ? "bg-[hsl(var(--cognitive-correct))]" : 
                       idx === currentStep ? "bg-[hsl(var(--cognitive-glow-blue))] scale-125" : "bg-muted")} />
