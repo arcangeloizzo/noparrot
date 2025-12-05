@@ -239,7 +239,7 @@ export const FocusDetailSheet = ({
 
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
+      <Sheet open={open} onOpenChange={onOpenChange} modal={!showQuiz}>
         <SheetContent 
           side="bottom" 
           className="h-[85vh] bg-[#0E141A] border-white/10 flex flex-col"
@@ -449,17 +449,19 @@ export const FocusDetailSheet = ({
       
       {/* Error state for quiz loading failure */}
       {showQuiz && quizData?.error && createPortal(
-        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
-          <div className="bg-card rounded-2xl w-full max-w-md p-8 text-center shadow-2xl border border-border">
+        <div className="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center p-4 pointer-events-auto" style={{ pointerEvents: 'auto' }}>
+          <div className="bg-card rounded-2xl w-full max-w-md p-8 text-center shadow-2xl border border-border pointer-events-auto" onClick={(e) => e.stopPropagation()} style={{ pointerEvents: 'auto' }}>
             <h2 className="text-xl font-bold mb-4 text-foreground">Errore</h2>
             <p className="text-muted-foreground mb-6">{quizData.errorMessage || 'Impossibile caricare il quiz'}</p>
             <Button 
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setShowQuiz(false);
                 setQuizData(null);
               }} 
               variant="outline" 
-              className="w-full"
+              className="w-full pointer-events-auto"
+              style={{ pointerEvents: 'auto' }}
             >
               Chiudi
             </Button>

@@ -54,14 +54,19 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
     console.log('[QuizModal] No valid questions - showing error state');
     return (
       <div 
-        className="fixed inset-0 bg-black/80 z-[100]"
+        className="fixed inset-0 bg-black/80 z-[9999] pointer-events-auto"
         onClick={(e) => e.target === e.currentTarget && onCancel?.()}
+        style={{ pointerEvents: 'auto' }}
       >
-        <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
-          <div className="bg-card rounded-2xl w-full max-w-md p-8 text-center shadow-2xl border border-border">
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-auto">
+          <div 
+            className="bg-card rounded-2xl w-full max-w-md p-8 text-center shadow-2xl border border-border pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+            style={{ pointerEvents: 'auto' }}
+          >
             <h2 className="text-xl font-bold mb-4 text-foreground">Errore nel caricamento</h2>
             <p className="text-muted-foreground mb-6">Non è stato possibile caricare le domande. Riprova più tardi.</p>
-            <Button onClick={() => onCancel?.()} variant="outline" className="w-full">Chiudi</Button>
+            <Button onClick={(e) => { e.stopPropagation(); onCancel?.(); }} variant="outline" className="w-full pointer-events-auto">Chiudi</Button>
           </div>
         </div>
       </div>
@@ -154,11 +159,19 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
 
   return (
     <div 
-      className="fixed inset-0 bg-black/80 z-[100]"
+      className="fixed inset-0 bg-black/80 z-[9999] pointer-events-auto"
       onClick={handleBackdropClick}
+      style={{ pointerEvents: 'auto' }}
     >
-      <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
-        <div className="bg-background rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl">
+      <div 
+        className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-auto"
+        style={{ pointerEvents: 'auto' }}
+      >
+        <div 
+          className="bg-background rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl pointer-events-auto"
+          onClick={(e) => e.stopPropagation()}
+          style={{ pointerEvents: 'auto' }}
+        >
           
           {result ? (
             <div className="p-8 text-center">
@@ -171,7 +184,7 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
                   </div>
                   <h2 className="text-2xl font-bold mb-4">Hai compreso.</h2>
                   <p className="text-muted-foreground mb-6">Le tue parole ora hanno peso.</p>
-                  <Button onClick={() => onCancel?.()} className="w-full font-medium">Chiudi</Button>
+                  <Button onClick={(e) => { e.stopPropagation(); onCancel?.(); }} className="w-full font-medium pointer-events-auto" style={{ pointerEvents: 'auto' }}>Chiudi</Button>
                 </>
               ) : (
                 <>
@@ -182,7 +195,7 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
                   </div>
                   <h2 className="text-2xl font-bold mb-4">Non ancora.</h2>
                   <p className="text-muted-foreground mb-6">La comprensione richiede tempo, non fretta.</p>
-                  <Button onClick={() => onCancel?.()} variant="outline" className="w-full font-medium">Chiudi</Button>
+                  <Button onClick={(e) => { e.stopPropagation(); onCancel?.(); }} variant="outline" className="w-full font-medium pointer-events-auto" style={{ pointerEvents: 'auto' }}>Chiudi</Button>
                 </>
               )}
             </div>
@@ -211,9 +224,15 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
                     const isWrong = showFeedback && isSelected && choice.id !== currentQuestion.correctId;
 
                     return (
-                      <button key={choice.id} onClick={() => !showFeedback && handleAnswer(currentQuestion.id, choice.id)}
+                      <button 
+                        key={choice.id} 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!showFeedback) handleAnswer(currentQuestion.id, choice.id);
+                        }}
                         disabled={showFeedback}
-                        className={cn("w-full p-5 rounded-2xl text-left transition-all border-2",
+                        style={{ pointerEvents: 'auto' }}
+                        className={cn("w-full p-5 rounded-2xl text-left transition-all border-2 pointer-events-auto",
                           !showFeedback && !isSelected && "border-border bg-muted/20 hover:border-muted-foreground hover:bg-muted/40",
                           !showFeedback && isSelected && "border-[hsl(var(--cognitive-glow-blue))] bg-[hsl(var(--cognitive-glow-blue))]/10",
                           isRightAndSelected && "border-[hsl(var(--cognitive-correct))] bg-[hsl(var(--cognitive-correct))]/10",
@@ -238,8 +257,8 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
                 )}
               </div>
 
-              <div className="px-6 pb-6 flex gap-3">
-                {onCancel && <Button onClick={onCancel} variant="outline" className="flex-1">Annulla</Button>}
+              <div className="px-6 pb-6 flex gap-3 pointer-events-auto" style={{ pointerEvents: 'auto' }}>
+                {onCancel && <Button onClick={(e) => { e.stopPropagation(); onCancel(); }} variant="outline" className="flex-1 pointer-events-auto" style={{ pointerEvents: 'auto' }}>Annulla</Button>}
               </div>
             </>
           )}

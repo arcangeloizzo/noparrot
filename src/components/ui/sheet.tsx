@@ -5,7 +5,13 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-const Sheet = SheetPrimitive.Root
+interface SheetProps extends React.ComponentPropsWithoutRef<typeof SheetPrimitive.Root> {
+  modal?: boolean;
+}
+
+const Sheet = ({ modal = true, ...props }: SheetProps) => (
+  <SheetPrimitive.Root modal={modal} {...props} />
+)
 
 const SheetTrigger = SheetPrimitive.Trigger
 
