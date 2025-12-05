@@ -1,4 +1,5 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { createPortal } from "react-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -388,8 +389,8 @@ export const FocusDetailSheet = ({
         highlightIndex={highlightedSourceIndex}
       />
       
-      {/* Quiz Modal for Focus Gate */}
-      {showQuiz && quizData && !quizData.error && quizData.questions && (
+      {/* Quiz Modal for Focus Gate - use createPortal to escape Sheet context */}
+      {showQuiz && quizData && !quizData.error && quizData.questions && createPortal(
         <QuizModal
           questions={quizData.questions}
           onSubmit={async (answers: Record<string, string>) => {
@@ -442,11 +443,12 @@ export const FocusDetailSheet = ({
             setQuizData(null);
           }}
           provider="gemini"
-        />
+        />,
+        document.body
       )}
       
       {/* Error state for quiz loading failure */}
-      {showQuiz && quizData?.error && (
+      {showQuiz && quizData?.error && createPortal(
         <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
           <div className="bg-card rounded-2xl w-full max-w-md p-8 text-center shadow-2xl border border-border">
             <h2 className="text-xl font-bold mb-4 text-foreground">Errore</h2>
@@ -462,7 +464,8 @@ export const FocusDetailSheet = ({
               Chiudi
             </Button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
