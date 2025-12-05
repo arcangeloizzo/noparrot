@@ -90,7 +90,12 @@ serve(async (req) => {
   }
 
   const startTime = Date.now();
-  console.log('[Perplexity] Starting Daily Focus generation...');
+  
+  // Parse URL parameters
+  const url = new URL(req.url);
+  const forceRefresh = url.searchParams.get('force') === 'true';
+  
+  console.log(`[Perplexity] Starting Daily Focus generation... (force=${forceRefresh})`);
 
   try {
     const PERPLEXITY_API_KEY = Deno.env.get('PERPLEXITY_API_KEY');
@@ -107,20 +112,32 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Check cache first
-    const { data: cached } = await supabase
-      .from('daily_focus')
-      .select('*')
-      .gte('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // Check cache only if NOT forcing refresh
+    if (!forceRefresh) {
+      const { data: cached } = await supabase
+        .from('daily_focus')
+        .select('*')
+        .gte('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    if (cached) {
-      console.log('[Perplexity] Returning cached Daily Focus');
-      return new Response(JSON.stringify(cached), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      // Validate that cache is from Perplexity (not Google RSS)
+      // Google RSS sources contain 'news.google.com' in URLs
+      const isGoogleRssCache = cached?.sources?.some((s: { url?: string }) => 
+        s.url?.includes('news.google.com')
+      );
+
+      if (cached && !isGoogleRssCache) {
+        console.log('[Perplexity] Returning cached Perplexity Daily Focus');
+        return new Response(JSON.stringify({ ...cached, provider: 'perplexity', cached: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } else if (cached && isGoogleRssCache) {
+        console.log('[Perplexity] Found Google RSS cache, ignoring and fetching fresh from Perplexity');
+      }
+    } else {
+      console.log('[Perplexity] Force refresh requested, bypassing cache');
     }
 
     // Call Perplexity API
@@ -132,7 +149,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-sonar-small-128k-online',
+        model: 'sonar',
         messages: [
           { 
             role: 'system', 
@@ -228,7 +245,7 @@ serve(async (req) => {
     console.log(`[Perplexity] Category: ${dailyFocus.category}`);
     console.log(`[Perplexity] Sources: ${formattedSources.length}`);
 
-    return new Response(JSON.stringify(dailyFocus), {
+    return new Response(JSON.stringify({ ...dailyFocus, provider: 'perplexity', cached: false }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
