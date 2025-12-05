@@ -670,63 +670,104 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
         />
       )}
 
-      {showQuiz && quizData && !quizData.error && quizData.questions && createPortal(
-        <QuizModal
-          questions={quizData.questions}
-          onSubmit={async (answers: Record<string, string>) => {
-            try {
-              const { data, error } = await supabase.functions.invoke('validate-answers', {
-                body: {
-                  postId: post.id,
-                  sourceUrl: quizData.sourceUrl,
-                  answers,
-                  gateType: 'comment'
-                }
-              });
+      {showQuiz && quizData && !quizData.error && quizData.questions && (() => {
+        // Capture questions in a stable reference for the onSubmit callback
+        const questionsSnapshot = [...quizData.questions];
+        const isFocusContent = quizData.sourceUrl === 'focus://internal';
+        
+        return createPortal(
+          <QuizModal
+            questions={questionsSnapshot}
+            onSubmit={async (answers: Record<string, string>) => {
+              try {
+                // For Focus items, validate locally since questions are generated on-the-fly
+                if (isFocusContent) {
+                  let correctCount = 0;
+                  const wrongIndexes: string[] = [];
+                  
+                  questionsSnapshot.forEach((q: any, index: number) => {
+                    const userAnswer = answers[q.id];
+                    if (userAnswer === q.correctId) {
+                      correctCount++;
+                    } else {
+                      wrongIndexes.push(index.toString());
+                    }
+                  });
+                  
+                  const total = questionsSnapshot.length;
+                  const passed = correctCount >= Math.ceil(total * 0.6);
+                  
+                  console.log('[CommentsDrawer] Local Focus validation:', { correctCount, total, passed });
+                  
+                  if (!passed) {
+                    sonnerToast.error('Non ancora chiaro. Puoi comunque fare un commento spontaneo.');
+                    setShowQuiz(false);
+                    setQuizData(null);
+                    return { passed: false, score: correctCount, total, wrongIndexes };
+                  }
 
-              if (error) {
-                console.error('[QuizModal] Validation error:', error);
+                  sonnerToast.success('Hai fatto chiarezza. Il tuo commento avrà il segno di NoParrot.');
+                  setSelectedCommentType('informed');
+                  setShowQuiz(false);
+                  setQuizData(null);
+                  setTimeout(() => textareaRef.current?.focus(), 150);
+                  return { passed: true, score: correctCount, total, wrongIndexes: [] };
+                }
+                
+                // For regular posts, use edge function validation
+                const { data, error } = await supabase.functions.invoke('validate-answers', {
+                  body: {
+                    postId: post.id,
+                    sourceUrl: quizData.sourceUrl,
+                    answers,
+                    gateType: 'comment'
+                  }
+                });
+
+                if (error) {
+                  console.error('[QuizModal] Validation error:', error);
+                  sonnerToast.error("Errore durante la validazione del quiz");
+                  setShowQuiz(false);
+                  setQuizData(null);
+                  return { passed: false, wrongIndexes: [] };
+                }
+
+                const actualPassed = data.passed && (data.total - data.score) <= 2;
+                
+                if (!actualPassed) {
+                  console.log('[QuizModal] Quiz failed:', data);
+                  sonnerToast.error('Non ancora chiaro. Puoi comunque fare un commento spontaneo.');
+                  setShowQuiz(false);
+                  setQuizData(null);
+                  return { passed: false, wrongIndexes: data?.wrongIndexes || [] };
+                }
+
+                console.log('[QuizModal] Quiz passed!');
+                sonnerToast.success('Hai fatto chiarezza. Il tuo commento avrà il segno di NoParrot.');
+                setSelectedCommentType('informed');
+                setShowQuiz(false);
+                setQuizData(null);
+                setTimeout(() => textareaRef.current?.focus(), 150);
+                return { passed: true, wrongIndexes: [] };
+              } catch (err) {
+                console.error('[QuizModal] Unexpected error:', err);
                 sonnerToast.error("Errore durante la validazione del quiz");
                 setShowQuiz(false);
                 setQuizData(null);
                 return { passed: false, wrongIndexes: [] };
               }
-
-              const actualPassed = data.passed && (data.total - data.score) <= 2;
-              
-              if (!actualPassed) {
-                console.log('[QuizModal] Quiz failed:', data);
-                sonnerToast.error('Non ancora chiaro. Puoi comunque fare un commento spontaneo.');
-                setShowQuiz(false);
-                setQuizData(null);
-                return { passed: false, wrongIndexes: data?.wrongIndexes || [] };
-              }
-
-              console.log('[QuizModal] Quiz passed!');
-              sonnerToast.success('Hai fatto chiarezza. Il tuo commento avrà il segno di NoParrot.');
-              setSelectedCommentType('informed');
+            }}
+            onCancel={() => {
+              sonnerToast.info("Puoi fare un commento spontaneo.");
               setShowQuiz(false);
               setQuizData(null);
-              setTimeout(() => textareaRef.current?.focus(), 150);
-              return { passed: true, wrongIndexes: [] };
-            } catch (err) {
-              console.error('[QuizModal] Unexpected error:', err);
-              sonnerToast.error("Errore durante la validazione del quiz");
-              setShowQuiz(false);
-              setQuizData(null);
-              return { passed: false, wrongIndexes: [] };
-            }
-          }}
-          onCancel={() => {
-            sonnerToast.info("Puoi fare un commento spontaneo.");
-            setShowQuiz(false);
-            setQuizData(null);
-          }}
-          provider="gemini"
-          postCategory={post.category}
-        />,
-        document.body
-      )}
+            }}
+            provider="gemini"
+            postCategory={post.category}
+          />,
+          document.body
+        );
+      })()}
       
       {/* Error state for quiz loading failure */}
       {showQuiz && quizData?.error && createPortal(
