@@ -72,12 +72,42 @@ export const usePushNotifications = () => {
   }, [user]);
 
   const checkExistingSubscription = async () => {
+    if (!user) return;
+    
     try {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await registration.pushManager.getSubscription();
-      setIsSubscribed(!!subscription);
+      
+      if (subscription) {
+        // Verifica se la sottoscrizione è salvata nel database
+        const { data, error } = await supabase
+          .from('push_subscriptions')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('endpoint', subscription.endpoint)
+          .maybeSingle();
+        
+        if (error) {
+          console.error('[Push] Error checking DB subscription:', error);
+          setIsSubscribed(false);
+          return;
+        }
+        
+        if (data) {
+          console.log('[Push] Subscription found in DB');
+          setIsSubscribed(true);
+        } else {
+          // La sottoscrizione esiste nel browser ma non nel DB - ri-registrala
+          console.log('[Push] Browser subscription exists but not in DB - auto-registering...');
+          const success = await subscribeToPush();
+          console.log('[Push] Auto-registration result:', success);
+        }
+      } else {
+        setIsSubscribed(false);
+      }
     } catch (error) {
-      console.error('Error checking subscription:', error);
+      console.error('[Push] Error checking subscription:', error);
+      setIsSubscribed(false);
     }
   };
 
