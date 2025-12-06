@@ -265,6 +265,14 @@ export const usePushNotifications = () => {
     }
   };
 
+  // Force sync - esposto per debug
+  const forceSync = async (): Promise<boolean> => {
+    console.log('[Push] Force sync started...');
+    const result = await subscribeToPush();
+    console.log('[Push] Force sync result:', result);
+    return result;
+  };
+
   return {
     permission,
     isSupported,
@@ -274,6 +282,7 @@ export const usePushNotifications = () => {
     iOSVersion,
     requestPermission,
     unsubscribeFromPush,
-    sendNotification
+    sendNotification,
+    forceSync // Esposto per debug
   };
 };

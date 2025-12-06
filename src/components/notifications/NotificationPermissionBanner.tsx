@@ -5,9 +5,10 @@ import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { cn } from '@/lib/utils';
 
 export const NotificationPermissionBanner = () => {
-  const { permission, isSupported, isIOS, isPWA, iOSVersion, requestPermission } = usePushNotifications();
+  const { permission, isSupported, isSubscribed, isIOS, isPWA, iOSVersion, requestPermission, forceSync } = usePushNotifications();
   const [dismissed, setDismissed] = useState(false);
   const [showDebug, setShowDebug] = useState(true); // Temporary debug
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     // Cleanup old key
@@ -29,25 +30,44 @@ export const NotificationPermissionBanner = () => {
     }
   };
 
+  const handleForceSync = async () => {
+    setSyncing(true);
+    try {
+      const result = await forceSync();
+      alert(result ? '✅ Sync OK!' : '❌ Sync failed');
+    } catch (e) {
+      alert('❌ Error: ' + (e as Error).message);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   // Debug badge - temporary, shows always
   const DebugBadge = () => (
     <div 
       className="fixed bottom-20 left-2 z-[100] bg-black/90 text-white text-[10px] p-2 rounded-lg font-mono max-w-[200px]"
-      onClick={() => setShowDebug(!showDebug)}
     >
       {showDebug ? (
         <>
-          <div className="font-bold mb-1">🔧 Debug Notifiche</div>
+          <div className="font-bold mb-1" onClick={() => setShowDebug(false)}>🔧 Debug Notifiche</div>
           <div>iOS: {isIOS ? '✅' : '❌'}</div>
           <div>PWA: {isPWA ? '✅' : '❌'}</div>
           <div>iOS ver: {iOSVersion ?? 'N/A'}</div>
           <div>Support: {isSupported ? '✅' : '❌'}</div>
           <div>Perm: {permission}</div>
+          <div>Subscribed: {isSubscribed ? '✅' : '❌'}</div>
           <div>Dismissed: {dismissed ? '✅' : '❌'}</div>
-          <div className="mt-1 text-[8px] opacity-70">tap to minimize</div>
+          <button
+            onClick={handleForceSync}
+            disabled={syncing}
+            className="mt-2 w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white text-[10px] py-1 px-2 rounded"
+          >
+            {syncing ? '⏳ Syncing...' : '🔄 Force Sync'}
+          </button>
+          <div className="mt-1 text-[8px] opacity-70">tap title to minimize</div>
         </>
       ) : (
-        <span>🔧</span>
+        <span onClick={() => setShowDebug(true)}>🔧</span>
       )}
     </div>
   );
