@@ -117,6 +117,116 @@ function extractSourceFromUrl(url: string): string {
   }
 }
 
+// Generate news image using Lovable AI (gemini-2.5-flash-image-preview)
+async function generateNewsImage(title: string, summary: string, category: string, supabase: any): Promise<string | null> {
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  if (!LOVABLE_API_KEY) {
+    console.log('[ImageGen] No LOVABLE_API_KEY configured');
+    return null;
+  }
+
+  try {
+    // Create a hash for caching (include category)
+    const hashSource = `${title}-${category}`;
+    const titleHash = hashSource.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+    const cacheKey = `interest-${category.toLowerCase().replace(/\s+/g, '-')}-${titleHash}.png`;
+    
+    // Check if image already exists in storage
+    const { data: existingFile } = await supabase.storage
+      .from('news-images')
+      .list('', { search: cacheKey });
+    
+    if (existingFile && existingFile.length > 0) {
+      const { data: publicUrl } = supabase.storage
+        .from('news-images')
+        .getPublicUrl(cacheKey);
+      console.log('[ImageGen] ✅ Using cached image:', publicUrl.publicUrl);
+      return publicUrl.publicUrl;
+    }
+
+    // Generate contextual prompt with category context
+    const prompt = `Create a photorealistic news illustration for this ${category} headline:
+"${title}"
+
+Brief context: ${summary.substring(0, 150)}
+
+Requirements:
+- Professional news photography style for ${category} news
+- NO text, logos, watermarks, or overlays
+- Suitable for a news article header image
+- 16:9 aspect ratio composition
+- High quality, realistic lighting
+- Neutral and factual visual tone`;
+
+    console.log('[ImageGen] Generating image with prompt:', prompt.substring(0, 100) + '...');
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-image-preview',
+        messages: [{ role: 'user', content: prompt }],
+        modalities: ['image', 'text']
+      }),
+      signal: AbortSignal.timeout(60000) // 60s timeout for image generation
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[ImageGen] API error:', response.status, errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    const imageData = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+
+    if (!imageData) {
+      console.log('[ImageGen] No image in response');
+      return null;
+    }
+
+    // Extract base64 data
+    const base64Match = imageData.match(/^data:image\/(\w+);base64,(.+)$/);
+    if (!base64Match) {
+      console.log('[ImageGen] Invalid base64 format');
+      return null;
+    }
+
+    const imageFormat = base64Match[1]; // png, jpeg, etc.
+    const base64Data = base64Match[2];
+    const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+    // Upload to Supabase Storage
+    const fileName = `interest-${category.toLowerCase().replace(/\s+/g, '-')}-${titleHash}.${imageFormat}`;
+    const { error: uploadError } = await supabase.storage
+      .from('news-images')
+      .upload(fileName, binaryData, {
+        contentType: `image/${imageFormat}`,
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error('[ImageGen] Upload error:', uploadError);
+      return null;
+    }
+
+    // Get public URL
+    const { data: publicUrl } = supabase.storage
+      .from('news-images')
+      .getPublicUrl(fileName);
+
+    console.log('[ImageGen] ✅ Generated and cached image:', publicUrl.publicUrl);
+    return publicUrl.publicUrl;
+
+  } catch (error) {
+    console.error('[ImageGen] Error:', error);
+    return null;
+  }
+}
+
 // Validate image URL (exclude Google News placeholders and logos)
 function isValidImage(url: string | null): boolean {
   if (!url) return false;
@@ -807,12 +917,10 @@ serve(async (req) => {
       }
     }
     
-    // Dynamic fallback based on title + category hash for variety but consistency
+// AI-generated image fallback (replaces Picsum)
     if (!finalImageUrl) {
-      const hashSource = `${title}-${category}`;
-      const hash = hashSource.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
-      finalImageUrl = `https://picsum.photos/seed/${hash}/800/450`;
-      console.log('[Image] Using dynamic fallback:', finalImageUrl);
+      console.log('[Image] Generating AI image for:', title);
+      finalImageUrl = await generateNewsImage(title, summary, category, supabase);
     }
     
     console.log(`[fetch-interest-focus] Final image URL for ${category}:`, finalImageUrl);
