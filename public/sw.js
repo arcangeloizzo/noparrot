@@ -73,51 +73,38 @@ self.addEventListener('push', function(event) {
   );
 });
 
-// Notification click handler
+// Notification click handler - iOS compatible
 self.addEventListener('notificationclick', function(event) {
   console.log('[SW] Notification clicked:', event.action);
   
   event.notification.close();
   
   const urlToOpen = event.notification.data?.url || '/';
-  const notificationType = event.notification.data?.type;
+  const fullUrl = new URL(urlToOpen, self.location.origin).href;
   
-  // Handle action buttons
-  if (event.action === 'reply' && notificationType === 'message') {
-    // For reply action, open the message thread
-    event.waitUntil(openUrl(urlToOpen));
-  } else {
-    // Default action - open the URL
-    event.waitUntil(openUrl(urlToOpen));
-  }
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // Cerca un client già aperto
+        for (const client of clientList) {
+          if (client.url.startsWith(self.location.origin)) {
+            // Prova a fare focus sul client esistente
+            if ('focus' in client) {
+              client.focus();
+            }
+            // Invia messaggio al client per navigare via JavaScript
+            // Questo funziona meglio su iOS rispetto a client.navigate()
+            client.postMessage({ type: 'NAVIGATE', url: urlToOpen });
+            return;
+          }
+        }
+        // Nessun client aperto, apri nuova finestra
+        if (clients.openWindow) {
+          return clients.openWindow(fullUrl);
+        }
+      })
+  );
 });
-
-// Helper function to open URL
-async function openUrl(url) {
-  const fullUrl = new URL(url, self.location.origin).href;
-  
-  // Check if a window is already open
-  const windowClients = await clients.matchAll({
-    type: 'window',
-    includeUncontrolled: true
-  });
-  
-  // Try to find an existing window and navigate it
-  for (const client of windowClients) {
-    if (client.url.startsWith(self.location.origin) && 'focus' in client) {
-      await client.focus();
-      if ('navigate' in client) {
-        await client.navigate(fullUrl);
-      }
-      return;
-    }
-  }
-  
-  // No existing window, open a new one
-  if (clients.openWindow) {
-    return clients.openWindow(fullUrl);
-  }
-}
 
 // Notification close handler
 self.addEventListener('notificationclose', function(event) {

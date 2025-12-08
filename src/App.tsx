@@ -1,6 +1,6 @@
 // src/App.tsx
 
-// import { Toaster } from "@/components/ui/toaster"; // <-- RIMUOVI QUESTA RIGA
+import { useEffect } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -24,12 +24,37 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// Listener per messaggi dal Service Worker (per navigazione push notification su iOS)
+function ServiceWorkerNavigationHandler() {
+  useEffect(() => {
+    const handleSWMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'NAVIGATE' && event.data?.url) {
+        console.log('[App] Received NAVIGATE message from SW:', event.data.url);
+        // Usa window.location.href per navigazione affidabile su iOS
+        window.location.href = event.data.url;
+      }
+    };
+
+    if ('serviceWorker' in navigator && navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener('message', handleSWMessage);
+    }
+
+    return () => {
+      if ('serviceWorker' in navigator && navigator.serviceWorker) {
+        navigator.serviceWorker.removeEventListener('message', handleSWMessage);
+      }
+    };
+  }, []);
+
+  return null;
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
-        {/* <Toaster /> */} {/* <-- RIMUOVI ANCHE QUESTA RIGA */}
         <Sonner />
+        <ServiceWorkerNavigationHandler />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
