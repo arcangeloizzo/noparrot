@@ -1,10 +1,38 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BellIcon, HeartIcon, MessageCircleIcon, UserPlusIcon, AtSignIcon } from "@/components/ui/icons";
+import { BellIcon, HeartIcon, MessageCircleIcon, UserPlusIcon, AtSignIcon, CheckIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { useNotifications, useMarkAsRead, useMarkAllAsRead } from "@/hooks/useNotifications";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
+
+// Colori per tipo di notifica
+const notificationStyles = {
+  like: {
+    gradient: "bg-gradient-to-r from-brand-pink/10 to-transparent",
+    border: "border-l-brand-pink",
+    iconBg: "bg-brand-pink/10",
+    avatarRing: "ring-brand-pink"
+  },
+  comment: {
+    gradient: "bg-gradient-to-r from-primary-blue/10 to-transparent",
+    border: "border-l-primary-blue",
+    iconBg: "bg-primary-blue/10",
+    avatarRing: "ring-primary-blue"
+  },
+  mention: {
+    gradient: "bg-gradient-to-r from-brand-yellow/15 to-transparent",
+    border: "border-l-brand-yellow",
+    iconBg: "bg-brand-yellow/15",
+    avatarRing: "ring-brand-yellow"
+  },
+  follow: {
+    gradient: "bg-gradient-to-r from-trust-high/10 to-transparent",
+    border: "border-l-trust-high",
+    iconBg: "bg-trust-high/10",
+    avatarRing: "ring-trust-high"
+  }
+};
 
 export const Notifications = () => {
   const navigate = useNavigate();
@@ -13,47 +41,70 @@ export const Notifications = () => {
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
 
-
   const getNotificationIcon = (type: string) => {
+    const iconClass = "w-5 h-5";
     switch (type) {
       case "like":
-        return <HeartIcon className="w-5 h-5 text-brand-pink" filled />;
+        return <HeartIcon className={cn(iconClass, "text-brand-pink")} filled />;
       case "comment":
-        return <MessageCircleIcon className="w-5 h-5 text-primary-blue" />;
+        return <MessageCircleIcon className={cn(iconClass, "text-primary-blue")} />;
       case "follow":
-        return <UserPlusIcon className="w-5 h-5 text-trust-high" />;
+        return <UserPlusIcon className={cn(iconClass, "text-trust-high")} />;
       case "mention":
-        return <AtSignIcon className="w-5 h-5 text-brand-yellow" />;
+        return <AtSignIcon className={cn(iconClass, "text-brand-yellow")} />;
       default:
-        return <BellIcon className="w-5 h-5 text-muted-foreground" />;
+        return <BellIcon className={cn(iconClass, "text-muted-foreground")} />;
     }
   };
 
-  const getAvatarContent = (avatarUrl: string | null, name: string) => {
+  const getDisplayUsername = (username: string) => {
+    // Rimuovi @gmail.com se presente
+    return username.replace(/@gmail\.com$/, '');
+  };
+
+  const getAvatarContent = (avatarUrl: string | null, name: string, type: string, isUnread: boolean) => {
+    const style = notificationStyles[type as keyof typeof notificationStyles] || notificationStyles.comment;
+    
     if (avatarUrl) {
       return (
-        <img 
-          src={avatarUrl} 
-          alt={name}
-          className="w-10 h-10 rounded-full object-cover"
-        />
+        <div className={cn(
+          "relative",
+          isUnread && `ring-2 ${style.avatarRing} rounded-full`
+        )}>
+          <img 
+            src={avatarUrl} 
+            alt={name}
+            className="w-12 h-12 rounded-full object-cover"
+          />
+          {isUnread && (
+            <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-primary-blue rounded-full border-2 border-background" />
+          )}
+        </div>
       );
     }
 
-    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
+    const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     const hashCode = name.split('').reduce((a, b) => {
       a = ((a << 5) - a) + b.charCodeAt(0);
       return a & a;
     }, 0);
-    const colors = ['#0A7AFF', '#E41E52', '#FFD464', '#BFE9E9'];
+    const colors = ['hsl(var(--primary-blue))', 'hsl(var(--brand-pink))', 'hsl(var(--brand-yellow))', 'hsl(var(--trust-high))'];
     const color = colors[Math.abs(hashCode) % colors.length];
     
     return (
-      <div 
-        className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-semibold"
-        style={{ backgroundColor: color }}
-      >
-        {initials}
+      <div className={cn(
+        "relative",
+        isUnread && `ring-2 ${style.avatarRing} rounded-full`
+      )}>
+        <div 
+          className="w-12 h-12 rounded-full flex items-center justify-center text-white text-sm font-bold"
+          style={{ backgroundColor: color }}
+        >
+          {initials}
+        </div>
+        {isUnread && (
+          <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-primary-blue rounded-full border-2 border-background" />
+        )}
       </div>
     );
   };
@@ -63,13 +114,13 @@ export const Notifications = () => {
     : notifications;
 
   const handleNotificationClick = (notification: typeof notifications[0]) => {
-    // Mark this specific notification as read
     if (!notification.read) {
       markAsRead.mutate(notification.id);
     }
     
-    // Navigate to the post
-    if (notification.post_id) {
+    if (notification.type === 'follow' && notification.actor_id) {
+      navigate(`/user/${notification.actor_id}`);
+    } else if (notification.post_id) {
       navigate(`/post/${notification.post_id}`);
     }
   };
@@ -83,13 +134,17 @@ export const Notifications = () => {
   const getNotificationText = (notification: typeof notifications[0]) => {
     switch (notification.type) {
       case 'like':
-        return 'ha messo mi piace al tuo post';
+        return notification.comment_id 
+          ? 'ha messo like al tuo commento' 
+          : 'ha messo like al tuo post';
       case 'comment':
         return 'ha commentato il tuo post';
       case 'follow':
         return 'ha iniziato a seguirti';
       case 'mention':
-        return 'ti ha menzionato';
+        return notification.comment_id 
+          ? 'ti ha menzionato in un commento' 
+          : 'ti ha menzionato in un post';
       default:
         return '';
     }
@@ -99,45 +154,65 @@ export const Notifications = () => {
     <div className="min-h-screen bg-background">
       <div className="mobile-container">
         {/* Header */}
-        <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-10 border-b border-border/50">
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <BellIcon className="w-6 h-6 text-primary-blue" />
-                <h1 className="text-xl font-semibold text-foreground">Notifiche</h1>
-                {unreadCount > 0 && (
-                  <span className="bg-brand-pink text-white text-xs px-2 py-1 rounded-full font-medium">
-                    {unreadCount}
-                  </span>
-                )}
+        <div className="sticky top-0 bg-background/80 backdrop-blur-xl z-10 border-b border-border/30">
+          <div className="p-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-primary-blue/10 rounded-xl">
+                  <BellIcon className="w-6 h-6 text-primary-blue" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold text-foreground">Notifiche</h1>
+                  {unreadCount > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {unreadCount} non {unreadCount === 1 ? 'letta' : 'lette'}
+                    </p>
+                  )}
+                </div>
               </div>
               
               <button 
                 onClick={handleMarkAllAsRead}
-                className="text-sm text-primary-blue font-medium disabled:opacity-50"
+                className={cn(
+                  "flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full transition-all",
+                  unreadCount > 0 
+                    ? "bg-primary-blue/10 text-primary-blue hover:bg-primary-blue/20" 
+                    : "text-muted-foreground cursor-not-allowed"
+                )}
                 disabled={markAllAsRead.isPending || unreadCount === 0}
               >
-                Segna tutto come letto
+                <CheckIcon className="w-4 h-4" />
+                <span className="hidden sm:inline">Segna lette</span>
               </button>
             </div>
             
             {/* Tabs */}
-            <div className="flex space-x-1 bg-muted rounded-full p-1">
+            <div className="flex bg-muted/50 rounded-2xl p-1 gap-1">
               {[
-                { id: "all", label: "Tutte" },
-                { id: "mentions", label: "Menzioni" },
-              ].map(({ id, label }) => (
+                { id: "all", label: "Tutte", count: notifications.length },
+                { id: "mentions", label: "Menzioni", count: notifications.filter(n => n.type === "mention").length },
+              ].map(({ id, label, count }) => (
                 <button
                   key={id}
                   onClick={() => setActiveTab(id as any)}
                   className={cn(
-                    "flex-1 py-2 px-4 rounded-full text-sm font-medium transition-colors",
+                    "flex-1 py-2.5 px-4 rounded-xl text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2",
                     activeTab === id
-                      ? "bg-primary-blue text-white"
+                      ? "bg-background text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   {label}
+                  {count > 0 && (
+                    <span className={cn(
+                      "text-xs px-1.5 py-0.5 rounded-full",
+                      activeTab === id 
+                        ? "bg-primary-blue/10 text-primary-blue" 
+                        : "bg-muted text-muted-foreground"
+                    )}>
+                      {count}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -146,90 +221,105 @@ export const Notifications = () => {
 
         {/* Notifications List */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-muted-foreground">Caricamento notifiche...</div>
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <div className="w-10 h-10 border-2 border-primary-blue/30 border-t-primary-blue rounded-full animate-spin" />
+            <p className="text-sm text-muted-foreground">Caricamento notifiche...</p>
+          </div>
+        ) : filteredNotifications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center min-h-[60vh] px-6">
+            <div className="w-20 h-20 bg-muted/50 rounded-3xl flex items-center justify-center mb-4">
+              {activeTab === "mentions" ? (
+                <AtSignIcon className="w-10 h-10 text-muted-foreground/50" />
+              ) : (
+                <BellIcon className="w-10 h-10 text-muted-foreground/50" />
+              )}
+            </div>
+            <h2 className="text-lg font-semibold text-foreground mb-1">
+              {activeTab === "mentions" ? "Nessuna menzione" : "Nessuna notifica"}
+            </h2>
+            <p className="text-muted-foreground text-sm text-center max-w-xs">
+              {activeTab === "mentions" 
+                ? "Quando qualcuno ti menziona usando @username, lo vedrai qui"
+                : "Quando qualcuno interagisce con te, vedrai le notifiche qui"
+              }
+            </p>
           </div>
         ) : (
-          <div className="divide-y divide-border/50">
-            {filteredNotifications.map((notification) => (
-              <div
-                key={notification.id}
-                onClick={() => handleNotificationClick(notification)}
-                className={cn(
-                  "p-4 hover:bg-muted/50 transition-colors cursor-pointer",
-                  !notification.read && "bg-primary-blue/5 border-l-4 border-l-primary-blue"
-                )}
-              >
-                <div className="flex space-x-3">
-                  {/* Avatar */}
-                  <div className="flex-shrink-0">
-                    {getAvatarContent(notification.actor.avatar_url, notification.actor.full_name)}
-                  </div>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start space-x-2">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <p className="font-medium text-sm text-foreground">
-                            {notification.actor.full_name}
+          <div className="py-2 space-y-1.5 px-2">
+            {filteredNotifications.map((notification, index) => {
+              const style = notificationStyles[notification.type as keyof typeof notificationStyles] || notificationStyles.comment;
+              
+              return (
+                <div
+                  key={notification.id}
+                  onClick={() => handleNotificationClick(notification)}
+                  className={cn(
+                    "p-3 rounded-2xl transition-all duration-200 cursor-pointer border-l-4 animate-fade-in",
+                    style.gradient,
+                    style.border,
+                    !notification.read ? "shadow-sm" : "opacity-80 hover:opacity-100"
+                  )}
+                  style={{ animationDelay: `${index * 30}ms` }}
+                >
+                  <div className="flex gap-3">
+                    {/* Avatar */}
+                    <div className="flex-shrink-0">
+                      {getAvatarContent(
+                        notification.actor.avatar_url, 
+                        notification.actor.full_name,
+                        notification.type,
+                        !notification.read
+                      )}
+                    </div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-semibold text-sm text-foreground truncate">
+                              {notification.actor.full_name}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              @{getDisplayUsername(notification.actor.username)}
+                            </span>
+                          </div>
+                          
+                          <p className="text-sm text-muted-foreground mt-0.5">
+                            {getNotificationText(notification)}
                           </p>
-                          <span className="text-xs text-muted-foreground">
-                            @{notification.actor.username}
-                          </span>
-                          <span className="text-xs text-muted-foreground">·</span>
-                          <span className="text-xs text-muted-foreground">
+
+                          {/* Content preview */}
+                          {notification.type === 'comment' && notification.comment ? (
+                            <p className="text-sm text-foreground/80 mt-1.5 line-clamp-2 bg-background/50 rounded-lg p-2 border border-border/30">
+                              "{notification.comment.content}"
+                            </p>
+                          ) : notification.post && notification.type !== 'follow' ? (
+                            <p className="text-sm text-foreground/80 mt-1.5 line-clamp-2 bg-background/50 rounded-lg p-2 border border-border/30">
+                              "{notification.post.content}"
+                            </p>
+                          ) : null}
+
+                          <p className="text-xs text-muted-foreground mt-1.5">
                             {formatDistanceToNow(new Date(notification.created_at), {
                               addSuffix: true,
                               locale: it
                             })}
-                          </span>
-                          {!notification.read && (
-                            <div className="w-2 h-2 bg-primary-blue rounded-full"></div>
-                          )}
+                          </p>
                         </div>
                         
-                        <p className="text-sm text-muted-foreground">
-                          {getNotificationText(notification)}
-                        </p>
-
-                        {/* Mostra commento per le notifiche di tipo 'comment', altrimenti mostra il post */}
-                        {notification.type === 'comment' && notification.comment ? (
-                          <p className="text-sm text-foreground mt-1 line-clamp-2">
-                            "{notification.comment.content}"
-                          </p>
-                        ) : notification.post ? (
-                          <p className="text-sm text-foreground mt-1 line-clamp-2">
-                            "{notification.post.content}"
-                          </p>
-                        ) : null}
-                      </div>
-                      
-                      <div className="flex-shrink-0">
-                        {getNotificationIcon(notification.type)}
+                        {/* Icon */}
+                        <div className={cn(
+                          "flex-shrink-0 p-2 rounded-xl",
+                          style.iconBg
+                        )}>
+                          {getNotificationIcon(notification.type)}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Empty State */}
-        {filteredNotifications.length === 0 && (
-          <div className="flex items-center justify-center min-h-[60vh]">
-            <div className="text-center space-y-3">
-              <BellIcon className="w-12 h-12 text-muted-foreground mx-auto" />
-              <h2 className="text-lg font-semibold text-foreground">
-                {activeTab === "mentions" ? "Nessuna menzione" : "Nessuna notifica"}
-              </h2>
-              <p className="text-muted-foreground text-sm max-w-sm">
-                {activeTab === "mentions" 
-                  ? "Non hai ancora ricevuto menzioni"
-                  : "Quando qualcuno interagisce con i tuoi post, vedrai le notifiche qui"
-                }
-              </p>
-            </div>
+              );
+            })}
           </div>
         )}
       </div>
