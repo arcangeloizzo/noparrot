@@ -1,12 +1,13 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Message } from "@/hooks/useMessages";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Heart } from "lucide-react";
 import { memo, useEffect, useState } from "react";
 import { fetchArticlePreview } from "@/lib/ai-helpers";
+import { useMessageReactions } from "@/hooks/useMessageReactions";
 
 const getHostnameFromUrl = (url: string): string => {
   try {
@@ -21,11 +22,11 @@ interface MessageBubbleProps {
   message: Message;
 }
 
-
 export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
   const { user } = useAuth();
   const isSent = message.sender_id === user?.id;
   const [articlePreview, setArticlePreview] = useState<any>(null);
+  const { likes, isLiked, toggleLike, isLoading: isLikeLoading } = useMessageReactions(message.id);
 
   // Fetch article preview for link_url
   useEffect(() => {
@@ -48,29 +49,42 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
     loadPreview();
   }, [message.link_url]);
 
-  return (
-    <div className={cn("flex gap-2 mb-4", isSent ? "flex-row-reverse" : "flex-row")}>
-      <Avatar className="h-8 w-8 flex-shrink-0">
-        <AvatarImage src={message.sender.avatar_url || undefined} />
-        <AvatarFallback>
-          {message.sender.username?.[0]?.toUpperCase() || '?'}
-        </AvatarFallback>
-      </Avatar>
+  const handleLike = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!isLikeLoading) {
+      toggleLike();
+    }
+  };
 
-      <div className={cn("flex flex-col max-w-[70%]", isSent ? "items-end" : "items-start")}>
+  return (
+    <div className={cn("flex gap-2 mb-3", isSent ? "flex-row-reverse" : "flex-row")}>
+      {/* Avatar solo per messaggi ricevuti */}
+      {!isSent && (
+        <Avatar className="h-7 w-7 flex-shrink-0 mt-1">
+          <AvatarImage src={message.sender.avatar_url || undefined} />
+          <AvatarFallback className="text-xs bg-muted">
+            {message.sender.username?.[0]?.toUpperCase() || '?'}
+          </AvatarFallback>
+        </Avatar>
+      )}
+
+      <div className={cn("flex flex-col max-w-[75%]", isSent ? "items-end" : "items-start")}>
         <div
           className={cn(
-            "rounded-2xl px-4 py-2",
+            "rounded-2xl px-4 py-2.5 relative",
             isSent
-              ? "bg-primary text-primary-foreground rounded-tr-sm"
-              : "bg-muted text-foreground rounded-tl-sm"
+              ? "bg-primary text-primary-foreground rounded-br-md"
+              : "bg-background text-foreground rounded-bl-md shadow-sm border border-border/50"
           )}
         >
-          <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+          <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
 
           {message.link_url && articlePreview && (
             <div 
-              className="mt-2 border border-border/50 rounded-xl overflow-hidden hover:border-accent/50 transition-all cursor-pointer group"
+              className={cn(
+                "mt-2 rounded-xl overflow-hidden cursor-pointer group",
+                isSent ? "bg-primary-foreground/10" : "bg-muted border border-border/30"
+              )}
               onClick={(e) => {
                 e.stopPropagation();
                 window.open(message.link_url, '_blank', 'noopener,noreferrer');
@@ -91,7 +105,7 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
                 {/* Twitter author info */}
                 {articlePreview.platform === 'twitter' && articlePreview.author_username && (
                   <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+                    <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center">
                       <span className="text-xs font-semibold text-primary">
                         {articlePreview.author_username.charAt(0).toUpperCase()}
                       </span>
@@ -100,25 +114,34 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
                       <span className="text-xs font-semibold">
                         {articlePreview.author_name || articlePreview.author_username}
                       </span>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-[10px] text-muted-foreground">
                         @{articlePreview.author_username}
                       </span>
                     </div>
                   </div>
                 )}
                 
-                <div className="flex items-center gap-1.5 text-xs opacity-70 mb-1">
+                <div className={cn(
+                  "flex items-center gap-1.5 text-[10px] mb-1",
+                  isSent ? "text-primary-foreground/60" : "text-muted-foreground"
+                )}>
                   <span>{getHostnameFromUrl(message.link_url)}</span>
                   <ExternalLink className="w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
                 
                 {/* Show full tweet content or article title */}
                 {articlePreview.content && articlePreview.platform === 'twitter' ? (
-                  <p className="text-xs whitespace-pre-wrap leading-relaxed">
+                  <p className={cn(
+                    "text-xs whitespace-pre-wrap leading-relaxed",
+                    isSent ? "text-primary-foreground/80" : "text-foreground/80"
+                  )}>
                     {articlePreview.content}
                   </p>
                 ) : (
-                  <div className="font-semibold text-xs line-clamp-2 group-hover:text-accent transition-colors">
+                  <div className={cn(
+                    "font-medium text-xs line-clamp-2",
+                    isSent ? "text-primary-foreground/90" : "text-foreground/90"
+                  )}>
                     {articlePreview.title || 'Articolo condiviso'}
                   </div>
                 )}
@@ -166,12 +189,34 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
           )}
         </div>
 
-        <span className="text-xs text-muted-foreground mt-1 px-1">
-          {formatDistanceToNow(new Date(message.created_at), {
-            addSuffix: true,
-            locale: it
-          })}
-        </span>
+        {/* Like button and timestamp row */}
+        <div className={cn(
+          "flex items-center gap-2 mt-1 px-1",
+          isSent ? "flex-row-reverse" : "flex-row"
+        )}>
+          {/* Like button */}
+          <button
+            onClick={handleLike}
+            disabled={isLikeLoading}
+            className={cn(
+              "flex items-center gap-1 text-xs transition-all duration-200 hover:scale-110 active:scale-95",
+              isLiked ? "text-brand-pink" : "text-muted-foreground hover:text-brand-pink/70"
+            )}
+          >
+            <Heart 
+              className={cn(
+                "w-3.5 h-3.5 transition-all",
+                isLiked && "fill-brand-pink animate-scale-in"
+              )} 
+            />
+            {likes > 0 && <span className="text-[10px]">{likes}</span>}
+          </button>
+
+          {/* Timestamp */}
+          <span className="text-[10px] text-muted-foreground">
+            {format(new Date(message.created_at), 'HH:mm', { locale: it })}
+          </span>
+        </div>
       </div>
     </div>
   );

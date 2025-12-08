@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,8 @@ import { MessageComposer } from "@/components/messages/MessageComposer";
 import { useMessages } from "@/hooks/useMessages";
 import { useMessageThreads, useMarkThreadAsRead } from "@/hooks/useMessageThreads";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatDistanceToNow, isToday, isYesterday, format } from "date-fns";
+import { it } from "date-fns/locale";
 
 export default function MessageThread() {
   const { threadId } = useParams<{ threadId: string }>();
@@ -28,16 +30,66 @@ export default function MessageThread() {
   const isGroupChat = otherParticipants.length > 1;
   const displayProfile = otherParticipants[0]?.profile;
 
-  // Scroll to bottom on new messages
+  // Calcola online status
+  const isOnline = useMemo(() => {
+    if (!displayProfile?.last_seen_at) return false;
+    const lastSeen = new Date(displayProfile.last_seen_at);
+    const now = new Date();
+    const diffMinutes = (now.getTime() - lastSeen.getTime()) / 1000 / 60;
+    return diffMinutes < 5;
+  }, [displayProfile?.last_seen_at]);
+
+  const lastSeenText = useMemo(() => {
+    if (!displayProfile?.last_seen_at) return null;
+    if (isOnline) return "Attivo/a ora";
+    const lastSeen = new Date(displayProfile.last_seen_at);
+    const diffMinutes = Math.floor((new Date().getTime() - lastSeen.getTime()) / 1000 / 60);
+    if (diffMinutes < 60) return `Attivo/a ${diffMinutes} min fa`;
+    return `Attivo/a ${formatDistanceToNow(lastSeen, { locale: it })} fa`;
+  }, [displayProfile?.last_seen_at, isOnline]);
+
+  // Group messages by date
+  const groupedMessages = useMemo(() => {
+    if (!messages) return [];
+    
+    const groups: { date: string; messages: typeof messages }[] = [];
+    let currentDate = '';
+    
+    messages.forEach(msg => {
+      const msgDate = new Date(msg.created_at);
+      let dateLabel = '';
+      
+      if (isToday(msgDate)) {
+        dateLabel = 'Oggi';
+      } else if (isYesterday(msgDate)) {
+        dateLabel = 'Ieri';
+      } else {
+        dateLabel = format(msgDate, 'd MMMM yyyy', { locale: it });
+      }
+      
+      if (dateLabel !== currentDate) {
+        currentDate = dateLabel;
+        groups.push({ date: dateLabel, messages: [msg] });
+      } else {
+        groups[groups.length - 1].messages.push(msg);
+      }
+    });
+    
+    return groups;
+  }, [messages]);
+
+  // Scroll to bottom - improved
   useEffect(() => {
     if (messages && messages.length > 0) {
-      // Piccolo delay per assicurare che il DOM sia pronto
-      setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ 
-          behavior: isFirstLoad.current ? 'instant' : 'smooth' 
-        });
-        isFirstLoad.current = false;
-      }, 50);
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ 
+            behavior: isFirstLoad.current ? 'instant' : 'smooth',
+            block: 'end'
+          });
+          isFirstLoad.current = false;
+        }, 100);
+      });
     }
   }, [messages]);
 
@@ -55,29 +107,35 @@ export default function MessageThread() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      {/* Header */}
+      {/* Header Instagram-style */}
       <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center gap-3 px-4 h-14">
+        <div className="flex items-center gap-3 px-4 h-16">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => navigate('/messages')}
-            className="flex-shrink-0"
+            className="flex-shrink-0 -ml-2"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
 
           {displayProfile && (
             <>
-              <Avatar className="h-9 w-9">
-                <AvatarImage src={displayProfile.avatar_url || undefined} />
-                <AvatarFallback>
-                  {displayProfile.username?.[0]?.toUpperCase() || '?'}
-                </AvatarFallback>
-              </Avatar>
+              <div className="relative">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={displayProfile.avatar_url || undefined} />
+                  <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                    {displayProfile.username?.[0]?.toUpperCase() || '?'}
+                  </AvatarFallback>
+                </Avatar>
+                {isOnline && (
+                  <div className="absolute bottom-0 right-0 w-3 h-3 bg-trust-high rounded-full border-2 border-background" />
+                )}
+              </div>
+              
               {isGroupChat ? (
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold truncate">
+                  <p className="font-semibold truncate text-sm">
                     {otherParticipants.map(p => p.profile?.full_name || p.profile?.username).join(', ')}
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -89,12 +147,14 @@ export default function MessageThread() {
                   onClick={() => navigate(`/user/${displayProfile.id}`)}
                   className="flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
                 >
-                  <p className="font-semibold truncate">
+                  <p className="font-semibold truncate text-sm">
                     {displayProfile.full_name || displayProfile.username}
                   </p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    @{displayProfile.username}
-                  </p>
+                  {lastSeenText && (
+                    <p className="text-xs text-muted-foreground">
+                      {lastSeenText}
+                    </p>
+                  )}
                 </button>
               )}
             </>
@@ -103,21 +163,36 @@ export default function MessageThread() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
+      <div className="flex-1 overflow-y-auto px-4 py-4 bg-muted/30">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
-            <p className="text-muted-foreground">Caricamento...</p>
+            <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
           </div>
-        ) : messages && messages.length > 0 ? (
+        ) : groupedMessages.length > 0 ? (
           <>
-            {messages.map((message) => (
-              <MessageBubble key={message.id} message={message} />
+            {groupedMessages.map((group, groupIndex) => (
+              <div key={groupIndex}>
+                {/* Date separator */}
+                <div className="flex items-center justify-center my-4">
+                  <span className="text-xs text-muted-foreground bg-background/80 px-3 py-1 rounded-full">
+                    {group.date}
+                  </span>
+                </div>
+                
+                {group.messages.map((message) => (
+                  <MessageBubble key={message.id} message={message} />
+                ))}
+              </div>
             ))}
             <div ref={messagesEndRef} />
           </>
         ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            <p>Nessun messaggio ancora</p>
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-3">
+              <span className="text-2xl">💬</span>
+            </div>
+            <p className="text-sm">Nessun messaggio ancora</p>
+            <p className="text-xs mt-1">Inizia la conversazione!</p>
           </div>
         )}
       </div>

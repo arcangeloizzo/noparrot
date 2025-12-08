@@ -17,6 +17,7 @@ export interface MessageThread {
       username: string;
       full_name: string | null;
       avatar_url: string | null;
+      last_seen_at: string | null;
     };
   }[];
   last_message?: {
@@ -71,7 +72,7 @@ export function useMessageThreads() {
             id,
             user_id,
             last_read_at,
-            profile:profiles(id, username, full_name, avatar_url)
+            profile:profiles(id, username, full_name, avatar_url, last_seen_at)
           )
         `)
         .order('updated_at', { ascending: false });

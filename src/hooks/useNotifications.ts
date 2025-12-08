@@ -7,10 +7,11 @@ import { usePushNotifications } from './usePushNotifications';
 export interface Notification {
   id: string;
   user_id: string;
-  type: 'like' | 'comment' | 'follow' | 'mention';
+  type: 'like' | 'comment' | 'follow' | 'mention' | 'message_like';
   actor_id: string;
   post_id: string | null;
   comment_id: string | null;
+  message_id: string | null;
   read: boolean;
   created_at: string;
   actor: {
@@ -48,6 +49,7 @@ export const useNotifications = () => {
           actor_id,
           post_id,
           comment_id,
+          message_id,
           read,
           created_at,
           actor:profiles!actor_id (
@@ -114,6 +116,10 @@ export const useNotifications = () => {
               case 'mention':
                 title = 'Nuova menzione @';
                 body = 'Sei stato menzionato in un post';
+                break;
+              case 'message_like':
+                title = 'Like al messaggio ❤️';
+                body = 'Il tuo messaggio è piaciuto!';
                 break;
             }
             
