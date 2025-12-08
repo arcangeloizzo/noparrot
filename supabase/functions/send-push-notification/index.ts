@@ -87,37 +87,42 @@ serve(async (req) => {
       const actorName = actor?.full_name || actor?.username || 'Qualcuno';
       
       let title = 'NoParrot';
-      let messageBody = '';
       let url = '/notifications';
       
       switch (body.notification_type) {
         case 'like':
-          title = 'Nuovo mi piace';
-          messageBody = `${actorName} ha messo mi piace al tuo post`;
+          // Distingui tra like al post e like al commento
+          if (body.comment_id) {
+            title = `${actorName} ha messo like al tuo commento`;
+          } else {
+            title = `${actorName} ha messo like al tuo post`;
+          }
           url = body.post_id ? `/post/${body.post_id}` : '/notifications';
           break;
         case 'comment':
-          title = 'Nuovo commento';
-          messageBody = `${actorName} ha commentato il tuo post`;
+          title = `${actorName} ha commentato il tuo post`;
           url = body.post_id ? `/post/${body.post_id}` : '/notifications';
           break;
         case 'mention':
-          title = 'Nuova menzione';
-          messageBody = `${actorName} ti ha menzionato`;
+          // Distingui tra menzione in post e menzione in commento
+          if (body.comment_id) {
+            title = `${actorName} ti ha taggato in un commento`;
+          } else {
+            title = `${actorName} ti ha taggato in un post`;
+          }
           url = body.post_id ? `/post/${body.post_id}` : '/notifications';
           break;
         case 'follow':
-          title = 'Nuovo follower';
-          messageBody = `${actorName} ha iniziato a seguirti`;
+          title = `${actorName} ha iniziato a seguirti`;
           url = `/user/${body.actor_id}`;
           break;
         default:
-          messageBody = `${actorName} ha interagito con te`;
+          title = `${actorName} ha interagito con te`;
       }
       
       notificationPayload = {
         title,
-        body: messageBody,
+        body: '',
         icon: '/lovable-uploads/feed-logo.png',
         badge: '/lovable-uploads/feed-logo.png',
         tag: `notification-${body.notification_id}`,
@@ -147,8 +152,8 @@ serve(async (req) => {
         : body.content;
       
       notificationPayload = {
-        title: senderName,
-        body: messagePreview || 'Ti ha inviato un messaggio',
+        title: `${senderName} ti ha inviato un messaggio`,
+        body: messagePreview || '',
         icon: sender?.avatar_url || '/lovable-uploads/feed-logo.png',
         badge: '/lovable-uploads/feed-logo.png',
         tag: `message-${body.thread_id}`,
