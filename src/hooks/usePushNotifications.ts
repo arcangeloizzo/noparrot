@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 
 // VAPID Public Key - safe to expose in frontend
-const VAPID_PUBLIC_KEY = 'BI0AX_yb3zHLYGsCV8qmxCDDVN3Q5Jlqrz4swhXYcE3tgOwcK1xk-qmi0gSUjdHI_6AWJKgjl0eSwN91ZPtefoU';
+const VAPID_PUBLIC_KEY = 'BHf7SidEhOQGopDhgv8lWvuuKrpcPP9xZMVqeRfEOtwUWnkjO9e2ieTOwmaHgk96x8OsFeiHb8BWa7NbO72BXe4';
 
 // Convert VAPID key to Uint8Array for PushManager
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
