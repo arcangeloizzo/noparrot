@@ -14,6 +14,7 @@ export default function MessageThread() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isFirstLoad = useRef(true);
 
   const { data: messages, isLoading } = useMessages(threadId);
   const { data: threads } = useMessageThreads();
@@ -29,7 +30,15 @@ export default function MessageThread() {
 
   // Scroll to bottom on new messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages && messages.length > 0) {
+      // Piccolo delay per assicurare che il DOM sia pronto
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ 
+          behavior: isFirstLoad.current ? 'instant' : 'smooth' 
+        });
+        isFirstLoad.current = false;
+      }, 50);
+    }
   }, [messages]);
 
   // Mark as read when opening thread
