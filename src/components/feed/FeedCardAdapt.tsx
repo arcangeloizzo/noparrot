@@ -48,6 +48,7 @@ import { uniqueSources } from "@/lib/url";
 import { useCreateThread } from "@/hooks/useMessageThreads";
 import { useSendMessage } from "@/hooks/useMessages";
 import { getWordCount, getTestModeWithSource, getQuestionCountWithoutSource } from "@/lib/gate-utils";
+import { useDoubleTap } from "@/hooks/useDoubleTap";
 
 interface FeedCardProps {
   post: Post;
@@ -163,10 +164,24 @@ export const FeedCard = ({
     loadTrustScore();
   }, [post.shared_url, post.content]);
 
-  const handleHeart = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleHeart = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     toggleReaction.mutate({ postId: post.id, reactionType: 'heart' });
   };
+
+  // Double tap to like
+  const [showHeartAnimation, setShowHeartAnimation] = useState(false);
+  
+  const { handleTap: handleDoubleTap } = useDoubleTap({
+    onDoubleTap: () => {
+      // Only like if not already liked
+      if (!post.user_reactions?.has_hearted) {
+        handleHeart();
+        setShowHeartAnimation(true);
+        setTimeout(() => setShowHeartAnimation(false), 800);
+      }
+    }
+  });
 
   const handleBookmark = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -541,8 +556,16 @@ export const FeedCard = ({
   return (
     <>
       <article 
-        className="feed-card-base p-5 overflow-hidden"
+        className="feed-card-base p-5 overflow-hidden relative"
+        onClick={handleDoubleTap}
       >
+        {/* Heart animation on double tap */}
+        {showHeartAnimation && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+            <Heart className="w-20 h-20 text-brand-pink fill-brand-pink animate-scale-in drop-shadow-lg" />
+          </div>
+        )}
+        
         <div className="flex gap-3">
           {/* Avatar circolare a sinistra */}
           <div 
