@@ -1,124 +1,59 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import webpush from "npm:web-push@3.6.7";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// VAPID Configuration
 const VAPID_PUBLIC_KEY = 'BGAkXaYkzxnwUzhyyr9OzfO_arJiEAV-i1Ev5UjTpQ2M40JoYYPqa72Bfh6vF6Ph1UfBrn5-n2f44thf_sqc_k8';
 const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY')!;
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT')!;
 
-// Helper to convert base64url to Uint8Array
-function base64UrlToUint8Array(base64Url: string): Uint8Array {
-  const padding = '='.repeat((4 - base64Url.length % 4) % 4);
-  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/') + padding;
-  const rawData = atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
-// Helper to convert Uint8Array to base64url
-function uint8ArrayToBase64Url(uint8Array: Uint8Array): string {
-  const base64 = btoa(String.fromCharCode(...uint8Array));
-  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-}
-
-// Import crypto for ECDH and signing
-async function generateVapidHeaders(endpoint: string): Promise<{ authorization: string; cryptoKey: string }> {
-  const audience = new URL(endpoint).origin;
-  
-  // Create JWT header and payload
-  const header = { typ: 'JWT', alg: 'ES256' };
-  const payload = {
-    aud: audience,
-    exp: Math.floor(Date.now() / 1000) + 12 * 60 * 60, // 12 hours
-    sub: VAPID_SUBJECT,
-  };
-  
-  // Encode header and payload
-  const encoder = new TextEncoder();
-  const headerB64 = uint8ArrayToBase64Url(encoder.encode(JSON.stringify(header)));
-  const payloadB64 = uint8ArrayToBase64Url(encoder.encode(JSON.stringify(payload)));
-  const unsignedToken = `${headerB64}.${payloadB64}`;
-  
-  // Import private key for signing
-  const privateKeyBytes = base64UrlToUint8Array(VAPID_PRIVATE_KEY);
-  
-  // Create the full key (private + public for P-256)
-  const publicKeyBytes = base64UrlToUint8Array(VAPID_PUBLIC_KEY);
-  
-  // For ES256 (P-256), we need to import as JWK
-  const jwk = {
-    kty: 'EC',
-    crv: 'P-256',
-    x: uint8ArrayToBase64Url(publicKeyBytes.slice(1, 33)),
-    y: uint8ArrayToBase64Url(publicKeyBytes.slice(33, 65)),
-    d: uint8ArrayToBase64Url(privateKeyBytes),
-  };
-  
-  const key = await crypto.subtle.importKey(
-    'jwk',
-    jwk,
-    { name: 'ECDSA', namedCurve: 'P-256' },
-    false,
-    ['sign']
-  );
-  
-  // Sign the token
-  const signature = await crypto.subtle.sign(
-    { name: 'ECDSA', hash: 'SHA-256' },
-    key,
-    encoder.encode(unsignedToken)
-  );
-  
-  // Convert signature from DER to raw format (r || s)
-  const signatureArray = new Uint8Array(signature);
-  const signatureB64 = uint8ArrayToBase64Url(signatureArray);
-  
-  const jwt = `${unsignedToken}.${signatureB64}`;
-  
-  return {
-    authorization: `vapid t=${jwt}, k=${VAPID_PUBLIC_KEY}`,
-    cryptoKey: `p256ecdsa=${VAPID_PUBLIC_KEY}`,
-  };
-}
+// Configure web-push with VAPID details
+webpush.setVapidDetails(
+  VAPID_SUBJECT,
+  VAPID_PUBLIC_KEY,
+  VAPID_PRIVATE_KEY
+);
 
 async function sendPushNotification(
   subscription: { endpoint: string; p256dh: string; auth: string },
   payload: object
 ): Promise<boolean> {
   try {
-    const vapidHeaders = await generateVapidHeaders(subscription.endpoint);
-    
-    const response = await fetch(subscription.endpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': vapidHeaders.authorization,
-        'Crypto-Key': vapidHeaders.cryptoKey,
-        'Content-Type': 'application/json',
-        'TTL': '86400',
-        'Urgency': 'high',
-      },
-      body: JSON.stringify(payload),
-    });
-    
-    if (!response.ok) {
-      console.error(`Push failed for ${subscription.endpoint}: ${response.status} ${response.statusText}`);
-      // 403, 404 or 410 means subscription is no longer valid
-      if (response.status === 403 || response.status === 404 || response.status === 410) {
-        return false; // Signal to delete this subscription
+    const pushSubscription = {
+      endpoint: subscription.endpoint,
+      keys: {
+        p256dh: subscription.p256dh,
+        auth: subscription.auth,
       }
-    }
+    };
     
+    console.log(`[Push] Sending to: ${subscription.endpoint.slice(0, 60)}...`);
+    
+    await webpush.sendNotification(
+      pushSubscription,
+      JSON.stringify(payload),
+      { 
+        TTL: 86400,
+        urgency: 'high'
+      }
+    );
+    
+    console.log(`[Push] Successfully sent to ${subscription.endpoint.slice(0, 50)}...`);
     return true;
-  } catch (error) {
-    console.error('Error sending push:', error);
-    return true; // Keep subscription on network errors
+  } catch (error: any) {
+    console.error(`[Push] Failed: ${error.statusCode || 'unknown'} - ${error.body || error.message}`);
+    
+    // 403, 404, 410 = subscription is invalid, should be deleted
+    if (error.statusCode === 403 || error.statusCode === 404 || error.statusCode === 410) {
+      return false;
+    }
+    // Keep subscription on other errors (network issues, etc.)
+    return true;
   }
 }
 
@@ -133,7 +68,7 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const body = await req.json();
-    console.log('Received push notification request:', JSON.stringify(body));
+    console.log('[Push] Received request:', JSON.stringify(body));
 
     let targetUserIds: string[] = [];
     let notificationPayload: object;
@@ -191,7 +126,6 @@ serve(async (req) => {
       
     } else if (body.type === 'message') {
       // DM notification
-      // Get all thread participants except sender
       const { data: participants } = await supabase
         .from('thread_participants')
         .select('user_id')
@@ -229,7 +163,7 @@ serve(async (req) => {
     }
 
     if (targetUserIds.length === 0) {
-      console.log('No target users for this notification');
+      console.log('[Push] No target users for this notification');
       return new Response(JSON.stringify({ success: true, sent: 0 }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -242,11 +176,11 @@ serve(async (req) => {
       .in('user_id', targetUserIds);
 
     if (subError) {
-      console.error('Error fetching subscriptions:', subError);
+      console.error('[Push] Error fetching subscriptions:', subError);
       throw subError;
     }
 
-    console.log(`Found ${subscriptions?.length || 0} subscriptions for ${targetUserIds.length} users`);
+    console.log(`[Push] Found ${subscriptions?.length || 0} subscriptions for ${targetUserIds.length} users`);
 
     if (!subscriptions || subscriptions.length === 0) {
       return new Response(JSON.stringify({ success: true, sent: 0 }), {
@@ -268,7 +202,7 @@ serve(async (req) => {
             .from('push_subscriptions')
             .delete()
             .eq('id', sub.id);
-          console.log(`Deleted invalid subscription: ${sub.id}`);
+          console.log(`[Push] Deleted invalid subscription: ${sub.id}`);
         }
         
         return success;
@@ -276,14 +210,14 @@ serve(async (req) => {
     );
 
     const sentCount = results.filter(Boolean).length;
-    console.log(`Successfully sent ${sentCount} push notifications`);
+    console.log(`[Push] Successfully sent ${sentCount} push notifications`);
 
     return new Response(JSON.stringify({ success: true, sent: sentCount }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error) {
-    console.error('Error in send-push-notification:', error);
+  } catch (error: any) {
+    console.error('[Push] Error in send-push-notification:', error);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
