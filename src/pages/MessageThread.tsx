@@ -78,34 +78,38 @@ export default function MessageThread() {
     return groups;
   }, [messages]);
 
-  // Scroll to bottom - robust with multiple retries for images/previews
+  // Scroll to bottom - using ResizeObserver for reliable scroll after content loads
+  const containerRef = useRef<HTMLDivElement>(null);
+  
   useEffect(() => {
-    if (messages && messages.length > 0) {
-      const behavior = isFirstLoad.current ? 'instant' : 'smooth';
-      
-      const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
-      };
+    if (!messages || messages.length === 0) return;
 
-      // Immediate scroll
-      scrollToBottom();
+    const scrollToBottom = (behavior: ScrollBehavior = 'instant') => {
+      messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
+    };
+
+    // Initial scroll
+    scrollToBottom(isFirstLoad.current ? 'instant' : 'smooth');
+
+    // Use ResizeObserver to scroll when content changes size (images loading)
+    if (containerRef.current) {
+      const resizeObserver = new ResizeObserver(() => {
+        scrollToBottom(isFirstLoad.current ? 'instant' : 'smooth');
+      });
       
-      // Retry after short delay (for text content)
-      const timer1 = setTimeout(scrollToBottom, 100);
+      resizeObserver.observe(containerRef.current);
       
-      // Retry after medium delay (for simple images)
-      const timer2 = setTimeout(scrollToBottom, 300);
-      
-      // Final retry after longer delay (for link previews with images)
-      const timer3 = setTimeout(() => {
-        scrollToBottom();
+      // Also retry a few times for safety
+      const timer1 = setTimeout(() => scrollToBottom(isFirstLoad.current ? 'instant' : 'smooth'), 200);
+      const timer2 = setTimeout(() => {
+        scrollToBottom(isFirstLoad.current ? 'instant' : 'smooth');
         isFirstLoad.current = false;
-      }, 600);
+      }, 800);
 
       return () => {
+        resizeObserver.disconnect();
         clearTimeout(timer1);
         clearTimeout(timer2);
-        clearTimeout(timer3);
       };
     }
   }, [messages]);
@@ -180,7 +184,7 @@ export default function MessageThread() {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 bg-muted/30">
+      <div ref={containerRef} className="flex-1 overflow-y-auto px-4 py-4 bg-muted/30">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />

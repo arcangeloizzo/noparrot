@@ -8,6 +8,7 @@ import { ExternalLink, Heart } from "lucide-react";
 import { memo, useEffect, useState } from "react";
 import { fetchArticlePreview } from "@/lib/ai-helpers";
 import { useMessageReactions } from "@/hooks/useMessageReactions";
+import { useDoubleTap } from "@/hooks/useDoubleTap";
 
 const getHostnameFromUrl = (url: string): string => {
   try {
@@ -49,10 +50,29 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
     loadPreview();
   }, [message.link_url]);
 
-  const handleLike = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleLike = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     if (!isLikeLoading) {
       toggleLike();
+    }
+  };
+
+  // Double tap to like
+  const { handleTap } = useDoubleTap({
+    onDoubleTap: () => {
+      if (!isLiked) {
+        handleLike();
+      }
+    }
+  });
+
+  const [showHeartAnimation, setShowHeartAnimation] = useState(false);
+
+  const handleDoubleTap = () => {
+    handleTap();
+    if (!isLiked) {
+      setShowHeartAnimation(true);
+      setTimeout(() => setShowHeartAnimation(false), 800);
     }
   };
 
@@ -70,13 +90,20 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
 
       <div className={cn("flex flex-col max-w-[75%]", isSent ? "items-end" : "items-start")}>
         <div
+          onClick={handleDoubleTap}
           className={cn(
-            "rounded-2xl px-4 py-2.5 relative",
+            "rounded-2xl px-4 py-2.5 relative cursor-pointer select-none",
             isSent
               ? "bg-primary text-primary-foreground rounded-br-md"
               : "bg-background text-foreground rounded-bl-md shadow-sm border border-border/50"
           )}
         >
+          {/* Heart animation on double tap */}
+          {showHeartAnimation && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+              <Heart className="w-12 h-12 text-brand-pink fill-brand-pink animate-scale-in" />
+            </div>
+          )}
           <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
 
           {message.link_url && articlePreview && (
