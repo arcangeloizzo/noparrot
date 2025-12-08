@@ -78,18 +78,35 @@ export default function MessageThread() {
     return groups;
   }, [messages]);
 
-  // Scroll to bottom - improved
+  // Scroll to bottom - robust with multiple retries for images/previews
   useEffect(() => {
     if (messages && messages.length > 0) {
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ 
-            behavior: isFirstLoad.current ? 'instant' : 'smooth',
-            block: 'end'
-          });
-          isFirstLoad.current = false;
-        }, 100);
-      });
+      const behavior = isFirstLoad.current ? 'instant' : 'smooth';
+      
+      const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
+      };
+
+      // Immediate scroll
+      scrollToBottom();
+      
+      // Retry after short delay (for text content)
+      const timer1 = setTimeout(scrollToBottom, 100);
+      
+      // Retry after medium delay (for simple images)
+      const timer2 = setTimeout(scrollToBottom, 300);
+      
+      // Final retry after longer delay (for link previews with images)
+      const timer3 = setTimeout(() => {
+        scrollToBottom();
+        isFirstLoad.current = false;
+      }, 600);
+
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        clearTimeout(timer3);
+      };
     }
   }, [messages]);
 
