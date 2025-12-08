@@ -115,7 +115,10 @@ export function useMessageThreads() {
       return enrichedThreads as MessageThread[];
     },
     enabled: !!user,
-    staleTime: 1000 * 60 * 5 // 5 minuti
+    staleTime: 30 * 1000, // 30 secondi invece di 5 minuti
+    refetchInterval: 60 * 1000, // Polling ogni 60 secondi (fallback per iOS)
+    refetchOnWindowFocus: true, // Ri-fetch quando app torna in focus
+    refetchOnReconnect: true, // Ri-fetch quando rete si riconnette
   });
 }
 

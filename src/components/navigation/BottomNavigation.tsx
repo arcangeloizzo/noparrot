@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { HomeIcon, SearchIcon, BookmarkIcon, UserIcon } from "@/components/ui/icons";
 import { Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_PROFILE_AS_HOME } from "@/config/brand";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useMessageThreads } from "@/hooks/useMessageThreads";
 
@@ -16,7 +16,20 @@ interface BottomNavigationProps {
 
 export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: BottomNavigationProps) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { data: threads } = useMessageThreads();
+
+  // Force refresh contatore messaggi quando l'app torna in focus (iOS fix)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        queryClient.invalidateQueries({ queryKey: ['message-threads'] });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [queryClient]);
 
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
