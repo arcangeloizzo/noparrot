@@ -109,8 +109,8 @@ async function sendPushNotification(
     
     if (!response.ok) {
       console.error(`Push failed for ${subscription.endpoint}: ${response.status} ${response.statusText}`);
-      // 404 or 410 means subscription is no longer valid
-      if (response.status === 404 || response.status === 410) {
+      // 403, 404 or 410 means subscription is no longer valid
+      if (response.status === 403 || response.status === 404 || response.status === 410) {
         return false; // Signal to delete this subscription
       }
     }
