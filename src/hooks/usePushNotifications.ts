@@ -166,20 +166,30 @@ export const usePushNotifications = () => {
       const registration = await navigator.serviceWorker.register('/sw.js');
       await navigator.serviceWorker.ready;
       
-      console.log('Service Worker registered:', registration);
+      console.log('[Push] Service Worker registered:', registration);
 
-      // Check for existing subscription
-      let subscription = await registration.pushManager.getSubscription();
-      
-      if (!subscription) {
-        // Create new subscription
-        const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: applicationServerKey.buffer as ArrayBuffer
-        });
-        console.log('Created new push subscription:', subscription);
+      // ALWAYS remove old subscription first to force a fresh one
+      const existingSubscription = await registration.pushManager.getSubscription();
+      if (existingSubscription) {
+        console.log('[Push] Unsubscribing from old subscription:', existingSubscription.endpoint);
+        await existingSubscription.unsubscribe();
+        
+        // Also delete from database if present
+        await supabase
+          .from('push_subscriptions')
+          .delete()
+          .eq('user_id', user.id);
+        
+        console.log('[Push] Old subscription removed');
       }
+
+      // Create ALWAYS a new subscription
+      const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: applicationServerKey.buffer as ArrayBuffer
+      });
+      console.log('[Push] Created NEW push subscription:', subscription.endpoint);
 
       // Extract subscription details
       const subscriptionJson = subscription.toJSON();
@@ -188,33 +198,31 @@ export const usePushNotifications = () => {
       const auth = subscriptionJson.keys?.auth || '';
 
       if (!p256dh || !auth) {
-        console.error('Missing subscription keys');
+        console.error('[Push] Missing subscription keys');
         return false;
       }
 
       // Save subscription to database
       const { error } = await supabase
         .from('push_subscriptions')
-        .upsert({
+        .insert({
           user_id: user.id,
           endpoint,
           p256dh,
           auth,
-        }, {
-          onConflict: 'user_id,endpoint'
         });
 
       if (error) {
-        console.error('Error saving subscription:', error);
+        console.error('[Push] Error saving subscription:', error);
         return false;
       }
 
       setIsSubscribed(true);
-      console.log('Push subscription saved successfully');
+      console.log('[Push] Push subscription saved successfully');
       return true;
 
     } catch (error) {
-      console.error('Error subscribing to push:', error);
+      console.error('[Push] Error subscribing to push:', error);
       return false;
     }
   };
