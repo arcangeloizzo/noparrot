@@ -935,6 +935,7 @@ export type Database = {
           date_of_birth: string | null
           full_name: string | null
           id: string
+          last_seen_at: string | null
           username: string
         }
         Insert: {
@@ -945,6 +946,7 @@ export type Database = {
           date_of_birth?: string | null
           full_name?: string | null
           id: string
+          last_seen_at?: string | null
           username: string
         }
         Update: {
@@ -955,6 +957,7 @@ export type Database = {
           date_of_birth?: string | null
           full_name?: string | null
           id?: string
+          last_seen_at?: string | null
           username?: string
         }
         Relationships: []
@@ -1272,6 +1275,7 @@ export type Database = {
         Returns: boolean
       }
       is_valid_username: { Args: { username: string }; Returns: boolean }
+      update_last_seen: { Args: never; Returns: undefined }
       user_is_thread_participant: {
         Args: { check_thread_id: string; check_user_id: string }
         Returns: boolean

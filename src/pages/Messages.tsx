@@ -1,26 +1,31 @@
-import { ArrowLeft, MessageSquarePlus } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, Search, MessageSquarePlus, MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { ThreadList } from "@/components/messages/ThreadList";
 import { useMessageThreads } from "@/hooks/useMessageThreads";
+import { ThreadList } from "@/components/messages/ThreadList";
 import { PeoplePicker } from "@/components/share/PeoplePicker";
 import { NewMessageSheet } from "@/components/messages/NewMessageSheet";
-import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useCurrentProfile } from "@/hooks/useCurrentProfile";
+import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 import { getDisplayUsername } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function Messages() {
   const navigate = useNavigate();
-  const { data: threads, isLoading } = useMessageThreads();
+  const { data: threads = [], isLoading } = useMessageThreads();
+  const { data: currentProfile } = useCurrentProfile();
+  const { onlineUsers } = useOnlinePresence();
   const [showPeoplePicker, setShowPeoplePicker] = useState(false);
   const [showNewMessage, setShowNewMessage] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const handleStartConversation = async (selectedUserIds: string[]) => {
     if (selectedUserIds.length === 0) return;
     
-    // Recupera profili REALI dal database
     const { data: profiles, error } = await supabase
       .from('profiles')
       .select('id, username, full_name, avatar_url')
@@ -37,7 +42,6 @@ export default function Messages() {
       return;
     }
 
-    // Applica getDisplayUsername per nascondere email
     const usersData = profiles.map(user => ({
       ...user,
       username: getDisplayUsername(user.username)
@@ -48,53 +52,92 @@ export default function Messages() {
     setShowNewMessage(true);
   };
 
+  // Filter threads based on search query
+  const filteredThreads = threads.filter((thread) => {
+    if (!searchQuery.trim()) return true;
+    const participants = thread.participants || [];
+    return participants.some((p: any) => {
+      const profile = p.profile;
+      if (!profile) return false;
+      const name = profile.full_name?.toLowerCase() || '';
+      const username = profile.username?.toLowerCase() || '';
+      const query = searchQuery.toLowerCase();
+      return name.includes(query) || username.includes(query);
+    });
+  });
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center gap-3 px-4 h-14">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate('/')}
-            className="flex-shrink-0"
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
+        <div className="flex items-center justify-between px-4 h-14">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/')}
+              className="p-2 -ml-2 hover:bg-accent/50 rounded-full transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <span className="font-semibold text-lg">
+              @{getDisplayUsername(currentProfile?.username)}
+            </span>
+          </div>
+          <button
+            onClick={() => setShowPeoplePicker(true)}
+            className="p-2 hover:bg-accent/50 rounded-full transition-colors"
           >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-lg font-semibold">Messaggi</h1>
+            <MessageSquarePlus className="h-5 w-5" />
+          </button>
         </div>
+
+        {/* Search Bar */}
+        <div className="px-4 pb-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Cerca conversazioni..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-accent/30 border-0 focus-visible:ring-1 focus-visible:ring-primary/50 rounded-xl"
+            />
+          </div>
+        </div>
+      </header>
+
+      {/* Content */}
+      <div className="pb-20">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+          </div>
+        ) : filteredThreads.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 px-6 animate-fade-in">
+            <div className="w-20 h-20 rounded-full bg-accent/50 flex items-center justify-center mb-6">
+              <MessageCircle className="h-10 w-10 text-muted-foreground" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">I tuoi messaggi</h3>
+            <p className="text-muted-foreground text-center mb-6">
+              {searchQuery 
+                ? "Nessuna conversazione trovata" 
+                : "Inizia una conversazione con i tuoi amici"
+              }
+            </p>
+            {!searchQuery && (
+              <Button
+                onClick={() => setShowPeoplePicker(true)}
+                className="rounded-full px-6"
+              >
+                Scrivi un messaggio
+              </Button>
+            )}
+          </div>
+        ) : (
+          <ThreadList 
+            threads={filteredThreads} 
+            onlineUsers={onlineUsers}
+          />
+        )}
       </div>
-
-      {/* Lista thread */}
-      {isLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <p className="text-muted-foreground">Caricamento...</p>
-        </div>
-      ) : threads && threads.length > 0 ? (
-        <ThreadList threads={threads} />
-      ) : (
-        <div className="flex flex-col items-center justify-center h-64 px-4 text-center">
-          <p className="text-lg font-semibold mb-2">Nessun messaggio</p>
-          <p className="text-muted-foreground text-sm">
-            Inizia una conversazione condividendo un post con un amico!
-          </p>
-        </div>
-      )}
-
-      {/* FAB Nuova conversazione - Enhanced */}
-      <button
-        onClick={() => setShowPeoplePicker(true)}
-        className="group fixed w-14 h-14 bg-primary text-primary-foreground rounded-full flex items-center justify-center z-10 transition-all duration-300 hover:scale-110 hover:shadow-2xl active:scale-95"
-        style={{ 
-          right: 'max(20px, env(safe-area-inset-right))',
-          bottom: 'calc(88px + env(safe-area-inset-bottom))',
-          boxShadow: '0 8px 32px hsl(var(--primary) / 0.4), 0 4px 16px rgba(0,0,0,.24)'
-        }}
-        aria-label="Nuova conversazione"
-      >
-        <MessageSquarePlus className="h-6 w-6 transition-transform group-hover:rotate-12" />
-        <div className="absolute inset-0 rounded-full bg-primary/20 blur-xl animate-pulse" />
-      </button>
 
       {/* People Picker */}
       <PeoplePicker
