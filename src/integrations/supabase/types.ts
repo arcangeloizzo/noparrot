@@ -559,6 +559,38 @@ export type Database = {
           },
         ]
       }
+      message_reactions: {
+        Row: {
+          created_at: string | null
+          id: string
+          message_id: string
+          reaction_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message_id: string
+          reaction_type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message_id?: string
+          reaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_reactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_threads: {
         Row: {
           created_at: string
@@ -632,6 +664,7 @@ export type Database = {
           comment_id: string | null
           created_at: string | null
           id: string
+          message_id: string | null
           post_id: string | null
           read: boolean | null
           type: string
@@ -642,6 +675,7 @@ export type Database = {
           comment_id?: string | null
           created_at?: string | null
           id?: string
+          message_id?: string | null
           post_id?: string | null
           read?: boolean | null
           type: string
@@ -652,6 +686,7 @@ export type Database = {
           comment_id?: string | null
           created_at?: string | null
           id?: string
+          message_id?: string | null
           post_id?: string | null
           read?: boolean | null
           type?: string
@@ -677,6 +712,13 @@ export type Database = {
             columns: ["comment_id"]
             isOneToOne: false
             referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
           {

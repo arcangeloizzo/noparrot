@@ -31,6 +31,12 @@ const notificationStyles = {
     border: "border-l-trust-high",
     iconBg: "bg-trust-high/10",
     avatarRing: "ring-trust-high"
+  },
+  message_like: {
+    gradient: "bg-gradient-to-r from-brand-pink/10 to-transparent",
+    border: "border-l-brand-pink",
+    iconBg: "bg-brand-pink/10",
+    avatarRing: "ring-brand-pink"
   }
 };
 
@@ -45,6 +51,7 @@ export const Notifications = () => {
     const iconClass = "w-5 h-5";
     switch (type) {
       case "like":
+      case "message_like":
         return <HeartIcon className={cn(iconClass, "text-brand-pink")} filled />;
       case "comment":
         return <MessageCircleIcon className={cn(iconClass, "text-primary-blue")} />;
@@ -120,6 +127,9 @@ export const Notifications = () => {
     
     if (notification.type === 'follow' && notification.actor_id) {
       navigate(`/user/${notification.actor_id}`);
+    } else if (notification.type === 'message_like' && notification.message_id) {
+      // Navigate to messages (we could enhance to go to specific thread later)
+      navigate('/messages');
     } else if (notification.post_id) {
       navigate(`/post/${notification.post_id}`);
     }
@@ -145,6 +155,8 @@ export const Notifications = () => {
         return notification.comment_id 
           ? 'ti ha menzionato in un commento' 
           : 'ti ha menzionato in un post';
+      case 'message_like':
+        return 'ha messo like al tuo messaggio';
       default:
         return '';
     }
