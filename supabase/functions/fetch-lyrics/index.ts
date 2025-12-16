@@ -101,28 +101,131 @@ function extractLyricsFromHtml(html: string): string {
   return lyrics;
 }
 
-// Fetch lyrics from Genius page
+// Extract lyrics from Jina markdown response
+function extractLyricsFromMarkdown(markdown: string): string {
+  console.log(`[Genius] Extracting lyrics from markdown (${markdown.length} chars)`);
+  
+  const lines = markdown.split('\n');
+  
+  // Find where lyrics start - look for [Verse], [Chorus], [Intro], etc.
+  const lyricsStartIdx = lines.findIndex(l => 
+    /^\[?(Verse|Chorus|Intro|Hook|Bridge|Outro|Pre-Chorus|Refrain|Part|Strofa|Ritornello)/i.test(l.trim()) ||
+    /^\[.+\]$/.test(l.trim())
+  );
+  
+  let lyricsLines: string[];
+  
+  if (lyricsStartIdx !== -1) {
+    // Take from lyrics start
+    lyricsLines = lines.slice(lyricsStartIdx);
+  } else {
+    // Fallback: look for content after "Lyrics" header
+    const lyricsHeaderIdx = lines.findIndex(l => /^#+\s*.*Lyrics/i.test(l));
+    if (lyricsHeaderIdx !== -1) {
+      lyricsLines = lines.slice(lyricsHeaderIdx + 1);
+    } else {
+      // Last resort: take all content
+      lyricsLines = lines;
+    }
+  }
+  
+  // Clean up the lyrics
+  let lyrics = lyricsLines
+    .join('\n')
+    .replace(/^#+\s*.*$/gm, '')           // Remove markdown headers
+    .replace(/\[.*?\]\(.*?\)/g, '')        // Remove markdown links
+    .replace(/\*\*/g, '')                  // Remove bold
+    .replace(/\*/g, '')                    // Remove italic
+    .replace(/^>\s*/gm, '')                // Remove blockquotes
+    .replace(/\n{3,}/g, '\n\n')            // Normalize multiple newlines
+    .trim();
+  
+  // Remove footer content (credits, etc.)
+  const footerPatterns = [
+    /\n+\d+\s*Embed$/i,
+    /\n+See [^\n]+ Live$/i,
+    /\n+Get tickets[^\n]*$/i,
+    /\n+You might also like[^\n]*$/i,
+  ];
+  
+  for (const pattern of footerPatterns) {
+    lyrics = lyrics.replace(pattern, '');
+  }
+  
+  console.log(`[Genius] Extracted ${lyrics.length} chars of lyrics from markdown`);
+  return lyrics.trim();
+}
+
+// Fetch lyrics from Genius page using Jina Reader to bypass anti-bot
 async function fetchLyricsFromPage(url: string): Promise<string> {
-  console.log(`[Genius] Fetching lyrics page: ${url}`);
+  console.log(`[Genius] Fetching lyrics via Jina Reader: ${url}`);
   
   try {
-    const response = await fetch(url, {
+    // Use Jina AI Reader to bypass anti-bot protections
+    const jinaUrl = `https://r.jina.ai/${url}`;
+    const response = await fetch(jinaUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept': 'text/markdown',
+        'X-Return-Format': 'markdown',
       },
     });
     
     if (!response.ok) {
-      console.error(`[Genius] Page fetch failed: ${response.status}`);
+      console.error(`[Genius] Jina fetch failed: ${response.status}`);
+      // Try direct fetch as fallback
+      return await fetchLyricsDirectFallback(url);
+    }
+    
+    const markdown = await response.text();
+    console.log(`[Genius] Jina returned ${markdown.length} chars`);
+    
+    const lyrics = extractLyricsFromMarkdown(markdown);
+    
+    if (lyrics.length < 50) {
+      console.log('[Genius] Jina lyrics too short, trying direct fallback');
+      return await fetchLyricsDirectFallback(url);
+    }
+    
+    return lyrics;
+  } catch (error) {
+    console.error('[Genius] Jina error:', error);
+    return await fetchLyricsDirectFallback(url);
+  }
+}
+
+// Fallback: try direct fetch with enhanced headers
+async function fetchLyricsDirectFallback(url: string): Promise<string> {
+  console.log(`[Genius] Trying direct fetch fallback: ${url}`);
+  
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9,it;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Sec-Ch-Ua': '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"',
+        'Sec-Ch-Ua-Mobile': '?0',
+        'Sec-Ch-Ua-Platform': '"macOS"',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+      },
+    });
+    
+    if (!response.ok) {
+      console.error(`[Genius] Direct fetch failed: ${response.status}`);
       return '';
     }
     
     const html = await response.text();
     return extractLyricsFromHtml(html);
   } catch (error) {
-    console.error('[Genius] Page fetch error:', error);
+    console.error('[Genius] Direct fetch error:', error);
     return '';
   }
 }
