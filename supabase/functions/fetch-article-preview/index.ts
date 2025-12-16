@@ -333,7 +333,7 @@ serve(async (req) => {
       console.log('[fetch-article-preview] Detected YouTube video:', youtubeId);
       
       try {
-        // Fetch YouTube metadata using oEmbed
+        // STEP 1: Fetch YouTube metadata using oEmbed FIRST (fast, ~200ms)
         const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
         const oembedResponse = await fetch(oembedUrl);
         
@@ -342,8 +342,9 @@ serve(async (req) => {
         }
         
         const oembedData = await oembedResponse.json();
+        console.log('[YouTube] ✅ oEmbed fetched:', oembedData.title);
         
-        // Get transcript using our transcribe-youtube function
+        // STEP 2: Try transcript with AGGRESSIVE timeout (8 seconds max)
         const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
         const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
         
@@ -354,7 +355,12 @@ serve(async (req) => {
         
         if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           try {
-            console.log(`[fetch-article-preview] Attempting to fetch transcript for video ${youtubeId}`);
+            console.log(`[YouTube] ⏱️ Attempting transcript fetch with 8s timeout for ${youtubeId}`);
+            
+            // Create abort controller for timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+            
             const transcriptResponse = await fetch(
               `${SUPABASE_URL}/functions/v1/transcribe-youtube`,
               {
@@ -364,44 +370,57 @@ serve(async (req) => {
                   'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
                 },
                 body: JSON.stringify({ url }),
+                signal: controller.signal,
               }
             );
+            
+            clearTimeout(timeoutId);
             
             if (transcriptResponse.ok) {
               const transcriptData = await transcriptResponse.json();
               
-              // FASE 2: Logging dettagliato YouTube transcript
               console.log('[YouTube] 📝 Transcript response:', {
                 hasTranscript: !!transcriptData.transcript,
                 transcriptLength: transcriptData.transcript?.length || 0,
                 transcriptSource: transcriptData.source,
+                disabled: transcriptData.disabled,
                 error: transcriptData.error
               });
               
-              if (transcriptData.transcript && transcriptData.transcript.length > 50) {
+              // Check if transcript is disabled - skip entirely
+              if (transcriptData.disabled || transcriptData.source === 'disabled') {
+                console.log('[YouTube] ⏭️ Transcript disabled for this video, returning oEmbed only');
+                transcriptError = 'Transcript is disabled for this video';
+              } else if (transcriptData.transcript && transcriptData.transcript.length > 50) {
                 transcript = transcriptData.transcript;
                 transcriptSource = transcriptData.source || 'youtube_captions';
                 transcriptAvailable = true;
-                console.log(`[YouTube] ✅ Transcript fetched successfully (${transcriptSource}), length: ${transcript.length}`);
+                console.log(`[YouTube] ✅ Transcript fetched (${transcriptSource}), length: ${transcript.length}`);
               } else if (transcriptData.error) {
                 transcriptError = transcriptData.error;
-                console.warn(`[fetch-article-preview] ⚠️ Transcript error: ${transcriptData.error}`);
+                console.warn(`[YouTube] ⚠️ Transcript error: ${transcriptData.error}`);
               } else {
-                console.warn(`[fetch-article-preview] ⚠️ Transcript too short or empty for video ${youtubeId}`);
+                console.warn(`[YouTube] ⚠️ Transcript too short or empty`);
               }
             } else {
               const errorText = await transcriptResponse.text();
-              transcriptError = `HTTP ${transcriptResponse.status}: ${errorText}`;
-              console.error(`[fetch-article-preview] ❌ Transcript fetch failed: ${transcriptError}`);
+              transcriptError = `HTTP ${transcriptResponse.status}`;
+              console.error(`[YouTube] ❌ Transcript fetch failed: ${transcriptError}`);
             }
-          } catch (transcriptFetchError) {
-            transcriptError = transcriptFetchError instanceof Error ? transcriptFetchError.message : 'Unknown error';
-            console.error('[fetch-article-preview] ❌ Exception fetching transcript:', transcriptFetchError);
+          } catch (transcriptFetchError: any) {
+            if (transcriptFetchError.name === 'AbortError') {
+              transcriptError = 'Timeout (8s)';
+              console.warn('[YouTube] ⏱️ Transcript fetch TIMEOUT after 8 seconds');
+            } else {
+              transcriptError = transcriptFetchError instanceof Error ? transcriptFetchError.message : 'Unknown error';
+              console.error('[YouTube] ❌ Exception fetching transcript:', transcriptFetchError);
+            }
           }
         } else {
-          console.warn('[fetch-article-preview] ⚠️ Missing SUPABASE_URL or SERVICE_ROLE_KEY for transcript fetch');
+          console.warn('[YouTube] ⚠️ Missing SUPABASE_URL or SERVICE_ROLE_KEY');
         }
         
+        // STEP 3: Return preview immediately with oEmbed data (transcript optional)
         return new Response(JSON.stringify({
           success: true,
           title: oembedData.title,
