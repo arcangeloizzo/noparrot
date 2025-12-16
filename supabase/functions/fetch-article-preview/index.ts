@@ -146,6 +146,89 @@ function detectSocialPlatform(url: string): string | null {
   return null;
 }
 
+// Detect Spotify content type and ID
+function extractSpotifyInfo(url: string): { type: 'track' | 'episode' | 'album' | 'playlist' | 'artist'; id: string } | null {
+  const urlLower = url.toLowerCase();
+  if (!urlLower.includes('spotify.com') && !urlLower.includes('open.spotify.com')) {
+    return null;
+  }
+  
+  // Pattern: open.spotify.com/{type}/{id}
+  const patterns = [
+    { regex: /spotify\.com\/track\/([a-zA-Z0-9]+)/, type: 'track' as const },
+    { regex: /spotify\.com\/episode\/([a-zA-Z0-9]+)/, type: 'episode' as const },
+    { regex: /spotify\.com\/album\/([a-zA-Z0-9]+)/, type: 'album' as const },
+    { regex: /spotify\.com\/playlist\/([a-zA-Z0-9]+)/, type: 'playlist' as const },
+    { regex: /spotify\.com\/artist\/([a-zA-Z0-9]+)/, type: 'artist' as const },
+  ];
+  
+  for (const { regex, type } of patterns) {
+    const match = url.match(regex);
+    if (match && match[1]) {
+      console.log(`[Spotify] Detected ${type}: ${match[1]}`);
+      return { type, id: match[1] };
+    }
+  }
+  
+  return null;
+}
+
+// Fetch lyrics from our fetch-lyrics edge function
+async function fetchLyricsFromGenius(artist: string, title: string): Promise<{ lyrics: string; source: string; geniusUrl: string } | null> {
+  try {
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('[Spotify] Missing SUPABASE env vars for lyrics fetch');
+      return null;
+    }
+    
+    console.log(`[Spotify] Fetching lyrics for: "${title}" by ${artist}`);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/fetch-lyrics`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify({ artist, title }),
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      console.error(`[Spotify] Lyrics fetch failed: ${response.status}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    
+    if (data.success && data.lyrics) {
+      console.log(`[Spotify] ✅ Lyrics fetched: ${data.lyrics.length} chars`);
+      return {
+        lyrics: data.lyrics,
+        source: data.source || 'genius',
+        geniusUrl: data.geniusUrl || '',
+      };
+    }
+    
+    console.log('[Spotify] No lyrics found:', data.error);
+    return null;
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      console.error('[Spotify] Lyrics fetch timeout');
+    } else {
+      console.error('[Spotify] Lyrics fetch error:', error);
+    }
+    return null;
+  }
+}
+
 // Extract author from Facebook URL
 function extractAuthorFromFacebookUrl(url: string): string {
   try {
@@ -448,6 +531,119 @@ serve(async (req) => {
         console.error('[fetch-article-preview] Error fetching YouTube data:', error);
         return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
           status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    // Check if it's a Spotify link
+    const spotifyInfo = extractSpotifyInfo(url);
+    if (spotifyInfo) {
+      console.log(`[fetch-article-preview] Detected Spotify ${spotifyInfo.type}: ${spotifyInfo.id}`);
+      
+      try {
+        // Fetch Spotify oEmbed data (free, no API key needed)
+        const oembedUrl = `https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`;
+        const oembedResponse = await fetch(oembedUrl);
+        
+        if (!oembedResponse.ok) {
+          throw new Error(`Spotify oEmbed failed: ${oembedResponse.status}`);
+        }
+        
+        const oembedData = await oembedResponse.json();
+        console.log('[Spotify] ✅ oEmbed fetched:', {
+          title: oembedData.title,
+          provider: oembedData.provider_name,
+          hasImage: !!oembedData.thumbnail_url,
+        });
+        
+        // Parse artist and track title from oEmbed title (format: "Title - Artist")
+        let artist = '';
+        let trackTitle = oembedData.title || '';
+        
+        // Spotify oEmbed title format varies:
+        // Track: "Song Title" by "Artist Name" on Spotify -> we get just "Song Title"
+        // Or: "Song Title - Artist Name"
+        const titleMatch = oembedData.title?.match(/^(.+?)\s*[-–—]\s*(.+)$/);
+        if (titleMatch) {
+          trackTitle = titleMatch[1].trim();
+          artist = titleMatch[2].trim();
+        } else if (oembedData.title) {
+          // Try to get artist from HTML if not in title
+          const htmlArtistMatch = oembedData.html?.match(/by\s+<a[^>]*>([^<]+)<\/a>/i);
+          if (htmlArtistMatch) {
+            artist = htmlArtistMatch[1].trim();
+            trackTitle = oembedData.title;
+          }
+        }
+        
+        console.log(`[Spotify] Parsed track: "${trackTitle}" by "${artist}"`);
+        
+        let transcript = null;
+        let transcriptSource = 'none';
+        let transcriptAvailable = false;
+        let transcriptError = null;
+        let geniusUrl = '';
+        
+        // For tracks, try to fetch lyrics from Genius
+        if (spotifyInfo.type === 'track' && artist && trackTitle) {
+          const lyricsResult = await fetchLyricsFromGenius(artist, trackTitle);
+          
+          if (lyricsResult) {
+            transcript = lyricsResult.lyrics;
+            transcriptSource = lyricsResult.source;
+            transcriptAvailable = true;
+            geniusUrl = lyricsResult.geniusUrl;
+            console.log(`[Spotify] ✅ Lyrics available (${transcriptSource})`);
+          } else {
+            transcriptError = 'Lyrics not found on Genius';
+            console.log('[Spotify] ⚠️ No lyrics found');
+          }
+        } else if (spotifyInfo.type === 'episode') {
+          // For podcast episodes, try Jina AI Reader for description
+          const jinaResult = await fetchSocialWithJina(url, 'spotify');
+          if (jinaResult && jinaResult.content) {
+            transcript = jinaResult.content;
+            transcriptSource = 'jina';
+            transcriptAvailable = jinaResult.content.length > 100;
+          }
+        }
+        
+        return new Response(JSON.stringify({
+          success: true,
+          title: oembedData.title || `Spotify ${spotifyInfo.type}`,
+          content: transcript || `${spotifyInfo.type === 'track' ? 'Brano' : spotifyInfo.type === 'episode' ? 'Episodio' : 'Contenuto'}: ${oembedData.title}`,
+          summary: transcript ? transcript.substring(0, 500) + '...' : oembedData.title,
+          image: oembedData.thumbnail_url || '',
+          previewImg: oembedData.thumbnail_url || '',
+          platform: 'spotify',
+          type: spotifyInfo.type,
+          author: artist || oembedData.provider_name || 'Spotify',
+          embedHtml: oembedData.html,
+          transcript,
+          transcriptSource,
+          transcriptAvailable,
+          transcriptError,
+          geniusUrl,
+          contentQuality: transcriptAvailable ? 'complete' : 'partial',
+          hostname: 'open.spotify.com',
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (error) {
+        console.error('[Spotify] Error:', error);
+        
+        // Fallback response for Spotify
+        return new Response(JSON.stringify({
+          success: true,
+          title: `Contenuto Spotify`,
+          content: 'Contenuto Spotify - apri il link originale per ascoltare.',
+          summary: 'Contenuto Spotify',
+          platform: 'spotify',
+          type: spotifyInfo.type,
+          hostname: 'open.spotify.com',
+          contentQuality: 'minimal',
+        }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
