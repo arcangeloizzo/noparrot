@@ -551,33 +551,63 @@ serve(async (req) => {
         }
         
         const oembedData = await oembedResponse.json();
-        console.log('[Spotify] ✅ oEmbed fetched:', {
+        
+        // Enhanced logging per debug
+        console.log('[Spotify] ✅ oEmbed FULL response:', {
           title: oembedData.title,
           provider: oembedData.provider_name,
+          author_name: oembedData.author_name, // Questo campo potrebbe contenere l'artista!
+          type: oembedData.type,
           hasImage: !!oembedData.thumbnail_url,
+          htmlSnippet: oembedData.html?.substring(0, 300),
         });
         
-        // Parse artist and track title from oEmbed title (format: "Title - Artist")
+        // Parse artist and track title from oEmbed - METODI MULTIPLI
         let artist = '';
         let trackTitle = oembedData.title || '';
         
-        // Spotify oEmbed title format varies:
-        // Track: "Song Title" by "Artist Name" on Spotify -> we get just "Song Title"
-        // Or: "Song Title - Artist Name"
-        const titleMatch = oembedData.title?.match(/^(.+?)\s*[-–—]\s*(.+)$/);
-        if (titleMatch) {
-          trackTitle = titleMatch[1].trim();
-          artist = titleMatch[2].trim();
-        } else if (oembedData.title) {
-          // Try to get artist from HTML if not in title
-          const htmlArtistMatch = oembedData.html?.match(/by\s+<a[^>]*>([^<]+)<\/a>/i);
-          if (htmlArtistMatch) {
-            artist = htmlArtistMatch[1].trim();
-            trackTitle = oembedData.title;
+        // METODO 1: Controlla se author_name contiene l'artista (Spotify spesso lo usa)
+        if (oembedData.author_name && oembedData.author_name !== 'Spotify') {
+          artist = oembedData.author_name.trim();
+          trackTitle = oembedData.title || '';
+          console.log(`[Spotify] Metodo 1 (author_name): "${trackTitle}" by "${artist}"`);
+        }
+        
+        // METODO 2: Parse dal titolo se formato "Title - Artist"
+        if (!artist) {
+          const titleMatch = oembedData.title?.match(/^(.+?)\s*[-–—]\s*(.+)$/);
+          if (titleMatch) {
+            trackTitle = titleMatch[1].trim();
+            artist = titleMatch[2].trim();
+            console.log(`[Spotify] Metodo 2 (title parse): "${trackTitle}" by "${artist}"`);
           }
         }
         
-        console.log(`[Spotify] Parsed track: "${trackTitle}" by "${artist}"`);
+        // METODO 3: Estrai dall'HTML embed di Spotify
+        if (!artist && oembedData.html) {
+          // Pattern più flessibili per l'HTML di Spotify
+          const htmlPatterns = [
+            /by\s+<a[^>]*>([^<]+)<\/a>/i,                    // by <a>Artist</a>
+            /artist['":\s]+([^'"<>,]+)/i,                   // artist: "Name" o artist='Name'
+            /<span[^>]*class="[^"]*artist[^"]*"[^>]*>([^<]+)/i, // <span class="...artist...">Name
+            /data-artist="([^"]+)"/i,                       // data-artist="Name"
+          ];
+          
+          for (const pattern of htmlPatterns) {
+            const match = oembedData.html.match(pattern);
+            if (match && match[1]) {
+              artist = match[1].trim();
+              trackTitle = oembedData.title || '';
+              console.log(`[Spotify] Metodo 3 (HTML pattern): "${trackTitle}" by "${artist}"`);
+              break;
+            }
+          }
+        }
+        
+        // METODO 4: Estrai dal thumbnail URL (contiene spesso l'ID artista, non usabile direttamente)
+        // Skip - non affidabile
+        
+        console.log(`[Spotify] Final parsed: "${trackTitle}" by "${artist || '(unknown)'}" `);
         
         let transcript = null;
         let transcriptSource = 'none';
@@ -586,18 +616,31 @@ serve(async (req) => {
         let geniusUrl = '';
         
         // For tracks, try to fetch lyrics from Genius
-        if (spotifyInfo.type === 'track' && artist && trackTitle) {
-          const lyricsResult = await fetchLyricsFromGenius(artist, trackTitle);
+        // MIGLIORAMENTO: Prova anche SENZA artista se abbiamo il titolo
+        if (spotifyInfo.type === 'track' && trackTitle) {
+          // Prima prova con artista (se disponibile), poi solo con titolo
+          let lyricsResult = null;
+          
+          if (artist) {
+            console.log(`[Spotify] 🔍 Searching lyrics with artist: "${artist}" + "${trackTitle}"`);
+            lyricsResult = await fetchLyricsFromGenius(artist, trackTitle);
+          }
+          
+          // FALLBACK: Se non troviamo con artista, prova solo col titolo
+          if (!lyricsResult && trackTitle) {
+            console.log(`[Spotify] 🔍 Fallback: searching lyrics with title only: "${trackTitle}"`);
+            lyricsResult = await fetchLyricsFromGenius('', trackTitle);
+          }
           
           if (lyricsResult) {
             transcript = lyricsResult.lyrics;
             transcriptSource = lyricsResult.source;
             transcriptAvailable = true;
             geniusUrl = lyricsResult.geniusUrl;
-            console.log(`[Spotify] ✅ Lyrics available (${transcriptSource})`);
+            console.log(`[Spotify] ✅ Lyrics found (${transcriptSource}): ${transcript?.length || 0} chars`);
           } else {
             transcriptError = 'Lyrics not found on Genius';
-            console.log('[Spotify] ⚠️ No lyrics found');
+            console.log('[Spotify] ⚠️ No lyrics found after all attempts');
           }
         } else if (spotifyInfo.type === 'episode') {
           // For podcast episodes, try Jina AI Reader for description
