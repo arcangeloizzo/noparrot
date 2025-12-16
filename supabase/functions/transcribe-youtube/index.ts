@@ -125,7 +125,7 @@ async function fetchFromSupadata(videoId: string, preferredLang?: string): Promi
 async function fetchYouTubeTranscript(
   videoId: string, 
   maxRetries: number = 3
-): Promise<{ transcript: string; source: string } | null> {
+): Promise<{ transcript: string; source: string; disabled?: boolean } | null> {
   console.log(`[Transcript] Fetching for video ${videoId}`);
   
   const languages = [
@@ -156,10 +156,10 @@ async function fetchYouTubeTranscript(
           const errorMsg = langError?.message || String(langError);
           console.log(`[Transcript] ${lang.name} not available: ${errorMsg}`);
           
-          // If transcript is explicitly disabled, no point in retrying
+          // If transcript is explicitly disabled, return special response immediately
           if (errorMsg.includes('Transcript is disabled')) {
             console.error(`[Transcript] ❌ Transcript explicitly disabled for video ${videoId}`);
-            return null;
+            return { transcript: '', source: 'disabled', disabled: true };
           }
           
           // Continue to next language
@@ -265,6 +265,23 @@ serve(async (req) => {
     const freeResult = await fetchYouTubeTranscript(videoId);
     
     if (freeResult) {
+      // If transcript is disabled, return immediately without trying Supadata
+      if (freeResult.disabled) {
+        console.log(`[Transcript] ⏭️ Transcript disabled, skipping Supadata fallback`);
+        return new Response(
+          JSON.stringify({ 
+            transcript: '', 
+            source: 'disabled',
+            disabled: true,
+            error: 'Transcript is disabled for this video'
+          }),
+          { 
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+      
       // Save to cache
       await saveToCache(supabase, videoId, freeResult.transcript, freeResult.source);
       
