@@ -221,36 +221,188 @@ async function fetchLyricsDirectFallback(url: string): Promise<string> {
   }
 }
 
-// Fallback provider: lyrics.ovh (no API key)
-async function fetchLyricsFromLyricsOvh(artist: string, title: string): Promise<string> {
+// Fallback provider: lyrics.ovh with retry logic and timeout
+async function fetchLyricsFromLyricsOvh(artist: string, title: string, retries = 2): Promise<string> {
   const a = (artist || '').trim();
   const t = (title || '').trim();
   if (!a || !t) return '';
 
-  const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(a)}/${encodeURIComponent(t)}`;
-  console.log(`[lyrics.ovh] Fetching: ${url}`);
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+      
+      const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(a)}/${encodeURIComponent(t)}`;
+      console.log(`[lyrics.ovh] Attempt ${attempt}/${retries}: ${url}`);
 
+      const res = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'LovableCloud/lyrics-fetcher',
+        },
+      });
+      
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const json = await res.json();
+        const lyrics = typeof json?.lyrics === 'string' ? json.lyrics.trim() : '';
+        if (lyrics.length > 50) {
+          console.log(`[lyrics.ovh] ✅ Success on attempt ${attempt}: ${lyrics.length} chars`);
+          return lyrics;
+        }
+        console.log(`[lyrics.ovh] Response too short on attempt ${attempt}: ${lyrics.length} chars`);
+      } else {
+        console.log(`[lyrics.ovh] Attempt ${attempt} failed with status: ${res.status}`);
+      }
+    } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : 'Unknown error';
+      console.log(`[lyrics.ovh] Attempt ${attempt} failed:`, errorMsg);
+      if (attempt < retries) {
+        console.log(`[lyrics.ovh] Waiting 1s before retry...`);
+        await new Promise(r => setTimeout(r, 1000)); // 1s delay between retries
+      }
+    }
+  }
+  
+  console.log(`[lyrics.ovh] All ${retries} attempts failed`);
+  return '';
+}
+
+// Fallback provider: Musixmatch via Jina search
+async function fetchLyricsFromMusixmatch(artist: string, title: string): Promise<string> {
+  const a = (artist || '').trim();
+  const t = (title || '').trim();
+  if (!t) return ''; // At least title is needed
+  
   try {
-    const res = await fetch(url, {
+    const searchQuery = a ? `${a} ${t} lyrics musixmatch` : `${t} lyrics musixmatch`;
+    const jinaUrl = `https://s.jina.ai/${encodeURIComponent(searchQuery)}`;
+    
+    console.log(`[Musixmatch] Searching via Jina: ${searchQuery}`);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+    
+    const res = await fetch(jinaUrl, {
+      signal: controller.signal,
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'LovableCloud/lyrics-fetcher',
       },
     });
-
+    
+    clearTimeout(timeoutId);
+    
     if (!res.ok) {
-      console.error(`[lyrics.ovh] Failed: ${res.status}`);
+      console.log(`[Musixmatch] Jina search failed: ${res.status}`);
       return '';
     }
-
-    const json = await res.json();
-    const lyrics = typeof json?.lyrics === 'string' ? json.lyrics.trim() : '';
-    console.log(`[lyrics.ovh] Received ${lyrics.length} chars`);
-    return lyrics;
+    
+    const data = await res.json();
+    
+    // Find the Musixmatch result
+    const results = data?.data || [];
+    const musixmatchResult = results.find((r: { url?: string }) => 
+      r.url?.includes('musixmatch.com')
+    );
+    
+    if (!musixmatchResult?.url) {
+      console.log('[Musixmatch] No Musixmatch URL found in search results');
+      return '';
+    }
+    
+    console.log(`[Musixmatch] Found URL: ${musixmatchResult.url}`);
+    
+    // Fetch the Musixmatch page via Jina Reader
+    const readerUrl = `https://r.jina.ai/${musixmatchResult.url}`;
+    const readerRes = await fetch(readerUrl, {
+      headers: {
+        'Accept': 'text/markdown',
+        'X-Return-Format': 'markdown',
+      },
+    });
+    
+    if (!readerRes.ok) {
+      console.log(`[Musixmatch] Reader fetch failed: ${readerRes.status}`);
+      return '';
+    }
+    
+    const markdown = await readerRes.text();
+    console.log(`[Musixmatch] Reader returned ${markdown.length} chars`);
+    
+    // Extract lyrics from Musixmatch markdown
+    const lyrics = extractLyricsFromMusixmatchMarkdown(markdown);
+    
+    if (lyrics.length > 50) {
+      console.log(`[Musixmatch] ✅ Extracted ${lyrics.length} chars of lyrics`);
+      return lyrics;
+    }
+    
+    console.log('[Musixmatch] Extracted lyrics too short');
+    return '';
   } catch (e) {
-    console.error('[lyrics.ovh] Error:', e);
+    const errorMsg = e instanceof Error ? e.message : 'Unknown error';
+    console.error('[Musixmatch] Error:', errorMsg);
     return '';
   }
+}
+
+// Extract lyrics from Musixmatch markdown
+function extractLyricsFromMusixmatchMarkdown(markdown: string): string {
+  const lines = markdown.split('\n');
+  
+  // Musixmatch typically has lyrics after "Lyrics" header
+  const lyricsHeaderIdx = lines.findIndex((l) => 
+    /^#+\s*Lyrics/i.test(l) || /^Lyrics$/i.test(l.trim())
+  );
+  
+  let lyricsLines: string[];
+  
+  if (lyricsHeaderIdx !== -1) {
+    lyricsLines = lines.slice(lyricsHeaderIdx + 1);
+  } else {
+    // Try to find verse/chorus markers
+    const markerIdx = lines.findIndex((l) =>
+      /^[\[]?(Verse|Chorus|Intro|Hook|Bridge|Outro)/i.test(l.trim()) ||
+      /^\[.+\]$/.test(l.trim())
+    );
+    
+    if (markerIdx !== -1) {
+      lyricsLines = lines.slice(markerIdx);
+    } else {
+      lyricsLines = lines;
+    }
+  }
+  
+  // Find where lyrics end (typically before "Writer(s)" or similar)
+  const endPatterns = [
+    /^Writer\(s\)/i,
+    /^Lyrics licensed/i,
+    /^Copyright/i,
+    /^Submit Corrections/i,
+    /^Related Songs/i,
+    /^\*\*\*/,
+  ];
+  
+  const endIdx = lyricsLines.findIndex((l) => 
+    endPatterns.some(p => p.test(l.trim()))
+  );
+  
+  if (endIdx !== -1) {
+    lyricsLines = lyricsLines.slice(0, endIdx);
+  }
+  
+  const lyrics = lyricsLines
+    .join('\n')
+    .replace(/^#+\s*.*$/gm, '') // Remove headers
+    .replace(/\[.*?\]\((.*?)\)/g, '') // Remove markdown links
+    .replace(/\*\*/g, '')
+    .replace(/\*/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  
+  return lyrics;
 }
 
 serve(async (req) => {
@@ -301,25 +453,30 @@ serve(async (req) => {
 
     // Fetch lyrics from Genius page
     let lyrics = await fetchLyricsFromPage(searchResult.url);
+    let lyricsSource = 'genius';
 
-    // If Genius scraping fails, try lyrics.ovh as a fallback provider
+    // Fallback chain if Genius scraping fails
     if (!lyrics || lyrics.length < 50) {
       console.log('[fetch-lyrics] Genius extraction failed/too short, trying lyrics.ovh fallback');
+      
+      // Try lyrics.ovh with retry
       const ovhLyrics = await fetchLyricsFromLyricsOvh(searchResult.artist, searchResult.title);
       if (ovhLyrics && ovhLyrics.length >= 50) {
         lyrics = ovhLyrics;
-        console.log(`[fetch-lyrics] ✅ lyrics.ovh success: ${lyrics.length} chars for "${searchResult.title}"`);
-        return new Response(
-          JSON.stringify({
-            success: true,
-            lyrics,
-            source: 'lyrics.ovh',
-            geniusUrl: searchResult.url,
-            artist: searchResult.artist,
-            title: searchResult.title,
-          }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-        );
+        lyricsSource = 'lyrics.ovh';
+        console.log(`[fetch-lyrics] ✅ lyrics.ovh success: ${lyrics.length} chars`);
+      }
+    }
+    
+    // Try Musixmatch if lyrics.ovh also failed
+    if (!lyrics || lyrics.length < 50) {
+      console.log('[fetch-lyrics] lyrics.ovh failed, trying Musixmatch fallback');
+      
+      const mxmLyrics = await fetchLyricsFromMusixmatch(searchResult.artist, searchResult.title);
+      if (mxmLyrics && mxmLyrics.length >= 50) {
+        lyrics = mxmLyrics;
+        lyricsSource = 'musixmatch';
+        console.log(`[fetch-lyrics] ✅ Musixmatch success: ${lyrics.length} chars`);
       }
     }
 
@@ -327,7 +484,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Could not extract lyrics from page',
+          error: 'Could not extract lyrics from any source',
           geniusUrl: searchResult.url,
           artist: searchResult.artist,
           title: searchResult.title,
@@ -336,13 +493,13 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[fetch-lyrics] ✅ Success: ${lyrics.length} chars for "${searchResult.title}"`);
+    console.log(`[fetch-lyrics] ✅ Final success (${lyricsSource}): ${lyrics.length} chars for "${searchResult.title}"`);
 
     return new Response(
       JSON.stringify({
         success: true,
         lyrics,
-        source: 'genius',
+        source: lyricsSource,
         geniusUrl: searchResult.url,
         artist: searchResult.artist,
         title: searchResult.title,
