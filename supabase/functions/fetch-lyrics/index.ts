@@ -136,9 +136,10 @@ serve(async (req) => {
   try {
     const { artist, title } = await req.json();
     
-    if (!artist || !title) {
+    // MIGLIORAMENTO: Permetti ricerca anche solo con titolo (artist può essere vuoto)
+    if (!title) {
       return new Response(
-        JSON.stringify({ error: 'Missing artist or title parameter' }),
+        JSON.stringify({ error: 'Missing title parameter' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -152,10 +153,12 @@ serve(async (req) => {
       );
     }
     
-    console.log(`[fetch-lyrics] Request: "${title}" by ${artist}`);
+    const artistName = artist || '';
+    console.log(`[fetch-lyrics] Request: "${title}" by "${artistName || '(unknown artist)'}"`);
     
-    // Search for the song
-    const searchQuery = `${artist} ${title}`;
+    // Search for the song - usa solo titolo se artista non disponibile
+    const searchQuery = artistName ? `${artistName} ${title}` : title;
+    console.log(`[fetch-lyrics] Search query: "${searchQuery}"`);
     const searchResult = await searchGenius(searchQuery, GENIUS_API_KEY);
     
     if (!searchResult) {
