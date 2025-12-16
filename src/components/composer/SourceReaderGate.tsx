@@ -875,6 +875,94 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 {/* Padding per scroll */}
                 <div className="h-32"></div>
               </>
+            ) : source.platform === 'spotify' ? (
+              <>
+                {/* Spotify Content with Lyrics */}
+                <div className="max-w-2xl mx-auto space-y-4">
+                  {/* Spotify Embed Player */}
+                  {source.embedHtml && (
+                    <div className="w-full rounded-lg overflow-hidden">
+                      {(() => {
+                        const iframeSrc = extractIframeSrc(source.embedHtml);
+                        const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
+                        return isValidSrc ? (
+                          <iframe
+                            src={iframeSrc}
+                            className="w-full"
+                            style={{ height: '152px', borderRadius: '12px' }}
+                            allow="encrypted-media"
+                            sandbox="allow-scripts allow-same-origin allow-presentation"
+                            title="Spotify Player"
+                          />
+                        ) : null;
+                      })()}
+                    </div>
+                  )}
+                  
+                  {/* Lyrics Section */}
+                  {source.transcript ? (
+                    <div className="prose prose-sm max-w-none">
+                      <h4 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
+                        🎤 Testo del Brano
+                      </h4>
+                      
+                      {/* Guardrail Mode: Render lyrics in blocchi */}
+                      {mode === 'guardrail' && blocks.length > 0 ? (
+                        <div className="space-y-4 bg-muted/30 rounded-lg p-4 border border-border">
+                          {blocks.map((block, idx) => {
+                            const isLocked = idx > visibleUpToIndex && !progress.canUnlock;
+                            
+                            return (
+                              <section
+                                key={block.id}
+                                data-block-id={block.id}
+                                ref={(el) => {
+                                  if (el) blockRefs.current.set(block.id, el);
+                                }}
+                                className={cn(
+                                  "content-block p-3 rounded-lg transition-all duration-300 scroll-mt-4 relative",
+                                  block.isRead && "border-l-4 border-trust-high bg-trust-high/5",
+                                  attritionActive && "scroll-snap-align-start",
+                                  isLocked && "blur-sm opacity-30 pointer-events-none"
+                                )}
+                                style={{
+                                  filter: isLocked ? 'blur(4px)' : 'none',
+                                  opacity: isLocked ? 0.3 : 1
+                                }}
+                              >
+                                <div
+                                  dangerouslySetInnerHTML={{ __html: block.html }}
+                                  className="text-foreground leading-relaxed whitespace-pre-wrap"
+                                />
+                                {block.isRead && (
+                                  <div className="flex items-center gap-2 mt-2 text-trust-high text-xs">
+                                    <Check className="h-3 w-3" />
+                                    <span>Letto</span>
+                                  </div>
+                                )}
+                              </section>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="whitespace-pre-wrap text-foreground leading-relaxed bg-muted/30 rounded-lg p-4 border border-border">
+                          {source.transcript}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
+                      <p className="text-sm text-warning flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4" />
+                        Lyrics non disponibili. Ascolta il brano e scorri per procedere.
+                      </p>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Padding per scroll */}
+                <div className="h-32"></div>
+              </>
             ) : source.embedHtml ? (
               <>
                 {/* Generic Embed (safe iframe extraction) */}
