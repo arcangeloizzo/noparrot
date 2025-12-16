@@ -7,7 +7,7 @@
 // ✅ Supporta modalità: soft, guardrail (default), strict
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Check, ExternalLink, AlertCircle, Lock } from 'lucide-react';
+import { X, Check, ExternalLink, AlertCircle, Lock, Music } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TypingIndicator } from '@/components/ui/typing-indicator';
 import { cn } from '@/lib/utils';
@@ -951,11 +951,36 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                       )}
                     </div>
                   ) : (
-                    <div className="bg-warning/10 border border-warning/20 rounded-lg p-4">
-                      <p className="text-sm text-warning flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4" />
-                        Lyrics non disponibili. Ascolta il brano e scorri per procedere.
-                      </p>
+                    <div className="bg-muted/30 rounded-lg p-6 text-center space-y-4 border border-border">
+                      <Music className="h-12 w-12 mx-auto text-muted-foreground" />
+                      <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">
+                          Lyrics non disponibili per questo brano.
+                        </p>
+                        <p className="text-xs text-muted-foreground/70">
+                          Ascolta per almeno 30 secondi per procedere.
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-center gap-3">
+                        <div className="text-2xl font-mono text-primary tabular-nums">
+                          {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+                        </div>
+                        <div className="text-sm text-muted-foreground">/</div>
+                        <div className="text-sm text-muted-foreground">0:30</div>
+                      </div>
+                      {/* Progress bar */}
+                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-primary transition-all duration-1000 ease-linear"
+                          style={{ width: `${Math.max(0, ((30 - timeLeft) / 30) * 100)}%` }}
+                        />
+                      </div>
+                      {timeLeft <= 0 && (
+                        <div className="flex items-center justify-center gap-2 text-trust-high text-sm">
+                          <Check className="h-4 w-4" />
+                          <span>Ascolto completato!</span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
