@@ -34,7 +34,9 @@ const validateEmbedDomain = (url: string): boolean => {
       'twitter.com',
       'x.com',
       'www.tiktok.com',
-      'tiktok.com'
+      'tiktok.com',
+      'open.spotify.com',
+      'spotify.com'
     ];
     return allowedDomains.includes(parsed.hostname);
   } catch {
