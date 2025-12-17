@@ -346,18 +346,18 @@ export const FeedCard = ({
     } catch {}
 
     // GRACEFUL FALLBACK: Open reader even if preview fails
+    // IMPORTANT: Spread preview FIRST so our defaults take precedence when preview fields are null/undefined
     setReaderSource({
+      ...preview,
       id: post.id,
       state: 'reading' as const,
       url: post.shared_url,
-      // Use preview data if available, otherwise fallback to post data
       title: preview?.title || post.shared_title || `Contenuto da ${hostname}`,
       content: preview?.content || preview?.summary || preview?.excerpt || post.content || '',
       summary: preview?.summary || 'Apri il link per visualizzare il contenuto completo.',
       image: preview?.image || post.preview_img || '',
       platform: preview?.platform || detectPlatformFromUrl(post.shared_url),
       contentQuality: preview?.contentQuality || 'minimal',
-      ...preview
     });
     setShowReader(true);
     
@@ -372,7 +372,12 @@ export const FeedCard = ({
   };
 
   const handleReaderComplete = async () => {
+    // 🛡️ SAFE CLOSE: Signal cleanup before unmount to prevent iOS Safari crashes
+    setReaderClosing(true);
+    await new Promise((resolve) => setTimeout(resolve, 200));
     setShowReader(false);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    setReaderClosing(false);
     
     if (!readerSource || !user) return;
 
