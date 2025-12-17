@@ -96,7 +96,8 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const contentForTracking = source.content || source.transcript || source.summary || source.excerpt || '';
   const hasTrackableContent = contentForTracking.length > 100;
 
-  // Ref per cleanup sicuro iframe Spotify e YouTube
+  // Ref per cleanup sicuro iframe (iOS Safari)
+  const rootRef = useRef<HTMLDivElement>(null);
   const spotifyIframeRef = useRef<HTMLIFrameElement>(null);
   const youtubeIframeRef = useRef<HTMLIFrameElement>(null);
 
@@ -245,27 +246,33 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     };
   }, [source.embedHtml, source.url, isOpen]);
 
-  // Pre-cleanup esplicito iframe Spotify PRIMA dello smontaggio (iOS Safari)
-  // NON rimuoviamo dal DOM manualmente - lasciamo che React gestisca il ciclo di vita
+  // Pre-cleanup esplicito iframe PRIMA dello smontaggio (iOS Safari)
+  // - NON rimuoviamo dal DOM manualmente - lasciamo che React gestisca il ciclo di vita
+  // - Blanchiamo anche eventuali iframe non "specializzati" (TikTok, generic embeds, ecc.)
   useEffect(() => {
     if (!isClosing) return;
 
-    if (spotifyIframeRef.current) {
+    const safeBlank = (iframe: HTMLIFrameElement) => {
       try {
-        spotifyIframeRef.current.src = 'about:blank';
-        // NON fare removeChild - React gestirà la rimozione tramite !isClosing nel JSX
+        iframe.src = 'about:blank';
       } catch (e) {
-        console.warn('[SourceReaderGate] Error pre-cleaning Spotify iframe:', e);
+        console.warn('[SourceReaderGate] Error pre-cleaning iframe:', e);
       }
-    }
-    
-    // Pre-cleanup YouTube iframe per evitare crash iOS Safari
-    if (youtubeIframeRef.current) {
-      try {
-        youtubeIframeRef.current.src = 'about:blank';
-      } catch (e) {
-        console.warn('[SourceReaderGate] Error pre-cleaning YouTube iframe:', e);
+    };
+
+    // Specific refs
+    if (spotifyIframeRef.current) safeBlank(spotifyIframeRef.current);
+    if (youtubeIframeRef.current) safeBlank(youtubeIframeRef.current);
+
+    // Generic cleanup for any iframe inside this modal (covers TikTok + generic embeds)
+    try {
+      const root = rootRef.current;
+      if (root) {
+        const iframes = Array.from(root.querySelectorAll('iframe')) as HTMLIFrameElement[];
+        iframes.forEach(safeBlank);
       }
+    } catch (e) {
+      console.warn('[SourceReaderGate] Error pre-cleaning generic iframes:', e);
     }
   }, [isClosing]);
 
@@ -441,6 +448,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
   return (
     <div 
+      ref={rootRef}
       className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-[9999] animate-fade-in"
       onClick={handleBackdropClick}
       onTouchMove={handleBackdropTouch}
