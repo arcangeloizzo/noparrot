@@ -143,7 +143,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const closeReaderSafely = async () => {
     // Pre-cleanup (iframe Spotify ecc.) gestito dentro SourceReaderGate quando readerClosing=true
     setReaderClosing(true);
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await new Promise((resolve) => setTimeout(resolve, 200)); // Increased for iOS Safari stability
     setShowReader(false);
     // piccolo buffer per iOS Safari (evita race tra unmount e rendering successivo)
     await new Promise((resolve) => setTimeout(resolve, 50));

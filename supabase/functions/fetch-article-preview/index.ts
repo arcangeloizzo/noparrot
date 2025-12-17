@@ -299,12 +299,12 @@ async function fetchOpenGraphData(url: string): Promise<any> {
     });
     
     return {
-      title: ogData.title || ogData['twitter:title'] || 'Facebook Post',
+      title: ogData.title || ogData['twitter:title'] || null,
       description: ogData.description || ogData['twitter:description'] || '',
       image: ogData.image || ogData['twitter:image'] || '',
-      author: ogData.site_name || extractAuthorFromFacebookUrl(url),
+      author: ogData.site_name || null,
       url: ogData.url || url,
-      platform: 'facebook'
+      platform: null  // Let the caller decide the platform
     };
   } catch (error) {
     console.error('[OpenGraph] Error:', error instanceof Error ? error.message : 'Unknown');
@@ -802,7 +802,9 @@ serve(async (req) => {
           const oembedUrl = `https://api.instagram.com/oembed/?url=${encodeURIComponent(url)}`;
           const oembedResponse = await fetch(oembedUrl);
           
-          if (oembedResponse.ok) {
+          // Check content-type before parsing as JSON (Instagram may return HTML)
+          const contentType = oembedResponse.headers.get('content-type');
+          if (oembedResponse.ok && contentType?.includes('application/json')) {
             const data = await oembedResponse.json();
             console.log('[Instagram] ✅ oEmbed successful:', {
               hasTitle: !!data.title,
@@ -826,8 +828,9 @@ serve(async (req) => {
             }), {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
+          } else {
+            console.log('[Instagram] ⚠️ oEmbed failed: status=' + oembedResponse.status + ', contentType=' + contentType + ' (non-JSON response, skipping)');
           }
-          console.log('[Instagram] ⚠️ oEmbed failed:', oembedResponse.status);
         } catch (error) {
           console.error('[Instagram] oEmbed error:', error);
         }

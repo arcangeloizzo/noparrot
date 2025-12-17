@@ -88,6 +88,7 @@ export const FeedCard = ({
   
   // Gate states
   const [showReader, setShowReader] = useState(false);
+  const [readerClosing, setReaderClosing] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [readerSource, setReaderSource] = useState<any>(null);
@@ -808,9 +809,14 @@ export const FeedCard = ({
         <SourceReaderGate
           source={readerSource}
           isOpen={showReader}
-          onClose={() => {
+          isClosing={readerClosing}
+          onClose={async () => {
+            setReaderClosing(true);
+            await new Promise((resolve) => setTimeout(resolve, 200));
             setShowReader(false);
             setReaderSource(null);
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            setReaderClosing(false);
           }}
           onComplete={handleReaderComplete}
         />,
