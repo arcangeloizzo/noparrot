@@ -125,8 +125,9 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Load and render Twitter widgets with MutationObserver
+  // Load and render Twitter widgets ONLY for Twitter embeds
   useEffect(() => {
+    if (source.platform !== 'twitter') return;
     if (!source.embedHtml || !isOpen) return;
 
     console.log('[SourceReaderGate] Loading Twitter embed for:', source.url);
