@@ -31,11 +31,44 @@ export function useBlockTracking({
   const unlockReachedRef = useRef(false);
   const startTimeRef = useRef(Date.now());
   const velocityViolationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Protezione unmount per evitare setState su componenti smontati
+  const isMountedRef = useRef(true);
 
-  // Segmenta contenuto HTML in blocchi
+  // Segmenta contenuto HTML in blocchi (supporta anche testo puro come lyrics)
   const segmentedBlocks = useMemo(() => {
+    if (!contentHtml.trim()) return [];
+    
+    let processedHtml = contentHtml;
+    
+    // Se il contenuto non ha tag HTML (es. lyrics Spotify), wrappalo in paragrafi
+    const hasHtmlTags = /<[a-z][\s\S]*>/i.test(contentHtml);
+    if (!hasHtmlTags) {
+      // Dividi per doppi newline (paragrafi) o singoli newline (versi)
+      const paragraphs = contentHtml
+        .split(/\n\s*\n/)
+        .filter(p => p.trim())
+        .map(p => `<p>${p.trim().replace(/\n/g, '<br/>')}</p>`);
+      
+      // Se non ci sono doppi newline, dividi per singoli
+      if (paragraphs.length <= 1) {
+        const lines = contentHtml.split('\n').filter(l => l.trim());
+        // Raggruppa linee in blocchi di ~4-6 versi per lyrics
+        const chunks: string[] = [];
+        for (let i = 0; i < lines.length; i += 5) {
+          const chunk = lines.slice(i, i + 5).join('<br/>');
+          if (chunk.trim()) {
+            chunks.push(`<p>${chunk}</p>`);
+          }
+        }
+        processedHtml = chunks.join('');
+      } else {
+        processedHtml = paragraphs.join('');
+      }
+    }
+
     const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = contentHtml;
+    tempDiv.innerHTML = processedHtml;
 
     const elements = tempDiv.querySelectorAll('p, h1, h2, h3, h4, h5, h6, blockquote, pre, ul, ol');
     const newBlocks: ContentBlock[] = [];
@@ -70,8 +103,9 @@ export function useBlockTracking({
     return newBlocks;
   }, [contentHtml, config]);
 
-  // Inizializza blocchi
+  // Inizializza blocchi e gestione mount/unmount
   useEffect(() => {
+    isMountedRef.current = true;
     setBlocks(segmentedBlocks);
     unlockReachedRef.current = false;
     startTimeRef.current = Date.now();
@@ -83,6 +117,14 @@ export function useBlockTracking({
       totalBlocks: segmentedBlocks.length,
       totalWords: segmentedBlocks.reduce((sum, b) => sum + b.words, 0)
     });
+
+    return () => {
+      isMountedRef.current = false;
+      // Cleanup velocity violation timeout
+      if (velocityViolationTimeoutRef.current) {
+        clearTimeout(velocityViolationTimeoutRef.current);
+      }
+    };
   }, [segmentedBlocks, articleId]);
 
   // IntersectionObserver per coverage tracking
@@ -125,6 +167,8 @@ export function useBlockTracking({
   // Dwell time tracking (throttled a 100ms)
   useEffect(() => {
     const interval = setInterval(() => {
+      if (!isMountedRef.current) return;
+      
       setBlocks((prev) =>
         prev.map((block) => {
           if (!block.isVisible || block.isRead) return block;
