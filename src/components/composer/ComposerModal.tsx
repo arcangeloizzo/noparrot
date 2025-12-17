@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { flushSync } from "react-dom";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,6 +38,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const [urlPreview, setUrlPreview] = useState<any>(null);
   const [contentCategory, setContentCategory] = useState<string | null>(null);
   const [showReader, setShowReader] = useState(false);
+  const [readerClosing, setReaderClosing] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizData, setQuizData] = useState<any>(null);
   const [quizPassed, setQuizPassed] = useState(false);
@@ -131,6 +131,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
     // Se c'è un link → apri reader + comprehension gate
     if (detectedUrl) {
+      setReaderClosing(false);
       setShowReader(true);
       return;
     }
@@ -139,33 +140,38 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     await publishPost();
   };
 
+  const closeReaderSafely = async () => {
+    // Pre-cleanup (iframe Spotify ecc.) gestito dentro SourceReaderGate quando readerClosing=true
+    setReaderClosing(true);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    setShowReader(false);
+    // piccolo buffer per iOS Safari (evita race tra unmount e rendering successivo)
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    setReaderClosing(false);
+  };
+
   const handleReaderComplete = async () => {
     if (isGeneratingQuiz) return; // Prevent double clicks
-    
-    // NON smontare reader qui - farlo solo dopo successo delle operazioni async
-    
-    if (!urlPreview || !user) {
-      setShowReader(false);
-      return;
-    }
 
-    // Se Spotify senza lyrics sufficienti, pubblica direttamente
-    if (urlPreview.platform === 'spotify' && 
-        (!urlPreview.transcript || urlPreview.transcript.length < 100)) {
-      setShowReader(false);
-      toast.info('Contenuto Spotify senza testo, pubblicazione diretta');
-      try {
-        await publishPost();
-      } catch (e) {
-        console.error('[ComposerModal] publishPost fallback error:', e);
-        toast.error('Errore pubblicazione');
-      }
-      return;
-    }
-
-    setIsGeneratingQuiz(true);
-    
     try {
+      if (!urlPreview || !user) {
+        await closeReaderSafely();
+        return;
+      }
+
+      // Se Spotify senza lyrics sufficienti, pubblica direttamente (ma chiudi in modo sicuro)
+      if (
+        urlPreview.platform === 'spotify' &&
+        (!urlPreview.transcript || urlPreview.transcript.length < 100)
+      ) {
+        toast.info('Contenuto Spotify senza testo, pubblicazione diretta');
+        await closeReaderSafely();
+        await publishPost();
+        return;
+      }
+
+      setIsGeneratingQuiz(true);
+
       // Calcola testMode basato sul testo utente
       const userWordCount = getWordCount(content);
       const testMode = getTestModeWithSource(userWordCount);
@@ -189,48 +195,39 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
       if (result.insufficient_context) {
         toast.info('Contenuto troppo breve, pubblicazione diretta');
-        setShowReader(false);
-        try {
-          await publishPost();
-        } catch (e) {
-          console.error('[ComposerModal] publishPost error:', e);
-          toast.error('Errore pubblicazione');
-        }
+        await closeReaderSafely();
+        await publishPost();
         return;
       }
 
       if (result.error || !result.questions) {
         console.error('[ComposerModal] Quiz generation failed:', result.error);
         toast.error('Errore generazione quiz, pubblicazione diretta');
-        setShowReader(false);
-        try {
-          await publishPost();
-        } catch (e) {
-          console.error('[ComposerModal] publishPost error:', e);
-          toast.error('Errore pubblicazione');
-        }
+        await closeReaderSafely();
+        await publishPost();
         return;
       }
 
-      // Successo! Smonta reader in modo sincrono e mostra quiz dopo breve delay
-      flushSync(() => {
-        setShowReader(false);
-      });
-      
-      // Piccolo delay per permettere cleanup completo del reader
-      await new Promise(resolve => setTimeout(resolve, 50));
-      
+      // Successo: chiudi reader in modo sicuro, poi mostra quiz
+      await closeReaderSafely();
+
       setQuizData({
         questions: result.questions,
-        sourceUrl: detectedUrl || ''
+        sourceUrl: detectedUrl || '',
       });
       setShowQuiz(true);
     } catch (error) {
       console.error('[ComposerModal] handleReaderComplete error:', error);
       toast.dismiss();
       toast.error('Errore durante la generazione del quiz');
-      setShowReader(false);
-      // Wrap publishPost in try-catch per evitare doppio crash
+
+      try {
+        await closeReaderSafely();
+      } catch (closeError) {
+        console.error('[ComposerModal] closeReaderSafely error:', closeError);
+      }
+
+      // fallback: prova a pubblicare, ma senza rischiare un secondo crash
       try {
         await publishPost();
       } catch (publishError) {
@@ -511,7 +508,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       {showReader && urlPreview && (
         <SourceReaderGate
           isOpen={showReader}
-          onClose={() => setShowReader(false)}
+          isClosing={readerClosing}
+          onClose={() => {
+            // chiusura manuale: evita crash iOS con iframe attivi
+            void closeReaderSafely();
+          }}
           source={urlPreview}
           onComplete={handleReaderComplete}
         />
