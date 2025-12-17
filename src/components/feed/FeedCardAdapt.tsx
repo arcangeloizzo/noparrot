@@ -120,20 +120,35 @@ export const FeedCard = ({
         setArticlePreview(null);
         return;
       }
-      
+
       try {
         const preview = await fetchArticlePreview(post.shared_url);
-        if (preview) {
-          setArticlePreview(preview);
-        }
+
+        // Always set a usable preview object so social links (es. Instagram) show *some* info
+        const platform = (preview as any)?.platform || detectPlatformFromUrl(post.shared_url);
+        const nextPreview = preview
+          ? { ...(preview as any), platform }
+          : {
+              platform,
+              title: post.shared_title || getHostnameFromUrl(post.shared_url),
+              description: '',
+              image: post.preview_img || '',
+            };
+
+        setArticlePreview(nextPreview);
       } catch (error) {
         console.error('Error fetching article preview:', error);
+        setArticlePreview({
+          platform: detectPlatformFromUrl(post.shared_url),
+          title: post.shared_title || getHostnameFromUrl(post.shared_url),
+          description: '',
+          image: post.preview_img || '',
+        });
       }
     };
-    
+
     loadArticlePreview();
   }, [post.shared_url]);
-
   // Fetch trust score for posts with sources
   useEffect(() => {
     const loadTrustScore = async () => {
@@ -353,8 +368,14 @@ export const FeedCard = ({
       state: 'reading' as const,
       url: post.shared_url,
       title: preview?.title || post.shared_title || `Contenuto da ${hostname}`,
-      content: preview?.content || preview?.summary || preview?.excerpt || post.content || '',
-      summary: preview?.summary || 'Apri il link per visualizzare il contenuto completo.',
+      content:
+        preview?.content ||
+        preview?.description ||
+        preview?.summary ||
+        preview?.excerpt ||
+        post.content ||
+        '',
+      summary: preview?.summary || preview?.description || 'Apri il link per visualizzare il contenuto completo.',
       image: preview?.image || post.preview_img || '',
       platform: preview?.platform || detectPlatformFromUrl(post.shared_url),
       contentQuality: preview?.contentQuality || 'minimal',
@@ -711,6 +732,13 @@ export const FeedCard = ({
                   <h4 className="font-semibold text-sm text-white line-clamp-2">
                     {articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url)}
                   </h4>
+
+                  {(articlePreview?.description || articlePreview?.summary || articlePreview?.excerpt) && (
+                    <p className="text-xs text-gray-300/90 line-clamp-2">
+                      {articlePreview?.description || articlePreview?.summary || articlePreview?.excerpt}
+                    </p>
+                  )}
+
                   <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1">
                     {articlePreview?.platform === "youtube" && (
                       <span className="text-red-400">▶</span>
