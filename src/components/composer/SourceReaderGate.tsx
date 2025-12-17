@@ -244,15 +244,14 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   }, [source.embedHtml, source.url, isOpen]);
 
   // Pre-cleanup esplicito iframe Spotify PRIMA dello smontaggio (iOS Safari)
+  // NON rimuoviamo dal DOM manualmente - lasciamo che React gestisca il ciclo di vita
   useEffect(() => {
     if (!isClosing) return;
 
     if (spotifyIframeRef.current) {
       try {
-        const iframe = spotifyIframeRef.current;
-        iframe.src = 'about:blank';
-        // rimuovi dal DOM prima dell'unmount per evitare race in Safari iOS
-        iframe.parentElement?.removeChild(iframe);
+        spotifyIframeRef.current.src = 'about:blank';
+        // NON fare removeChild - React gestirà la rimozione tramite !isClosing nel JSX
       } catch (e) {
         console.warn('[SourceReaderGate] Error pre-cleaning Spotify iframe:', e);
       }
@@ -942,8 +941,8 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               <>
                 {/* Spotify Content with Lyrics */}
                 <div className="max-w-2xl mx-auto space-y-4">
-                  {/* Spotify Embed Player */}
-                  {source.embedHtml && (
+                  {/* Spotify Embed Player - Non renderizzare durante closing per evitare crash iOS */}
+                  {source.embedHtml && !isClosing && (
                     <div className="w-full rounded-lg overflow-hidden">
                       {(() => {
                         const iframeSrc = extractIframeSrc(source.embedHtml);
