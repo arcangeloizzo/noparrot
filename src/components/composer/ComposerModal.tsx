@@ -161,8 +161,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
       toast.loading('Stiamo mettendo a fuoco ciò che conta…');
 
-      // Limita summary a 1000 caratteri per evitare problemi con token limit
-      const summaryForQA = (urlPreview.content || urlPreview.summary || urlPreview.excerpt || '').substring(0, 1000);
+      // Per lyrics/contenuti lunghi, passa fino a 5000 caratteri (copre 99% delle canzoni)
+      const summaryForQA = (urlPreview.content || urlPreview.summary || urlPreview.excerpt || '').substring(0, 5000);
 
       const result = await generateQA({
         contentId: null,
