@@ -310,6 +310,24 @@ export const FeedCard = ({
     setShowReader(true);
   };
 
+  // Helper to detect platform from URL
+  const detectPlatformFromUrl = (url: string): string | undefined => {
+    try {
+      const hostname = new URL(url).hostname.toLowerCase();
+      if (hostname.includes('instagram')) return 'instagram';
+      if (hostname.includes('tiktok')) return 'tiktok';
+      if (hostname.includes('youtube') || hostname.includes('youtu.be')) return 'youtube';
+      if (hostname.includes('twitter') || hostname.includes('x.com')) return 'twitter';
+      if (hostname.includes('threads')) return 'threads';
+      if (hostname.includes('facebook')) return 'facebook';
+      if (hostname.includes('linkedin')) return 'linkedin';
+      if (hostname.includes('spotify')) return 'spotify';
+      return undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
   const startComprehensionGate = async () => {
     if (!post.shared_url || !user) return;
 
@@ -321,25 +339,36 @@ export const FeedCard = ({
     // Fetch article preview
     const preview = await fetchArticlePreview(post.shared_url);
     
-    if (!preview) {
-      toast({
-        title: 'Errore',
-        description: 'Impossibile recuperare il contenuto',
-        variant: 'destructive'
-      });
-      return;
-    }
+    // Get hostname for fallback title
+    let hostname = '';
+    try {
+      hostname = new URL(post.shared_url).hostname.replace('www.', '');
+    } catch {}
 
-    // Show Reader with FULL content - use content field which contains full tweet text
+    // GRACEFUL FALLBACK: Open reader even if preview fails
     setReaderSource({
       id: post.id,
       state: 'reading' as const,
       url: post.shared_url,
-      title: preview.title || post.shared_title || '',
-      content: preview.content || preview.summary || preview.excerpt || '',
+      // Use preview data if available, otherwise fallback to post data
+      title: preview?.title || post.shared_title || `Contenuto da ${hostname}`,
+      content: preview?.content || preview?.summary || preview?.excerpt || post.content || '',
+      summary: preview?.summary || 'Apri il link per visualizzare il contenuto completo.',
+      image: preview?.image || post.preview_img || '',
+      platform: preview?.platform || detectPlatformFromUrl(post.shared_url),
+      contentQuality: preview?.contentQuality || 'minimal',
       ...preview
     });
     setShowReader(true);
+    
+    // Informational toast if using fallback
+    if (!preview) {
+      toast({
+        title: 'Contenuto limitato',
+        description: 'Alcuni dettagli potrebbero non essere disponibili',
+        variant: 'default'
+      });
+    }
   };
 
   const handleReaderComplete = async () => {
