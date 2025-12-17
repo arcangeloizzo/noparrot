@@ -387,28 +387,12 @@ serve(async (req) => {
     const body = await req.json();
     url = body.url;
 
-    // FASE 2: Gestione Facebook/HDBlog - Fallback graceful per siti bloccati
+    // Parse URL info for later use
     const urlLower = url.toLowerCase();
     const hostname = new URL(url).hostname;
     
-    // FASE 2: Facebook/Instagram/Meta - Restituisci placeholder (bloccano sempre)
-    if (urlLower.includes('facebook.com') || urlLower.includes('fb.watch') || 
-        urlLower.includes('fb.com') || urlLower.includes('m.facebook.com') ||
-        urlLower.includes('instagram.com')) {
-      console.log(`[Preview] 🔴 Rilevato ${hostname}. Sito blocca scraping - restituisco placeholder`);
-      return new Response(JSON.stringify({
-        success: true,
-        title: `Contenuto da ${hostname}`,
-        content: `I contenuti di ${hostname} non possono essere analizzati per limitazioni della piattaforma. Apri l'originale per visualizzare.`,
-        summary: `Contenuto da ${hostname} - apri l'originale`,
-        platform: urlLower.includes('facebook') ? 'facebook' : 'instagram',
-        type: 'social',
-        hostname,
-        contentQuality: 'minimal'
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    // NOTE: Facebook/Instagram/Threads are now handled in the social platform section below
+    // Jina AI Reader will be tried first, with platform-specific fallbacks
 
     // Check if it's a YouTube link
     const youtubeId = extractYouTubeId(url);
@@ -809,17 +793,126 @@ serve(async (req) => {
         console.log('[Facebook] ✗ All Facebook extraction methods failed');
       }
       
-      // Instagram-specific fallback
+      // Instagram-specific fallback: Try oEmbed first, then OpenGraph
       if (socialPlatform === 'instagram') {
-        console.log('[Instagram] Providing minimal fallback (Instagram blocks scraping)');
+        console.log('[Instagram] 🔍 Trying Instagram oEmbed...');
+        
+        try {
+          // Instagram oEmbed API
+          const oembedUrl = `https://api.instagram.com/oembed/?url=${encodeURIComponent(url)}`;
+          const oembedResponse = await fetch(oembedUrl);
+          
+          if (oembedResponse.ok) {
+            const data = await oembedResponse.json();
+            console.log('[Instagram] ✅ oEmbed successful:', {
+              hasTitle: !!data.title,
+              hasAuthor: !!data.author_name,
+              hasThumbnail: !!data.thumbnail_url
+            });
+            
+            return new Response(JSON.stringify({
+              success: true,
+              title: data.title || 'Post Instagram',
+              content: data.title || '',
+              summary: data.title || 'Contenuto Instagram',
+              image: data.thumbnail_url || '',
+              previewImg: data.thumbnail_url || '',
+              author: data.author_name || 'Instagram User',
+              author_username: data.author_name || '',
+              platform: 'instagram',
+              type: 'social',
+              hostname: 'instagram.com',
+              contentQuality: data.title ? 'partial' : 'minimal'
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          console.log('[Instagram] ⚠️ oEmbed failed:', oembedResponse.status);
+        } catch (error) {
+          console.error('[Instagram] oEmbed error:', error);
+        }
+        
+        // Try OpenGraph as last resort
+        console.log('[Instagram] 📡 Trying OpenGraph fallback...');
+        try {
+          const ogData = await fetchOpenGraphData(url);
+          if (ogData && (ogData.title || ogData.description)) {
+            console.log('[Instagram] ✅ OpenGraph successful');
+            return new Response(JSON.stringify({
+              success: true,
+              title: ogData.title || 'Post Instagram',
+              content: ogData.description || '',
+              summary: ogData.description || 'Contenuto Instagram',
+              image: ogData.image || '',
+              previewImg: ogData.image || '',
+              author: 'Instagram User',
+              platform: 'instagram',
+              type: 'social',
+              hostname: 'instagram.com',
+              contentQuality: (ogData.description?.length || 0) > 50 ? 'partial' : 'minimal'
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        } catch (error) {
+          console.error('[Instagram] OpenGraph error:', error);
+        }
+        
+        // Final minimal fallback
+        console.log('[Instagram] ✗ All extraction methods failed, returning minimal');
         return new Response(JSON.stringify({
           success: true,
           title: 'Post Instagram',
-          content: 'I contenuti Instagram non sono disponibili per limitazioni della piattaforma.',
+          content: '',
           summary: 'Apri il link originale per visualizzare il contenuto Instagram.',
           platform: 'instagram',
           type: 'social',
           hostname: 'instagram.com',
+          contentQuality: 'minimal'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      // Threads-specific fallback: OpenGraph
+      if (socialPlatform === 'threads') {
+        console.log('[Threads] 🔍 Trying OpenGraph fallback...');
+        
+        try {
+          const ogData = await fetchOpenGraphData(url);
+          if (ogData && (ogData.title || ogData.description)) {
+            console.log('[Threads] ✅ OpenGraph successful');
+            const cleanedContent = cleanReaderText(ogData.description || '');
+            return new Response(JSON.stringify({
+              success: true,
+              title: ogData.title || 'Post Threads',
+              content: cleanedContent,
+              summary: cleanedContent.slice(0, 200) || 'Contenuto Threads',
+              image: ogData.image || '',
+              previewImg: ogData.image || '',
+              author: ogData.author || 'Threads User',
+              platform: 'threads',
+              type: 'social',
+              hostname: 'threads.net',
+              contentQuality: cleanedContent.length > 100 ? 'partial' : 'minimal'
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        } catch (error) {
+          console.error('[Threads] OpenGraph error:', error);
+        }
+        
+        // Final minimal fallback for Threads
+        console.log('[Threads] ✗ All extraction methods failed, returning minimal');
+        return new Response(JSON.stringify({
+          success: true,
+          title: 'Post Threads',
+          content: '',
+          summary: 'Apri il link originale per visualizzare il contenuto Threads.',
+          platform: 'threads',
+          type: 'social',
+          hostname: 'threads.net',
           contentQuality: 'minimal'
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
