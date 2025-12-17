@@ -602,7 +602,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           }}
         >
           <div className="space-y-4 text-sm leading-relaxed">
-            {source.embedHtml && source.platform === 'youtube' ? (
+            {source.embedHtml && source.platform === 'youtube' && !isClosing ? (
               <>
                 {/* YouTube Embed */}
                 <div className="w-full">
