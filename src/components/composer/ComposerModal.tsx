@@ -515,21 +515,23 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         <QuizModal
           questions={quizData.questions}
           onSubmit={handleQuizSubmit}
-          onCancel={async () => {
-            setShowQuiz(false);
-            setQuizData(null);
-            
-            // Se il quiz è passato, pubblica dopo che l'utente chiude il modal
-            if (quizPassed) {
-              toast.success('Hai fatto chiarezza.');
-              try {
-                await publishPost();
-              } catch (e) {
-                console.error('[ComposerModal] publishPost error:', e);
-                toast.error('Errore pubblicazione');
+          onCancel={() => {
+            // Usa requestAnimationFrame per dare tempo al QuizModal di fare cleanup
+            requestAnimationFrame(() => {
+              const shouldPublish = quizPassed;
+              setShowQuiz(false);
+              setQuizData(null);
+              setQuizPassed(false);
+              
+              // Se il quiz è passato, pubblica dopo che l'utente chiude il modal
+              if (shouldPublish) {
+                toast.success('Hai fatto chiarezza.');
+                publishPost().catch((e) => {
+                  console.error('[ComposerModal] publishPost error:', e);
+                  toast.error('Errore pubblicazione');
+                });
               }
-            }
-            setQuizPassed(false);
+            });
           }}
           provider="Comprehension Gate"
           postCategory={contentCategory}
