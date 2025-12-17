@@ -33,6 +33,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const queryClient = useQueryClient();
   const [content, setContent] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [detectedUrl, setDetectedUrl] = useState<string | null>(null);
   const [urlPreview, setUrlPreview] = useState<any>(null);
   const [contentCategory, setContentCategory] = useState<string | null>(null);
@@ -137,44 +138,71 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   };
 
   const handleReaderComplete = async () => {
+    if (isGeneratingQuiz) return; // Prevent double clicks
+    
     setShowReader(false);
     
     if (!urlPreview || !user) return;
 
-    // Calcola testMode basato sul testo utente
-    const userWordCount = getWordCount(content);
-    const testMode = getTestModeWithSource(userWordCount);
-
-    toast.loading('Stiamo mettendo a fuoco ciò che conta…');
-
-    const result = await generateQA({
-      contentId: null,
-      isPrePublish: true,
-      title: urlPreview.title || '',
-      summary: urlPreview.content || urlPreview.summary || urlPreview.excerpt || '',
-      sourceUrl: detectedUrl || undefined,
-      userText: content,
-      testMode: testMode,
-    });
-
-    toast.dismiss();
-
-    if (result.insufficient_context) {
-      toast.info('Contenuto troppo breve, pubblicazione diretta');
+    // Se Spotify senza lyrics sufficienti, pubblica direttamente
+    if (urlPreview.platform === 'spotify' && 
+        (!urlPreview.transcript || urlPreview.transcript.length < 100)) {
+      toast.info('Contenuto Spotify senza testo, pubblicazione diretta');
       await publishPost();
       return;
     }
 
-    if (result.error || !result.questions) {
-      toast.error('Errore generazione quiz');
-      return;
-    }
+    setIsGeneratingQuiz(true);
+    
+    try {
+      // Calcola testMode basato sul testo utente
+      const userWordCount = getWordCount(content);
+      const testMode = getTestModeWithSource(userWordCount);
 
-    setQuizData({
-      questions: result.questions,
-      sourceUrl: detectedUrl || ''
-    });
-    setShowQuiz(true);
+      toast.loading('Stiamo mettendo a fuoco ciò che conta…');
+
+      // Limita summary a 1000 caratteri per evitare problemi con token limit
+      const summaryForQA = (urlPreview.content || urlPreview.summary || urlPreview.excerpt || '').substring(0, 1000);
+
+      const result = await generateQA({
+        contentId: null,
+        isPrePublish: true,
+        title: urlPreview.title || '',
+        summary: summaryForQA,
+        sourceUrl: detectedUrl || undefined,
+        userText: content,
+        testMode: testMode,
+      });
+
+      toast.dismiss();
+
+      if (result.insufficient_context) {
+        toast.info('Contenuto troppo breve, pubblicazione diretta');
+        await publishPost();
+        return;
+      }
+
+      if (result.error || !result.questions) {
+        console.error('[ComposerModal] Quiz generation failed:', result.error);
+        toast.error('Errore generazione quiz, pubblicazione diretta');
+        await publishPost();
+        return;
+      }
+
+      setQuizData({
+        questions: result.questions,
+        sourceUrl: detectedUrl || ''
+      });
+      setShowQuiz(true);
+    } catch (error) {
+      console.error('[ComposerModal] handleReaderComplete error:', error);
+      toast.dismiss();
+      toast.error('Errore durante la generazione del quiz');
+      // Fallback: pubblica comunque
+      await publishPost();
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
   };
 
   const handleQuizSubmit = async (answers: Record<string, string>) => {
@@ -438,10 +466,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             <div className="p-6 border-t border-border/30 flex justify-end">
               <Button
                 onClick={handlePublish}
-                disabled={!content.trim() || isPublishing}
+                disabled={!content.trim() || isPublishing || isGeneratingQuiz}
                 className="rounded-full px-6"
               >
-                {isPublishing ? "Pubblicazione..." : "Pubblica"}
+                {isPublishing ? "Pubblicazione..." : isGeneratingQuiz ? "Generazione quiz..." : "Pubblica"}
               </Button>
             </div>
           </div>
