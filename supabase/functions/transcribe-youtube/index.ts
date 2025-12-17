@@ -156,10 +156,11 @@ async function fetchYouTubeTranscript(
           const errorMsg = langError?.message || String(langError);
           console.log(`[Transcript] ${lang.name} not available: ${errorMsg}`);
           
-          // If transcript is explicitly disabled, return special response immediately
+          // If transcript is explicitly disabled by free library, DON'T return - try Supadata instead
           if (errorMsg.includes('Transcript is disabled')) {
-            console.error(`[Transcript] ❌ Transcript explicitly disabled for video ${videoId}`);
-            return { transcript: '', source: 'disabled', disabled: true };
+            console.log(`[Transcript] ⚠️ Free library says disabled for ${videoId}, will try Supadata fallback`);
+            // Return null to let the flow continue to Supadata
+            return null;
           }
           
           // Continue to next language
@@ -264,25 +265,8 @@ serve(async (req) => {
     // LEVEL 2: Try free youtube-transcript method
     const freeResult = await fetchYouTubeTranscript(videoId);
     
-    if (freeResult) {
-      // If transcript is disabled, return immediately without trying Supadata
-      if (freeResult.disabled) {
-        console.log(`[Transcript] ⏭️ Transcript disabled, skipping Supadata fallback`);
-        return new Response(
-          JSON.stringify({ 
-            transcript: '', 
-            source: 'disabled',
-            disabled: true,
-            error: 'Transcript is disabled for this video'
-          }),
-          { 
-            status: 200,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-          }
-        );
-      }
-      
-      // Save to cache
+    if (freeResult && freeResult.transcript) {
+      // Free method succeeded - save to cache and return
       await saveToCache(supabase, videoId, freeResult.transcript, freeResult.source);
       
       return new Response(
@@ -293,6 +277,8 @@ serve(async (req) => {
         }
       );
     }
+    
+    console.log(`[Transcript] Free method failed or returned empty, trying Supadata...`);
 
     // LEVEL 3: Fallback to Supadata.ai paid API
     console.log(`[Supadata] Free methods failed, trying paid API...`);
