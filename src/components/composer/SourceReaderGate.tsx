@@ -96,8 +96,9 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const contentForTracking = source.content || source.transcript || source.summary || source.excerpt || '';
   const hasTrackableContent = contentForTracking.length > 100;
 
-  // Ref per cleanup sicuro iframe Spotify
+  // Ref per cleanup sicuro iframe Spotify e YouTube
   const spotifyIframeRef = useRef<HTMLIFrameElement>(null);
+  const youtubeIframeRef = useRef<HTMLIFrameElement>(null);
 
   // Hook per block tracking (solo se mode = guardrail e c'è contenuto)
   const {
@@ -257,9 +258,18 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
         console.warn('[SourceReaderGate] Error pre-cleaning Spotify iframe:', e);
       }
     }
+    
+    // Pre-cleanup YouTube iframe per evitare crash iOS Safari
+    if (youtubeIframeRef.current) {
+      try {
+        youtubeIframeRef.current.src = 'about:blank';
+      } catch (e) {
+        console.warn('[SourceReaderGate] Error pre-cleaning YouTube iframe:', e);
+      }
+    }
   }, [isClosing]);
 
-  // Cleanup sicuro iframe Spotify su unmount
+  // Cleanup sicuro iframe Spotify e YouTube su unmount
   useEffect(() => {
     return () => {
       // Pulisci iframe prima dell'unmount per evitare crash iOS Safari
@@ -268,6 +278,13 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           spotifyIframeRef.current.src = 'about:blank';
         } catch (e) {
           console.warn('[SourceReaderGate] Error cleaning up Spotify iframe:', e);
+        }
+      }
+      if (youtubeIframeRef.current) {
+        try {
+          youtubeIframeRef.current.src = 'about:blank';
+        } catch (e) {
+          console.warn('[SourceReaderGate] Error cleaning up YouTube iframe:', e);
         }
       }
     };
@@ -596,6 +613,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                       
                       return isValidSrc ? (
                         <iframe
+                          ref={youtubeIframeRef}
                           src={iframeSrc}
                           className="w-full h-full"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
