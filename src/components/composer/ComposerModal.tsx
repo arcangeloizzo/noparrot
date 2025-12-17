@@ -140,15 +140,24 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const handleReaderComplete = async () => {
     if (isGeneratingQuiz) return; // Prevent double clicks
     
-    setShowReader(false);
+    // NON smontare reader qui - farlo solo dopo successo delle operazioni async
     
-    if (!urlPreview || !user) return;
+    if (!urlPreview || !user) {
+      setShowReader(false);
+      return;
+    }
 
     // Se Spotify senza lyrics sufficienti, pubblica direttamente
     if (urlPreview.platform === 'spotify' && 
         (!urlPreview.transcript || urlPreview.transcript.length < 100)) {
+      setShowReader(false);
       toast.info('Contenuto Spotify senza testo, pubblicazione diretta');
-      await publishPost();
+      try {
+        await publishPost();
+      } catch (e) {
+        console.error('[ComposerModal] publishPost fallback error:', e);
+        toast.error('Errore pubblicazione');
+      }
       return;
     }
 
@@ -178,17 +187,31 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
       if (result.insufficient_context) {
         toast.info('Contenuto troppo breve, pubblicazione diretta');
-        await publishPost();
+        setShowReader(false);
+        try {
+          await publishPost();
+        } catch (e) {
+          console.error('[ComposerModal] publishPost error:', e);
+          toast.error('Errore pubblicazione');
+        }
         return;
       }
 
       if (result.error || !result.questions) {
         console.error('[ComposerModal] Quiz generation failed:', result.error);
         toast.error('Errore generazione quiz, pubblicazione diretta');
-        await publishPost();
+        setShowReader(false);
+        try {
+          await publishPost();
+        } catch (e) {
+          console.error('[ComposerModal] publishPost error:', e);
+          toast.error('Errore pubblicazione');
+        }
         return;
       }
 
+      // Successo! Smonta reader e mostra quiz
+      setShowReader(false);
       setQuizData({
         questions: result.questions,
         sourceUrl: detectedUrl || ''
@@ -198,8 +221,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       console.error('[ComposerModal] handleReaderComplete error:', error);
       toast.dismiss();
       toast.error('Errore durante la generazione del quiz');
-      // Fallback: pubblica comunque
-      await publishPost();
+      setShowReader(false);
+      // Wrap publishPost in try-catch per evitare doppio crash
+      try {
+        await publishPost();
+      } catch (publishError) {
+        console.error('[ComposerModal] publishPost fallback error:', publishError);
+      }
     } finally {
       setIsGeneratingQuiz(false);
     }
