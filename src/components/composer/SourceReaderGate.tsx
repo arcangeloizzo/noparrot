@@ -66,6 +66,30 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const [showScrollLockWarning, setShowScrollLockWarning] = useState(false);
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  // Protezione unmount per evitare setState su componenti smontati
+  const isMountedRef = useRef(true);
+  const timeoutRefs = useRef<number[]>([]);
+
+  const safeSetTimeout = React.useCallback((callback: () => void, ms: number) => {
+    const id = window.setTimeout(() => {
+      if (isMountedRef.current) {
+        callback();
+      }
+    }, ms);
+    timeoutRefs.current.push(id);
+    return id;
+  }, []);
+
+  // Cleanup al unmount
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      timeoutRefs.current.forEach(id => clearTimeout(id));
+      timeoutRefs.current = [];
+    };
+  }, []);
+
   // Determina contenuto per Guardrail Mode
   const contentForTracking = source.content || source.transcript || source.summary || source.excerpt || '';
   const hasTrackableContent = contentForTracking.length > 100;
@@ -144,6 +168,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     const initTwitterWidget = () => {
       // Set timeout fallback (5s)
       renderTimeout = window.setTimeout(() => {
+        if (!isMountedRef.current) return;
         console.warn('[SourceReaderGate] Twitter render timeout, showing fallback');
         setIsRenderingTwitter(false);
       }, 5000);
@@ -157,7 +182,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
             console.log('[SourceReaderGate] Blockquote detected in DOM via MutationObserver');
             observer.disconnect();
             // Small delay to ensure DOM is fully ready
-            setTimeout(renderWidgets, 100);
+            safeSetTimeout(renderWidgets, 100);
           }
         });
 
@@ -170,7 +195,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
         const blockquote = embedContainer.querySelector('blockquote.twitter-tweet');
         if (blockquote) {
           console.log('[SourceReaderGate] Blockquote already in DOM');
-          setTimeout(renderWidgets, 100);
+          safeSetTimeout(renderWidgets, 100);
         }
       }
     };
@@ -195,7 +220,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       console.log('[SourceReaderGate] Twitter script loaded');
       setTwitterScriptLoaded(true);
       // Give time for twttr object to initialize
-      setTimeout(initTwitterWidget, 200);
+      safeSetTimeout(initTwitterWidget, 200);
     };
     script.onerror = (err) => {
       console.error('[SourceReaderGate] Failed to load Twitter widgets script:', err);
@@ -262,7 +287,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
     // Show typing indicator briefly at start
     setShowTypingIndicator(true);
-    const indicatorTimer = setTimeout(() => setShowTypingIndicator(false), 2000);
+    const indicatorTimer = safeSetTimeout(() => setShowTypingIndicator(false), 2000);
 
     const cleanup = () => clearTimeout(indicatorTimer);
 
@@ -307,7 +332,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
             
             // Mostra toast/warning
             setShowScrollLockWarning(true);
-            setTimeout(() => setShowScrollLockWarning(false), 2000);
+            safeSetTimeout(() => setShowScrollLockWarning(false), 2000);
           }
         }
       }

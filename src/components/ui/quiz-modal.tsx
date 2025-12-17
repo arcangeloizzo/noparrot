@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "./button";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { QuizQuestion } from "@/lib/ai-helpers";
@@ -28,7 +28,31 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
   const [totalErrors, setTotalErrors] = useState(0);
   const [showRetryMessage, setShowRetryMessage] = useState(false);
 
-  // useEffect MUST be called before any conditional returns
+  // Protezione unmount per evitare setState su componenti smontati
+  const isMountedRef = useRef(true);
+  const timeoutRefs = useRef<number[]>([]);
+
+  const safeSetTimeout = useCallback((callback: () => void, ms: number) => {
+    const id = window.setTimeout(() => {
+      if (isMountedRef.current) {
+        callback();
+      }
+    }, ms);
+    timeoutRefs.current.push(id);
+    return id;
+  }, []);
+
+  // Cleanup al unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      timeoutRefs.current.forEach(id => clearTimeout(id));
+      timeoutRefs.current = [];
+    };
+  }, []);
+
+  // Body scroll lock
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => {
@@ -94,14 +118,14 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
       
       if (newTotalErrors >= 2) {
         // Non chiamare onSubmit, decidere localmente che è fallito
-        setTimeout(() => {
+        safeSetTimeout(() => {
           setResult({ passed: false, score: 0, total: validQuestions.length, wrongIndexes: [] });
         }, 1500);
         return;
       }
       
       if (attempts >= 2) {
-        setTimeout(() => {
+        safeSetTimeout(() => {
           if (currentStep < validQuestions.length - 1) {
             setCurrentStep(prev => prev + 1);
             resetFeedback();
@@ -110,12 +134,12 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
           }
         }, 1500);
       } else {
-        setTimeout(() => resetFeedback(), 1500);
+        safeSetTimeout(() => resetFeedback(), 1500);
       }
     } else {
       setAnswers(prev => ({ ...prev, [questionId]: choiceId }));
       setShowRetryMessage(false);
-      setTimeout(() => {
+      safeSetTimeout(() => {
         if (currentStep < validQuestions.length - 1) {
           setCurrentStep(prev => prev + 1);
           resetFeedback();
