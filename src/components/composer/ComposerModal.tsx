@@ -40,6 +40,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const [showReader, setShowReader] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizData, setQuizData] = useState<any>(null);
+  const [quizPassed, setQuizPassed] = useState(false);
   const [mentionQuery, setMentionQuery] = useState('');
   const [showMentions, setShowMentions] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
@@ -250,19 +251,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
       const actualPassed = data.passed && (data.total - data.score) <= 2;
       
-      if (actualPassed) {
-        toast.success('Hai fatto chiarezza.');
-        setShowQuiz(false);
-        await publishPost();
-      } else {
-        toast.error("Non ancora chiaro.");
-        setShowQuiz(false);
-      }
+      // NON chiamare setShowQuiz o publishPost qui!
+      // Salva lo stato e lascia che QuizModal mostri il feedback
+      setQuizPassed(actualPassed);
       
       return data;
     } catch (error) {
       console.error('Error validating quiz:', error);
-      toast.error('Errore validazione');
+      setQuizPassed(false);
       return { passed: false, score: 0, total: 0, wrongIndexes: [] };
     }
   };
@@ -519,9 +515,21 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         <QuizModal
           questions={quizData.questions}
           onSubmit={handleQuizSubmit}
-          onCancel={() => {
+          onCancel={async () => {
             setShowQuiz(false);
             setQuizData(null);
+            
+            // Se il quiz è passato, pubblica dopo che l'utente chiude il modal
+            if (quizPassed) {
+              toast.success('Hai fatto chiarezza.');
+              try {
+                await publishPost();
+              } catch (e) {
+                console.error('[ComposerModal] publishPost error:', e);
+                toast.error('Errore pubblicazione');
+              }
+            }
+            setQuizPassed(false);
           }}
           provider="Comprehension Gate"
           postCategory={contentCategory}
