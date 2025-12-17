@@ -30,6 +30,16 @@ export const GateQueueModal: React.FC<GateQueueModalProps> = ({
   const [queueState, setQueueState] = useState(queueManager.getState());
   const [view, setView] = useState<ModalView>('overview');
   const [currentSource, setCurrentSource] = useState<SourceWithGate | null>(null);
+  const [readerClosing, setReaderClosing] = useState(false);
+
+  // Safe close function for iOS Safari
+  const closeReaderSafely = async (nextView: ModalView) => {
+    setReaderClosing(true);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    setView(nextView);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    setReaderClosing(false);
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -228,7 +238,8 @@ export const GateQueueModal: React.FC<GateQueueModalProps> = ({
       <SourceReaderGate
         source={currentSource}
         isOpen={true}
-        onClose={() => setView('overview')}
+        isClosing={readerClosing}
+        onClose={() => closeReaderSafely('overview')}
         onComplete={handleReadingComplete}
       />
     );
