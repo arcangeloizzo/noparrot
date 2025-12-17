@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { flushSync } from "react-dom";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -211,8 +212,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         return;
       }
 
-      // Successo! Smonta reader e mostra quiz
-      setShowReader(false);
+      // Successo! Smonta reader in modo sincrono e mostra quiz dopo breve delay
+      flushSync(() => {
+        setShowReader(false);
+      });
+      
+      // Piccolo delay per permettere cleanup completo del reader
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
       setQuizData({
         questions: result.questions,
         sourceUrl: detectedUrl || ''

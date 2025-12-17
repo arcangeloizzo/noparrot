@@ -94,6 +94,9 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const contentForTracking = source.content || source.transcript || source.summary || source.excerpt || '';
   const hasTrackableContent = contentForTracking.length > 100;
 
+  // Ref per cleanup sicuro iframe Spotify
+  const spotifyIframeRef = useRef<HTMLIFrameElement>(null);
+
   // Hook per block tracking (solo se mode = guardrail e c'è contenuto)
   const {
     blocks,
@@ -108,6 +111,9 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     articleId: source.url,
     config: READER_GATE_CONFIG
   });
+
+  // Determina se usare guardrail mode (contenuto trackabile E blocchi effettivi)
+  const useGuardrailMode = mode === 'guardrail' && hasTrackableContent && blocks.length > 0;
 
   // Fallback timer per contenuti non segmentabili - FASE 3: 30s friction
   const [timeLeft, setTimeLeft] = useState(30);
@@ -235,9 +241,23 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     };
   }, [source.embedHtml, source.url, isOpen]);
 
+  // Cleanup sicuro iframe Spotify su unmount
+  useEffect(() => {
+    return () => {
+      // Pulisci iframe prima dell'unmount per evitare crash iOS Safari
+      if (spotifyIframeRef.current) {
+        try {
+          spotifyIframeRef.current.src = 'about:blank';
+        } catch (e) {
+          console.warn('[SourceReaderGate] Error cleaning up Spotify iframe:', e);
+        }
+      }
+    };
+  }, []);
+
   // Applica attrito quando velocity troppo alta (Guardrail Mode)
   useEffect(() => {
-    if (mode !== 'guardrail' || !hasTrackableContent) return;
+    if (!useGuardrailMode) return;
     
     // Don't apply attrition if reading is already complete
     const canProceedGuardrail = progress.canUnlock;
@@ -263,7 +283,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       // Rimane attivo fino al completamento del gate
       console.log('[SourceReaderGate] 🔒 Attrition persisting until gate completion');
     }
-  }, [progress.isScrollingTooFast, progress.canUnlock, prefersReducedMotion, mode, hasTrackableContent, timeLeft, hasScrolledToBottom]);
+  }, [progress.isScrollingTooFast, progress.canUnlock, prefersReducedMotion, useGuardrailMode, timeLeft, hasScrolledToBottom]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -314,8 +334,8 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
   // Scroll handler unificato con hard scroll lock
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    // Se Guardrail Mode e contenuto trackabile, usa block tracking
-    if (mode === 'guardrail' && hasTrackableContent) {
+    // Se Guardrail Mode con blocchi validi, usa block tracking
+    if (useGuardrailMode) {
       handleBlockScroll(e);
       
       // Hard scroll lock: impedisci scroll oltre visibleUpToIndex
@@ -357,7 +377,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   if (!isOpen) return null;
 
   // Determina se può procedere
-  const canProceedGuardrail = mode === 'guardrail' && hasTrackableContent ? progress.canUnlock : false;
+  const canProceedGuardrail = useGuardrailMode ? progress.canUnlock : false;
   const canProceedFallback = timeLeft === 0 || hasScrolledToBottom;
   const isReady = mode === 'soft' || canProceedGuardrail || canProceedFallback;
 
@@ -423,13 +443,13 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                   <Check className="h-4 w-4 text-[hsl(var(--cognitive-correct))]" />
                   <span className="text-[hsl(var(--cognitive-correct))] font-medium">Hai visto abbastanza per capire. Procediamo.</span>
                 </>
-              ) : showVelocityWarning && mode === 'guardrail' && hasTrackableContent ? (
+              ) : showVelocityWarning && useGuardrailMode ? (
                 // PRIORITÀ 2: Scroll troppo veloce - mostra warning
                 <>
                   <AlertCircle className="h-4 w-4 text-warning" />
                   <span className="text-warning font-medium">Rallenta lo scroll...</span>
                 </>
-              ) : mode === 'guardrail' && hasTrackableContent ? (
+              ) : useGuardrailMode ? (
                 // PRIORITÀ 3: Progresso normale
                 <>
                   <span className="text-foreground font-medium">
@@ -449,12 +469,12 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 </>
               )}
             </div>
-            {!isReady && mode === 'guardrail' && hasTrackableContent && (
+            {!isReady && useGuardrailMode && (
               <span className="text-muted-foreground text-xs">
                 Continua: ogni riga apre una finestra in più.
               </span>
             )}
-            {!isReady && mode !== 'guardrail' && (
+            {!isReady && !useGuardrailMode && (
               <span className="text-muted-foreground text-xs">
                 Leggi per 30s o scorri tutto
               </span>
@@ -462,7 +482,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           </div>
 
             {/* Velocity Warning - nascosto se lettura completata */}
-            {showVelocityWarning && mode === 'guardrail' && hasTrackableContent && !isReady && (
+            {showVelocityWarning && useGuardrailMode && !isReady && (
               <div className="flex items-center gap-2 text-warning text-xs mb-2 animate-pulse">
                 <AlertCircle className="h-3 w-3" />
                 <span>Rallenta lo scroll per completare la lettura...</span>
@@ -471,7 +491,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
           {/* Progress bars */}
           <div className="space-y-2">
-            {mode === 'guardrail' && hasTrackableContent ? (
+            {useGuardrailMode ? (
               /* Guardrail Mode: Single progress bar per blocchi letti */
               <div className="w-full bg-muted rounded-full h-[5px]">
                 <div
@@ -539,7 +559,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
         {/* Content Area */}
         <div
-          ref={mode === 'guardrail' && hasTrackableContent ? containerRef : scrollContainerRef}
+          ref={useGuardrailMode ? containerRef : scrollContainerRef}
           className="flex-1 p-4 overflow-y-auto"
           onScroll={handleScroll}
           style={{
@@ -912,6 +932,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                         const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
                         return isValidSrc ? (
                           <iframe
+                            ref={spotifyIframeRef}
                             src={iframeSrc}
                             className="w-full"
                             style={{ height: '152px', borderRadius: '12px' }}
