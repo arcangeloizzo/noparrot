@@ -769,7 +769,11 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 {/* Padding per scroll */}
                 <div className="h-32"></div>
               </>
-            ) : source.platform === 'tiktok' ? (
+            ) : isClosing ? (
+              <div className="flex items-center justify-center py-12">
+                <span className="text-sm text-muted-foreground">Chiusura…</span>
+              </div>
+            ) : source.platform === 'tiktok' && !isClosing ? (
               <>
                 {/* TikTok Content */}
                 <div className="max-w-2xl mx-auto space-y-4">
@@ -921,7 +925,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                   )}
 
                   {/* Try Twitter embed if available */}
-                  {source.embedHtml && source.platform === 'twitter' && (() => {
+                  {!isClosing && source.embedHtml && source.platform === 'twitter' && (() => {
                     const iframeSrc = extractIframeSrc(source.embedHtml);
                     const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
                     
@@ -1070,7 +1074,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 {/* Padding per scroll */}
                 <div className="h-32"></div>
               </>
-            ) : source.embedHtml ? (
+            ) : source.embedHtml && !isClosing ? (
               <>
                 {/* Generic Embed (safe iframe extraction) */}
                 <div className="max-w-2xl mx-auto">
@@ -1098,7 +1102,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 {/* Padding per scroll */}
                 <div className="h-32"></div>
               </>
-            ) : source.type === 'video' && source.embedUrl ? (
+            ) : source.type === 'video' && source.embedUrl && !isClosing ? (
               <>
                 {/* Video Player */}
                 <div className="mb-4">
