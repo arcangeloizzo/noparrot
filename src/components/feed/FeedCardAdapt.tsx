@@ -921,7 +921,7 @@ export const FeedCard = ({
       </article>
 
       {/* Debug badge (visibile su mobile) */}
-      {(showReader || showQuiz) && (
+      {gateStep !== 'idle' && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[10050] rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground shadow">
           Gate: {gateStep}
         </div>

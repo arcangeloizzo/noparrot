@@ -69,6 +69,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const [showTypingIndicator, setShowTypingIndicator] = useState(false);
   const [showScrollLockWarning, setShowScrollLockWarning] = useState(false);
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   // Protezione unmount per evitare setState su componenti smontati
   const isMountedRef = useRef(true);
@@ -975,8 +976,8 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               <>
                 {/* Spotify Content with Lyrics */}
                 <div className="max-w-2xl mx-auto space-y-4">
-                  {/* Spotify Embed Player - Non renderizzare durante closing per evitare crash iOS */}
-                  {source.embedHtml && !isClosing && (
+                  {/* Spotify Embed Player */}
+                  {source.embedHtml && !isClosing && !isIOS && (
                     <div className="w-full rounded-lg overflow-hidden">
                       {(() => {
                         const iframeSrc = extractIframeSrc(source.embedHtml);
@@ -993,6 +994,29 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                           />
                         ) : null;
                       })()}
+                    </div>
+                  )}
+
+                  {/* iOS fallback: evita iframe Spotify (crash Safari) */}
+                  {isIOS && (
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 rounded-lg border border-border bg-card p-2">
+                          <Music className="h-4 w-4 text-foreground" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-foreground">Player Spotify disattivato su iOS</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Per evitare schermate bianche/crash, su iPhone/iPad apriamo il contenuto fuori dall’app.
+                          </p>
+                          <div className="mt-3">
+                            <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
+                              <ExternalLink className="h-3 w-3" />
+                              Apri su Spotify
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
                   
