@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { createPortal } from "react-dom";
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, EyeOff, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle, Info } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
@@ -945,73 +944,75 @@ export const FeedCard = ({
         </div>
       )}
 
-      {/* Reader Modal - Rendered via Portal */}
-      {showReader && readerSource && createPortal(
-        <SourceReaderGate
-          source={readerSource}
-          isOpen={showReader}
-          isClosing={readerClosing}
-          isLoading={readerLoading}
-          onClose={async () => {
-            if (readerLoading) return; // Non chiudere durante loading
-            setGateStep('reader:manual-close');
-            setReaderClosing(true);
-            await new Promise((resolve) => setTimeout(resolve, 200));
-            setShowReader(false);
-            setReaderSource(null);
-            await new Promise((resolve) => setTimeout(resolve, 50));
-            setReaderClosing(false);
-            setGateStep('idle');
-          }}
-          onComplete={handleReaderComplete}
-        />,
-        document.body
+      {/* Reader Modal - Rendered directly (no Portal, iOS-safe) */}
+      {showReader && readerSource && (
+        <div className="fixed inset-0 z-[10040]">
+          <SourceReaderGate
+            source={readerSource}
+            isOpen={showReader}
+            isClosing={readerClosing}
+            isLoading={readerLoading}
+            onClose={async () => {
+              if (readerLoading) return; // Non chiudere durante loading
+              setGateStep('reader:manual-close');
+              setReaderClosing(true);
+              await new Promise((resolve) => setTimeout(resolve, 200));
+              setShowReader(false);
+              setReaderSource(null);
+              await new Promise((resolve) => setTimeout(resolve, 50));
+              setReaderClosing(false);
+              setGateStep('idle');
+            }}
+            onComplete={handleReaderComplete}
+          />
+        </div>
       )}
 
-      {/* Quiz Modal - Rendered via Portal */}
-      {showQuiz && quizData && !quizData.error && quizData.questions && createPortal(
-        <QuizModal
-          questions={quizData.questions}
-          onSubmit={handleQuizSubmit}
-          onCancel={() => {
-            setShowQuiz(false);
-            setQuizData(null);
-            setGateStep('idle');
-          }}
-        />,
-        document.body
+      {/* Quiz Modal - Rendered directly (no Portal, iOS-safe) */}
+      {showQuiz && quizData && !quizData.error && quizData.questions && (
+        <div className="fixed inset-0 z-[10060]">
+          <QuizModal
+            questions={quizData.questions}
+            onSubmit={handleQuizSubmit}
+            onCancel={() => {
+              setShowQuiz(false);
+              setQuizData(null);
+              setGateStep('idle');
+            }}
+          />
+        </div>
       )}
-      
+
       {/* Error state for quiz loading failure */}
-      {showQuiz && quizData?.error && createPortal(
-        <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
+      {showQuiz && quizData?.error && (
+        <div className="fixed inset-0 bg-black/80 z-[10060] flex items-center justify-center p-4">
           <div className="bg-card rounded-2xl w-full max-w-md p-8 text-center shadow-2xl border border-border">
             <h2 className="text-xl font-bold mb-4 text-foreground">Errore</h2>
             <p className="text-muted-foreground mb-6">{quizData.errorMessage || 'Impossibile caricare il quiz'}</p>
-            <Button 
+            <Button
               onClick={() => {
                 if (quizData.onCancel) quizData.onCancel();
                 setShowQuiz(false);
                 setQuizData(null);
-              }} 
-              variant="outline" 
+              }}
+              variant="outline"
               className="w-full"
             >
               Chiudi
             </Button>
           </div>
-        </div>,
-        document.body
+        </div>
       )}
 
-      {/* Media Viewer - Rendered via Portal */}
-      {selectedMediaIndex !== null && post.media && createPortal(
-        <MediaViewer
-          media={post.media}
-          initialIndex={selectedMediaIndex}
-          onClose={() => setSelectedMediaIndex(null)}
-        />,
-        document.body
+      {/* Media Viewer */}
+      {selectedMediaIndex !== null && post.media && (
+        <div className="fixed inset-0 z-[10080]">
+          <MediaViewer
+            media={post.media}
+            initialIndex={selectedMediaIndex}
+            onClose={() => setSelectedMediaIndex(null)}
+          />
+        </div>
       )}
 
       {/* Share Sheet */}
@@ -1061,10 +1062,10 @@ export const FeedCard = ({
       />
 
       {/* Trust Score Tooltip */}
-      {showTrustTooltip && trustScore?.reasons && createPortal(
+      {showTrustTooltip && trustScore?.reasons && (
         <>
-          <div 
-            className="fixed inset-0 z-[9998]" 
+          <div
+            className="fixed inset-0 z-[9998]"
             onClick={() => setShowTrustTooltip(false)}
           />
           <div
@@ -1085,9 +1086,9 @@ export const FeedCard = ({
               ))}
             </ul>
           </div>
-        </>,
-        document.body
+        </>
       )}
+
 
       {/* Comments Drawer */}
       {showComments && (
