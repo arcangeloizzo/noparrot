@@ -7,7 +7,7 @@
 // ✅ Supporta modalità: soft, guardrail (default), strict
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Check, ExternalLink, AlertCircle, Lock, Music } from 'lucide-react';
+import { X, Check, ExternalLink, AlertCircle, Lock, Music, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TypingIndicator } from '@/components/ui/typing-indicator';
 import { cn } from '@/lib/utils';
@@ -48,6 +48,7 @@ interface SourceReaderGateProps {
   source: SourceWithGate;
   isOpen: boolean;
   isClosing?: boolean;
+  isLoading?: boolean;
   onClose: () => void;
   onComplete: () => void;
 }
@@ -56,6 +57,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   source,
   isOpen,
   isClosing = false,
+  isLoading = false,
   onClose,
   onComplete
 }) => {
@@ -1309,15 +1311,22 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
           <Button
             onClick={handleComplete}
-            disabled={!isReady}
+            disabled={!isReady || isLoading}
             className={cn(
               "w-full transition-all duration-300",
-              isReady
-                ? "bg-primary hover:bg-primary/90 text-primary-foreground"
-                : "bg-muted text-muted-foreground cursor-not-allowed"
+              isLoading
+                ? "bg-primary/80 text-primary-foreground cursor-wait"
+                : isReady
+                  ? "bg-primary hover:bg-primary/90 text-primary-foreground"
+                  : "bg-muted text-muted-foreground cursor-not-allowed"
             )}
           >
-            {isReady ? (
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generazione domande...
+              </>
+            ) : isReady ? (
               <>
                 <Check className="h-4 w-4 mr-2" />
                 Procediamo.
