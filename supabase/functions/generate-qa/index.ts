@@ -261,18 +261,32 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error('AI API error:', errorText);
-      
-      // Handle payment required error
-      if (aiResponse.status === 402) {
+      console.error('AI API error:', aiResponse.status, errorText);
+
+      const isPaymentError =
+        aiResponse.status === 402 ||
+        errorText.includes('payment_required') ||
+        errorText.toLowerCase().includes('not enough credits') ||
+        errorText.toLowerCase().includes('insufficient credits');
+
+      if (isPaymentError) {
         return new Response(
-          JSON.stringify({ 
-            error: 'Crediti Lovable AI esauriti. Vai su Impostazioni → Workspace → Usage per ricaricare.' 
+          JSON.stringify({
+            error: 'Crediti Lovable AI esauriti. Vai su Impostazioni → Workspace → Usage per ricaricare.'
           }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      
+
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({
+            error: 'Troppa richiesta in questo momento. Riprova tra qualche secondo.'
+          }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       throw new Error('AI generation failed');
     }
 
