@@ -394,26 +394,29 @@ export const FeedCard = ({
   };
 
   // Helper per chiusura sicura del reader (iOS Safari)
+  // NOTA: NON rimuovere iframes dal DOM manualmente - lascia che React gestisca l'unmount
   const closeReaderSafely = async () => {
     setReaderClosing(true);
     
     try {
+      // Solo ferma il caricamento degli iframe, NON rimuoverli dal DOM
+      // React li rimuoverà naturalmente quando setShowReader(false) viene chiamato
       const gateRoot = document.querySelector('[data-reader-gate-root="true"]') as HTMLElement | null;
       const iframes = (gateRoot ? gateRoot.querySelectorAll('iframe') : document.querySelectorAll('iframe'));
       
       iframes.forEach((iframe) => {
         try {
           (iframe as HTMLIFrameElement).src = 'about:blank';
-          iframe.remove();
+          // NON fare iframe.remove() - causa crash su iOS Safari
         } catch (e) {
-          console.warn('[Gate] Error cleaning iframe:', e);
+          console.warn('[Gate] Error blanking iframe:', e);
         }
       });
     } catch (e) {
-      console.warn('[Gate] Error during sync iframe cleanup:', e);
+      console.warn('[Gate] Error during iframe cleanup:', e);
     }
     
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 50));
     setShowReader(false);
     setReaderClosing(false);
     setReaderLoading(false);
@@ -518,11 +521,14 @@ export const FeedCard = ({
         return; // Reader resta aperto
       }
 
-      // 4️⃣ SOLO ORA: Chiudi reader + Apri quiz INSIEME
+      // 4️⃣ SALVA sourceUrl PRIMA di chiudere (closeReaderSafely resetta readerSource!)
+      const sourceUrl = readerSource.url || '';
+      
+      // 5️⃣ Chiudi reader + Apri quiz INSIEME
       await closeReaderSafely();
       setQuizData({
         questions: result.questions,
-        sourceUrl: readerSource.url || ''
+        sourceUrl
       });
       setShowQuiz(true);
       
