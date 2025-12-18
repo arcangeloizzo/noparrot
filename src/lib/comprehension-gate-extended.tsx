@@ -269,7 +269,7 @@ export function generateSourceQuiz(source: SourceWithGate): ContentDescriptor {
       template = QUIZ_TEMPLATES.find(t => t.type === 'news')!;
     } else if (domain.includes('edu') || domain.includes('arxiv') || domain.includes('pubmed')) {
       template = QUIZ_TEMPLATES.find(t => t.type === 'academic')!;
-    } else if (domain.includes('twitter') || domain.includes('facebook') || domain.includes('instagram')) {
+    } else if (domain.includes('twitter') || domain.includes('threads') || domain.includes('linkedin') || domain.includes('tiktok')) {
       template = QUIZ_TEMPLATES.find(t => t.type === 'social')!;
     }
   } catch {

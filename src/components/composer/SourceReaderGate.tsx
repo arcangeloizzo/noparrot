@@ -855,7 +855,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 </div>
               </>
             ) : source.platform === 'twitter' || source.platform === 'linkedin' || 
-                source.platform === 'instagram' || source.platform === 'threads' ? (
+                source.platform === 'threads' ? (
               <>
                 {/* Social Media Content */}
                 <div className="max-w-2xl mx-auto space-y-4">
@@ -884,16 +884,6 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                           {source.author && (
                             <p className="text-sm text-muted-foreground">{source.author}</p>
                           )}
-                        </div>
-                      </>
-                    )}
-                    {source.platform === 'instagram' && (
-                      <>
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#FCAF45] via-[#E1306C] to-[#833AB4] flex items-center justify-center">
-                          <span className="text-lg">📷</span>
-                        </div>
-                        <div>
-                          <p className="font-semibold text-foreground">Instagram</p>
                         </div>
                       </>
                     )}

@@ -330,12 +330,10 @@ export const FeedCard = ({
   const detectPlatformFromUrl = (url: string): string | undefined => {
     try {
       const hostname = new URL(url).hostname.toLowerCase();
-      if (hostname.includes('instagram')) return 'instagram';
       if (hostname.includes('tiktok')) return 'tiktok';
       if (hostname.includes('youtube') || hostname.includes('youtu.be')) return 'youtube';
       if (hostname.includes('twitter') || hostname.includes('x.com')) return 'twitter';
       if (hostname.includes('threads')) return 'threads';
-      if (hostname.includes('facebook')) return 'facebook';
       if (hostname.includes('linkedin')) return 'linkedin';
       if (hostname.includes('spotify')) return 'spotify';
       return undefined;
@@ -796,9 +794,6 @@ export const FeedCard = ({
                   <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1">
                     {articlePreview?.platform === "youtube" && (
                       <span className="text-red-400">▶</span>
-                    )}
-                    {articlePreview?.platform === "instagram" && (
-                      <span className="text-pink-400">📷</span>
                     )}
                     {getHostnameFromUrl(post.shared_url)}
                   </p>

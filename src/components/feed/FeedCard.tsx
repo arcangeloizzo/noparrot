@@ -429,14 +429,6 @@ export const FeedCard = ({
                     )}
                   </div>
                 )}
-                {articlePreview?.platform === 'instagram' && (
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-[#FCAF45] via-[#E1306C] to-[#833AB4] flex items-center justify-center">
-                      <span className="text-xs font-bold text-white">📷</span>
-                    </div>
-                    <span className="text-sm font-semibold">Instagram</span>
-                  </div>
-                )}
                 {articlePreview?.platform === 'threads' && (
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-6 h-6 rounded-full bg-black flex items-center justify-center">
