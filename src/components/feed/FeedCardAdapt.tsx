@@ -549,23 +549,8 @@ export const FeedCard = ({
         sourceUrl,
       });
 
-      // 5️⃣ FLUSSO SEQUENZIALE (iOS-safe): segnala chiusura → pre-clean iframe → chiudi → attendi → apri quiz
-      // STEP A: attiva modalità "closing" per permettere a SourceReaderGate di blankare gli iframe in sicurezza
-      setGateStep('reader:closing');
-      setReaderClosing(true);
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      // STEP B: chiudi il reader
-      setGateStep('reader:unmount');
-      setShowReader(false);
-      setReaderLoading(false);
-      setReaderSource(null);
-
-      // STEP C: aspetta che React smonti completamente il reader
-      setGateStep('reader:wait-unmount');
-      await new Promise((resolve) => setTimeout(resolve, 200));
-
-      // STEP D: ora monta il quiz
+      // 5️⃣ OVERLAY APPROACH (iOS-safe): monta il quiz SOPRA al reader, poi chiudi il reader
+      // STEP A: monta il quiz mentre il reader è ancora visibile (nessuno “schermo bianco”)
       setGateStep('quiz:mount');
       setQuizData({
         questions: result.questions,
@@ -573,9 +558,24 @@ export const FeedCard = ({
       });
       setShowQuiz(true);
 
-      // STEP E: reset closing
+      // STEP B: aspetta 1 frame per garantire che il quiz sia renderizzato
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      // STEP C: ora possiamo chiudere il reader in sicurezza (dietro al quiz)
+      setGateStep('reader:closing');
+      setReaderClosing(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      setGateStep('reader:unmount');
+      setShowReader(false);
+      setReaderLoading(false);
+      setReaderSource(null);
+
+      // STEP D: reset closing + stato finale
       setReaderClosing(false);
       setGateStep('quiz:shown');
+
+      console.log('[Gate] Quiz mounted via overlay approach');
 
       console.log('[Gate] Quiz mounted successfully');
     } catch (error) {
@@ -633,7 +633,8 @@ export const FeedCard = ({
         });
         setShowQuiz(false);
         setQuizData(null);
-        
+        setGateStep('idle');
+
         // Esegui l'azione scelta dall'utente
         if (shareAction === 'feed') {
           onQuoteShare?.({
@@ -643,7 +644,7 @@ export const FeedCard = ({
         } else if (shareAction === 'friend') {
           setShowPeoplePicker(true);
         }
-        
+
         // Reset share action
         setShareAction(null);
       } else {
@@ -655,6 +656,7 @@ export const FeedCard = ({
         setShowQuiz(false);
         setQuizData(null);
         setShareAction(null);
+        setGateStep('idle');
         // NON aprire il composer
       }
       
@@ -974,6 +976,7 @@ export const FeedCard = ({
           onCancel={() => {
             setShowQuiz(false);
             setQuizData(null);
+            setGateStep('idle');
           }}
         />,
         document.body
