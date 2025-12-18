@@ -1000,22 +1000,85 @@ serve(async (req) => {
                         html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
         const image = imgMatch ? imgMatch[1] : '';
         
-        // Extract all significant paragraphs for content
+        // STEP 1: Try to find article content using specific selectors
+        let articleHtml = '';
+        const articleSelectors = [
+          /<article[^>]*>([\s\S]*?)<\/article>/gi,
+          /<main[^>]*>([\s\S]*?)<\/main>/gi,
+          /<div[^>]*class="[^"]*(?:post-content|article-body|entry-content|article-content|story-body|post-body)[^"]*"[^>]*>([\s\S]*?)<\/div>/gi,
+          /<div[^>]*id="[^"]*(?:article|content|post|story)[^"]*"[^>]*>([\s\S]*?)<\/div>/gi
+        ];
+        
+        for (const selector of articleSelectors) {
+          const articleMatch = selector.exec(html);
+          if (articleMatch && articleMatch[1] && articleMatch[1].length > 200) {
+            articleHtml = articleMatch[1];
+            console.log('[fetch-article-preview] Found article container, length:', articleHtml.length);
+            break;
+          }
+        }
+        
+        // STEP 2: Remove navigation/header/footer/aside elements from article HTML
+        const cleanArticleHtml = (articleHtml || html)
+          .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+          .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
+          .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+          .replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, '')
+          .replace(/<menu[^>]*>[\s\S]*?<\/menu>/gi, '')
+          .replace(/<div[^>]*class="[^"]*(?:nav|menu|sidebar|header|footer|widget|social|share|related|comment)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+        
+        // STEP 3: Extract paragraphs with smart filtering
         const paragraphs: string[] = [];
         const pRegex = /<p[^>]*>(.+?)<\/p>/gis;
         let match;
-        while ((match = pRegex.exec(html)) !== null && paragraphs.length < 7) {
+        while ((match = pRegex.exec(cleanArticleHtml)) !== null && paragraphs.length < 10) {
           const text = extractTextFromHtml(match[0]);
-          if (text.length > 50) {
-            paragraphs.push(text);
+          
+          // Skip short paragraphs
+          if (text.length < 40) continue;
+          
+          // Skip navigation-like content
+          const words = text.split(/\s+/);
+          if (words.length <= 8) {
+            // Short line - check if it's menu-like (many capitalized single words)
+            const capitalizedWords = words.filter(w => /^[A-Z][a-z]*$/.test(w)).length;
+            if (capitalizedWords >= 3) continue;
           }
+          
+          // Skip lines with multiple pipe separators (menu pattern)
+          if ((text.match(/\|/g) || []).length >= 2) continue;
+          
+          // Skip common navigation patterns
+          const navPatterns = [
+            /^(home|newsletter|podcast|shop|regala|abbonati|privacy|cookie|menu|contatti)/i,
+            /leggi anche/i,
+            /ti potrebbe interessare/i,
+            /iscriviti alla newsletter/i
+          ];
+          if (navPatterns.some(p => p.test(text))) continue;
+          
+          paragraphs.push(text);
         }
         const content = paragraphs.length > 0 ? paragraphs.join('\n\n') : description;
         
-        console.log('[fetch-article-preview] Extracted data:', { title, hasDescription: !!description, hasImage: !!image });
+        console.log('[fetch-article-preview] Extracted data:', { 
+          title, 
+          hasDescription: !!description, 
+          hasImage: !!image,
+          paragraphCount: paragraphs.length,
+          contentLength: content.length,
+          usedArticleSelector: !!articleHtml
+        });
         
-        // If we got minimal data or short content, try AI extraction with Lovable AI
-        if (!title || title === 'Article' || (!description && !content) || content.length < 200) {
+        // STEP 4: Check if content looks "dirty" (navigation mixed in)
+        const hasDirtyContent = content && (
+          /^(Newsletter|Podcast|Shop|Home|Menu|Regala)/m.test(content) ||
+          content.split('\n').filter(line => line.trim().length > 0 && line.trim().length < 20).length > 3
+        );
+        
+        // If we got minimal data, short content, OR dirty content -> try AI extraction
+        if (!title || title === 'Article' || (!description && !content) || content.length < 300 || hasDirtyContent) {
+          console.log('[fetch-article-preview] Poor/dirty extraction, trying Lovable AI fallback', { hasDirtyContent });
           console.log('[fetch-article-preview] Poor extraction, trying Lovable AI fallback');
           
           try {
