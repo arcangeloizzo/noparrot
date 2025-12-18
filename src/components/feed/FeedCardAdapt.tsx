@@ -345,6 +345,27 @@ export const FeedCard = ({
   const startComprehensionGate = async () => {
     if (!post.shared_url || !user) return;
 
+    // Block unsupported platforms (removed from app)
+    try {
+      const host = new URL(post.shared_url).hostname.toLowerCase();
+      if (
+        host.includes('instagram.com') ||
+        host.includes('facebook.com') ||
+        host.includes('m.facebook.com') ||
+        host.includes('fb.com') ||
+        host.includes('fb.watch')
+      ) {
+        toast({
+          title: 'Link non supportato',
+          description: 'Instagram e Facebook non sono supportati. Apro il link nel browser.',
+        });
+        window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+    } catch {
+      // ignore
+    }
+
     toast({
       title: 'Caricamento contenuto...',
       description: 'Preparazione del Comprehension Gate'
