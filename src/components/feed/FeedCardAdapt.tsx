@@ -393,13 +393,35 @@ export const FeedCard = ({
   };
 
   const handleReaderComplete = async () => {
-    // 🛡️ SAFE CLOSE: Signal cleanup before unmount to prevent iOS Safari crashes
+    // 🛡️ SAFE CLOSE + SYNC IFRAME CLEANUP (iOS Safari)
     setReaderClosing(true);
-    await new Promise((resolve) => setTimeout(resolve, 200));
+
+    try {
+      // Target only the reader modal when possible
+      const gateRoot = document.querySelector('[data-reader-gate-root="true"]') as HTMLElement | null;
+      const iframes = (gateRoot ? gateRoot.querySelectorAll('iframe') : document.querySelectorAll('iframe'));
+
+      iframes.forEach((iframe) => {
+        try {
+          // Blank first, then remove from DOM to avoid iOS WebKit crash on unmount
+          (iframe as HTMLIFrameElement).src = 'about:blank';
+          iframe.remove();
+        } catch (e) {
+          console.warn('[Gate] Error cleaning iframe:', e);
+        }
+      });
+    } catch (e) {
+      console.warn('[Gate] Error during sync iframe cleanup:', e);
+    }
+
+    // Let the browser commit DOM changes before unmount
+    await new Promise((resolve) => setTimeout(resolve, 120));
+
     setShowReader(false);
-    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    await new Promise((resolve) => setTimeout(resolve, 80));
     setReaderClosing(false);
-    
+
     if (!readerSource || !user) return;
 
     console.log('[Gate] handleReaderComplete started', { readerSource, shareAction });
@@ -733,11 +755,15 @@ export const FeedCard = ({
                     {articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url)}
                   </h4>
 
-                  {(articlePreview?.description || articlePreview?.summary || articlePreview?.excerpt) && (
+                  {(articlePreview?.description || articlePreview?.summary || articlePreview?.excerpt) ? (
                     <p className="text-xs text-gray-300/90 line-clamp-2">
                       {articlePreview?.description || articlePreview?.summary || articlePreview?.excerpt}
                     </p>
-                  )}
+                  ) : articlePreview?.platform ? (
+                    <p className="text-xs text-gray-300/80 italic">
+                      Tocca per aprire il contenuto originale su {articlePreview.platform}
+                    </p>
+                  ) : null}
 
                   <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1">
                     {articlePreview?.platform === "youtube" && (

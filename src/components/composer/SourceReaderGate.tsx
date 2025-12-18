@@ -449,6 +449,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   return (
     <div 
       ref={rootRef}
+      data-reader-gate-root="true"
       className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-[9999] animate-fade-in"
       onClick={handleBackdropClick}
       onTouchMove={handleBackdropTouch}
