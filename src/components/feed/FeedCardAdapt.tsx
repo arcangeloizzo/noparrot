@@ -521,34 +521,31 @@ export const FeedCard = ({
         return; // Reader resta aperto
       }
 
-      // 4️⃣ SALVA sourceUrl PRIMA di chiudere (closeReaderSafely resetta readerSource!)
+      // 4️⃣ SALVA sourceUrl PRIMA di chiudere
       const sourceUrl = readerSource.url || '';
       
-      // 5️⃣ NUOVO ORDINE: Apri quiz PRIMA, poi chiudi reader nel frame successivo
-      // Questo previene il crash su iOS Safari dove chiudere il reader blocca il mount del quiz
+      console.log('[Gate] Quiz generated, transitioning...', { 
+        questionCount: result.questions.length,
+        sourceUrl 
+      });
+
+      // 5️⃣ FLUSSO SEQUENZIALE: Chiudi reader → Aspetta → Apri quiz
+      // STEP A: Chiudi reader PRIMA (React cleanup gestirà gli iframe)
+      setShowReader(false);
+      setReaderLoading(false);
+      setReaderSource(null);
+
+      // STEP B: Aspetta che React smontii completamente il reader (200ms sicuro su iOS)
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // STEP C: SOLO ORA apri il quiz - nessun conflitto possibile
       setQuizData({
         questions: result.questions,
         sourceUrl
       });
       setShowQuiz(true);
       
-      // 6️⃣ Chiudi reader nel prossimo frame per dare tempo al quiz di montarsi
-      requestAnimationFrame(() => {
-        // Ferma iframe senza rimuoverli dal DOM
-        const iframes = document.querySelectorAll('iframe');
-        iframes.forEach((iframe) => {
-          try {
-            (iframe as HTMLIFrameElement).src = 'about:blank';
-          } catch (e) {
-            console.warn('[Gate] Error blanking iframe:', e);
-          }
-        });
-        
-        // Ora chiudi il reader
-        setShowReader(false);
-        setReaderLoading(false);
-        setReaderSource(null);
-      });
+      console.log('[Gate] Quiz mounted successfully');
       
     } catch (error) {
       console.error('[Gate] Error in handleReaderComplete:', error);
