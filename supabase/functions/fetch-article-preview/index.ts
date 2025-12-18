@@ -325,7 +325,8 @@ async function fetchSocialWithJina(url: string, platform: string) {
       // Extract username from Twitter/X content
       const usernameMatch = data.content.match(/@(\w+)/);
       if (usernameMatch) authorUsername = usernameMatch[1];
-    
+    }
+
     // Clean content with new function
     const cleanedContent = cleanReaderText(data.content || '');
     
@@ -361,9 +362,28 @@ serve(async (req) => {
 
     // Parse URL info for later use
     const urlLower = url.toLowerCase();
-    const hostname = new URL(url).hostname;
-    
-    // NOTE: Facebook/Instagram/Threads are now handled in the social platform section below
+    const hostname = new URL(url).hostname.toLowerCase();
+
+    // Unsupported platforms (removed from app)
+    if (
+      hostname.includes('instagram.com') ||
+      hostname.includes('facebook.com') ||
+      hostname.includes('m.facebook.com') ||
+      hostname.includes('fb.com') ||
+      hostname.includes('fb.watch')
+    ) {
+      console.log('[Preview] ⛔ Unsupported platform URL:', { url, hostname });
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'UNSUPPORTED_PLATFORM',
+          message: 'Questa piattaforma non è supportata in app.',
+          hostname,
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Jina AI Reader will be tried first, with platform-specific fallbacks
 
     // Check if it's a YouTube link
