@@ -94,7 +94,7 @@ export const FeedCard = ({
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [readerSource, setReaderSource] = useState<any>(null);
   const [quizData, setQuizData] = useState<any>(null);
-  
+  const [gateStep, setGateStep] = useState<string>('idle');
   // Comments state
   const [showComments, setShowComments] = useState(false);
   
@@ -428,6 +428,7 @@ export const FeedCard = ({
     if (!readerSource || !user) return;
 
     // 1️⃣ MOSTRA LOADING NEL READER (non chiuderlo!)
+    setGateStep('reader:loading');
     setReaderLoading(true);
 
     console.log('[Gate] handleReaderComplete started', { readerSource, shareAction });
@@ -531,18 +532,22 @@ export const FeedCard = ({
 
       // 5️⃣ FLUSSO SEQUENZIALE (iOS-safe): segnala chiusura → pre-clean iframe → chiudi → attendi → apri quiz
       // STEP A: attiva modalità "closing" per permettere a SourceReaderGate di blankare gli iframe in sicurezza
+      setGateStep('reader:closing');
       setReaderClosing(true);
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       // STEP B: chiudi il reader
+      setGateStep('reader:unmount');
       setShowReader(false);
       setReaderLoading(false);
       setReaderSource(null);
 
       // STEP C: aspetta che React smonti completamente il reader
+      setGateStep('reader:wait-unmount');
       await new Promise((resolve) => setTimeout(resolve, 200));
 
       // STEP D: ora monta il quiz
+      setGateStep('quiz:mount');
       setQuizData({
         questions: result.questions,
         sourceUrl,
@@ -551,9 +556,11 @@ export const FeedCard = ({
 
       // STEP E: reset closing
       setReaderClosing(false);
+      setGateStep('quiz:shown');
 
       console.log('[Gate] Quiz mounted successfully');
     } catch (error) {
+      setGateStep('error');
       console.error('[Gate] Error in handleReaderComplete:', error);
       toast({
         title: 'Errore',
@@ -913,6 +920,13 @@ export const FeedCard = ({
         </div>
       </article>
 
+      {/* Debug badge (visibile su mobile) */}
+      {(showReader || showQuiz) && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[10050] rounded-full border border-border bg-card px-3 py-1 text-xs text-foreground shadow">
+          Gate: {gateStep}
+        </div>
+      )}
+
       {/* Reader Modal - Rendered via Portal */}
       {showReader && readerSource && createPortal(
         <SourceReaderGate
@@ -922,12 +936,14 @@ export const FeedCard = ({
           isLoading={readerLoading}
           onClose={async () => {
             if (readerLoading) return; // Non chiudere durante loading
+            setGateStep('reader:manual-close');
             setReaderClosing(true);
             await new Promise((resolve) => setTimeout(resolve, 200));
             setShowReader(false);
             setReaderSource(null);
             await new Promise((resolve) => setTimeout(resolve, 50));
             setReaderClosing(false);
+            setGateStep('idle');
           }}
           onComplete={handleReaderComplete}
         />,
