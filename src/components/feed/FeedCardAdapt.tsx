@@ -89,6 +89,7 @@ export const FeedCard = ({
   // Gate states
   const [showReader, setShowReader] = useState(false);
   const [readerClosing, setReaderClosing] = useState(false);
+  const [readerLoading, setReaderLoading] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [readerSource, setReaderSource] = useState<any>(null);
@@ -392,18 +393,16 @@ export const FeedCard = ({
     }
   };
 
-  const handleReaderComplete = async () => {
-    // 🛡️ SAFE CLOSE + SYNC IFRAME CLEANUP (iOS Safari)
+  // Helper per chiusura sicura del reader (iOS Safari)
+  const closeReaderSafely = async () => {
     setReaderClosing(true);
-
+    
     try {
-      // Target only the reader modal when possible
       const gateRoot = document.querySelector('[data-reader-gate-root="true"]') as HTMLElement | null;
       const iframes = (gateRoot ? gateRoot.querySelectorAll('iframe') : document.querySelectorAll('iframe'));
-
+      
       iframes.forEach((iframe) => {
         try {
-          // Blank first, then remove from DOM to avoid iOS WebKit crash on unmount
           (iframe as HTMLIFrameElement).src = 'about:blank';
           iframe.remove();
         } catch (e) {
@@ -413,35 +412,34 @@ export const FeedCard = ({
     } catch (e) {
       console.warn('[Gate] Error during sync iframe cleanup:', e);
     }
-
-    // Let the browser commit DOM changes before unmount
-    await new Promise((resolve) => setTimeout(resolve, 120));
-
+    
+    await new Promise((resolve) => setTimeout(resolve, 100));
     setShowReader(false);
-
-    await new Promise((resolve) => setTimeout(resolve, 80));
     setReaderClosing(false);
+    setReaderLoading(false);
+    setReaderSource(null);
+    setShareAction(null);
+  };
 
+  const handleReaderComplete = async () => {
     if (!readerSource || !user) return;
+
+    // 1️⃣ MOSTRA LOADING NEL READER (non chiuderlo!)
+    setReaderLoading(true);
 
     console.log('[Gate] handleReaderComplete started', { readerSource, shareAction });
 
     try {
-      // Check if it's an original post
       const isOriginalPost = readerSource.isOriginalPost;
-      
       const userText = post.content;
       const userWordCount = getWordCount(userText);
       
-      // Determina parametri in base al tipo di contenuto
       let testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY' | undefined;
       let questionCount: 1 | 3 | undefined;
       
       if (isOriginalPost) {
-        // Contenuto originale senza fonte
         questionCount = getQuestionCountWithoutSource(userWordCount) as 1 | 3;
       } else {
-        // Contenuto con fonte
         testMode = getTestModeWithSource(userWordCount);
       }
       
@@ -452,7 +450,6 @@ export const FeedCard = ({
           : `Sto selezionando i punti che contano…`
       });
 
-      // Use FULL content for quiz generation
       const fullContent = readerSource.content || readerSource.summary || readerSource.excerpt || post.content;
       
       console.log('[Gate] Generating QA with params:', { 
@@ -463,6 +460,7 @@ export const FeedCard = ({
         isOriginalPost
       });
 
+      // 2️⃣ GENERA QA MENTRE IL READER È ANCORA APERTO
       const result = await generateQA({
         contentId: post.id,
         title: readerSource.title,
@@ -480,57 +478,54 @@ export const FeedCard = ({
         insufficient_context: result?.insufficient_context
       });
 
+      // 3️⃣ GESTISCI ERRORI PRIMA DI CHIUDERE
       if (result.insufficient_context) {
         toast({
           title: 'Contenuto troppo breve',
           description: 'Puoi comunque condividere questo post',
         });
+        await closeReaderSafely();
         onQuoteShare?.(post);
-        setReaderSource(null);
-        setShareAction(null);
         return;
       }
 
-      // VALIDAZIONE ROBUSTA
       if (!result) {
         console.error('[Gate] generateQA returned null/undefined');
         toast({ title: 'Errore', description: 'Risposta non valida dal server', variant: 'destructive' });
-        setReaderSource(null);
-        setShareAction(null);
-        return;
+        setReaderLoading(false);
+        return; // Reader resta aperto
       }
 
       if (result.error) {
         console.error('[Gate] generateQA error:', result.error);
         toast({ title: 'Errore', description: result.error, variant: 'destructive' });
-        setReaderSource(null);
-        setShareAction(null);
-        return;
+        setReaderLoading(false);
+        return; // Reader resta aperto
       }
 
       if (!result.questions || !Array.isArray(result.questions) || result.questions.length === 0) {
         console.error('[Gate] Invalid questions array:', result.questions);
         toast({ title: 'Errore', description: 'Quiz non valido, riprova', variant: 'destructive' });
-        setReaderSource(null);
-        setShareAction(null);
-        return;
+        setReaderLoading(false);
+        return; // Reader resta aperto
       }
 
-      // Validate each question has required fields
       const invalidQuestion = result.questions.find(q => !q.id || !q.stem || !q.choices || !q.correctId);
       if (invalidQuestion) {
         console.error('[Gate] Invalid question format:', invalidQuestion);
         toast({ title: 'Errore', description: 'Formato domanda non valido', variant: 'destructive' });
-        setReaderSource(null);
-        setShareAction(null);
-        return;
+        setReaderLoading(false);
+        return; // Reader resta aperto
       }
 
+      // 4️⃣ SOLO ORA: Chiudi reader + Apri quiz INSIEME
+      await closeReaderSafely();
       setQuizData({
         questions: result.questions,
         sourceUrl: readerSource.url || ''
       });
       setShowQuiz(true);
+      
     } catch (error) {
       console.error('[Gate] Error in handleReaderComplete:', error);
       toast({
@@ -538,10 +533,8 @@ export const FeedCard = ({
         description: 'Si è verificato un errore. Riprova.',
         variant: 'destructive'
       });
-      // Reset state to avoid stuck UI
-      setQuizData(null);
-      setReaderSource(null);
-      setShareAction(null);
+      setReaderLoading(false);
+      // Reader resta aperto, utente può chiudere manualmente o riprovare
     }
   };
 
@@ -898,7 +891,9 @@ export const FeedCard = ({
           source={readerSource}
           isOpen={showReader}
           isClosing={readerClosing}
+          isLoading={readerLoading}
           onClose={async () => {
+            if (readerLoading) return; // Non chiudere durante loading
             setReaderClosing(true);
             await new Promise((resolve) => setTimeout(resolve, 200));
             setShowReader(false);
