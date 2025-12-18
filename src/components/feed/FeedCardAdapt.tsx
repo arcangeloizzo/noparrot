@@ -524,13 +524,31 @@ export const FeedCard = ({
       // 4️⃣ SALVA sourceUrl PRIMA di chiudere (closeReaderSafely resetta readerSource!)
       const sourceUrl = readerSource.url || '';
       
-      // 5️⃣ Chiudi reader + Apri quiz INSIEME
-      await closeReaderSafely();
+      // 5️⃣ NUOVO ORDINE: Apri quiz PRIMA, poi chiudi reader nel frame successivo
+      // Questo previene il crash su iOS Safari dove chiudere il reader blocca il mount del quiz
       setQuizData({
         questions: result.questions,
         sourceUrl
       });
       setShowQuiz(true);
+      
+      // 6️⃣ Chiudi reader nel prossimo frame per dare tempo al quiz di montarsi
+      requestAnimationFrame(() => {
+        // Ferma iframe senza rimuoverli dal DOM
+        const iframes = document.querySelectorAll('iframe');
+        iframes.forEach((iframe) => {
+          try {
+            (iframe as HTMLIFrameElement).src = 'about:blank';
+          } catch (e) {
+            console.warn('[Gate] Error blanking iframe:', e);
+          }
+        });
+        
+        // Ora chiudi il reader
+        setShowReader(false);
+        setReaderLoading(false);
+        setReaderSource(null);
+      });
       
     } catch (error) {
       console.error('[Gate] Error in handleReaderComplete:', error);
