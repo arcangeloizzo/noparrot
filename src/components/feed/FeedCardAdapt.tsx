@@ -523,30 +523,36 @@ export const FeedCard = ({
 
       // 4️⃣ SALVA sourceUrl PRIMA di chiudere
       const sourceUrl = readerSource.url || '';
-      
-      console.log('[Gate] Quiz generated, transitioning...', { 
+
+      console.log('[Gate] Quiz generated, transitioning...', {
         questionCount: result.questions.length,
-        sourceUrl 
+        sourceUrl,
       });
 
-      // 5️⃣ FLUSSO SEQUENZIALE: Chiudi reader → Aspetta → Apri quiz
-      // STEP A: Chiudi reader PRIMA (React cleanup gestirà gli iframe)
+      // 5️⃣ FLUSSO SEQUENZIALE (iOS-safe): segnala chiusura → pre-clean iframe → chiudi → attendi → apri quiz
+      // STEP A: attiva modalità "closing" per permettere a SourceReaderGate di blankare gli iframe in sicurezza
+      setReaderClosing(true);
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // STEP B: chiudi il reader
       setShowReader(false);
       setReaderLoading(false);
       setReaderSource(null);
 
-      // STEP B: Aspetta che React smontii completamente il reader (200ms sicuro su iOS)
-      await new Promise(resolve => setTimeout(resolve, 200));
+      // STEP C: aspetta che React smonti completamente il reader
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
-      // STEP C: SOLO ORA apri il quiz - nessun conflitto possibile
+      // STEP D: ora monta il quiz
       setQuizData({
         questions: result.questions,
-        sourceUrl
+        sourceUrl,
       });
       setShowQuiz(true);
-      
+
+      // STEP E: reset closing
+      setReaderClosing(false);
+
       console.log('[Gate] Quiz mounted successfully');
-      
     } catch (error) {
       console.error('[Gate] Error in handleReaderComplete:', error);
       toast({
@@ -555,6 +561,7 @@ export const FeedCard = ({
         variant: 'destructive'
       });
       setReaderLoading(false);
+      setReaderClosing(false);
       // Reader resta aperto, utente può chiudere manualmente o riprovare
     }
   };
