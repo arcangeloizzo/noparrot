@@ -23,17 +23,13 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleRea
       setCanProceed(false);
       setHasScrolledToBottom(false);
       setHasCompletedReading(false);
-      // Unlock body scroll (FASE 1 - CSS puro)
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
+      // iOS-safe scroll lock
+      document.body.classList.remove('reader-open');
       return;
     }
 
-    // Lock body scroll when reader is open (FASE 1 - CSS puro)
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.width = '100%';
+    // iOS-safe scroll lock
+    document.body.classList.add('reader-open');
 
     // Timer countdown
     const timer = setInterval(() => {
@@ -50,9 +46,7 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleRea
     return () => {
       clearInterval(timer);
       // Unlock body scroll on unmount
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
+      document.body.classList.remove('reader-open');
     };
   }, [isOpen]);
 

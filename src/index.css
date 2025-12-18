@@ -298,12 +298,20 @@
     margin: 0 auto;
     overflow-x: hidden;
   }
+
+  /* iOS-safe scroll lock for Reader/Gate overlays */
+  body.reader-open {
+    overflow: hidden;
+    touch-action: none;
+    -webkit-overflow-scrolling: auto;
+  }
   
   /* Mobile-first responsive utilities */
   .mobile-container {
     max-width: var(--mobile-width);
     margin: 0 auto;
   }
+
   
   /* Safe area handling */
   .safe-bottom {

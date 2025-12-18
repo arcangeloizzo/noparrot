@@ -338,17 +338,14 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       setShowTypingIndicator(false);
       setAttritionActive(false);
       setShowVelocityWarning(false);
-      // FASE 1: Unlock body scroll (CSS puro)
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
+
+      // iOS-safe scroll lock: niente position:fixed sul body
+      document.body.classList.remove('reader-open');
       return;
     }
 
-    // FASE 1: Lock body scroll when reader is open (CSS puro)
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.width = '100%';
+    // iOS-safe scroll lock: CSS puro tramite class
+    document.body.classList.add('reader-open');
 
     // Show typing indicator briefly at start
     setShowTypingIndicator(true);
@@ -370,12 +367,10 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     return () => {
       cleanup();
       clearInterval(timer);
-      // FASE 1: Unlock body scroll on unmount
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
+      // iOS-safe unlock
+      document.body.classList.remove('reader-open');
     };
-  }, [isOpen]);
+  }, [isOpen, safeSetTimeout]);
 
   // Scroll handler unificato con hard scroll lock
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
