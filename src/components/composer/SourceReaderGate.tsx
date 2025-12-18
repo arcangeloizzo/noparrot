@@ -617,30 +617,52 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
             {source.embedHtml && source.platform === 'youtube' && !isClosing ? (
               <>
                 {/* YouTube Embed */}
-                <div className="w-full">
-                  <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden">
-                    {(() => {
-                      const iframeSrc = extractIframeSrc(source.embedHtml);
-                      const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
-                      
-                      return isValidSrc ? (
-                        <iframe
-                          ref={youtubeIframeRef}
-                          src={iframeSrc}
-                          className="w-full h-full"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                          sandbox="allow-scripts allow-same-origin allow-presentation"
-                          title="Embedded YouTube video"
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center h-full p-4 text-destructive">
-                          Invalid embed source
-                        </div>
-                      );
-                    })()}
+                {!isIOS ? (
+                  <div className="w-full">
+                    <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden">
+                      {(() => {
+                        const iframeSrc = extractIframeSrc(source.embedHtml);
+                        const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
+
+                        return isValidSrc ? (
+                          <iframe
+                            ref={youtubeIframeRef}
+                            src={iframeSrc}
+                            className="w-full h-full"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            sandbox="allow-scripts allow-same-origin allow-presentation"
+                            title="Embedded YouTube video"
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center h-full p-4 text-destructive">
+                            Invalid embed source
+                          </div>
+                        );
+                      })()}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="rounded-xl border border-border bg-muted/30 p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 rounded-lg border border-border bg-card p-2">
+                        <ExternalLink className="h-4 w-4 text-foreground" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-foreground">Player YouTube disattivato su iOS</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Per evitare schermate bianche/crash su Safari iOS, apriamo il video fuori dall’app.
+                        </p>
+                        <div className="mt-3">
+                          <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
+                            <ExternalLink className="h-3 w-3" />
+                            Apri su YouTube
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 
                 {/* Transcript Status Badges - Enhanced */}
                 {(source as any).transcriptAvailable === true && source.transcript && (
@@ -805,34 +827,48 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                   {/* TikTok Embed */}
                   {source.embedHtml ? (
                     <div className="w-full flex justify-center bg-muted/50 rounded-lg p-4">
-                      {(() => {
-                        const iframeSrc = extractIframeSrc(source.embedHtml);
-                        const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
-                        
-                        return isValidSrc ? (
-                          <iframe
-                            src={iframeSrc}
-                            className="w-full max-w-[325px]"
-                            style={{ height: '738px' }}
-                            allow="encrypted-media"
-                            sandbox="allow-scripts allow-same-origin allow-presentation"
-                            title="Embedded TikTok video"
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center h-64 p-4 text-destructive">
-                            <div className="text-center">
-                              <AlertCircle className="h-8 w-8 mx-auto mb-2" />
-                              <p>Embed TikTok non valido</p>
-                            </div>
+                      {isIOS ? (
+                        <div className="w-full text-center">
+                          <p className="text-sm text-muted-foreground">
+                            Per evitare schermate bianche/crash su Safari iOS, il player TikTok è disattivato.
+                          </p>
+                          <div className="mt-3 flex justify-center">
+                            <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
+                              <ExternalLink className="h-3 w-3" />
+                              Apri su TikTok
+                            </Button>
                           </div>
-                        );
-                      })()}
+                        </div>
+                      ) : (
+                        (() => {
+                          const iframeSrc = extractIframeSrc(source.embedHtml);
+                          const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
+
+                          return isValidSrc ? (
+                            <iframe
+                              src={iframeSrc}
+                              className="w-full max-w-[325px]"
+                              style={{ height: '738px' }}
+                              allow="encrypted-media"
+                              sandbox="allow-scripts allow-same-origin allow-presentation"
+                              title="Embedded TikTok video"
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-64 p-4 text-destructive">
+                              <div className="text-center">
+                                <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+                                <p>Embed TikTok non valido</p>
+                              </div>
+                            </div>
+                          );
+                        })()
+                      )}
                     </div>
                   ) : (
                     <div className="bg-muted/50 border border-border rounded-lg p-6 text-center">
                       <p className="text-muted-foreground">
-                        Embed TikTok non disponibile. 
-                        <button 
+                        Embed TikTok non disponibile.
+                        <button
                           onClick={() => window.open(source.url, '_blank')}
                           className="text-primary underline ml-1 hover:text-primary/80"
                         >
@@ -1103,27 +1139,49 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               <>
                 {/* Generic Embed (safe iframe extraction) */}
                 <div className="max-w-2xl mx-auto">
-                  {(() => {
-                    const iframeSrc = extractIframeSrc(source.embedHtml);
-                    const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
-                    
-                    return isValidSrc ? (
-                      <iframe
-                        src={iframeSrc}
-                        className="w-full"
-                        style={{ minHeight: '200px' }}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media"
-                        sandbox="allow-scripts allow-same-origin allow-presentation"
-                        title="Embedded content"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center py-12 text-destructive">
-                        Invalid embed source
+                  {isIOS ? (
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 rounded-lg border border-border bg-card p-2">
+                          <ExternalLink className="h-4 w-4 text-foreground" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-foreground">Contenuto incorporato disattivato su iOS</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Per evitare schermate bianche/crash su Safari iOS, apriamo il contenuto fuori dall’app.
+                          </p>
+                          <div className="mt-3">
+                            <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
+                              <ExternalLink className="h-3 w-3" />
+                              Apri contenuto
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                    );
-                  })()}
+                    </div>
+                  ) : (
+                    (() => {
+                      const iframeSrc = extractIframeSrc(source.embedHtml);
+                      const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
+
+                      return isValidSrc ? (
+                        <iframe
+                          src={iframeSrc}
+                          className="w-full"
+                          style={{ minHeight: '200px' }}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media"
+                          sandbox="allow-scripts allow-same-origin allow-presentation"
+                          title="Embedded content"
+                        />
+                      ) : (
+                        <div className="flex items-center justify-center py-12 text-destructive">
+                          Invalid embed source
+                        </div>
+                      );
+                    })()
+                  )}
                 </div>
-                
+
                 {/* Padding per scroll */}
                 <div className="h-32"></div>
               </>
@@ -1131,24 +1189,47 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               <>
                 {/* Video Player */}
                 <div className="mb-4">
-                  <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden">
-                    <iframe
-                      src={source.embedUrl}
-                      title={source.title || 'Video'}
-                      className="w-full h-full"
-                      frameBorder="0"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  </div>
+                  {!isIOS ? (
+                    <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden">
+                      <iframe
+                        src={source.embedUrl}
+                        title={source.title || 'Video'}
+                        className="w-full h-full"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 rounded-lg border border-border bg-card p-2">
+                          <ExternalLink className="h-4 w-4 text-foreground" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-foreground">Player video disattivato su iOS</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Per evitare schermate bianche/crash su Safari iOS, apriamo il video fuori dall’app.
+                          </p>
+                          <div className="mt-3">
+                            <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
+                              <ExternalLink className="h-3 w-3" />
+                              Apri video
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
-                
+              </>
+            ) : source.type === 'video' ? (
+              <>
                 {/* Video metadata */}
                 {source.platform && (
                   <div className="bg-muted/50 p-3 rounded-lg border border-border">
                     <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                      Video {source.platform === 'youtube' ? 'YouTube' : 
-                             source.platform === 'vimeo' ? 'Vimeo' : ''}
+                      Video {source.platform === 'youtube' ? 'YouTube' : source.platform === 'vimeo' ? 'Vimeo' : ''}
                     </p>
                     {source.duration && (
                       <p className="text-xs text-muted-foreground">
@@ -1157,7 +1238,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                     )}
                   </div>
                 )}
-                
+
                 {/* Video description */}
                 {(source.summary || source.content || source.excerpt) && (
                   <div className="prose prose-sm max-w-none">
@@ -1166,7 +1247,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                     </div>
                   </div>
                 )}
-                
+
                 {/* Padding per scroll */}
                 <div className="h-32"></div>
               </>
