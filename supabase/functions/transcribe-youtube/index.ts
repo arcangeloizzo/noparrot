@@ -124,7 +124,7 @@ async function fetchFromSupadata(videoId: string, preferredLang?: string): Promi
 // Fetch YouTube transcript with retry logic and better error handling
 async function fetchYouTubeTranscript(
   videoId: string, 
-  maxRetries: number = 3
+  maxRetries: number = 1
 ): Promise<{ transcript: string; source: string; disabled?: boolean } | null> {
   console.log(`[Transcript] Fetching for video ${videoId}`);
   

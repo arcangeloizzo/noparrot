@@ -414,11 +414,11 @@ serve(async (req) => {
         
         if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           try {
-            console.log(`[YouTube] ⏱️ Attempting transcript fetch with 8s timeout for ${youtubeId}`);
+            console.log(`[YouTube] ⏱️ Attempting transcript fetch with 25s timeout for ${youtubeId}`);
             
             // Create abort controller for timeout
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
             
             const transcriptResponse = await fetch(
               `${SUPABASE_URL}/functions/v1/transcribe-youtube`,
@@ -468,8 +468,8 @@ serve(async (req) => {
             }
           } catch (transcriptFetchError: any) {
             if (transcriptFetchError.name === 'AbortError') {
-              transcriptError = 'Timeout (8s)';
-              console.warn('[YouTube] ⏱️ Transcript fetch TIMEOUT after 8 seconds');
+              transcriptError = 'Timeout (25s)';
+              console.warn('[YouTube] ⏱️ Transcript fetch TIMEOUT after 25 seconds');
             } else {
               transcriptError = transcriptFetchError instanceof Error ? transcriptFetchError.message : 'Unknown error';
               console.error('[YouTube] ❌ Exception fetching transcript:', transcriptFetchError);
