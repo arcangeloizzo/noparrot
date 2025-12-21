@@ -662,7 +662,6 @@ serve(async (req) => {
             console.log(`[Spotify] 🔍 Fallback: searching lyrics with title only: "${trackTitle}"`);
             lyricsResult = await fetchLyricsFromGenius('', trackTitle);
           }
-          }
           
           if (lyricsResult) {
             transcript = lyricsResult.lyrics;
