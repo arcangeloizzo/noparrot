@@ -1087,7 +1087,10 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                           })}
                         </div>
                       ) : (
-                        <div className="whitespace-pre-wrap text-foreground leading-relaxed bg-muted/30 rounded-lg p-4 border border-border">
+                        <div 
+                          className="text-foreground bg-muted/30 rounded-lg p-4 border border-border font-mono text-sm"
+                          style={{ whiteSpace: 'pre-line', lineHeight: '2' }}
+                        >
                           {source.transcript}
                         </div>
                       )}
