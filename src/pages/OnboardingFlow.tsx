@@ -3,13 +3,15 @@ import { SplashScreen } from "@/components/onboarding/SplashScreen";
 import { OnboardingSlides } from "@/components/onboarding/OnboardingSlides";
 import { MissionPage } from "@/components/onboarding/MissionPage";
 import { AuthPage } from "@/components/auth/AuthPage";
+import ConsentScreen from "@/pages/ConsentScreen";
+import { isConsentCompleted } from "@/hooks/useUserConsents";
 
 interface OnboardingFlowProps {
   onComplete: () => void;
 }
 
 export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
-  const [currentStep, setCurrentStep] = useState<"splash" | "slides" | "mission" | "auth">("splash");
+  const [currentStep, setCurrentStep] = useState<"splash" | "slides" | "mission" | "consent" | "auth">("splash");
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
 
   const handleSplashComplete = () => {
@@ -25,12 +27,28 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   };
 
   const handleCreateAccount = () => {
-    setAuthMode('signup');
-    setCurrentStep("auth");
+    // Check if consent is already completed
+    if (isConsentCompleted()) {
+      setAuthMode('signup');
+      setCurrentStep("auth");
+    } else {
+      setAuthMode('signup');
+      setCurrentStep("consent");
+    }
   };
 
   const handleLogin = () => {
-    setAuthMode('login');
+    // Check if consent is already completed
+    if (isConsentCompleted()) {
+      setAuthMode('login');
+      setCurrentStep("auth");
+    } else {
+      setAuthMode('login');
+      setCurrentStep("consent");
+    }
+  };
+
+  const handleConsentComplete = () => {
     setCurrentStep("auth");
   };
 
@@ -54,6 +72,10 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
         onLogin={handleLogin}
       />
     );
+  }
+
+  if (currentStep === "consent") {
+    return <ConsentScreen onComplete={handleConsentComplete} />;
   }
 
   if (currentStep === "auth") {

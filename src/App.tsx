@@ -16,6 +16,9 @@ import { Post } from "./pages/Post";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import SettingsPrivacy from "./pages/SettingsPrivacy";
+import AdsPolicy from "./pages/AdsPolicy";
+import Transparency from "./pages/Transparency";
+import ConsentScreen from "./pages/ConsentScreen";
 import Messages from "./pages/Messages";
 import MessageThread from "./pages/MessageThread";
 import { Notifications } from "./pages/Notifications";
@@ -60,6 +63,7 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/consent" element={<ConsentScreen />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/profile/:userId" element={<UserProfile />} />
               <Route path="/profile/edit" element={<ProfileEdit />} />
@@ -69,6 +73,8 @@ const App = () => (
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="/settings/privacy" element={<SettingsPrivacy />} />
+              <Route path="/legal/ads" element={<AdsPolicy />} />
+              <Route path="/legal/transparency" element={<Transparency />} />
               <Route path="/messages" element={<Messages />} />
               <Route path="/messages/:threadId" element={<MessageThread />} />
               <Route path="/notifications" element={<Notifications />} />
