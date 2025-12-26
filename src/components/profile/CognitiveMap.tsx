@@ -1,4 +1,4 @@
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer } from 'recharts';
+import { CognitiveNebulaCanvas } from './CognitiveNebulaCanvas';
 
 interface CognitiveMapProps {
   cognitiveDensity: Record<string, number>;
@@ -27,15 +27,6 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 export const CognitiveMap = ({ cognitiveDensity = {} }: CognitiveMapProps) => {
-  // Prepara i dati per il radar chart
-  const data = CATEGORIES.map(category => ({
-    category: category.split(' & ')[0], // Prima parola per brevità
-    value: cognitiveDensity[category] || 0,
-    fullCategory: category
-  }));
-
-  const maxValue = Math.max(...data.map(d => d.value), 10); // Almeno 10 come max
-
   // Lista ordinata per densità
   const sortedCategories = CATEGORIES
     .map(cat => ({ name: cat, value: cognitiveDensity[cat] || 0 }))
@@ -51,30 +42,9 @@ export const CognitiveMap = ({ cognitiveDensity = {} }: CognitiveMapProps) => {
         </p>
       </div>
 
-      {/* Radar Chart - più morbido */}
-      <div className="w-full h-[400px] mb-6">
-        <ResponsiveContainer width="100%" height="100%">
-          <RadarChart data={data}>
-            <PolarGrid stroke="hsl(var(--border))" strokeWidth={0.5} />
-            <PolarAngleAxis 
-              dataKey="category" 
-              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-            />
-            <PolarRadiusAxis 
-              angle={90} 
-              domain={[0, maxValue]}
-              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 9 }}
-            />
-            <Radar
-              name="Densità"
-              dataKey="value"
-              stroke="#BFE9E9"
-              fill="#BFE9E9"
-              fillOpacity={0.15}
-              strokeWidth={1}
-            />
-          </RadarChart>
-        </ResponsiveContainer>
+      {/* Nebula Canvas 3D */}
+      <div className="w-full mb-6">
+        <CognitiveNebulaCanvas data={cognitiveDensity} />
       </div>
 
       {/* Lista riepilogativa ordinata */}
