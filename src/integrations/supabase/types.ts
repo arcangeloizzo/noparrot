@@ -1188,6 +1188,63 @@ export type Database = {
         }
         Relationships: []
       }
+      user_consents: {
+        Row: {
+          accepted_privacy: boolean
+          accepted_terms: boolean
+          ads_opt_in_at: string | null
+          ads_personalization_opt_in: boolean
+          consent_version: string
+          created_at: string
+          id: string
+          privacy_accepted_at: string | null
+          terms_accepted_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accepted_privacy?: boolean
+          accepted_terms?: boolean
+          ads_opt_in_at?: string | null
+          ads_personalization_opt_in?: boolean
+          consent_version?: string
+          created_at?: string
+          id?: string
+          privacy_accepted_at?: string | null
+          terms_accepted_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accepted_privacy?: boolean
+          accepted_terms?: boolean
+          ads_opt_in_at?: string | null
+          ads_personalization_opt_in?: boolean
+          consent_version?: string
+          created_at?: string
+          id?: string
+          privacy_accepted_at?: string | null
+          terms_accepted_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_consents_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_consents_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string

@@ -4,15 +4,19 @@ import { OnboardingFlow } from "./OnboardingFlow";
 import { Feed } from "./Feed";
 import { AuthPage } from "@/components/auth/AuthPage";
 import { useAuth } from "@/contexts/AuthContext";
+import { isConsentCompleted } from "@/hooks/useUserConsents";
+import ConsentScreen from "./ConsentScreen";
 
 const Index = () => {
   const { user, loading } = useAuth();
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(false);
+  const [hasCompletedConsent, setHasCompletedConsent] = useState(false);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   useEffect(() => {
     const seen = localStorage.getItem('noparrot-onboarding-completed');
     setHasSeenOnboarding(!!seen);
+    setHasCompletedConsent(isConsentCompleted());
 
     // Controlla se siamo in modalità password recovery
     const hashParams = new URLSearchParams(window.location.hash.substring(1));
@@ -25,6 +29,10 @@ const Index = () => {
   const handleOnboardingComplete = () => {
     localStorage.setItem('noparrot-onboarding-completed', 'true');
     setHasSeenOnboarding(true);
+  };
+
+  const handleConsentComplete = () => {
+    setHasCompletedConsent(true);
   };
 
   if (loading) {
@@ -40,8 +48,12 @@ const Index = () => {
     return <AuthPage forcePasswordReset={true} />;
   }
 
-  // Non autenticato E ha già visto onboarding → mostra solo login
+  // Non autenticato E ha già visto onboarding
   if (!user && hasSeenOnboarding) {
+    // Check if consent is completed
+    if (!hasCompletedConsent) {
+      return <ConsentScreen onComplete={handleConsentComplete} />;
+    }
     return <AuthPage />;
   }
 

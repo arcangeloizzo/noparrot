@@ -1,10 +1,17 @@
 import React, { useState } from "react";
-import { Heart, MessageCircle, Share2 } from "lucide-react";
+import { Heart, MessageCircle, Share2, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useFocusReactions, useToggleFocusReaction } from "@/hooks/useFocusReactions";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 interface Source {
   icon: string;
@@ -94,9 +101,39 @@ export const ExternalFocusCard = ({
 
       {/* Header */}
       <div className="p-4 pb-3">
-        <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0")}>
-          {isDailyFocus ? '🌍 DAILY FOCUS' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0")}>
+            {isDailyFocus ? '🌍 DAILY FOCUS' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
+          </Badge>
+          {isDailyFocus && (
+            <Dialog>
+              <DialogTrigger asChild>
+                <button
+                  onClick={(e) => e.stopPropagation()}
+                  className="p-1 rounded-full hover:bg-white/10 transition-colors"
+                >
+                  <Info className="w-4 h-4 text-gray-400" />
+                </button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Cos'è Il Punto</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 text-sm text-muted-foreground">
+                  <p>
+                    Questo contenuto è una sintesi automatica generata da NoParrot usando fonti pubbliche.
+                  </p>
+                  <p>
+                    Serve per offrire un contesto comune da cui partire per la discussione.
+                  </p>
+                  <p className="font-medium text-foreground">
+                    Non rappresenta una posizione ufficiale né una verifica dei fatti.
+                  </p>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
 
       {/* Body */}

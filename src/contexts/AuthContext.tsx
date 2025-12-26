@@ -27,10 +27,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Listener per cambiamenti autenticazione
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        
+        // Sync pending consents after login/signup
+        if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
+          const { syncPendingConsents } = await import('@/hooks/useUserConsents');
+          syncPendingConsents(session.user.id);
+        }
       }
     );
 

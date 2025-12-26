@@ -1,7 +1,9 @@
-import { ArrowLeft, FileText, Scale, Trash2, Shield } from "lucide-react";
+import { ArrowLeft, FileText, Scale, Trash2, Shield, Brain, Megaphone, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
   AlertDialog,
@@ -17,10 +19,13 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useUserConsents, useToggleAdsPersonalization } from "@/hooks/useUserConsents";
 
 export default function SettingsPrivacy() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { data: consents, isLoading: consentsLoading } = useUserConsents();
+  const toggleAds = useToggleAdsPersonalization();
 
   const handleDeleteAccount = async () => {
     if (!user) return;
@@ -44,6 +49,15 @@ export default function SettingsPrivacy() {
     }
   };
 
+  const handleAdsToggle = async (checked: boolean) => {
+    try {
+      await toggleAds.mutateAsync(checked);
+      toast.success(checked ? "Annunci personalizzati attivati" : "Annunci personalizzati disattivati");
+    } catch (error) {
+      toast.error("Errore durante il salvataggio");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-2xl mx-auto p-6 pb-24">
@@ -61,6 +75,77 @@ export default function SettingsPrivacy() {
         </div>
 
         <div className="space-y-4">
+          {/* Il tuo profilo cognitivo */}
+          <Card className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <Brain className="w-5 h-5 text-purple-400" />
+              <h2 className="text-lg font-semibold">Il tuo profilo cognitivo</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              NoParrot costruisce una mappa dei tuoi interessi in base alle tue interazioni 
+              consapevoli (letture, commenti, condivisioni). Serve solo a migliorare la tua 
+              esperienza dentro NoParrot.
+            </p>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => navigate("/profile#nebulosa")}
+            >
+              Visualizza la mia mappa
+            </Button>
+          </Card>
+
+          {/* Annunci */}
+          <Card className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <Megaphone className="w-5 h-5 text-orange-400" />
+              <h2 className="text-lg font-semibold">Annunci</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Gli annunci su NoParrot sono mostrati in base al tema dei contenuti che leggi.
+              Puoi scegliere se riceverne di più pertinenti in base ai tuoi interessi.
+            </p>
+            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
+              <div className="space-y-1 flex-1 mr-4">
+                <Label htmlFor="ads-personalization" className="text-sm font-medium cursor-pointer">
+                  Annunci basati sui miei interessi
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Se disattivato, vedrai solo annunci legati al tema della conversazione.
+                </p>
+              </div>
+              <Switch
+                id="ads-personalization"
+                checked={consents?.ads_personalization_opt_in ?? false}
+                onCheckedChange={handleAdsToggle}
+                disabled={consentsLoading || toggleAds.isPending}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              Puoi cambiare idea in qualsiasi momento.
+            </p>
+          </Card>
+
+          {/* Trasparenza su AI e fonti */}
+          <Card className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <Sparkles className="w-5 h-5 text-blue-400" />
+              <h2 className="text-lg font-semibold">Trasparenza su AI e fonti</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Come generiamo "Il Punto", come funziona il Trust Score e cosa significa il percorso di comprensione.
+            </p>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => navigate("/legal/transparency")}
+            >
+              Apri
+            </Button>
+          </Card>
+
+          <Separator />
+
           {/* Documenti legali */}
           <Card className="p-4">
             <div className="flex items-center gap-3 mb-4">
@@ -83,6 +168,14 @@ export default function SettingsPrivacy() {
               >
                 <Scale className="w-4 h-4 mr-3" />
                 Termini di Servizio
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start"
+                onClick={() => navigate("/legal/ads")}
+              >
+                <Megaphone className="w-4 h-4 mr-3" />
+                Pubblicità
               </Button>
             </div>
           </Card>
