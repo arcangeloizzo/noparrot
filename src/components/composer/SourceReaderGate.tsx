@@ -1,19 +1,15 @@
-// SourceReaderGate - Reading view with Guardrail Mode
-// ====================================================
-// ✅ Segmenta contenuto in blocchi con tracking intelligente
-// ✅ Coverage + Dwell Time + Scroll Velocity per blocco
-// ✅ Unlock test quando ≥80% blocchi letti (con grace)
-// ✅ Attrito non punitivo su scroll veloce
-// ✅ Supporta modalità: soft, guardrail (default), strict
+// SourceReaderGate - Simplified Reading view
+// ============================================
+// ✅ Semplificato: solo timer 10s OPPURE scroll 100%
+// ✅ Rimosso block tracking complesso
+// ✅ Rimosso velocity detection e attrition
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Check, ExternalLink, AlertCircle, Lock, Music, Loader2 } from 'lucide-react';
+import { X, Check, ExternalLink, Music, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TypingIndicator } from '@/components/ui/typing-indicator';
 import { cn } from '@/lib/utils';
 import { SourceWithGate } from '@/lib/comprehension-gate-extended';
-import { useBlockTracking } from '@/hooks/useBlockTracking';
-import { READER_GATE_CONFIG } from '@/config/brand';
 import { sendReaderTelemetry } from '@/lib/telemetry';
 
 // Safe iframe extraction utilities
@@ -61,14 +57,9 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   onClose,
   onComplete
 }) => {
-  const [mode] = useState(READER_GATE_CONFIG.mode);
-  const [attritionActive, setAttritionActive] = useState(false);
-  const [showVelocityWarning, setShowVelocityWarning] = useState(false);
   const [twitterScriptLoaded, setTwitterScriptLoaded] = useState(false);
   const [isRenderingTwitter, setIsRenderingTwitter] = useState(false);
   const [showTypingIndicator, setShowTypingIndicator] = useState(false);
-  const [showScrollLockWarning, setShowScrollLockWarning] = useState(false);
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   // Protezione unmount per evitare setState su componenti smontati
@@ -95,37 +86,13 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     };
   }, []);
 
-  // Determina contenuto per Guardrail Mode
-  const contentForTracking = source.content || source.transcript || source.summary || source.excerpt || '';
-  const hasTrackableContent = contentForTracking.length > 100;
-
   // Ref per cleanup sicuro iframe (iOS Safari)
   const rootRef = useRef<HTMLDivElement>(null);
   const spotifyIframeRef = useRef<HTMLIFrameElement>(null);
   const youtubeIframeRef = useRef<HTMLIFrameElement>(null);
 
-  // Hook per block tracking (solo se mode = guardrail e c'è contenuto)
-  const {
-    blocks,
-    progress,
-    containerRef,
-    blockRefs,
-    handleScroll: handleBlockScroll,
-    firstIncompleteIndex,
-    visibleUpToIndex
-  } = useBlockTracking({
-    contentHtml: hasTrackableContent ? contentForTracking : '',
-    articleId: source.url,
-    config: READER_GATE_CONFIG
-  });
-
-  // Determina se usare guardrail mode (contenuto trackabile E blocchi effettivi)
-  const useGuardrailMode = mode === 'guardrail' && hasTrackableContent && blocks.length > 0;
-
-  // Fallback timer per contenuti non segmentabili - FASE 3: 30s friction
-  const [timeLeft, setTimeLeft] = useState(30);
-  const [frictionDuration] = useState(10000); // 10s di friction aggressiva
-  const [scrollThreshold] = useState(50); // Rallenta scroll >50px/s (più sensibile)
+  // SEMPLIFICATO: Solo timer 10s + scroll 100%
+  const [timeLeft, setTimeLeft] = useState(10);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -144,7 +111,6 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     const renderWidgets = () => {
       console.log('[SourceReaderGate] Attempting to render Twitter widgets...');
       
-      // Wait for embed HTML to be in DOM
       const embedContainer = document.querySelector('.twitter-embed-container');
       if (!embedContainer) {
         console.warn('[SourceReaderGate] Embed container not found in DOM');
@@ -180,14 +146,12 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     };
 
     const initTwitterWidget = () => {
-      // Set timeout fallback (5s)
       renderTimeout = window.setTimeout(() => {
         if (!isMountedRef.current) return;
         console.warn('[SourceReaderGate] Twitter render timeout, showing fallback');
         setIsRenderingTwitter(false);
       }, 5000);
 
-      // Use MutationObserver to detect when embed HTML is in DOM
       const embedContainer = document.querySelector('.twitter-embed-container');
       if (embedContainer) {
         observer = new MutationObserver((mutations) => {
@@ -195,7 +159,6 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           if (blockquote) {
             console.log('[SourceReaderGate] Blockquote detected in DOM via MutationObserver');
             observer.disconnect();
-            // Small delay to ensure DOM is fully ready
             safeSetTimeout(renderWidgets, 100);
           }
         });
@@ -205,7 +168,6 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           subtree: true 
         });
 
-        // Also try immediately in case already in DOM
         const blockquote = embedContainer.querySelector('blockquote.twitter-tweet');
         if (blockquote) {
           console.log('[SourceReaderGate] Blockquote already in DOM');
@@ -214,7 +176,6 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       }
     };
 
-    // Check if script already loaded
     if (win.twttr) {
       console.log('[SourceReaderGate] Twitter script already loaded');
       initTwitterWidget();
@@ -224,7 +185,6 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       };
     }
 
-    // Load script
     console.log('[SourceReaderGate] Loading Twitter script...');
     const script = document.createElement('script');
     script.src = 'https://platform.twitter.com/widgets.js';
@@ -233,7 +193,6 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     script.onload = () => {
       console.log('[SourceReaderGate] Twitter script loaded');
       setTwitterScriptLoaded(true);
-      // Give time for twttr object to initialize
       safeSetTimeout(initTwitterWidget, 200);
     };
     script.onerror = (err) => {
@@ -247,11 +206,9 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       if (renderTimeout) clearTimeout(renderTimeout);
       if (observer) observer.disconnect();
     };
-  }, [source.embedHtml, source.url, isOpen]);
+  }, [source.embedHtml, source.url, isOpen, safeSetTimeout]);
 
   // Pre-cleanup esplicito iframe PRIMA dello smontaggio (iOS Safari)
-  // - NON rimuoviamo dal DOM manualmente - lasciamo che React gestisca il ciclo di vita
-  // - Blanchiamo anche eventuali iframe non "specializzati" (TikTok, generic embeds, ecc.)
   useEffect(() => {
     if (!isClosing) return;
 
@@ -263,11 +220,9 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       }
     };
 
-    // Specific refs
     if (spotifyIframeRef.current) safeBlank(spotifyIframeRef.current);
     if (youtubeIframeRef.current) safeBlank(youtubeIframeRef.current);
 
-    // Generic cleanup for any iframe inside this modal (covers TikTok + generic embeds)
     try {
       const root = rootRef.current;
       if (root) {
@@ -282,7 +237,6 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   // Cleanup sicuro iframe Spotify e YouTube su unmount
   useEffect(() => {
     return () => {
-      // Pulisci iframe prima dell'unmount per evitare crash iOS Safari
       if (spotifyIframeRef.current) {
         try {
           spotifyIframeRef.current.src = 'about:blank';
@@ -300,46 +254,14 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     };
   }, []);
 
-  // Applica attrito quando velocity troppo alta (Guardrail Mode)
-  useEffect(() => {
-    if (!useGuardrailMode) return;
-    
-    // Don't apply attrition if reading is already complete
-    const canProceedGuardrail = progress.canUnlock;
-    const canProceedFallback = timeLeft === 0 || hasScrolledToBottom;
-    const isReadyNow = canProceedGuardrail || canProceedFallback;
-    
-    if (isReadyNow) {
-      setAttritionActive(false);
-      setShowVelocityWarning(false);
-      return;
-    }
-    
-    if (progress.isScrollingTooFast && !prefersReducedMotion) {
-      setAttritionActive(true);
-      setShowVelocityWarning(true);
-
-      // Applica scroll-snap temporaneo
-      if (containerRef.current) {
-        containerRef.current.style.scrollSnapType = 'y mandatory';
-      }
-
-      // NON disattiviamo più l'attrito automaticamente
-      // Rimane attivo fino al completamento del gate
-      console.log('[SourceReaderGate] 🔒 Attrition persisting until gate completion');
-    }
-  }, [progress.isScrollingTooFast, progress.canUnlock, prefersReducedMotion, useGuardrailMode, timeLeft, hasScrolledToBottom]);
-
   useEffect(() => {
     if (!isOpen) {
-      setTimeLeft(30); // FASE 3: 30 secondi di timer
+      setTimeLeft(10);
       setScrollProgress(0);
       setHasScrolledToBottom(false);
       setShowTypingIndicator(false);
-      setAttritionActive(false);
-      setShowVelocityWarning(false);
 
-      // iOS-safe scroll lock: niente position:fixed sul body
+      // iOS-safe scroll lock
       document.body.classList.remove('reader-open');
       return;
     }
@@ -351,13 +273,10 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     setShowTypingIndicator(true);
     const indicatorTimer = safeSetTimeout(() => setShowTypingIndicator(false), 2000);
 
-    const cleanup = () => clearTimeout(indicatorTimer);
-
-    // FASE 3: Timer countdown (30s fallback per contenuti non segmentabili)
+    // Timer countdown (10s)
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
-          // FASE 3: NON disattivare friction - rimane attivo fino al gate completion
           return 0;
         }
         return prev - 1;
@@ -365,40 +284,14 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     }, 1000);
 
     return () => {
-      cleanup();
+      clearTimeout(indicatorTimer);
       clearInterval(timer);
-      // iOS-safe unlock
       document.body.classList.remove('reader-open');
     };
   }, [isOpen, safeSetTimeout]);
 
-  // Scroll handler unificato con hard scroll lock
+  // Scroll handler semplificato
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    // Se Guardrail Mode con blocchi validi, usa block tracking
-    if (useGuardrailMode) {
-      handleBlockScroll(e);
-      
-      // Hard scroll lock: impedisci scroll oltre visibleUpToIndex
-      if (READER_GATE_CONFIG.hardScrollLock && visibleUpToIndex < blocks.length - 1 && !progress.canUnlock) {
-        const container = e.currentTarget;
-        const lastVisibleBlock = blockRefs.current.get(`block-${visibleUpToIndex}`);
-        
-        if (lastVisibleBlock) {
-          const maxScrollTop = lastVisibleBlock.offsetTop + lastVisibleBlock.offsetHeight - container.clientHeight + 100;
-          
-          if (container.scrollTop > maxScrollTop) {
-            // Forza scroll indietro
-            container.scrollTop = maxScrollTop;
-            
-            // Mostra toast/warning
-            setShowScrollLockWarning(true);
-            safeSetTimeout(() => setShowScrollLockWarning(false), 2000);
-          }
-        }
-      }
-    }
-
-    // Fallback scroll tracking (per contenuti non segmentabili o altre modalità)
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
     const progressValue = Math.min(100, (scrollTop / (scrollHeight - clientHeight)) * 100);
     setScrollProgress(progressValue);
@@ -416,17 +309,14 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
   if (!isOpen) return null;
 
-  // Determina se può procedere
-  const canProceedGuardrail = useGuardrailMode ? progress.canUnlock : false;
-  const canProceedFallback = timeLeft === 0 || hasScrolledToBottom;
-  const isReady = mode === 'soft' || canProceedGuardrail || canProceedFallback;
+  // SEMPLIFICATO: isReady = timer 0 OPPURE scroll 100%
+  const isReady = timeLeft === 0 || hasScrolledToBottom;
 
   const handleComplete = () => {
-    // Telemetria avvio test
     sendReaderTelemetry({
       type: 'gate_test_started',
       articleId: source.url,
-      finalReadRatio: mode === 'guardrail' && hasTrackableContent ? progress.readRatio : 1
+      finalReadRatio: 1
     });
     onComplete();
   };
@@ -470,7 +360,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           </Button>
         </div>
 
-        {/* Progress Bar - Adattato per Guardrail Mode */}
+        {/* Progress Bar - Semplificato */}
         <div className="p-4 bg-muted/50 border-b border-border sticky top-0 z-10">
           <div className="flex items-center justify-between text-sm mb-2">
             <div className="flex items-center gap-2">
@@ -480,26 +370,11 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                   <span className="text-muted-foreground font-medium">Sto preparando ciò che ti serve per orientarti…</span>
                 </>
               ) : isReady ? (
-                // PRIORITÀ 1: Lettura completata - mostra solo questo
                 <>
                   <Check className="h-4 w-4 text-[hsl(var(--cognitive-correct))]" />
                   <span className="text-[hsl(var(--cognitive-correct))] font-medium">Hai visto abbastanza per capire. Procediamo.</span>
                 </>
-              ) : showVelocityWarning && useGuardrailMode ? (
-                // PRIORITÀ 2: Scroll troppo veloce - mostra warning
-                <>
-                  <AlertCircle className="h-4 w-4 text-warning" />
-                  <span className="text-warning font-medium">Rallenta lo scroll...</span>
-                </>
-              ) : useGuardrailMode ? (
-                // PRIORITÀ 3: Progresso normale
-                <>
-                  <span className="text-foreground font-medium">
-                    Progresso lettura: stai entrando nel cuore del contenuto.
-                  </span>
-                </>
               ) : (
-                // Fallback: Timer + Scroll
                 <>
                   <span className="text-foreground">
                     Tempo: {timeLeft}s
@@ -511,66 +386,37 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 </>
               )}
             </div>
-            {!isReady && useGuardrailMode && (
+            {!isReady && (
               <span className="text-muted-foreground text-xs">
-                Continua: ogni riga apre una finestra in più.
-              </span>
-            )}
-            {!isReady && !useGuardrailMode && (
-              <span className="text-muted-foreground text-xs">
-                Leggi per 30s o scorri tutto
+                Leggi per 10s o scorri tutto
               </span>
             )}
           </div>
 
-            {/* Velocity Warning - nascosto se lettura completata */}
-            {showVelocityWarning && useGuardrailMode && !isReady && (
-              <div className="flex items-center gap-2 text-warning text-xs mb-2 animate-pulse">
-                <AlertCircle className="h-3 w-3" />
-                <span>Rallenta lo scroll per completare la lettura...</span>
-              </div>
-            )}
-
           {/* Progress bars */}
           <div className="space-y-2">
-            {useGuardrailMode ? (
-              /* Guardrail Mode: Single progress bar per blocchi letti */
-              <div className="w-full bg-muted rounded-full h-[5px]">
-                <div
-                  className={cn(
-                    "h-[5px] rounded-full transition-all duration-500",
-                    progress.canUnlock ? "bg-[hsl(var(--cognitive-correct))]" : "bg-primary"
-                  )}
-                  style={{ width: `${progress.readRatio * 100}%` }}
-                />
-              </div>
-            ) : (
-              /* Fallback Mode: Time + Scroll bars */
-              <>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div
-                    className={cn(
-                      "h-2 rounded-full transition-all ease-linear",
-                      timeLeft === 0 ? "bg-trust-high" : "bg-primary"
-                    )}
-                    style={{
-                      width: `${((10 - timeLeft) / 10) * 100}%`,
-                      transitionDuration: '1000ms'
-                    }}
-                  />
-                </div>
+            <div className="w-full bg-muted rounded-full h-2">
+              <div
+                className={cn(
+                  "h-2 rounded-full transition-all ease-linear",
+                  timeLeft === 0 ? "bg-trust-high" : "bg-primary"
+                )}
+                style={{
+                  width: `${((10 - timeLeft) / 10) * 100}%`,
+                  transitionDuration: '1000ms'
+                }}
+              />
+            </div>
 
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div
-                    className={cn(
-                      "h-2 rounded-full transition-all duration-300",
-                      hasScrolledToBottom ? "bg-trust-high" : "bg-accent"
-                    )}
-                    style={{ width: `${scrollProgress}%` }}
-                  />
-                </div>
-              </>
-            )}
+            <div className="w-full bg-muted rounded-full h-2">
+              <div
+                className={cn(
+                  "h-2 rounded-full transition-all duration-300",
+                  hasScrolledToBottom ? "bg-trust-high" : "bg-accent"
+                )}
+                style={{ width: `${scrollProgress}%` }}
+              />
+            </div>
           </div>
         </div>
 
@@ -585,7 +431,6 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 {source.url}
               </p>
             </div>
-            {/* Content Quality Badge */}
             {(source as any).contentQuality && (
               <div className={cn(
                 "px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap",
@@ -601,12 +446,9 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
         {/* Content Area */}
         <div
-          ref={useGuardrailMode ? containerRef : scrollContainerRef}
+          ref={scrollContainerRef}
           className="flex-1 p-4 overflow-y-auto"
           onScroll={handleScroll}
-          style={{
-            scrollSnapType: attritionActive && !prefersReducedMotion ? 'y mandatory' : 'none'
-          }}
         >
           <div className="space-y-4 text-sm leading-relaxed">
             {source.embedHtml && source.platform === 'youtube' && !isClosing ? (
@@ -646,7 +488,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                       <div className="flex-1">
                         <p className="text-sm font-medium text-foreground">Player YouTube disattivato su iOS</p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          Per evitare schermate bianche/crash su Safari iOS, apriamo il video fuori dall’app.
+                          Per evitare schermate bianche/crash su Safari iOS, apriamo il video fuori dall'app.
                         </p>
                         <div className="mt-3">
                           <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
@@ -659,7 +501,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                   </div>
                 )}
                 
-                {/* Transcript Status Badges - Enhanced */}
+                {/* Transcript Status Badges */}
                 {(source as any).transcriptAvailable === true && source.transcript && (
                   <div className="bg-trust-high/10 border border-trust-high/20 rounded-lg p-3">
                     <div className="flex items-center gap-2">
@@ -677,10 +519,9 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 {(source as any).transcriptAvailable === false && (source as any).transcriptError && (
                   <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
                     <div className="flex items-start gap-2">
-                      <AlertCircle className="h-4 w-4 text-warning mt-0.5" />
                       <div className="flex-1">
                         <span className="text-sm font-medium text-warning block">
-                          Trascrizione Non Disponibile
+                          ⚠️ Trascrizione Non Disponibile
                         </span>
                         <p className="text-xs text-warning/70 mt-1">
                           {(source as any).transcriptError}
@@ -700,102 +541,18 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                   </div>
                 )}
                 
-                {/* Transcript Text */}
+                {/* Transcript Text - Simple render */}
                 {source.transcript && (
                   <div className="prose prose-sm max-w-none">
                     <h4 className="text-base font-semibold text-foreground mb-3">
                       Trascrizione del Video
                     </h4>
-                    
-                    {/* Guardrail Mode: Render transcript in blocchi con progressive reveal */}
-                    {mode === 'guardrail' && blocks.length > 0 ? (
-                      <div className="space-y-6 bg-muted/30 rounded-lg p-4 border border-border">
-                        {blocks.map((block, idx) => {
-                          const isLocked = idx > visibleUpToIndex && !progress.canUnlock;
-                          const showOverlay = isLocked && READER_GATE_CONFIG.showBlockOverlay;
-                          
-                          return (
-                            <section
-                              key={block.id}
-                              data-block-id={block.id}
-                              ref={(el) => {
-                                if (el) blockRefs.current.set(block.id, el);
-                              }}
-                              className={cn(
-                                "content-block p-3 rounded-lg transition-all duration-300 scroll-mt-4 relative",
-                                block.isRead && "border-l-4 border-trust-high bg-trust-high/10",
-                                attritionActive && "scroll-snap-align-start",
-                                isLocked && READER_GATE_CONFIG.blockStyle === 'blur' && "blur-md opacity-30 pointer-events-none",
-                                isLocked && READER_GATE_CONFIG.blockStyle === 'hidden' && "hidden"
-                              )}
-                              style={{
-                                filter: isLocked && READER_GATE_CONFIG.blockStyle === 'blur' ? 'blur(8px)' : 'none',
-                                opacity: isLocked ? 0.3 : 1
-                              }}
-                              tabIndex={isLocked ? -1 : 0}
-                              aria-label={`Sezione trascrizione ${block.index + 1} di ${blocks.length}`}
-                            >
-                              <div
-                                dangerouslySetInnerHTML={{ __html: block.html }}
-                                className="text-foreground leading-relaxed"
-                              />
-
-                              {block.isRead && (
-                                <div className="flex items-center gap-2 mt-2 text-trust-high text-xs animate-in fade-in duration-300">
-                                  <Check className="h-3 w-3" />
-                                  <span>Sezione completata</span>
-                                </div>
-                              )}
-
-                              {block.isVisible && !block.isRead && !isLocked && (
-                                <div className="text-xs text-muted-foreground mt-2">
-                                  {showVelocityWarning ? (
-                                    <div className="flex items-center gap-1 text-warning">
-                                      <AlertCircle className="h-3 w-3" />
-                                      <span>Rallenta...</span>
-                                    </div>
-                                  ) : (
-                                    <span>~{Math.ceil((block.requiredDwellMs - block.dwellMs) / 1000)}s</span>
-                                  )}
-                                </div>
-                              )}
-
-                              {block.isRead && (
-                                <span className="sr-only">
-                                  Sezione trascrizione {block.index + 1} completata
-                                </span>
-                              )}
-                              
-                              {/* Overlay per blocco locked */}
-                              {showOverlay && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
-                                  <div className="text-center p-4">
-                                    <Lock className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-                                    <p className="text-sm font-medium text-foreground">
-                                      Completa le sezioni precedenti
-                                    </p>
-                                    {firstIncompleteIndex !== -1 && blocks[firstIncompleteIndex] && (
-                                      <p className="text-xs text-muted-foreground mt-1">
-                                        Mancano {Math.ceil((blocks[firstIncompleteIndex].requiredDwellMs - blocks[firstIncompleteIndex].dwellMs) / 1000)}s
-                                      </p>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </section>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      /* Fallback: Transcript non segmentato */
-                      <div className="whitespace-pre-wrap text-foreground leading-relaxed bg-muted/30 rounded-lg p-4 border border-border">
-                        {source.transcript}
-                      </div>
-                    )}
+                    <div className="whitespace-pre-wrap text-foreground leading-relaxed bg-muted/30 rounded-lg p-4 border border-border">
+                      {source.transcript}
+                    </div>
                   </div>
                 )}
                 
-                {/* Padding per scroll */}
                 <div className="h-32"></div>
               </>
             ) : isClosing ? (
@@ -806,7 +563,6 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               <>
                 {/* TikTok Content */}
                 <div className="max-w-2xl mx-auto space-y-4">
-                  {/* Platform Header */}
                   <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-lg">
                     <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center">
                       <span className="text-lg">🎵</span>
@@ -819,7 +575,6 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                     </div>
                   </div>
 
-                  {/* TikTok Embed */}
                   {source.embedHtml ? (
                     <div className="w-full flex justify-center bg-muted/50 rounded-lg p-4">
                       {isIOS ? (
@@ -851,8 +606,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                           ) : (
                             <div className="flex items-center justify-center h-64 p-4 text-destructive">
                               <div className="text-center">
-                                <AlertCircle className="h-8 w-8 mx-auto mb-2" />
-                                <p>Embed TikTok non valido</p>
+                                <p className="text-sm">Invalid embed source</p>
                               </div>
                             </div>
                           );
@@ -860,175 +614,76 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                       )}
                     </div>
                   ) : (
-                    <div className="bg-muted/50 border border-border rounded-lg p-6 text-center">
-                      <p className="text-muted-foreground">
-                        Embed TikTok non disponibile.
-                        <button
-                          onClick={() => window.open(source.url, '_blank')}
-                          className="text-primary underline ml-1 hover:text-primary/80"
-                        >
-                          Apri l'originale
-                        </button>
+                    <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Contenuto TikTok non visualizzabile
                       </p>
+                      <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
+                        <ExternalLink className="h-3 w-3" />
+                        Apri su TikTok
+                      </Button>
                     </div>
                   )}
 
-                  {/* Caption/Content if available */}
                   {source.content && (
-                    <div className="prose prose-sm max-w-none">
-                      <div className="whitespace-pre-wrap text-foreground leading-relaxed bg-card rounded-lg p-4 border border-border">
-                        {source.content}
-                      </div>
+                    <div className="p-4 bg-muted/30 rounded-lg border border-border">
+                      <p className="text-foreground">{source.content}</p>
                     </div>
                   )}
-
-                  <div className="h-32"></div>
                 </div>
-              </>
-            ) : source.platform === 'twitter' || source.platform === 'linkedin' || 
-                source.platform === 'threads' ? (
-              <>
-                {/* Social Media Content */}
-                <div className="max-w-2xl mx-auto space-y-4">
-                  {/* Platform Header */}
-                  <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-lg">
-                    {source.platform === 'twitter' && (
-                      <>
-                        <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center">
-                          <span className="text-lg font-bold text-white">𝕏</span>
-                        </div>
-                        <div>
-                          <p className="font-semibold text-foreground">Twitter/X</p>
-                          {source.author_username && (
-                            <p className="text-sm text-muted-foreground">@{source.author_username}</p>
-                          )}
-                        </div>
-                      </>
-                    )}
-                    {source.platform === 'linkedin' && (
-                      <>
-                        <div className="w-10 h-10 rounded-full bg-[#0A66C2] flex items-center justify-center">
-                          <span className="text-lg font-bold text-white">in</span>
-                        </div>
-                        <div>
-                          <p className="font-semibold text-[#0A66C2]">LinkedIn</p>
-                          {source.author && (
-                            <p className="text-sm text-muted-foreground">{source.author}</p>
-                          )}
-                        </div>
-                      </>
-                    )}
-                    {source.platform === 'threads' && (
-                      <>
-                        <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center">
-                          <span className="text-lg">🧵</span>
-                        </div>
-                        <div>
-                          <p className="font-semibold text-foreground">Threads</p>
-                        </div>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Content - Cleaned */}
-                  {source.content && (
-                    <div className="prose prose-sm max-w-none">
-                      <div className="whitespace-pre-wrap text-foreground leading-relaxed bg-card rounded-lg p-4 border border-border">
-                        {source.content}
-                      </div>
-                      {/* Content quality indicator for social */}
-                      {(source as any).contentQuality === 'partial' && (
-                        <div className="mt-2 text-xs text-warning flex items-center gap-1">
-                          <AlertCircle className="h-3 w-3" />
-                          <span>Contenuto estratto parzialmente - apri l'originale per vedere tutto</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Image if available */}
-                  {source.image && (
-                    <div className="rounded-lg overflow-hidden border border-border">
-                      <img 
-                        src={source.image} 
-                        alt="Social media content" 
-                        className="w-full object-cover"
-                      />
-                    </div>
-                  )}
-
-                  {/* Try Twitter embed if available */}
-                  {!isClosing && source.embedHtml && source.platform === 'twitter' && (() => {
-                    const iframeSrc = extractIframeSrc(source.embedHtml);
-                    const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
-                    
-                    return isValidSrc ? (
-                      <div className="mt-4">
-                        <iframe
-                          src={iframeSrc}
-                          className="w-full"
-                          style={{ minHeight: '200px' }}
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media"
-                          sandbox="allow-scripts allow-same-origin allow-presentation"
-                          title="Embedded Twitter/X post"
-                        />
-                      </div>
-                    ) : null;
-                  })()}
-
-                  {/* Link to original */}
-                  <div className="flex justify-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={openSource}
-                      className="gap-2"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      Vedi Post Originale
-                    </Button>
-                  </div>
-                </div>
-                
-                {/* Padding per scroll */}
                 <div className="h-32"></div>
               </>
-            ) : source.platform === 'spotify' ? (
+            ) : source.platform === 'spotify' && !isClosing ? (
               <>
-                {/* Spotify Content with Lyrics */}
+                {/* Spotify Content */}
                 <div className="max-w-2xl mx-auto space-y-4">
-                  {/* Spotify Embed Player */}
-                  {source.embedHtml && !isClosing && !isIOS && (
-                    <div className="w-full rounded-lg overflow-hidden">
+                  <div className="flex items-center gap-3 p-4 bg-[#1DB954]/10 border border-[#1DB954]/20 rounded-lg">
+                    <div className="w-10 h-10 rounded-full bg-[#1DB954] flex items-center justify-center">
+                      <Music className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground">Spotify</p>
+                      {source.author && (
+                        <p className="text-sm text-muted-foreground">{source.author}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {source.embedHtml && !isIOS ? (
+                    <div className="w-full flex justify-center bg-muted/50 rounded-lg p-4">
                       {(() => {
                         const iframeSrc = extractIframeSrc(source.embedHtml);
                         const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
+
                         return isValidSrc ? (
                           <iframe
                             ref={spotifyIframeRef}
                             src={iframeSrc}
-                            className="w-full"
-                            style={{ height: '152px', borderRadius: '12px' }}
+                            className="w-full rounded-xl"
+                            style={{ height: '352px' }}
                             allow="encrypted-media"
                             sandbox="allow-scripts allow-same-origin allow-presentation"
-                            title="Spotify Player"
+                            title="Embedded Spotify content"
                           />
-                        ) : null;
+                        ) : (
+                          <div className="flex items-center justify-center h-64 p-4 text-destructive">
+                            <div className="text-center">
+                              <p className="text-sm">Invalid embed source</p>
+                            </div>
+                          </div>
+                        );
                       })()}
                     </div>
-                  )}
-
-                  {/* iOS fallback: evita iframe Spotify (crash Safari) */}
-                  {isIOS && (
+                  ) : isIOS ? (
                     <div className="rounded-xl border border-border bg-muted/30 p-4">
                       <div className="flex items-start gap-3">
                         <div className="mt-0.5 rounded-lg border border-border bg-card p-2">
-                          <Music className="h-4 w-4 text-foreground" />
+                          <ExternalLink className="h-4 w-4 text-foreground" />
                         </div>
                         <div className="flex-1">
                           <p className="text-sm font-medium text-foreground">Player Spotify disattivato su iOS</p>
                           <p className="mt-1 text-xs text-muted-foreground">
-                            Per evitare schermate bianche/crash, su iPhone/iPad apriamo il contenuto fuori dall’app.
+                            Per evitare schermate bianche/crash su Safari iOS.
                           </p>
                           <div className="mt-3">
                             <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
@@ -1039,413 +694,142 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                         </div>
                       </div>
                     </div>
-                  )}
-                  
-                  {/* Lyrics Section */}
-                  {source.transcript ? (
+                  ) : null}
+
+                  {/* Lyrics/Transcript */}
+                  {source.transcript && (
                     <div className="prose prose-sm max-w-none">
                       <h4 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
-                        🎤 Testo del Brano
+                        <Music className="h-4 w-4" />
+                        {(source as any).geniusUrl ? 'Testo da Genius' : 'Contenuto'}
                       </h4>
-                      
-                      {/* Guardrail Mode: Render lyrics in blocchi */}
-                      {mode === 'guardrail' && blocks.length > 0 ? (
-                        <div className="space-y-4 bg-muted/30 rounded-lg p-4 border border-border">
-                          {blocks.map((block, idx) => {
-                            const isLocked = idx > visibleUpToIndex && !progress.canUnlock;
-                            
-                            return (
-                              <section
-                                key={block.id}
-                                data-block-id={block.id}
-                                ref={(el) => {
-                                  if (el) blockRefs.current.set(block.id, el);
-                                }}
-                                className={cn(
-                                  "content-block p-3 rounded-lg transition-all duration-300 scroll-mt-4 relative",
-                                  block.isRead && "border-l-4 border-trust-high bg-trust-high/5",
-                                  attritionActive && "scroll-snap-align-start",
-                                  isLocked && "blur-sm opacity-30 pointer-events-none"
-                                )}
-                                style={{
-                                  filter: isLocked ? 'blur(4px)' : 'none',
-                                  opacity: isLocked ? 0.3 : 1
-                                }}
-                              >
-                                <div
-                                  dangerouslySetInnerHTML={{ __html: block.html }}
-                                  className="text-foreground leading-relaxed whitespace-pre-wrap"
-                                />
-                                {block.isRead && (
-                                  <div className="flex items-center gap-2 mt-2 text-trust-high text-xs">
-                                    <Check className="h-3 w-3" />
-                                    <span>Letto</span>
-                                  </div>
-                                )}
-                              </section>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div 
-                          className="text-foreground bg-muted/30 rounded-lg p-4 border border-border font-mono text-sm"
-                          style={{ whiteSpace: 'pre-line', lineHeight: '2' }}
-                        >
-                          {source.transcript}
-                        </div>
-                      )}
+                      <div className="whitespace-pre-wrap text-foreground leading-relaxed bg-muted/30 rounded-lg p-4 border border-border font-mono text-sm">
+                        {source.transcript}
+                      </div>
                     </div>
-                  ) : (
-                    <div className="bg-muted/30 rounded-lg p-6 text-center space-y-4 border border-border">
-                      <Music className="h-12 w-12 mx-auto text-muted-foreground" />
-                      <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground">
-                          Lyrics non disponibili per questo brano.
-                        </p>
-                        <p className="text-xs text-muted-foreground/70">
-                          Ascolta per almeno 30 secondi per procedere.
-                        </p>
+                  )}
+
+                  {(source as any).geniusUrl && (
+                    <a 
+                      href={(source as any).geniusUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Vedi su Genius
+                    </a>
+                  )}
+                </div>
+                <div className="h-32"></div>
+              </>
+            ) : source.platform === 'twitter' && source.embedHtml && !isClosing ? (
+              <>
+                {/* Twitter Embed */}
+                <div className="max-w-2xl mx-auto space-y-4">
+                  <div className="twitter-embed-container">
+                    {isRenderingTwitter && (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                        <span className="text-sm text-muted-foreground">Caricamento tweet...</span>
                       </div>
-                      <div className="flex items-center justify-center gap-3">
-                        <div className="text-2xl font-mono text-primary tabular-nums">
-                          {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
-                        </div>
-                        <div className="text-sm text-muted-foreground">/</div>
-                        <div className="text-sm text-muted-foreground">0:30</div>
-                      </div>
-                      {/* Progress bar */}
-                      <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className="h-full bg-primary transition-all duration-1000 ease-linear"
-                          style={{ width: `${Math.max(0, ((30 - timeLeft) / 30) * 100)}%` }}
-                        />
-                      </div>
-                      {timeLeft <= 0 && (
-                        <div className="flex items-center justify-center gap-2 text-trust-high text-sm">
-                          <Check className="h-4 w-4" />
-                          <span>Ascolto completato!</span>
-                        </div>
-                      )}
+                    )}
+                    <div 
+                      dangerouslySetInnerHTML={{ __html: source.embedHtml }}
+                      className="overflow-hidden"
+                    />
+                  </div>
+
+                  {source.content && !isRenderingTwitter && (
+                    <div className="p-4 bg-muted/30 rounded-lg border border-border">
+                      <p className="text-foreground whitespace-pre-wrap">{source.content}</p>
                     </div>
                   )}
                 </div>
-                
-                {/* Padding per scroll */}
                 <div className="h-32"></div>
               </>
-            ) : source.embedHtml && !isClosing ? (
+            ) : (
               <>
-                {/* Generic Embed (safe iframe extraction) */}
-                <div className="max-w-2xl mx-auto">
-                  {isIOS ? (
-                    <div className="rounded-xl border border-border bg-muted/30 p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="mt-0.5 rounded-lg border border-border bg-card p-2">
-                          <ExternalLink className="h-4 w-4 text-foreground" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-foreground">Contenuto incorporato disattivato su iOS</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Per evitare schermate bianche/crash su Safari iOS, apriamo il contenuto fuori dall’app.
-                          </p>
-                          <div className="mt-3">
-                            <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
-                              <ExternalLink className="h-3 w-3" />
-                              Apri contenuto
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    (() => {
-                      const iframeSrc = extractIframeSrc(source.embedHtml);
-                      const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
-
-                      return isValidSrc ? (
-                        <iframe
-                          src={iframeSrc}
-                          className="w-full"
-                          style={{ minHeight: '200px' }}
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media"
-                          sandbox="allow-scripts allow-same-origin allow-presentation"
-                          title="Embedded content"
-                        />
-                      ) : (
-                        <div className="flex items-center justify-center py-12 text-destructive">
-                          Invalid embed source
-                        </div>
-                      );
-                    })()
-                  )}
-                </div>
-
-                {/* Padding per scroll */}
-                <div className="h-32"></div>
-              </>
-            ) : source.type === 'video' && source.embedUrl && !isClosing ? (
-              <>
-                {/* Video Player */}
-                <div className="mb-4">
-                  {!isIOS ? (
-                    <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden">
-                      <iframe
-                        src={source.embedUrl}
-                        title={source.title || 'Video'}
-                        className="w-full h-full"
-                        frameBorder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
+                {/* Generic Article/Content */}
+                <div className="max-w-2xl mx-auto space-y-4">
+                  {source.image && (
+                    <div className="rounded-lg overflow-hidden">
+                      <img 
+                        src={source.image} 
+                        alt={source.title || 'Preview'} 
+                        className="w-full h-auto object-cover"
                       />
                     </div>
-                  ) : (
-                    <div className="rounded-xl border border-border bg-muted/30 p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="mt-0.5 rounded-lg border border-border bg-card p-2">
-                          <ExternalLink className="h-4 w-4 text-foreground" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-foreground">Player video disattivato su iOS</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Per evitare schermate bianche/crash su Safari iOS, apriamo il video fuori dall’app.
-                          </p>
-                          <div className="mt-3">
-                            <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
-                              <ExternalLink className="h-3 w-3" />
-                              Apri video
-                            </Button>
-                          </div>
-                        </div>
+                  )}
+
+                  {source.content ? (
+                    <div className="prose prose-sm max-w-none">
+                      <div className="whitespace-pre-wrap text-foreground leading-relaxed">
+                        {source.content}
                       </div>
                     </div>
-                  )}
-                </div>
-              </>
-            ) : source.type === 'video' ? (
-              <>
-                {/* Video metadata */}
-                {source.platform && (
-                  <div className="bg-muted/50 p-3 rounded-lg border border-border">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                      Video {source.platform === 'youtube' ? 'YouTube' : source.platform === 'vimeo' ? 'Vimeo' : ''}
-                    </p>
-                    {source.duration && (
-                      <p className="text-xs text-muted-foreground">
-                        Durata: {Math.floor(parseInt(source.duration) / 60)}:{String(parseInt(source.duration) % 60).padStart(2, '0')}
+                  ) : source.summary ? (
+                    <div className="p-4 bg-muted/30 rounded-lg border border-border">
+                      <p className="text-foreground">{source.summary}</p>
+                    </div>
+                  ) : (
+                    <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Contenuto non disponibile per l'anteprima
                       </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Video description */}
-                {(source.summary || source.content || source.excerpt) && (
-                  <div className="prose prose-sm max-w-none">
-                    <div className="whitespace-pre-wrap text-foreground">
-                      {source.summary || source.content || source.excerpt}
-                    </div>
-                  </div>
-                )}
-
-                {/* Padding per scroll */}
-                <div className="h-32"></div>
-              </>
-            ) : source.content || source.summary || source.excerpt ? (
-              <>
-                {/* Guardrail Mode: Render blocchi segmentati con progressive reveal */}
-                {mode === 'guardrail' && hasTrackableContent && blocks.length > 0 ? (
-                  <div className="space-y-6">
-                    {blocks.map((block, idx) => {
-                      const isLocked = idx > visibleUpToIndex && !progress.canUnlock;
-                      const showOverlay = isLocked && READER_GATE_CONFIG.showBlockOverlay;
-                      
-                      return (
-                        <section
-                          key={block.id}
-                          data-block-id={block.id}
-                          ref={(el) => {
-                            if (el) blockRefs.current.set(block.id, el);
-                          }}
-                          className={cn(
-                            "content-block p-4 rounded-lg transition-all duration-300 scroll-mt-4 relative",
-                            block.isRead && "border-l-4 border-trust-high bg-trust-high/5",
-                            attritionActive && "scroll-snap-align-start",
-                            isLocked && READER_GATE_CONFIG.blockStyle === 'blur' && "blur-md opacity-30 pointer-events-none",
-                            isLocked && READER_GATE_CONFIG.blockStyle === 'hidden' && "hidden"
-                          )}
-                          style={{
-                            filter: isLocked && READER_GATE_CONFIG.blockStyle === 'blur' ? 'blur(8px)' : 'none',
-                            opacity: isLocked ? 0.3 : 1
-                          }}
-                          tabIndex={isLocked ? -1 : 0}
-                          aria-label={`Sezione ${block.index + 1} di ${blocks.length}`}
-                        >
-                          {/* Contenuto HTML del blocco */}
-                          <div
-                            dangerouslySetInnerHTML={{ __html: block.html }}
-                            className="prose prose-sm max-w-none text-foreground"
-                          />
-
-                          {/* Feedback visivo: blocco completato */}
-                          {block.isRead && (
-                            <div className="flex items-center gap-2 mt-3 text-trust-high text-sm animate-in fade-in duration-300">
-                              <Check className="h-4 w-4" />
-                              <span>Sezione completata</span>
-                            </div>
-                          )}
-
-                          {/* Warning/Info: blocco visibile ma non completato */}
-                          {block.isVisible && !block.isRead && !isLocked && (
-                            <div className="text-xs text-muted-foreground mt-3">
-                              {showVelocityWarning ? (
-                                <div className="flex items-center gap-1 text-warning">
-                                  <AlertCircle className="h-3 w-3" />
-                                  <span>Rallenta per completare questa sezione...</span>
-                                </div>
-                              ) : (
-                                <span>
-                                  Ancora ~{Math.ceil((block.requiredDwellMs - block.dwellMs) / 1000)}s per completare
-                                </span>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Accessibility: Screen reader announcement */}
-                          {block.isRead && (
-                            <span className="sr-only">
-                              Sezione {block.index + 1} di {blocks.length} completata
-                            </span>
-                          )}
-                          
-                          {/* Overlay per blocco locked */}
-                          {showOverlay && (
-                            <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
-                              <div className="text-center p-4">
-                                <Lock className="h-6 w-6 mx-auto mb-2 text-muted-foreground" />
-                                <p className="text-sm font-medium text-foreground">
-                                  Completa le sezioni precedenti
-                                </p>
-                                {firstIncompleteIndex !== -1 && blocks[firstIncompleteIndex] && (
-                                  <p className="text-xs text-muted-foreground mt-1">
-                                    Mancano {Math.ceil((blocks[firstIncompleteIndex].requiredDwellMs - blocks[firstIncompleteIndex].dwellMs) / 1000)}s
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </section>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  /* Fallback: Contenuto non segmentato */
-                  <div className="prose prose-sm max-w-none">
-                    <div className="whitespace-pre-wrap text-foreground leading-relaxed">
-                      {source.content || source.summary || source.excerpt}
-                    </div>
-                  </div>
-                )}
-
-                {/* Padding per scroll */}
-                <div className="h-32"></div>
-              </>
-            ) : (
-              <div className="max-w-2xl mx-auto text-center py-12">
-                <div className="bg-muted/50 rounded-lg p-8 space-y-6">
-                  <div className="space-y-2">
-                    <h3 className="text-lg font-semibold text-foreground">
-                      Contenuto non visualizzabile nell'app
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Questo sito blocca la visualizzazione incorporata per motivi di sicurezza.
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <Button
-                      onClick={openSource}
-                      className="inline-flex items-center gap-2"
-                      size="lg"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                      Leggi su {source.hostname || new URL(source.url).hostname}
-                    </Button>
-                    
-                    <p className="text-xs text-muted-foreground">
-                      Torna qui dopo aver letto per completare il test
-                    </p>
-                  </div>
-
-                  {timeLeft > 0 && (
-                    <div className="pt-4 text-sm text-muted-foreground">
-                      Tempo minimo di lettura: {timeLeft}s
+                      <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
+                        <ExternalLink className="h-3 w-3" />
+                        Apri l'originale
+                      </Button>
                     </div>
                   )}
                 </div>
-              </div>
+                <div className="h-32"></div>
+              </>
             )}
           </div>
         </div>
 
-        {/* Action Button */}
-        <div className="p-4 border-t border-border bg-background">
-          {/* ARIA live region per screen readers */}
-          {mode === 'guardrail' && hasTrackableContent && (
-            <div
-              role="status"
-              aria-live="polite"
-              aria-atomic="true"
-              className="sr-only"
+        {/* Footer Actions */}
+        <div className="p-4 border-t border-border bg-card">
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              onClick={openSource}
+              className="flex-1 gap-2"
             >
-              {isReady
-                ? 'Lettura completata. Puoi ora avviare il test.'
-                : `Hai letto ${progress.readBlocks} su ${progress.totalBlocks} sezioni. Continua la lettura.`}
-            </div>
-          )}
-
-          <Button
-            onClick={handleComplete}
-            disabled={!isReady || isLoading}
-            className={cn(
-              "w-full transition-all duration-300",
-              isLoading
-                ? "bg-primary/80 text-primary-foreground cursor-wait"
-                : isReady
-                  ? "bg-primary hover:bg-primary/90 text-primary-foreground"
+              <ExternalLink className="h-4 w-4" />
+              Apri originale
+            </Button>
+            <Button 
+              onClick={handleComplete}
+              disabled={!isReady || isLoading}
+              className={cn(
+                "flex-1 gap-2 transition-all",
+                isReady 
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90" 
                   : "bg-muted text-muted-foreground cursor-not-allowed"
-            )}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Generazione domande...
-              </>
-            ) : isReady ? (
-              <>
-                <Check className="h-4 w-4 mr-2" />
-                Procediamo.
-              </>
-            ) : mode === 'guardrail' && hasTrackableContent ? (
-              `Completa la lettura (${Math.round(progress.readRatio * 100)}%)`
-            ) : (
-              `Attendi ${timeLeft}s o scorri fino alla fine`
-            )}
-          </Button>
+              )}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Caricamento...
+                </>
+              ) : isReady ? (
+                <>
+                  <Check className="h-4 w-4" />
+                  Procedi al test
+                </>
+              ) : (
+                <>
+                  Attendi...
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </div>
-      
-      {/* Scroll Lock Warning Toast */}
-      {showScrollLockWarning && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[10000] animate-in slide-in-from-bottom-2 duration-300">
-          <div className="bg-warning/90 text-warning-foreground px-4 py-2 rounded-lg shadow-lg">
-            <div className="flex items-center gap-2">
-              <Lock className="h-4 w-4" />
-              <span className="text-sm font-medium">
-                Completa la lettura prima di continuare
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
