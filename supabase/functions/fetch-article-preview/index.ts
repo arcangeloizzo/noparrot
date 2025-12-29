@@ -861,8 +861,8 @@ serve(async (req) => {
       }
     }
 
-    // Check if domain needs forced Jina AI extraction (sites that block bots)
-    const FORCE_JINA_DOMAINS = [
+    // Check if domain needs enhanced extraction (sites that block bots)
+    const FORCE_ENHANCED_DOMAINS = [
       'hdblog.it',
       'www.hdblog.it',
       'hdmotori.it',
@@ -870,16 +870,232 @@ serve(async (req) => {
       'hdblog.com',
       'www.hdblog.com',
       'smartworld.it',
-      'www.smartworld.it'
+      'www.smartworld.it',
+      'tomshw.it',
+      'www.tomshw.it'
     ];
 
     const urlHostname = new URL(url).hostname.toLowerCase();
-    const isForceJinaDomain = FORCE_JINA_DOMAINS.some(domain => urlHostname.includes(domain.replace('www.', '')));
+    const isForceEnhancedDomain = FORCE_ENHANCED_DOMAINS.some(domain => urlHostname.includes(domain.replace('www.', '')));
     
-    if (isForceJinaDomain) {
-      console.log(`[Preview] 🔧 Forcing Jina AI for problematic domain: ${urlHostname}`);
+    if (isForceEnhancedDomain) {
+      console.log(`[Preview] 🔧 Using enhanced extraction for: ${urlHostname}`);
+      
+      // Try multiple fetch strategies with different header configurations
+      const fetchStrategies = [
+        // Strategy 1: Full browser-like headers
+        {
+          name: 'full-browser',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Upgrade-Insecure-Requests': '1',
+            'DNT': '1',
+            'Referer': `https://${urlHostname}/`,
+          }
+        },
+        // Strategy 2: Minimal headers (some sites block "perfect" headers)
+        {
+          name: 'minimal',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+            'Accept': 'text/html',
+          }
+        },
+        // Strategy 3: Mobile User-Agent
+        {
+          name: 'mobile',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'it-IT,it;q=0.9',
+          }
+        }
+      ];
+      
+      let html = '';
+      let fetchSuccess = false;
+      
+      for (const strategy of fetchStrategies) {
+        if (fetchSuccess) break;
+        
+        try {
+          console.log(`[Preview] 🔄 Trying ${strategy.name} strategy for ${urlHostname}...`);
+          
+          const response = await fetch(url, {
+            headers: strategy.headers,
+            redirect: 'follow',
+          });
+          
+          if (response.ok) {
+            html = await response.text();
+            if (html.length > 1000) {
+              fetchSuccess = true;
+              console.log(`[Preview] ✅ ${strategy.name} strategy successful, HTML length: ${html.length}`);
+            } else {
+              console.log(`[Preview] ⚠️ ${strategy.name} returned thin response: ${html.length} chars`);
+            }
+          } else {
+            console.log(`[Preview] ❌ ${strategy.name} failed: ${response.status}`);
+          }
+        } catch (strategyError: any) {
+          console.log(`[Preview] ❌ ${strategy.name} error: ${strategyError.message}`);
+        }
+      }
+      
+      if (fetchSuccess && html.length > 1000) {
+        // Extract metadata
+        const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+        let title = titleMatch ? extractTextFromHtml(titleMatch[1]) : '';
+        
+        // OG title fallback
+        if (!title || title.length < 5) {
+          const ogTitleMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i);
+          if (ogTitleMatch) title = extractTextFromHtml(ogTitleMatch[1]);
+        }
+        
+        const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
+                         html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
+        const description = descMatch ? extractTextFromHtml(descMatch[1]) : '';
+        
+        const imgMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+                        html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+        const image = imgMatch ? imgMatch[1] : '';
+        
+        // HDBlog-specific article selectors
+        const hdblogSelectors = [
+          // HDBlog specific
+          /<div[^>]*class="[^"]*entry-content[^"]*"[^>]*>([\s\S]*?)<\/div>/gi,
+          /<div[^>]*class="[^"]*article-body[^"]*"[^>]*>([\s\S]*?)<\/div>/gi,
+          /<div[^>]*class="[^"]*post-body[^"]*"[^>]*>([\s\S]*?)<\/div>/gi,
+          /<div[^>]*class="[^"]*body[^"]*"[^>]*id="[^"]*articolo[^"]*"[^>]*>([\s\S]*?)<\/div>/gi,
+          // Generic article selectors
+          /<article[^>]*>([\s\S]*?)<\/article>/gi,
+          /<main[^>]*>([\s\S]*?)<\/main>/gi,
+          /<div[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/div>/gi,
+        ];
+        
+        let articleHtml = '';
+        for (const selector of hdblogSelectors) {
+          // Reset regex lastIndex
+          selector.lastIndex = 0;
+          const match = selector.exec(html);
+          if (match && match[1] && match[1].length > 300) {
+            articleHtml = match[1];
+            console.log(`[Preview] 📄 Found article container with selector, length: ${articleHtml.length}`);
+            break;
+          }
+        }
+        
+        // Clean article HTML - remove unwanted elements
+        const cleanHtml = (articleHtml || html)
+          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+          .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
+          .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
+          .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
+          .replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, '')
+          .replace(/<form[^>]*>[\s\S]*?<\/form>/gi, '')
+          .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, '')
+          .replace(/<div[^>]*class="[^"]*(?:nav|menu|sidebar|header|footer|widget|social|share|related|comment|ads?|banner|newsletter)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '')
+          .replace(/<div[^>]*id="[^"]*(?:nav|menu|sidebar|header|footer|widget|social|share|related|comment|ads?|banner|newsletter)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+        
+        // Extract paragraphs with Italian site cleaning
+        const paragraphs: string[] = [];
+        const pRegex = /<p[^>]*>(.+?)<\/p>/gis;
+        let match;
+        while ((match = pRegex.exec(cleanHtml)) !== null && paragraphs.length < 15) {
+          const text = extractTextFromHtml(match[0]);
+          
+          // Skip short paragraphs
+          if (text.length < 50) continue;
+          
+          // Skip Italian site navigation/junk patterns
+          const junkPatterns = [
+            /^(home|newsletter|podcast|shop|regala|abbonati|privacy|cookie|menu|contatti)/i,
+            /leggi anche/i,
+            /potrebbe interessarti/i,
+            /ti consigliamo/i,
+            /iscriviti alla newsletter/i,
+            /^Facebook\s+X\s*\(?Twitter\)?/i,
+            /^Email\s+Whatsapp/i,
+            /^Condividi\s+su/i,
+            /^Segui\s+su/i,
+            /^Sostieni/i,
+            /\(AP Photo[^)]*\)/,
+            /^AP Photo/i,
+            /^Getty Images/i,
+            /^ANSA/i,
+            /^Foto:/i,
+            /^©/,
+            /^Fonte:/i,
+            /^Via:/i,
+            /^Source:/i,
+            /^Pubblicità/i,
+            /^Advertisement/i,
+            /^Sponsored/i,
+            /clicca qui/i,
+            /scopri di più/i,
+            /acquista ora/i,
+          ];
+          
+          if (junkPatterns.some(p => p.test(text))) continue;
+          
+          // Skip lines with multiple pipe separators (menu pattern)
+          if ((text.match(/\|/g) || []).length >= 2) continue;
+          
+          // Skip navigation-like short lines
+          const words = text.split(/\s+/);
+          if (words.length <= 6) {
+            const capitalizedWords = words.filter(w => /^[A-Z][a-z]*$/.test(w)).length;
+            if (capitalizedWords >= 3) continue;
+          }
+          
+          paragraphs.push(text);
+        }
+        
+        const content = paragraphs.length > 0 ? paragraphs.join('\n\n') : '';
+        
+        console.log(`[Preview] 📊 Extracted ${paragraphs.length} paragraphs, content length: ${content.length}`);
+        
+        // If we got decent content, return it
+        if (content.length > 200 || (title && image)) {
+          const cleanedContent = cleanReaderText(content || description);
+          return new Response(JSON.stringify({ 
+            success: true, 
+            title: title || 'Articolo',
+            summary: description || cleanedContent.slice(0, 200),
+            content: cleanedContent,
+            image,
+            previewImg: image,
+            platform: 'generic',
+            type: 'article',
+            hostname: urlHostname,
+            contentQuality: cleanedContent.length > 500 ? 'complete' : 'partial'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        // Content too thin - try Jina AI as fallback
+        console.log(`[Preview] ⚠️ Direct extraction yielded thin content (${content.length} chars), trying Jina AI...`);
+      }
+      
+      // If direct fetch failed completely, try Jina AI
       const jinaResult = await fetchSocialWithJina(url, 'article');
       if (jinaResult && jinaResult.content && jinaResult.content.length > 100) {
+        console.log(`[Preview] ✅ Jina AI successful for ${urlHostname}`);
         return new Response(JSON.stringify({ 
           success: true, 
           ...jinaResult,
@@ -892,113 +1108,52 @@ serve(async (req) => {
         });
       }
       
-      // Jina failed for force domain - try enhanced fetch with browser headers
-      console.log(`[Preview] ⚠️ Jina AI failed for ${urlHostname}, trying enhanced browser fetch...`);
-      try {
-        const browserResponse = await fetch(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Cache-Control': 'no-cache',
-            'Pragma': 'no-cache',
-          }
+      // Final fallback: OpenGraph only
+      console.log(`[Preview] ⚠️ All extraction methods failed for ${urlHostname}, trying OpenGraph fallback...`);
+      const ogData = await fetchOpenGraphData(url);
+      if (ogData && (ogData.title || ogData.description || ogData.image)) {
+        console.log(`[Preview] 📋 OpenGraph fallback successful for ${urlHostname}`);
+        return new Response(JSON.stringify({
+          success: true,
+          title: ogData.title || `Contenuto da ${urlHostname}`,
+          summary: ogData.description || '',
+          content: ogData.description || `Apri il link originale per leggere l'articolo completo.`,
+          image: ogData.image || '',
+          previewImg: ogData.image || '',
+          platform: 'generic',
+          type: 'article',
+          hostname: urlHostname,
+          contentQuality: 'minimal'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
-        
-        if (browserResponse.ok) {
-          const html = await browserResponse.text();
-          console.log(`[Preview] 📄 Browser fetch successful for ${urlHostname}, HTML length: ${html.length}`);
-          
-          // Extract metadata
-          const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-          const title = titleMatch ? extractTextFromHtml(titleMatch[1]) : '';
-          
-          const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
-                           html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i) ||
-                           html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
-          const description = descMatch ? extractTextFromHtml(descMatch[1]) : '';
-          
-          const imgMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
-                          html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-          const image = imgMatch ? imgMatch[1] : '';
-          
-          // Extract article content with HDBlog-specific selectors
-          let articleContent = '';
-          const hdblogSelectors = [
-            /<article[^>]*class="[^"]*post[^"]*"[^>]*>([\s\S]*?)<\/article>/gi,
-            /<div[^>]*class="[^"]*post-content[^"]*"[^>]*>([\s\S]*?)<\/div>/gi,
-            /<div[^>]*class="[^"]*article-body[^"]*"[^>]*>([\s\S]*?)<\/div>/gi,
-            /<div[^>]*class="[^"]*entry-content[^"]*"[^>]*>([\s\S]*?)<\/div>/gi,
-            /<main[^>]*>([\s\S]*?)<\/main>/gi,
-          ];
-          
-          for (const selector of hdblogSelectors) {
-            const match = selector.exec(html);
-            if (match && match[1] && match[1].length > 200) {
-              articleContent = match[1];
-              break;
-            }
-          }
-          
-          // If no article container found, extract paragraphs
-          if (!articleContent) {
-            const paragraphs: string[] = [];
-            const pRegex = /<p[^>]*>(.+?)<\/p>/gis;
-            let pMatch;
-            while ((pMatch = pRegex.exec(html)) !== null && paragraphs.length < 15) {
-              const text = extractTextFromHtml(pMatch[0]);
-              if (text.length > 50) {
-                paragraphs.push(text);
-              }
-            }
-            articleContent = paragraphs.join('\n\n');
-          } else {
-            articleContent = cleanReaderText(articleContent);
-          }
-          
-          if (articleContent.length > 100 || title) {
-            console.log(`[Preview] ✅ Enhanced fetch successful for ${urlHostname}, content length: ${articleContent.length}`);
-            return new Response(JSON.stringify({
-              success: true,
-              title: title || 'Articolo',
-              content: articleContent || description,
-              summary: description || articleContent.substring(0, 300),
-              image,
-              previewImg: image,
-              platform: 'generic',
-              type: 'article',
-              hostname: urlHostname,
-              contentQuality: articleContent.length > 500 ? 'complete' : 'partial'
-            }), {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            });
-          }
-        }
-      } catch (browserError) {
-        console.error(`[Preview] ❌ Enhanced browser fetch failed for ${urlHostname}:`, browserError);
       }
       
-      // Final fallback: return minimal with error info
-      console.log(`[Preview] ❌ All extraction methods failed for ${urlHostname}`);
+      // Ultimate fallback - at least return something usable
+      console.log(`[Preview] 🔴 All methods failed for ${urlHostname}, returning placeholder`);
       return new Response(JSON.stringify({
-        success: false,
-        error: 'EXTRACTION_FAILED',
-        message: `Impossibile estrarre contenuto da ${urlHostname}. Il sito potrebbe bloccare le richieste automatiche.`,
-        hostname: urlHostname
+        success: true,
+        title: `Contenuto da ${urlHostname}`,
+        summary: `Questo sito potrebbe bloccare l'analisi automatica.`,
+        content: `Apri il link originale per visualizzare il contenuto.`,
+        platform: 'generic',
+        type: 'article',
+        hostname: urlHostname,
+        contentQuality: 'minimal'
       }), {
-        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Generic URL - try basic fetch
+    // Generic URL extraction for all other URLs
     try {
-      console.log('[fetch-article-preview] Fetching URL:', url);
+      console.log('[fetch-article-preview] Fetching generic URL:', url);
       
       const pageResponse = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; Bot/1.0)'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+          'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
         }
       });
       
@@ -1008,245 +1163,58 @@ serve(async (req) => {
         
         // Extract title
         const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-        const title = titleMatch ? titleMatch[1].trim() : '';
+        const title = titleMatch ? extractTextFromHtml(titleMatch[1]) : '';
         
         // Extract meta description
         const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
                          html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
-        const description = descMatch ? descMatch[1].trim() : '';
+        const description = descMatch ? extractTextFromHtml(descMatch[1]) : '';
         
         // Extract og:image
         const imgMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
                         html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
         const image = imgMatch ? imgMatch[1] : '';
         
-        // STEP 1: Try to find article content using specific selectors
+        // Try to find article content using specific selectors
         let articleHtml = '';
         const articleSelectors = [
           /<article[^>]*>([\s\S]*?)<\/article>/gi,
           /<main[^>]*>([\s\S]*?)<\/main>/gi,
           /<div[^>]*class="[^"]*(?:post-content|article-body|entry-content|article-content|story-body|post-body)[^"]*"[^>]*>([\s\S]*?)<\/div>/gi,
-          /<div[^>]*id="[^"]*(?:article|content|post|story)[^"]*"[^>]*>([\s\S]*?)<\/div>/gi
         ];
         
         for (const selector of articleSelectors) {
+          selector.lastIndex = 0;
           const articleMatch = selector.exec(html);
           if (articleMatch && articleMatch[1] && articleMatch[1].length > 200) {
             articleHtml = articleMatch[1];
-            console.log('[fetch-article-preview] Found article container, length:', articleHtml.length);
             break;
           }
         }
         
-        // STEP 2: Remove navigation/header/footer/aside elements from article HTML
+        // Clean HTML
         const cleanArticleHtml = (articleHtml || html)
           .replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '')
           .replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '')
           .replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '')
           .replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, '')
-          .replace(/<menu[^>]*>[\s\S]*?<\/menu>/gi, '')
-          .replace(/<div[^>]*class="[^"]*(?:nav|menu|sidebar|header|footer|widget|social|share|related|comment)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
+          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
         
-        // STEP 3: Extract paragraphs with smart filtering
+        // Extract paragraphs
         const paragraphs: string[] = [];
         const pRegex = /<p[^>]*>(.+?)<\/p>/gis;
         let match;
         while ((match = pRegex.exec(cleanArticleHtml)) !== null && paragraphs.length < 10) {
           const text = extractTextFromHtml(match[0]);
-          
-          // Skip short paragraphs
           if (text.length < 40) continue;
-          
-          // Skip navigation-like content
-          const words = text.split(/\s+/);
-          if (words.length <= 8) {
-            // Short line - check if it's menu-like (many capitalized single words)
-            const capitalizedWords = words.filter(w => /^[A-Z][a-z]*$/.test(w)).length;
-            if (capitalizedWords >= 3) continue;
-          }
-          
-          // Skip lines with multiple pipe separators (menu pattern)
-          if ((text.match(/\|/g) || []).length >= 2) continue;
-          
-          // Skip common navigation patterns (Italian sites like IlPost)
-          const navPatterns = [
-            /^(home|newsletter|podcast|shop|regala|abbonati|privacy|cookie|menu|contatti)/i,
-            /leggi anche/i,
-            /ti potrebbe interessare/i,
-            /iscriviti alla newsletter/i,
-            /^Facebook\s+X\s*\(?Twitter\)?/i,  // IlPost social sharing pattern
-            /^Email\s+Whatsapp/i,
-            /^Regala\s+il\s+Post/i,
-            /^Condividi\s+su/i,
-            /^Segui\s+su/i,
-            /^Sostieni\s+il\s+Post/i,
-            /\(AP Photo[^)]*\)/,  // Photo credits
-            /^AP Photo/i,
-            /^Getty Images/i,
-            /^ANSA/i,
-            /^Foto:/i,
-            /^©/,
-          ];
-          if (navPatterns.some(p => p.test(text))) continue;
-          
           paragraphs.push(text);
         }
+        
         const content = paragraphs.length > 0 ? paragraphs.join('\n\n') : description;
-        
-        console.log('[fetch-article-preview] Extracted data:', { 
-          title, 
-          hasDescription: !!description, 
-          hasImage: !!image,
-          paragraphCount: paragraphs.length,
-          contentLength: content.length,
-          usedArticleSelector: !!articleHtml
-        });
-        
-        // STEP 4: Check if content looks "dirty" (navigation mixed in)
-        const hasDirtyContent = content && (
-          /^(Newsletter|Podcast|Shop|Home|Menu|Regala)/m.test(content) ||
-          content.split('\n').filter(line => line.trim().length > 0 && line.trim().length < 20).length > 3
-        );
-        
-        // If we got minimal data, short content, OR dirty content -> try AI extraction
-        if (!title || title === 'Article' || (!description && !content) || content.length < 300 || hasDirtyContent) {
-          console.log('[fetch-article-preview] Poor/dirty extraction, trying Lovable AI fallback', { hasDirtyContent });
-          console.log('[fetch-article-preview] Poor extraction, trying Lovable AI fallback');
-          
-          try {
-            const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-            if (!LOVABLE_API_KEY) {
-              console.error('[fetch-article-preview] LOVABLE_API_KEY not configured');
-              throw new Error('AI extraction unavailable');
-            }
-
-            const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                model: 'google/gemini-2.5-flash',
-                messages: [
-                  { 
-                    role: 'system', 
-                    content: 'You are an expert at extracting ONLY the main article body text from news websites. You MUST:\n1. IGNORE ALL navigation menus (Home, Shop, Newsletter, etc.), headers, footers, sidebars, ads, cookie notices, social widgets\n2. Extract ONLY paragraphs that are part of the main article content\n3. Remove standalone menu-like lines (e.g. "Home | About | Contact")\n4. The article should read coherently from start to finish\n5. Remove all HTML tags, ads, and formatting\n6. Return ONLY valid JSON with: title, description (max 300 chars), content (full article text, minimum 500 chars)\n7. If you see repeated navigation items or technical metadata (Newsletter, Podcast, Shop, Privacy, Cookie, etc.), DO NOT include them\n8. The content should start directly with the article\'s first paragraph, not with navigation or menus\n9. Each line should be a complete sentence or paragraph, not a menu item' 
-                  },
-                  { 
-                    role: 'user', 
-                    content: `Extract clean article text from this HTML page. 
-
-CRITICAL RULES:
-- Remove ALL navigation menus, headers, footers, sidebars
-- Remove lines like "Home | About | Contact" or "Newsletter | Podcast | Shop"
-- Remove social media widgets and sharing buttons
-- Remove "Leggi anche", "Ti potrebbe interessare", related articles
-- Remove author bio boxes and tags at the end
-- Return ONLY the main article paragraphs
-
-HTML:
-${html.substring(0, 20000).replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '').replace(/<header[^>]*>[\s\S]*?<\/header>/gi, '').replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, '').replace(/<aside[^>]*>[\s\S]*?<\/aside>/gi, '').replace(/<menu[^>]*>[\s\S]*?<\/menu>/gi, '').replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')}` 
-                  }
-                ],
-                temperature: 0.2,
-                max_tokens: 2000
-              }),
-            });
-
-            if (aiResponse.ok) {
-              const aiData = await aiResponse.json();
-              const aiContent = aiData.choices?.[0]?.message?.content;
-              
-              if (aiContent) {
-                console.log('[fetch-article-preview] AI response:', aiContent);
-                
-                try {
-                  // Remove markdown code fences if present
-                  let cleanContent = aiContent.trim();
-                  if (cleanContent.startsWith('```json')) {
-                    cleanContent = cleanContent.replace(/^```json\n?/, '').replace(/\n?```$/, '');
-                  } else if (cleanContent.startsWith('```')) {
-                    cleanContent = cleanContent.replace(/^```\n?/, '').replace(/\n?```$/, '');
-                  }
-                  
-                  const extracted = JSON.parse(cleanContent);
-                  
-                  // Post-processing: Filter menu-like lines from AI-extracted content
-                  let cleanedAiContent = extracted.content || '';
-                  if (cleanedAiContent) {
-                    const lines = cleanedAiContent.split('\n').filter((line: string) => {
-                      const trimmed = line.trim();
-                      
-                      // Keep empty lines for spacing
-                      if (!trimmed) return true;
-                      
-                      // Skip very short lines unless they're list items
-                      if (trimmed.length < 20 && !/^[\d-•]/.test(trimmed)) return false;
-                      
-                      // Skip lines with multiple pipe separators (menu pattern)
-                      const pipeCount = (trimmed.match(/\|/g) || []).length;
-                      if (pipeCount >= 2) return false;
-                      
-                      const words = trimmed.split(/\s+/);
-                      
-                      // Skip short lines (3-8 words) with many capitalized words (menu items)
-                      if (words.length >= 3 && words.length <= 8) {
-                        const capitalizedCount = words.filter((w: string) => /^[A-Z]/.test(w)).length;
-                        if (capitalizedCount / words.length > 0.7) return false;
-                      }
-                      
-                      // Filter common navigation patterns
-                      const navPatterns = [
-                        /^(home|newsletter|podcast|shop|regala|abbonati|privacy|terms|cookie|menu|contatti|chi siamo)/i,
-                        /leggi anche/i,
-                        /ti potrebbe interessare/i,
-                        /vedi anche/i,
-                        /iscriviti/i,
-                        /seguici/i
-                      ];
-                      
-                      if (navPatterns.some(pattern => pattern.test(trimmed))) return false;
-                      
-                      return true;
-                    });
-                    
-                    cleanedAiContent = lines.join('\n\n');
-                  }
-                  
-                  // Clean the AI-extracted content too
-                  cleanedAiContent = cleanReaderText(cleanedAiContent);
-                  
-                  const result = {
-                    success: true,
-                    title: extracted.title || title || 'Article',
-                    summary: extracted.description || description,
-                    content: cleanedAiContent || content || extracted.description || description,
-                    image,
-                    previewImg: image,
-                    platform: 'generic',
-                    type: 'article',
-                    hostname: new URL(url).hostname,
-                    contentQuality: cleanedAiContent.length > 500 ? 'complete' : 'partial'
-                  };
-                  
-                  console.log('[fetch-article-preview] ✅ AI extraction successful, content length:', cleanedAiContent.length);
-                  return new Response(JSON.stringify(result), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                  });
-                } catch (parseError) {
-                  console.error('[fetch-article-preview] Failed to parse AI JSON:', parseError);
-                }
-              }
-            }
-          } catch (aiError) {
-            console.error('[fetch-article-preview] AI extraction failed:', aiError);
-          }
-        }
-        
-        // Return what we extracted (even if minimal) - with cleaned content
         const cleanedContent = cleanReaderText(content || description);
-        const result = {
+        
+        return new Response(JSON.stringify({
           success: true,
           title: title || 'Article',
           summary: description,
@@ -1257,9 +1225,7 @@ ${html.substring(0, 20000).replace(/<nav[^>]*>[\s\S]*?<\/nav>/gi, '').replace(/<
           type: 'article',
           hostname: new URL(url).hostname,
           contentQuality: cleanedContent.length > 300 ? 'complete' : 'partial'
-        };
-        
-        return new Response(JSON.stringify(result), {
+        }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
