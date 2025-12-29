@@ -907,7 +907,9 @@ serve(async (req) => {
     ];
 
     const urlHostname = new URL(url).hostname.toLowerCase();
-    if (FORCE_JINA_DOMAINS.some(domain => urlHostname.includes(domain.replace('www.', '')))) {
+    const isForceJinaDomain = FORCE_JINA_DOMAINS.some(domain => urlHostname.includes(domain.replace('www.', '')));
+    
+    if (isForceJinaDomain) {
       console.log(`[Preview] 🔧 Forcing Jina AI for problematic domain: ${urlHostname}`);
       const jinaResult = await fetchSocialWithJina(url, 'article');
       if (jinaResult && jinaResult.content && jinaResult.content.length > 100) {
@@ -922,7 +924,105 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      console.log(`[Preview] ⚠️ Jina AI failed for ${urlHostname}, falling back to basic fetch`);
+      
+      // Jina failed for force domain - try enhanced fetch with browser headers
+      console.log(`[Preview] ⚠️ Jina AI failed for ${urlHostname}, trying enhanced browser fetch...`);
+      try {
+        const browserResponse = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+          }
+        });
+        
+        if (browserResponse.ok) {
+          const html = await browserResponse.text();
+          console.log(`[Preview] 📄 Browser fetch successful for ${urlHostname}, HTML length: ${html.length}`);
+          
+          // Extract metadata
+          const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+          const title = titleMatch ? extractTextFromHtml(titleMatch[1]) : '';
+          
+          const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
+                           html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i) ||
+                           html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
+          const description = descMatch ? extractTextFromHtml(descMatch[1]) : '';
+          
+          const imgMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
+                          html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+          const image = imgMatch ? imgMatch[1] : '';
+          
+          // Extract article content with HDBlog-specific selectors
+          let articleContent = '';
+          const hdblogSelectors = [
+            /<article[^>]*class="[^"]*post[^"]*"[^>]*>([\s\S]*?)<\/article>/gi,
+            /<div[^>]*class="[^"]*post-content[^"]*"[^>]*>([\s\S]*?)<\/div>/gi,
+            /<div[^>]*class="[^"]*article-body[^"]*"[^>]*>([\s\S]*?)<\/div>/gi,
+            /<div[^>]*class="[^"]*entry-content[^"]*"[^>]*>([\s\S]*?)<\/div>/gi,
+            /<main[^>]*>([\s\S]*?)<\/main>/gi,
+          ];
+          
+          for (const selector of hdblogSelectors) {
+            const match = selector.exec(html);
+            if (match && match[1] && match[1].length > 200) {
+              articleContent = match[1];
+              break;
+            }
+          }
+          
+          // If no article container found, extract paragraphs
+          if (!articleContent) {
+            const paragraphs: string[] = [];
+            const pRegex = /<p[^>]*>(.+?)<\/p>/gis;
+            let pMatch;
+            while ((pMatch = pRegex.exec(html)) !== null && paragraphs.length < 15) {
+              const text = extractTextFromHtml(pMatch[0]);
+              if (text.length > 50) {
+                paragraphs.push(text);
+              }
+            }
+            articleContent = paragraphs.join('\n\n');
+          } else {
+            articleContent = cleanReaderText(articleContent);
+          }
+          
+          if (articleContent.length > 100 || title) {
+            console.log(`[Preview] ✅ Enhanced fetch successful for ${urlHostname}, content length: ${articleContent.length}`);
+            return new Response(JSON.stringify({
+              success: true,
+              title: title || 'Articolo',
+              content: articleContent || description,
+              summary: description || articleContent.substring(0, 300),
+              image,
+              previewImg: image,
+              platform: 'generic',
+              type: 'article',
+              hostname: urlHostname,
+              contentQuality: articleContent.length > 500 ? 'complete' : 'partial'
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        }
+      } catch (browserError) {
+        console.error(`[Preview] ❌ Enhanced browser fetch failed for ${urlHostname}:`, browserError);
+      }
+      
+      // Final fallback: return minimal with error info
+      console.log(`[Preview] ❌ All extraction methods failed for ${urlHostname}`);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'EXTRACTION_FAILED',
+        message: `Impossibile estrarre contenuto da ${urlHostname}. Il sito potrebbe bloccare le richieste automatiche.`,
+        hostname: urlHostname
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     // Generic URL - try basic fetch
