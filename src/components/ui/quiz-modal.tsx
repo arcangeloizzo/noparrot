@@ -183,18 +183,21 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
 
   return (
     <div 
-      className="fixed inset-0 bg-black/80 z-[9999] pointer-events-auto"
+      className="fixed inset-0 bg-black/80 z-[9999] pointer-events-auto touch-none"
       onClick={handleBackdropClick}
       style={{ pointerEvents: 'auto' }}
     >
       <div 
-        className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-auto"
+        className="fixed inset-0 z-[10000] flex items-start sm:items-center justify-center p-4 pt-8 sm:pt-4 pointer-events-auto touch-none"
         style={{ pointerEvents: 'auto' }}
       >
         <div 
-          className="bg-background rounded-2xl w-full max-w-2xl max-h-[85vh] sm:max-h-[90vh] overflow-hidden shadow-2xl pointer-events-auto flex flex-col"
+          className="bg-background rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl pointer-events-auto flex flex-col"
           onClick={(e) => e.stopPropagation()}
-          style={{ pointerEvents: 'auto', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+          style={{ 
+            pointerEvents: 'auto', 
+            maxHeight: 'calc(100dvh - 2rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))',
+          }}
         >
           
           {result ? (
@@ -237,7 +240,10 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
                 </div>
               </div>
 
-              <div className="p-4 sm:p-6 flex-1 overflow-y-auto min-h-0">
+              <div 
+                className="p-4 sm:p-6 flex-1 overflow-y-auto min-h-0 overscroll-contain touch-pan-y"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+              >
                 <p className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2">Passo {currentStep + 1} — facciamo chiarezza su questo punto.</p>
                 <h3 className="text-base sm:text-lg font-semibold mb-4 sm:mb-6">{currentQuestion.stem}</h3>
 
