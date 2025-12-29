@@ -3,6 +3,7 @@
 // ✅ Semplificato: solo timer 10s OPPURE scroll 100%
 // ✅ Rimosso block tracking complesso
 // ✅ Rimosso velocity detection e attrition
+// ✅ Async YouTube transcript loading
 
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Check, ExternalLink, Music, Loader2 } from 'lucide-react';
@@ -11,6 +12,7 @@ import { TypingIndicator } from '@/components/ui/typing-indicator';
 import { cn } from '@/lib/utils';
 import { SourceWithGate } from '@/lib/comprehension-gate-extended';
 import { sendReaderTelemetry } from '@/lib/telemetry';
+import { fetchYouTubeTranscript } from '@/lib/ai-helpers';
 
 // Safe iframe extraction utilities
 const extractIframeSrc = (html: string): string | null => {
@@ -96,6 +98,12 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const [scrollProgress, setScrollProgress] = useState(0);
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Async YouTube transcript state
+  const [asyncTranscript, setAsyncTranscript] = useState<string | null>(null);
+  const [transcriptLoading, setTranscriptLoading] = useState(false);
+  const [transcriptError, setTranscriptError] = useState<string | null>(null);
+  const transcriptFetchedRef = useRef(false);
 
   // Load and render Twitter widgets ONLY for Twitter embeds
   useEffect(() => {
@@ -260,6 +268,10 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       setScrollProgress(0);
       setHasScrolledToBottom(false);
       setShowTypingIndicator(false);
+      setAsyncTranscript(null);
+      setTranscriptLoading(false);
+      setTranscriptError(null);
+      transcriptFetchedRef.current = false;
 
       // iOS-safe scroll lock
       document.body.classList.remove('reader-open');
@@ -289,6 +301,57 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       document.body.classList.remove('reader-open');
     };
   }, [isOpen, safeSetTimeout]);
+
+  // Async YouTube transcript fetch
+  useEffect(() => {
+    if (!isOpen || source.platform !== 'youtube') return;
+    if (transcriptFetchedRef.current) return;
+    
+    // Check if transcript is already available from cache
+    const existingTranscript = source.transcript;
+    const transcriptStatus = (source as any).transcriptStatus;
+    
+    if (existingTranscript && existingTranscript.length > 50) {
+      console.log('[SourceReaderGate] Transcript already cached:', existingTranscript.length, 'chars');
+      setAsyncTranscript(existingTranscript);
+      return;
+    }
+    
+    // If transcriptStatus is 'pending', fetch async
+    if (transcriptStatus === 'pending' || !existingTranscript) {
+      transcriptFetchedRef.current = true;
+      setTranscriptLoading(true);
+      setTranscriptError(null);
+      
+      console.log('[SourceReaderGate] Starting async transcript fetch for:', source.url);
+      
+      fetchYouTubeTranscript(source.url)
+        .then((result) => {
+          if (!isMountedRef.current) return;
+          
+          if (result.transcript && result.transcript.length > 50) {
+            console.log('[SourceReaderGate] Async transcript received:', result.transcript.length, 'chars');
+            setAsyncTranscript(result.transcript);
+            setTranscriptError(null);
+          } else if (result.error) {
+            console.warn('[SourceReaderGate] Transcript error:', result.error);
+            setTranscriptError(result.error);
+          } else if (result.source === 'none') {
+            setTranscriptError('Questo video non ha sottotitoli disponibili');
+          }
+        })
+        .catch((err) => {
+          if (!isMountedRef.current) return;
+          console.error('[SourceReaderGate] Transcript fetch failed:', err);
+          setTranscriptError('Errore nel caricamento della trascrizione');
+        })
+        .finally(() => {
+          if (isMountedRef.current) {
+            setTranscriptLoading(false);
+          }
+        });
+    }
+  }, [isOpen, source.platform, source.url, source.transcript]);
 
   // Scroll handler semplificato
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -501,57 +564,79 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                   </div>
                 )}
                 
-                {/* Transcript Status Badges */}
-                {(source as any).transcriptAvailable === true && source.transcript && (
-                  <div className="bg-trust-high/10 border border-trust-high/20 rounded-lg p-3">
-                    <div className="flex items-center gap-2">
-                      <Check className="h-4 w-4 text-trust-high" />
-                      <span className="text-sm font-medium text-trust-high">
-                        Trascrizione Completa Disponibile
-                      </span>
-                    </div>
-                    <p className="text-xs text-trust-high/70 mt-1">
-                      Lunghezza: {source.transcript.length} caratteri
-                    </p>
-                  </div>
-                )}
-                
-                {(source as any).transcriptAvailable === false && (source as any).transcriptError && (
-                  <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
-                    <div className="flex items-start gap-2">
-                      <div className="flex-1">
-                        <span className="text-sm font-medium text-warning block">
-                          ⚠️ Trascrizione Non Disponibile
-                        </span>
-                        <p className="text-xs text-warning/70 mt-1">
-                          {(source as any).transcriptError}
+                {/* Transcript Status Badges - Async aware */}
+                {(() => {
+                  const displayTranscript = asyncTranscript || source.transcript;
+                  const hasTranscript = displayTranscript && displayTranscript.length > 50;
+                  
+                  if (transcriptLoading) {
+                    return (
+                      <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                          <span className="text-sm font-medium text-primary">
+                            Trascrizione in caricamento...
+                          </span>
+                        </div>
+                        <p className="text-xs text-primary/70 mt-1">
+                          Potrebbe richiedere fino a 60 secondi per video lunghi
                         </p>
                       </div>
-                    </div>
-                  </div>
-                )}
+                    );
+                  }
+                  
+                  if (hasTranscript) {
+                    return (
+                      <div className="bg-trust-high/10 border border-trust-high/20 rounded-lg p-3">
+                        <div className="flex items-center gap-2">
+                          <Check className="h-4 w-4 text-trust-high" />
+                          <span className="text-sm font-medium text-trust-high">
+                            Trascrizione Completa Disponibile
+                          </span>
+                        </div>
+                        <p className="text-xs text-trust-high/70 mt-1">
+                          Lunghezza: {displayTranscript.length} caratteri
+                        </p>
+                      </div>
+                    );
+                  }
+                  
+                  if (transcriptError) {
+                    return (
+                      <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
+                        <div className="flex items-start gap-2">
+                          <div className="flex-1">
+                            <span className="text-sm font-medium text-warning block">
+                              ⚠️ Trascrizione Non Disponibile
+                            </span>
+                            <p className="text-xs text-warning/70 mt-1">
+                              {transcriptError}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  return null;
+                })()}
                 
-                {source.transcriptSource === 'none' && !(source as any).transcriptError && (
-                  <div className="bg-muted/50 border border-border rounded-lg p-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">
-                        ℹ️ Questo video non ha sottotitoli disponibili
-                      </span>
+                {/* Transcript Text - Simple render (async aware) */}
+                {(() => {
+                  const displayTranscript = asyncTranscript || source.transcript;
+                  if (!displayTranscript || displayTranscript.length < 50) return null;
+                  
+                  return (
+                    <div className="prose prose-sm max-w-none">
+                      <h4 className="text-base font-semibold text-foreground mb-3">
+                        Trascrizione del Video
+                      </h4>
+                      <div className="whitespace-pre-wrap text-foreground leading-relaxed bg-muted/30 rounded-lg p-4 border border-border">
+                        {displayTranscript}
+                      </div>
                     </div>
-                  </div>
-                )}
-                
-                {/* Transcript Text - Simple render */}
-                {source.transcript && (
-                  <div className="prose prose-sm max-w-none">
-                    <h4 className="text-base font-semibold text-foreground mb-3">
-                      Trascrizione del Video
-                    </h4>
-                    <div className="whitespace-pre-wrap text-foreground leading-relaxed bg-muted/30 rounded-lg p-4 border border-border">
-                      {source.transcript}
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
                 
                 <div className="h-32"></div>
               </>

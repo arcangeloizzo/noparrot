@@ -459,7 +459,7 @@ serve(async (req) => {
       console.log('[fetch-article-preview] Detected YouTube video:', youtubeId);
       
       try {
-        // STEP 1: Fetch YouTube metadata using oEmbed FIRST (fast, ~200ms)
+        // STEP 1: Fetch YouTube metadata using oEmbed (fast, ~200ms)
         const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
         const oembedResponse = await fetch(oembedUrl);
         
@@ -470,83 +470,51 @@ serve(async (req) => {
         const oembedData = await oembedResponse.json();
         console.log('[YouTube] ✅ oEmbed fetched:', oembedData.title);
         
-        // STEP 2: Try transcript with AGGRESSIVE timeout (8 seconds max)
+        // STEP 2: Check transcript CACHE ONLY (fast path, no blocking)
         const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
         const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
         
         let transcript = null;
         let transcriptSource = 'none';
         let transcriptAvailable = false;
-        let transcriptError = null;
+        let transcriptStatus: 'cached' | 'pending' | 'unavailable' = 'pending';
         
         if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
           try {
-            console.log(`[YouTube] ⏱️ Attempting transcript fetch with 25s timeout for ${youtubeId}`);
+            // Fast cache-only check (no transcript fetching here)
+            console.log(`[YouTube] 🔍 Checking transcript cache for ${youtubeId}...`);
             
-            // Create abort controller for timeout
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second timeout
+            const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.75.0');
+            const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
             
-            const transcriptResponse = await fetch(
-              `${SUPABASE_URL}/functions/v1/transcribe-youtube`,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-                },
-                body: JSON.stringify({ url }),
-                signal: controller.signal,
-              }
-            );
+            const { data: cached, error: cacheError } = await supabase
+              .from('youtube_transcripts_cache')
+              .select('transcript, source')
+              .eq('video_id', youtubeId)
+              .maybeSingle();
             
-            clearTimeout(timeoutId);
-            
-            if (transcriptResponse.ok) {
-              const transcriptData = await transcriptResponse.json();
-              
-              console.log('[YouTube] 📝 Transcript response:', {
-                hasTranscript: !!transcriptData.transcript,
-                transcriptLength: transcriptData.transcript?.length || 0,
-                transcriptSource: transcriptData.source,
-                disabled: transcriptData.disabled,
-                error: transcriptData.error
-              });
-              
-              // Check if transcript is disabled - skip entirely
-              if (transcriptData.disabled || transcriptData.source === 'disabled') {
-                console.log('[YouTube] ⏭️ Transcript disabled for this video, returning oEmbed only');
-                transcriptError = 'Transcript is disabled for this video';
-              } else if (transcriptData.transcript && transcriptData.transcript.length > 50) {
-                transcript = transcriptData.transcript;
-                transcriptSource = transcriptData.source || 'youtube_captions';
-                transcriptAvailable = true;
-                console.log(`[YouTube] ✅ Transcript fetched (${transcriptSource}), length: ${transcript.length}`);
-              } else if (transcriptData.error) {
-                transcriptError = transcriptData.error;
-                console.warn(`[YouTube] ⚠️ Transcript error: ${transcriptData.error}`);
-              } else {
-                console.warn(`[YouTube] ⚠️ Transcript too short or empty`);
-              }
+            if (cacheError) {
+              console.warn('[YouTube] ⚠️ Cache check error:', cacheError.message);
+            } else if (cached && cached.transcript) {
+              transcript = cached.transcript;
+              transcriptSource = cached.source || 'cache';
+              transcriptAvailable = true;
+              transcriptStatus = 'cached';
+              console.log(`[YouTube] ✅ CACHE HIT: ${transcript.length} chars (source: ${transcriptSource})`);
             } else {
-              const errorText = await transcriptResponse.text();
-              transcriptError = `HTTP ${transcriptResponse.status}`;
-              console.error(`[YouTube] ❌ Transcript fetch failed: ${transcriptError}`);
+              console.log(`[YouTube] ⏳ CACHE MISS: transcript will be fetched async by client`);
+              transcriptStatus = 'pending';
             }
-          } catch (transcriptFetchError: any) {
-            if (transcriptFetchError.name === 'AbortError') {
-              transcriptError = 'Timeout (25s)';
-              console.warn('[YouTube] ⏱️ Transcript fetch TIMEOUT after 25 seconds');
-            } else {
-              transcriptError = transcriptFetchError instanceof Error ? transcriptFetchError.message : 'Unknown error';
-              console.error('[YouTube] ❌ Exception fetching transcript:', transcriptFetchError);
-            }
+          } catch (cacheCheckError: any) {
+            console.warn('[YouTube] ⚠️ Cache check exception:', cacheCheckError.message);
+            transcriptStatus = 'pending';
           }
         } else {
-          console.warn('[YouTube] ⚠️ Missing SUPABASE_URL or SERVICE_ROLE_KEY');
+          console.warn('[YouTube] ⚠️ Missing SUPABASE env vars');
+          transcriptStatus = 'pending';
         }
         
-        // STEP 3: Return preview immediately with oEmbed data (transcript optional)
+        // STEP 3: Return preview IMMEDIATELY (never block on transcript)
         return new Response(JSON.stringify({
           success: true,
           title: oembedData.title,
@@ -558,15 +526,14 @@ serve(async (req) => {
           platform: 'youtube',
           type: 'video',
           embedHtml: oembedData.html,
-          transcript: transcript,
-          transcriptSource: transcriptSource,
+          youtubeId,
+          transcript,
+          transcriptSource,
           transcriptAvailable,
-          transcriptError,
+          transcriptStatus,
           author: oembedData.author_name,
           authorUrl: oembedData.author_url,
-          contentQuality: (transcript && typeof transcript === 'string' && transcript.length > 500) 
-            ? 'complete' 
-            : 'partial'
+          contentQuality: transcriptAvailable ? 'complete' : 'partial'
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
