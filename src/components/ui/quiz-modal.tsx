@@ -192,43 +192,43 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
         style={{ pointerEvents: 'auto' }}
       >
         <div 
-          className="bg-background rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl pointer-events-auto"
+          className="bg-background rounded-2xl w-full max-w-2xl max-h-[85vh] sm:max-h-[90vh] overflow-hidden shadow-2xl pointer-events-auto flex flex-col"
           onClick={(e) => e.stopPropagation()}
-          style={{ pointerEvents: 'auto' }}
+          style={{ pointerEvents: 'auto', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         >
           
           {result ? (
-            <div className="p-8 text-center">
+            <div className="p-6 sm:p-8 text-center flex-1 overflow-y-auto">
               {result.passed ? (
                 <>
-                  <div className="mb-6 flex justify-center">
-                    <div className="w-20 h-20 rounded-full bg-[hsl(var(--cognitive-correct))]/20 flex items-center justify-center">
-                      <CheckCircle2 className="w-12 h-12 text-[hsl(var(--cognitive-correct))]" />
+                  <div className="mb-4 sm:mb-6 flex justify-center">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[hsl(var(--cognitive-correct))]/20 flex items-center justify-center">
+                      <CheckCircle2 className="w-10 h-10 sm:w-12 sm:h-12 text-[hsl(var(--cognitive-correct))]" />
                     </div>
                   </div>
-                  <h2 className="text-2xl font-bold mb-4">Hai compreso.</h2>
-                  <p className="text-muted-foreground mb-6">Le tue parole ora hanno peso.</p>
+                  <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Hai compreso.</h2>
+                  <p className="text-muted-foreground mb-4 sm:mb-6 text-sm sm:text-base">Le tue parole ora hanno peso.</p>
                   <Button onClick={(e) => { e.stopPropagation(); onCancel?.(); }} className="w-full font-medium pointer-events-auto" style={{ pointerEvents: 'auto' }}>Chiudi</Button>
                 </>
               ) : (
                 <>
-                  <div className="mb-6 flex justify-center">
-                    <div className="w-20 h-20 rounded-full bg-[hsl(var(--cognitive-incorrect))]/30 flex items-center justify-center">
-                      <XCircle className="w-12 h-12 text-[hsl(var(--cognitive-incorrect))]" />
+                  <div className="mb-4 sm:mb-6 flex justify-center">
+                    <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[hsl(var(--cognitive-incorrect))]/30 flex items-center justify-center">
+                      <XCircle className="w-10 h-10 sm:w-12 sm:h-12 text-[hsl(var(--cognitive-incorrect))]" />
                     </div>
                   </div>
-                  <h2 className="text-2xl font-bold mb-4">Non ancora.</h2>
-                  <p className="text-muted-foreground mb-6">La comprensione richiede tempo, non fretta.</p>
+                  <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Non ancora.</h2>
+                  <p className="text-muted-foreground mb-4 sm:mb-6 text-sm sm:text-base">La comprensione richiede tempo, non fretta.</p>
                   <Button onClick={(e) => { e.stopPropagation(); onCancel?.(); }} variant="outline" className="w-full font-medium pointer-events-auto" style={{ pointerEvents: 'auto' }}>Chiudi</Button>
                 </>
               )}
             </div>
           ) : (
             <>
-              <div className="p-6 border-b border-border">
-                <h2 className="text-xl font-bold text-center">Mettiamo a fuoco.</h2>
-                <p className="text-sm text-muted-foreground text-center mt-2">Una domanda alla volta, per vedere più chiaro.</p>
-                <div className="flex justify-center gap-2 mt-4">
+              <div className="p-4 sm:p-6 border-b border-border flex-shrink-0">
+                <h2 className="text-lg sm:text-xl font-bold text-center">Mettiamo a fuoco.</h2>
+                <p className="text-xs sm:text-sm text-muted-foreground text-center mt-1 sm:mt-2">Una domanda alla volta, per vedere più chiaro.</p>
+                <div className="flex justify-center gap-2 mt-3 sm:mt-4">
                   {validQuestions.map((_, idx) => (
                     <div key={idx} className={cn("w-2 h-2 rounded-full transition-all duration-200",
                       idx < currentStep ? "bg-[hsl(var(--cognitive-correct))]" : 
@@ -237,11 +237,11 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
                 </div>
               </div>
 
-              <div className="p-6">
-                <p className="text-sm text-muted-foreground mb-2">Passo {currentStep + 1} — facciamo chiarezza su questo punto.</p>
-                <h3 className="text-lg font-semibold mb-6">{currentQuestion.stem}</h3>
+              <div className="p-4 sm:p-6 flex-1 overflow-y-auto min-h-0">
+                <p className="text-xs sm:text-sm text-muted-foreground mb-1 sm:mb-2">Passo {currentStep + 1} — facciamo chiarezza su questo punto.</p>
+                <h3 className="text-base sm:text-lg font-semibold mb-4 sm:mb-6">{currentQuestion.stem}</h3>
 
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {(currentQuestion.choices || []).map((choice) => {
                     const isSelected = selectedChoice === choice.id;
                     const isRightAndSelected = showFeedback && isSelected && choice.id === currentQuestion.correctId;
@@ -256,7 +256,7 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
                         }}
                         disabled={showFeedback}
                         style={{ pointerEvents: 'auto' }}
-                        className={cn("w-full p-5 rounded-2xl text-left transition-all border-2 pointer-events-auto",
+                        className={cn("w-full p-3 sm:p-5 rounded-xl sm:rounded-2xl text-left transition-all border-2 pointer-events-auto text-sm sm:text-base",
                           !showFeedback && !isSelected && "border-border bg-muted/20 hover:border-muted-foreground hover:bg-muted/40",
                           !showFeedback && isSelected && "border-[hsl(var(--cognitive-glow-blue))] bg-[hsl(var(--cognitive-glow-blue))]/10",
                           isRightAndSelected && "border-[hsl(var(--cognitive-correct))] bg-[hsl(var(--cognitive-correct))]/10",
@@ -268,20 +268,20 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
                 </div>
 
                 {showFeedback && (
-                  <div className={cn("p-5 rounded-2xl mt-6 text-center animate-fade-in",
+                  <div className={cn("p-3 sm:p-5 rounded-xl sm:rounded-2xl mt-4 sm:mt-6 text-center animate-fade-in",
                     isCorrect ? "bg-[hsl(var(--cognitive-correct))]/10 border-2 border-[hsl(var(--cognitive-correct))]/30" : 
                     "bg-[hsl(var(--cognitive-incorrect))]/20 border-2 border-[hsl(var(--cognitive-incorrect))]/40")}>
-                    <p className={cn("font-medium text-[15px]", isCorrect ? "text-[hsl(var(--cognitive-correct))]" : "text-foreground")}>
+                    <p className={cn("font-medium text-sm sm:text-[15px]", isCorrect ? "text-[hsl(var(--cognitive-correct))]" : "text-foreground")}>
                       {isCorrect ? "Ottimo. Continuiamo." : "Questa parte non è ancora limpida. Riguardiamola insieme."}
                     </p>
                     {!isCorrect && showRetryMessage && (
-                      <p className="text-sm mt-2 opacity-80">Hai ancora 1 tentativo disponibile.</p>
+                      <p className="text-xs sm:text-sm mt-1 sm:mt-2 opacity-80">Hai ancora 1 tentativo disponibile.</p>
                     )}
                   </div>
                 )}
               </div>
 
-              <div className="px-6 pb-6 flex gap-3 pointer-events-auto" style={{ pointerEvents: 'auto' }}>
+              <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex gap-3 pointer-events-auto flex-shrink-0" style={{ pointerEvents: 'auto', paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)' }}>
                 {onCancel && <Button onClick={(e) => { e.stopPropagation(); onCancel(); }} variant="outline" className="flex-1 pointer-events-auto" style={{ pointerEvents: 'auto' }}>Annulla</Button>}
               </div>
             </>
