@@ -1108,6 +1108,77 @@ serve(async (req) => {
         });
       }
       
+      // NEW: Try Google Web Cache as proxy for blocked sites
+      console.log(`[Preview] 🔄 Trying Google Web Cache for ${urlHostname}...`);
+      try {
+        const cacheUrl = `https://webcache.googleusercontent.com/search?q=cache:${encodeURIComponent(url)}&strip=1`;
+        const cacheResponse = await fetch(cacheUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
+          }
+        });
+        
+        if (cacheResponse.ok) {
+          const cacheHtml = await cacheResponse.text();
+          console.log(`[Preview] ✅ Google Cache response received, length: ${cacheHtml.length}`);
+          
+          // Extract title from cached page
+          const cacheTitleMatch = cacheHtml.match(/<title[^>]*>([^<]+)<\/title>/i);
+          let cacheTitle = cacheTitleMatch ? extractTextFromHtml(cacheTitleMatch[1]) : '';
+          // Clean Google cache prefix from title
+          cacheTitle = cacheTitle.replace(/^(cache:|Cached\s+)/i, '').trim();
+          
+          // Extract meta description
+          const cacheDescMatch = cacheHtml.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i);
+          const cacheDesc = cacheDescMatch ? extractTextFromHtml(cacheDescMatch[1]) : '';
+          
+          // Extract og:image
+          const cacheImgMatch = cacheHtml.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+          const cacheImage = cacheImgMatch ? cacheImgMatch[1] : '';
+          
+          // Extract paragraphs from cached content (skip Google's cache header)
+          const cacheParagraphs: string[] = [];
+          const cachePRegex = /<p[^>]*>(.+?)<\/p>/gis;
+          let cacheMatch;
+          while ((cacheMatch = cachePRegex.exec(cacheHtml)) !== null && cacheParagraphs.length < 15) {
+            const text = extractTextFromHtml(cacheMatch[0]);
+            if (text.length < 50) continue;
+            // Skip Google cache banner text
+            if (text.includes('Google\'s cache') || text.includes('snapshot of the page')) continue;
+            if (text.includes('cached version') || text.includes('current page')) continue;
+            cacheParagraphs.push(text);
+          }
+          
+          const cacheContent = cacheParagraphs.join('\n\n');
+          
+          if (cacheContent.length > 150 || (cacheTitle && cacheImage)) {
+            console.log(`[Preview] ✅ Google Cache extraction successful: ${cacheContent.length} chars`);
+            const cleanedCacheContent = cleanReaderText(cacheContent || cacheDesc);
+            return new Response(JSON.stringify({
+              success: true,
+              title: cacheTitle || `Contenuto da ${urlHostname}`,
+              summary: cacheDesc || cleanedCacheContent.slice(0, 200),
+              content: cleanedCacheContent,
+              image: cacheImage,
+              previewImg: cacheImage,
+              platform: 'generic',
+              type: 'article',
+              hostname: urlHostname,
+              contentQuality: cleanedCacheContent.length > 500 ? 'complete' : 'partial',
+              source: 'google-cache'
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        } else {
+          console.log(`[Preview] ⚠️ Google Cache returned ${cacheResponse.status}`);
+        }
+      } catch (cacheError) {
+        console.error(`[Preview] ⚠️ Google Cache error:`, cacheError);
+      }
+      
       // Final fallback: OpenGraph only
       console.log(`[Preview] ⚠️ All extraction methods failed for ${urlHostname}, trying OpenGraph fallback...`);
       const ogData = await fetchOpenGraphData(url);
@@ -1129,17 +1200,31 @@ serve(async (req) => {
         });
       }
       
-      // Ultimate fallback - at least return something usable
-      console.log(`[Preview] 🔴 All methods failed for ${urlHostname}, returning placeholder`);
+      // Ultimate fallback - extract readable title from URL path
+      console.log(`[Preview] 🔴 All methods failed for ${urlHostname}, extracting title from URL...`);
+      const urlPath = new URL(url).pathname;
+      // Parse URL slug into readable title: /passo-a-macos-dopo-una-vita-su-windows/ → "Passo a macOS dopo una vita su Windows"
+      const urlSlug = urlPath.split('/').filter(s => s.length > 10).pop() || '';
+      let urlTitle = urlSlug
+        .replace(/[-_]/g, ' ')
+        .replace(/\d{4,}/g, '') // Remove long numbers
+        .replace(/\.(html?|php|aspx?)$/i, '') // Remove file extensions
+        .trim();
+      // Capitalize first letter
+      if (urlTitle) {
+        urlTitle = urlTitle.charAt(0).toUpperCase() + urlTitle.slice(1);
+      }
+      
       return new Response(JSON.stringify({
         success: true,
-        title: `Contenuto da ${urlHostname}`,
-        summary: `Questo sito potrebbe bloccare l'analisi automatica.`,
+        title: urlTitle || `Contenuto da ${urlHostname}`,
+        summary: urlTitle ? `${urlTitle} - ${urlHostname}` : `Questo sito potrebbe bloccare l'analisi automatica.`,
         content: `Apri il link originale per visualizzare il contenuto.`,
         platform: 'generic',
         type: 'article',
         hostname: urlHostname,
-        contentQuality: 'minimal'
+        contentQuality: 'minimal',
+        extractedFromUrl: !!urlTitle
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
