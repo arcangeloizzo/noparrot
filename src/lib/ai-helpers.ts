@@ -148,3 +148,41 @@ export async function classifyContent(params: {
     return null;
   }
 }
+
+/**
+ * Fetch YouTube transcript asynchronously (for client-side loading)
+ * Returns transcript data or null if unavailable
+ */
+export async function fetchYouTubeTranscript(url: string): Promise<{
+  transcript: string | null;
+  source: string;
+  error?: string;
+}> {
+  try {
+    console.log('[fetchYouTubeTranscript] Fetching transcript for:', url);
+    
+    const { data, error } = await supabase.functions.invoke('transcribe-youtube', {
+      body: { url }
+    });
+
+    if (error) {
+      console.error('[fetchYouTubeTranscript] Error:', error);
+      return { transcript: null, source: 'error', error: error.message };
+    }
+
+    console.log('[fetchYouTubeTranscript] Result:', {
+      hasTranscript: !!data?.transcript,
+      length: data?.transcript?.length || 0,
+      source: data?.source
+    });
+
+    return {
+      transcript: data?.transcript || null,
+      source: data?.source || 'none',
+      error: data?.error
+    };
+  } catch (error: any) {
+    console.error('[fetchYouTubeTranscript] Exception:', error);
+    return { transcript: null, source: 'error', error: error.message };
+  }
+}

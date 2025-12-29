@@ -56,39 +56,54 @@ async function saveToCache(
   }
 }
 
-// Fetch from Supadata.ai API as fallback
-async function fetchFromSupadata(videoId: string, preferredLang?: string): Promise<{ transcript: string; source: string; language?: string } | null> {
+// Fetch from Supadata.ai API as fallback with internal timeout
+async function fetchFromSupadata(
+  videoId: string, 
+  preferredLang?: string,
+  timeoutMs: number = 45000
+): Promise<{ transcript: string; source: string; language?: string } | null> {
   const superdataKey = Deno.env.get('SUPADATA_API_KEY');
   if (!superdataKey) {
     console.error('[Supadata] ❌ API key not configured');
     return null;
   }
 
+  const startTime = Date.now();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    console.warn(`[Supadata] ⏱️ Internal timeout after ${timeoutMs}ms, aborting...`);
+    controller.abort();
+  }, timeoutMs);
+
   try {
     // Build URL with language preference
     let apiUrl = `https://api.supadata.ai/v1/transcript?url=https://youtu.be/${videoId}`;
     if (preferredLang) {
       apiUrl += `&lang=${preferredLang}`;
-      console.log(`[Supadata] Calling API for video ${videoId} with lang=${preferredLang}...`);
+      console.log(`[Supadata] Calling API for video ${videoId} with lang=${preferredLang} (timeout: ${timeoutMs}ms)...`);
     } else {
-      console.log(`[Supadata] Calling API for video ${videoId}...`);
+      console.log(`[Supadata] Calling API for video ${videoId} (timeout: ${timeoutMs}ms)...`);
     }
     
     const response = await fetch(apiUrl, {
       headers: {
         'x-api-key': superdataKey,
         'Content-Type': 'application/json'
-      }
+      },
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
+    const elapsed = Date.now() - startTime;
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[Supadata] ❌ HTTP ${response.status}:`, errorText);
+      console.error(`[Supadata] ❌ HTTP ${response.status} after ${elapsed}ms:`, errorText);
       throw new Error(`Supadata API error: ${response.status}`);
     }
 
     const data = await response.json();
-    console.log('[Supadata] 📦 Response:', JSON.stringify(data).substring(0, 500));
+    console.log(`[Supadata] 📦 Response after ${elapsed}ms:`, JSON.stringify(data).substring(0, 500));
     
     // Extract transcript from Supadata format
     let transcript = '';
@@ -109,7 +124,7 @@ async function fetchFromSupadata(videoId: string, preferredLang?: string): Promi
       throw new Error('No transcript in Supadata response');
     }
     
-    console.log(`[Supadata] ✅ SUCCESS, length: ${transcript.length}`);
+    console.log(`[Supadata] ✅ SUCCESS after ${elapsed}ms, length: ${transcript.length}`);
     
     return { 
       transcript, 
@@ -117,7 +132,15 @@ async function fetchFromSupadata(videoId: string, preferredLang?: string): Promi
       language: data.lang || data.language 
     };
   } catch (error: any) {
-    console.error('[Supadata] ❌ Failed:', error?.message || error);
+    clearTimeout(timeoutId);
+    const elapsed = Date.now() - startTime;
+    
+    if (error.name === 'AbortError') {
+      console.error(`[Supadata] ❌ TIMEOUT after ${elapsed}ms`);
+      return null;
+    }
+    
+    console.error(`[Supadata] ❌ Failed after ${elapsed}ms:`, error?.message || error);
     return null;
   }
 }
