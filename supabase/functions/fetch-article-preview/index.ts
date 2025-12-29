@@ -108,6 +108,7 @@ function extractYouTubeId(url: string): string | null {
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
     /youtube\.com\/shorts\/([^&\n?#]+)/,
+    /youtube\.com\/live\/([^&\n?#]+)/,  // YouTube Live URLs
   ];
   
   for (const pattern of patterns) {
@@ -893,6 +894,37 @@ serve(async (req) => {
       }
     }
 
+    // Check if domain needs forced Jina AI extraction (sites that block bots)
+    const FORCE_JINA_DOMAINS = [
+      'hdblog.it',
+      'www.hdblog.it',
+      'hdmotori.it',
+      'www.hdmotori.it',
+      'hdblog.com',
+      'www.hdblog.com',
+      'smartworld.it',
+      'www.smartworld.it'
+    ];
+
+    const urlHostname = new URL(url).hostname.toLowerCase();
+    if (FORCE_JINA_DOMAINS.some(domain => urlHostname.includes(domain.replace('www.', '')))) {
+      console.log(`[Preview] 🔧 Forcing Jina AI for problematic domain: ${urlHostname}`);
+      const jinaResult = await fetchSocialWithJina(url, 'article');
+      if (jinaResult && jinaResult.content && jinaResult.content.length > 100) {
+        return new Response(JSON.stringify({ 
+          success: true, 
+          ...jinaResult,
+          platform: 'generic',
+          type: 'article',
+          hostname: urlHostname,
+          contentQuality: jinaResult.content.length > 500 ? 'complete' : 'partial'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      console.log(`[Preview] ⚠️ Jina AI failed for ${urlHostname}, falling back to basic fetch`);
+    }
+
     // Generic URL - try basic fetch
     try {
       console.log('[fetch-article-preview] Fetching URL:', url);
@@ -969,12 +1001,24 @@ serve(async (req) => {
           // Skip lines with multiple pipe separators (menu pattern)
           if ((text.match(/\|/g) || []).length >= 2) continue;
           
-          // Skip common navigation patterns
+          // Skip common navigation patterns (Italian sites like IlPost)
           const navPatterns = [
             /^(home|newsletter|podcast|shop|regala|abbonati|privacy|cookie|menu|contatti)/i,
             /leggi anche/i,
             /ti potrebbe interessare/i,
-            /iscriviti alla newsletter/i
+            /iscriviti alla newsletter/i,
+            /^Facebook\s+X\s*\(?Twitter\)?/i,  // IlPost social sharing pattern
+            /^Email\s+Whatsapp/i,
+            /^Regala\s+il\s+Post/i,
+            /^Condividi\s+su/i,
+            /^Segui\s+su/i,
+            /^Sostieni\s+il\s+Post/i,
+            /\(AP Photo[^)]*\)/,  // Photo credits
+            /^AP Photo/i,
+            /^Getty Images/i,
+            /^ANSA/i,
+            /^Foto:/i,
+            /^©/,
           ];
           if (navPatterns.some(p => p.test(text))) continue;
           
