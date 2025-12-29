@@ -15,6 +15,7 @@ function extractYouTubeId(url: string): string | null {
     /youtube\.com\/embed\/([^&\n?#]+)/,
     /youtube\.com\/v\/([^&\n?#]+)/,
     /youtube\.com\/watch\?.*v=([^&\n?#]+)/,
+    /youtube\.com\/live\/([^&\n?#]+)/,  // YouTube Live URLs
   ];
   
   for (const pattern of patterns) {
