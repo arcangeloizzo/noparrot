@@ -502,44 +502,54 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         snapshotPreview?.title ||
         (snapshotDetectedUrl ? `Link: ${new URL(snapshotDetectedUrl).hostname}` : '');
 
-      // TEMP: Disable classification during publish to prevent crash/reload (see breadcrumbs)
+      // TEMP: Disable classification during publish to prevent crash/reload
       addBreadcrumb('publish_classify_skipped_by_client');
-      const category: string | null = null;
 
-      // Truncate large fields for stability
-      const articleContent = (snapshotPreview?.content || null);
-      const transcript = (snapshotPreview?.transcript || null);
+      // Cache only minimal metadata BEFORE insert (drop heavy content to free memory)
+      const safeTitle = snapshotPreview?.title ? String(snapshotPreview.title).substring(0, 500) : null;
+      const safeImage = snapshotPreview?.image ? String(snapshotPreview.image).substring(0, 2000) : null;
+      const safeUrl = snapshotDetectedUrl ? String(snapshotDetectedUrl).substring(0, 2000) : null;
+      const safeQuotedId = quotedPost?.id || null;
 
-      addBreadcrumb('publish_insert_start');
+      // Stash heavy fields BEFORE clearing memory
+      const heavyContent = snapshotPreview?.content || null;
+      const heavyTranscript = snapshotPreview?.transcript || null;
+      const heavyEmbed = snapshotPreview?.embedHtml || null;
+      const heavyTranscriptSource = snapshotPreview?.transcriptSource || null;
+
+      addBreadcrumb('publish_insert_start', { contentLen: cleanContent.length });
+      
+      // Minimal insert payload for Safari stability
+      const insertPayload = {
+        content: cleanContent.substring(0, 5000),
+        author_id: user.id,
+        shared_url: safeUrl,
+        shared_title: safeTitle,
+        preview_img: safeImage,
+        quoted_post_id: safeQuotedId,
+        category: null as string | null
+      };
+
       const { data: insertedPost, error: postError } = await supabase
         .from('posts')
-        .insert({
-          content: cleanContent,
-          author_id: user.id,
-          shared_url: snapshotDetectedUrl || null,
-          shared_title: snapshotPreview?.title || null,
-          preview_img: snapshotPreview?.image || null,
-          // Keep initial insert payload minimal for Safari stability
-          quoted_post_id: quotedPost?.id || null,
-          category: category || null
-        })
-        .select()
-        .single();
+        .insert(insertPayload)
+        .select('id')
+        .maybeSingle();
 
       if (postError) throw postError;
       addBreadcrumb('publish_insert_done', { postId: insertedPost?.id });
 
       // Heavy fields update (best-effort; never block publish)
-      if (insertedPost && snapshotPreview) {
+      if (insertedPost) {
         const heavyUpdate: Record<string, any> = {};
-        const articleContentSafe = typeof articleContent === 'string' ? articleContent.substring(0, 50000) : null;
-        const transcriptSafe = typeof transcript === 'string' ? transcript.substring(0, 50000) : null;
-        const embedHtmlSafe = typeof snapshotPreview.embedHtml === 'string' ? snapshotPreview.embedHtml.substring(0, 20000) : null;
+        const articleContentSafe = typeof heavyContent === 'string' ? heavyContent.substring(0, 50000) : null;
+        const transcriptSafe = typeof heavyTranscript === 'string' ? heavyTranscript.substring(0, 50000) : null;
+        const embedHtmlSafe = typeof heavyEmbed === 'string' ? heavyEmbed.substring(0, 20000) : null;
 
         if (articleContentSafe) heavyUpdate.article_content = articleContentSafe;
         if (embedHtmlSafe) heavyUpdate.embed_html = embedHtmlSafe;
         if (transcriptSafe) heavyUpdate.transcript = transcriptSafe;
-        if (snapshotPreview.transcriptSource) heavyUpdate.transcript_source = snapshotPreview.transcriptSource;
+        if (heavyTranscriptSource) heavyUpdate.transcript_source = heavyTranscriptSource;
 
         if (Object.keys(heavyUpdate).length > 0) {
           try {
@@ -569,10 +579,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         addBreadcrumb('publish_media_done');
       }
 
-      if (category) {
-        const action = quotedPost?.id ? 'SHARE_POST' : 'CREATE_POST';
-        await updateCognitiveDensityWeighted(user.id, category, action);
-      }
+      // Skip cognitive density update (classification disabled)
 
       await queryClient.invalidateQueries({ queryKey: ['posts'] });
       await queryClient.refetchQueries({ queryKey: ['posts'] });
