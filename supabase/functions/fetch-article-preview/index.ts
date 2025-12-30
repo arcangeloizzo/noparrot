@@ -937,10 +937,66 @@ serve(async (req) => {
       
       
       
-      // Threads-specific fallback: OpenGraph
+      // Threads-specific fallback: Try Firecrawl first, then OpenGraph
       if (socialPlatform === 'threads') {
-        console.log('[Threads] 🔍 Trying OpenGraph fallback...');
+        console.log('[Threads] 🔍 Trying enhanced extraction...');
         
+        // PRIORITY 1: Try Firecrawl for Threads (best results)
+        const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
+        if (firecrawlApiKey) {
+          try {
+            console.log('[Threads] 🔥 Attempting Firecrawl scrape...');
+            
+            const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${firecrawlApiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                url,
+                formats: ['markdown'],
+                onlyMainContent: true,
+              }),
+            });
+            
+            if (firecrawlResponse.ok) {
+              const fcData = await firecrawlResponse.json();
+              if (fcData.success && fcData.data?.markdown) {
+                const fcContent = fcData.data.markdown;
+                const fcTitle = fcData.data.metadata?.title || '';
+                const fcImage = fcData.data.metadata?.ogImage || fcData.data.metadata?.image || '';
+                
+                // Check it's not bot challenge
+                if (!isBotChallengeContent(fcContent) && fcContent.length > 50) {
+                  const cleanedContent = cleanReaderText(fcContent);
+                  console.log(`[Threads] ✅ Firecrawl success: ${cleanedContent.length} chars`);
+                  
+                  return new Response(JSON.stringify({
+                    success: true,
+                    title: fcTitle || 'Post Threads',
+                    content: cleanedContent,
+                    summary: cleanedContent.slice(0, 200) || 'Contenuto Threads',
+                    image: fcImage,
+                    previewImg: fcImage,
+                    author: 'Threads User',
+                    platform: 'threads',
+                    type: 'social',
+                    hostname: 'threads.net',
+                    contentQuality: cleanedContent.length > 200 ? 'complete' : 'partial',
+                    source: 'firecrawl'
+                  }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                  });
+                }
+              }
+            }
+          } catch (fcError) {
+            console.error('[Threads] Firecrawl error:', fcError);
+          }
+        }
+        
+        // PRIORITY 2: Try OpenGraph
         try {
           const ogData = await fetchOpenGraphData(url);
           if (ogData && (ogData.title || ogData.description)) {
@@ -966,17 +1022,18 @@ serve(async (req) => {
           console.error('[Threads] OpenGraph error:', error);
         }
         
-        // Final minimal fallback for Threads
-        console.log('[Threads] ✗ All extraction methods failed, returning minimal');
+        // Final minimal fallback for Threads - mark as blocked since we couldn't extract
+        console.log('[Threads] ✗ All extraction methods failed, returning blocked');
         return new Response(JSON.stringify({
           success: true,
           title: 'Post Threads',
           content: '',
-          summary: 'Apri il link originale per visualizzare il contenuto Threads.',
+          summary: 'Threads blocca l\'estrazione automatica. Apri il link originale.',
           platform: 'threads',
           type: 'social',
           hostname: 'threads.net',
-          contentQuality: 'minimal'
+          contentQuality: 'blocked',
+          blockedBy: 'anti-bot'
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -1045,7 +1102,9 @@ serve(async (req) => {
       'tomshw.it',
       'www.tomshw.it',
       'ilpost.it',
-      'www.ilpost.it'
+      'www.ilpost.it',
+      'threads.net',
+      'www.threads.net'
     ];
 
     const urlHostname = new URL(url).hostname.toLowerCase();
