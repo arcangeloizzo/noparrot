@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { isConsentCompleted } from "@/hooks/useUserConsents";
 import ConsentScreen from "./ConsentScreen";
 import { cleanupStaleScrollLocks } from "@/lib/bodyScrollLock";
-import { checkForRecentCrash, clearBreadcrumbs, addBreadcrumb } from "@/lib/crashBreadcrumbs";
+import { checkForRecentCrash, clearBreadcrumbs, addBreadcrumb, clearPendingPublish, getPendingPublish } from "@/lib/crashBreadcrumbs";
 import { toast } from "sonner";
 
 const Index = () => {
@@ -31,9 +31,21 @@ const Index = () => {
     // iOS crash recovery: cleanup stale scroll locks from previous session
     const hadStaleLock = cleanupStaleScrollLocks();
     
-    // Check for recent crash and notify
-    const { crashed, breadcrumbs } = checkForRecentCrash();
-    if (crashed && breadcrumbs.length > 0) {
+    // Check for recent crash and pending publish (idempotency recovery)
+    const { crashed, breadcrumbs, pendingPublish } = checkForRecentCrash();
+    
+    // If there was a pending publish from a crashed session, notify user and clear it
+    // The backend idempotency will prevent duplicates if they retry
+    if (pendingPublish && pendingPublish.timestamp > Date.now() - 5 * 60 * 1000) {
+      console.log('[Index] Found pending publish from crashed session:', pendingPublish.idempotencyKey);
+      toast.success('Il tuo post è stato pubblicato prima del crash.', { duration: 4000 });
+      clearPendingPublish();
+    } else if (pendingPublish) {
+      // Old pending publish (> 5 min), just clear it
+      clearPendingPublish();
+    }
+    
+    if (crashed && breadcrumbs.length > 0 && !pendingPublish) {
       console.warn('[Index] Detected recent crash, breadcrumbs:', breadcrumbs);
       const last = breadcrumbs[breadcrumbs.length - 1];
       const lastEvent = last?.event || 'unknown';
