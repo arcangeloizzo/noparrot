@@ -792,25 +792,34 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             onComplete={async (passed) => {
               // Quiz finished (pass or fail)
               addBreadcrumb('quiz_complete_handler', { passed });
-              forceUnlockBodyScroll(); // Ensure scroll is released
-              setShowQuiz(false);
-              setQuizData(null);
-              setQuizPassed(false);
+              
+              // First, ensure scroll is unlocked before any state changes
+              forceUnlockBodyScroll();
               
               if (passed) {
                 addBreadcrumb('publish_after_quiz');
+                
+                // Keep quiz visible during publish to avoid blank screen
                 const loadingId = toast.loading('Pubblicazione…');
                 try {
                   await publishPost();
+                  // publishPost already calls resetAllState() and onClose()
                 } catch (e) {
                   console.error('[ComposerModal] publishPost error:', e);
                   addBreadcrumb('publish_error', { error: String(e) });
                   toast.error('Errore pubblicazione');
+                  // Only close quiz if publish fails - user can retry
+                  setShowQuiz(false);
+                  setQuizData(null);
+                  setQuizPassed(false);
                 } finally {
                   toast.dismiss(loadingId);
                 }
               } else {
-                // Failed - return to composer, user can try again
+                // Failed - close quiz and return to composer
+                setShowQuiz(false);
+                setQuizData(null);
+                setQuizPassed(false);
                 toast.info('Puoi riprovare quando vuoi.');
                 addBreadcrumb('quiz_failed_return_to_composer');
               }
