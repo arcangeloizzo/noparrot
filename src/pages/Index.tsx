@@ -48,7 +48,7 @@ const Index = () => {
     addBreadcrumb('app_init', { hadStaleLock, crashed });
   }, []);
 
-  // Verify pending publish on backend (prevents false “published before crash”)
+  // Check pending publish and verify on backend - only show success, never false negatives
   useEffect(() => {
     if (loading || !user) return;
 
@@ -56,7 +56,11 @@ const Index = () => {
     if (!pending) return;
 
     const isRecent = pending.timestamp > Date.now() - 10 * 60 * 1000;
-    if (!isRecent) return;
+    if (!isRecent) {
+      // Old pending, silently clear
+      clearPendingPublish();
+      return;
+    }
 
     (async () => {
       try {
@@ -69,18 +73,24 @@ const Index = () => {
 
         if (error) {
           console.warn('[Index] publish_idempotency check failed', error);
+          // Don't show error toast - user can just retry manually
+          clearPendingPublish();
           return;
         }
 
         if (data?.post_id) {
+          // Post was actually published before crash - confirm to user
           toast.success('Post pubblicato.', { duration: 3500 });
           clearPendingPublish();
         } else {
-          // Not published: keep pending so retry reuses the same key
-          toast.error('Pubblicazione non completata. Riprova.', { duration: 4000 });
+          // Not published but don't annoy user with error toast
+          // Just clear the stale pending entry - they can retry if needed
+          console.log('[Index] Pending publish not completed, clearing silently');
+          clearPendingPublish();
         }
       } catch (e) {
         console.warn('[Index] pending publish verify error', e);
+        clearPendingPublish();
       }
     })();
   }, [loading, user]);

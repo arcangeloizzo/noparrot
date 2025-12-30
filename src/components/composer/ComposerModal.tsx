@@ -543,26 +543,115 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       // Publish via backend function to avoid Safari crashes during direct DB writes
       addBreadcrumb('publish_insert_start', { contentLen: cleanContent.length, via: 'publish-post', idempotencyKey });
 
-      const { data, error: fnError } = await supabase.functions.invoke('publish-post', {
-        body: {
-          content: cleanContent,
-          sharedUrl: snapshotDetectedUrl || null,
-          quotedPostId: quotedPost?.id || null,
-          mediaIds: mediaIdsSnapshot,
-          idempotencyKey,
-        },
-      });
+      let postId: string | undefined;
+      let wasIdempotent = false;
+      let usedFallback = false;
 
-      if (fnError) throw fnError;
+      try {
+        const { data, error: fnError } = await supabase.functions.invoke('publish-post', {
+          body: {
+            content: cleanContent,
+            sharedUrl: snapshotDetectedUrl || null,
+            quotedPostId: quotedPost?.id || null,
+            mediaIds: mediaIdsSnapshot,
+            idempotencyKey,
+          },
+        });
 
-      const postId = (data as any)?.postId as string | undefined;
-      const wasIdempotent = (data as any)?.idempotent === true;
-      if (!postId) throw new Error('publish_post_missing_id');
+        if (fnError) {
+          // Log detailed error info
+          const errInfo = {
+            name: fnError.name,
+            message: fnError.message,
+            status: (fnError as any).status,
+            context: (fnError as any).context,
+          };
+          console.error('[Publish] Edge function error:', errInfo);
+          addBreadcrumb('publish_fn_error', errInfo);
+          throw fnError;
+        }
+
+        postId = (data as any)?.postId as string | undefined;
+        wasIdempotent = (data as any)?.idempotent === true;
+
+        // Check for backend error response
+        if ((data as any)?.error) {
+          const backendErr = {
+            error: (data as any).error,
+            stage: (data as any).stage,
+            code: (data as any).code,
+            details: (data as any).details,
+          };
+          console.error('[Publish] Backend returned error:', backendErr);
+          addBreadcrumb('publish_backend_error', backendErr);
+          throw new Error(`Backend: ${backendErr.error} (stage: ${backendErr.stage})`);
+        }
+
+        if (!postId) {
+          console.error('[Publish] No postId in response:', data);
+          addBreadcrumb('publish_no_postid', { data: JSON.stringify(data) });
+          throw new Error('publish_post_missing_id');
+        }
+      } catch (fnErr) {
+        // FALLBACK: Direct insert if edge function fails
+        console.warn('[Publish] Edge function failed, trying direct insert fallback...');
+        addBreadcrumb('publish_fallback_start', { originalError: String(fnErr) });
+
+        try {
+          const { data: directInsert, error: directErr } = await supabase
+            .from('posts')
+            .insert({
+              content: cleanContent.substring(0, 5000),
+              author_id: user.id,
+              shared_url: snapshotDetectedUrl || null,
+              quoted_post_id: quotedPost?.id || null,
+            })
+            .select('id')
+            .single();
+
+          if (directErr) {
+            console.error('[Publish] Direct insert also failed:', directErr);
+            addBreadcrumb('publish_fallback_error', { code: directErr.code, message: directErr.message });
+            // Show detailed error to user
+            toast.error(`Pubblicazione fallita: ${directErr.message || directErr.code || 'errore sconosciuto'}`, { duration: 6000 });
+            return;
+          }
+
+          if (!directInsert?.id) {
+            console.error('[Publish] Direct insert returned no id');
+            addBreadcrumb('publish_fallback_no_id');
+            toast.error('Pubblicazione fallita: nessun ID restituito', { duration: 5000 });
+            return;
+          }
+
+          postId = directInsert.id;
+          usedFallback = true;
+          addBreadcrumb('publish_fallback_success', { postId });
+
+          // Link media in fallback path (best effort)
+          if (mediaIdsSnapshot.length > 0) {
+            const rows = mediaIdsSnapshot.map((mediaId, idx) => ({
+              post_id: postId!,
+              media_id: mediaId,
+              order_idx: idx,
+            }));
+            const { error: mediaErr } = await supabase.from('post_media').insert(rows);
+            if (mediaErr) {
+              console.warn('[Publish] Fallback media link failed:', mediaErr);
+            }
+          }
+        } catch (fallbackErr) {
+          console.error('[Publish] Fallback also threw:', fallbackErr);
+          addBreadcrumb('publish_fallback_catch', { error: String(fallbackErr) });
+          toast.error(`Pubblicazione fallita: ${String(fallbackErr)}`, { duration: 6000 });
+          return;
+        }
+      }
 
       // Clear pending publish on success
       clearPendingPublish();
 
-      addBreadcrumb('publish_insert_done', { postId, wasIdempotent });
+      addBreadcrumb('publish_insert_done', { postId, wasIdempotent, usedFallback });
 
       // IMPORTANT: avoid heavy immediate refetch (can trigger Safari reload). Let Feed refresh shortly after.
       addBreadcrumb('publish_finalize');
@@ -576,9 +665,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         void queryClient.invalidateQueries({ queryKey: ['posts'] });
       }, 600);
     } catch (error) {
-      console.error('Error publishing post:', error);
+      console.error('[Publish] Unexpected error:', error);
       addBreadcrumb('publish_catch', { error: String(error) });
-      toast.error('Errore pubblicazione');
+      const errMsg = error instanceof Error ? error.message : String(error);
+      toast.error(`Errore: ${errMsg}`, { duration: 5000 });
     } finally {
       setIsPublishing(false);
     }
