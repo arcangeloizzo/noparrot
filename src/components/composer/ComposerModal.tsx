@@ -257,15 +257,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         return;
       }
 
-      // iOS Safari/webapp: use quiz-only flow (reader can be unstable on iOS)
-      if (isIOS) {
-        console.log('[Composer] iOS detected - using quiz-only flow');
-        addBreadcrumb('ios_quiz_only_from_publish');
-        void handleIOSQuizOnlyFlow();
-        return;
-      }
-
-      // Non-iOS: Use reader experience
+      // All platforms: Use reader experience
       console.log('[Composer] Opening reader with valid preview');
       addBreadcrumb('reader_open');
       setReaderClosing(false);
