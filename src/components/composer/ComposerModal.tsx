@@ -21,6 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { cn } from "@/lib/utils";
 import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
+import { forceUnlockBodyScroll } from "@/lib/bodyScrollLock";
 
 // iOS detection for quiz-only flow
 const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
@@ -255,16 +256,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         return;
       }
       
-      // iOS: Skip Reader entirely, go directly to quiz (like comment flow)
-      // This prevents crashes caused by complex overlay transitions
-      if (isIOS) {
-        console.log('[Composer] iOS detected - using quiz-only flow (no reader)');
-        addBreadcrumb('ios_quiz_only_start');
-        await handleIOSQuizOnlyFlow();
-        return;
-      }
-      
-      // Desktop/Android: Use full reader experience
+      // All platforms: Use reader experience (iOS now has safe mode)
       console.log('[Composer] Opening reader with valid preview');
       addBreadcrumb('reader_open');
       setReaderClosing(false);
@@ -773,6 +765,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             onCancel={() => {
               // User cancelled DURING quiz (before completing)
               addBreadcrumb('quiz_cancel_during');
+              forceUnlockBodyScroll(); // Ensure scroll is released
               setShowQuiz(false);
               setQuizData(null);
               setQuizPassed(false);
@@ -781,6 +774,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             onComplete={(passed) => {
               // Quiz finished (pass or fail)
               addBreadcrumb('quiz_complete_handler', { passed });
+              forceUnlockBodyScroll(); // Ensure scroll is released
               setShowQuiz(false);
               setQuizData(null);
               setQuizPassed(false);
