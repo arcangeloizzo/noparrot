@@ -20,7 +20,7 @@ import { updateCognitiveDensityWeighted } from "@/lib/cognitiveDensity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { cn } from "@/lib/utils";
-import { addBreadcrumb, generateIdempotencyKey, setPendingPublish, clearPendingPublish } from "@/lib/crashBreadcrumbs";
+import { addBreadcrumb, generateIdempotencyKey, setPendingPublish, clearPendingPublish, getPendingPublish } from "@/lib/crashBreadcrumbs";
 import { forceUnlockBodyScroll } from "@/lib/bodyScrollLock";
 
 // iOS detection for quiz-only flow
@@ -505,16 +505,40 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       // TEMP: Disable classification during publish to prevent crash/reload
       addBreadcrumb('publish_classify_skipped_by_client');
 
-      // Generate idempotency key and save pending publish BEFORE network call
-      const idempotencyKey = generateIdempotencyKey(user.id);
-      setPendingPublish({
-        idempotencyKey,
-        content: cleanContent,
-        sharedUrl: snapshotDetectedUrl || null,
-        quotedPostId: quotedPost?.id || null,
-        mediaIds: snapshotUploadedMedia.map((m) => m.id),
-        timestamp: Date.now()
-      });
+      // Reuse pending publish idempotency key if it matches the same payload (crash/retry)
+      const mediaIdsSnapshot = snapshotUploadedMedia.map((m) => m.id);
+      const pending = getPendingPublish();
+      const isRecentPending = !!pending && pending.timestamp > Date.now() - 5 * 60 * 1000;
+
+      const sameMedia =
+        !!pending &&
+        Array.isArray(pending.mediaIds) &&
+        pending.mediaIds.length === mediaIdsSnapshot.length &&
+        pending.mediaIds.every((id, idx) => id === mediaIdsSnapshot[idx]);
+
+      const canReusePending =
+        isRecentPending &&
+        !!pending &&
+        pending.content === cleanContent &&
+        pending.sharedUrl === (snapshotDetectedUrl || null) &&
+        pending.quotedPostId === (quotedPost?.id || null) &&
+        sameMedia;
+
+      const idempotencyKey = canReusePending
+        ? pending!.idempotencyKey
+        : generateIdempotencyKey(user.id);
+
+      if (!canReusePending) {
+        // Save pending publish BEFORE network call
+        setPendingPublish({
+          idempotencyKey,
+          content: cleanContent,
+          sharedUrl: snapshotDetectedUrl || null,
+          quotedPostId: quotedPost?.id || null,
+          mediaIds: mediaIdsSnapshot,
+          timestamp: Date.now(),
+        });
+      }
 
       // Publish via backend function to avoid Safari crashes during direct DB writes
       addBreadcrumb('publish_insert_start', { contentLen: cleanContent.length, via: 'publish-post', idempotencyKey });
@@ -524,9 +548,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
           content: cleanContent,
           sharedUrl: snapshotDetectedUrl || null,
           quotedPostId: quotedPost?.id || null,
-          mediaIds: snapshotUploadedMedia.map((m) => m.id),
-          idempotencyKey
-        }
+          mediaIds: mediaIdsSnapshot,
+          idempotencyKey,
+        },
       });
 
       if (fnError) throw fnError;
@@ -540,14 +564,17 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
       addBreadcrumb('publish_insert_done', { postId, wasIdempotent });
 
-      await queryClient.invalidateQueries({ queryKey: ['posts'] });
-      await queryClient.refetchQueries({ queryKey: ['posts'] });
-
+      // IMPORTANT: avoid heavy immediate refetch (can trigger Safari reload). Let Feed refresh shortly after.
       addBreadcrumb('publish_finalize');
       toast.success(wasIdempotent ? 'Post già pubblicato.' : 'Condiviso.');
-      // Full state reset after successful publish
+
+      // Close UI first, then refresh feed in the background
       resetAllState();
       onClose();
+
+      window.setTimeout(() => {
+        void queryClient.invalidateQueries({ queryKey: ['posts'] });
+      }, 600);
     } catch (error) {
       console.error('Error publishing post:', error);
       addBreadcrumb('publish_catch', { error: String(error) });
@@ -803,20 +830,19 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
               if (passed) {
                 addBreadcrumb('publish_after_quiz');
 
-                // Unmount heavy quiz UI BEFORE publish (prevents Safari/WebView reload)
-                setShowQuiz(false);
-                setQuizData(null);
-                await new Promise<void>((r) => requestAnimationFrame(() => r()));
-
+                // Keep quiz UI mounted during publish to avoid intermediate blank screens on Safari
                 const loadingId = toast.loading('Pubblicazione…');
                 try {
                   await publishPost();
-                  // publishPost already calls resetAllState() and onClose()
+                  // publishPost handles close + refresh
                 } catch (e) {
                   console.error('[ComposerModal] publishPost error:', e);
                   addBreadcrumb('publish_error', { error: String(e) });
                   toast.error('Errore pubblicazione');
+
                   // Return to composer
+                  setShowQuiz(false);
+                  setQuizData(null);
                   setQuizPassed(false);
                 } finally {
                   toast.dismiss(loadingId);
