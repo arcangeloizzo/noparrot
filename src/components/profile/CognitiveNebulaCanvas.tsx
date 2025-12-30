@@ -26,35 +26,16 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Media & Comunicazione': '#9AA3AB',
 };
 
-interface Particle {
-  x: number;
-  y: number;
-  z: number;
-  vx: number;
-  vy: number;
-  vz: number;
-  categoryIndex: number;
-  baseAlpha: number;
-  size: number;
-}
-
-interface Attractor {
-  x: number;
-  y: number;
-  z: number;
-  color: string;
-  category: string;
-}
-
-// Lerp helper
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
-
-// Gaussian-ish random
-const gaussianRandom = () => {
-  let u = 0, v = 0;
-  while (u === 0) u = Math.random();
-  while (v === 0) v = Math.random();
-  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v) * 0.3;
+// Angular positions for each category (radians) - distributed around the circle
+const CATEGORY_ANGLES: Record<string, number> = {
+  'Società & Politica': 0,
+  'Economia & Business': Math.PI * 0.25,
+  'Scienza & Tecnologia': Math.PI * 0.5,
+  'Cultura & Arte': Math.PI * 0.75,
+  'Pianeta & Ambiente': Math.PI,
+  'Sport & Lifestyle': Math.PI * 1.25,
+  'Salute & Benessere': Math.PI * 1.5,
+  'Media & Comunicazione': Math.PI * 1.75,
 };
 
 // Parse hex color to RGB
@@ -67,63 +48,48 @@ const hexToRgb = (hex: string) => {
   } : { r: 255, g: 255, b: 255 };
 };
 
+// Simple noise function using sin combinations for organic movement
+const noise = (x: number, y: number, t: number): number => {
+  return (
+    Math.sin(x * 1.2 + t * 0.3) * 0.3 +
+    Math.cos(y * 0.9 + t * 0.4) * 0.3 +
+    Math.sin((x + y) * 0.7 + t * 0.2) * 0.2 +
+    Math.cos(x * 0.5 - y * 0.8 + t * 0.5) * 0.2
+  );
+};
+
+// Star particle interface
+interface Star {
+  x: number;
+  y: number;
+  size: number;
+  twinkleOffset: number;
+  twinkleSpeed: number;
+}
+
 export const CognitiveNebulaCanvas = ({ data }: CognitiveNebulaCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
-  const particlesRef = useRef<Particle[]>([]);
-  const attractorsRef = useRef<Attractor[]>([]);
   const timeRef = useRef(0);
+  const starsRef = useRef<Star[]>([]);
 
-  const initializeParticles = useCallback(() => {
-    const particles: Particle[] = [];
-    const attractors: Attractor[] = [];
+  // Initialize stars once
+  const initializeStars = useCallback(() => {
+    const stars: Star[] = [];
+    const starCount = 80;
     
-    // Calculate max value for normalization
-    const values = CATEGORIES.map(cat => data[cat] || 0);
-    const maxValue = Math.max(...values, 1);
-    
-    // Create attractors on a sphere/ring
-    CATEGORIES.forEach((category, index) => {
-      const angle = (index / CATEGORIES.length) * Math.PI * 2;
-      const elevation = (Math.random() - 0.5) * 0.4; // Slight z variation
-      
-      attractors.push({
-        x: Math.cos(angle) * 0.6,
-        y: Math.sin(angle) * 0.6,
-        z: elevation,
-        color: CATEGORY_COLORS[category],
-        category
+    for (let i = 0; i < starCount; i++) {
+      stars.push({
+        x: Math.random(),
+        y: Math.random(),
+        size: 0.5 + Math.random() * 1.5,
+        twinkleOffset: Math.random() * Math.PI * 2,
+        twinkleSpeed: 0.5 + Math.random() * 1.5,
       });
-      
-      // Calculate weight and particle count
-      const value = data[category] || 0;
-      const weight = value / maxValue;
-      const particleCount = Math.floor(40 + 220 * weight);
-      const clusterRadius = lerp(0.35, 0.12, weight); // Tighter for stronger categories
-      
-      // Generate particles for this category
-      for (let i = 0; i < particleCount; i++) {
-        const offsetX = gaussianRandom() * clusterRadius;
-        const offsetY = gaussianRandom() * clusterRadius;
-        const offsetZ = gaussianRandom() * clusterRadius * 0.5;
-        
-        particles.push({
-          x: attractors[index].x + offsetX,
-          y: attractors[index].y + offsetY,
-          z: attractors[index].z + offsetZ,
-          vx: (Math.random() - 0.5) * 0.0003,
-          vy: (Math.random() - 0.5) * 0.0003,
-          vz: (Math.random() - 0.5) * 0.0002,
-          categoryIndex: index,
-          baseAlpha: 0.3 + Math.random() * 0.5,
-          size: 1.5 + Math.random() * 2.5
-        });
-      }
-    });
+    }
     
-    particlesRef.current = particles;
-    attractorsRef.current = attractors;
-  }, [data]);
+    starsRef.current = stars;
+  }, []);
 
   const animate = useCallback(() => {
     const canvas = canvasRef.current;
@@ -137,109 +103,149 @@ export const CognitiveNebulaCanvas = ({ data }: CognitiveNebulaCanvasProps) => {
     const height = canvas.height / dpr;
     const centerX = width / 2;
     const centerY = height / 2;
-    const radius = Math.min(width, height) * 0.38;
+    const maxRadius = Math.min(width, height) * 0.45;
     
-    // Camera settings
-    const cameraZ = 2.2;
+    // Update time
+    timeRef.current += 0.008;
+    const time = timeRef.current;
     
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Update time
-    timeRef.current += 0.016;
-    const time = timeRef.current;
-    
-    // Update and collect particles with projected coordinates
-    const projectedParticles: Array<{
-      screenX: number;
-      screenY: number;
-      screenRadius: number;
-      alpha: number;
-      color: { r: number; g: number; b: number };
-      z: number;
-    }> = [];
-    
-    particlesRef.current.forEach((particle) => {
-      const attractor = attractorsRef.current[particle.categoryIndex];
-      
-      // Attraction force (gentle pull toward attractor)
-      const dx = attractor.x - particle.x;
-      const dy = attractor.y - particle.y;
-      const dz = attractor.z - particle.z;
-      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-      
-      if (dist > 0.01) {
-        const attractionStrength = 0.00008;
-        particle.vx += (dx / dist) * attractionStrength;
-        particle.vy += (dy / dist) * attractionStrength;
-        particle.vz += (dz / dist) * attractionStrength * 0.5;
-      }
-      
-      // Add subtle noise/drift
-      particle.vx += (Math.sin(time * 0.5 + particle.x * 10) * 0.00002);
-      particle.vy += (Math.cos(time * 0.4 + particle.y * 10) * 0.00002);
-      particle.vz += (Math.sin(time * 0.3 + particle.z * 10) * 0.00001);
-      
-      // Damping
-      particle.vx *= 0.995;
-      particle.vy *= 0.995;
-      particle.vz *= 0.995;
-      
-      // Update position
-      particle.x += particle.vx;
-      particle.y += particle.vy;
-      particle.z += particle.vz;
-      
-      // 3D to 2D projection
-      const scale = cameraZ / (cameraZ - particle.z);
-      const screenX = centerX + particle.x * scale * radius;
-      const screenY = centerY + particle.y * scale * radius;
-      const screenRadius = particle.size * scale;
-      
-      // Alpha based on depth and base alpha
-      const depthAlpha = lerp(0.2, 1, (particle.z + 1) / 2);
-      const alpha = particle.baseAlpha * depthAlpha * scale * 0.6;
-      
-      const color = hexToRgb(attractor.color);
-      
-      projectedParticles.push({
-        screenX,
-        screenY,
-        screenRadius,
-        alpha: Math.min(Math.max(alpha, 0.1), 0.9),
-        color,
-        z: particle.z
-      });
+    // Calculate normalized weights
+    const values = CATEGORIES.map(cat => data[cat] || 0);
+    const maxValue = Math.max(...values, 1);
+    const weights: Record<string, number> = {};
+    CATEGORIES.forEach(cat => {
+      weights[cat] = (data[cat] || 0) / maxValue;
     });
     
-    // Sort by z (painter's algorithm - far to near)
-    projectedParticles.sort((a, b) => a.z - b.z);
+    // Draw central glow first (warm white core)
+    const coreGradient = ctx.createRadialGradient(
+      centerX, centerY, 0,
+      centerX, centerY, maxRadius * 0.4
+    );
+    coreGradient.addColorStop(0, 'rgba(255, 250, 240, 0.15)');
+    coreGradient.addColorStop(0.3, 'rgba(255, 245, 230, 0.08)');
+    coreGradient.addColorStop(0.6, 'rgba(255, 240, 220, 0.03)');
+    coreGradient.addColorStop(1, 'rgba(255, 235, 210, 0)');
+    ctx.fillStyle = coreGradient;
+    ctx.fillRect(0, 0, width, height);
     
-    // Draw particles with glow effect
-    projectedParticles.forEach(({ screenX, screenY, screenRadius, alpha, color }) => {
-      // Outer glow
-      const gradient = ctx.createRadialGradient(
-        screenX, screenY, 0,
-        screenX, screenY, screenRadius * 3
-      );
-      gradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.4})`);
-      gradient.addColorStop(0.4, `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.15})`);
-      gradient.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
+    // Enable additive blending for nebula clouds
+    ctx.globalCompositeOperation = 'lighter';
+    
+    // Sort categories by weight (draw weaker ones first, stronger on top)
+    const sortedCategories = [...CATEGORIES].sort((a, b) => weights[a] - weights[b]);
+    
+    // Draw nebula clouds for each category
+    sortedCategories.forEach(category => {
+      const weight = weights[category];
+      const color = hexToRgb(CATEGORY_COLORS[category]);
+      const angle = CATEGORY_ANGLES[category];
       
+      // Calculate extension based on weight (0.2 = 25% radius, 1.0 = 90% radius)
+      const minExtension = 0.25;
+      const maxExtension = 0.9;
+      const extension = minExtension + (maxExtension - minExtension) * weight;
+      
+      // Calculate density/alpha based on weight
+      const baseDensity = 0.08 + weight * 0.25;
+      
+      // Number of layers based on weight
+      const layerCount = Math.floor(2 + weight * 3);
+      
+      // Direction offset from center
+      const directionOffset = 0.15 + weight * 0.2;
+      
+      // Draw multiple layers for depth
+      for (let layer = 0; layer < layerCount; layer++) {
+        // Animate cloud position with noise
+        const noiseX = noise(layer * 0.7, category.length * 0.3, time + layer);
+        const noiseY = noise(layer * 0.5 + 100, category.length * 0.2, time + layer * 0.8);
+        
+        // Cloud center offset from canvas center in the category's direction
+        const layerSpread = 0.7 + (layer / layerCount) * 0.6;
+        const cloudCenterX = centerX + Math.cos(angle) * maxRadius * directionOffset * layerSpread + noiseX * 20;
+        const cloudCenterY = centerY + Math.sin(angle) * maxRadius * directionOffset * layerSpread + noiseY * 20;
+        
+        // Cloud radius
+        const cloudRadius = maxRadius * extension * (0.6 + layer * 0.15);
+        
+        // Layer alpha (outer layers are more transparent)
+        const layerAlpha = baseDensity * (1 - layer * 0.15);
+        
+        // Create radial gradient for this cloud layer
+        const gradient = ctx.createRadialGradient(
+          cloudCenterX, cloudCenterY, 0,
+          cloudCenterX, cloudCenterY, cloudRadius
+        );
+        
+        // Gradient stops - dense center fading to transparent
+        gradient.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, ${layerAlpha * 0.8})`);
+        gradient.addColorStop(0.2, `rgba(${color.r}, ${color.g}, ${color.b}, ${layerAlpha * 0.6})`);
+        gradient.addColorStop(0.4, `rgba(${color.r}, ${color.g}, ${color.b}, ${layerAlpha * 0.35})`);
+        gradient.addColorStop(0.6, `rgba(${color.r}, ${color.g}, ${color.b}, ${layerAlpha * 0.15})`);
+        gradient.addColorStop(0.8, `rgba(${color.r}, ${color.g}, ${color.b}, ${layerAlpha * 0.05})`);
+        gradient.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
+        
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+      }
+      
+      // Add a subtle concentrated core for strong categories
+      if (weight > 0.4) {
+        const coreNoiseX = noise(0, category.length, time * 0.5);
+        const coreNoiseY = noise(100, category.length, time * 0.5);
+        const coreCenterX = centerX + Math.cos(angle) * maxRadius * directionOffset * 0.5 + coreNoiseX * 10;
+        const coreCenterY = centerY + Math.sin(angle) * maxRadius * directionOffset * 0.5 + coreNoiseY * 10;
+        const coreRadius = maxRadius * 0.2 * weight;
+        
+        const coreGrad = ctx.createRadialGradient(
+          coreCenterX, coreCenterY, 0,
+          coreCenterX, coreCenterY, coreRadius
+        );
+        coreGrad.addColorStop(0, `rgba(${color.r}, ${color.g}, ${color.b}, ${weight * 0.4})`);
+        coreGrad.addColorStop(0.5, `rgba(${color.r}, ${color.g}, ${color.b}, ${weight * 0.15})`);
+        coreGrad.addColorStop(1, `rgba(${color.r}, ${color.g}, ${color.b}, 0)`);
+        
+        ctx.fillStyle = coreGrad;
+        ctx.fillRect(0, 0, width, height);
+      }
+    });
+    
+    // Reset composite operation for stars
+    ctx.globalCompositeOperation = 'source-over';
+    
+    // Draw twinkling stars
+    starsRef.current.forEach(star => {
+      const twinkle = Math.sin(time * star.twinkleSpeed + star.twinkleOffset);
+      const alpha = 0.3 + twinkle * 0.3;
+      const size = star.size * (0.8 + twinkle * 0.2);
+      
+      const x = star.x * width;
+      const y = star.y * height;
+      
+      // Star glow
+      const starGradient = ctx.createRadialGradient(x, y, 0, x, y, size * 3);
+      starGradient.addColorStop(0, `rgba(255, 255, 255, ${alpha * 0.8})`);
+      starGradient.addColorStop(0.3, `rgba(255, 255, 255, ${alpha * 0.3})`);
+      starGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      
+      ctx.fillStyle = starGradient;
       ctx.beginPath();
-      ctx.arc(screenX, screenY, screenRadius * 3, 0, Math.PI * 2);
-      ctx.fillStyle = gradient;
+      ctx.arc(x, y, size * 3, 0, Math.PI * 2);
       ctx.fill();
       
-      // Inner bright core
+      // Star core
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
       ctx.beginPath();
-      ctx.arc(screenX, screenY, screenRadius * 0.6, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha * 0.8})`;
+      ctx.arc(x, y, size * 0.5, 0, Math.PI * 2);
       ctx.fill();
     });
     
     animationRef.current = requestAnimationFrame(animate);
-  }, []);
+  }, [data]);
 
   const handleResize = useCallback(() => {
     const canvas = canvasRef.current;
@@ -264,7 +270,7 @@ export const CognitiveNebulaCanvas = ({ data }: CognitiveNebulaCanvasProps) => {
 
   useEffect(() => {
     handleResize();
-    initializeParticles();
+    initializeStars();
     
     window.addEventListener('resize', handleResize);
     animationRef.current = requestAnimationFrame(animate);
@@ -275,12 +281,7 @@ export const CognitiveNebulaCanvas = ({ data }: CognitiveNebulaCanvasProps) => {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [handleResize, initializeParticles, animate]);
-
-  // Reinitialize when data changes
-  useEffect(() => {
-    initializeParticles();
-  }, [data, initializeParticles]);
+  }, [handleResize, initializeStars, animate]);
 
   return (
     <div className="w-full h-[350px] relative">
