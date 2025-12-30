@@ -225,7 +225,7 @@ export const UserProfile = () => {
         <div className="px-4 mb-8">
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-[#141A1E] p-4 rounded-xl text-center">
-              <div className="text-2xl font-bold text-foreground mb-1">{totalPaths}</div>
+              <div className="text-2xl font-bold text-foreground mb-1">{Math.round(totalPaths)}</div>
               <div className="text-xs text-muted-foreground">Percorsi completati</div>
             </div>
             <div className="bg-[#141A1E] p-4 rounded-xl text-center">
