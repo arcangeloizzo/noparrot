@@ -58,10 +58,12 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
   // Body scroll lock - Use centralized utility
   useEffect(() => {
     // Quiz takes over lock from reader (if reader had it)
+    addBreadcrumb('quiz_mount');
     addBreadcrumb('quiz_scroll_lock');
     lockBodyScroll('quiz');
-    
+
     return () => {
+      addBreadcrumb('quiz_closed');
       addBreadcrumb('quiz_scroll_unlock');
       unlockBodyScroll('quiz');
     };
@@ -225,6 +227,7 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
                   <Button onClick={(e) => { 
                     e.stopPropagation(); 
                     addBreadcrumb('quiz_complete_passed');
+                    addBreadcrumb('quiz_closed', { via: 'complete', passed: true });
                     onComplete ? onComplete(true) : onCancel?.(); 
                   }} className="w-full font-medium pointer-events-auto" style={{ pointerEvents: 'auto' }}>Chiudi</Button>
                 </>
@@ -240,6 +243,7 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
                   <Button onClick={(e) => { 
                     e.stopPropagation(); 
                     addBreadcrumb('quiz_complete_failed');
+                    addBreadcrumb('quiz_closed', { via: 'complete', passed: false });
                     onComplete ? onComplete(false) : onCancel?.(); 
                   }} variant="outline" className="w-full font-medium pointer-events-auto" style={{ pointerEvents: 'auto' }}>Chiudi</Button>
                 </>
@@ -307,7 +311,7 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
               </div>
 
               <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex gap-3 pointer-events-auto flex-shrink-0" style={{ pointerEvents: 'auto', paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)' }}>
-                {onCancel && <Button onClick={(e) => { e.stopPropagation(); addBreadcrumb('quiz_cancel_button'); onCancel(); }} variant="outline" className="flex-1 pointer-events-auto" style={{ pointerEvents: 'auto' }}>Annulla</Button>}
+                {onCancel && <Button onClick={(e) => { e.stopPropagation(); addBreadcrumb('quiz_closed', { via: 'cancel' }); addBreadcrumb('quiz_cancel_button'); onCancel(); }} variant="outline" className="flex-1 pointer-events-auto" style={{ pointerEvents: 'auto' }}>Annulla</Button>}
               </div>
             </>
           )}
