@@ -795,6 +795,38 @@ export const FeedCard = ({
                   )}
                   {/* Overlay gradient per leggibilità */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                  
+                  {/* Trust Badge overlay in basso a destra */}
+                  {trustScore && (
+                    <div className="absolute bottom-2 right-2 z-10">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          if (trustScore.reasons && trustScore.reasons.length > 0) {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setTooltipPosition({ 
+                              top: rect.bottom + 8, 
+                              left: rect.left 
+                            });
+                            setShowTrustTooltip(!showTrustTooltip);
+                          }
+                        }}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 px-2 py-1 rounded-full",
+                          "backdrop-blur-md bg-black/40 border border-white/20 transition-all",
+                          trustScore.band === "ALTO" && "text-emerald-400",
+                          trustScore.band === "MEDIO" && "text-amber-400",
+                          trustScore.band === "BASSO" && "text-red-400"
+                        )}
+                      >
+                        {trustScore.band === "ALTO" && <ShieldCheck className="w-3.5 h-3.5" />}
+                        {trustScore.band === "MEDIO" && <ShieldAlert className="w-3.5 h-3.5" />}
+                        {trustScore.band === "BASSO" && <AlertTriangle className="w-3.5 h-3.5" />}
+                        <span className="text-xs font-bold uppercase">{trustScore.band}</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Metadata below image */}
@@ -823,47 +855,7 @@ export const FeedCard = ({
               </div>
             )}
 
-            {/* Trust Badge - Liquid Glass Pill ESATTAMENTE tra Preview e Action Bar */}
-            {/* Trust Badge - Liquid Glass con Tooltip */}
-            {trustScore && post.shared_url && (
-              <div className="flex items-center justify-start mb-3">
-                <div 
-                  className={cn(
-                    "inline-flex items-center gap-2 px-3 py-1.5 rounded-full backdrop-blur-md transition-all duration-200",
-                    trustScore.band === "ALTO" && "trust-badge-high",
-                    trustScore.band === "MEDIO" && "trust-badge-medium",
-                    trustScore.band === "BASSO" && "trust-badge-low"
-                  )}
-                >
-                  {/* Icona Lucchetto */}
-                  {trustScore.band === "ALTO" && <ShieldCheck className="w-4 h-4" />}
-                  {trustScore.band === "MEDIO" && <ShieldAlert className="w-4 h-4" />}
-                  {trustScore.band === "BASSO" && <AlertTriangle className="w-4 h-4" />}
-                  
-                  <span className="text-xs font-bold uppercase tracking-wider">
-                    {trustScore.band}
-                  </span>
-
-                  {/* Info Icon con Tooltip */}
-                  {trustScore.reasons && trustScore.reasons.length > 0 && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setTooltipPosition({ 
-                          top: rect.bottom + 8, 
-                          left: rect.left 
-                        });
-                        setShowTrustTooltip(!showTrustTooltip);
-                      }}
-                      className="ml-1 hover:opacity-70 transition-opacity"
-                    >
-                      <Info className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
+            {/* Trust Badge removed - now positioned as overlay on image */}
           </div>
         </div>
 

@@ -404,6 +404,23 @@ export const FeedCard = ({
                       </div>
                     </div>
                   )}
+                  
+                  {/* Trust Badge overlay in basso a destra */}
+                  {trustScore && (
+                    <div className="absolute bottom-2 right-2 z-10">
+                      <div
+                        className={cn(
+                          "inline-flex items-center gap-1.5 px-2 py-1 rounded-full",
+                          "backdrop-blur-md bg-black/40 border border-white/20",
+                          trustScore.band === "ALTO" && "text-emerald-400",
+                          trustScore.band === "MEDIO" && "text-amber-400",
+                          trustScore.band === "BASSO" && "text-red-400"
+                        )}
+                      >
+                        <span className="text-xs font-bold uppercase">{trustScore.band}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               <div className="p-3">
@@ -469,27 +486,6 @@ export const FeedCard = ({
             </div>
           )}
 
-          {/* Trust Score */}
-          {(trustScore || post.url) && (
-            <div className="mb-3" onClick={(e) => e.stopPropagation()}>
-              {trustScore ? (
-                <TrustBadge
-                  band={trustScore.band}
-                  score={trustScore.score}
-                  reasons={trustScore.reasons}
-                  size="md"
-                  className="opacity-60 hover:opacity-100 transition-opacity"
-                />
-              ) : loadingTrust ? (
-                <div className="flex items-center gap-2 opacity-60">
-                  <div className="w-6 h-6 rounded-full bg-muted animate-pulse" />
-                  <div className="w-16 h-3 bg-muted animate-pulse rounded" />
-                </div>
-              ) : (
-                <TrustBadge size="sm" className="opacity-60 hover:opacity-100 transition-opacity" />
-              )}
-            </div>
-          )}
 
           {/* Actions Bar */}
           <div className="cognitive-actions flex items-center justify-between max-w-md -ml-2">
