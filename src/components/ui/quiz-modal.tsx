@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { updateCognitiveDensityWeighted } from "@/lib/cognitiveDensity";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { lockBodyScroll, unlockBodyScroll } from "@/lib/bodyScrollLock";
 
 interface QuizModalProps {
   questions: QuizQuestion[];
@@ -52,20 +53,13 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
     };
   }, []);
 
-  // Body scroll lock - RAFFORZATO per evitare race condition con Reader cleanup
+  // Body scroll lock - Use centralized utility
   useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    document.body.classList.add('quiz-open');
-    
-    // Re-apply after 300ms to override any Reader cleanup (closeReaderSafely takes ~250ms)
-    const reapplyTimer = setTimeout(() => {
-      document.body.style.overflow = 'hidden';
-    }, 300);
+    // Quiz takes over lock from reader (if reader had it)
+    lockBodyScroll('quiz');
     
     return () => {
-      clearTimeout(reapplyTimer);
-      document.body.style.overflow = '';
-      document.body.classList.remove('quiz-open');
+      unlockBodyScroll('quiz');
     };
   }, []);
 
