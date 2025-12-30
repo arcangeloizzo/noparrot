@@ -249,15 +249,23 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         toast.info('Sto caricando l\'anteprima...');
         return;
       }
-      
+
       // Check if preview failed or doesn't exist
       if (!urlPreview || urlPreview.success === false) {
         console.log('[Composer] Cannot open reader - preview failed or missing');
         toast.error(urlPreview?.message || 'Impossibile recuperare il contenuto della fonte.');
         return;
       }
-      
-      // All platforms: Use reader experience (iOS now has safe mode)
+
+      // iOS Safari/webapp: use quiz-only flow (reader can be unstable on iOS)
+      if (isIOS) {
+        console.log('[Composer] iOS detected - using quiz-only flow');
+        addBreadcrumb('ios_quiz_only_from_publish');
+        void handleIOSQuizOnlyFlow();
+        return;
+      }
+
+      // Non-iOS: Use reader experience
       console.log('[Composer] Opening reader with valid preview');
       addBreadcrumb('reader_open');
       setReaderClosing(false);
