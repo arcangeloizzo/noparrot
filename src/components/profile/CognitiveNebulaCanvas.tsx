@@ -118,7 +118,7 @@ export const CognitiveNebulaCanvas = ({ data }: CognitiveNebulaCanvasProps) => {
     const height = canvas.height / dpr;
     const centerX = width / 2;
     const centerY = height / 2;
-    const maxRadius = Math.min(width, height) * 0.44;
+    const maxRadius = Math.min(width, height) * 0.32; // Smaller to leave room for labels
     
     // Update time
     timeRef.current += 0.006;
@@ -162,8 +162,8 @@ export const CognitiveNebulaCanvas = ({ data }: CognitiveNebulaCanvasProps) => {
     ctx.fillRect(0, 0, width, height);
 
     // Draw category labels at the edges
-    const labelRadius = maxRadius + 20;
-    ctx.font = '10px system-ui, -apple-system, sans-serif';
+    const labelRadius = maxRadius + 24;
+    ctx.font = '600 11px system-ui, -apple-system, sans-serif';
     ctx.textBaseline = 'middle';
     
     CATEGORIES.forEach(category => {
@@ -176,19 +176,30 @@ export const CognitiveNebulaCanvas = ({ data }: CognitiveNebulaCanvasProps) => {
       // Short label (first word only)
       const shortLabel = category.split(' ')[0];
       
-      // Align text based on position
-      if (angle > Math.PI * 0.5 && angle < Math.PI * 1.5) {
+      // Align text based on angular position
+      const normalizedAngle = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+      
+      if (normalizedAngle > Math.PI * 0.6 && normalizedAngle < Math.PI * 1.4) {
         ctx.textAlign = 'right';
-      } else if (Math.abs(angle - Math.PI * 0.5) < 0.1 || Math.abs(angle - Math.PI * 1.5) < 0.1) {
+      } else if (normalizedAngle >= Math.PI * 1.4 && normalizedAngle <= Math.PI * 1.6) {
         ctx.textAlign = 'center';
-      } else {
+      } else if (normalizedAngle >= Math.PI * 0.4 && normalizedAngle <= Math.PI * 0.6) {
+        ctx.textAlign = 'center';
+      } else if (normalizedAngle > Math.PI * 1.6 || normalizedAngle < Math.PI * 0.4) {
         ctx.textAlign = 'left';
+      } else {
+        ctx.textAlign = 'center';
       }
       
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.7;
-      ctx.fillText(shortLabel, x, y);
+      // Draw text shadow for better contrast
+      ctx.globalAlpha = 0.4;
+      ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+      ctx.fillText(shortLabel, x + 1, y + 1);
+      
+      // Draw main text
       ctx.globalAlpha = 1;
+      ctx.fillStyle = color;
+      ctx.fillText(shortLabel, x, y);
     });
 
     animationRef.current = requestAnimationFrame(animate);
