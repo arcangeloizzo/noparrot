@@ -1,9 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Send } from 'lucide-react';
+import { X, Send, MessageCircle } from 'lucide-react';
 import { Comment } from '@/hooks/useComments';
 import { cn, getDisplayUsername } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { haptics } from '@/lib/haptics';
 import { useUserSearch } from '@/hooks/useUserSearch';
 import { MentionDropdown } from './MentionDropdown';
@@ -136,6 +135,8 @@ export const StickyComposer = ({
     }
   };
 
+  const canSubmit = content.trim().length > 0 && !isSubmitting;
+
   return (
     <>
       {/* Live region for accessibility */}
@@ -145,50 +146,75 @@ export const StickyComposer = ({
 
       <div
         className={cn(
-          "fixed bottom-0 left-0 right-0 bg-background border-t border-border z-40 sticky-composer",
-          "transition-all duration-300 ease-out",
-          isExpanded ? "h-[60vh]" : "h-14"
+          "fixed bottom-0 left-0 right-0 z-40",
+          "bg-gradient-to-t from-background via-background/98 to-background/95",
+          "border-t border-white/10 backdrop-blur-xl",
+          "transition-all duration-300 ease-out"
         )}
         style={{
-          paddingBottom: 'env(safe-area-inset-bottom)'
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          height: isExpanded ? '50vh' : 'auto'
         }}
       >
         {!isExpanded ? (
+          /* Collapsed State - Modern Pill Bar */
           <button
             onClick={() => {
               setIsExpanded(true);
               haptics.light();
               setTimeout(() => textareaRef.current?.focus(), 100);
             }}
-            className="w-full h-full px-4 text-left text-muted-foreground hover:bg-muted/30 transition-colors"
+            className={cn(
+              "w-full p-3 flex items-center gap-3",
+              "hover:bg-white/5 transition-colors"
+            )}
           >
-            {replyToComment 
-              ? `Rispondi a @${getDisplayUsername(replyToComment.author.username)}` 
-              : 'Posta la tua risposta'}
+            <div className={cn(
+              "flex-1 flex items-center gap-3 px-4 py-3",
+              "bg-white/5 rounded-full border border-white/10",
+              "text-muted-foreground text-left"
+            )}>
+              <MessageCircle className="w-5 h-5 text-primary/60" />
+              <span className="text-sm">
+                {replyToComment 
+                  ? `Rispondi a @${getDisplayUsername(replyToComment.author.username)}` 
+                  : 'Scrivi un commento...'}
+              </span>
+            </div>
           </button>
         ) : (
-          <div className="h-full flex flex-col p-4 animate-fade-in relative">
+          /* Expanded State */
+          <div className="h-full flex flex-col p-4 animate-fade-in">
             {/* Reply context chip */}
             {replyToComment && (
-              <div className="flex items-center gap-2 mb-2 p-2 bg-muted/50 rounded-lg">
-                <span className="text-sm text-muted-foreground flex-1">
-                  In risposta a <span className="text-primary font-medium">@{getDisplayUsername(replyToComment.author.username)}</span>
+              <div className={cn(
+                "flex items-center gap-2 mb-3 px-3 py-2",
+                "bg-primary/10 rounded-xl border border-primary/20"
+              )}>
+                <span className="text-sm text-foreground flex-1">
+                  In risposta a{' '}
+                  <span className="text-primary font-semibold">
+                    @{getDisplayUsername(replyToComment.author.username)}
+                  </span>
                 </span>
                 <button
                   onClick={() => {
                     onClearReplyTo();
                     haptics.light();
                   }}
-                  className="p-1 hover:bg-background rounded-full transition-colors"
+                  className={cn(
+                    "p-1.5 rounded-full",
+                    "hover:bg-white/10 transition-colors"
+                  )}
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             )}
 
-            {/* Mention Dropdown - positioned below */}
+            {/* Mention Dropdown */}
             {mentionQuery && (
-              <div className="relative">
+              <div className="relative mb-2">
                 <MentionDropdown
                   users={mentionUsers}
                   selectedIndex={selectedMentionIndex}
@@ -200,19 +226,24 @@ export const StickyComposer = ({
             )}
 
             {/* Textarea */}
-            <Textarea
+            <textarea
               ref={textareaRef}
               name="comment-content"
               value={content}
               onChange={handleContentChange}
               onKeyDown={handleKeyDown}
               placeholder={replyToComment ? 'Scrivi una risposta...' : 'Cosa ne pensi?'}
-              className="flex-1 resize-none border-none focus-visible:ring-0 text-base"
+              className={cn(
+                "flex-1 w-full resize-none bg-transparent",
+                "text-base text-foreground placeholder:text-muted-foreground/60",
+                "outline-none border-none focus:ring-0",
+                "px-1 py-2"
+              )}
               autoFocus
             />
 
             {/* Actions */}
-            <div className="flex items-center justify-between pt-3 border-t border-border mt-auto">
+            <div className="flex items-center justify-between pt-3 border-t border-white/10 mt-auto">
               <Button
                 variant="ghost"
                 size="sm"
@@ -224,19 +255,26 @@ export const StickyComposer = ({
                   }
                   haptics.light();
                 }}
+                className="rounded-full px-4 hover:bg-white/10"
               >
                 Annulla
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={!content.trim() || isSubmitting}
+                disabled={!canSubmit}
                 size="sm"
-                className="gap-2"
+                className={cn(
+                  "rounded-full px-5 gap-2",
+                  "bg-gradient-to-r from-primary to-primary/80",
+                  "hover:shadow-lg hover:shadow-primary/25 hover:scale-105",
+                  "active:scale-95 transition-all duration-200",
+                  "disabled:opacity-50 disabled:hover:scale-100"
+                )}
               >
                 {isSubmitting ? (
                   <>
                     <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    Pubblicazione...
+                    Invio...
                   </>
                 ) : (
                   <>

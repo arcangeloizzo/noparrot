@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { X } from "lucide-react";
+import { X, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Card } from "@/components/ui/card";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
-import { MediaUploadButton } from "@/components/media/MediaUploadButton";
+import { MediaActionBar } from "./MediaActionBar";
 import { MediaPreviewTray } from "@/components/media/MediaPreviewTray";
 import { fetchArticlePreview, classifyContent } from "@/lib/ai-helpers";
 import { QuotedPostCard } from "@/components/feed/QuotedPostCard";
@@ -19,6 +18,9 @@ import { MentionDropdown } from "@/components/feed/MentionDropdown";
 import { useUserSearch } from "@/hooks/useUserSearch";
 import { useQueryClient } from "@tanstack/react-query";
 import { updateCognitiveDensityWeighted } from "@/lib/cognitiveDensity";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useCurrentProfile } from "@/hooks/useCurrentProfile";
+import { cn } from "@/lib/utils";
 
 interface ComposerModalProps {
   isOpen: boolean;
@@ -30,6 +32,7 @@ const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 
 export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProps) {
   const { user } = useAuth();
+  const { data: profile } = useCurrentProfile();
   const queryClient = useQueryClient();
   const [content, setContent] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
@@ -50,6 +53,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
+
+  const canPublish = content.trim().length > 0 || uploadedMedia.length > 0;
+  const isLoading = isPublishing || isGeneratingQuiz;
 
   const handleSelectMention = (user: any) => {
     const textBeforeCursor = content.slice(0, cursorPosition);
@@ -73,24 +79,19 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     }, 0);
   };
 
-  // Reset selection when users change
   useEffect(() => {
     setSelectedMentionIndex(0);
   }, [mentionUsers]);
 
-  // Detect URL in content
   useEffect(() => {
     const urls = content.match(URL_REGEX);
     if (urls && urls.length > 0) {
       const url = urls[0];
-      console.log('[Composer] URL detected:', url);
       if (url !== detectedUrl) {
-        console.log('[Composer] Setting new URL:', url);
         setDetectedUrl(url);
         loadPreview(url);
       }
     } else if (!urls && detectedUrl) {
-      console.log('[Composer] No URL found, clearing');
       setDetectedUrl(null);
       setUrlPreview(null);
     }
@@ -98,28 +99,17 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
   const loadPreview = async (url: string) => {
     try {
-      console.log('[Composer] Loading preview for:', url);
       const preview = await fetchArticlePreview(url);
       
-      console.log('[Composer] Preview result:', preview);
-      
       if (preview) {
-        setUrlPreview({
-          url: url,
-          ...preview
-        });
-        console.log('[Composer] Preview set successfully');
+        setUrlPreview({ url, ...preview });
         
-        // Classifica il contenuto immediatamente dopo aver caricato la preview
         const category = await classifyContent({
           text: content,
           title: preview.title,
           summary: preview.content || preview.summary || preview.excerpt
         });
-        console.log('[Composer] Content classified as:', category);
         setContentCategory(category);
-      } else {
-        console.log('[Composer] No preview data returned');
       }
     } catch (error) {
       console.error('[Composer] Error loading preview:', error);
@@ -129,29 +119,25 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const handlePublish = async () => {
     if (!user || !content.trim()) return;
 
-    // Se c'è un link → apri reader + comprehension gate
     if (detectedUrl) {
       setReaderClosing(false);
       setShowReader(true);
       return;
     }
 
-    // Nessun link → pubblica subito
     await publishPost();
   };
 
   const closeReaderSafely = async () => {
-    // Pre-cleanup (iframe Spotify ecc.) gestito dentro SourceReaderGate quando readerClosing=true
     setReaderClosing(true);
-    await new Promise((resolve) => setTimeout(resolve, 200)); // Increased for iOS Safari stability
+    await new Promise((resolve) => setTimeout(resolve, 200));
     setShowReader(false);
-    // piccolo buffer per iOS Safari (evita race tra unmount e rendering successivo)
     await new Promise((resolve) => setTimeout(resolve, 50));
     setReaderClosing(false);
   };
 
   const handleReaderComplete = async () => {
-    if (isGeneratingQuiz) return; // Prevent double clicks
+    if (isGeneratingQuiz) return;
 
     try {
       if (!urlPreview || !user) {
@@ -159,7 +145,6 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         return;
       }
 
-      // Se Spotify senza lyrics sufficienti, pubblica direttamente (ma chiudi in modo sicuro)
       if (
         urlPreview.platform === 'spotify' &&
         (!urlPreview.transcript || urlPreview.transcript.length < 100)
@@ -172,13 +157,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
       setIsGeneratingQuiz(true);
 
-      // Calcola testMode basato sul testo utente
       const userWordCount = getWordCount(content);
       const testMode = getTestModeWithSource(userWordCount);
 
       toast.loading('Stiamo mettendo a fuoco ciò che conta…');
 
-      // Per lyrics/contenuti lunghi, passa fino a 5000 caratteri (copre 99% delle canzoni)
       const summaryForQA = (urlPreview.content || urlPreview.summary || urlPreview.excerpt || '').substring(0, 5000);
 
       const result = await generateQA({
@@ -208,7 +191,6 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         return;
       }
 
-      // Successo: chiudi reader in modo sicuro, poi mostra quiz
       await closeReaderSafely();
 
       setQuizData({
@@ -227,7 +209,6 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         console.error('[ComposerModal] closeReaderSafely error:', closeError);
       }
 
-      // fallback: prova a pubblicare, ma senza rischiare un secondo crash
       try {
         await publishPost();
       } catch (publishError) {
@@ -254,9 +235,6 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       if (error) throw error;
 
       const actualPassed = data.passed && (data.total - data.score) <= 2;
-      
-      // NON chiamare setShowQuiz o publishPost qui!
-      // Salva lo stato e lascia che QuizModal mostri il feedback
       setQuizPassed(actualPassed);
       
       return data;
@@ -272,17 +250,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
     setIsPublishing(true);
     try {
-      // Rimuovi tutti gli URL dal contenuto prima di pubblicare
       const cleanContent = content.replace(URL_REGEX, '').trim();
       
-      // Classifica il contenuto usando AI
       const category = await classifyContent({
         text: cleanContent,
         title: urlPreview?.title,
         summary: urlPreview?.content || urlPreview?.summary || urlPreview?.excerpt
       });
-
-      console.log('[ComposerModal] Content classified as:', category);
       
       const { data: insertedPost, error: postError } = await supabase
         .from('posts')
@@ -304,7 +278,6 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
       if (postError) throw postError;
 
-      // Salvare post_media
       if (uploadedMedia.length > 0 && insertedPost) {
         for (let i = 0; i < uploadedMedia.length; i++) {
           await supabase.from('post_media').insert({
@@ -315,13 +288,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         }
       }
 
-      // Aggiorna cognitive density con peso
       if (category) {
         const action = quotedPost?.id ? 'SHARE_POST' : 'CREATE_POST';
         await updateCognitiveDensityWeighted(user.id, category, action);
       }
 
-      // Invalida queries per ricaricare il feed immediatamente
       await queryClient.invalidateQueries({ queryKey: ['posts'] });
       await queryClient.refetchQueries({ queryKey: ['posts'] });
       
@@ -339,35 +310,57 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     }
   };
 
+  const handleMediaSelect = (files: File[], type: 'image' | 'video') => {
+    uploadMedia(files, type);
+  };
+
   if (!isOpen) return null;
+
+  const initials = profile?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 
+                   profile?.username?.substring(0, 2).toUpperCase() || 'U';
 
   return (
     <>
       <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
         <div 
-          className="absolute inset-0 bg-background/80 backdrop-blur-sm" 
+          className="absolute inset-0 bg-black/60 backdrop-blur-md" 
           onClick={onClose} 
         />
         
-        <Card className="relative w-full max-w-2xl max-h-[90vh] overflow-hidden glass-panel border-glass shadow-glass">
+        <div className={cn(
+          "relative w-full max-w-2xl max-h-[90vh] overflow-hidden",
+          "bg-gradient-to-b from-card/95 to-card/90 backdrop-blur-xl",
+          "border border-white/10 rounded-3xl shadow-2xl",
+          "animate-scale-in"
+        )}>
           <div className="flex flex-col h-full">
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-border/50">
-              <h2 className="text-xl font-semibold text-foreground">
-                Nuovo Post
-              </h2>
+            {/* Modern Header */}
+            <div className="flex items-center gap-3 p-4 border-b border-white/10">
+              <Avatar className="w-11 h-11 ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
+                <AvatarImage src={profile?.avatar_url || undefined} />
+                <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary font-semibold">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <h2 className="font-semibold text-foreground flex items-center gap-2">
+                  Nuovo Post
+                  <Sparkles className="w-4 h-4 text-primary animate-pulse" />
+                </h2>
+                <p className="text-xs text-muted-foreground">Condividi con la community</p>
+              </div>
               <Button 
                 variant="ghost" 
-                size="sm"
+                size="icon"
                 onClick={onClose}
-                className="hover:bg-muted/50"
+                className="rounded-full hover:bg-white/10 transition-colors"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </Button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {/* Textarea con Mention */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Modern Textarea */}
               <div className="relative">
                 <Textarea
                   ref={textareaRef}
@@ -410,8 +403,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                       setShowMentions(false);
                     }
                   }}
-                  placeholder="Scrivi il tuo pensiero… Usa @ per menzionare"
-                  className="min-h-[120px] resize-none text-[15px]"
+                  placeholder="Cosa vuoi condividere? Usa @ per menzionare..."
+                  className={cn(
+                    "min-h-[140px] resize-none text-[16px] leading-relaxed",
+                    "bg-white/5 border-white/10 rounded-2xl",
+                    "focus:border-primary/50 focus:ring-2 focus:ring-primary/20",
+                    "placeholder:text-muted-foreground/60",
+                    "transition-all duration-200"
+                  )}
                   rows={5}
                 />
                 
@@ -426,11 +425,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                 )}
               </div>
 
-              {/* URL Preview */}
+              {/* URL Preview - Compact Modern */}
               {urlPreview && (
-                <div className="border border-border rounded-2xl overflow-hidden">
+                <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5 hover:bg-white/8 transition-colors">
                   {urlPreview.image && (
-                    <div className="aspect-video w-full overflow-hidden bg-muted">
+                    <div className="aspect-[2/1] w-full overflow-hidden bg-muted/20">
                       <img 
                         src={urlPreview.image}
                         alt={urlPreview.title || ''}
@@ -439,10 +438,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                     </div>
                   )}
                   <div className="p-3">
-                    <div className="text-xs text-muted-foreground mb-1">
+                    <div className="text-xs text-primary/80 font-medium mb-1">
                       {urlPreview.domain || (urlPreview.url ? new URL(urlPreview.url).hostname : '')}
                     </div>
-                    <div className="font-semibold text-sm line-clamp-2">
+                    <div className="font-semibold text-sm line-clamp-2 text-foreground">
                       {urlPreview.title}
                     </div>
                     {urlPreview.description && (
@@ -462,46 +461,57 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                 />
               )}
 
-              {/* Media Upload */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <MediaUploadButton
-                    type="image"
-                    onFilesSelected={(files) => uploadMedia(files, 'image')}
-                    maxFiles={4}
-                    disabled={isUploading}
-                  />
-                  <MediaUploadButton
-                    type="video"
-                    onFilesSelected={(files) => uploadMedia(files, 'video')}
-                    maxFiles={1}
-                    disabled={isUploading}
-                  />
-                  {isUploading && (
-                    <span className="text-xs text-muted-foreground">
-                      Caricamento...
-                    </span>
-                  )}
-                </div>
+              {/* Media Preview */}
+              {uploadedMedia.length > 0 && (
                 <MediaPreviewTray
                   media={uploadedMedia}
                   onRemove={removeMedia}
                 />
-              </div>
+              )}
+
+              {/* Modern Media Action Bar */}
+              <MediaActionBar
+                onFilesSelected={handleMediaSelect}
+                disabled={isUploading || isLoading}
+              />
+              
+              {isUploading && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  Caricamento media...
+                </div>
+              )}
             </div>
 
-            {/* Footer */}
-            <div className="p-6 border-t border-border/30 flex justify-end">
+            {/* Modern Footer */}
+            <div className="p-4 border-t border-white/10 flex justify-end">
               <Button
                 onClick={handlePublish}
-                disabled={!content.trim() || isPublishing || isGeneratingQuiz}
-                className="rounded-full px-6"
+                disabled={!canPublish || isLoading}
+                className={cn(
+                  "px-6 py-2.5 rounded-full font-semibold",
+                  "bg-gradient-to-r from-primary to-primary/80",
+                  "hover:shadow-lg hover:shadow-primary/25 hover:scale-105",
+                  "active:scale-95 transition-all duration-200",
+                  "disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none",
+                  canPublish && !isLoading && "animate-pulse"
+                )}
               >
-                {isPublishing ? "Pubblicazione..." : isGeneratingQuiz ? "Generazione quiz..." : "Pubblica"}
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    {isGeneratingQuiz ? "Generazione..." : "Pubblicazione..."}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Send className="w-4 h-4" />
+                    Pubblica
+                  </div>
+                )}
               </Button>
             </div>
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Reader Gate */}
@@ -510,7 +520,6 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
           isOpen={showReader}
           isClosing={readerClosing}
           onClose={() => {
-            // chiusura manuale: evita crash iOS con iframe attivi
             void closeReaderSafely();
           }}
           source={urlPreview}
@@ -524,14 +533,12 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
           questions={quizData.questions}
           onSubmit={handleQuizSubmit}
           onCancel={() => {
-            // Usa requestAnimationFrame per dare tempo al QuizModal di fare cleanup
             requestAnimationFrame(() => {
               const shouldPublish = quizPassed;
               setShowQuiz(false);
               setQuizData(null);
               setQuizPassed(false);
               
-              // Se il quiz è passato, pubblica dopo che l'utente chiude il modal
               if (shouldPublish) {
                 toast.success('Hai fatto chiarezza.');
                 publishPost().catch((e) => {
