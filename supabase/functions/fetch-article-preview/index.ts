@@ -610,13 +610,14 @@ serve(async (req) => {
       hostname.includes('fb.com') ||
       hostname.includes('fb.watch')
     ) {
-      console.log('[Preview] ⛔ Unsupported platform URL:', { url, hostname });
+      console.log('[Preview] ⛔ Unsupported platform URL:', { originalUrl: url, hostname });
       return new Response(
         JSON.stringify({
           success: false,
           error: 'UNSUPPORTED_PLATFORM',
-          message: 'Questa piattaforma non è supportata in app.',
+          message: `Questa piattaforma (${hostname}) non è supportata in app.`,
           hostname,
+          originalUrl: url,
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

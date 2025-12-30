@@ -4,6 +4,7 @@
 // ✅ Rimosso block tracking complesso
 // ✅ Rimosso velocity detection e attrition
 // ✅ Async YouTube transcript loading
+// ✅ iOS Safe Mode: no iframes/embeds on iOS Safari
 
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Check, ExternalLink, Music, Loader2 } from 'lucide-react';
@@ -13,6 +14,7 @@ import { cn } from '@/lib/utils';
 import { SourceWithGate } from '@/lib/comprehension-gate-extended';
 import { sendReaderTelemetry } from '@/lib/telemetry';
 import { fetchYouTubeTranscript } from '@/lib/ai-helpers';
+import { lockBodyScroll, unlockBodyScroll, transferLock } from '@/lib/bodyScrollLock';
 
 // Safe iframe extraction utilities
 const extractIframeSrc = (html: string): string | null => {
@@ -273,21 +275,13 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       setTranscriptError(null);
       transcriptFetchedRef.current = false;
 
-      // Robust scroll lock cleanup
-      document.body.classList.remove('reader-open');
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
-      document.body.style.touchAction = '';
+      // Use centralized scroll lock
+      unlockBodyScroll('reader');
       return;
     }
 
-    // Robust scroll lock: CSS class + inline styles as backup
-    document.body.classList.add('reader-open');
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.width = '100%';
-    document.body.style.touchAction = 'none';
+    // Use centralized scroll lock
+    lockBodyScroll('reader');
 
     // Show typing indicator briefly at start
     setShowTypingIndicator(true);
@@ -306,12 +300,8 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     return () => {
       clearTimeout(indicatorTimer);
       clearInterval(timer);
-      // Cleanup scroll lock
-      document.body.classList.remove('reader-open');
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.width = '';
-      document.body.style.touchAction = '';
+      // Use centralized scroll lock
+      unlockBodyScroll('reader');
     };
   }, [isOpen, safeSetTimeout]);
 
@@ -827,23 +817,62 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 </div>
                 <div className="h-32"></div>
               </>
-            ) : source.platform === 'twitter' && source.embedHtml && !isClosing ? (
+            ) : source.platform === 'twitter' && !isClosing ? (
               <>
-                {/* Twitter Embed - Show ONLY embed widget, no duplicate text */}
+                {/* Twitter Content - iOS Safe Mode: no embed widget */}
                 <div className="max-w-2xl mx-auto space-y-4">
-                  <div className="twitter-embed-container">
-                    {isRenderingTwitter && (
-                      <div className="flex items-center justify-center py-8">
-                        <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
-                        <span className="text-sm text-muted-foreground">Caricamento tweet...</span>
+                  {isIOS ? (
+                    // iOS Safe Mode: static card instead of embed
+                    <div className="rounded-xl border border-border bg-muted/30 p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="mt-0.5 rounded-lg border border-border bg-card p-2">
+                          <ExternalLink className="h-4 w-4 text-foreground" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-foreground">Widget Twitter disattivato su iOS</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Per evitare schermate bianche/crash su Safari iOS.
+                          </p>
+                          {source.content && (
+                            <div className="mt-3 p-3 bg-card rounded-lg border border-border">
+                              <p className="text-sm text-foreground whitespace-pre-wrap">{source.content}</p>
+                            </div>
+                          )}
+                          <div className="mt-3">
+                            <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
+                              <ExternalLink className="h-3 w-3" />
+                              Apri su X/Twitter
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                    )}
-                    <div 
-                      dangerouslySetInnerHTML={{ __html: source.embedHtml }}
-                      className="overflow-hidden"
-                    />
-                  </div>
-                  {/* NOTE: Removed duplicate text content - the embed widget shows everything */}
+                    </div>
+                  ) : source.embedHtml ? (
+                    // Desktop: show embed widget
+                    <div className="twitter-embed-container">
+                      {isRenderingTwitter && (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                          <span className="text-sm text-muted-foreground">Caricamento tweet...</span>
+                        </div>
+                      )}
+                      <div 
+                        dangerouslySetInnerHTML={{ __html: source.embedHtml }}
+                        className="overflow-hidden"
+                      />
+                    </div>
+                  ) : (
+                    // No embed available: show content text
+                    <div className="p-4 bg-muted/30 rounded-lg border border-border">
+                      <p className="text-foreground">{source.content || 'Contenuto Twitter non disponibile'}</p>
+                      <div className="mt-3">
+                        <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
+                          <ExternalLink className="h-3 w-3" />
+                          Apri su X/Twitter
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="h-32"></div>
               </>

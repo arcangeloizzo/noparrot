@@ -30,6 +30,43 @@ interface ComposerModalProps {
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 
+// Sanitize extracted URL: remove trailing punctuation and unwrap tracking redirects
+const sanitizeUrl = (rawUrl: string): string => {
+  // Remove trailing punctuation that often gets captured by regex
+  let url = rawUrl.replace(/[)\]},;:!?.…]+$/, '');
+  
+  // Unwrap common tracking/redirect wrappers
+  try {
+    const parsed = new URL(url);
+    
+    // Instagram/Facebook link wrappers: l.instagram.com/?u=...
+    if (parsed.hostname.includes('l.instagram.com') || parsed.hostname.includes('l.facebook.com')) {
+      const targetUrl = parsed.searchParams.get('u');
+      if (targetUrl) {
+        console.log('[Composer] Unwrapped tracking URL:', { original: url, unwrapped: targetUrl });
+        url = targetUrl;
+      }
+    }
+    
+    // Google redirect: google.com/url?q=...
+    if (parsed.hostname.includes('google.com') && parsed.pathname === '/url') {
+      const targetUrl = parsed.searchParams.get('q') || parsed.searchParams.get('url');
+      if (targetUrl) {
+        console.log('[Composer] Unwrapped Google redirect:', { original: url, unwrapped: targetUrl });
+        url = targetUrl;
+      }
+    }
+    
+    // t.co (Twitter shortlinks) - keep as is, backend resolves
+    // bit.ly, tinyurl, etc - keep as is, backend resolves
+    
+  } catch (e) {
+    console.warn('[Composer] URL parse error during sanitization:', e);
+  }
+  
+  return url;
+};
+
 export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProps) {
   const { user } = useAuth();
   const { data: profile } = useCurrentProfile();
@@ -117,10 +154,18 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   useEffect(() => {
     const urls = content.match(URL_REGEX);
     if (urls && urls.length > 0) {
-      const url = urls[0];
-      if (url !== detectedUrl) {
-        setDetectedUrl(url);
-        loadPreview(url);
+      const rawUrl = urls[0];
+      const sanitizedUrl = sanitizeUrl(rawUrl);
+      
+      console.log('[Composer] URL detected:', { 
+        rawUrl, 
+        sanitizedUrl, 
+        hostname: (() => { try { return new URL(sanitizedUrl).hostname; } catch { return 'invalid'; } })()
+      });
+      
+      if (sanitizedUrl !== detectedUrl) {
+        setDetectedUrl(sanitizedUrl);
+        loadPreview(sanitizedUrl);
       }
     } else if (!urls && detectedUrl) {
       setDetectedUrl(null);
