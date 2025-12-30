@@ -15,6 +15,7 @@ import { SourceWithGate } from '@/lib/comprehension-gate-extended';
 import { sendReaderTelemetry } from '@/lib/telemetry';
 import { fetchYouTubeTranscript } from '@/lib/ai-helpers';
 import { lockBodyScroll, unlockBodyScroll, transferLock } from '@/lib/bodyScrollLock';
+import { addBreadcrumb } from '@/lib/crashBreadcrumbs';
 
 // Safe iframe extraction utilities
 const extractIframeSrc = (html: string): string | null => {
@@ -389,6 +390,11 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const isReady = isBlocked || timeLeft === 0 || hasScrolledToBottom;
 
   const handleComplete = () => {
+    addBreadcrumb('reader_proceed_clicked', {
+      platform: (source as any).platform,
+      isBlocked: (source as any).contentQuality === 'blocked'
+    });
+
     sendReaderTelemetry({
       type: 'gate_test_started',
       articleId: source.url,
