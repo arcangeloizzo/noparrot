@@ -13,11 +13,12 @@ interface QuizModalProps {
   questions: QuizQuestion[];
   onSubmit: (answers: Record<string, string>) => Promise<{ passed: boolean; score?: number; total?: number; wrongIndexes: string[] }>;
   onCancel?: () => void;
+  onComplete?: (passed: boolean) => void; // Called when quiz finishes (pass or fail)
   provider?: string;
   postCategory?: string;
 }
 
-export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizModalProps) {
+export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCategory }: QuizModalProps) {
   const { user } = useAuth();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -221,7 +222,11 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
                   </div>
                   <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Hai compreso.</h2>
                   <p className="text-muted-foreground mb-4 sm:mb-6 text-sm sm:text-base">Le tue parole ora hanno peso.</p>
-                  <Button onClick={(e) => { e.stopPropagation(); onCancel?.(); }} className="w-full font-medium pointer-events-auto" style={{ pointerEvents: 'auto' }}>Chiudi</Button>
+                  <Button onClick={(e) => { 
+                    e.stopPropagation(); 
+                    addBreadcrumb('quiz_complete_passed');
+                    onComplete ? onComplete(true) : onCancel?.(); 
+                  }} className="w-full font-medium pointer-events-auto" style={{ pointerEvents: 'auto' }}>Chiudi</Button>
                 </>
               ) : (
                 <>
@@ -232,7 +237,11 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
                   </div>
                   <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Non ancora.</h2>
                   <p className="text-muted-foreground mb-4 sm:mb-6 text-sm sm:text-base">La comprensione richiede tempo, non fretta.</p>
-                  <Button onClick={(e) => { e.stopPropagation(); onCancel?.(); }} variant="outline" className="w-full font-medium pointer-events-auto" style={{ pointerEvents: 'auto' }}>Chiudi</Button>
+                  <Button onClick={(e) => { 
+                    e.stopPropagation(); 
+                    addBreadcrumb('quiz_complete_failed');
+                    onComplete ? onComplete(false) : onCancel?.(); 
+                  }} variant="outline" className="w-full font-medium pointer-events-auto" style={{ pointerEvents: 'auto' }}>Chiudi</Button>
                 </>
               )}
             </div>
