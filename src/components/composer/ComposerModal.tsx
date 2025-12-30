@@ -771,7 +771,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
               setQuizPassed(false);
               // Return to composer - user can try again
             }}
-            onComplete={(passed) => {
+            onComplete={async (passed) => {
               // Quiz finished (pass or fail)
               addBreadcrumb('quiz_complete_handler', { passed });
               forceUnlockBodyScroll(); // Ensure scroll is released
@@ -780,13 +780,17 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
               setQuizPassed(false);
               
               if (passed) {
-                toast.success('Hai fatto chiarezza.');
                 addBreadcrumb('publish_after_quiz');
-                publishPost().catch((e) => {
+                const loadingId = toast.loading('Pubblicazione…');
+                try {
+                  await publishPost();
+                } catch (e) {
                   console.error('[ComposerModal] publishPost error:', e);
                   addBreadcrumb('publish_error', { error: String(e) });
                   toast.error('Errore pubblicazione');
-                });
+                } finally {
+                  toast.dismiss(loadingId);
+                }
               } else {
                 // Failed - return to composer, user can try again
                 toast.info('Puoi riprovare quando vuoi.');
