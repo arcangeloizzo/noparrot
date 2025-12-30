@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BellIcon, HeartIcon, MessageCircleIcon, UserPlusIcon, AtSignIcon, CheckIcon } from "@/components/ui/icons";
+import { BellIcon, HeartIcon, MessageCircleIcon, UserPlusIcon, AtSignIcon, CheckIcon, ArrowLeftIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { useNotifications, useMarkAsRead, useMarkAllAsRead } from "@/hooks/useNotifications";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
+import { BottomNavigation } from "@/components/navigation/BottomNavigation";
+import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 
 // Colori per tipo di notifica
 const notificationStyles = {
@@ -43,9 +45,17 @@ const notificationStyles = {
 export const Notifications = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"all" | "mentions">("all");
+  const [showProfileSheet, setShowProfileSheet] = useState(false);
   const { data: notifications = [], isLoading } = useNotifications();
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
+
+  const handleNavTabChange = (tab: string) => {
+    if (tab === 'home') navigate('/');
+    else if (tab === 'search') navigate('/search');
+    else if (tab === 'saved') navigate('/saved');
+    else if (tab === 'notifications') navigate('/notifications');
+  };
 
   const getNotificationIcon = (type: string) => {
     const iconClass = "w-5 h-5";
@@ -163,13 +173,19 @@ export const Notifications = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20">
       <div className="mobile-container">
         {/* Header */}
         <div className="sticky top-0 bg-background/80 backdrop-blur-xl z-10 border-b border-border/30">
           <div className="p-4 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => navigate(-1)}
+                  className="p-2 -ml-2 rounded-xl hover:bg-muted/50 transition-colors"
+                >
+                  <ArrowLeftIcon className="w-5 h-5 text-foreground" />
+                </button>
                 <div className="p-2 bg-primary-blue/10 rounded-xl">
                   <BellIcon className="w-6 h-6 text-primary-blue" />
                 </div>
@@ -335,6 +351,17 @@ export const Notifications = () => {
           </div>
         )}
       </div>
+
+      {/* Bottom Navigation */}
+      <BottomNavigation 
+        activeTab="notifications"
+        onTabChange={handleNavTabChange}
+        onProfileClick={() => setShowProfileSheet(true)}
+      />
+      <ProfileSideSheet 
+        isOpen={showProfileSheet}
+        onClose={() => setShowProfileSheet(false)}
+      />
     </div>
   );
 };
