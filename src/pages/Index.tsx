@@ -9,6 +9,7 @@ import ConsentScreen from "./ConsentScreen";
 import { cleanupStaleScrollLocks } from "@/lib/bodyScrollLock";
 import { checkForRecentCrash, clearBreadcrumbs, addBreadcrumb, clearPendingPublish, getPendingPublish } from "@/lib/crashBreadcrumbs";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -27,38 +28,62 @@ const Index = () => {
     if (type === 'recovery') {
       setIsPasswordRecovery(true);
     }
-    
+
     // iOS crash recovery: cleanup stale scroll locks from previous session
     const hadStaleLock = cleanupStaleScrollLocks();
-    
-    // Check for recent crash and pending publish (idempotency recovery)
-    const { crashed, breadcrumbs, pendingPublish } = checkForRecentCrash();
-    
-    // If there was a pending publish from a crashed session, notify user and clear it
-    // The backend idempotency will prevent duplicates if they retry
-    if (pendingPublish && pendingPublish.timestamp > Date.now() - 5 * 60 * 1000) {
-      console.log('[Index] Found pending publish from crashed session:', pendingPublish.idempotencyKey);
-      toast.success('Il tuo post è stato pubblicato prima del crash.', { duration: 4000 });
-      clearPendingPublish();
-    } else if (pendingPublish) {
-      // Old pending publish (> 5 min), just clear it
-      clearPendingPublish();
-    }
-    
-    if (crashed && breadcrumbs.length > 0 && !pendingPublish) {
+
+    // Check for recent crash + breadcrumbs
+    const { crashed, breadcrumbs } = checkForRecentCrash();
+
+    if (crashed && breadcrumbs.length > 0) {
       console.warn('[Index] Detected recent crash, breadcrumbs:', breadcrumbs);
       const last = breadcrumbs[breadcrumbs.length - 1];
       const lastEvent = last?.event || 'unknown';
       toast.info(`Sessione precedente interrotta. Ultimo evento: ${lastEvent}.`, { duration: 4000 });
-      // Log last 5 breadcrumbs for debugging
-      const lastFive = breadcrumbs.slice(-5);
-      console.log('[Index] Last 5 breadcrumbs before crash:', lastFive);
+      console.log('[Index] Last 5 breadcrumbs before crash:', breadcrumbs.slice(-5));
     }
-    
+
     // Clear old breadcrumbs and start fresh
     clearBreadcrumbs();
     addBreadcrumb('app_init', { hadStaleLock, crashed });
   }, []);
+
+  // Verify pending publish on backend (prevents false “published before crash”)
+  useEffect(() => {
+    if (loading || !user) return;
+
+    const pending = getPendingPublish();
+    if (!pending) return;
+
+    const isRecent = pending.timestamp > Date.now() - 10 * 60 * 1000;
+    if (!isRecent) return;
+
+    (async () => {
+      try {
+        const { data, error } = await supabase
+          .from('publish_idempotency')
+          .select('post_id')
+          .eq('user_id', user.id)
+          .eq('key', pending.idempotencyKey)
+          .maybeSingle();
+
+        if (error) {
+          console.warn('[Index] publish_idempotency check failed', error);
+          return;
+        }
+
+        if (data?.post_id) {
+          toast.success('Post pubblicato.', { duration: 3500 });
+          clearPendingPublish();
+        } else {
+          // Not published: keep pending so retry reuses the same key
+          toast.error('Pubblicazione non completata. Riprova.', { duration: 4000 });
+        }
+      } catch (e) {
+        console.warn('[Index] pending publish verify error', e);
+      }
+    })();
+  }, [loading, user]);
 
   const handleOnboardingComplete = () => {
     localStorage.setItem('noparrot-onboarding-completed', 'true');
