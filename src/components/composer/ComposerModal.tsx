@@ -23,8 +23,11 @@ import { cn } from "@/lib/utils";
 import { addBreadcrumb, generateIdempotencyKey, setPendingPublish, clearPendingPublish, getPendingPublish } from "@/lib/crashBreadcrumbs";
 import { forceUnlockBodyScroll } from "@/lib/bodyScrollLock";
 
-// iOS detection for quiz-only flow
-const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+// iOS detection for stability tweaks (includes iPadOS reporting as Mac)
+const isIOS =
+  typeof navigator !== 'undefined' &&
+  (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1));
 
 interface ComposerModalProps {
   isOpen: boolean;
@@ -920,14 +923,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
               if (passed) {
                 addBreadcrumb('publish_after_quiz');
 
-                // iOS Safari stability: unmount Quiz UI BEFORE publish to avoid memory spikes/white screens
-                if (isIOS) {
-                  setShowQuiz(false);
-                  setQuizData(null);
-                  setQuizPassed(false);
-                  // allow React to commit unmount
-                  await new Promise((r) => setTimeout(r, 180));
-                }
+                // Stability: unmount Quiz UI BEFORE publish to avoid memory spikes/white screens
+                setShowQuiz(false);
+                setQuizData(null);
+                setQuizPassed(false);
+
+                // Allow React to commit unmount before heavy work (extra buffer on iOS)
+                await new Promise((r) => setTimeout(r, isIOS ? 220 : 120));
 
                 const loadingId = toast.loading('Pubblicazione…');
                 try {
