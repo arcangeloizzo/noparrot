@@ -935,45 +935,47 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
               setQuizPassed(false);
               // Return to composer - user can try again
             }}
-            onComplete={async (passed) => {
+            onComplete={(passed) => {
               // Quiz finished (pass or fail)
-              addBreadcrumb('quiz_complete_handler', { passed });
+              // NOTE: This handler is now synchronous to exit the click stack ASAP.
+              // Actual publish is deferred via setTimeout to prevent iOS Safari crashes.
+              addBreadcrumb('quiz_complete_handler', { passed, isIOS });
 
               // Ensure scroll is unlocked before any state changes
               forceUnlockBodyScroll();
 
+              // Immediately unmount Quiz UI to reduce memory
+              setShowQuiz(false);
+              setQuizData(null);
+              setQuizPassed(false);
+
               if (passed) {
-                addBreadcrumb('publish_after_quiz');
+                addBreadcrumb('publish_after_quiz_scheduled');
 
-                // Stability: unmount Quiz UI BEFORE publish to avoid memory spikes/white screens
-                setShowQuiz(false);
-                setQuizData(null);
-                setQuizPassed(false);
+                // Show lightweight overlay immediately (no blur, minimal UI)
+                setIsFinalizingPublish(true);
 
-                // Allow React to commit unmount before heavy work (extra buffer on iOS)
-                await new Promise((r) => setTimeout(r, isIOS ? 220 : 120));
-
-                const loadingId = toast.loading('Pubblicazione…');
-                try {
-                  await publishPost();
-                  // publishPost handles close + refresh
-                } catch (e) {
-                  console.error('[ComposerModal] publishPost error:', e);
-                  addBreadcrumb('publish_error', { error: String(e) });
-                  toast.error('Errore pubblicazione');
-
-                  // Return to composer (non-iOS path may still have quiz mounted)
-                  setShowQuiz(false);
-                  setQuizData(null);
-                  setQuizPassed(false);
-                } finally {
-                  toast.dismiss(loadingId);
-                }
+                // Defer publishPost OUTSIDE the click event stack
+                const publishDelay = isIOS ? 400 : 150;
+                window.setTimeout(() => {
+                  addBreadcrumb('publish_after_quiz_start');
+                  const loadingId = toast.loading('Pubblicazione…');
+                  publishPost()
+                    .then(() => {
+                      // publishPost handles close + refresh
+                    })
+                    .catch((e) => {
+                      console.error('[ComposerModal] publishPost error:', e);
+                      addBreadcrumb('publish_error', { error: String(e) });
+                      toast.error('Errore pubblicazione');
+                      setIsFinalizingPublish(false);
+                    })
+                    .finally(() => {
+                      toast.dismiss(loadingId);
+                    });
+                }, publishDelay);
               } else {
-                // Failed - close quiz and return to composer
-                setShowQuiz(false);
-                setQuizData(null);
-                setQuizPassed(false);
+                // Failed - already closed quiz above, just show message
                 toast.info('Puoi riprovare quando vuoi.');
                 addBreadcrumb('quiz_failed_return_to_composer');
               }
