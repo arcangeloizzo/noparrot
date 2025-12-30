@@ -195,6 +195,38 @@ export type Database = {
         }
         Relationships: []
       }
+      focus_comment_reactions: {
+        Row: {
+          created_at: string | null
+          focus_comment_id: string
+          id: string
+          reaction_type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          focus_comment_id: string
+          id?: string
+          reaction_type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          focus_comment_id?: string
+          id?: string
+          reaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "focus_comment_reactions_focus_comment_id_fkey"
+            columns: ["focus_comment_id"]
+            isOneToOne: false
+            referencedRelation: "focus_comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       focus_comments: {
         Row: {
           author_id: string
