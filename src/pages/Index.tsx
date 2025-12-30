@@ -35,7 +35,9 @@ const Index = () => {
     const { crashed, breadcrumbs } = checkForRecentCrash();
     if (crashed && breadcrumbs.length > 0) {
       console.warn('[Index] Detected recent crash, breadcrumbs:', breadcrumbs);
-      toast.info('Sessione precedente interrotta. Stato ripristinato.', { duration: 3000 });
+      const last = breadcrumbs[breadcrumbs.length - 1];
+      const lastEvent = last?.event || 'unknown';
+      toast.info(`Sessione precedente interrotta. Ultimo evento: ${lastEvent}.`, { duration: 4000 });
       // Log last 5 breadcrumbs for debugging
       const lastFive = breadcrumbs.slice(-5);
       console.log('[Index] Last 5 breadcrumbs before crash:', lastFive);

@@ -422,23 +422,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         return;
       }
 
-      // iOS: avoid mounting Reader + Quiz at the same time (reduces Safari reload risk)
-      if (isIOS) {
-        addBreadcrumb('ios_reader_complete_close_then_quiz');
-        await closeReaderSafely();
-        // Let the reader unmount before mounting the quiz
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-        setQuizData({
-          questions: result.questions,
-          sourceUrl: detectedUrl || '',
-        });
-        setShowQuiz(true);
-        addBreadcrumb('quiz_mount');
-        toast.info('Quiz pronto.');
-        return;
-      }
-
-      // Non-iOS: overlay approach (mount quiz first, then close reader)
+      // Mount quiz first, then close reader (prevents intermediate blank state)
       setQuizData({
         questions: result.questions,
         sourceUrl: detectedUrl || '',
