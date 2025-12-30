@@ -913,14 +913,22 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             onComplete={async (passed) => {
               // Quiz finished (pass or fail)
               addBreadcrumb('quiz_complete_handler', { passed });
-              
-              // First, ensure scroll is unlocked before any state changes
+
+              // Ensure scroll is unlocked before any state changes
               forceUnlockBodyScroll();
-              
+
               if (passed) {
                 addBreadcrumb('publish_after_quiz');
 
-                // Keep quiz UI mounted during publish to avoid intermediate blank screens on Safari
+                // iOS Safari stability: unmount Quiz UI BEFORE publish to avoid memory spikes/white screens
+                if (isIOS) {
+                  setShowQuiz(false);
+                  setQuizData(null);
+                  setQuizPassed(false);
+                  // allow React to commit unmount
+                  await new Promise((r) => setTimeout(r, 180));
+                }
+
                 const loadingId = toast.loading('Pubblicazione…');
                 try {
                   await publishPost();
@@ -930,7 +938,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                   addBreadcrumb('publish_error', { error: String(e) });
                   toast.error('Errore pubblicazione');
 
-                  // Return to composer
+                  // Return to composer (non-iOS path may still have quiz mounted)
                   setShowQuiz(false);
                   setQuizData(null);
                   setQuizPassed(false);
