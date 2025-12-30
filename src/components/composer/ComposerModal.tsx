@@ -80,6 +80,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const queryClient = useQueryClient();
   const [content, setContent] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
+  const [isFinalizingPublish, setIsFinalizingPublish] = useState(false);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [detectedUrl, setDetectedUrl] = useState<string | null>(null);
   const [urlPreview, setUrlPreview] = useState<any>(null);
@@ -100,7 +101,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
 
   const canPublish = content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl;
-  const isLoading = isPublishing || isGeneratingQuiz;
+  const isLoading = isPublishing || isGeneratingQuiz || isFinalizingPublish;
 
   // Reset all state for clean composer on reopen
   const resetAllState = () => {
@@ -660,13 +661,23 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       addBreadcrumb('publish_finalize');
       toast.success(wasIdempotent ? 'Post già pubblicato.' : 'Condiviso.');
 
-      // Close UI first, then refresh feed in the background
-      resetAllState();
-      onClose();
+      // iOS/Safari stability: keep a lightweight blocking overlay while we teardown UI
+      setIsFinalizingPublish(true);
 
+      const closeDelay = isIOS ? 900 : 0;
       window.setTimeout(() => {
-        void queryClient.invalidateQueries({ queryKey: ['posts'] });
-      }, 600);
+        // Close UI first, then refresh feed in the background
+        resetAllState();
+        onClose();
+
+        window.setTimeout(() => {
+          void queryClient.invalidateQueries({ queryKey: ['posts'] });
+        }, isIOS ? 1400 : 600);
+
+        // Note: component may unmount right after onClose(); setting state after that is OK to skip.
+        // We still try to clear overlay when possible (non-modal close paths).
+        try { setIsFinalizingPublish(false); } catch {}
+      }, closeDelay);
     } catch (error) {
       console.error('[Publish] Unexpected error:', error);
       addBreadcrumb('publish_catch', { error: String(error) });
@@ -688,6 +699,17 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
   return (
     <>
+      {/* Lightweight blocking overlay used during publish teardown (iOS Safari stability) */}
+      {isFinalizingPublish && (
+        <div className="fixed inset-0 z-[10080] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card/95 p-6 text-center shadow-2xl">
+            <div className="mx-auto mb-3 h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+            <p className="text-sm font-medium text-foreground">Stiamo finalizzando la pubblicazione…</p>
+            <p className="mt-1 text-xs text-muted-foreground">Un attimo ancora.</p>
+          </div>
+        </div>
+      )}
+
       <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
         <div 
           className="absolute inset-0 bg-black/60 backdrop-blur-md" 
