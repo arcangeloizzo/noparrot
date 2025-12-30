@@ -52,11 +52,20 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
     };
   }, []);
 
-  // Body scroll lock
+  // Body scroll lock - RAFFORZATO per evitare race condition con Reader cleanup
   useEffect(() => {
     document.body.style.overflow = 'hidden';
+    document.body.classList.add('quiz-open');
+    
+    // Re-apply after 300ms to override any Reader cleanup (closeReaderSafely takes ~250ms)
+    const reapplyTimer = setTimeout(() => {
+      document.body.style.overflow = 'hidden';
+    }, 300);
+    
     return () => {
+      clearTimeout(reapplyTimer);
       document.body.style.overflow = '';
+      document.body.classList.remove('quiz-open');
     };
   }, []);
 
