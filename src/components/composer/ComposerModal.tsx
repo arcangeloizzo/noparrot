@@ -505,81 +505,26 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       // TEMP: Disable classification during publish to prevent crash/reload
       addBreadcrumb('publish_classify_skipped_by_client');
 
-      // Cache only minimal metadata BEFORE insert (drop heavy content to free memory)
-      const safeTitle = snapshotPreview?.title ? String(snapshotPreview.title).substring(0, 500) : null;
-      const safeImage = snapshotPreview?.image ? String(snapshotPreview.image).substring(0, 2000) : null;
-      const safeUrl = snapshotDetectedUrl ? String(snapshotDetectedUrl).substring(0, 2000) : null;
-      const safeQuotedId = quotedPost?.id || null;
+      // Publish via backend function to avoid Safari crashes during direct DB writes
+      addBreadcrumb('publish_insert_start', { contentLen: cleanContent.length, via: 'publish-post' });
 
-      // Stash heavy fields BEFORE clearing memory
-      const heavyContent = snapshotPreview?.content || null;
-      const heavyTranscript = snapshotPreview?.transcript || null;
-      const heavyEmbed = snapshotPreview?.embedHtml || null;
-      const heavyTranscriptSource = snapshotPreview?.transcriptSource || null;
-
-      addBreadcrumb('publish_insert_start', { contentLen: cleanContent.length });
-      
-      // Minimal insert payload for Safari stability
-      const insertPayload = {
-        content: cleanContent.substring(0, 5000),
-        author_id: user.id,
-        shared_url: safeUrl,
-        shared_title: safeTitle,
-        preview_img: safeImage,
-        quoted_post_id: safeQuotedId,
-        category: null as string | null
-      };
-
-      const { data: insertedPost, error: postError } = await supabase
-        .from('posts')
-        .insert(insertPayload)
-        .select('id')
-        .maybeSingle();
-
-      if (postError) throw postError;
-      addBreadcrumb('publish_insert_done', { postId: insertedPost?.id });
-
-      // Heavy fields update (best-effort; never block publish)
-      if (insertedPost) {
-        const heavyUpdate: Record<string, any> = {};
-        const articleContentSafe = typeof heavyContent === 'string' ? heavyContent.substring(0, 50000) : null;
-        const transcriptSafe = typeof heavyTranscript === 'string' ? heavyTranscript.substring(0, 50000) : null;
-        const embedHtmlSafe = typeof heavyEmbed === 'string' ? heavyEmbed.substring(0, 20000) : null;
-
-        if (articleContentSafe) heavyUpdate.article_content = articleContentSafe;
-        if (embedHtmlSafe) heavyUpdate.embed_html = embedHtmlSafe;
-        if (transcriptSafe) heavyUpdate.transcript = transcriptSafe;
-        if (heavyTranscriptSource) heavyUpdate.transcript_source = heavyTranscriptSource;
-
-        if (Object.keys(heavyUpdate).length > 0) {
-          try {
-            addBreadcrumb('publish_heavy_update_start', { keys: Object.keys(heavyUpdate) });
-            const { error: heavyErr } = await supabase
-              .from('posts')
-              .update(heavyUpdate)
-              .eq('id', insertedPost.id);
-            if (heavyErr) throw heavyErr;
-            addBreadcrumb('publish_heavy_update_done');
-          } catch (heavyErr) {
-            console.warn('Heavy fields update failed (continuing):', heavyErr);
-            addBreadcrumb('publish_heavy_update_skip', { error: String(heavyErr) });
-          }
+      const { data, error: fnError } = await supabase.functions.invoke('publish-post', {
+        body: {
+          content: cleanContent,
+          sharedUrl: snapshotDetectedUrl || null,
+          quotedPostId: quotedPost?.id || null,
+          mediaIds: snapshotUploadedMedia.map((m) => m.id)
         }
-      }
+      });
 
-      if (snapshotUploadedMedia.length > 0 && insertedPost) {
-        addBreadcrumb('publish_media_start', { count: snapshotUploadedMedia.length });
-        for (let i = 0; i < snapshotUploadedMedia.length; i++) {
-          await supabase.from('post_media').insert({
-            post_id: insertedPost.id,
-            media_id: snapshotUploadedMedia[i].id,
-            order_idx: i
-          });
-        }
-        addBreadcrumb('publish_media_done');
-      }
+      if (fnError) throw fnError;
 
-      // Skip cognitive density update (classification disabled)
+      const postId = (data as any)?.postId as string | undefined;
+      if (!postId) throw new Error('publish_post_missing_id');
+
+      addBreadcrumb('publish_insert_done', { postId });
+
+      // Skip heavy fields + cognitive density updates (handled separately / disabled)
 
       await queryClient.invalidateQueries({ queryKey: ['posts'] });
       await queryClient.refetchQueries({ queryKey: ['posts'] });
