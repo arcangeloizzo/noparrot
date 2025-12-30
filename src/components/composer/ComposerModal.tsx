@@ -8,10 +8,9 @@ import { toast } from "sonner";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { MediaActionBar } from "./MediaActionBar";
 import { MediaPreviewTray } from "@/components/media/MediaPreviewTray";
-import { fetchArticlePreview, classifyContent } from "@/lib/ai-helpers";
+import { fetchArticlePreview, classifyContent, generateQA } from "@/lib/ai-helpers";
 import { QuotedPostCard } from "@/components/feed/QuotedPostCard";
 import { SourceReaderGate } from "./SourceReaderGate";
-import { generateQA } from "@/lib/ai-helpers";
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { getWordCount, getTestModeWithSource } from '@/lib/gate-utils';
 import { MentionDropdown } from "@/components/feed/MentionDropdown";
@@ -21,6 +20,10 @@ import { updateCognitiveDensityWeighted } from "@/lib/cognitiveDensity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { cn } from "@/lib/utils";
+import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
+
+// iOS detection for quiz-only flow
+const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
 
 interface ComposerModalProps {
   isOpen: boolean;
@@ -228,11 +231,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const handlePublish = async () => {
     if (!user || !content.trim()) return;
     
+    addBreadcrumb('publish_attempt', { hasUrl: !!detectedUrl, isIOS });
+    
     console.log('[Composer] handlePublish called:', { 
       detectedUrl, 
       isPreviewLoading, 
       urlPreviewSuccess: urlPreview?.success,
-      urlPreviewError: urlPreview?.error 
+      urlPreviewError: urlPreview?.error,
+      isIOS
     });
 
     if (detectedUrl) {
@@ -249,8 +255,18 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         return;
       }
       
-      // Preview is valid - open reader
+      // iOS: Skip Reader entirely, go directly to quiz (like comment flow)
+      // This prevents crashes caused by complex overlay transitions
+      if (isIOS) {
+        console.log('[Composer] iOS detected - using quiz-only flow (no reader)');
+        addBreadcrumb('ios_quiz_only_start');
+        await handleIOSQuizOnlyFlow();
+        return;
+      }
+      
+      // Desktop/Android: Use full reader experience
       console.log('[Composer] Opening reader with valid preview');
+      addBreadcrumb('reader_open');
       setReaderClosing(false);
       setShowReader(true);
       return;
@@ -258,17 +274,100 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
     await publishPost();
   };
+  
+  // iOS-specific: Skip reader, go directly to quiz (mirrors comment flow)
+  const handleIOSQuizOnlyFlow = async () => {
+    if (isGeneratingQuiz || !urlPreview || !user) return;
+    
+    try {
+      setIsGeneratingQuiz(true);
+      addBreadcrumb('ios_generating_quiz');
+      
+      // Check if content is too short (Spotify without lyrics, etc.)
+      if (
+        urlPreview.platform === 'spotify' &&
+        (!urlPreview.transcript || urlPreview.transcript.length < 100)
+      ) {
+        toast.info('Contenuto Spotify senza testo, pubblicazione diretta');
+        addBreadcrumb('ios_skip_quiz_spotify');
+        await publishPost();
+        return;
+      }
+      
+      const userWordCount = getWordCount(content);
+      const testMode = getTestModeWithSource(userWordCount);
+      
+      toast.loading('Stiamo mettendo a fuoco ciò che conta…');
+      
+      const summaryForQA = (urlPreview.content || urlPreview.summary || urlPreview.excerpt || '').substring(0, 5000);
+      
+      const result = await generateQA({
+        contentId: null,
+        isPrePublish: true,
+        title: urlPreview.title || '',
+        summary: summaryForQA,
+        sourceUrl: detectedUrl || undefined,
+        userText: content,
+        testMode: testMode,
+      });
+      
+      toast.dismiss();
+      addBreadcrumb('ios_qa_generated', { hasQuestions: !!result.questions, error: result.error });
+      
+      if (result.insufficient_context) {
+        toast.info('Contenuto troppo breve, pubblicazione diretta');
+        addBreadcrumb('ios_skip_quiz_short');
+        await publishPost();
+        return;
+      }
+      
+      if (result.error || !result.questions) {
+        console.error('[ComposerModal] iOS Quiz generation failed:', result.error);
+        toast.error('Errore generazione quiz, pubblicazione diretta');
+        addBreadcrumb('ios_quiz_error', { error: result.error });
+        await publishPost();
+        return;
+      }
+      
+      // Show quiz directly (no reader)
+      addBreadcrumb('ios_quiz_mount');
+      setQuizData({
+        questions: result.questions,
+        sourceUrl: detectedUrl || '',
+      });
+      setShowQuiz(true);
+      
+    } catch (error) {
+      console.error('[ComposerModal] iOS quiz flow error:', error);
+      toast.dismiss();
+      toast.error('Errore durante la generazione del quiz');
+      addBreadcrumb('ios_quiz_flow_error', { error: String(error) });
+      
+      // Fallback: publish anyway
+      try {
+        await publishPost();
+      } catch (publishError) {
+        console.error('[ComposerModal] iOS publishPost fallback error:', publishError);
+      }
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
+  };
 
   const closeReaderSafely = async () => {
+    addBreadcrumb('reader_close_start');
     setReaderClosing(true);
     await new Promise((resolve) => setTimeout(resolve, 200));
     setShowReader(false);
     await new Promise((resolve) => setTimeout(resolve, 50));
     setReaderClosing(false);
+    addBreadcrumb('reader_closed');
   };
 
   const handleReaderComplete = async () => {
     if (isGeneratingQuiz) return;
+    
+    addBreadcrumb('reader_complete_start');
 
     try {
       if (!urlPreview || !user) {
@@ -667,16 +766,20 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             questions={quizData.questions}
             onSubmit={handleQuizSubmit}
             onCancel={() => {
+              addBreadcrumb('quiz_cancel_handler');
               requestAnimationFrame(() => {
                 const shouldPublish = quizPassed;
                 setShowQuiz(false);
                 setQuizData(null);
                 setQuizPassed(false);
+                addBreadcrumb('quiz_state_cleared', { shouldPublish });
                 
                 if (shouldPublish) {
                   toast.success('Hai fatto chiarezza.');
+                  addBreadcrumb('publish_after_quiz');
                   publishPost().catch((e) => {
                     console.error('[ComposerModal] publishPost error:', e);
+                    addBreadcrumb('publish_error', { error: String(e) });
                     toast.error('Errore pubblicazione');
                   });
                 }

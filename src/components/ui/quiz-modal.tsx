@@ -7,6 +7,7 @@ import { updateCognitiveDensityWeighted } from "@/lib/cognitiveDensity";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { lockBodyScroll, unlockBodyScroll } from "@/lib/bodyScrollLock";
+import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
 
 interface QuizModalProps {
   questions: QuizQuestion[];
@@ -56,9 +57,11 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
   // Body scroll lock - Use centralized utility
   useEffect(() => {
     // Quiz takes over lock from reader (if reader had it)
+    addBreadcrumb('quiz_scroll_lock');
     lockBodyScroll('quiz');
     
     return () => {
+      addBreadcrumb('quiz_scroll_unlock');
       unlockBodyScroll('quiz');
     };
   }, []);
@@ -161,9 +164,11 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
 
   const handleFinalSubmit = async () => {
     setIsSubmitting(true);
+    addBreadcrumb('quiz_submit_start');
     try {
       const validationResult = await onSubmit(answers);
       setResult(validationResult);
+      addBreadcrumb('quiz_submit_result', { passed: validationResult.passed });
       
       // Se passato e c'è una categoria, incrementa cognitive_density con peso COMMENT_WITH_GATE
       if (validationResult.passed && user && postCategory) {
@@ -171,6 +176,7 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
       }
     } catch (error) {
       console.error('Error submitting quiz:', error);
+      addBreadcrumb('quiz_submit_error', { error: String(error) });
     } finally {
       setIsSubmitting(false);
     }
@@ -180,6 +186,7 @@ export function QuizModal({ questions, onSubmit, onCancel, postCategory }: QuizM
     if (e.target === e.currentTarget && onCancel) {
       e.preventDefault();
       e.stopPropagation();
+      addBreadcrumb('quiz_closed', { via: 'backdrop' });
       onCancel();
     }
   };
