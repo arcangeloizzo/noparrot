@@ -489,31 +489,45 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     try {
       addBreadcrumb('publish_start', { hasUrl: !!detectedUrl, hasMedia: uploadedMedia.length > 0 });
 
+      // Snapshot inputs (avoid state mutation issues during async)
+      const snapshotDetectedUrl = detectedUrl;
+      const snapshotPreview = urlPreview;
+      const snapshotContent = content;
+      const snapshotUploadedMedia = [...uploadedMedia];
+
       // If user pasted only a URL, stripping it would make content empty (DB requires content NOT NULL)
-      const strippedText = content.replace(URL_REGEX, '').trim();
+      const strippedText = snapshotContent.replace(URL_REGEX, '').trim();
       const cleanContent =
         strippedText ||
-        urlPreview?.title ||
-        (detectedUrl ? `Link: ${new URL(detectedUrl).hostname}` : '');
+        snapshotPreview?.title ||
+        (snapshotDetectedUrl ? `Link: ${new URL(snapshotDetectedUrl).hostname}` : '');
 
+      addBreadcrumb('publish_classify_start');
       const category = await classifyContent({
         text: strippedText,
-        title: urlPreview?.title,
-        summary: urlPreview?.content || urlPreview?.summary || urlPreview?.excerpt
+        title: snapshotPreview?.title,
+        // Keep summary small to avoid Safari memory pressure
+        summary: (snapshotPreview?.content || snapshotPreview?.summary || snapshotPreview?.excerpt || '').substring(0, 2000)
       });
-      
+      addBreadcrumb('publish_classify_done', { hasCategory: !!category });
+
+      // Truncate large fields for stability
+      const articleContent = (snapshotPreview?.content || null);
+      const transcript = (snapshotPreview?.transcript || null);
+
+      addBreadcrumb('publish_insert_start');
       const { data: insertedPost, error: postError } = await supabase
         .from('posts')
         .insert({
           content: cleanContent,
           author_id: user.id,
-          shared_url: detectedUrl || null,
-          shared_title: urlPreview?.title || null,
-          preview_img: urlPreview?.image || null,
-          article_content: urlPreview?.content || null,
-          embed_html: urlPreview?.embedHtml || null,
-          transcript: urlPreview?.transcript || null,
-          transcript_source: urlPreview?.transcriptSource || null,
+          shared_url: snapshotDetectedUrl || null,
+          shared_title: snapshotPreview?.title || null,
+          preview_img: snapshotPreview?.image || null,
+          article_content: typeof articleContent === 'string' ? articleContent.substring(0, 50000) : null,
+          embed_html: snapshotPreview?.embedHtml || null,
+          transcript: typeof transcript === 'string' ? transcript.substring(0, 50000) : null,
+          transcript_source: snapshotPreview?.transcriptSource || null,
           quoted_post_id: quotedPost?.id || null,
           category: category || null
         })
@@ -521,16 +535,18 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         .single();
 
       if (postError) throw postError;
-      addBreadcrumb('publish_success', { postId: insertedPost?.id });
+      addBreadcrumb('publish_insert_done', { postId: insertedPost?.id });
 
-      if (uploadedMedia.length > 0 && insertedPost) {
-        for (let i = 0; i < uploadedMedia.length; i++) {
+      if (snapshotUploadedMedia.length > 0 && insertedPost) {
+        addBreadcrumb('publish_media_start', { count: snapshotUploadedMedia.length });
+        for (let i = 0; i < snapshotUploadedMedia.length; i++) {
           await supabase.from('post_media').insert({
             post_id: insertedPost.id,
-            media_id: uploadedMedia[i].id,
+            media_id: snapshotUploadedMedia[i].id,
             order_idx: i
           });
         }
+        addBreadcrumb('publish_media_done');
       }
 
       if (category) {
@@ -540,13 +556,15 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
       await queryClient.invalidateQueries({ queryKey: ['posts'] });
       await queryClient.refetchQueries({ queryKey: ['posts'] });
-      
+
+      addBreadcrumb('publish_finalize');
       toast.success('Condiviso.');
       // Full state reset after successful publish
       resetAllState();
       onClose();
     } catch (error) {
       console.error('Error publishing post:', error);
+      addBreadcrumb('publish_catch', { error: String(error) });
       toast.error('Errore pubblicazione');
     } finally {
       setIsPublishing(false);
