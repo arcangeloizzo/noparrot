@@ -336,8 +336,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
           <div className="flex flex-col h-full">
             {/* Modern Header */}
             <div className="flex items-center gap-3 p-4 border-b border-white/10">
-              <Avatar className="w-11 h-11 ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
-                <AvatarImage src={profile?.avatar_url || undefined} />
+              <Avatar className="w-11 h-11 aspect-square ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
+                <AvatarImage src={profile?.avatar_url || undefined} className="object-cover" />
                 <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary font-semibold">
                   {initials}
                 </AvatarFallback>
@@ -493,8 +493,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                   "bg-gradient-to-r from-primary to-primary/80",
                   "hover:shadow-lg hover:shadow-primary/25 hover:scale-105",
                   "active:scale-95 transition-all duration-200",
-                  "disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none",
-                  canPublish && !isLoading && "animate-pulse"
+                  "disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none"
                 )}
               >
                 {isLoading ? (

@@ -103,7 +103,25 @@ function cleanReaderText(html: string): string {
     .trim();
 }
 
-// Extract YouTube video ID
+// Detect if content is Google Cookie Consent garbage
+function isGoogleCookieConsent(content: string): boolean {
+  const markers = [
+    'Prima di continuare su Google',
+    'Prima di continuare',
+    'Usiamo cookie e dati per',
+    'webcache.googleusercontent.com',
+    'Accetta tutto',
+    'Rifiuta tutto',
+    'Altre opzioni',
+    'utilizzando i servizi Google',
+    'Before you continue to Google',
+    'We use cookies and data to',
+  ];
+  const lowerContent = content.toLowerCase();
+  const matchCount = markers.filter(m => lowerContent.includes(m.toLowerCase())).length;
+  // If 2+ markers found, it's likely cookie consent text
+  return matchCount >= 2;
+}
 function extractYouTubeId(url: string): string | null {
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
@@ -1153,7 +1171,10 @@ serve(async (req) => {
           
           const cacheContent = cacheParagraphs.join('\n\n');
           
-          if (cacheContent.length > 150 || (cacheTitle && cacheImage)) {
+          // Check if content is Google Cookie Consent garbage
+          if (isGoogleCookieConsent(cacheContent) || isGoogleCookieConsent(cacheTitle)) {
+            console.log(`[Preview] ⚠️ Google Cache returned cookie consent text, discarding...`);
+          } else if (cacheContent.length > 150 || (cacheTitle && cacheImage)) {
             console.log(`[Preview] ✅ Google Cache extraction successful: ${cacheContent.length} chars`);
             const cleanedCacheContent = cleanReaderText(cacheContent || cacheDesc);
             return new Response(JSON.stringify({
