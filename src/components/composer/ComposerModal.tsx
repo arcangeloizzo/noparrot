@@ -405,9 +405,23 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         return;
       }
 
-      if (result.error || !result.questions) {
-        console.error('[ComposerModal] Quiz generation failed:', result.error);
-        toast.error('Errore generazione quiz, pubblicazione diretta');
+      // Strong validation: must be array with at least 1 question, each having question + choices
+      const isValidQuestions = 
+        Array.isArray(result.questions) &&
+        result.questions.length > 0 &&
+        result.questions.every((q: any) => 
+          q && typeof q.question === 'string' && Array.isArray(q.choices) && q.choices.length >= 2
+        );
+
+      if (result.error || !result.questions || !isValidQuestions) {
+        console.error('[ComposerModal] Quiz generation failed or invalid format:', { 
+          error: result.error, 
+          questionsType: typeof result.questions,
+          isArray: Array.isArray(result.questions),
+          length: Array.isArray(result.questions) ? result.questions.length : 0
+        });
+        addBreadcrumb('quiz_invalid_fallback_publish');
+        toast.info('Quiz non disponibile, pubblicazione diretta');
         await closeReaderSafely();
         await publishPost();
         return;
@@ -781,11 +795,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         />
       )}
 
-      {/* Quiz Modal - z-index wrapper for overlay approach */}
-      {showQuiz && quizData && quizData.questions && Array.isArray(quizData.questions) && (
+      {/* Quiz Modal - permissive render: let QuizModal show error state if questions invalid */}
+      {showQuiz && quizData && (
         <div className="fixed inset-0 z-[10060]">
           <QuizModal
-            questions={quizData.questions}
+            questions={Array.isArray(quizData.questions) ? quizData.questions : []}
             onSubmit={handleQuizSubmit}
             onCancel={() => {
               // User cancelled DURING quiz (before completing)
