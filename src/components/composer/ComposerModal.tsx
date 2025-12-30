@@ -413,12 +413,28 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         return;
       }
 
-      // OVERLAY APPROACH: Mount quiz FIRST, then close reader
+      // iOS: avoid mounting Reader + Quiz at the same time (reduces Safari reload risk)
+      if (isIOS) {
+        addBreadcrumb('ios_reader_complete_close_then_quiz');
+        await closeReaderSafely();
+        // Let the reader unmount before mounting the quiz
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        setQuizData({
+          questions: result.questions,
+          sourceUrl: detectedUrl || '',
+        });
+        setShowQuiz(true);
+        addBreadcrumb('quiz_mount');
+        return;
+      }
+
+      // Non-iOS: overlay approach (mount quiz first, then close reader)
       setQuizData({
         questions: result.questions,
         sourceUrl: detectedUrl || '',
       });
       setShowQuiz(true);
+      addBreadcrumb('quiz_mount');
 
       // Wait one frame to ensure quiz is rendered above reader
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
