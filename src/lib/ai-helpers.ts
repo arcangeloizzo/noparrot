@@ -168,16 +168,27 @@ export async function checkGatePassed(postId: string, userId: string): Promise<b
 
 /**
  * Classifica il contenuto di un post in una delle macro-categorie
+ * Uses a short timeout to prevent Safari crashes during publish
  */
 export async function classifyContent(params: {
   text?: string;
   title?: string;
   summary?: string;
 }): Promise<string | null> {
+  // Skip classification if no meaningful content
+  if (!params.text && !params.title && !params.summary) {
+    return null;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+
   try {
     const { data, error } = await supabase.functions.invoke('classify-content', {
       body: params
     });
+
+    clearTimeout(timeoutId);
 
     if (error) {
       console.error('Error classifying content:', error);
@@ -186,6 +197,7 @@ export async function classifyContent(params: {
 
     return data?.category || null;
   } catch (error) {
+    clearTimeout(timeoutId);
     console.error('Error classifying content:', error);
     return null;
   }
