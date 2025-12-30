@@ -788,8 +788,12 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
               
               if (passed) {
                 addBreadcrumb('publish_after_quiz');
-                
-                // Keep quiz visible during publish to avoid blank screen
+
+                // Unmount heavy quiz UI BEFORE publish (prevents Safari/WebView reload)
+                setShowQuiz(false);
+                setQuizData(null);
+                await new Promise<void>((r) => requestAnimationFrame(() => r()));
+
                 const loadingId = toast.loading('Pubblicazione…');
                 try {
                   await publishPost();
@@ -798,9 +802,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                   console.error('[ComposerModal] publishPost error:', e);
                   addBreadcrumb('publish_error', { error: String(e) });
                   toast.error('Errore pubblicazione');
-                  // Only close quiz if publish fails - user can retry
-                  setShowQuiz(false);
-                  setQuizData(null);
+                  // Return to composer
                   setQuizPassed(false);
                 } finally {
                   toast.dismiss(loadingId);
