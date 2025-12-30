@@ -103,6 +103,38 @@ function cleanReaderText(html: string): string {
     .trim();
 }
 
+// Detect Cloudflare/bot challenge pages
+function isBotChallengeContent(content: string): boolean {
+  const lowerContent = content.toLowerCase();
+  const challengeMarkers = [
+    'checking your browser',
+    'verifica connessione',
+    'verify you are human',
+    'just a moment',
+    'cloudflare',
+    'challenges.cloudflare.com',
+    'cf-challenge',
+    'turnstile',
+    'enable javascript and cookies',
+    'please wait while we verify',
+    'browser check',
+    'ddos protection',
+    'ray id:',
+    'attention required',
+    'one more step',
+  ];
+  
+  const matchCount = challengeMarkers.filter(marker => lowerContent.includes(marker)).length;
+  
+  // If 2+ markers found, it's likely a challenge page
+  if (matchCount >= 2) {
+    console.log(`[Challenge] 🚫 Detected bot challenge page (${matchCount} markers)`);
+    return true;
+  }
+  
+  return false;
+}
+
 // Detect if content is Google Cookie Consent garbage
 function isGoogleCookieConsent(content: string): boolean {
   const markers = [
@@ -1052,8 +1084,11 @@ serve(async (req) => {
               
               console.log(`[Firecrawl] 📊 Result: title="${fcTitle?.slice(0,40)}", content=${fcContent?.length || 0} chars, image=${!!fcImage}`);
               
-              // Only use if we got substantial content
-              if (fcContent && fcContent.length > 200) {
+              // Check for Cloudflare challenge content
+              if (isBotChallengeContent(fcContent)) {
+                console.log(`[Firecrawl] 🚫 Content is Cloudflare challenge, skipping`);
+              } else if (fcContent && fcContent.length > 200) {
+                // Only use if we got substantial content
                 const cleanedContent = cleanReaderText(fcContent);
                 console.log(`[Firecrawl] ✅ Success! Returning ${cleanedContent.length} chars`);
                 
@@ -1150,7 +1185,10 @@ serve(async (req) => {
           
           if (response.ok) {
             html = await response.text();
-            if (html.length > 1000) {
+            // Check for bot challenge before accepting
+            if (isBotChallengeContent(html)) {
+              console.log(`[Preview] 🚫 ${strategy.name} returned challenge page, skipping`);
+            } else if (html.length > 1000) {
               fetchSuccess = true;
               console.log(`[Preview] ✅ ${strategy.name} strategy successful, HTML length: ${html.length}`);
             } else {
@@ -1162,6 +1200,53 @@ serve(async (req) => {
         } catch (strategyError: any) {
           console.log(`[Preview] ❌ ${strategy.name} error: ${strategyError.message}`);
         }
+      }
+      
+      // If all strategies failed (challenge pages or errors), return blocked response
+      if (!fetchSuccess || html.length < 1000) {
+        console.log(`[Preview] 🚫 Site blocked extraction, returning blocked response`);
+        
+        // Try to get at least OG metadata from any HTML we got
+        let blockedTitle = '';
+        let blockedImage = '';
+        let blockedDescription = '';
+        
+        if (html && html.length > 0) {
+          const ogTitleMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i);
+          if (ogTitleMatch) blockedTitle = extractTextFromHtml(ogTitleMatch[1]);
+          
+          const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+          if (!blockedTitle && titleMatch) blockedTitle = extractTextFromHtml(titleMatch[1]);
+          
+          const ogImgMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+          if (ogImgMatch) blockedImage = ogImgMatch[1];
+          
+          const descMatch = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
+          if (descMatch) blockedDescription = extractTextFromHtml(descMatch[1]);
+        }
+        
+        // Generate title from URL if needed
+        if (!blockedTitle) {
+          blockedTitle = urlHostname.replace('www.', '').split('.')[0];
+          blockedTitle = blockedTitle.charAt(0).toUpperCase() + blockedTitle.slice(1);
+        }
+        
+        return new Response(JSON.stringify({
+          success: true,
+          title: blockedTitle,
+          summary: blockedDescription || 'Questo sito blocca la lettura automatica. Apri l\'originale per leggere l\'articolo.',
+          content: 'Questo sito utilizza protezioni anti-bot che impediscono l\'estrazione del contenuto. Per leggere l\'articolo completo, apri il link originale.',
+          image: blockedImage,
+          previewImg: blockedImage,
+          platform: 'generic',
+          type: 'article',
+          hostname: urlHostname,
+          contentQuality: 'blocked',
+          blockedBy: 'cloudflare',
+          source: 'blocked'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
       
       if (fetchSuccess && html.length > 1000) {
