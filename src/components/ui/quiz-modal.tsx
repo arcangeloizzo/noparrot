@@ -307,7 +307,7 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
               </div>
 
               <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex gap-3 pointer-events-auto flex-shrink-0" style={{ pointerEvents: 'auto', paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)' }}>
-                {onCancel && <Button onClick={(e) => { e.stopPropagation(); onCancel(); }} variant="outline" className="flex-1 pointer-events-auto" style={{ pointerEvents: 'auto' }}>Annulla</Button>}
+                {onCancel && <Button onClick={(e) => { e.stopPropagation(); addBreadcrumb('quiz_cancel_button'); onCancel(); }} variant="outline" className="flex-1 pointer-events-auto" style={{ pointerEvents: 'auto' }}>Annulla</Button>}
               </div>
             </>
           )}
