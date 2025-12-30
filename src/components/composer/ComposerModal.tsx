@@ -502,21 +502,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         snapshotPreview?.title ||
         (snapshotDetectedUrl ? `Link: ${new URL(snapshotDetectedUrl).hostname}` : '');
 
-      // Classification is optional - don't block publish if it fails
-      let category: string | null = null;
-      try {
-        addBreadcrumb('publish_classify_start');
-        category = await classifyContent({
-          text: strippedText,
-          title: snapshotPreview?.title,
-          // Keep summary small to avoid Safari memory pressure
-          summary: (snapshotPreview?.content || snapshotPreview?.summary || snapshotPreview?.excerpt || '').substring(0, 2000)
-        });
-        addBreadcrumb('publish_classify_done', { hasCategory: !!category });
-      } catch (classifyErr) {
-        console.warn('Classification failed, continuing without category:', classifyErr);
-        addBreadcrumb('publish_classify_skip', { error: String(classifyErr) });
-      }
+      // TEMP: Disable classification during publish to prevent crash/reload (see breadcrumbs)
+      addBreadcrumb('publish_classify_skipped_by_client');
+      const category: string | null = null;
 
       // Truncate large fields for stability
       const articleContent = (snapshotPreview?.content || null);
