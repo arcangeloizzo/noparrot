@@ -358,7 +358,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
   const handleReaderComplete = async () => {
     if (isGeneratingQuiz) return;
-    
+
     addBreadcrumb('reader_complete_start');
 
     try {
@@ -425,6 +425,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         });
         setShowQuiz(true);
         addBreadcrumb('quiz_mount');
+        toast.info('Quiz pronto.');
         return;
       }
 
