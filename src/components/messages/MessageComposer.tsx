@@ -226,10 +226,7 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
               "disabled:opacity-40 disabled:hover:scale-100 disabled:hover:shadow-none"
             )}
           >
-            <Send className={cn(
-              "h-4 w-4",
-              canSend && "animate-pulse"
-            )} />
+            <Send className="h-4 w-4" />
           </Button>
         </div>
       </div>

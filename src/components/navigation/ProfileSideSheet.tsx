@@ -71,13 +71,13 @@ export const ProfileSideSheet = ({ isOpen, onClose }: ProfileSideSheetProps) => 
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/40 backdrop-blur-md z-40 transition-opacity"
+        className="fixed inset-0 bg-black/60 backdrop-blur-md z-[999] transition-opacity pointer-events-auto"
         onClick={onClose}
       />
       
       {/* Side Sheet */}
       <div className={cn(
-        "fixed top-0 bottom-0 right-0 w-80 bg-background/10 backdrop-blur-[40px] border-l border-white/30 z-50",
+        "fixed top-0 bottom-0 right-0 w-80 bg-card/95 backdrop-blur-xl border-l border-white/10 z-[1000]",
         "shadow-[0_8px_60px_rgba(0,0,0,0.4)]",
         "transform transition-transform duration-300 ease-out",
         isOpen ? "translate-x-0" : "translate-x-full"
