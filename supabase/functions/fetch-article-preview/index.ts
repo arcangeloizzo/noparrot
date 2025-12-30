@@ -122,6 +122,127 @@ function isGoogleCookieConsent(content: string): boolean {
   // If 2+ markers found, it's likely cookie consent text
   return matchCount >= 2;
 }
+
+// Extract article data from JSON-LD structured data (most reliable for news sites)
+function extractJsonLdArticle(html: string): { title?: string; description?: string; image?: string; content?: string; author?: string } | null {
+  try {
+    const ldJsonMatches = html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    
+    for (const match of ldJsonMatches) {
+      try {
+        let jsonContent = match[1].trim();
+        // Sometimes there are multiple JSON objects, handle array
+        const parsed = JSON.parse(jsonContent);
+        
+        // Handle array of LD+JSON objects
+        const items = Array.isArray(parsed) ? parsed : [parsed];
+        
+        for (const item of items) {
+          // Check if it's an article type
+          const itemType = item['@type'];
+          const isArticle = ['NewsArticle', 'Article', 'BlogPosting', 'WebPage', 'TechArticle', 'Report'].some(
+            type => itemType === type || (Array.isArray(itemType) && itemType.includes(type))
+          );
+          
+          if (isArticle) {
+            const result: { title?: string; description?: string; image?: string; content?: string; author?: string } = {};
+            
+            result.title = item.headline || item.name || '';
+            result.description = item.description || '';
+            
+            // Handle image (can be string, object with @url, or array)
+            if (item.image) {
+              if (typeof item.image === 'string') {
+                result.image = item.image;
+              } else if (Array.isArray(item.image)) {
+                result.image = typeof item.image[0] === 'string' ? item.image[0] : item.image[0]?.url || item.image[0]?.['@url'] || '';
+              } else if (item.image.url || item.image['@url']) {
+                result.image = item.image.url || item.image['@url'];
+              }
+            }
+            
+            // articleBody is the full text content (if available)
+            if (item.articleBody && item.articleBody.length > 100) {
+              result.content = item.articleBody;
+            }
+            
+            // Extract author
+            if (item.author) {
+              if (typeof item.author === 'string') {
+                result.author = item.author;
+              } else if (item.author.name) {
+                result.author = item.author.name;
+              } else if (Array.isArray(item.author) && item.author[0]) {
+                result.author = typeof item.author[0] === 'string' ? item.author[0] : item.author[0].name || '';
+              }
+            }
+            
+            // Only return if we got meaningful data
+            if (result.title || result.description || result.content || result.image) {
+              console.log(`[JSON-LD] ✅ Found article:`, {
+                title: result.title?.slice(0, 50),
+                descLen: result.description?.length || 0,
+                contentLen: result.content?.length || 0,
+                hasImage: !!result.image
+              });
+              return result;
+            }
+          }
+        }
+      } catch (parseErr) {
+        // Skip invalid JSON blocks
+        continue;
+      }
+    }
+    return null;
+  } catch (err) {
+    console.error('[JSON-LD] Error parsing:', err);
+    return null;
+  }
+}
+
+// Extract fallback image from HTML if OG/JSON-LD fail
+function extractFallbackImage(html: string, baseUrl: string): string {
+  // Try twitter:image
+  const twitterImgMatch = html.match(/<meta[^>]+(?:name|property)=["']twitter:image["'][^>]+content=["']([^"']+)["']/i) ||
+                          html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+(?:name|property)=["']twitter:image["']/i);
+  if (twitterImgMatch && twitterImgMatch[1]) {
+    return resolveUrl(twitterImgMatch[1], baseUrl);
+  }
+  
+  // Try og:image:secure_url
+  const secureImgMatch = html.match(/<meta[^>]+property=["']og:image:secure_url["'][^>]+content=["']([^"']+)["']/i);
+  if (secureImgMatch && secureImgMatch[1]) {
+    return resolveUrl(secureImgMatch[1], baseUrl);
+  }
+  
+  // Try first article img
+  const articleImgMatch = html.match(/<article[^>]*>[\s\S]*?<img[^>]+src=["']([^"']+)["']/i);
+  if (articleImgMatch && articleImgMatch[1] && !articleImgMatch[1].includes('logo') && !articleImgMatch[1].includes('icon')) {
+    return resolveUrl(articleImgMatch[1], baseUrl);
+  }
+  
+  // Try first content img
+  const contentImgMatch = html.match(/<div[^>]*class="[^"]*(?:content|article|post)[^"]*"[^>]*>[\s\S]*?<img[^>]+src=["']([^"']+)["']/i);
+  if (contentImgMatch && contentImgMatch[1] && !contentImgMatch[1].includes('logo') && !contentImgMatch[1].includes('icon')) {
+    return resolveUrl(contentImgMatch[1], baseUrl);
+  }
+  
+  return '';
+}
+
+// Resolve relative URLs to absolute
+function resolveUrl(url: string, base: string): string {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('//')) {
+    return url.startsWith('//') ? 'https:' + url : url;
+  }
+  try {
+    return new URL(url, base).href;
+  } catch {
+    return url;
+  }
+}
 function extractYouTubeId(url: string): string | null {
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
@@ -973,9 +1094,12 @@ serve(async (req) => {
       }
       
       if (fetchSuccess && html.length > 1000) {
-        // Extract metadata
+        // PRIORITY 1: Try JSON-LD extraction first (most reliable)
+        const jsonLdData = extractJsonLdArticle(html);
+        
+        // Extract standard metadata as backup
         const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-        let title = titleMatch ? extractTextFromHtml(titleMatch[1]) : '';
+        let title = jsonLdData?.title || (titleMatch ? extractTextFromHtml(titleMatch[1]) : '');
         
         // OG title fallback
         if (!title || title.length < 5) {
@@ -985,11 +1109,41 @@ serve(async (req) => {
         
         const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
                          html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i);
-        const description = descMatch ? extractTextFromHtml(descMatch[1]) : '';
+        const description = jsonLdData?.description || (descMatch ? extractTextFromHtml(descMatch[1]) : '');
         
+        // Image with multiple fallbacks
         const imgMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
                         html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
-        const image = imgMatch ? imgMatch[1] : '';
+        let image = jsonLdData?.image || (imgMatch ? imgMatch[1] : '');
+        
+        // If no image yet, try fallback extraction
+        if (!image) {
+          image = extractFallbackImage(html, url);
+        }
+        
+        console.log(`[Preview] 📊 Metadata: title="${title?.slice(0,40)}", desc=${description?.length || 0} chars, image=${!!image}, jsonLd=${!!jsonLdData}`);
+        
+        // If JSON-LD has articleBody, use it directly (best case)
+        if (jsonLdData?.content && jsonLdData.content.length > 200) {
+          console.log(`[Preview] ✅ Using JSON-LD articleBody: ${jsonLdData.content.length} chars`);
+          const cleanedContent = cleanReaderText(jsonLdData.content);
+          return new Response(JSON.stringify({ 
+            success: true, 
+            title: title || 'Articolo',
+            summary: description || cleanedContent.slice(0, 200),
+            content: cleanedContent,
+            image,
+            previewImg: image,
+            platform: 'generic',
+            type: 'article',
+            hostname: urlHostname,
+            author: jsonLdData.author,
+            contentQuality: cleanedContent.length > 500 ? 'complete' : 'partial',
+            source: 'json-ld'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
         
         // HDBlog-specific article selectors
         const hdblogSelectors = [
@@ -1029,15 +1183,16 @@ serve(async (req) => {
           .replace(/<div[^>]*class="[^"]*(?:nav|menu|sidebar|header|footer|widget|social|share|related|comment|ads?|banner|newsletter)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '')
           .replace(/<div[^>]*id="[^"]*(?:nav|menu|sidebar|header|footer|widget|social|share|related|comment|ads?|banner|newsletter)[^"]*"[^>]*>[\s\S]*?<\/div>/gi, '');
         
-        // Extract paragraphs with Italian site cleaning
+        // Extract paragraphs with LOWER THRESHOLD for HDBlog (30 chars instead of 50)
         const paragraphs: string[] = [];
         const pRegex = /<p[^>]*>(.+?)<\/p>/gis;
         let match;
-        while ((match = pRegex.exec(cleanHtml)) !== null && paragraphs.length < 15) {
+        // Increased limit to 25 paragraphs for fuller extraction
+        while ((match = pRegex.exec(cleanHtml)) !== null && paragraphs.length < 25) {
           const text = extractTextFromHtml(match[0]);
           
-          // Skip short paragraphs
-          if (text.length < 50) continue;
+          // LOWER threshold for HDBlog: 30 chars instead of 50
+          if (text.length < 30) continue;
           
           // Skip Italian site navigation/junk patterns
           const junkPatterns = [
@@ -1088,19 +1243,42 @@ serve(async (req) => {
         console.log(`[Preview] 📊 Extracted ${paragraphs.length} paragraphs, content length: ${content.length}`);
         
         // If we got decent content, return it
-        if (content.length > 200 || (title && image)) {
+        if (content.length > 150 || (title && image)) {
           const cleanedContent = cleanReaderText(content || description);
+          
+          // Ensure we return SOMETHING even if content is thin
+          const finalContent = cleanedContent.length > 50 ? cleanedContent : (description || title);
+          
           return new Response(JSON.stringify({ 
             success: true, 
             title: title || 'Articolo',
-            summary: description || cleanedContent.slice(0, 200),
-            content: cleanedContent,
+            summary: description || finalContent.slice(0, 200),
+            content: finalContent,
             image,
             previewImg: image,
             platform: 'generic',
             type: 'article',
             hostname: urlHostname,
-            contentQuality: cleanedContent.length > 500 ? 'complete' : 'partial'
+            contentQuality: finalContent.length > 500 ? 'complete' : 'partial'
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        // Content too thin but we have title/description - return that at minimum
+        if (title || description) {
+          console.log(`[Preview] ⚠️ Thin content but have metadata, returning partial response`);
+          return new Response(JSON.stringify({ 
+            success: true, 
+            title: title || 'Articolo',
+            summary: description || title,
+            content: description || title,
+            image,
+            previewImg: image,
+            platform: 'generic',
+            type: 'article',
+            hostname: urlHostname,
+            contentQuality: 'partial'
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
