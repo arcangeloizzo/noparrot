@@ -1011,7 +1011,9 @@ serve(async (req) => {
       'smartworld.it',
       'www.smartworld.it',
       'tomshw.it',
-      'www.tomshw.it'
+      'www.tomshw.it',
+      'ilpost.it',
+      'www.ilpost.it'
     ];
 
     const urlHostname = new URL(url).hostname.toLowerCase();
@@ -1019,6 +1021,75 @@ serve(async (req) => {
     
     if (isForceEnhancedDomain) {
       console.log(`[Preview] 🔧 Using enhanced extraction for: ${urlHostname}`);
+      
+      // PRIORITY 0: Try Firecrawl first (best for sites that block bots)
+      const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
+      if (firecrawlApiKey) {
+        try {
+          console.log(`[Firecrawl] 🔥 Attempting scrape for: ${url}`);
+          
+          const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${firecrawlApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              url,
+              formats: ['markdown'],
+              onlyMainContent: true,
+            }),
+          });
+          
+          if (firecrawlResponse.ok) {
+            const firecrawlData = await firecrawlResponse.json();
+            
+            if (firecrawlData.success && firecrawlData.data) {
+              const fcContent = firecrawlData.data.markdown || '';
+              const fcTitle = firecrawlData.data.metadata?.title || '';
+              const fcDescription = firecrawlData.data.metadata?.description || '';
+              const fcImage = firecrawlData.data.metadata?.ogImage || firecrawlData.data.metadata?.image || '';
+              
+              console.log(`[Firecrawl] 📊 Result: title="${fcTitle?.slice(0,40)}", content=${fcContent?.length || 0} chars, image=${!!fcImage}`);
+              
+              // Only use if we got substantial content
+              if (fcContent && fcContent.length > 200) {
+                const cleanedContent = cleanReaderText(fcContent);
+                console.log(`[Firecrawl] ✅ Success! Returning ${cleanedContent.length} chars`);
+                
+                return new Response(JSON.stringify({
+                  success: true,
+                  title: fcTitle || 'Articolo',
+                  summary: fcDescription || cleanedContent.slice(0, 200),
+                  content: cleanedContent,
+                  image: fcImage,
+                  previewImg: fcImage,
+                  platform: 'generic',
+                  type: 'article',
+                  hostname: urlHostname,
+                  contentQuality: cleanedContent.length > 500 ? 'complete' : 'partial',
+                  source: 'firecrawl'
+                }), {
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                });
+              } else {
+                console.log(`[Firecrawl] ⚠️ Content too short: ${fcContent?.length || 0} chars, trying fallbacks`);
+              }
+            } else {
+              console.log(`[Firecrawl] ⚠️ No data in response, trying fallbacks`);
+            }
+          } else {
+            const errorText = await firecrawlResponse.text();
+            console.log(`[Firecrawl] ❌ API error: ${firecrawlResponse.status} - ${errorText.slice(0, 200)}`);
+          }
+        } catch (firecrawlError: any) {
+          console.error(`[Firecrawl] ❌ Exception: ${firecrawlError.message}`);
+        }
+      } else {
+        console.log(`[Firecrawl] ⚠️ API key not configured, skipping`);
+      }
+      
+      // Continue with existing strategies as fallback...
       
       // Try multiple fetch strategies with different header configurations
       const fetchStrategies = [
