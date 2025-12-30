@@ -460,10 +460,11 @@
   }
 
 .liquid-glass-navbar {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(10, 15, 20, 0.85);
   backdrop-filter: blur(50px);
   -webkit-backdrop-filter: blur(50px);
-  box-shadow: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
 }
 
 .liquid-glass-fab {
