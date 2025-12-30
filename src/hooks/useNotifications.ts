@@ -154,7 +154,27 @@ export const useMarkAsRead = () => {
 
       if (error) throw error;
     },
-    onSuccess: () => {
+    onMutate: async (notificationId: string) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['notifications', user?.id] });
+
+      // Snapshot the previous value
+      const previousNotifications = queryClient.getQueryData<Notification[]>(['notifications', user?.id]);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData<Notification[]>(['notifications', user?.id], (old) =>
+        old?.map(n => n.id === notificationId ? { ...n, read: true } : n) ?? []
+      );
+
+      return { previousNotifications };
+    },
+    onError: (_err, _notificationId, context) => {
+      // Rollback on error
+      if (context?.previousNotifications) {
+        queryClient.setQueryData(['notifications', user?.id], context.previousNotifications);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] });
     }
   });
