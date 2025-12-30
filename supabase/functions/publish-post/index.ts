@@ -1,5 +1,5 @@
 // Lovable Cloud Function: publish-post
-// Creates a post with minimal payload + idempotency to avoid duplicates on crash/retry
+// Creates a post with DB-backed idempotency to prevent duplicates on crash/retry
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
 
@@ -33,10 +33,20 @@ Deno.serve(async (req) => {
       },
     })
 
-    const body = (await req.json()) as PublishPostBody
+    let body: PublishPostBody
+    try {
+      body = (await req.json()) as PublishPostBody
+    } catch (parseErr) {
+      console.error('[publish-post] JSON parse error', parseErr)
+      return new Response(JSON.stringify({ error: 'invalid_json' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      })
+    }
 
     const content = typeof body.content === 'string' ? body.content.trim() : ''
     if (!content) {
+      console.error('[publish-post] empty content')
       return new Response(JSON.stringify({ error: 'content_required' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -66,38 +76,87 @@ Deno.serve(async (req) => {
       idempotencyKey,
     })
 
-    // IDEMPOTENCY CHECK: if we have a key, look for recent post by this user with same content prefix
+    // IDEMPOTENCY CHECK: Use DB table with unique constraint
     if (idempotencyKey) {
-      // Check posts created in last 5 minutes with matching content start
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
-      const contentPrefix = content.substring(0, 100)
+      // First check if this key already exists and has a post_id
+      const { data: existing } = await supabase
+        .from('publish_idempotency')
+        .select('post_id')
+        .eq('user_id', user.id)
+        .eq('key', idempotencyKey)
+        .maybeSingle()
 
-      const { data: existingPosts } = await supabase
-        .from('posts')
-        .select('id, content, created_at')
-        .eq('author_id', user.id)
-        .gte('created_at', fiveMinutesAgo)
-        .order('created_at', { ascending: false })
-        .limit(5)
-
-      if (existingPosts && existingPosts.length > 0) {
-        // Check if any recent post matches this content (duplicate detection)
-        const duplicate = existingPosts.find(
-          (p) => p.content.substring(0, 100) === contentPrefix
+      if (existing?.post_id) {
+        console.log('[publish-post] idempotency hit - returning existing post', {
+          postId: existing.post_id,
+          idempotencyKey,
+        })
+        return new Response(
+          JSON.stringify({ postId: existing.post_id, idempotent: true }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
         )
-        if (duplicate) {
-          console.log('[publish-post] idempotency hit - returning existing post', {
-            postId: duplicate.id,
+      }
+
+      // Try to reserve this key (will fail on duplicate due to unique index)
+      const { error: reserveErr } = await supabase
+        .from('publish_idempotency')
+        .insert({ user_id: user.id, key: idempotencyKey, post_id: null })
+
+      if (reserveErr) {
+        // If unique constraint violation, the key was just inserted by another request
+        // Try to fetch the post_id in case it was already set
+        console.log('[publish-post] reserve conflict, checking again', reserveErr.code)
+        
+        const { data: raceCheck } = await supabase
+          .from('publish_idempotency')
+          .select('post_id')
+          .eq('user_id', user.id)
+          .eq('key', idempotencyKey)
+          .maybeSingle()
+
+        if (raceCheck?.post_id) {
+          console.log('[publish-post] race resolved - returning existing post', {
+            postId: raceCheck.post_id,
             idempotencyKey,
           })
           return new Response(
-            JSON.stringify({ postId: duplicate.id, idempotent: true }),
+            JSON.stringify({ postId: raceCheck.post_id, idempotent: true }),
             {
               status: 200,
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             }
           )
         }
+        // Key exists but no post_id yet - another request is in progress
+        // Wait briefly and check again
+        await new Promise(r => setTimeout(r, 500))
+        
+        const { data: retryCheck } = await supabase
+          .from('publish_idempotency')
+          .select('post_id')
+          .eq('user_id', user.id)
+          .eq('key', idempotencyKey)
+          .maybeSingle()
+
+        if (retryCheck?.post_id) {
+          console.log('[publish-post] retry resolved - returning existing post', {
+            postId: retryCheck.post_id,
+            idempotencyKey,
+          })
+          return new Response(
+            JSON.stringify({ postId: retryCheck.post_id, idempotent: true }),
+            {
+              status: 200,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          )
+        }
+        
+        // If still no post_id, something is wrong - proceed anyway (will create new post)
+        console.warn('[publish-post] idempotency race unresolved, proceeding with insert')
       }
     }
 
@@ -109,6 +168,8 @@ Deno.serve(async (req) => {
       category: null as string | null,
     }
 
+    console.log('[publish-post] inserting post', { contentLen: insertPayload.content.length })
+
     const { data: inserted, error: insertErr } = await supabase
       .from('posts')
       .insert(insertPayload)
@@ -117,7 +178,7 @@ Deno.serve(async (req) => {
 
     if (insertErr) {
       console.error('[publish-post] insert error', insertErr)
-      return new Response(JSON.stringify({ error: 'insert_failed', details: insertErr }), {
+      return new Response(JSON.stringify({ error: 'insert_failed', details: insertErr.message }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -129,6 +190,20 @@ Deno.serve(async (req) => {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
+    }
+
+    // Update idempotency record with the new post_id
+    if (idempotencyKey) {
+      const { error: updateErr } = await supabase
+        .from('publish_idempotency')
+        .update({ post_id: inserted.id })
+        .eq('user_id', user.id)
+        .eq('key', idempotencyKey)
+
+      if (updateErr) {
+        console.warn('[publish-post] failed to update idempotency record', updateErr)
+        // Non-blocking - post is already created
+      }
     }
 
     // Link media (best-effort; never block publish)

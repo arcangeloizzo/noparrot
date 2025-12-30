@@ -1036,6 +1036,30 @@ export type Database = {
         }
         Relationships: []
       }
+      publish_idempotency: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+          post_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+          post_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+          post_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string
