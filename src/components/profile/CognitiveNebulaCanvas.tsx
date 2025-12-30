@@ -161,6 +161,36 @@ export const CognitiveNebulaCanvas = ({ data }: CognitiveNebulaCanvasProps) => {
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
 
+    // Draw category labels at the edges
+    const labelRadius = maxRadius + 20;
+    ctx.font = '10px system-ui, -apple-system, sans-serif';
+    ctx.textBaseline = 'middle';
+    
+    CATEGORIES.forEach(category => {
+      const angle = CATEGORY_ANGLES[category];
+      const color = CATEGORY_COLORS[category];
+      
+      const x = centerX + Math.cos(angle) * labelRadius;
+      const y = centerY + Math.sin(angle) * labelRadius;
+      
+      // Short label (first word only)
+      const shortLabel = category.split(' ')[0];
+      
+      // Align text based on position
+      if (angle > Math.PI * 0.5 && angle < Math.PI * 1.5) {
+        ctx.textAlign = 'right';
+      } else if (Math.abs(angle - Math.PI * 0.5) < 0.1 || Math.abs(angle - Math.PI * 1.5) < 0.1) {
+        ctx.textAlign = 'center';
+      } else {
+        ctx.textAlign = 'left';
+      }
+      
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.7;
+      ctx.fillText(shortLabel, x, y);
+      ctx.globalAlpha = 1;
+    });
+
     animationRef.current = requestAnimationFrame(animate);
   }, []);
 
