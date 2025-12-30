@@ -720,7 +720,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             <div className="p-4 border-t border-white/10 flex justify-end">
               <Button
                 onClick={handlePublish}
-                disabled={!canPublish || isLoading}
+                disabled={!canPublish || isLoading || isPreviewLoading}
                 className={cn(
                   "px-6 py-2.5 rounded-full font-semibold",
                   "bg-gradient-to-r from-primary to-primary/80",
@@ -729,7 +729,12 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                   "disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none"
                 )}
               >
-                {isLoading ? (
+                {isPreviewLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    Caricamento...
+                  </div>
+                ) : isLoading ? (
                   <div className="flex items-center gap-2">
                     <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                     {isGeneratingQuiz ? "Generazione..." : "Pubblicazione..."}
@@ -766,24 +771,33 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             questions={quizData.questions}
             onSubmit={handleQuizSubmit}
             onCancel={() => {
-              addBreadcrumb('quiz_cancel_handler');
-              requestAnimationFrame(() => {
-                const shouldPublish = quizPassed;
-                setShowQuiz(false);
-                setQuizData(null);
-                setQuizPassed(false);
-                addBreadcrumb('quiz_state_cleared', { shouldPublish });
-                
-                if (shouldPublish) {
-                  toast.success('Hai fatto chiarezza.');
-                  addBreadcrumb('publish_after_quiz');
-                  publishPost().catch((e) => {
-                    console.error('[ComposerModal] publishPost error:', e);
-                    addBreadcrumb('publish_error', { error: String(e) });
-                    toast.error('Errore pubblicazione');
-                  });
-                }
-              });
+              // User cancelled DURING quiz (before completing)
+              addBreadcrumb('quiz_cancel_during');
+              setShowQuiz(false);
+              setQuizData(null);
+              setQuizPassed(false);
+              // Return to composer - user can try again
+            }}
+            onComplete={(passed) => {
+              // Quiz finished (pass or fail)
+              addBreadcrumb('quiz_complete_handler', { passed });
+              setShowQuiz(false);
+              setQuizData(null);
+              setQuizPassed(false);
+              
+              if (passed) {
+                toast.success('Hai fatto chiarezza.');
+                addBreadcrumb('publish_after_quiz');
+                publishPost().catch((e) => {
+                  console.error('[ComposerModal] publishPost error:', e);
+                  addBreadcrumb('publish_error', { error: String(e) });
+                  toast.error('Errore pubblicazione');
+                });
+              } else {
+                // Failed - return to composer, user can try again
+                toast.info('Puoi riprovare quando vuoi.');
+                addBreadcrumb('quiz_failed_return_to_composer');
+              }
             }}
             provider="Comprehension Gate"
             postCategory={contentCategory}
