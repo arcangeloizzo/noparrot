@@ -128,9 +128,30 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
   const loadPreview = async (url: string) => {
     try {
+      // Block unsupported platforms (Instagram, Facebook) before calling API
+      const host = new URL(url).hostname.toLowerCase();
+      if (
+        host.includes('instagram.com') ||
+        host.includes('facebook.com') ||
+        host.includes('m.facebook.com') ||
+        host.includes('fb.com') ||
+        host.includes('fb.watch')
+      ) {
+        toast.error('Instagram e Facebook non sono supportati. Apri il link nel browser.');
+        setDetectedUrl(null);
+        return;
+      }
+
       const preview = await fetchArticlePreview(url);
       
       if (preview) {
+        // Check for UNSUPPORTED_PLATFORM error from backend
+        if (preview.error === 'UNSUPPORTED_PLATFORM') {
+          toast.error(preview.message || 'Questa piattaforma non è supportata.');
+          setDetectedUrl(null);
+          return;
+        }
+        
         setUrlPreview({ url, ...preview });
         
         const category = await classifyContent({
@@ -142,6 +163,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       }
     } catch (error) {
       console.error('[Composer] Error loading preview:', error);
+      setDetectedUrl(null);
     }
   };
 
