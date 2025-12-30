@@ -7,6 +7,7 @@ import { Heart, MessageCircle, Share2, Trash2, Shield, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFocusComments, useAddFocusComment, useDeleteFocusComment } from "@/hooks/useFocusComments";
 import { useFocusReactions, useToggleFocusReaction } from "@/hooks/useFocusReactions";
+import { useFocusCommentReactions, useToggleFocusCommentReaction } from "@/hooks/useFocusCommentReactions";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
@@ -493,6 +494,17 @@ interface CommentItemProps {
 }
 
 const CommentItem = ({ comment, onReply, onDelete, currentUserId, isReply }: CommentItemProps) => {
+  const { data: reactionsData } = useFocusCommentReactions(comment.id);
+  const toggleReaction = useToggleFocusCommentReaction();
+  
+  const likesCount = reactionsData?.likesCount || 0;
+  const likedByMe = reactionsData?.likedByMe || false;
+  
+  const handleLike = () => {
+    haptics.light();
+    toggleReaction.mutate({ focusCommentId: comment.id, isLiked: likedByMe });
+  };
+  
   return (
     <div className="space-y-2">
       <div className="flex items-start gap-3">
@@ -516,6 +528,18 @@ const CommentItem = ({ comment, onReply, onDelete, currentUserId, isReply }: Com
           </div>
           <p className="text-gray-200 text-sm mt-1">{comment.content}</p>
           <div className="flex items-center gap-3 mt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLike}
+              className={cn(
+                "h-6 text-xs",
+                likedByMe ? "text-red-500 hover:text-red-400" : "text-gray-400 hover:text-white"
+              )}
+            >
+              <Heart className={cn("w-3 h-3 mr-1", likedByMe && "fill-current")} />
+              {likesCount > 0 && likesCount}
+            </Button>
             <Button
               variant="ghost"
               size="sm"
