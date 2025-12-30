@@ -96,7 +96,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
 
-  const canPublish = content.trim().length > 0 || uploadedMedia.length > 0;
+  const canPublish = content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl;
   const isLoading = isPublishing || isGeneratingQuiz;
 
   // Reset all state for clean composer on reopen
@@ -230,7 +230,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   };
 
   const handlePublish = async () => {
-    if (!user || !content.trim()) return;
+    // Allow publish if user has text, media, or a detected URL
+    if (!user || (!content.trim() && !detectedUrl && uploadedMedia.length === 0)) return;
     
     addBreadcrumb('publish_attempt', { hasUrl: !!detectedUrl, isIOS });
     
@@ -405,22 +406,16 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         return;
       }
 
-      // Strong validation: must be array with at least 1 question, each having question + choices
-      const isValidQuestions = 
-        Array.isArray(result.questions) &&
-        result.questions.length > 0 &&
-        result.questions.every((q: any) => 
-          q && typeof q.question === 'string' && Array.isArray(q.choices) && q.choices.length >= 2
-        );
+      // Minimal validation: just check it's a non-empty array
+      // QuizModal handles its own error state for invalid questions
+      const hasQuestions = Array.isArray(result.questions) && result.questions.length > 0;
 
-      if (result.error || !result.questions || !isValidQuestions) {
-        console.error('[ComposerModal] Quiz generation failed or invalid format:', { 
+      if (result.error || !hasQuestions) {
+        console.error('[ComposerModal] Quiz generation failed:', { 
           error: result.error, 
-          questionsType: typeof result.questions,
-          isArray: Array.isArray(result.questions),
-          length: Array.isArray(result.questions) ? result.questions.length : 0
+          hasQuestions
         });
-        addBreadcrumb('quiz_invalid_fallback_publish');
+        addBreadcrumb('quiz_unavailable_fallback');
         toast.info('Quiz non disponibile, pubblicazione diretta');
         await closeReaderSafely();
         await publishPost();
