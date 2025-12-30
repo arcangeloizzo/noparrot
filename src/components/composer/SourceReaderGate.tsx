@@ -394,6 +394,12 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       articleId: source.url,
       finalReadRatio: 1
     });
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (window as any).__np_last_gate_event = { event: 'reader_complete_clicked', at: Date.now(), url: source.url };
+    } catch {
+      // ignore
+    }
     onComplete();
   };
 
