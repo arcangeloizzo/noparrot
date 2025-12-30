@@ -88,18 +88,60 @@ export async function validateAnswers(params: {
 
 /**
  * Fetch preview metadata da URL
+ * Always returns a structured object - never null or throws
  */
-export async function fetchArticlePreview(url: string) {
+export async function fetchArticlePreview(url: string): Promise<{
+  success: boolean;
+  error?: string;
+  message?: string;
+  [key: string]: any;
+}> {
   try {
+    console.log('[fetchArticlePreview] Fetching:', url);
+    
     const { data, error } = await supabase.functions.invoke('fetch-article-preview', {
       body: { url }
     });
 
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error('Error fetching article preview:', error);
-    return null;
+    // If invoke returned an error, try to extract structured info
+    if (error) {
+      console.error('[fetchArticlePreview] Invoke error:', error);
+      
+      // Try to parse error context for structured response
+      try {
+        const errorContext = (error as any)?.context;
+        if (errorContext?.json) {
+          const jsonBody = await errorContext.json();
+          if (jsonBody?.error) {
+            return { success: false, ...jsonBody };
+          }
+        }
+      } catch (parseErr) {
+        // Ignore parse errors
+      }
+      
+      return { 
+        success: false, 
+        error: 'FETCH_PREVIEW_FAILED', 
+        message: error.message || 'Errore nel recupero del contenuto' 
+      };
+    }
+
+    // Check if backend returned an error structure
+    if (data?.error || data?.success === false) {
+      console.log('[fetchArticlePreview] Backend returned error:', data);
+      return { success: false, ...data };
+    }
+
+    console.log('[fetchArticlePreview] Success:', { title: data?.title, platform: data?.platform });
+    return { success: true, ...data };
+  } catch (error: any) {
+    console.error('[fetchArticlePreview] Exception:', error);
+    return { 
+      success: false, 
+      error: 'FETCH_PREVIEW_FAILED', 
+      message: error.message || 'Errore imprevisto' 
+    };
   }
 }
 

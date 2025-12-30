@@ -39,6 +39,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [detectedUrl, setDetectedUrl] = useState<string | null>(null);
   const [urlPreview, setUrlPreview] = useState<any>(null);
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [contentCategory, setContentCategory] = useState<string | null>(null);
   const [showReader, setShowReader] = useState(false);
   const [readerClosing, setReaderClosing] = useState(false);
@@ -62,6 +63,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     setContent('');
     setDetectedUrl(null);
     setUrlPreview(null);
+    setIsPreviewLoading(false);
     setContentCategory(null);
     setShowReader(false);
     setReaderClosing(false);
@@ -127,9 +129,15 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   }, [content]);
 
   const loadPreview = async (url: string) => {
+    console.log('[Composer] loadPreview called for:', url);
+    setIsPreviewLoading(true);
+    setUrlPreview(null);
+    
     try {
       // Block unsupported platforms (Instagram, Facebook) before calling API
       const host = new URL(url).hostname.toLowerCase();
+      console.log('[Composer] URL hostname:', host);
+      
       if (
         host.includes('instagram.com') ||
         host.includes('facebook.com') ||
@@ -137,40 +145,67 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         host.includes('fb.com') ||
         host.includes('fb.watch')
       ) {
+        console.log('[Composer] Blocked unsupported platform:', host);
         toast.error('Instagram e Facebook non sono supportati. Apri il link nel browser.');
         setDetectedUrl(null);
         return;
       }
 
       const preview = await fetchArticlePreview(url);
+      console.log('[Composer] fetchArticlePreview result:', { success: preview?.success, error: preview?.error });
       
-      if (preview) {
-        // Check for UNSUPPORTED_PLATFORM error from backend
-        if (preview.error === 'UNSUPPORTED_PLATFORM') {
-          toast.error(preview.message || 'Questa piattaforma non è supportata.');
-          setDetectedUrl(null);
-          return;
-        }
-        
-        setUrlPreview({ url, ...preview });
-        
-        const category = await classifyContent({
-          text: content,
-          title: preview.title,
-          summary: preview.content || preview.summary || preview.excerpt
-        });
-        setContentCategory(category);
+      // Check for errors (now always structured)
+      if (!preview.success) {
+        console.log('[Composer] Preview failed:', preview.error, preview.message);
+        toast.error(preview.message || 'Impossibile caricare l\'anteprima.');
+        setDetectedUrl(null);
+        return;
       }
+      
+      // Success - set preview
+      setUrlPreview({ url, ...preview });
+      
+      const category = await classifyContent({
+        text: content,
+        title: preview.title,
+        summary: preview.content || preview.summary || preview.excerpt
+      });
+      setContentCategory(category);
     } catch (error) {
       console.error('[Composer] Error loading preview:', error);
+      toast.error('Errore nel caricamento dell\'anteprima.');
       setDetectedUrl(null);
+    } finally {
+      setIsPreviewLoading(false);
     }
   };
 
   const handlePublish = async () => {
     if (!user || !content.trim()) return;
+    
+    console.log('[Composer] handlePublish called:', { 
+      detectedUrl, 
+      isPreviewLoading, 
+      urlPreviewSuccess: urlPreview?.success,
+      urlPreviewError: urlPreview?.error 
+    });
 
     if (detectedUrl) {
+      // Wait for preview to finish loading
+      if (isPreviewLoading) {
+        toast.info('Sto caricando l\'anteprima...');
+        return;
+      }
+      
+      // Check if preview failed or doesn't exist
+      if (!urlPreview || urlPreview.success === false) {
+        console.log('[Composer] Cannot open reader - preview failed or missing');
+        toast.error(urlPreview?.message || 'Impossibile recuperare il contenuto della fonte.');
+        return;
+      }
+      
+      // Preview is valid - open reader
+      console.log('[Composer] Opening reader with valid preview');
       setReaderClosing(false);
       setShowReader(true);
       return;
