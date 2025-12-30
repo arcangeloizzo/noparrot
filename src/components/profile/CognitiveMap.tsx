@@ -73,7 +73,7 @@ export const CognitiveMap = ({ cognitiveDensity = {} }: CognitiveMapProps) => {
       <div className="mt-6 p-4 bg-muted/30 rounded-xl">
         <div className="text-center">
           <div className="text-3xl font-bold text-primary">
-            {Object.values(cognitiveDensity).reduce((sum, val) => sum + val, 0)}
+            {Math.round(Object.values(cognitiveDensity).reduce((sum, val) => sum + val, 0))}
           </div>
           <div className="text-sm text-muted-foreground mt-1">
             Percorsi cognitivi completati
