@@ -299,11 +299,20 @@
     overflow-x: hidden;
   }
 
-  /* iOS-safe scroll lock for Reader/Gate overlays */
+  /* Robust scroll lock for Reader/Gate overlays */
   body.reader-open {
-    overflow: hidden;
-    touch-action: none;
-    -webkit-overflow-scrolling: auto;
+    overflow: hidden !important;
+    position: fixed !important;
+    width: 100% !important;
+    touch-action: none !important;
+    -webkit-overflow-scrolling: auto !important;
+    overscroll-behavior: none !important;
+  }
+  
+  /* Ensure reader gate content is scrollable and captures all events */
+  [data-reader-gate-root] {
+    pointer-events: auto;
+    overscroll-behavior: contain;
   }
   
   /* Mobile-first responsive utilities */

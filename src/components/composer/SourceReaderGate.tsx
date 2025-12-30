@@ -273,13 +273,21 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       setTranscriptError(null);
       transcriptFetchedRef.current = false;
 
-      // iOS-safe scroll lock
+      // Robust scroll lock cleanup
       document.body.classList.remove('reader-open');
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.touchAction = '';
       return;
     }
 
-    // iOS-safe scroll lock: CSS puro tramite class
+    // Robust scroll lock: CSS class + inline styles as backup
     document.body.classList.add('reader-open');
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.touchAction = 'none';
 
     // Show typing indicator briefly at start
     setShowTypingIndicator(true);
@@ -298,7 +306,12 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     return () => {
       clearTimeout(indicatorTimer);
       clearInterval(timer);
+      // Cleanup scroll lock
       document.body.classList.remove('reader-open');
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+      document.body.style.touchAction = '';
     };
   }, [isOpen, safeSetTimeout]);
 
@@ -515,7 +528,8 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
         {/* Content Area */}
         <div
           ref={scrollContainerRef}
-          className="flex-1 p-4 overflow-y-auto"
+          className="flex-1 p-4 overflow-y-auto overscroll-contain"
+          style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
           onScroll={handleScroll}
         >
           <div className="space-y-4 text-sm leading-relaxed">
@@ -815,7 +829,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               </>
             ) : source.platform === 'twitter' && source.embedHtml && !isClosing ? (
               <>
-                {/* Twitter Embed */}
+                {/* Twitter Embed - Show ONLY embed widget, no duplicate text */}
                 <div className="max-w-2xl mx-auto space-y-4">
                   <div className="twitter-embed-container">
                     {isRenderingTwitter && (
@@ -829,12 +843,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                       className="overflow-hidden"
                     />
                   </div>
-
-                  {source.content && !isRenderingTwitter && (
-                    <div className="p-4 bg-muted/30 rounded-lg border border-border">
-                      <p className="text-foreground whitespace-pre-wrap">{source.content}</p>
-                    </div>
-                  )}
+                  {/* NOTE: Removed duplicate text content - the embed widget shows everything */}
                 </div>
                 <div className="h-32"></div>
               </>

@@ -57,6 +57,35 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const canPublish = content.trim().length > 0 || uploadedMedia.length > 0;
   const isLoading = isPublishing || isGeneratingQuiz;
 
+  // Reset all state for clean composer on reopen
+  const resetAllState = () => {
+    setContent('');
+    setDetectedUrl(null);
+    setUrlPreview(null);
+    setContentCategory(null);
+    setShowReader(false);
+    setReaderClosing(false);
+    setShowQuiz(false);
+    setQuizData(null);
+    setQuizPassed(false);
+    setMentionQuery('');
+    setShowMentions(false);
+    setCursorPosition(0);
+    setSelectedMentionIndex(0);
+    clearMedia();
+  };
+
+  // Reset state when modal opens to ensure clean state for new posts
+  useEffect(() => {
+    if (isOpen) {
+      // Only reset if there's residual state from previous session
+      if (showReader || showQuiz || quizData || readerClosing) {
+        console.log('[ComposerModal] Resetting residual state on open');
+        resetAllState();
+      }
+    }
+  }, [isOpen]);
+
   const handleSelectMention = (user: any) => {
     const textBeforeCursor = content.slice(0, cursorPosition);
     const textAfterCursor = content.slice(cursorPosition);
@@ -297,10 +326,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       await queryClient.refetchQueries({ queryKey: ['posts'] });
       
       toast.success('Condiviso.');
-      setContent('');
-      setDetectedUrl(null);
-      setUrlPreview(null);
-      clearMedia();
+      // Full state reset after successful publish
+      resetAllState();
       onClose();
     } catch (error) {
       console.error('Error publishing post:', error);
