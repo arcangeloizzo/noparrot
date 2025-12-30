@@ -250,7 +250,7 @@ export const FocusDetailSheet = ({
           <div className="sticky top-0 z-10 bg-[#0E141A] pt-4 pb-3 border-b border-white/10">
             <div className="flex items-center justify-between">
               <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0")}>
-                {isDailyFocus ? '🌍 DAILY FOCUS' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
+                {isDailyFocus ? '🌍 IL PUNTO' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
               </Badge>
               
               {/* X custom più grande e cliccabile */}

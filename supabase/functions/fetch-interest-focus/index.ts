@@ -917,10 +917,10 @@ serve(async (req) => {
       }
     }
     
-// AI-generated image fallback (replaces Picsum)
+    // AI image generation disabled - use null if no image found
     if (!finalImageUrl) {
-      console.log('[Image] Generating AI image for:', title);
-      finalImageUrl = await generateNewsImage(title, summary, category, supabase);
+      console.log('[Image] No image found, skipping AI generation');
+      finalImageUrl = null;
     }
     
     console.log(`[fetch-interest-focus] Final image URL for ${category}:`, finalImageUrl);

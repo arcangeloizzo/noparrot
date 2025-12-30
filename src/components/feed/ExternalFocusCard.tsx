@@ -88,7 +88,7 @@ export const ExternalFocusCard = ({
             onError={() => setImageError(true)}
           />
         </div>
-      ) : imageUrl && imageError ? (
+      ) : (
         <div className={cn(
           "aspect-video w-full overflow-hidden bg-gradient-to-br flex items-center justify-center",
           gradientBg
@@ -97,13 +97,13 @@ export const ExternalFocusCard = ({
             {isDailyFocus ? '🌍' : '🧠'}
           </span>
         </div>
-      ) : null}
+      )}
 
       {/* Header */}
       <div className="p-4 pb-3">
         <div className="flex items-center gap-2">
           <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0")}>
-            {isDailyFocus ? '🌍 DAILY FOCUS' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
+            {isDailyFocus ? '🌍 IL PUNTO' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
           </Badge>
           {isDailyFocus && (
             <Dialog>

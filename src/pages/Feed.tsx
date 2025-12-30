@@ -401,8 +401,8 @@ export const Feed = () => {
             created_at: selectedFocusForComments.data.created_at || new Date().toISOString(),
             author: {
               id: 'system',
-              username: selectedFocusForComments.type === 'daily' ? 'Daily Focus' : 'Interest Focus',
-              full_name: selectedFocusForComments.type === 'daily' ? 'Daily Focus' : `Focus ${selectedFocusForComments.data.category}`,
+              username: selectedFocusForComments.type === 'daily' ? 'Il Punto' : 'Per Te',
+              full_name: selectedFocusForComments.type === 'daily' ? 'Il Punto' : `Per Te: ${selectedFocusForComments.data.category}`,
               avatar_url: null
             },
             topic_tag: null,
