@@ -130,3 +130,25 @@ export function checkForRecentCrash(): { crashed: boolean; breadcrumbs: Breadcru
     return { crashed: false, breadcrumbs: [], pendingPublish: null };
   }
 }
+
+// System-level event tracking for diagnosing silent reloads on iOS
+export function installSystemEventTrackers() {
+  if (typeof window === 'undefined') return;
+
+  // pagehide - fires when navigating away or page is being discarded
+  window.addEventListener('pagehide', (e) => {
+    addBreadcrumb('sys_pagehide', { persisted: e.persisted });
+  });
+
+  // visibilitychange - fires when tab becomes hidden
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      addBreadcrumb('sys_visibility_hidden');
+    }
+  });
+
+  // beforeunload - best effort, may not fire on iOS
+  window.addEventListener('beforeunload', () => {
+    addBreadcrumb('sys_beforeunload');
+  });
+}

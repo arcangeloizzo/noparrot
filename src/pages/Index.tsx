@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { isConsentCompleted } from "@/hooks/useUserConsents";
 import ConsentScreen from "./ConsentScreen";
 import { cleanupStaleScrollLocks } from "@/lib/bodyScrollLock";
-import { checkForRecentCrash, clearBreadcrumbs, addBreadcrumb, clearPendingPublish, getPendingPublish } from "@/lib/crashBreadcrumbs";
+import { checkForRecentCrash, clearBreadcrumbs, addBreadcrumb, clearPendingPublish, getPendingPublish, installSystemEventTrackers } from "@/lib/crashBreadcrumbs";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -38,10 +38,14 @@ const Index = () => {
     if (crashed && breadcrumbs.length > 0) {
       console.warn('[Index] Detected recent crash, breadcrumbs:', breadcrumbs);
       const last = breadcrumbs[breadcrumbs.length - 1];
-      const lastEvent = last?.event || 'unknown';
-      toast.info(`Sessione precedente interrotta. Ultimo evento: ${lastEvent}.`, { duration: 4000 });
+      const lastEvent = last?.event || '(non disponibile)';
+      toast.info(`Sessione precedente interrotta. Ultimo evento: ${lastEvent}.`, { duration: 5000 });
+      // Log last 5 breadcrumbs for diagnostics
       console.log('[Index] Last 5 breadcrumbs before crash:', breadcrumbs.slice(-5));
     }
+
+    // Install system-level event trackers (pagehide, visibilitychange) for diagnosing silent reloads
+    installSystemEventTrackers();
 
     // Clear old breadcrumbs and start fresh
     clearBreadcrumbs();

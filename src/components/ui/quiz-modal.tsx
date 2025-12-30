@@ -35,6 +35,10 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
   const isMountedRef = useRef(true);
   const timeoutRefs = useRef<number[]>([]);
 
+  // Guard to prevent double-firing of close/complete handlers (iOS Safari double-tap issue)
+  const closeInProgressRef = useRef(false);
+  const [buttonsDisabled, setButtonsDisabled] = useState(false);
+
   const safeSetTimeout = useCallback((callback: () => void, ms: number) => {
     const id = window.setTimeout(() => {
       if (isMountedRef.current) {
@@ -186,11 +190,39 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
+    // Ignore backdrop clicks if result is showing (user must use button)
+    // Also ignore if close is already in progress
+    if (result || closeInProgressRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     if (e.target === e.currentTarget && onCancel) {
       e.preventDefault();
       e.stopPropagation();
       addBreadcrumb('quiz_closed', { via: 'backdrop' });
       onCancel();
+    }
+  };
+
+  // Centralized close handler to prevent double-firing
+  const handleCloseClick = (passed: boolean) => {
+    if (closeInProgressRef.current) {
+      addBreadcrumb('quiz_close_ignored_double', { passed });
+      return;
+    }
+    closeInProgressRef.current = true;
+    setButtonsDisabled(true);
+    addBreadcrumb('quiz_close_tap', { passed });
+
+    if (passed) {
+      addBreadcrumb('quiz_complete_passed');
+      addBreadcrumb('quiz_closed', { via: 'complete', passed: true });
+      onComplete ? onComplete(true) : onCancel?.();
+    } else {
+      addBreadcrumb('quiz_complete_failed');
+      addBreadcrumb('quiz_closed', { via: 'complete', passed: false });
+      onComplete ? onComplete(false) : onCancel?.();
     }
   };
 
@@ -224,12 +256,18 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
                   </div>
                   <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Hai compreso.</h2>
                   <p className="text-muted-foreground mb-4 sm:mb-6 text-sm sm:text-base">Le tue parole ora hanno peso.</p>
-                  <Button onClick={(e) => { 
-                    e.stopPropagation(); 
-                    addBreadcrumb('quiz_complete_passed');
-                    addBreadcrumb('quiz_closed', { via: 'complete', passed: true });
-                    onComplete ? onComplete(true) : onCancel?.(); 
-                  }} className="w-full font-medium pointer-events-auto" style={{ pointerEvents: 'auto' }}>Chiudi</Button>
+                  <Button 
+                    type="button"
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      handleCloseClick(true);
+                    }} 
+                    disabled={buttonsDisabled}
+                    className="w-full font-medium pointer-events-auto" 
+                    style={{ pointerEvents: 'auto' }}
+                  >
+                    {buttonsDisabled ? 'Chiusura…' : 'Chiudi'}
+                  </Button>
                 </>
               ) : (
                 <>
@@ -240,12 +278,19 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
                   </div>
                   <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Non ancora.</h2>
                   <p className="text-muted-foreground mb-4 sm:mb-6 text-sm sm:text-base">La comprensione richiede tempo, non fretta.</p>
-                  <Button onClick={(e) => { 
-                    e.stopPropagation(); 
-                    addBreadcrumb('quiz_complete_failed');
-                    addBreadcrumb('quiz_closed', { via: 'complete', passed: false });
-                    onComplete ? onComplete(false) : onCancel?.(); 
-                  }} variant="outline" className="w-full font-medium pointer-events-auto" style={{ pointerEvents: 'auto' }}>Chiudi</Button>
+                  <Button 
+                    type="button"
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      handleCloseClick(false);
+                    }} 
+                    disabled={buttonsDisabled}
+                    variant="outline" 
+                    className="w-full font-medium pointer-events-auto" 
+                    style={{ pointerEvents: 'auto' }}
+                  >
+                    {buttonsDisabled ? 'Chiusura…' : 'Chiudi'}
+                  </Button>
                 </>
               )}
             </div>
