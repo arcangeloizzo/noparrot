@@ -218,6 +218,29 @@ export const useToggleReaction = () => {
   });
 };
 
+export const useDeletePost = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (postId: string) => {
+      if (!user) throw new Error('Devi essere loggato');
+
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', postId)
+        .eq('author_id', user.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['saved-posts'] });
+    }
+  });
+};
+
 export const useSavedPosts = () => {
   const { user } = useAuth();
 
