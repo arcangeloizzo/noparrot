@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, EyeOff, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle, Info } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle, Info } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -35,7 +35,7 @@ import { ShareSheet } from "@/components/share/ShareSheet";
 import { PeoplePicker } from "@/components/share/PeoplePicker";
 
 // Hooks & Utils
-import { Post, useQuotedPost } from "@/hooks/usePosts";
+import { Post, useQuotedPost, useDeletePost } from "@/hooks/usePosts";
 import { useToggleReaction } from "@/hooks/usePosts";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -75,10 +75,12 @@ export const FeedCard = ({
   const { user } = useAuth();
   const navigate = useNavigate();
   const toggleReaction = useToggleReaction();
+  const deletePost = useDeletePost();
   const { data: quotedPost } = useQuotedPost(post.quoted_post_id);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
   const createThread = useCreateThread();
   const sendMessage = useSendMessage();
+  const isOwnPost = user?.id === post.author.id;
   
   // Article preview state
   const [articlePreview, setArticlePreview] = useState<any>(null);
@@ -709,7 +711,7 @@ export const FeedCard = ({
           {/* Content a destra */}
           <div className="flex-1 min-w-0">
             {/* Header: Nome utente e timestamp - clean */}
-            <div className="flex items-baseline gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-2">
               <div 
                 className="flex-1 min-w-0 cursor-pointer" 
                 onClick={(e) => {
@@ -724,6 +726,35 @@ export const FeedCard = ({
               <span className="text-[13px] text-gray-400 flex-shrink-0">
                 {timeAgo}
               </span>
+              {isOwnPost && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <button className="p-1.5 rounded-full hover:bg-muted/50 transition-colors">
+                      <MoreHorizontal className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        deletePost.mutate(post.id, {
+                          onSuccess: () => {
+                            toast({ title: 'Post eliminato' });
+                            onRemove?.();
+                          },
+                          onError: () => {
+                            toast({ title: 'Errore', description: 'Impossibile eliminare il post', variant: 'destructive' });
+                          }
+                        });
+                      }}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Elimina post
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
 
             {/* User Comment - Interlinea rilassata */}
