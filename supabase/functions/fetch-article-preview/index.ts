@@ -1054,6 +1054,9 @@ serve(async (req) => {
     if (isForceEnhancedDomain) {
       console.log(`[Preview] 🔧 Using enhanced extraction for: ${urlHostname}`);
       
+      // Check if this is HDBlog/HDMotori for special AMP handling
+      const isHdBlogDomain = urlHostname.includes('hdblog') || urlHostname.includes('hdmotori');
+      
       // PRIORITY 0: Try Firecrawl first (best for sites that block bots)
       const firecrawlApiKey = Deno.env.get('FIRECRAWL_API_KEY');
       if (firecrawlApiKey) {
@@ -1082,7 +1085,13 @@ serve(async (req) => {
               const fcDescription = firecrawlData.data.metadata?.description || '';
               const fcImage = firecrawlData.data.metadata?.ogImage || firecrawlData.data.metadata?.image || '';
               
-              console.log(`[Firecrawl] 📊 Result: title="${fcTitle?.slice(0,40)}", content=${fcContent?.length || 0} chars, image=${!!fcImage}`);
+              // Enhanced logging for HDBlog debugging
+              console.log(`[Firecrawl] 📊 Result for ${urlHostname}:`, {
+                title: fcTitle?.slice(0, 50),
+                contentLength: fcContent?.length || 0,
+                contentPreview: fcContent?.slice(0, 150)?.replace(/\n/g, ' '),
+                hasImage: !!fcImage
+              });
               
               // Check for Cloudflare challenge content
               if (isBotChallengeContent(fcContent)) {
@@ -1122,6 +1131,148 @@ serve(async (req) => {
         }
       } else {
         console.log(`[Firecrawl] ⚠️ API key not configured, skipping`);
+      }
+      
+      // PRIORITY 0.5: Try AMP versions for HDBlog/HDMotori (they sometimes have cleaner AMP pages)
+      if (isHdBlogDomain) {
+        console.log(`[Preview] 📱 Attempting AMP fallbacks for HDBlog domain...`);
+        
+        // Generate AMP URL variants
+        const ampVariants = [];
+        const urlPath = new URL(url).pathname;
+        
+        // Variant 1: /amp/ suffix
+        if (!urlPath.endsWith('/')) {
+          ampVariants.push(url + '/amp/');
+          ampVariants.push(url + '/amp');
+        } else {
+          ampVariants.push(url + 'amp/');
+          ampVariants.push(url + 'amp');
+        }
+        
+        // Variant 2: ?amp query param
+        ampVariants.push(url + (url.includes('?') ? '&amp=1' : '?amp=1'));
+        
+        for (const ampUrl of ampVariants) {
+          try {
+            console.log(`[Preview] 📱 Trying AMP: ${ampUrl}`);
+            
+            const ampResponse = await fetch(ampUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'it-IT,it;q=0.9',
+              },
+              redirect: 'follow',
+            });
+            
+            if (ampResponse.ok) {
+              const ampHtml = await ampResponse.text();
+              
+              // Check if it's a valid page (not redirect or 404)
+              if (ampHtml.length > 2000 && !isBotChallengeContent(ampHtml)) {
+                console.log(`[Preview] 📱 AMP page found: ${ampHtml.length} chars`);
+                
+                // Extract from AMP HTML
+                const ampTitleMatch = ampHtml.match(/<title[^>]*>([^<]+)<\/title>/i);
+                const ampTitle = ampTitleMatch ? extractTextFromHtml(ampTitleMatch[1]) : '';
+                
+                const ampDescMatch = ampHtml.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i);
+                const ampDesc = ampDescMatch ? extractTextFromHtml(ampDescMatch[1]) : '';
+                
+                const ampImgMatch = ampHtml.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i);
+                const ampImage = ampImgMatch ? ampImgMatch[1] : '';
+                
+                // Extract paragraphs from AMP
+                const ampParagraphs: string[] = [];
+                const ampPRegex = /<p[^>]*>(.+?)<\/p>/gis;
+                let ampMatch;
+                while ((ampMatch = ampPRegex.exec(ampHtml)) !== null && ampParagraphs.length < 20) {
+                  const text = extractTextFromHtml(ampMatch[0]);
+                  if (text.length >= 30) {
+                    ampParagraphs.push(text);
+                  }
+                }
+                
+                const ampContent = ampParagraphs.join('\n\n');
+                
+                if (ampContent.length > 200) {
+                  const cleanedAmpContent = cleanReaderText(ampContent);
+                  console.log(`[Preview] 📱 AMP extraction success: ${cleanedAmpContent.length} chars`);
+                  
+                  return new Response(JSON.stringify({
+                    success: true,
+                    title: ampTitle || 'Articolo',
+                    summary: ampDesc || cleanedAmpContent.slice(0, 200),
+                    content: cleanedAmpContent,
+                    image: ampImage,
+                    previewImg: ampImage,
+                    platform: 'generic',
+                    type: 'article',
+                    hostname: urlHostname,
+                    contentQuality: cleanedAmpContent.length > 500 ? 'complete' : 'partial',
+                    source: 'amp'
+                  }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                  });
+                }
+              }
+            }
+          } catch (ampError: any) {
+            console.log(`[Preview] 📱 AMP attempt failed: ${ampError.message}`);
+          }
+        }
+        
+        // If all AMP attempts fail for HDBlog, try Firecrawl on AMP URL
+        if (firecrawlApiKey) {
+          const ampUrlForFirecrawl = url.endsWith('/') ? url + 'amp/' : url + '/amp/';
+          try {
+            console.log(`[Firecrawl] 📱 Trying AMP URL: ${ampUrlForFirecrawl}`);
+            
+            const fcAmpResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${firecrawlApiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                url: ampUrlForFirecrawl,
+                formats: ['markdown'],
+                onlyMainContent: true,
+              }),
+            });
+            
+            if (fcAmpResponse.ok) {
+              const fcAmpData = await fcAmpResponse.json();
+              if (fcAmpData.success && fcAmpData.data?.markdown && fcAmpData.data.markdown.length > 200) {
+                if (!isBotChallengeContent(fcAmpData.data.markdown)) {
+                  const cleanedAmpContent = cleanReaderText(fcAmpData.data.markdown);
+                  console.log(`[Firecrawl] 📱 AMP success: ${cleanedAmpContent.length} chars`);
+                  
+                  return new Response(JSON.stringify({
+                    success: true,
+                    title: fcAmpData.data.metadata?.title || 'Articolo',
+                    summary: fcAmpData.data.metadata?.description || cleanedAmpContent.slice(0, 200),
+                    content: cleanedAmpContent,
+                    image: fcAmpData.data.metadata?.ogImage || '',
+                    previewImg: fcAmpData.data.metadata?.ogImage || '',
+                    platform: 'generic',
+                    type: 'article',
+                    hostname: urlHostname,
+                    contentQuality: cleanedAmpContent.length > 500 ? 'complete' : 'partial',
+                    source: 'firecrawl-amp'
+                  }), {
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                  });
+                }
+              }
+            }
+          } catch (fcAmpError: any) {
+            console.log(`[Firecrawl] 📱 AMP attempt failed: ${fcAmpError.message}`);
+          }
+        }
+        
+        console.log(`[Preview] 📱 All AMP attempts failed for HDBlog, continuing with standard fallbacks...`);
       }
       
       // Continue with existing strategies as fallback...
@@ -1570,16 +1721,24 @@ serve(async (req) => {
         urlTitle = urlTitle.charAt(0).toUpperCase() + urlTitle.slice(1);
       }
       
+      // For known anti-bot domains, return 'blocked' quality to trigger special UI
+      const isKnownBlockedDomain = urlHostname.includes('hdblog') || urlHostname.includes('hdmotori');
+      
       return new Response(JSON.stringify({
         success: true,
         title: urlTitle || `Contenuto da ${urlHostname}`,
-        summary: urlTitle ? `${urlTitle} - ${urlHostname}` : `Questo sito potrebbe bloccare l'analisi automatica.`,
-        content: `Apri il link originale per visualizzare il contenuto.`,
+        summary: isKnownBlockedDomain 
+          ? `Questo sito utilizza protezioni anti-bot che impediscono la lettura automatica.`
+          : (urlTitle ? `${urlTitle} - ${urlHostname}` : `Questo sito potrebbe bloccare l'analisi automatica.`),
+        content: isKnownBlockedDomain
+          ? `Questo sito utilizza protezioni anti-bot che impediscono la lettura automatica del contenuto. Per leggere l'articolo, aprilo direttamente nel browser.`
+          : `Apri il link originale per visualizzare il contenuto.`,
         platform: 'generic',
         type: 'article',
         hostname: urlHostname,
-        contentQuality: 'minimal',
-        extractedFromUrl: !!urlTitle
+        contentQuality: isKnownBlockedDomain ? 'blocked' : 'minimal',
+        extractedFromUrl: !!urlTitle,
+        blockedBy: isKnownBlockedDomain ? 'anti-bot' : undefined
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });

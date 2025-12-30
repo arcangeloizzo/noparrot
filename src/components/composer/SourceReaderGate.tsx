@@ -372,8 +372,11 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
   if (!isOpen) return null;
 
-  // SEMPLIFICATO: isReady = timer 0 OPPURE scroll 100%
-  const isReady = timeLeft === 0 || hasScrolledToBottom;
+  // Check if content is blocked (anti-bot protection)
+  const isBlocked = (source as any).contentQuality === 'blocked';
+
+  // SEMPLIFICATO: isReady = timer 0 OPPURE scroll 100% OPPURE contenuto bloccato (bypass gate)
+  const isReady = isBlocked || timeLeft === 0 || hasScrolledToBottom;
 
   const handleComplete = () => {
     sendReaderTelemetry({
@@ -423,65 +426,67 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           </Button>
         </div>
 
-        {/* Progress Bar - Semplificato */}
-        <div className="p-4 bg-muted/50 border-b border-border sticky top-0 z-10">
-          <div className="flex items-center justify-between text-sm mb-2">
-            <div className="flex items-center gap-2">
-              {showTypingIndicator ? (
-                <>
-                  <TypingIndicator className="mr-2" />
-                  <span className="text-muted-foreground font-medium">Sto preparando ciò che ti serve per orientarti…</span>
-                </>
-              ) : isReady ? (
-                <>
-                  <Check className="h-4 w-4 text-[hsl(var(--cognitive-correct))]" />
-                  <span className="text-[hsl(var(--cognitive-correct))] font-medium">Hai visto abbastanza per capire. Procediamo.</span>
-                </>
-              ) : (
-                <>
-                  <span className="text-foreground">
-                    Tempo: {timeLeft}s
-                  </span>
-                  <span className="text-muted-foreground">•</span>
-                  <span className="text-foreground">
-                    Scroll: {Math.round(scrollProgress)}%
-                  </span>
-                </>
+        {/* Progress Bar - Semplificato (nascosto se contenuto bloccato) */}
+        {!isBlocked && (
+          <div className="p-4 bg-muted/50 border-b border-border sticky top-0 z-10">
+            <div className="flex items-center justify-between text-sm mb-2">
+              <div className="flex items-center gap-2">
+                {showTypingIndicator ? (
+                  <>
+                    <TypingIndicator className="mr-2" />
+                    <span className="text-muted-foreground font-medium">Sto preparando ciò che ti serve per orientarti…</span>
+                  </>
+                ) : isReady ? (
+                  <>
+                    <Check className="h-4 w-4 text-[hsl(var(--cognitive-correct))]" />
+                    <span className="text-[hsl(var(--cognitive-correct))] font-medium">Hai visto abbastanza per capire. Procediamo.</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-foreground">
+                      Tempo: {timeLeft}s
+                    </span>
+                    <span className="text-muted-foreground">•</span>
+                    <span className="text-foreground">
+                      Scroll: {Math.round(scrollProgress)}%
+                    </span>
+                  </>
+                )}
+              </div>
+              {!isReady && (
+                <span className="text-muted-foreground text-xs">
+                  Leggi per 10s o scorri tutto
+                </span>
               )}
             </div>
-            {!isReady && (
-              <span className="text-muted-foreground text-xs">
-                Leggi per 10s o scorri tutto
-              </span>
-            )}
-          </div>
 
-          {/* Progress bars */}
-          <div className="space-y-2">
-            <div className="w-full bg-muted rounded-full h-2">
-              <div
-                className={cn(
-                  "h-2 rounded-full transition-all ease-linear",
-                  timeLeft === 0 ? "bg-trust-high" : "bg-primary"
-                )}
-                style={{
-                  width: `${((10 - timeLeft) / 10) * 100}%`,
-                  transitionDuration: '1000ms'
-                }}
-              />
-            </div>
+            {/* Progress bars */}
+            <div className="space-y-2">
+              <div className="w-full bg-muted rounded-full h-2">
+                <div
+                  className={cn(
+                    "h-2 rounded-full transition-all ease-linear",
+                    timeLeft === 0 ? "bg-trust-high" : "bg-primary"
+                  )}
+                  style={{
+                    width: `${((10 - timeLeft) / 10) * 100}%`,
+                    transitionDuration: '1000ms'
+                  }}
+                />
+              </div>
 
-            <div className="w-full bg-muted rounded-full h-2">
-              <div
-                className={cn(
-                  "h-2 rounded-full transition-all duration-300",
-                  hasScrolledToBottom ? "bg-trust-high" : "bg-accent"
-                )}
-                style={{ width: `${scrollProgress}%` }}
-              />
+              <div className="w-full bg-muted rounded-full h-2">
+                <div
+                  className={cn(
+                    "h-2 rounded-full transition-all duration-300",
+                    hasScrolledToBottom ? "bg-trust-high" : "bg-accent"
+                  )}
+                  style={{ width: `${scrollProgress}%` }}
+                />
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Source Info with Quality Badge */}
         <div className="p-4 border-b border-border bg-card">
@@ -830,6 +835,64 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                       <p className="text-foreground whitespace-pre-wrap">{source.content}</p>
                     </div>
                   )}
+                </div>
+                <div className="h-32"></div>
+              </>
+            ) : isBlocked ? (
+              <>
+                {/* Blocked Content - Anti-bot protection detected */}
+                <div className="max-w-2xl mx-auto space-y-4">
+                  {/* Blocked notice card */}
+                  <div className="p-6 bg-warning/10 border border-warning/30 rounded-xl">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-full bg-warning/20 flex items-center justify-center flex-shrink-0">
+                        <span className="text-2xl">🛡️</span>
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-foreground mb-2">
+                          Sito protetto
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Questo sito utilizza protezioni anti-bot che impediscono la lettura automatica del contenuto.
+                          Per leggere l'articolo, aprilo direttamente nel browser.
+                        </p>
+                        <Button 
+                          onClick={openSource}
+                          className="gap-2 bg-warning text-warning-foreground hover:bg-warning/90"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          Apri l'originale
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Source preview card */}
+                  <div className="p-4 bg-card border border-border rounded-lg">
+                    <div className="flex items-center gap-3">
+                      {source.image && (
+                        <img 
+                          src={source.image} 
+                          alt="" 
+                          className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-foreground truncate">
+                          {source.title || 'Articolo'}
+                        </h4>
+                        <p className="text-xs text-muted-foreground truncate mt-1">
+                          {new URL(source.url).hostname}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground">
+                      Puoi comunque procedere al test basandoti sulla lettura nell'originale
+                    </p>
+                  </div>
                 </div>
                 <div className="h-32"></div>
               </>
