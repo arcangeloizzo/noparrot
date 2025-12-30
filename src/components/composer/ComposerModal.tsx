@@ -519,10 +519,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
           shared_url: snapshotDetectedUrl || null,
           shared_title: snapshotPreview?.title || null,
           preview_img: snapshotPreview?.image || null,
-          article_content: typeof articleContent === 'string' ? articleContent.substring(0, 50000) : null,
-          embed_html: snapshotPreview?.embedHtml || null,
-          transcript: typeof transcript === 'string' ? transcript.substring(0, 50000) : null,
-          transcript_source: snapshotPreview?.transcriptSource || null,
+          // Keep initial insert payload minimal for Safari stability
           quoted_post_id: quotedPost?.id || null,
           category: category || null
         })
@@ -531,6 +528,34 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
       if (postError) throw postError;
       addBreadcrumb('publish_insert_done', { postId: insertedPost?.id });
+
+      // Heavy fields update (best-effort; never block publish)
+      if (insertedPost && snapshotPreview) {
+        const heavyUpdate: Record<string, any> = {};
+        const articleContentSafe = typeof articleContent === 'string' ? articleContent.substring(0, 50000) : null;
+        const transcriptSafe = typeof transcript === 'string' ? transcript.substring(0, 50000) : null;
+        const embedHtmlSafe = typeof snapshotPreview.embedHtml === 'string' ? snapshotPreview.embedHtml.substring(0, 20000) : null;
+
+        if (articleContentSafe) heavyUpdate.article_content = articleContentSafe;
+        if (embedHtmlSafe) heavyUpdate.embed_html = embedHtmlSafe;
+        if (transcriptSafe) heavyUpdate.transcript = transcriptSafe;
+        if (snapshotPreview.transcriptSource) heavyUpdate.transcript_source = snapshotPreview.transcriptSource;
+
+        if (Object.keys(heavyUpdate).length > 0) {
+          try {
+            addBreadcrumb('publish_heavy_update_start', { keys: Object.keys(heavyUpdate) });
+            const { error: heavyErr } = await supabase
+              .from('posts')
+              .update(heavyUpdate)
+              .eq('id', insertedPost.id);
+            if (heavyErr) throw heavyErr;
+            addBreadcrumb('publish_heavy_update_done');
+          } catch (heavyErr) {
+            console.warn('Heavy fields update failed (continuing):', heavyErr);
+            addBreadcrumb('publish_heavy_update_skip', { error: String(heavyErr) });
+          }
+        }
+      }
 
       if (snapshotUploadedMedia.length > 0 && insertedPost) {
         addBreadcrumb('publish_media_start', { count: snapshotUploadedMedia.length });
