@@ -161,3 +161,19 @@ export function isBodyScrollLocked(): boolean {
 export function getCurrentLockOwner(): LockOwner {
   return currentOwner;
 }
+
+/**
+ * Check for and cleanup stale scroll locks on app startup
+ * Useful for recovering from iOS Safari crashes
+ */
+export function cleanupStaleScrollLocks(): boolean {
+  const hasReaderClass = document.body.classList.contains('reader-open');
+  const hasQuizClass = document.body.classList.contains('quiz-open');
+  
+  if (hasReaderClass || hasQuizClass) {
+    console.warn('[BodyScrollLock] Found stale scroll lock classes on startup, cleaning up');
+    forceUnlockBodyScroll();
+    return true;
+  }
+  return false;
+}

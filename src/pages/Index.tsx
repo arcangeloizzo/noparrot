@@ -6,6 +6,9 @@ import { AuthPage } from "@/components/auth/AuthPage";
 import { useAuth } from "@/contexts/AuthContext";
 import { isConsentCompleted } from "@/hooks/useUserConsents";
 import ConsentScreen from "./ConsentScreen";
+import { cleanupStaleScrollLocks } from "@/lib/bodyScrollLock";
+import { checkForRecentCrash, clearBreadcrumbs, addBreadcrumb } from "@/lib/crashBreadcrumbs";
+import { toast } from "sonner";
 
 const Index = () => {
   const { user, loading } = useAuth();
@@ -24,6 +27,23 @@ const Index = () => {
     if (type === 'recovery') {
       setIsPasswordRecovery(true);
     }
+    
+    // iOS crash recovery: cleanup stale scroll locks from previous session
+    const hadStaleLock = cleanupStaleScrollLocks();
+    
+    // Check for recent crash and notify
+    const { crashed, breadcrumbs } = checkForRecentCrash();
+    if (crashed && breadcrumbs.length > 0) {
+      console.warn('[Index] Detected recent crash, breadcrumbs:', breadcrumbs);
+      toast.info('Sessione precedente interrotta. Stato ripristinato.', { duration: 3000 });
+      // Log last 5 breadcrumbs for debugging
+      const lastFive = breadcrumbs.slice(-5);
+      console.log('[Index] Last 5 breadcrumbs before crash:', lastFive);
+    }
+    
+    // Clear old breadcrumbs and start fresh
+    clearBreadcrumbs();
+    addBreadcrumb('app_init', { hadStaleLock, crashed });
   }, []);
 
   const handleOnboardingComplete = () => {

@@ -108,7 +108,14 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const transcriptFetchedRef = useRef(false);
 
   // Load and render Twitter widgets ONLY for Twitter embeds
+  // CRITICAL: Disabled on iOS to prevent Safari crashes
   useEffect(() => {
+    // iOS GUARD: Never load Twitter widgets on iOS Safari (causes crashes)
+    if (isIOS) {
+      console.log('[SourceReaderGate] iOS detected - skipping Twitter widget loading');
+      return;
+    }
+    
     if (source.platform !== 'twitter') return;
     if (!source.embedHtml || !isOpen) return;
 
@@ -216,7 +223,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       if (renderTimeout) clearTimeout(renderTimeout);
       if (observer) observer.disconnect();
     };
-  }, [source.embedHtml, source.url, isOpen, safeSetTimeout]);
+  }, [source.embedHtml, source.url, isOpen, isIOS, safeSetTimeout]);
 
   // Pre-cleanup esplicito iframe PRIMA dello smontaggio (iOS Safari)
   useEffect(() => {
