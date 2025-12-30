@@ -220,13 +220,18 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         return;
       }
 
-      await closeReaderSafely();
-
+      // OVERLAY APPROACH: Mount quiz FIRST, then close reader
       setQuizData({
         questions: result.questions,
         sourceUrl: detectedUrl || '',
       });
       setShowQuiz(true);
+
+      // Wait one frame to ensure quiz is rendered above reader
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+      // NOW close reader (quiz is already visible on top)
+      await closeReaderSafely();
     } catch (error) {
       console.error('[ComposerModal] handleReaderComplete error:', error);
       toast.dismiss();
@@ -553,30 +558,32 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         />
       )}
 
-      {/* Quiz Modal */}
-      {showQuiz && quizData && (
-        <QuizModal
-          questions={quizData.questions}
-          onSubmit={handleQuizSubmit}
-          onCancel={() => {
-            requestAnimationFrame(() => {
-              const shouldPublish = quizPassed;
-              setShowQuiz(false);
-              setQuizData(null);
-              setQuizPassed(false);
-              
-              if (shouldPublish) {
-                toast.success('Hai fatto chiarezza.');
-                publishPost().catch((e) => {
-                  console.error('[ComposerModal] publishPost error:', e);
-                  toast.error('Errore pubblicazione');
-                });
-              }
-            });
-          }}
-          provider="Comprehension Gate"
-          postCategory={contentCategory}
-        />
+      {/* Quiz Modal - z-index wrapper for overlay approach */}
+      {showQuiz && quizData && quizData.questions && Array.isArray(quizData.questions) && (
+        <div className="fixed inset-0 z-[10060]">
+          <QuizModal
+            questions={quizData.questions}
+            onSubmit={handleQuizSubmit}
+            onCancel={() => {
+              requestAnimationFrame(() => {
+                const shouldPublish = quizPassed;
+                setShowQuiz(false);
+                setQuizData(null);
+                setQuizPassed(false);
+                
+                if (shouldPublish) {
+                  toast.success('Hai fatto chiarezza.');
+                  publishPost().catch((e) => {
+                    console.error('[ComposerModal] publishPost error:', e);
+                    toast.error('Errore pubblicazione');
+                  });
+                }
+              });
+            }}
+            provider="Comprehension Gate"
+            postCategory={contentCategory}
+          />
+        </div>
       )}
     </>
   );
