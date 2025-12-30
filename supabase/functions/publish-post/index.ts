@@ -19,11 +19,17 @@ type PublishPostBody = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders })
 
+  const reqId = crypto.randomUUID().slice(0, 8)
+  console.log(`[publish-post:${reqId}] ← request received`)
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!
 
     const authHeader = req.headers.get('authorization') || ''
+    const hasAuth = authHeader.length > 20
+
+    console.log(`[publish-post:${reqId}] hasAuth=${hasAuth}`)
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: {
@@ -37,8 +43,8 @@ Deno.serve(async (req) => {
     try {
       body = (await req.json()) as PublishPostBody
     } catch (parseErr) {
-      console.error('[publish-post] JSON parse error', parseErr)
-      return new Response(JSON.stringify({ error: 'invalid_json' }), {
+      console.error(`[publish-post:${reqId}] stage=parse_json error`, parseErr)
+      return new Response(JSON.stringify({ error: 'invalid_json', stage: 'parse' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -46,8 +52,8 @@ Deno.serve(async (req) => {
 
     const content = typeof body.content === 'string' ? body.content.trim() : ''
     if (!content) {
-      console.error('[publish-post] empty content')
-      return new Response(JSON.stringify({ error: 'content_required' }), {
+      console.error(`[publish-post:${reqId}] stage=validate empty content`)
+      return new Response(JSON.stringify({ error: 'content_required', stage: 'validate' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -59,8 +65,8 @@ Deno.serve(async (req) => {
     } = await supabase.auth.getUser()
 
     if (userErr || !user) {
-      console.warn('[publish-post] auth failed', userErr)
-      return new Response(JSON.stringify({ error: 'unauthorized' }), {
+      console.warn(`[publish-post:${reqId}] stage=auth failed`, userErr?.message || 'no user')
+      return new Response(JSON.stringify({ error: 'unauthorized', stage: 'auth', details: userErr?.message }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
@@ -68,7 +74,7 @@ Deno.serve(async (req) => {
 
     const idempotencyKey = body.idempotencyKey || null
 
-    console.log('[publish-post] start', {
+    console.log(`[publish-post:${reqId}] stage=start`, {
       userId: user.id,
       hasSharedUrl: !!body.sharedUrl,
       mediaCount: Array.isArray(body.mediaIds) ? body.mediaIds.length : 0,
@@ -79,17 +85,20 @@ Deno.serve(async (req) => {
     // IDEMPOTENCY CHECK: Use DB table with unique constraint
     if (idempotencyKey) {
       // First check if this key already exists and has a post_id
-      const { data: existing } = await supabase
+      const { data: existing, error: checkErr } = await supabase
         .from('publish_idempotency')
         .select('post_id')
         .eq('user_id', user.id)
         .eq('key', idempotencyKey)
         .maybeSingle()
 
+      if (checkErr) {
+        console.warn(`[publish-post:${reqId}] stage=idempotency_check error`, checkErr.message)
+      }
+
       if (existing?.post_id) {
-        console.log('[publish-post] idempotency hit - returning existing post', {
+        console.log(`[publish-post:${reqId}] stage=idempotency_hit returning existing`, {
           postId: existing.post_id,
-          idempotencyKey,
         })
         return new Response(
           JSON.stringify({ postId: existing.post_id, idempotent: true }),
@@ -106,9 +115,7 @@ Deno.serve(async (req) => {
         .insert({ user_id: user.id, key: idempotencyKey, post_id: null })
 
       if (reserveErr) {
-        // If unique constraint violation, the key was just inserted by another request
-        // Try to fetch the post_id in case it was already set
-        console.log('[publish-post] reserve conflict, checking again', reserveErr.code)
+        console.log(`[publish-post:${reqId}] stage=reserve conflict code=${reserveErr.code}`, reserveErr.message)
         
         const { data: raceCheck } = await supabase
           .from('publish_idempotency')
@@ -118,9 +125,8 @@ Deno.serve(async (req) => {
           .maybeSingle()
 
         if (raceCheck?.post_id) {
-          console.log('[publish-post] race resolved - returning existing post', {
+          console.log(`[publish-post:${reqId}] stage=race_resolved returning existing`, {
             postId: raceCheck.post_id,
-            idempotencyKey,
           })
           return new Response(
             JSON.stringify({ postId: raceCheck.post_id, idempotent: true }),
@@ -130,8 +136,8 @@ Deno.serve(async (req) => {
             }
           )
         }
+        
         // Key exists but no post_id yet - another request is in progress
-        // Wait briefly and check again
         await new Promise(r => setTimeout(r, 500))
         
         const { data: retryCheck } = await supabase
@@ -142,9 +148,8 @@ Deno.serve(async (req) => {
           .maybeSingle()
 
         if (retryCheck?.post_id) {
-          console.log('[publish-post] retry resolved - returning existing post', {
+          console.log(`[publish-post:${reqId}] stage=retry_resolved returning existing`, {
             postId: retryCheck.post_id,
-            idempotencyKey,
           })
           return new Response(
             JSON.stringify({ postId: retryCheck.post_id, idempotent: true }),
@@ -155,8 +160,9 @@ Deno.serve(async (req) => {
           )
         }
         
-        // If still no post_id, something is wrong - proceed anyway (will create new post)
-        console.warn('[publish-post] idempotency race unresolved, proceeding with insert')
+        console.warn(`[publish-post:${reqId}] stage=idempotency_race_unresolved proceeding anyway`)
+      } else {
+        console.log(`[publish-post:${reqId}] stage=reserve_ok key reserved`)
       }
     }
 
@@ -168,7 +174,7 @@ Deno.serve(async (req) => {
       category: null as string | null,
     }
 
-    console.log('[publish-post] inserting post', { contentLen: insertPayload.content.length })
+    console.log(`[publish-post:${reqId}] stage=insert_start contentLen=${insertPayload.content.length}`)
 
     const { data: inserted, error: insertErr } = await supabase
       .from('posts')
@@ -177,20 +183,27 @@ Deno.serve(async (req) => {
       .maybeSingle()
 
     if (insertErr) {
-      console.error('[publish-post] insert error', insertErr)
-      return new Response(JSON.stringify({ error: 'insert_failed', details: insertErr.message }), {
+      console.error(`[publish-post:${reqId}] stage=insert_error`, insertErr.code, insertErr.message)
+      return new Response(JSON.stringify({ 
+        error: 'insert_failed', 
+        stage: 'insert',
+        code: insertErr.code,
+        details: insertErr.message 
+      }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
     if (!inserted?.id) {
-      console.error('[publish-post] insert returned no id')
-      return new Response(JSON.stringify({ error: 'insert_no_id' }), {
+      console.error(`[publish-post:${reqId}] stage=insert_no_id no id returned`)
+      return new Response(JSON.stringify({ error: 'insert_no_id', stage: 'insert' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
+
+    console.log(`[publish-post:${reqId}] stage=insert_ok postId=${inserted.id}`)
 
     // Update idempotency record with the new post_id
     if (idempotencyKey) {
@@ -201,8 +214,9 @@ Deno.serve(async (req) => {
         .eq('key', idempotencyKey)
 
       if (updateErr) {
-        console.warn('[publish-post] failed to update idempotency record', updateErr)
-        // Non-blocking - post is already created
+        console.warn(`[publish-post:${reqId}] stage=idempotency_update_error`, updateErr.message)
+      } else {
+        console.log(`[publish-post:${reqId}] stage=idempotency_update_ok`)
       }
     }
 
@@ -217,19 +231,21 @@ Deno.serve(async (req) => {
 
       const { error: mediaErr } = await supabase.from('post_media').insert(rows)
       if (mediaErr) {
-        console.warn('[publish-post] media link failed (continuing)', mediaErr)
+        console.warn(`[publish-post:${reqId}] stage=media_link_error`, mediaErr.message)
+      } else {
+        console.log(`[publish-post:${reqId}] stage=media_link_ok count=${mediaIds.length}`)
       }
     }
 
-    console.log('[publish-post] done', { postId: inserted.id })
+    console.log(`[publish-post:${reqId}] stage=done postId=${inserted.id}`)
 
     return new Response(JSON.stringify({ postId: inserted.id, idempotent: false }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
   } catch (e) {
-    console.error('[publish-post] fatal', e)
-    return new Response(JSON.stringify({ error: 'fatal', details: String(e) }), {
+    console.error(`[publish-post:${reqId}] stage=fatal`, e)
+    return new Response(JSON.stringify({ error: 'fatal', stage: 'fatal', details: String(e) }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
