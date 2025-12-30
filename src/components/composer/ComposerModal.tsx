@@ -477,10 +477,17 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
     setIsPublishing(true);
     try {
-      const cleanContent = content.replace(URL_REGEX, '').trim();
-      
+      addBreadcrumb('publish_start', { hasUrl: !!detectedUrl, hasMedia: uploadedMedia.length > 0 });
+
+      // If user pasted only a URL, stripping it would make content empty (DB requires content NOT NULL)
+      const strippedText = content.replace(URL_REGEX, '').trim();
+      const cleanContent =
+        strippedText ||
+        urlPreview?.title ||
+        (detectedUrl ? `Link: ${new URL(detectedUrl).hostname}` : '');
+
       const category = await classifyContent({
-        text: cleanContent,
+        text: strippedText,
         title: urlPreview?.title,
         summary: urlPreview?.content || urlPreview?.summary || urlPreview?.excerpt
       });
@@ -504,6 +511,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         .single();
 
       if (postError) throw postError;
+      addBreadcrumb('publish_success', { postId: insertedPost?.id });
 
       if (uploadedMedia.length > 0 && insertedPost) {
         for (let i = 0; i < uploadedMedia.length; i++) {
