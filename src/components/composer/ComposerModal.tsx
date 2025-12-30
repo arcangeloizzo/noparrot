@@ -20,7 +20,7 @@ import { updateCognitiveDensityWeighted } from "@/lib/cognitiveDensity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { cn } from "@/lib/utils";
-import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
+import { addBreadcrumb, generateIdempotencyKey, setPendingPublish, clearPendingPublish } from "@/lib/crashBreadcrumbs";
 import { forceUnlockBodyScroll } from "@/lib/bodyScrollLock";
 
 // iOS detection for quiz-only flow
@@ -505,32 +505,46 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       // TEMP: Disable classification during publish to prevent crash/reload
       addBreadcrumb('publish_classify_skipped_by_client');
 
+      // Generate idempotency key and save pending publish BEFORE network call
+      const idempotencyKey = generateIdempotencyKey(user.id);
+      setPendingPublish({
+        idempotencyKey,
+        content: cleanContent,
+        sharedUrl: snapshotDetectedUrl || null,
+        quotedPostId: quotedPost?.id || null,
+        mediaIds: snapshotUploadedMedia.map((m) => m.id),
+        timestamp: Date.now()
+      });
+
       // Publish via backend function to avoid Safari crashes during direct DB writes
-      addBreadcrumb('publish_insert_start', { contentLen: cleanContent.length, via: 'publish-post' });
+      addBreadcrumb('publish_insert_start', { contentLen: cleanContent.length, via: 'publish-post', idempotencyKey });
 
       const { data, error: fnError } = await supabase.functions.invoke('publish-post', {
         body: {
           content: cleanContent,
           sharedUrl: snapshotDetectedUrl || null,
           quotedPostId: quotedPost?.id || null,
-          mediaIds: snapshotUploadedMedia.map((m) => m.id)
+          mediaIds: snapshotUploadedMedia.map((m) => m.id),
+          idempotencyKey
         }
       });
 
       if (fnError) throw fnError;
 
       const postId = (data as any)?.postId as string | undefined;
+      const wasIdempotent = (data as any)?.idempotent === true;
       if (!postId) throw new Error('publish_post_missing_id');
 
-      addBreadcrumb('publish_insert_done', { postId });
+      // Clear pending publish on success
+      clearPendingPublish();
 
-      // Skip heavy fields + cognitive density updates (handled separately / disabled)
+      addBreadcrumb('publish_insert_done', { postId, wasIdempotent });
 
       await queryClient.invalidateQueries({ queryKey: ['posts'] });
       await queryClient.refetchQueries({ queryKey: ['posts'] });
 
       addBreadcrumb('publish_finalize');
-      toast.success('Condiviso.');
+      toast.success(wasIdempotent ? 'Post già pubblicato.' : 'Condiviso.');
       // Full state reset after successful publish
       resetAllState();
       onClose();

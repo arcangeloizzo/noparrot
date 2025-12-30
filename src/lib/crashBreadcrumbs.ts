@@ -4,10 +4,22 @@
 const STORAGE_KEY = 'np_crash_breadcrumbs';
 const MAX_BREADCRUMBS = 30;
 
+// Publish idempotency storage
+const PENDING_PUBLISH_KEY = 'np_pending_publish';
+
 export interface Breadcrumb {
   event: string;
   timestamp: number;
   data?: Record<string, any>;
+}
+
+export interface PendingPublish {
+  idempotencyKey: string;
+  content: string;
+  sharedUrl: string | null;
+  quotedPostId: string | null;
+  mediaIds: string[];
+  timestamp: number;
 }
 
 export function addBreadcrumb(event: string, data?: Record<string, any>) {
@@ -48,12 +60,46 @@ export function clearBreadcrumbs() {
   }
 }
 
+// Publish idempotency helpers
+export function generateIdempotencyKey(userId: string): string {
+  return `${userId}_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+}
+
+export function setPendingPublish(pending: PendingPublish) {
+  try {
+    localStorage.setItem(PENDING_PUBLISH_KEY, JSON.stringify(pending));
+    console.log('[PendingPublish] set', pending.idempotencyKey);
+  } catch (e) {
+    console.warn('[PendingPublish] Failed to set:', e);
+  }
+}
+
+export function getPendingPublish(): PendingPublish | null {
+  try {
+    const stored = localStorage.getItem(PENDING_PUBLISH_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearPendingPublish() {
+  try {
+    localStorage.removeItem(PENDING_PUBLISH_KEY);
+    console.log('[PendingPublish] cleared');
+  } catch (e) {
+    console.warn('[PendingPublish] Failed to clear:', e);
+  }
+}
+
 // Check if there was a recent crash (breadcrumbs from last 30s without proper close)
-export function checkForRecentCrash(): { crashed: boolean; breadcrumbs: Breadcrumb[] } {
+export function checkForRecentCrash(): { crashed: boolean; breadcrumbs: Breadcrumb[]; pendingPublish: PendingPublish | null } {
   try {
     const breadcrumbs = getBreadcrumbs();
+    const pendingPublish = getPendingPublish();
+
     if (breadcrumbs.length === 0) {
-      return { crashed: false, breadcrumbs: [] };
+      return { crashed: false, breadcrumbs: [], pendingPublish };
     }
     
     const now = Date.now();
@@ -79,8 +125,8 @@ export function checkForRecentCrash(): { crashed: boolean; breadcrumbs: Breadcru
     const hasUnmatchedOpen = openCount > closeCount;
     const crashed = isRecent && hasUnmatchedOpen && !wasCleanClose;
     
-    return { crashed, breadcrumbs };
+    return { crashed, breadcrumbs, pendingPublish };
   } catch {
-    return { crashed: false, breadcrumbs: [] };
+    return { crashed: false, breadcrumbs: [], pendingPublish: null };
   }
 }

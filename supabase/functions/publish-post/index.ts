@@ -1,5 +1,5 @@
 // Lovable Cloud Function: publish-post
-// Creates a post with minimal payload to avoid client-side crashes (iOS Safari)
+// Creates a post with minimal payload + idempotency to avoid duplicates on crash/retry
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
 
@@ -13,6 +13,7 @@ type PublishPostBody = {
   sharedUrl?: string | null
   quotedPostId?: string | null
   mediaIds?: string[]
+  idempotencyKey?: string | null
 }
 
 Deno.serve(async (req) => {
@@ -42,12 +43,6 @@ Deno.serve(async (req) => {
       })
     }
 
-    console.log('[publish-post] start', {
-      hasSharedUrl: !!body.sharedUrl,
-      mediaCount: Array.isArray(body.mediaIds) ? body.mediaIds.length : 0,
-      contentLen: content.length,
-    })
-
     const {
       data: { user },
       error: userErr,
@@ -61,12 +56,56 @@ Deno.serve(async (req) => {
       })
     }
 
+    const idempotencyKey = body.idempotencyKey || null
+
+    console.log('[publish-post] start', {
+      userId: user.id,
+      hasSharedUrl: !!body.sharedUrl,
+      mediaCount: Array.isArray(body.mediaIds) ? body.mediaIds.length : 0,
+      contentLen: content.length,
+      idempotencyKey,
+    })
+
+    // IDEMPOTENCY CHECK: if we have a key, look for recent post by this user with same content prefix
+    if (idempotencyKey) {
+      // Check posts created in last 5 minutes with matching content start
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+      const contentPrefix = content.substring(0, 100)
+
+      const { data: existingPosts } = await supabase
+        .from('posts')
+        .select('id, content, created_at')
+        .eq('author_id', user.id)
+        .gte('created_at', fiveMinutesAgo)
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      if (existingPosts && existingPosts.length > 0) {
+        // Check if any recent post matches this content (duplicate detection)
+        const duplicate = existingPosts.find(
+          (p) => p.content.substring(0, 100) === contentPrefix
+        )
+        if (duplicate) {
+          console.log('[publish-post] idempotency hit - returning existing post', {
+            postId: duplicate.id,
+            idempotencyKey,
+          })
+          return new Response(
+            JSON.stringify({ postId: duplicate.id, idempotent: true }),
+            {
+              status: 200,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          )
+        }
+      }
+    }
+
     const insertPayload = {
       content: content.substring(0, 5000),
       author_id: user.id,
       shared_url: body.sharedUrl ? String(body.sharedUrl).substring(0, 2000) : null,
       quoted_post_id: body.quotedPostId ?? null,
-      // category left null (client classification disabled)
       category: null as string | null,
     }
 
@@ -109,7 +148,7 @@ Deno.serve(async (req) => {
 
     console.log('[publish-post] done', { postId: inserted.id })
 
-    return new Response(JSON.stringify({ postId: inserted.id }), {
+    return new Response(JSON.stringify({ postId: inserted.id, idempotent: false }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
