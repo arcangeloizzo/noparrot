@@ -309,6 +309,12 @@
     overscroll-behavior: none !important;
   }
   
+  /* Quiz scroll lock fallback - similar to reader but NO position:fixed (causes iOS crashes) */
+  body.quiz-open {
+    overflow: hidden !important;
+    touch-action: none !important;
+  }
+  
   /* Ensure reader gate content is scrollable and captures all events */
   [data-reader-gate-root] {
     pointer-events: auto;

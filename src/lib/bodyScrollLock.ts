@@ -104,26 +104,27 @@ export function unlockBodyScroll(owner: 'reader' | 'quiz'): boolean {
     return false;
   }
   
-  // iOS quiz: DEFER the style restoration to avoid crash during DOM transition
+  // iOS quiz: DEFER EVERYTHING (class + styles) together to avoid crash during DOM transition
+  // This ensures cleanupStaleScrollLocks() can find the class if the deferred unlock is interrupted
   if (isIOS && owner === 'quiz') {
     addBreadcrumb('quiz_unlock_deferred_scheduled');
-    console.log(`[bodyScrollLock] iOS quiz: deferring unlock to avoid crash`);
-    
-    // Remove class immediately (light operation)
-    document.body.classList.remove('quiz-open');
+    console.log(`[bodyScrollLock] iOS quiz: deferring unlock (class + styles) to avoid crash`);
     
     // Capture state before clearing
     const stylesToRestore = savedBodyStyles;
     
-    // Clear state immediately to prevent double-unlock
+    // Clear internal state immediately to prevent double-unlock
     savedBodyStyles = null;
     savedScrollY = 0;
     currentOwner = null;
     usedPositionFixed = false;
     
-    // Defer heavy style restoration
+    // Defer BOTH class removal AND style restoration together
     requestAnimationFrame(() => {
       setTimeout(() => {
+        // Remove class here, not earlier - this way cleanupStaleScrollLocks can find it if interrupted
+        document.body.classList.remove('quiz-open');
+        
         if (stylesToRestore) {
           document.body.style.overflow = stylesToRestore.overflow;
           document.body.style.position = stylesToRestore.position;
@@ -278,8 +279,13 @@ export function cleanupStaleScrollLocks(): boolean {
   const hasReaderClass = document.body.classList.contains('reader-open');
   const hasQuizClass = document.body.classList.contains('quiz-open');
   
-  if (hasReaderClass || hasQuizClass) {
-    console.warn('[BodyScrollLock] Found stale scroll lock classes on startup, cleaning up');
+  // Also check for stale inline styles that block scrolling (may remain after interrupted deferred unlock)
+  const hasBlockingOverflow = document.body.style.overflow === 'hidden';
+  const hasBlockingTouchAction = document.body.style.touchAction === 'none';
+  const hasStaleInlineStyles = hasBlockingOverflow || hasBlockingTouchAction;
+  
+  if (hasReaderClass || hasQuizClass || hasStaleInlineStyles) {
+    console.warn('[BodyScrollLock] Found stale scroll lock on startup (classes:', hasReaderClass || hasQuizClass, 'styles:', hasStaleInlineStyles, '), cleaning up');
     forceUnlockBodyScroll();
     return true;
   }
