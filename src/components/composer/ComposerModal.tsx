@@ -657,9 +657,57 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
       addBreadcrumb('publish_insert_done', { postId, wasIdempotent, usedFallback });
 
-      // IMPORTANT: avoid heavy immediate refetch (can trigger Safari reload). Let Feed refresh shortly after.
+      // IMPORTANT: avoid heavy immediate refetch on iOS (can trigger Safari reload).
+      // Instead, push an optimistic post into cache so it appears immediately, then refetch later.
       addBreadcrumb('publish_finalize');
       toast.success(wasIdempotent ? 'Post già pubblicato.' : 'Condiviso.');
+
+      if (postId) {
+        addBreadcrumb('publish_optimistic_cache', { postId });
+        queryClient.setQueriesData({ queryKey: ['posts'] }, (old: any) => {
+          const list = Array.isArray(old) ? old : [];
+          if (list.some((p: any) => p?.id === postId)) return list;
+
+          const optimisticPost = {
+            id: postId,
+            author: {
+              id: user.id,
+              username: profile?.username || 'tu',
+              full_name: profile?.full_name || null,
+              avatar_url: profile?.avatar_url || null,
+            },
+            content: cleanContent,
+            topic_tag: null,
+            shared_title: snapshotPreview?.title || null,
+            shared_url: snapshotDetectedUrl || null,
+            preview_img: snapshotPreview?.image || null,
+            full_article: null,
+            article_content: null,
+            trust_level: null,
+            stance: null,
+            sources: [],
+            created_at: new Date().toISOString(),
+            quoted_post_id: quotedPost?.id || null,
+            category: contentCategory || null,
+            quoted_post: null,
+            media: (snapshotUploadedMedia || []).map((m: any) => ({
+              id: m.id,
+              type: m.type,
+              url: m.url,
+              thumbnail_url: m.thumbnail_url ?? null,
+              width: m.width ?? null,
+              height: m.height ?? null,
+              mime: m.mime,
+              duration_sec: m.duration_sec ?? null,
+            })),
+            reactions: { hearts: 0, comments: 0 },
+            user_reactions: { has_hearted: false, has_bookmarked: false },
+            questions: [],
+          };
+
+          return [optimisticPost, ...list];
+        });
+      }
 
       // iOS/Safari stability: keep a lightweight blocking overlay while we teardown UI
       setIsFinalizingPublish(true);
@@ -670,9 +718,12 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         resetAllState();
         onClose();
 
+        // Non-iOS: refetch immediately to hydrate optimistic data with full joins
+        // iOS: delay refetch to avoid memory spikes
+        const refreshDelay = isIOS ? 1400 : 0;
         window.setTimeout(() => {
           void queryClient.invalidateQueries({ queryKey: ['posts'] });
-        }, isIOS ? 1400 : 600);
+        }, refreshDelay);
 
         // Note: component may unmount right after onClose(); setting state after that is OK to skip.
         // We still try to clear overlay when possible (non-modal close paths).
