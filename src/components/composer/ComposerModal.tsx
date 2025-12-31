@@ -1011,10 +1011,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             }}
             onComplete={(passed) => {
               // Quiz finished (pass or fail)
-              // FIX iOS Safari crash: FULLY SEPARATE quiz teardown from overlay mount
-              // Step 1: unmount quiz ONLY, wait for React to commit
-              // Step 2: show overlay AFTER quiz is gone (via rAF + timeout)
-              // Step 3: start publish AFTER overlay is stable
+              // FIX iOS Safari crash: NO full-screen overlay on iOS after quiz
+              // Just use toast feedback and start publish directly
               addBreadcrumb('quiz_complete_handler', { passed, isIOS });
 
               // Ensure scroll is unlocked before any state changes
@@ -1027,17 +1025,15 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
               addBreadcrumb('quiz_unmount_requested');
 
               if (passed) {
-                // STEP 2: Wait for React to commit the unmount, then show overlay
-                // Use requestAnimationFrame to ensure DOM is updated, then setTimeout for safety
-                requestAnimationFrame(() => {
-                  const overlayDelay = isIOS ? 180 : 50;
-                  window.setTimeout(() => {
-                    addBreadcrumb('quiz_unmounted_overlay_show');
-                    // Now quiz is FULLY gone - safe to show overlay
-                    setIsFinalizingPublish(true);
-
-                    // STEP 3: Defer publishPost even further to let overlay render
-                    const publishDelay = isIOS ? 350 : 120;
+                // iOS: Skip the full-screen overlay entirely to prevent crash
+                // Non-iOS: Use the overlay for visual feedback
+                if (isIOS) {
+                  // iOS path: NO overlay, just toast + delayed publish
+                  addBreadcrumb('quiz_passed_ios_no_overlay');
+                  
+                  // Wait for quiz unmount to settle, then publish
+                  requestAnimationFrame(() => {
+                    const publishDelay = 500; // longer delay since no overlay
                     window.setTimeout(() => {
                       addBreadcrumb('publish_after_quiz_start');
                       const loadingId = toast.loading('Pubblicazione…');
@@ -1049,14 +1045,39 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                           console.error('[ComposerModal] publishPost error:', e);
                           addBreadcrumb('publish_error', { error: String(e) });
                           toast.error('Errore pubblicazione');
-                          setIsFinalizingPublish(false);
                         })
                         .finally(() => {
                           toast.dismiss(loadingId);
                         });
                     }, publishDelay);
-                  }, overlayDelay);
-                });
+                  });
+                } else {
+                  // Non-iOS path: show overlay then publish
+                  requestAnimationFrame(() => {
+                    window.setTimeout(() => {
+                      addBreadcrumb('quiz_unmounted_overlay_show');
+                      setIsFinalizingPublish(true);
+
+                      window.setTimeout(() => {
+                        addBreadcrumb('publish_after_quiz_start');
+                        const loadingId = toast.loading('Pubblicazione…');
+                        publishPost()
+                          .then(() => {
+                            // publishPost handles close + refresh
+                          })
+                          .catch((e) => {
+                            console.error('[ComposerModal] publishPost error:', e);
+                            addBreadcrumb('publish_error', { error: String(e) });
+                            toast.error('Errore pubblicazione');
+                            setIsFinalizingPublish(false);
+                          })
+                          .finally(() => {
+                            toast.dismiss(loadingId);
+                          });
+                      }, 120);
+                    }, 50);
+                  });
+                }
               } else {
                 // Failed - already closed quiz above, just show message
                 toast.info('Puoi riprovare quando vuoi.');

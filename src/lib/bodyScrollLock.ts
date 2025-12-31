@@ -4,6 +4,8 @@
  * Uses owner-based locking to ensure only one component controls scroll at a time
  */
 
+import { addBreadcrumb } from './crashBreadcrumbs';
+
 type LockOwner = 'reader' | 'quiz' | null;
 
 let currentOwner: LockOwner = null;
@@ -16,7 +18,12 @@ let savedBodyStyles: {
   touchAction: string;
 } | null = null;
 
-const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent);
+// Track whether we used position:fixed (affects scroll restore behavior)
+let usedPositionFixed = false;
+
+const isIOS = typeof navigator !== 'undefined' && 
+  (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+   (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1));
 
 /**
  * Lock body scrolling
@@ -60,14 +67,28 @@ export function lockBodyScroll(owner: 'reader' | 'quiz'): boolean {
   document.body.style.overflow = 'hidden';
   document.body.style.touchAction = 'none';
   
-  if (isIOS) {
-    // iOS-specific: use position fixed to truly prevent scroll
+  // iOS-specific: use position fixed ONLY for reader, NOT for quiz
+  // Quiz on iOS caused crashes due to scroll restore during DOM transition
+  if (isIOS && owner === 'reader') {
     document.body.style.position = 'fixed';
     document.body.style.width = '100%';
     document.body.style.top = `-${savedScrollY}px`;
+    usedPositionFixed = true;
+    console.log(`[bodyScrollLock] iOS reader: using position:fixed`);
+  } else if (isIOS && owner === 'quiz') {
+    // Quiz on iOS: NO position:fixed to avoid crash-inducing scroll restore
+    usedPositionFixed = false;
+    addBreadcrumb('quiz_lock_no_fixed_ios');
+    console.log(`[bodyScrollLock] iOS quiz: skipping position:fixed (crash prevention)`);
+  } else if (!isIOS) {
+    // Non-iOS: always use position:fixed for both
+    document.body.style.position = 'fixed';
+    document.body.style.width = '100%';
+    document.body.style.top = `-${savedScrollY}px`;
+    usedPositionFixed = true;
   }
   
-  console.log(`[bodyScrollLock] Locked by ${owner}`);
+  console.log(`[bodyScrollLock] Locked by ${owner}, usedFixed=${usedPositionFixed}`);
   return true;
 }
 
@@ -88,6 +109,7 @@ export function unlockBodyScroll(owner: 'reader' | 'quiz'): boolean {
   
   // Capture values before clearing state
   const scrollToRestore = savedScrollY;
+  const shouldRestoreScroll = usedPositionFixed && scrollToRestore > 0;
   
   // Restore styles immediately
   if (savedBodyStyles) {
@@ -102,20 +124,33 @@ export function unlockBodyScroll(owner: 'reader' | 'quiz'): boolean {
   }
   
   currentOwner = null;
+  usedPositionFixed = false;
   console.log(`[bodyScrollLock] Unlocked by ${owner}`);
   
-  // iOS: defer scroll restoration to avoid crash during DOM transition
-  if (isIOS && scrollToRestore > 0) {
-    console.log(`[bodyScrollLock] iOS: scheduling scroll restore to ${scrollToRestore}`);
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        // Only restore if page is visible and not mid-navigation
-        if (document.visibilityState === 'visible') {
-          window.scrollTo(0, scrollToRestore);
-          console.log(`[bodyScrollLock] iOS: scroll restored to ${scrollToRestore}`);
-        }
-      }, 0);
-    });
+  // Only restore scroll if we used position:fixed
+  if (shouldRestoreScroll) {
+    if (isIOS) {
+      // iOS: defer scroll restoration to avoid crash during DOM transition
+      console.log(`[bodyScrollLock] iOS: scheduling scroll restore to ${scrollToRestore}`);
+      addBreadcrumb('scroll_restore_scheduled', { scrollY: scrollToRestore });
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          // Only restore if page is visible and not mid-navigation
+          if (document.visibilityState === 'visible') {
+            window.scrollTo(0, scrollToRestore);
+            console.log(`[bodyScrollLock] iOS: scroll restored to ${scrollToRestore}`);
+            addBreadcrumb('scroll_restore_done', { scrollY: scrollToRestore });
+          }
+        }, 0);
+      });
+    } else {
+      // Non-iOS: restore immediately
+      window.scrollTo(0, scrollToRestore);
+    }
+  } else if (isIOS && owner === 'quiz') {
+    // Quiz on iOS didn't use fixed, so no scroll restore needed
+    addBreadcrumb('scroll_restore_skipped_no_fixed');
+    console.log(`[bodyScrollLock] iOS quiz: skipping scroll restore (no fixed was used)`);
   }
   
   return true;
@@ -134,22 +169,29 @@ export function forceUnlockBodyScroll(): void {
   
   // Capture before clearing
   const scrollToRestore = savedScrollY;
+  const shouldRestoreScroll = usedPositionFixed && scrollToRestore > 0;
   
   savedBodyStyles = null;
   savedScrollY = 0;
   currentOwner = null;
+  usedPositionFixed = false;
   
   console.log(`[bodyScrollLock] Force unlocked`);
   
-  // iOS: defer scroll restoration
-  if (isIOS && scrollToRestore > 0) {
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        if (document.visibilityState === 'visible') {
-          window.scrollTo(0, scrollToRestore);
-        }
-      }, 0);
-    });
+  // Only restore scroll if we used position:fixed
+  if (shouldRestoreScroll) {
+    if (isIOS) {
+      addBreadcrumb('force_scroll_restore_scheduled', { scrollY: scrollToRestore });
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (document.visibilityState === 'visible') {
+            window.scrollTo(0, scrollToRestore);
+          }
+        }, 0);
+      });
+    } else {
+      window.scrollTo(0, scrollToRestore);
+    }
   }
 }
 
@@ -165,6 +207,17 @@ export function transferLock(from: 'reader' | 'quiz', to: 'reader' | 'quiz'): bo
   // Update class
   document.body.classList.remove(`${from}-open`);
   document.body.classList.add(`${to}-open`);
+  
+  // On iOS, if transferring TO quiz, we need to remove position:fixed
+  // because quiz doesn't use it (to avoid crash)
+  if (isIOS && to === 'quiz' && usedPositionFixed) {
+    document.body.style.position = '';
+    document.body.style.width = '';
+    document.body.style.top = '';
+    usedPositionFixed = false;
+    console.log(`[bodyScrollLock] iOS: removed position:fixed during transfer to quiz`);
+    addBreadcrumb('transfer_removed_fixed_ios');
+  }
   
   currentOwner = to;
   console.log(`[bodyScrollLock] Transferred from ${from} to ${to}`);
