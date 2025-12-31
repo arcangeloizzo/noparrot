@@ -181,6 +181,19 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
       if (validationResult.passed && user && postCategory) {
         await updateCognitiveDensityWeighted(user.id, postCategory, 'COMMENT_WITH_GATE');
       }
+
+      // AUTO-PUBLISH: se passato, chiama onComplete(true) automaticamente dopo breve delay
+      // L'utente NON deve premere "Chiudi" - il publish parte da solo
+      if (validationResult.passed && onComplete) {
+        addBreadcrumb('quiz_auto_complete_scheduled');
+        setButtonsDisabled(true);
+        safeSetTimeout(() => {
+          if (closeInProgressRef.current) return;
+          closeInProgressRef.current = true;
+          addBreadcrumb('quiz_auto_complete_fire');
+          onComplete(true);
+        }, 800); // 800ms per far vedere "Hai compreso" poi auto-chiude
+      }
     } catch (error) {
       console.error('Error submitting quiz:', error);
       addBreadcrumb('quiz_submit_error', { error: String(error) });
@@ -255,7 +268,8 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
                     </div>
                   </div>
                   <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Hai compreso.</h2>
-                  <p className="text-muted-foreground mb-4 sm:mb-6 text-sm sm:text-base">Le tue parole ora hanno peso.</p>
+                  <p className="text-muted-foreground mb-4 sm:mb-6 text-sm sm:text-base">Pubblicazione in corso…</p>
+                  {/* Il bottone resta come fallback ma non è richiesto - auto-publish parte */}
                   <Button 
                     type="button"
                     onClick={(e) => { 
@@ -266,7 +280,7 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
                     className="w-full font-medium pointer-events-auto" 
                     style={{ pointerEvents: 'auto' }}
                   >
-                    {buttonsDisabled ? 'Chiusura…' : 'Chiudi'}
+                    {buttonsDisabled ? 'Pubblicazione…' : 'Pubblica ora'}
                   </Button>
                 </>
               ) : (
