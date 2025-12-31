@@ -104,7 +104,43 @@ export function unlockBodyScroll(owner: 'reader' | 'quiz'): boolean {
     return false;
   }
   
-  // Remove lock classes
+  // iOS quiz: DEFER the style restoration to avoid crash during DOM transition
+  if (isIOS && owner === 'quiz') {
+    addBreadcrumb('quiz_unlock_deferred_scheduled');
+    console.log(`[bodyScrollLock] iOS quiz: deferring unlock to avoid crash`);
+    
+    // Remove class immediately (light operation)
+    document.body.classList.remove('quiz-open');
+    
+    // Capture state before clearing
+    const stylesToRestore = savedBodyStyles;
+    
+    // Clear state immediately to prevent double-unlock
+    savedBodyStyles = null;
+    savedScrollY = 0;
+    currentOwner = null;
+    usedPositionFixed = false;
+    
+    // Defer heavy style restoration
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (stylesToRestore) {
+          document.body.style.overflow = stylesToRestore.overflow;
+          document.body.style.position = stylesToRestore.position;
+          document.body.style.width = stylesToRestore.width;
+          document.body.style.top = stylesToRestore.top;
+          document.body.style.touchAction = stylesToRestore.touchAction;
+        }
+        // No scroll restore for quiz on iOS (we didn't use fixed)
+        addBreadcrumb('quiz_unlock_deferred_done');
+        console.log(`[bodyScrollLock] iOS quiz: deferred unlock complete`);
+      }, 120);
+    });
+    
+    return true;
+  }
+  
+  // Non-iOS or reader: immediate unlock
   document.body.classList.remove('reader-open', 'quiz-open');
   
   // Capture values before clearing state
@@ -147,10 +183,6 @@ export function unlockBodyScroll(owner: 'reader' | 'quiz'): boolean {
       // Non-iOS: restore immediately
       window.scrollTo(0, scrollToRestore);
     }
-  } else if (isIOS && owner === 'quiz') {
-    // Quiz on iOS didn't use fixed, so no scroll restore needed
-    addBreadcrumb('scroll_restore_skipped_no_fixed');
-    console.log(`[bodyScrollLock] iOS quiz: skipping scroll restore (no fixed was used)`);
   }
   
   return true;

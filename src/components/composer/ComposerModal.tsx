@@ -1015,8 +1015,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
               // Just use toast feedback and start publish directly
               addBreadcrumb('quiz_complete_handler', { passed, isIOS });
 
-              // Ensure scroll is unlocked before any state changes
-              forceUnlockBodyScroll();
+              // iOS: Do NOT call forceUnlockBodyScroll here - let QuizModal's deferred unlock handle it
+              // This avoids "style churn" during the critical unmount phase
+              if (!isIOS) {
+                forceUnlockBodyScroll();
+              } else {
+                addBreadcrumb('composer_quiz_complete_no_force_unlock_ios');
+              }
 
               // STEP 1: Immediately unmount Quiz UI to reduce memory - NOTHING ELSE
               setShowQuiz(false);
@@ -1025,15 +1030,21 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
               addBreadcrumb('quiz_unmount_requested');
 
               if (passed) {
+                // Save quiz_passed marker BEFORE any async operations
+                // This enables recovery if iOS crashes before publish completes
+                localStorage.setItem('publish_flow_step', 'quiz_passed');
+                localStorage.setItem('publish_flow_at', String(Date.now()));
+                addBreadcrumb('quiz_passed_marker_set');
+                
                 // iOS: Skip the full-screen overlay entirely to prevent crash
                 // Non-iOS: Use the overlay for visual feedback
                 if (isIOS) {
-                  // iOS path: NO overlay, just toast + delayed publish
+                  // iOS path: NO overlay, just toast + very delayed publish
                   addBreadcrumb('quiz_passed_ios_no_overlay');
                   
-                  // Wait for quiz unmount to settle, then publish
+                  // Wait for quiz unmount + deferred scroll unlock to fully settle
                   requestAnimationFrame(() => {
-                    const publishDelay = 500; // longer delay since no overlay
+                    const publishDelay = 800; // longer delay for full DOM settle
                     window.setTimeout(() => {
                       addBreadcrumb('publish_after_quiz_start');
                       const loadingId = toast.loading('Pubblicazione…');
