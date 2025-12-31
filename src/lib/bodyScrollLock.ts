@@ -21,6 +21,9 @@ let savedBodyStyles: {
 // Track whether we used position:fixed (affects scroll restore behavior)
 let usedPositionFixed = false;
 
+// Track if a deferred unlock is in progress (iOS quiz)
+let deferredUnlockInFlight = false;
+
 const isIOS = typeof navigator !== 'undefined' && 
   (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
    (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1));
@@ -107,19 +110,22 @@ export function unlockBodyScroll(owner: 'reader' | 'quiz'): boolean {
   // iOS quiz: DEFER EVERYTHING (class + styles) together to avoid crash during DOM transition
   // This ensures cleanupStaleScrollLocks() can find the class if the deferred unlock is interrupted
   if (isIOS && owner === 'quiz') {
-    addBreadcrumb('quiz_unlock_deferred_scheduled');
+    // Prevent re-entry while deferred unlock is in flight
+    if (deferredUnlockInFlight) {
+      console.log(`[bodyScrollLock] iOS quiz: deferred unlock already in flight, skipping`);
+      addBreadcrumb('quiz_unlock_deferred_skipped_reentry');
+      return true;
+    }
+    
+    deferredUnlockInFlight = true;
+    addBreadcrumb('quiz_unlock_deferred_inflight');
     console.log(`[bodyScrollLock] iOS quiz: deferring unlock (class + styles) to avoid crash`);
     
-    // Capture state before clearing
+    // Capture state before deferring - DO NOT clear state yet
     const stylesToRestore = savedBodyStyles;
     
-    // Clear internal state immediately to prevent double-unlock
-    savedBodyStyles = null;
-    savedScrollY = 0;
-    currentOwner = null;
-    usedPositionFixed = false;
-    
     // Defer BOTH class removal AND style restoration together
+    // State will only be cleared AFTER this completes
     requestAnimationFrame(() => {
       setTimeout(() => {
         // Remove class here, not earlier - this way cleanupStaleScrollLocks can find it if interrupted
@@ -132,8 +138,15 @@ export function unlockBodyScroll(owner: 'reader' | 'quiz'): boolean {
           document.body.style.top = stylesToRestore.top;
           document.body.style.touchAction = stylesToRestore.touchAction;
         }
-        // No scroll restore for quiz on iOS (we didn't use fixed)
-        addBreadcrumb('quiz_unlock_deferred_done');
+        
+        // NOW clear internal state - only after actual unlock is done
+        savedBodyStyles = null;
+        savedScrollY = 0;
+        currentOwner = null;
+        usedPositionFixed = false;
+        deferredUnlockInFlight = false;
+        
+        addBreadcrumb('quiz_unlock_deferred_finalize');
         console.log(`[bodyScrollLock] iOS quiz: deferred unlock complete`);
       }, 120);
     });
@@ -208,6 +221,7 @@ export function forceUnlockBodyScroll(): void {
   savedScrollY = 0;
   currentOwner = null;
   usedPositionFixed = false;
+  deferredUnlockInFlight = false; // Also reset deferred flag
   
   console.log(`[bodyScrollLock] Force unlocked`);
   

@@ -39,7 +39,15 @@ const Index = () => {
       console.warn('[Index] Detected recent crash, breadcrumbs:', breadcrumbs);
       const last = breadcrumbs[breadcrumbs.length - 1];
       const lastEvent = last?.event || '(non disponibile)';
-      toast.info(`Sessione precedente interrotta. Ultimo evento: ${lastEvent}.`, { duration: 5000 });
+      
+      // Suppress false positive: sys_visibility_hidden/pagehide are normal background events, not crashes
+      // Only show toast if there's a real indicator of a problem (stale lock, pending publish, or non-sys event)
+      const isSystemEvent = lastEvent.startsWith('sys_');
+      const hasRealProblem = hadStaleLock || localStorage.getItem('publish_flow_step');
+      
+      if (!isSystemEvent || hasRealProblem) {
+        toast.info(`Sessione precedente interrotta. Ultimo evento: ${lastEvent}.`, { duration: 5000 });
+      }
       // Log last 5 breadcrumbs for diagnostics
       console.log('[Index] Last 5 breadcrumbs before crash:', breadcrumbs.slice(-5));
     }
