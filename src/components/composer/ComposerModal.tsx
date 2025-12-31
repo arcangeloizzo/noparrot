@@ -736,6 +736,25 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         // Close UI first, then refresh feed in the background
         resetAllState();
         onClose();
+
+        // iOS: if something left the body locked (Radix/Dialog + quiz lock interplay), force-unlock AFTER close
+        // Keep this lightweight and conditional to avoid unnecessary style churn.
+        if (isIOS) {
+          requestAnimationFrame(() => {
+            window.setTimeout(() => {
+              const needsUnlock =
+                document.body.classList.contains('quiz-open') ||
+                document.body.classList.contains('reader-open') ||
+                document.body.style.overflow === 'hidden' ||
+                document.body.style.touchAction === 'none';
+
+              if (needsUnlock) {
+                addBreadcrumb('post_publish_force_unlock_body');
+                forceUnlockBodyScroll();
+              }
+            }, 160);
+          });
+        }
         
         // Clear localStorage markers after successful close
         localStorage.removeItem('publish_flow_step');
