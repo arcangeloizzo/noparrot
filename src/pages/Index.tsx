@@ -50,14 +50,23 @@ const Index = () => {
     if (publishStep && publishAt) {
       const age = Date.now() - parseInt(publishAt, 10);
       if (age < 5 * 60 * 1000) { // entro 5 minuti
-        if (publishStep === 'publish_started' || publishStep === 'quiz_passed') {
-          console.warn('[Index] Incomplete publish detected:', publishStep);
+        if (publishStep === 'quiz_passed') {
+          // Quiz was passed but publish didn't complete - offer recovery
+          console.warn('[Index] Quiz passed but publish incomplete, offering recovery');
+          addBreadcrumb('recovery_quiz_passed_detected');
+          // Don't clear markers yet - the second useEffect will handle recovery with pending publish
+        } else if (publishStep === 'publish_started') {
+          console.warn('[Index] Publish started but incomplete');
           toast.warning('Pubblicazione interrotta. Riprova.', { duration: 4000 });
+          // Clear markers for publish_started (no recovery possible without idempotency)
+          localStorage.removeItem('publish_flow_step');
+          localStorage.removeItem('publish_flow_at');
         }
+      } else {
+        // Old markers, just clear
+        localStorage.removeItem('publish_flow_step');
+        localStorage.removeItem('publish_flow_at');
       }
-      // Clear markers
-      localStorage.removeItem('publish_flow_step');
-      localStorage.removeItem('publish_flow_at');
     }
 
     // Install system-level event trackers (pagehide, visibilitychange) for diagnosing silent reloads
@@ -68,17 +77,28 @@ const Index = () => {
     addBreadcrumb('app_init', { hadStaleLock, crashed });
   }, []);
 
-  // Check pending publish and verify on backend - only show success, never false negatives
+  // Check pending publish and verify on backend - offer recovery if quiz was passed
   useEffect(() => {
     if (loading || !user) return;
 
     const pending = getPendingPublish();
-    if (!pending) return;
+    const publishStep = localStorage.getItem('publish_flow_step');
+    
+    if (!pending) {
+      // No pending publish data - clear any stale markers
+      if (publishStep) {
+        localStorage.removeItem('publish_flow_step');
+        localStorage.removeItem('publish_flow_at');
+      }
+      return;
+    }
 
     const isRecent = pending.timestamp > Date.now() - 10 * 60 * 1000;
     if (!isRecent) {
       // Old pending, silently clear
       clearPendingPublish();
+      localStorage.removeItem('publish_flow_step');
+      localStorage.removeItem('publish_flow_at');
       return;
     }
 
@@ -93,8 +113,9 @@ const Index = () => {
 
         if (error) {
           console.warn('[Index] publish_idempotency check failed', error);
-          // Don't show error toast - user can just retry manually
           clearPendingPublish();
+          localStorage.removeItem('publish_flow_step');
+          localStorage.removeItem('publish_flow_at');
           return;
         }
 
@@ -102,15 +123,66 @@ const Index = () => {
           // Post was actually published before crash - confirm to user
           toast.success('Post pubblicato.', { duration: 3500 });
           clearPendingPublish();
+          localStorage.removeItem('publish_flow_step');
+          localStorage.removeItem('publish_flow_at');
+        } else if (publishStep === 'quiz_passed') {
+          // Quiz passed but publish didn't complete - offer recovery action
+          addBreadcrumb('recovery_offer_retry');
+          toast.info('Pubblicazione interrotta dopo il quiz.', {
+            duration: 10000,
+            action: {
+              label: 'Riprova',
+              onClick: async () => {
+                addBreadcrumb('recovery_retry_clicked');
+                const retryToast = toast.loading('Ripristino pubblicazione…');
+                try {
+                  // Retry publish via edge function with same idempotency key
+                  const { data: retryData, error: retryError } = await supabase.functions.invoke('publish-post', {
+                    body: {
+                      content: pending.content,
+                      sharedUrl: pending.sharedUrl,
+                      quotedPostId: pending.quotedPostId,
+                      mediaIds: pending.mediaIds,
+                      idempotencyKey: pending.idempotencyKey,
+                    },
+                  });
+                  
+                  toast.dismiss(retryToast);
+                  
+                  if (retryError) {
+                    console.error('[Index] Recovery publish error:', retryError);
+                    addBreadcrumb('recovery_publish_error', { error: String(retryError) });
+                    toast.error('Errore durante il recupero. Riprova manualmente.');
+                  } else {
+                    const wasIdempotent = (retryData as any)?.idempotent === true;
+                    addBreadcrumb('recovery_publish_success', { postId: (retryData as any)?.postId, wasIdempotent });
+                    toast.success(wasIdempotent ? 'Post già pubblicato.' : 'Post pubblicato.');
+                  }
+                } catch (e) {
+                  toast.dismiss(retryToast);
+                  console.error('[Index] Recovery catch:', e);
+                  addBreadcrumb('recovery_catch', { error: String(e) });
+                  toast.error('Errore durante il recupero.');
+                } finally {
+                  clearPendingPublish();
+                  localStorage.removeItem('publish_flow_step');
+                  localStorage.removeItem('publish_flow_at');
+                }
+              }
+            }
+          });
         } else {
-          // Not published but don't annoy user with error toast
-          // Just clear the stale pending entry - they can retry if needed
+          // Not published and not quiz_passed - silently clear
           console.log('[Index] Pending publish not completed, clearing silently');
           clearPendingPublish();
+          localStorage.removeItem('publish_flow_step');
+          localStorage.removeItem('publish_flow_at');
         }
       } catch (e) {
         console.warn('[Index] pending publish verify error', e);
         clearPendingPublish();
+        localStorage.removeItem('publish_flow_step');
+        localStorage.removeItem('publish_flow_at');
       }
     })();
   }, [loading, user]);
