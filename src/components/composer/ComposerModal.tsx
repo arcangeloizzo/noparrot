@@ -490,6 +490,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     if (!user) return;
 
     setIsPublishing(true);
+    
+    // Mark publish flow started in localStorage for crash diagnostics
+    localStorage.setItem('publish_flow_step', 'publish_started');
+    localStorage.setItem('publish_flow_at', String(Date.now()));
+    
     try {
       addBreadcrumb('publish_start', { hasUrl: !!detectedUrl, hasMedia: uploadedMedia.length > 0 });
 
@@ -660,51 +665,65 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       // IMPORTANT: avoid heavy immediate refetch on iOS (can trigger Safari reload).
       // Instead, push an optimistic post into cache so it appears immediately, then refetch later.
       addBreadcrumb('publish_finalize');
+      
+      // Mark publish flow success in localStorage
+      localStorage.setItem('publish_flow_step', 'publish_success');
+      localStorage.setItem('publish_flow_at', String(Date.now()));
+      
       toast.success(wasIdempotent ? 'Post già pubblicato.' : 'Condiviso.');
 
       if (postId) {
         addBreadcrumb('publish_optimistic_cache', { postId });
+        
+        const optimisticPost = {
+          id: postId,
+          author: {
+            id: user.id,
+            username: profile?.username || 'tu',
+            full_name: profile?.full_name || null,
+            avatar_url: profile?.avatar_url || null,
+          },
+          content: cleanContent,
+          topic_tag: null,
+          shared_title: snapshotPreview?.title || null,
+          shared_url: snapshotDetectedUrl || null,
+          preview_img: snapshotPreview?.image || null,
+          full_article: null,
+          article_content: null,
+          trust_level: null,
+          stance: null,
+          sources: [],
+          created_at: new Date().toISOString(),
+          quoted_post_id: quotedPost?.id || null,
+          category: contentCategory || null,
+          quoted_post: null,
+          media: (snapshotUploadedMedia || []).map((m: any) => ({
+            id: m.id,
+            type: m.type,
+            url: m.url,
+            thumbnail_url: m.thumbnail_url ?? null,
+            width: m.width ?? null,
+            height: m.height ?? null,
+            mime: m.mime,
+            duration_sec: m.duration_sec ?? null,
+          })),
+          reactions: { hearts: 0, comments: 0 },
+          user_reactions: { has_hearted: false, has_bookmarked: false },
+          questions: [],
+        };
+
+        // Update BOTH query keys to ensure immediate visibility
+        // 1) Broad ['posts'] filter
         queryClient.setQueriesData({ queryKey: ['posts'] }, (old: any) => {
           const list = Array.isArray(old) ? old : [];
           if (list.some((p: any) => p?.id === postId)) return list;
-
-          const optimisticPost = {
-            id: postId,
-            author: {
-              id: user.id,
-              username: profile?.username || 'tu',
-              full_name: profile?.full_name || null,
-              avatar_url: profile?.avatar_url || null,
-            },
-            content: cleanContent,
-            topic_tag: null,
-            shared_title: snapshotPreview?.title || null,
-            shared_url: snapshotDetectedUrl || null,
-            preview_img: snapshotPreview?.image || null,
-            full_article: null,
-            article_content: null,
-            trust_level: null,
-            stance: null,
-            sources: [],
-            created_at: new Date().toISOString(),
-            quoted_post_id: quotedPost?.id || null,
-            category: contentCategory || null,
-            quoted_post: null,
-            media: (snapshotUploadedMedia || []).map((m: any) => ({
-              id: m.id,
-              type: m.type,
-              url: m.url,
-              thumbnail_url: m.thumbnail_url ?? null,
-              width: m.width ?? null,
-              height: m.height ?? null,
-              mime: m.mime,
-              duration_sec: m.duration_sec ?? null,
-            })),
-            reactions: { hearts: 0, comments: 0 },
-            user_reactions: { has_hearted: false, has_bookmarked: false },
-            questions: [],
-          };
-
+          return [optimisticPost, ...list];
+        });
+        
+        // 2) Specific ['posts', user.id] key used by Feed
+        queryClient.setQueryData(['posts', user.id], (old: any) => {
+          const list = Array.isArray(old) ? old : [];
+          if (list.some((p: any) => p?.id === postId)) return list;
           return [optimisticPost, ...list];
         });
       }
@@ -717,6 +736,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         // Close UI first, then refresh feed in the background
         resetAllState();
         onClose();
+        
+        // Clear localStorage markers after successful close
+        localStorage.removeItem('publish_flow_step');
+        localStorage.removeItem('publish_flow_at');
 
         // Non-iOS: refetch immediately to hydrate optimistic data with full joins
         // iOS: delay refetch to avoid memory spikes

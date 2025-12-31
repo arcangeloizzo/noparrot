@@ -44,6 +44,22 @@ const Index = () => {
       console.log('[Index] Last 5 breadcrumbs before crash:', breadcrumbs.slice(-5));
     }
 
+    // Check localStorage publish flow markers for incomplete publishes
+    const publishStep = localStorage.getItem('publish_flow_step');
+    const publishAt = localStorage.getItem('publish_flow_at');
+    if (publishStep && publishAt) {
+      const age = Date.now() - parseInt(publishAt, 10);
+      if (age < 5 * 60 * 1000) { // entro 5 minuti
+        if (publishStep === 'publish_started' || publishStep === 'quiz_passed') {
+          console.warn('[Index] Incomplete publish detected:', publishStep);
+          toast.warning('Pubblicazione interrotta. Riprova.', { duration: 4000 });
+        }
+      }
+      // Clear markers
+      localStorage.removeItem('publish_flow_step');
+      localStorage.removeItem('publish_flow_at');
+    }
+
     // Install system-level event trackers (pagehide, visibilitychange) for diagnosing silent reloads
     installSystemEventTrackers();
 
