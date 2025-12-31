@@ -699,10 +699,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
   return (
     <>
-      {/* Lightweight blocking overlay used during publish teardown (iOS Safari stability) */}
+      {/* Lightweight blocking overlay used during publish teardown (iOS Safari stability) - NO blur to reduce GPU pressure */}
       {isFinalizingPublish && (
-        <div className="fixed inset-0 z-[10080] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6">
-          <div className="w-full max-w-sm rounded-2xl border border-border bg-card/95 p-6 text-center shadow-2xl">
+        <div className="fixed inset-0 z-[10080] bg-black/70 flex items-center justify-center p-6">
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 text-center shadow-xl">
             <div className="mx-auto mb-3 h-6 w-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             <p className="text-sm font-medium text-foreground">Stiamo finalizzando la pubblicazione…</p>
             <p className="mt-1 text-xs text-muted-foreground">Un attimo ancora.</p>
@@ -937,43 +937,52 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             }}
             onComplete={(passed) => {
               // Quiz finished (pass or fail)
-              // NOTE: This handler is now synchronous to exit the click stack ASAP.
-              // Actual publish is deferred via setTimeout to prevent iOS Safari crashes.
+              // FIX iOS Safari crash: FULLY SEPARATE quiz teardown from overlay mount
+              // Step 1: unmount quiz ONLY, wait for React to commit
+              // Step 2: show overlay AFTER quiz is gone (via rAF + timeout)
+              // Step 3: start publish AFTER overlay is stable
               addBreadcrumb('quiz_complete_handler', { passed, isIOS });
 
               // Ensure scroll is unlocked before any state changes
               forceUnlockBodyScroll();
 
-              // Immediately unmount Quiz UI to reduce memory
+              // STEP 1: Immediately unmount Quiz UI to reduce memory - NOTHING ELSE
               setShowQuiz(false);
               setQuizData(null);
               setQuizPassed(false);
+              addBreadcrumb('quiz_unmount_requested');
 
               if (passed) {
-                addBreadcrumb('publish_after_quiz_scheduled');
+                // STEP 2: Wait for React to commit the unmount, then show overlay
+                // Use requestAnimationFrame to ensure DOM is updated, then setTimeout for safety
+                requestAnimationFrame(() => {
+                  const overlayDelay = isIOS ? 180 : 50;
+                  window.setTimeout(() => {
+                    addBreadcrumb('quiz_unmounted_overlay_show');
+                    // Now quiz is FULLY gone - safe to show overlay
+                    setIsFinalizingPublish(true);
 
-                // Show lightweight overlay immediately (no blur, minimal UI)
-                setIsFinalizingPublish(true);
-
-                // Defer publishPost OUTSIDE the click event stack
-                const publishDelay = isIOS ? 400 : 150;
-                window.setTimeout(() => {
-                  addBreadcrumb('publish_after_quiz_start');
-                  const loadingId = toast.loading('Pubblicazione…');
-                  publishPost()
-                    .then(() => {
-                      // publishPost handles close + refresh
-                    })
-                    .catch((e) => {
-                      console.error('[ComposerModal] publishPost error:', e);
-                      addBreadcrumb('publish_error', { error: String(e) });
-                      toast.error('Errore pubblicazione');
-                      setIsFinalizingPublish(false);
-                    })
-                    .finally(() => {
-                      toast.dismiss(loadingId);
-                    });
-                }, publishDelay);
+                    // STEP 3: Defer publishPost even further to let overlay render
+                    const publishDelay = isIOS ? 350 : 120;
+                    window.setTimeout(() => {
+                      addBreadcrumb('publish_after_quiz_start');
+                      const loadingId = toast.loading('Pubblicazione…');
+                      publishPost()
+                        .then(() => {
+                          // publishPost handles close + refresh
+                        })
+                        .catch((e) => {
+                          console.error('[ComposerModal] publishPost error:', e);
+                          addBreadcrumb('publish_error', { error: String(e) });
+                          toast.error('Errore pubblicazione');
+                          setIsFinalizingPublish(false);
+                        })
+                        .finally(() => {
+                          toast.dismiss(loadingId);
+                        });
+                    }, publishDelay);
+                  }, overlayDelay);
+                });
               } else {
                 // Failed - already closed quiz above, just show message
                 toast.info('Puoi riprovare quando vuoi.');
