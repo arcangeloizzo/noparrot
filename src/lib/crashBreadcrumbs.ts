@@ -140,10 +140,25 @@ export function installSystemEventTrackers() {
     addBreadcrumb('sys_pagehide', { persisted: e.persisted });
   });
 
-  // visibilitychange - fires when tab becomes hidden
+  // visibilitychange - fires when tab becomes hidden OR visible
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
       addBreadcrumb('sys_visibility_hidden');
+    } else if (document.visibilityState === 'visible') {
+      // App resumed from background - check for stale scroll locks
+      // Import dynamically to avoid circular dependency
+      import('./bodyScrollLock').then(({ forceUnlockBodyScroll }) => {
+        const hasBlockingOverflow = document.body.style.overflow === 'hidden';
+        const hasBlockingTouchAction = document.body.style.touchAction === 'none';
+        const hasQuizClass = document.body.classList.contains('quiz-open');
+        const hasReaderClass = document.body.classList.contains('reader-open');
+        
+        if (hasBlockingOverflow || hasBlockingTouchAction || hasQuizClass || hasReaderClass) {
+          console.warn('[SystemEvents] Found stale scroll lock on visibility visible, cleaning up');
+          addBreadcrumb('sys_visibility_visible_cleanup_scrolllock');
+          forceUnlockBodyScroll();
+        }
+      });
     }
   });
 
