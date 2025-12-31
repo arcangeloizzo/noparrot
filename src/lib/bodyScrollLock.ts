@@ -86,7 +86,10 @@ export function unlockBodyScroll(owner: 'reader' | 'quiz'): boolean {
   // Remove lock classes
   document.body.classList.remove('reader-open', 'quiz-open');
   
-  // Restore styles
+  // Capture values before clearing state
+  const scrollToRestore = savedScrollY;
+  
+  // Restore styles immediately
   if (savedBodyStyles) {
     document.body.style.overflow = savedBodyStyles.overflow;
     document.body.style.position = savedBodyStyles.position;
@@ -94,17 +97,27 @@ export function unlockBodyScroll(owner: 'reader' | 'quiz'): boolean {
     document.body.style.top = savedBodyStyles.top;
     document.body.style.touchAction = savedBodyStyles.touchAction;
     
-    // Restore scroll position on iOS
-    if (isIOS && savedScrollY > 0) {
-      window.scrollTo(0, savedScrollY);
-    }
-    
     savedBodyStyles = null;
     savedScrollY = 0;
   }
   
   currentOwner = null;
   console.log(`[bodyScrollLock] Unlocked by ${owner}`);
+  
+  // iOS: defer scroll restoration to avoid crash during DOM transition
+  if (isIOS && scrollToRestore > 0) {
+    console.log(`[bodyScrollLock] iOS: scheduling scroll restore to ${scrollToRestore}`);
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        // Only restore if page is visible and not mid-navigation
+        if (document.visibilityState === 'visible') {
+          window.scrollTo(0, scrollToRestore);
+          console.log(`[bodyScrollLock] iOS: scroll restored to ${scrollToRestore}`);
+        }
+      }, 0);
+    });
+  }
+  
   return true;
 }
 
@@ -119,15 +132,25 @@ export function forceUnlockBodyScroll(): void {
   document.body.style.top = '';
   document.body.style.touchAction = '';
   
-  if (savedBodyStyles && savedScrollY > 0) {
-    window.scrollTo(0, savedScrollY);
-  }
+  // Capture before clearing
+  const scrollToRestore = savedScrollY;
   
   savedBodyStyles = null;
   savedScrollY = 0;
   currentOwner = null;
   
   console.log(`[bodyScrollLock] Force unlocked`);
+  
+  // iOS: defer scroll restoration
+  if (isIOS && scrollToRestore > 0) {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (document.visibilityState === 'visible') {
+          window.scrollTo(0, scrollToRestore);
+        }
+      }, 0);
+    });
+  }
 }
 
 /**

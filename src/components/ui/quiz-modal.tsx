@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { updateCognitiveDensityWeighted } from "@/lib/cognitiveDensity";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { lockBodyScroll, unlockBodyScroll } from "@/lib/bodyScrollLock";
+import { lockBodyScroll, unlockBodyScroll, getCurrentLockOwner } from "@/lib/bodyScrollLock";
 import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
 
 interface QuizModalProps {
@@ -67,9 +67,16 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
     lockBodyScroll('quiz');
 
     return () => {
-      addBreadcrumb('quiz_closed');
-      addBreadcrumb('quiz_scroll_unlock');
-      unlockBodyScroll('quiz');
+      addBreadcrumb('quiz_cleanup_start');
+      // Only unlock if quiz still owns the lock (avoid double-unlock if forceUnlock was called)
+      const owner = getCurrentLockOwner();
+      if (owner === 'quiz') {
+        addBreadcrumb('quiz_scroll_unlock_do');
+        unlockBodyScroll('quiz');
+      } else {
+        addBreadcrumb('quiz_scroll_unlock_skipped', { currentOwner: owner });
+      }
+      addBreadcrumb('quiz_cleanup_done');
     };
   }, []);
 
