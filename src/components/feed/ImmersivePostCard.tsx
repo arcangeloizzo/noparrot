@@ -85,6 +85,18 @@ const detectPlatformFromUrl = (url: string): string | undefined => {
   }
 };
 
+// Helper to detect if user text is similar to article title (avoids duplication)
+const isTextSimilarToTitle = (userText: string, title: string): boolean => {
+  if (!userText || !title) return false;
+  const normalize = (s: string) => s.toLowerCase().replace(/[^\w\s]/g, '').trim();
+  const normalizedUser = normalize(userText);
+  const normalizedTitle = normalize(title);
+  // If one contains the other or they are very similar
+  return normalizedUser.includes(normalizedTitle) || 
+         normalizedTitle.includes(normalizedUser) ||
+         normalizedUser === normalizedTitle;
+};
+
 export const ImmersivePostCard = ({ 
   post, 
   onRemove,
@@ -452,8 +464,12 @@ export const ImmersivePostCard = ({
   const hasMedia = post.media && post.media.length > 0;
   const hasLink = !!post.shared_url;
   const isSpotify = articlePreview?.platform === 'spotify';
-  const backgroundImage = articlePreview?.image || post.preview_img || (hasMedia && post.media?.[0]?.url);
+  const isMediaOnlyPost = hasMedia && !hasLink && !quotedPost;
+  const mediaUrl = post.media?.[0]?.url;
+  const backgroundImage = isMediaOnlyPost ? mediaUrl : (articlePreview?.image || post.preview_img || (hasMedia && post.media?.[0]?.url));
   const isTextOnly = !hasMedia && !hasLink;
+  const articleTitle = articlePreview?.title || post.shared_title || '';
+  const shouldShowUserText = hasLink && post.content && !isTextSimilarToTitle(post.content, articleTitle);
 
   return (
     <>
@@ -462,7 +478,20 @@ export const ImmersivePostCard = ({
         onClick={handleDoubleTap}
       >
         {/* Background Layer */}
-        {isTextOnly ? (
+        {isMediaOnlyPost && mediaUrl ? (
+          <>
+            {/* Full-screen media background */}
+            <img 
+              src={mediaUrl} 
+              className="absolute inset-0 w-full h-full object-contain bg-black z-0" 
+              alt=""
+            />
+            {/* Gradient overlay for edges */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80 z-[1]" />
+            {/* Dark vignette for corners */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_50%,rgba(0,0,0,0.4)_100%)] z-[1]" />
+          </>
+        ) : isTextOnly ? (
           <div className="absolute inset-0 bg-[#1F3347]">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10" />
           </div>
@@ -600,10 +629,17 @@ export const ImmersivePostCard = ({
           {/* Center Content */}
           <div className="flex-1 flex flex-col justify-center px-2">
             
-            {/* User Text Content - FIRST for posts with links */}
-            {hasLink && post.content && (
+            {/* User Text Content - Only if different from article title */}
+            {shouldShowUserText && (
               <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-6">
                 <MentionText content={post.content.length > 280 ? post.content.slice(0, 280) + '...' : post.content} />
+              </h2>
+            )}
+
+            {/* User Text for media-only posts */}
+            {isMediaOnlyPost && post.content && (
+              <h2 className="text-xl font-medium text-white leading-snug tracking-wide drop-shadow-md mb-4 text-center">
+                <MentionText content={post.content.length > 200 ? post.content.slice(0, 200) + '...' : post.content} />
               </h2>
             )}
 
@@ -698,8 +734,8 @@ export const ImmersivePostCard = ({
               </>
             )}
 
-            {/* Media */}
-            {hasMedia && (
+            {/* Media - Only show gallery for non-full-screen media posts */}
+            {hasMedia && !isMediaOnlyPost && (
               <div className="mt-6">
                 <MediaGallery 
                   media={post.media!}
@@ -719,77 +755,56 @@ export const ImmersivePostCard = ({
             )}
           </div>
 
-          {/* Bottom Actions */}
-          <div className="flex flex-col gap-5">
-            <div className="flex items-end justify-between gap-4">
+          {/* Bottom Actions - Aligned heights */}
+          <div className="flex items-center justify-between gap-3">
+            
+            {/* Primary Share Button - Compact */}
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                handleShareClick(e);
+              }}
+              className="h-12 px-6 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+            >
+              <Logo variant="icon" size="sm" className="h-5 w-5" />
+              <span className="text-sm font-semibold">Condividi</span>
+            </button>
+
+            {/* Reactions - Horizontal layout with counters beside icons */}
+            <div className="flex items-center gap-1 bg-black/20 backdrop-blur-xl h-12 px-3 rounded-2xl border border-white/5">
               
-              {/* Primary Share Button with NoParrot Logo */}
+              {/* Like */}
               <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleShareClick(e);
-                }}
-                className="flex-1 h-14 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl hover:bg-white/10 transition-colors"
+                onClick={(e) => { e.stopPropagation(); handleHeart(e); }}
               >
-                <Logo variant="icon" size="sm" className="h-6 w-6" />
-                <span className="text-base">Condividi</span>
+                <Heart 
+                  className={cn("w-5 h-5", post.user_reactions.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
+                  fill={post.user_reactions.has_hearted ? "currentColor" : "none"}
+                />
+                <span className="text-xs font-bold text-white">{post.reactions.hearts}</span>
               </button>
 
-              {/* Reactions */}
-              <div className="flex items-center gap-4 bg-black/20 backdrop-blur-xl p-2 pr-4 rounded-2xl border border-white/5">
-                
-                {/* Like */}
-                <div 
-                  className="flex flex-col items-center gap-1 group cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleHeart(e);
-                  }}
-                >
-                  <div className="p-2 rounded-full group-hover:bg-white/10 transition-colors">
-                    <Heart 
-                      className={cn(
-                        "w-6 h-6 transition-all",
-                        post.user_reactions.has_hearted ? "text-red-500 fill-red-500" : "text-white"
-                      )}
-                      fill={post.user_reactions.has_hearted ? "currentColor" : "none"}
-                    />
-                  </div>
-                  <span className="text-[10px] font-bold text-white">{post.reactions.hearts}</span>
-                </div>
+              {/* Comments */}
+              <button 
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl hover:bg-white/10 transition-colors"
+                onClick={(e) => { e.stopPropagation(); setShowComments(true); }}
+              >
+                <MessageCircle className="w-5 h-5 text-white" />
+                <span className="text-xs font-bold text-white">{post.reactions.comments}</span>
+              </button>
 
-                {/* Comments */}
-                <div 
-                  className="flex flex-col items-center gap-1 group cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowComments(true);
-                  }}
-                >
-                  <div className="p-2 rounded-full group-hover:bg-white/10 transition-colors">
-                    <MessageCircle className="w-6 h-6 text-white" />
-                  </div>
-                  <span className="text-[10px] font-bold text-white">{post.reactions.comments}</span>
-                </div>
+              {/* Bookmark */}
+              <button 
+                className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl hover:bg-white/10 transition-colors"
+                onClick={handleBookmark}
+              >
+                <Bookmark 
+                  className={cn("w-5 h-5", post.user_reactions.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
+                  fill={post.user_reactions.has_bookmarked ? "currentColor" : "none"}
+                />
+              </button>
 
-                {/* Bookmark */}
-                <div 
-                  className="flex flex-col items-center gap-1 group cursor-pointer"
-                  onClick={handleBookmark}
-                >
-                  <div className="p-2 rounded-full group-hover:bg-white/10 transition-colors">
-                    <Bookmark 
-                      className={cn(
-                        "w-6 h-6 transition-all",
-                        post.user_reactions.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white"
-                      )}
-                      fill={post.user_reactions.has_bookmarked ? "currentColor" : "none"}
-                    />
-                  </div>
-                  <span className="text-[10px] font-bold text-white">Salva</span>
-                </div>
-
-              </div>
             </div>
           </div>
 

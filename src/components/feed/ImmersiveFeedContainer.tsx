@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, forwardRef, useImperativeHandle } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface ImmersiveFeedContainerProps {
@@ -6,15 +6,26 @@ interface ImmersiveFeedContainerProps {
   onRefresh?: () => Promise<void>;
 }
 
-export const ImmersiveFeedContainer = ({ 
+export interface ImmersiveFeedContainerRef {
+  scrollToTop: () => void;
+}
+
+export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, ImmersiveFeedContainerProps>(({ 
   children, 
   onRefresh 
-}: ImmersiveFeedContainerProps) => {
+}, ref) => {
   const queryClient = useQueryClient();
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number>(0);
   const pullDistance = useRef<number>(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Expose scrollToTop method to parent
+  useImperativeHandle(ref, () => ({
+    scrollToTop: () => {
+      containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }));
 
   // Pull-to-refresh handlers
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -65,4 +76,4 @@ export const ImmersiveFeedContainer = ({
       <div className="fixed bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-black to-transparent z-40 pointer-events-none" />
     </div>
   );
-};
+});

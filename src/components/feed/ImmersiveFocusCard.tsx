@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 
 interface Source {
@@ -116,17 +117,60 @@ export const ImmersiveFocusCard = ({
             )}
           </div>
 
-          {/* Trust Score */}
+          {/* Trust Score - Clickable */}
           {trustScore && (
-            <div className={cn(
-              "flex items-center gap-1.5 bg-black/30 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full",
-              trustScore.toLowerCase() === 'alto' && "text-emerald-400",
-              trustScore.toLowerCase() === 'medio' && "text-amber-400",
-              trustScore.toLowerCase() === 'basso' && "text-red-400"
-            )}>
-              <ShieldCheck className="w-4 h-4" />
-              <span className="text-[10px] font-bold tracking-wider uppercase">TRUST {trustScore.toUpperCase()}</span>
-            </div>
+            <Dialog>
+              <DialogTrigger asChild>
+                <button 
+                  onClick={(e) => e.stopPropagation()}
+                  className={cn(
+                    "flex items-center gap-1.5 bg-black/30 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full cursor-pointer hover:bg-black/40 transition-colors",
+                    trustScore.toLowerCase() === 'alto' && "text-emerald-400",
+                    trustScore.toLowerCase() === 'medio' && "text-amber-400",
+                    trustScore.toLowerCase() === 'basso' && "text-red-400"
+                  )}
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span className="text-[10px] font-bold tracking-wider uppercase">TRUST {trustScore.toUpperCase()}</span>
+                </button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Trust Score - Il Punto</DialogTitle>
+                  <DialogDescription>
+                    Informazioni sull'affidabilità delle fonti
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 text-sm text-muted-foreground">
+                  <p>
+                    Questo contenuto è generato aggregando <strong className="text-foreground">fonti giornalistiche verificate</strong> e autorevoli.
+                  </p>
+                  <p>
+                    Il Trust Score "{trustScore.toUpperCase()}" indica che le fonti utilizzate hanno un buon track record di affidabilità editoriale.
+                  </p>
+                  <div className="pt-3 border-t border-border">
+                    <p className="font-medium text-foreground mb-2">Come viene calcolato:</p>
+                    <ul className="space-y-1.5">
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>Analisi automatica delle fonti citate</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>Verifica della reputazione editoriale</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-primary mt-0.5">•</span>
+                        <span>Coerenza tra titolo e contenuto</span>
+                      </li>
+                    </ul>
+                  </div>
+                  <p className="text-xs pt-2 border-t border-border text-muted-foreground">
+                    Nota: non è fact-checking. Valuta l'affidabilità delle fonti, non la verità assoluta.
+                  </p>
+                </div>
+              </DialogContent>
+            </Dialog>
           )}
         </div>
 
@@ -151,78 +195,69 @@ export const ImmersiveFocusCard = ({
           )}
         </div>
 
-        {/* Bottom Actions */}
-        <div className="flex flex-col gap-5">
-          <div className="flex items-end justify-between gap-4">
+        {/* Bottom Actions - Aligned heights */}
+        <div className="flex items-center justify-between gap-3">
+          
+          {/* Primary Share Button - Compact */}
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              onShare?.();
+            }}
+            className="h-12 px-6 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+          >
+            <Logo variant="icon" size="sm" className="h-5 w-5" />
+            <span className="text-sm font-semibold">Condividi</span>
+          </button>
+
+          {/* Reactions - Horizontal layout with counters beside icons */}
+          <div className="flex items-center gap-1 bg-black/20 backdrop-blur-xl h-12 px-3 rounded-2xl border border-white/5">
             
-            {/* Primary Share Button with NoParrot Logo */}
+            {/* Like */}
             <button 
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl hover:bg-white/10 transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
-                onShare?.();
+                if (!user) {
+                  toast.error('Devi effettuare il login per mettere like');
+                  return;
+                }
+                toggleReaction.mutate({ focusId, focusType: type });
               }}
-              className="flex-1 h-14 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
             >
-              <Logo variant="icon" size="sm" className="h-6 w-6" />
-              <span className="text-base">Condividi</span>
+              <Heart 
+                className={cn(
+                  "w-5 h-5",
+                  reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-white"
+                )}
+                fill={reactionsData?.likedByMe ? "currentColor" : "none"}
+              />
+              <span className="text-xs font-bold text-white">{reactionsData?.likes ?? reactions.likes}</span>
             </button>
 
-            {/* Reactions */}
-            <div className="flex items-center gap-4 bg-black/20 backdrop-blur-xl p-2 pr-4 rounded-2xl border border-white/5">
-              
-              {/* Like */}
-              <div 
-                className="flex flex-col items-center gap-1 group cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (!user) {
-                    toast.error('Devi effettuare il login per mettere like');
-                    return;
-                  }
-                  toggleReaction.mutate({ focusId, focusType: type });
-                }}
-              >
-                <div className="p-2 rounded-full group-hover:bg-white/10 transition-colors">
-                  <Heart 
-                    className={cn(
-                      "w-6 h-6 transition-all",
-                      reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-white"
-                    )}
-                    fill={reactionsData?.likedByMe ? "currentColor" : "none"}
-                  />
-                </div>
-                <span className="text-[10px] font-bold text-white">{reactionsData?.likes ?? reactions.likes}</span>
-              </div>
+            {/* Comments */}
+            <button 
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl hover:bg-white/10 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                onComment?.();
+              }}
+            >
+              <MessageCircle className="w-5 h-5 text-white" />
+              <span className="text-xs font-bold text-white">{reactions.comments}</span>
+            </button>
 
-              {/* Comments */}
-              <div 
-                className="flex flex-col items-center gap-1 group cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onComment?.();
-                }}
-              >
-                <div className="p-2 rounded-full group-hover:bg-white/10 transition-colors">
-                  <MessageCircle className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-[10px] font-bold text-white">{reactions.comments}</span>
-              </div>
+            {/* Bookmark */}
+            <button 
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl hover:bg-white/10 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                toast.info('Funzionalità in arrivo');
+              }}
+            >
+              <Bookmark className="w-5 h-5 text-white" />
+            </button>
 
-              {/* Bookmark */}
-              <div 
-                className="flex flex-col items-center gap-1 group cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toast.info('Funzionalità in arrivo');
-                }}
-              >
-                <div className="p-2 rounded-full group-hover:bg-white/10 transition-colors">
-                  <Bookmark className="w-6 h-6 text-white" />
-                </div>
-                <span className="text-[10px] font-bold text-white">Salva</span>
-              </div>
-
-            </div>
           </div>
         </div>
 
