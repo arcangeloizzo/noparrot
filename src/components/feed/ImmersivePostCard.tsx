@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle, Quote } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote } from "lucide-react";
+import { TrustBadge } from "@/components/ui/trust-badge";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -504,17 +505,12 @@ export const ImmersivePostCard = ({
 
             {/* Trust Score / Category */}
             {hasLink && trustScore ? (
-              <div className={cn(
-                "flex items-center gap-1.5 bg-black/30 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full shadow-xl",
-                trustScore.band === 'ALTO' && "text-emerald-400",
-                trustScore.band === 'MEDIO' && "text-amber-400",
-                trustScore.band === 'BASSO' && "text-red-400"
-              )}>
-                {trustScore.band === "ALTO" && <ShieldCheck className="w-4 h-4" />}
-                {trustScore.band === "MEDIO" && <ShieldAlert className="w-4 h-4" />}
-                {trustScore.band === "BASSO" && <AlertTriangle className="w-4 h-4" />}
-                <span className="text-[10px] font-bold tracking-wider">TRUST {trustScore.band}</span>
-              </div>
+              <TrustBadge 
+                band={trustScore.band as "BASSO" | "MEDIO" | "ALTO"} 
+                score={trustScore.score}
+                reasons={trustScore.reasons}
+                size="sm"
+              />
             ) : post.category ? (
               <div className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
                 <span className="text-[#0A7AFF] text-xs font-bold tracking-wide uppercase">{post.category}</span>
@@ -551,9 +547,17 @@ export const ImmersivePostCard = ({
           {/* Center Content */}
           <div className="flex-1 flex flex-col justify-center px-2">
             
-            {/* Link Preview with Metadata Image */}
+            {/* Link Preview with Metadata Image - Clickable to open external link */}
             {hasLink && (
-              <>
+              <div 
+                className="cursor-pointer active:scale-[0.98] transition-transform"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (post.shared_url) {
+                    window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                  }
+                }}
+              >
                 {/* Visible Metadata Image */}
                 {(articlePreview?.image || post.preview_img) && (
                   <div className="mb-6 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
@@ -575,7 +579,7 @@ export const ImmersivePostCard = ({
                     {getHostnameFromUrl(post.shared_url)}
                   </span>
                 </div>
-              </>
+              </div>
             )}
 
             {/* Text Content */}

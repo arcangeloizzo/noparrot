@@ -1,9 +1,10 @@
 import React from "react";
-import { Heart, MessageCircle, Share2, Info, ShieldCheck, Quote } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, Info, ShieldCheck, Quote } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFocusReactions, useToggleFocusReaction } from "@/hooks/useFocusReactions";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { Logo } from "@/components/ui/logo";
 import {
   Dialog,
   DialogContent,
@@ -57,7 +58,10 @@ export const ImmersiveFocusCard = ({
   const isDailyFocus = type === 'daily';
 
   return (
-    <div className="h-[100dvh] w-full snap-start relative flex flex-col p-6 overflow-hidden">
+    <div 
+      className="h-[100dvh] w-full snap-start relative flex flex-col p-6 overflow-hidden cursor-pointer"
+      onClick={() => onClick?.()}
+    >
       
       {/* Background Layer */}
       {imageUrl ? (
@@ -151,15 +155,16 @@ export const ImmersiveFocusCard = ({
         <div className="flex flex-col gap-5">
           <div className="flex items-end justify-between gap-4">
             
-            {/* Primary Button */}
+            {/* Primary Share Button with NoParrot Logo */}
             <button 
               onClick={(e) => {
                 e.stopPropagation();
-                onClick?.();
+                onShare?.();
               }}
-              className="flex-1 h-14 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              className="flex-1 h-14 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
             >
-              👁️ <span className="text-base">Approfondisci</span>
+              <Logo variant="icon" size="sm" className="h-6 w-6" />
+              <span className="text-base">Condividi</span>
             </button>
 
             {/* Reactions */}
@@ -203,18 +208,18 @@ export const ImmersiveFocusCard = ({
                 <span className="text-[10px] font-bold text-white">{reactions.comments}</span>
               </div>
 
-              {/* Share */}
+              {/* Bookmark */}
               <div 
                 className="flex flex-col items-center gap-1 group cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onShare?.();
+                  toast.info('Funzionalità in arrivo');
                 }}
               >
                 <div className="p-2 rounded-full group-hover:bg-white/10 transition-colors">
-                  <Share2 className="w-6 h-6 text-white" />
+                  <Bookmark className="w-6 h-6 text-white" />
                 </div>
-                <span className="text-[10px] font-bold text-white">Invia</span>
+                <span className="text-[10px] font-bold text-white">Salva</span>
               </div>
 
             </div>
