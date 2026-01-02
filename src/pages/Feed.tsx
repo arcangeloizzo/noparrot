@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef, useMemo } from "react";
-import { Logo } from "@/components/ui/logo";
-import { Header } from "@/components/navigation/Header";
-import { FeedCard } from "@/components/feed/FeedCardAdapt";
-import { ExternalFocusCard } from "@/components/feed/ExternalFocusCard";
+import { useState, useEffect, useMemo } from "react";
+import { ImmersiveFeedContainer } from "@/components/feed/ImmersiveFeedContainer";
+import { ImmersivePostCard } from "@/components/feed/ImmersivePostCard";
+import { ImmersiveFocusCard } from "@/components/feed/ImmersiveFocusCard";
 import { FocusDetailSheet } from "@/components/feed/FocusDetailSheet";
 import { CommentsDrawer } from "@/components/feed/CommentsDrawer";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
@@ -14,9 +13,8 @@ import { CGProvider } from "@/lib/comprehension-gate";
 import { Search } from "./Search";
 import { Saved } from "./Saved";
 import { Notifications } from "./Notifications";
-import { usePosts, useToggleReaction, Post } from "@/hooks/usePosts";
+import { usePosts, Post } from "@/hooks/usePosts";
 import { useToast } from "@/hooks/use-toast";
-import { NotificationPermissionBanner } from "@/components/notifications/NotificationPermissionBanner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDailyFocus } from "@/hooks/useDailyFocus";
 import { useInterestFocus } from "@/hooks/useInterestFocus";
@@ -28,7 +26,6 @@ import { toast as sonnerToast } from "sonner";
 export const Feed = () => {
   const { user } = useAuth();
   const { data: dbPosts = [], isLoading, refetch } = usePosts();
-  const toggleReaction = useToggleReaction();
   const queryClient = useQueryClient();
   
   // Fetch real Daily Focus
@@ -85,10 +82,6 @@ export const Feed = () => {
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [quotedPost, setQuotedPost] = useState<Post | null>(null);
   const { toast } = useToast();
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const touchStartY = useRef<number>(0);
-  const pullDistance = useRef<number>(0);
   const [focusDetailOpen, setFocusDetailOpen] = useState(false);
   const [selectedFocus, setSelectedFocus] = useState<any>(null);
   const [focusCommentsOpen, setFocusCommentsOpen] = useState(false);
@@ -134,35 +127,7 @@ export const Feed = () => {
     };
   }, [showSimilarContent]);
 
-  // Pull-to-refresh handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (scrollContainerRef.current && scrollContainerRef.current.scrollTop === 0) {
-      touchStartY.current = e.touches[0].clientY;
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (touchStartY.current && scrollContainerRef.current && scrollContainerRef.current.scrollTop === 0) {
-      const currentY = e.touches[0].clientY;
-      pullDistance.current = currentY - touchStartY.current;
-      
-      if (pullDistance.current > 0 && pullDistance.current < 100) {
-        // Visual feedback could be added here
-      }
-    }
-  };
-
-  const handleTouchEnd = async () => {
-    if (pullDistance.current > 80 && !isRefreshing) {
-      // Refresh dei dati
-      setIsRefreshing(true);
-      await queryClient.invalidateQueries({ queryKey: ['posts'] });
-      await refetch();
-      setIsRefreshing(false);
-    }
-    touchStartY.current = 0;
-    pullDistance.current = 0;
-  };
+  // Pull-to-refresh is now handled by ImmersiveFeedContainer
 
   const handleCreatePost = () => {
     setQuotedPost(null);
@@ -253,76 +218,61 @@ export const Feed = () => {
   }
 
   return (
-    <div 
-      ref={scrollContainerRef}
-      className="min-h-screen pb-[calc(6rem+env(safe-area-inset-bottom))] overflow-y-auto"
-      style={{ background: 'transparent' }}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      <NotificationPermissionBanner />
-      <Header />
-      
-      {isRefreshing && (
-        <div className="flex justify-center py-4">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-        </div>
-      )}
-      
-      <div className="mobile-container max-w-[600px] mx-auto px-4">
-
-        {/* Mixed Feed - Daily Focus + User Posts + Interest Focus */}
-        <div className="flex flex-col gap-6 py-4">
-          {mixedFeed.map((item) => {
-            if (item.type === 'daily' || item.type === 'interest') {
-              return (
-                <ExternalFocusCard
-                  key={item.id}
-                  focusId={item.data.id}
-                  type={item.type}
-                  category={item.data.category}
-                  title={item.data.title}
-                  summary={item.data.summary}
-                  sources={item.data.sources}
-                  trustScore={item.data.trust_score}
-                  imageUrl={item.data.image_url}
-                  reactions={item.data.reactions}
-                  onClick={() => {
-                    setSelectedFocus(item);
-                    setFocusDetailOpen(true);
-                  }}
-                  onComment={() => {
-                    setSelectedFocusForComments(item);
-                    setFocusCommentsOpen(true);
-                  }}
-                  onShare={() => {
-                    toast({
-                      title: "Condividi",
-                      description: "Conta rilanci nel feed (da implementare)"
-                    });
-                  }}
-                />
-              );
-            } else {
-              return (
-                <FeedCard
-                  key={item.id}
-                  post={item.data}
-                  onRemove={() => handleRemovePost(item.data.id)}
-                  onQuoteShare={handleQuoteShare}
-                />
-              );
-            }
-          })}
-          {mixedFeed.length === 1 && (
-            <div className="py-12 text-center text-muted-foreground">
-              <p>Nessun post disponibile.</p>
-              <p className="text-sm mt-2">Crea il primo post!</p>
+    <>
+      <ImmersiveFeedContainer onRefresh={async () => { await refetch(); }}>
+        {/* Immersive Feed Items */}
+        {mixedFeed.map((item) => {
+          if (item.type === 'daily' || item.type === 'interest') {
+            return (
+              <ImmersiveFocusCard
+                key={item.id}
+                focusId={item.data.id}
+                type={item.type}
+                category={item.data.category}
+                title={item.data.title}
+                summary={item.data.summary}
+                sources={item.data.sources}
+                trustScore={item.data.trust_score}
+                imageUrl={item.data.image_url}
+                reactions={item.data.reactions || { likes: 0, comments: 0, shares: 0 }}
+                onClick={() => {
+                  setSelectedFocus(item);
+                  setFocusDetailOpen(true);
+                }}
+                onComment={() => {
+                  setSelectedFocusForComments(item);
+                  setFocusCommentsOpen(true);
+                }}
+                onShare={() => {
+                  toast({
+                    title: "Condividi",
+                    description: "Conta rilanci nel feed (da implementare)"
+                  });
+                }}
+              />
+            );
+          } else {
+            return (
+              <ImmersivePostCard
+                key={item.id}
+                post={item.data}
+                onRemove={() => handleRemovePost(item.data.id)}
+                onQuoteShare={handleQuoteShare}
+              />
+            );
+          }
+        })}
+        
+        {/* Empty state */}
+        {mixedFeed.length === 0 && (
+          <div className="h-[100dvh] w-full snap-start flex items-center justify-center">
+            <div className="text-center text-white/60">
+              <p className="text-xl mb-2">Nessun post disponibile.</p>
+              <p className="text-sm">Crea il primo post!</p>
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        )}
+      </ImmersiveFeedContainer>
 
       <FloatingActionButton onClick={handleCreatePost} />
       <BottomNavigation 
@@ -371,13 +321,9 @@ export const Feed = () => {
                 sonnerToast.error('Devi effettuare il login per mettere like');
                 return;
               }
-              if (selectedFocus.type === 'daily' || selectedFocus.type === 'interest') {
-                // Nessuna azione necessaria qui, gestita internamente
-                haptics.light();
-              }
+              haptics.light();
             }}
             onComment={() => {
-              console.log('[Feed] onComment clicked for focus:', selectedFocus);
               setSelectedFocusForComments(selectedFocus);
               setFocusDetailOpen(false);
               setTimeout(() => setFocusCommentsOpen(true), 150);
@@ -423,7 +369,7 @@ export const Feed = () => {
           mode="view"
         />
       )}
-    </div>
+    </>
   );
 };
 
