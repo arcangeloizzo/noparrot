@@ -1,0 +1,227 @@
+import React from "react";
+import { Heart, MessageCircle, Share2, Info, ShieldCheck, Quote } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useFocusReactions, useToggleFocusReaction } from "@/hooks/useFocusReactions";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
+interface Source {
+  icon: string;
+  name: string;
+  url?: string;
+}
+
+interface ImmersiveFocusCardProps {
+  focusId: string;
+  type: 'daily' | 'interest';
+  category?: string;
+  title: string;
+  summary: string;
+  sources: Source[];
+  trustScore?: string;
+  imageUrl?: string;
+  reactions: {
+    likes: number;
+    comments: number;
+    shares: number;
+  };
+  onClick?: () => void;
+  onComment?: () => void;
+  onShare?: () => void;
+}
+
+export const ImmersiveFocusCard = ({
+  focusId,
+  type,
+  category,
+  title,
+  summary,
+  sources,
+  trustScore,
+  imageUrl,
+  reactions,
+  onClick,
+  onComment,
+  onShare,
+}: ImmersiveFocusCardProps) => {
+  const { user } = useAuth();
+  const { data: reactionsData } = useFocusReactions(focusId, type);
+  const toggleReaction = useToggleFocusReaction();
+  const isDailyFocus = type === 'daily';
+
+  return (
+    <div className="h-[100dvh] w-full snap-start relative flex flex-col p-6 overflow-hidden">
+      
+      {/* Background Layer */}
+      {imageUrl ? (
+        <>
+          <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/90 z-0" />
+          <img 
+            src={imageUrl} 
+            className="absolute inset-0 w-full h-full object-cover opacity-50 blur-2xl scale-110 z-[-1]" 
+            alt=""
+          />
+        </>
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-b from-[#1F3347] to-[#0E141A] z-0" />
+      )}
+
+      {/* Content Layer */}
+      <div className="relative z-10 w-full h-full flex flex-col justify-between pt-14 pb-24">
+        
+        {/* Top Bar */}
+        <div className="flex justify-between items-start">
+          {/* Badge */}
+          <div className={cn(
+            "inline-flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-xl border",
+            isDailyFocus 
+              ? "bg-[#0A7AFF]/20 border-[#0A7AFF]/30 text-[#0A7AFF]"
+              : "bg-[#A98FF8]/20 border-[#A98FF8]/30 text-[#A98FF8]"
+          )}>
+            <span className="text-sm font-bold tracking-wide">
+              {isDailyFocus ? '🌍 IL PUNTO' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
+            </span>
+            {isDailyFocus && (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <button
+                    onClick={(e) => e.stopPropagation()}
+                    className="p-0.5 rounded-full hover:bg-white/10 transition-colors"
+                  >
+                    <Info className="w-4 h-4" />
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Cos'è Il Punto</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3 text-sm text-muted-foreground">
+                    <p>Questo contenuto è una sintesi automatica generata da NoParrot usando fonti pubbliche.</p>
+                    <p>Serve per offrire un contesto comune da cui partire per la discussione.</p>
+                    <p className="font-medium text-foreground">Non rappresenta una posizione ufficiale né una verifica dei fatti.</p>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+
+          {/* Trust Score */}
+          {trustScore && (
+            <div className={cn(
+              "flex items-center gap-1.5 bg-black/30 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full",
+              trustScore.toLowerCase() === 'alto' && "text-emerald-400",
+              trustScore.toLowerCase() === 'medio' && "text-amber-400",
+              trustScore.toLowerCase() === 'basso' && "text-red-400"
+            )}>
+              <ShieldCheck className="w-4 h-4" />
+              <span className="text-[10px] font-bold tracking-wider uppercase">TRUST {trustScore.toUpperCase()}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Center Content */}
+        <div className="flex-1 flex flex-col justify-center px-2">
+          <Quote className="text-white/20 w-12 h-12 rotate-180 mb-4" />
+          <h1 className="text-3xl font-bold text-white leading-tight mb-4 drop-shadow-xl">
+            {title}
+          </h1>
+          <p className="text-lg text-white/80 leading-relaxed line-clamp-4 mb-6">
+            {summary.replace(/\[SOURCE:[\d,\s]+\]/g, '')}
+          </p>
+          
+          {/* Sources Tag */}
+          {sources.length > 0 && (
+            <div className="flex items-center gap-2">
+              <button className="inline-flex items-center px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full text-xs text-white/80 font-medium border border-white/10">
+                {sources[0]?.name?.toLowerCase() || 'fonti'}
+                {sources.length > 1 && ` +${sources.length - 1}`}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Bottom Actions */}
+        <div className="flex flex-col gap-5">
+          <div className="flex items-end justify-between gap-4">
+            
+            {/* Primary Button */}
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                onClick?.();
+              }}
+              className="flex-1 h-14 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+            >
+              👁️ <span className="text-base">Approfondisci</span>
+            </button>
+
+            {/* Reactions */}
+            <div className="flex items-center gap-4 bg-black/20 backdrop-blur-xl p-2 pr-4 rounded-2xl border border-white/5">
+              
+              {/* Like */}
+              <div 
+                className="flex flex-col items-center gap-1 group cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!user) {
+                    toast.error('Devi effettuare il login per mettere like');
+                    return;
+                  }
+                  toggleReaction.mutate({ focusId, focusType: type });
+                }}
+              >
+                <div className="p-2 rounded-full group-hover:bg-white/10 transition-colors">
+                  <Heart 
+                    className={cn(
+                      "w-6 h-6 transition-all",
+                      reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-white"
+                    )}
+                    fill={reactionsData?.likedByMe ? "currentColor" : "none"}
+                  />
+                </div>
+                <span className="text-[10px] font-bold text-white">{reactionsData?.likes ?? reactions.likes}</span>
+              </div>
+
+              {/* Comments */}
+              <div 
+                className="flex flex-col items-center gap-1 group cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onComment?.();
+                }}
+              >
+                <div className="p-2 rounded-full group-hover:bg-white/10 transition-colors">
+                  <MessageCircle className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-[10px] font-bold text-white">{reactions.comments}</span>
+              </div>
+
+              {/* Share */}
+              <div 
+                className="flex flex-col items-center gap-1 group cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShare?.();
+                }}
+              >
+                <div className="p-2 rounded-full group-hover:bg-white/10 transition-colors">
+                  <Share2 className="w-6 h-6 text-white" />
+                </div>
+                <span className="text-[10px] font-bold text-white">Invia</span>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+};
