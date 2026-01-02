@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { ImmersiveFeedContainer } from "@/components/feed/ImmersiveFeedContainer";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { ImmersiveFeedContainer, ImmersiveFeedContainerRef } from "@/components/feed/ImmersiveFeedContainer";
 import { ImmersivePostCard } from "@/components/feed/ImmersivePostCard";
 import { ImmersiveFocusCard } from "@/components/feed/ImmersiveFocusCard";
 import { FocusDetailSheet } from "@/components/feed/FocusDetailSheet";
@@ -28,6 +28,7 @@ export const Feed = () => {
   const { user } = useAuth();
   const { data: dbPosts = [], isLoading, refetch } = usePosts();
   const queryClient = useQueryClient();
+  const feedContainerRef = useRef<ImmersiveFeedContainerRef>(null);
   
   // Fetch real Daily Focus
   const { data: dailyFocus, isLoading: loadingDaily } = useDailyFocus();
@@ -72,7 +73,11 @@ export const Feed = () => {
 
   // Handler per refresh quando già nel feed
   const handleHomeRefresh = () => {
-    // Scroll to top
+    // Scroll container to top (for snap scroll)
+    if (feedContainerRef.current) {
+      feedContainerRef.current.scrollToTop();
+    }
+    // Fallback for window scroll
     window.scrollTo({ top: 0, behavior: 'smooth' });
     
     // Invalida le query per refreshare i dati
@@ -80,8 +85,9 @@ export const Feed = () => {
     queryClient.invalidateQueries({ queryKey: ['daily-focus'] });
     queryClient.invalidateQueries({ queryKey: ['interest-focus'] });
     
-    // Haptic feedback
+    // Haptic feedback + visual confirmation
     haptics.light();
+    sonnerToast.success('Feed aggiornato');
   };
   const [showSimilarContent, setShowSimilarContent] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -227,7 +233,7 @@ export const Feed = () => {
       {/* Immersive transparent header with notifications */}
       <Header variant="immersive" />
       
-      <ImmersiveFeedContainer onRefresh={async () => { await refetch(); }}>
+      <ImmersiveFeedContainer ref={feedContainerRef} onRefresh={async () => { await refetch(); }}>
         {/* Immersive Feed Items */}
         {mixedFeed.map((item) => {
           if (item.type === 'daily' || item.type === 'interest') {

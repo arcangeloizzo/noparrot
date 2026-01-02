@@ -43,12 +43,29 @@ export const Post = () => {
             reaction_type,
             user_id
           ),
-          comments(count)
+          comments(count),
+          post_media (
+            order_idx,
+            media:media_id (
+              id,
+              url,
+              type,
+              width,
+              height,
+              thumbnail_url
+            )
+          )
         `)
         .eq('id', postId)
         .single();
 
       if (error) throw error;
+
+      // Process media from post_media join
+      const mediaItems = (data.post_media || [])
+        .sort((a: any, b: any) => a.order_idx - b.order_idx)
+        .map((pm: any) => pm.media)
+        .filter(Boolean);
 
       return {
         id: data.id,
@@ -67,7 +84,7 @@ export const Post = () => {
         quoted_post_id: data.quoted_post_id,
         category: data.category || null,
         quoted_post: null,
-        media: [],
+        media: mediaItems,
         reactions: {
           hearts: data.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
           comments: data.comments?.[0]?.count || 0
