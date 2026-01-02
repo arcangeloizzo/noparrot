@@ -12,9 +12,10 @@ interface BottomNavigationProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   onProfileClick?: () => void;
+  onHomeRefresh?: () => void;
 }
 
-export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: BottomNavigationProps) => {
+export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick, onHomeRefresh }: BottomNavigationProps) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: threads } = useMessageThreads();
@@ -79,6 +80,8 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick }: Bot
                 onProfileClick?.();
               } else if (id === "messages") {
                 window.location.href = "/messages";
+              } else if (id === "home" && activeTab === "home") {
+                onHomeRefresh?.();
               } else {
                 onTabChange(id);
               }

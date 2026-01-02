@@ -1,7 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote } from "lucide-react";
-import { TrustBadge } from "@/components/ui/trust-badge";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -510,14 +516,54 @@ export const ImmersivePostCard = ({
 
             {/* Trust Score / Category */}
             {hasLink && trustScore ? (
-              <div className="bg-black/30 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full shadow-xl">
-                <TrustBadge 
-                  band={trustScore.band as "BASSO" | "MEDIO" | "ALTO"} 
-                  score={trustScore.score}
-                  reasons={trustScore.reasons}
-                  size="sm"
-                />
-              </div>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <button 
+                    onClick={(e) => e.stopPropagation()}
+                    className={cn(
+                      "flex items-center gap-1.5 bg-black/30 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full cursor-pointer hover:bg-black/40 transition-colors shadow-xl",
+                      trustScore.band === 'ALTO' && "text-emerald-400",
+                      trustScore.band === 'MEDIO' && "text-amber-400",
+                      trustScore.band === 'BASSO' && "text-red-400"
+                    )}
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    <span className="text-[10px] font-bold tracking-wider uppercase">
+                      TRUST {trustScore.band}
+                    </span>
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Trust Score</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 text-sm text-muted-foreground">
+                    <p>
+                      Il Trust Score indica il livello di affidabilità delle fonti citate, 
+                      <strong className="text-foreground"> non la verità o la qualità del contenuto</strong>.
+                    </p>
+                    <p>È calcolato automaticamente e può contenere errori.</p>
+                    
+                    {trustScore.reasons?.length > 0 && (
+                      <div className="pt-3 border-t border-border">
+                        <p className="font-medium text-foreground mb-2">Perché questo punteggio:</p>
+                        <ul className="space-y-1.5">
+                          {trustScore.reasons.map((reason: string, i: number) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <span className="text-primary mt-0.5">•</span>
+                              <span>{reason}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    
+                    <p className="text-xs pt-2 border-t border-border text-muted-foreground">
+                      Valuta la qualità delle fonti e la coerenza col contenuto. Non è fact-checking.
+                    </p>
+                  </div>
+                </DialogContent>
+              </Dialog>
             ) : post.category ? (
               <div className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
                 <span className="text-[#0A7AFF] text-xs font-bold tracking-wide uppercase">{post.category}</span>
