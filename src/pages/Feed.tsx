@@ -68,16 +68,20 @@ export const Feed = () => {
   // Handler completo per navigazione tab
   const handleTabChange = (tab: string) => {
     setActiveNavTab(tab);
+  };
+
+  // Handler per refresh quando già nel feed
+  const handleHomeRefresh = () => {
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     
-    if (tab === 'home') {
-      // Scroll to top
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      
-      // Invalida le query per refreshare i dati
-      queryClient.invalidateQueries({ queryKey: ['posts'] });
-      queryClient.invalidateQueries({ queryKey: ['daily-focus'] });
-      queryClient.invalidateQueries({ queryKey: ['interest-focus'] });
-    }
+    // Invalida le query per refreshare i dati
+    queryClient.invalidateQueries({ queryKey: ['posts'] });
+    queryClient.invalidateQueries({ queryKey: ['daily-focus'] });
+    queryClient.invalidateQueries({ queryKey: ['interest-focus'] });
+    
+    // Haptic feedback
+    haptics.light();
   };
   const [showSimilarContent, setShowSimilarContent] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -283,6 +287,7 @@ export const Feed = () => {
         activeTab={activeNavTab} 
         onTabChange={handleTabChange}
         onProfileClick={() => setShowProfileSheet(true)}
+        onHomeRefresh={handleHomeRefresh}
       />
 
       <ProfileSideSheet 
