@@ -445,6 +445,7 @@ export const ImmersivePostCard = ({
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: it });
   const hasMedia = post.media && post.media.length > 0;
   const hasLink = !!post.shared_url;
+  const isSpotify = articlePreview?.platform === 'spotify';
   const backgroundImage = articlePreview?.image || post.preview_img || (hasMedia && post.media?.[0]?.url);
   const isTextOnly = !hasMedia && !hasLink;
 
@@ -458,6 +459,10 @@ export const ImmersivePostCard = ({
         {isTextOnly ? (
           <div className="absolute inset-0 bg-[#1F3347]">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10" />
+          </div>
+        ) : isSpotify ? (
+          <div className="absolute inset-0 bg-gradient-to-b from-[#121212] via-[#1a1a2e] to-[#0d1117]">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#1DB954]/10 to-transparent" />
           </div>
         ) : (
           <>
@@ -505,12 +510,14 @@ export const ImmersivePostCard = ({
 
             {/* Trust Score / Category */}
             {hasLink && trustScore ? (
-              <TrustBadge 
-                band={trustScore.band as "BASSO" | "MEDIO" | "ALTO"} 
-                score={trustScore.score}
-                reasons={trustScore.reasons}
-                size="sm"
-              />
+              <div className="bg-black/30 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full shadow-xl">
+                <TrustBadge 
+                  band={trustScore.band as "BASSO" | "MEDIO" | "ALTO"} 
+                  score={trustScore.score}
+                  reasons={trustScore.reasons}
+                  size="sm"
+                />
+              </div>
             ) : post.category ? (
               <div className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
                 <span className="text-[#0A7AFF] text-xs font-bold tracking-wide uppercase">{post.category}</span>
@@ -547,8 +554,61 @@ export const ImmersivePostCard = ({
           {/* Center Content */}
           <div className="flex-1 flex flex-col justify-center px-2">
             
-            {/* Link Preview with Metadata Image - Clickable to open external link */}
-            {hasLink && (
+            {/* User Text Content - FIRST for posts with links */}
+            {hasLink && post.content && (
+              <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-6">
+                <MentionText content={post.content.length > 280 ? post.content.slice(0, 280) + '...' : post.content} />
+              </h2>
+            )}
+
+            {/* Spotify Card - Dedicated styling */}
+            {hasLink && isSpotify ? (
+              <div 
+                className="cursor-pointer active:scale-[0.98] transition-transform"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (post.shared_url) {
+                    window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                  }
+                }}
+              >
+                {/* Spotify Artwork - Large centered square */}
+                {(articlePreview?.image || post.preview_img) && (
+                  <div className="flex justify-center mb-6">
+                    <div className="w-56 h-56 rounded-xl overflow-hidden shadow-[0_8px_32px_rgba(29,185,84,0.3)] border border-white/10">
+                      <img 
+                        src={articlePreview?.image || post.preview_img} 
+                        alt="" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Spotify Title */}
+                <h1 className="text-2xl font-bold text-white leading-tight mb-2 text-center drop-shadow-xl">
+                  {articlePreview?.title || post.shared_title}
+                </h1>
+                
+                {/* Artist name */}
+                {articlePreview?.description && (
+                  <p className="text-[#1DB954] text-center font-medium mb-4">
+                    {articlePreview.description}
+                  </p>
+                )}
+                
+                {/* Spotify badge */}
+                <div className="flex justify-center">
+                  <div className="flex items-center gap-2 bg-[#1DB954]/20 border border-[#1DB954]/30 px-4 py-2 rounded-full">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="#1DB954">
+                      <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
+                    </svg>
+                    <span className="text-[#1DB954] text-xs font-bold uppercase tracking-wider">Spotify</span>
+                  </div>
+                </div>
+              </div>
+            ) : hasLink && (
+              /* Generic Link Preview - Clickable to open external link */
               <div 
                 className="cursor-pointer active:scale-[0.98] transition-transform"
                 onClick={(e) => {
@@ -582,16 +642,15 @@ export const ImmersivePostCard = ({
               </div>
             )}
 
-            {/* Text Content */}
+            {/* Text Content for text-only posts */}
             {isTextOnly && (
-              <Quote className="text-white/20 w-12 h-12 rotate-180 mb-4" />
+              <>
+                <Quote className="text-white/20 w-12 h-12 rotate-180 mb-4" />
+                <h2 className="text-2xl font-medium text-white leading-snug tracking-wide drop-shadow-md">
+                  <MentionText content={post.content.length > 280 ? post.content.slice(0, 280) + '...' : post.content} />
+                </h2>
+              </>
             )}
-            <h2 className={cn(
-              "text-white leading-snug tracking-wide drop-shadow-md",
-              isTextOnly ? "text-2xl font-medium" : "text-lg font-normal text-white/90"
-            )}>
-              <MentionText content={post.content.length > 280 ? post.content.slice(0, 280) + '...' : post.content} />
-            </h2>
 
             {/* Media */}
             {hasMedia && (
