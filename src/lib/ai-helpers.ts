@@ -94,10 +94,24 @@ export async function fetchArticlePreview(url: string): Promise<{
   success: boolean;
   error?: string;
   message?: string;
+  platform?: string;
   [key: string]: any;
 }> {
   try {
     console.log('[fetchArticlePreview] Fetching:', url);
+    
+    // Pre-check for unsupported platforms to avoid unnecessary API calls
+    const hostname = new URL(url).hostname.toLowerCase();
+    if (hostname.includes('instagram.com') || hostname.includes('facebook.com') || hostname.includes('fb.com') || hostname.includes('fb.watch')) {
+      console.log('[fetchArticlePreview] Unsupported platform detected:', hostname);
+      return { 
+        success: false, 
+        error: 'UNSUPPORTED_PLATFORM', 
+        message: 'Questa piattaforma non è supportata',
+        platform: hostname.includes('instagram') ? 'instagram' : 'facebook',
+        hostname
+      };
+    }
     
     const { data, error } = await supabase.functions.invoke('fetch-article-preview', {
       body: { url }
@@ -137,6 +151,16 @@ export async function fetchArticlePreview(url: string): Promise<{
     return { success: true, ...data };
   } catch (error: any) {
     console.error('[fetchArticlePreview] Exception:', error);
+    
+    // Check if URL parsing failed
+    if (error instanceof TypeError && error.message?.includes('URL')) {
+      return { 
+        success: false, 
+        error: 'INVALID_URL', 
+        message: 'URL non valido' 
+      };
+    }
+    
     return { 
       success: false, 
       error: 'FETCH_PREVIEW_FAILED', 
