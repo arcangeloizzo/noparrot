@@ -7,6 +7,7 @@ import { it } from "date-fns/locale";
 // UI Components
 import { CategoryChip } from "@/components/ui/category-chip";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/ui/logo";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -550,14 +551,26 @@ export const ImmersivePostCard = ({
           {/* Center Content */}
           <div className="flex-1 flex flex-col justify-center px-2">
             
-            {/* Link Preview Title */}
+            {/* Link Preview with Metadata Image */}
             {hasLink && (
               <>
-                <div className="w-12 h-1 bg-white/30 rounded-full mb-6" />
-                <h1 className="text-3xl font-bold text-white leading-tight mb-4 drop-shadow-xl">
+                {/* Visible Metadata Image */}
+                {(articlePreview?.image || post.preview_img) && (
+                  <div className="mb-6 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                    <img 
+                      src={articlePreview?.image || post.preview_img} 
+                      alt="" 
+                      className="w-full h-48 object-cover"
+                    />
+                  </div>
+                )}
+                
+                <div className="w-12 h-1 bg-white/30 rounded-full mb-4" />
+                <h1 className="text-2xl font-bold text-white leading-tight mb-3 drop-shadow-xl">
                   {articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url)}
                 </h1>
                 <div className="flex items-center gap-2 text-white/70 mb-4">
+                  <ExternalLink className="w-3 h-3" />
                   <span className="text-xs uppercase font-bold tracking-widest">
                     {getHostnameFromUrl(post.shared_url)}
                   </span>
@@ -601,15 +614,16 @@ export const ImmersivePostCard = ({
           <div className="flex flex-col gap-5">
             <div className="flex items-end justify-between gap-4">
               
-              {/* Primary Gate Button */}
+              {/* Primary Share Button with NoParrot Logo */}
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
                   handleShareClick(e);
                 }}
-                className="flex-1 h-14 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                className="flex-1 h-14 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-3 transition-all active:scale-[0.98]"
               >
-                👁️ <span className="text-base">Metti a fuoco</span>
+                <Logo variant="icon" size="sm" className="h-6 w-6" />
+                <span className="text-base">Condividi</span>
               </button>
 
               {/* Reactions */}

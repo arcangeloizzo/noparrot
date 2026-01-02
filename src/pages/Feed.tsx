@@ -9,6 +9,7 @@ import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 import { FloatingActionButton } from "@/components/fab/FloatingActionButton";
 import { ComposerModal } from "@/components/composer/ComposerModal";
 import { SimilarContentOverlay } from "@/components/feed/SimilarContentOverlay";
+import { Header } from "@/components/navigation/Header";
 import { CGProvider } from "@/lib/comprehension-gate";
 import { Search } from "./Search";
 import { Saved } from "./Saved";
@@ -219,6 +220,9 @@ export const Feed = () => {
 
   return (
     <>
+      {/* Immersive transparent header with notifications */}
+      <Header variant="immersive" />
+      
       <ImmersiveFeedContainer onRefresh={async () => { await refetch(); }}>
         {/* Immersive Feed Items */}
         {mixedFeed.map((item) => {

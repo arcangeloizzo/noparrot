@@ -2,9 +2,14 @@ import { Bell } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Logo } from "@/components/ui/logo";
 import { useNotifications } from "@/hooks/useNotifications";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { cn } from "@/lib/utils";
 
-export const Header = () => {
+interface HeaderProps {
+  variant?: "default" | "immersive";
+}
+
+export const Header = ({ variant = "default" }: HeaderProps) => {
   const { data: notifications = [] } = useNotifications();
   
   // Track when user last viewed notifications
@@ -18,9 +23,15 @@ export const Header = () => {
     return new Date(n.created_at) > new Date(lastViewedAt);
   }).length;
 
+  const isImmersive = variant === "immersive";
+
   return (
-    <header className="cognitive-header liquid-glass-navbar border-b-0">
-      <div className="container flex h-8 max-w-screen-xl items-center justify-center px-4 relative">
+    <header className={cn(
+      isImmersive 
+        ? "fixed top-0 left-0 right-0 z-50 bg-transparent" 
+        : "cognitive-header liquid-glass-navbar border-b-0"
+    )}>
+      <div className="container flex h-14 max-w-screen-xl items-center justify-center px-4 relative">
         {/* Logo centrale con glow */}
         <div className="logo-container">
           <Logo variant="extended" size="md" className="h-8" />
