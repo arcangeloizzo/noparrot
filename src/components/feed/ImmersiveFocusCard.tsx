@@ -116,39 +116,47 @@ export const ImmersiveFocusCard = ({
             <span className="text-sm font-bold tracking-wide">
               {isDailyFocus ? '🌍 IL PUNTO' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
             </span>
-            {isDailyFocus && (
-              <Dialog 
-                open={infoDialogOpen} 
-                onOpenChange={(open) => {
-                  setInfoDialogOpen(open);
-                  handleDialogChange(open);
-                }}
-              >
-                <DialogTrigger asChild>
-                  <button
-                    onClick={(e) => e.stopPropagation()}
-                    className="p-0.5 rounded-full hover:bg-white/10 transition-colors"
-                  >
-                    <Info className="w-4 h-4" />
+            <Dialog 
+              open={infoDialogOpen} 
+              onOpenChange={(open) => {
+                setInfoDialogOpen(open);
+                handleDialogChange(open);
+              }}
+            >
+              <DialogTrigger asChild>
+                <button
+                  onClick={(e) => e.stopPropagation()}
+                  className="p-0.5 rounded-full hover:bg-white/10 transition-colors"
+                >
+                  <Info className="w-4 h-4" />
+                </button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>{isDailyFocus ? "Cos'è Il Punto" : "Cos'è Per Te"}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 text-sm text-muted-foreground">
+                  {isDailyFocus ? (
+                    <>
+                      <p>Questo contenuto è una sintesi automatica generata da NoParrot usando fonti pubbliche.</p>
+                      <p>Serve per offrire un contesto comune da cui partire per la discussione.</p>
+                      <p className="font-medium text-foreground">Non rappresenta una posizione ufficiale né una verifica dei fatti.</p>
+                    </>
+                  ) : (
+                    <>
+                      <p>Questo contenuto è selezionato per te in base ai tuoi interessi e alla categoria <strong className="text-foreground">{category || 'Generale'}</strong>.</p>
+                      <p>NoParrot analizza i tuoi pattern di lettura e interazione per proporti approfondimenti rilevanti.</p>
+                      <p className="font-medium text-foreground">I contenuti "Per Te" sono generati aggregando fonti autorevoli sul tema che ti interessa.</p>
+                    </>
+                  )}
+                </div>
+                <DialogClose asChild>
+                  <button className="w-full mt-4 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg text-sm font-medium transition-colors">
+                    Chiudi
                   </button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Cos'è Il Punto</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-3 text-sm text-muted-foreground">
-                    <p>Questo contenuto è una sintesi automatica generata da NoParrot usando fonti pubbliche.</p>
-                    <p>Serve per offrire un contesto comune da cui partire per la discussione.</p>
-                    <p className="font-medium text-foreground">Non rappresenta una posizione ufficiale né una verifica dei fatti.</p>
-                  </div>
-                  <DialogClose asChild>
-                    <button className="w-full mt-4 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg text-sm font-medium transition-colors">
-                      Chiudi
-                    </button>
-                  </DialogClose>
-                </DialogContent>
-              </Dialog>
-            )}
+                </DialogClose>
+              </DialogContent>
+            </Dialog>
           </div>
 
           {/* Trust Score - Clickable */}
@@ -176,14 +184,17 @@ export const ImmersiveFocusCard = ({
               </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                  <DialogTitle>Trust Score - Il Punto</DialogTitle>
+                  <DialogTitle>Trust Score - {isDailyFocus ? 'Il Punto' : 'Per Te'}</DialogTitle>
                   <DialogDescription>
                     Informazioni sull'affidabilità delle fonti
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 text-sm text-muted-foreground">
                   <p>
-                    Questo contenuto è generato aggregando <strong className="text-foreground">fonti giornalistiche verificate</strong> e autorevoli.
+                    {isDailyFocus 
+                      ? <>Questo contenuto è generato aggregando <strong className="text-foreground">fonti giornalistiche verificate</strong> e autorevoli.</>
+                      : <>Questo approfondimento personalizzato è generato aggregando <strong className="text-foreground">fonti selezionate</strong> in base alla categoria <strong className="text-foreground">{category || 'Generale'}</strong>.</>
+                    }
                   </p>
                   <p>
                     Il Trust Score "{trustScore.toUpperCase()}" indica che le fonti utilizzate hanno un buon track record di affidabilità editoriale.
