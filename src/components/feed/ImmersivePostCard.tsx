@@ -485,6 +485,12 @@ export const ImmersivePostCard = ({
   const quotedPostWordCount = getWordCount(quotedPost?.content || '');
   const isReshareWithShortComment = !!quotedPost && quotedPostWordCount < 30;
   
+  // New: detect if reshare has a source (URL) - use stack layout for any length
+  const isReshareWithSource = !!quotedPost && !!(quotedPost.shared_url || post.shared_url);
+  
+  // Use stack layout for: short comments OR reshares with source (any comment length)
+  const useStackLayout = isReshareWithShortComment || isReshareWithSource;
+  
   // Get source from quoted post if current post doesn't have one (2 levels)
   const effectiveSharedUrl = post.shared_url || quotedPost?.shared_url;
   const effectivePreviewImg = post.preview_img || quotedPost?.preview_img;
@@ -493,7 +499,7 @@ export const ImmersivePostCard = ({
   // For multi-level reshares, find the original source deep in the chain
   const { data: originalSource } = useOriginalSource(
     // Only fetch if we're a reshare stack and don't have a direct source
-    isReshareWithShortComment && !effectiveSharedUrl ? post.quoted_post_id : null
+    useStackLayout && !effectiveSharedUrl ? post.quoted_post_id : null
   );
   
   // Final effective source: prefer direct, fallback to deep chain search
@@ -528,7 +534,7 @@ export const ImmersivePostCard = ({
     loadDeepSourcePreview();
   }, [originalSource, urlToPreview]);
   
-  // Fetch context stack for reshare with short comment
+  // Fetch context stack for reshare with SHORT comment only (long comments render inline)
   const { data: contextStack = [] } = useReshareContextStack(
     isReshareWithShortComment ? post.quoted_post_id : null
   );
@@ -693,27 +699,57 @@ export const ImmersivePostCard = ({
           {/* Center Content */}
           <div className="flex-1 flex flex-col justify-center px-2">
             
-            {/* Reshare Stack Card: User comment first (normal text, not bold) */}
-            {isReshareWithShortComment && post.content && (
+            {/* Stack Layout: User comment first (normal text, not bold) */}
+            {useStackLayout && post.content && (
               <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-4">
                 <MentionText content={post.content} />
               </h2>
             )}
 
-            {/* Reshare Stack Card: TRACCE second */}
+            {/* Stack Layout with SHORT comment: show context stack (multiple ancestors) */}
             {isReshareWithShortComment && contextStack.length > 0 && (
               <ReshareContextStack stack={contextStack} />
             )}
+            
+            {/* Stack Layout with LONG comment: show quoted post's full comment inline */}
+            {useStackLayout && !isReshareWithShortComment && quotedPost && (
+              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/10 mb-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10 flex-shrink-0">
+                    {quotedPost.author?.avatar_url ? (
+                      <img 
+                        src={quotedPost.author.avatar_url} 
+                        alt="" 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white/60 text-xs font-medium">
+                        {(quotedPost.author?.full_name || quotedPost.author?.username || '?')[0].toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-white/80 text-xs font-medium truncate">
+                    {quotedPost.author?.full_name || quotedPost.author?.username}
+                  </span>
+                  <span className="text-white/50 text-xs truncate">
+                    @{quotedPost.author?.username}
+                  </span>
+                </div>
+                <p className="text-white/90 text-sm leading-relaxed whitespace-pre-wrap">
+                  <MentionText content={quotedPost.content} />
+                </p>
+              </div>
+            )}
 
-            {/* User Text Content - Show for link posts (if different from article title) and for normal reshares */}
-            {!isReshareWithShortComment && shouldShowUserText && (
+            {/* User Text Content - Show for link posts (if different from article title) - NON stack layout */}
+            {!useStackLayout && shouldShowUserText && (
               <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-6">
                 <MentionText content={post.content.length > 280 ? post.content.slice(0, 280) + '...' : post.content} />
               </h2>
             )}
             
-            {/* User Text for normal reshares (long quoted comment): show current user's comment ABOVE the QuotedPostCard */}
-            {!isReshareWithShortComment && quotedPost && !hasLink && post.content && (
+            {/* User Text for normal reshares (long quoted comment, no source): show current user's comment ABOVE the QuotedPostCard */}
+            {!useStackLayout && quotedPost && !hasLink && post.content && (
               <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-6">
                 <MentionText content={post.content.length > 280 ? post.content.slice(0, 280) + '...' : post.content} />
               </h2>
@@ -849,8 +885,8 @@ export const ImmersivePostCard = ({
               </div>
             )}
 
-            {/* Reshare Stack Card: Source Preview LAST (uses deep chain source) */}
-            {isReshareWithShortComment && finalSourceUrl && (
+            {/* Stack Layout: Source Preview LAST (uses deep chain source) */}
+            {useStackLayout && finalSourceUrl && (
               <div 
                 className="cursor-pointer active:scale-[0.98] transition-transform mt-4"
                 onClick={(e) => {
@@ -882,28 +918,8 @@ export const ImmersivePostCard = ({
               </div>
             )}
 
-            {/* Text Content for text-only posts */}
-            {isTextOnly && (
-              <>
-                <Quote className="text-white/20 w-12 h-12 rotate-180 mb-4" />
-                <h2 className="text-2xl font-medium text-white leading-snug tracking-wide drop-shadow-md">
-                  <MentionText content={post.content.length > 280 ? post.content.slice(0, 280) + '...' : post.content} />
-                </h2>
-              </>
-            )}
-
-            {/* Media - Only show gallery for non-full-screen media posts */}
-            {hasMedia && !isMediaOnlyPost && (
-              <div className="mt-6">
-                <MediaGallery 
-                  media={post.media!}
-                  onClick={(_, index) => setSelectedMediaIndex(index)}
-                />
-              </div>
-            )}
-
-            {/* Quoted Post - Different rendering based on reshare type */}
-            {quotedPost && !isReshareWithShortComment && (
+            {/* Quoted Post - Only for reshares WITHOUT source (pure comment reshares) */}
+            {quotedPost && !useStackLayout && (
               <div className="mt-4">
                 <QuotedPostCard 
                   quotedPost={quotedPost} 
