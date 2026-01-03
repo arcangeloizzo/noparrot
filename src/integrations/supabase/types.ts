@@ -875,6 +875,7 @@ export type Database = {
           post_id: string | null
           questions: Json
           source_url: string | null
+          test_mode: string | null
           transcript: string | null
           transcript_source: string | null
           updated_at: string | null
@@ -888,6 +889,7 @@ export type Database = {
           post_id?: string | null
           questions: Json
           source_url?: string | null
+          test_mode?: string | null
           transcript?: string | null
           transcript_source?: string | null
           updated_at?: string | null
@@ -901,6 +903,7 @@ export type Database = {
           post_id?: string | null
           questions?: Json
           source_url?: string | null
+          test_mode?: string | null
           transcript?: string | null
           transcript_source?: string | null
           updated_at?: string | null
