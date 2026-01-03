@@ -693,11 +693,16 @@ export const ImmersivePostCard = ({
           {/* Center Content */}
           <div className="flex-1 flex flex-col justify-center px-2">
             
-            {/* Reshare Stack Card: Show user's short comment prominently */}
+            {/* Reshare Stack Card: User comment first (normal text, not bold) */}
             {isReshareWithShortComment && post.content && (
-              <h2 className="text-2xl font-bold text-white leading-tight tracking-wide drop-shadow-lg mb-4">
+              <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-4">
                 <MentionText content={post.content} />
               </h2>
+            )}
+
+            {/* Reshare Stack Card: TRACCE second */}
+            {isReshareWithShortComment && contextStack.length > 0 && (
+              <ReshareContextStack stack={contextStack} />
             )}
 
             {/* User Text Content - Show for link posts (if different from article title) and for normal reshares */}
@@ -844,10 +849,10 @@ export const ImmersivePostCard = ({
               </div>
             )}
 
-            {/* Reshare Stack Card: Source Preview from chain (uses deep chain source) */}
+            {/* Reshare Stack Card: Source Preview LAST (uses deep chain source) */}
             {isReshareWithShortComment && finalSourceUrl && (
               <div 
-                className="cursor-pointer active:scale-[0.98] transition-transform"
+                className="cursor-pointer active:scale-[0.98] transition-transform mt-4"
                 onClick={(e) => {
                   e.stopPropagation();
                   window.open(finalSourceUrl, '_blank', 'noopener,noreferrer');
@@ -855,22 +860,22 @@ export const ImmersivePostCard = ({
               >
                 {/* Source Image */}
                 {(articlePreview?.image || finalSourceImage) && (
-                  <div className="mb-4 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                  <div className="mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
                     <img 
                       src={articlePreview?.image || finalSourceImage} 
                       alt="" 
-                      className="w-full h-56 object-cover"
+                      className="w-full h-48 object-cover"
                     />
                   </div>
                 )}
                 
                 {/* Source Title */}
-                <h1 className="text-xl font-bold text-white leading-tight mb-2 drop-shadow-xl">
+                <h1 className="text-lg font-semibold text-white leading-tight mb-1 drop-shadow-xl">
                   {articlePreview?.title || finalSourceTitle || getHostnameFromUrl(finalSourceUrl)}
                 </h1>
-                <div className="flex items-center gap-2 text-white/70 mb-2">
+                <div className="flex items-center gap-2 text-white/60">
                   <ExternalLink className="w-3 h-3" />
-                  <span className="text-xs uppercase font-bold tracking-widest">
+                  <span className="text-xs uppercase tracking-widest">
                     {getHostnameFromUrl(finalSourceUrl)}
                   </span>
                 </div>
@@ -907,10 +912,6 @@ export const ImmersivePostCard = ({
               </div>
             )}
 
-            {/* Reshare Context Stack - for short comment reshares */}
-            {isReshareWithShortComment && contextStack.length > 0 && (
-              <ReshareContextStack stack={contextStack} />
-            )}
           </div>
 
           {/* Bottom Actions - Aligned heights h-10 */}
