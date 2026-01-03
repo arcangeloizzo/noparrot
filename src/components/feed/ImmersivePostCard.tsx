@@ -56,6 +56,7 @@ import { useSendMessage } from "@/hooks/useMessages";
 import { getWordCount, getTestModeWithSource, getQuestionCountWithoutSource } from "@/lib/gate-utils";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
 import { useReshareContextStack } from "@/hooks/useReshareContextStack";
+import { useOriginalSource } from "@/hooks/useOriginalSource";
 
 interface ImmersivePostCardProps {
   post: Post;
@@ -142,7 +143,9 @@ export const ImmersivePostCard = ({
     reasons?: string[];
   } | null>(null);
 
-  // Fetch article preview - also check quoted post's URL for reshare stack cards
+  // Fetch article preview - check post, quoted post, and deep chain source
+  // We use finalSourceUrl computed below, but since this runs before those computations,
+  // we check direct URLs first, then the hook handles deep chain
   const urlToPreview = post.shared_url || quotedPost?.shared_url;
   
   useEffect(() => {
@@ -482,12 +485,50 @@ export const ImmersivePostCard = ({
   const quotedPostWordCount = getWordCount(quotedPost?.content || '');
   const isReshareWithShortComment = !!quotedPost && quotedPostWordCount < 30;
   
-  // Get source from quoted post if current post doesn't have one
+  // Get source from quoted post if current post doesn't have one (2 levels)
   const effectiveSharedUrl = post.shared_url || quotedPost?.shared_url;
   const effectivePreviewImg = post.preview_img || quotedPost?.preview_img;
   const effectiveSharedTitle = post.shared_title || quotedPost?.shared_title;
   
-  // Fetch context stack only when this is a reshare with short comment
+  // For multi-level reshares, find the original source deep in the chain
+  const { data: originalSource } = useOriginalSource(
+    // Only fetch if we're a reshare stack and don't have a direct source
+    isReshareWithShortComment && !effectiveSharedUrl ? post.quoted_post_id : null
+  );
+  
+  // Final effective source: prefer direct, fallback to deep chain search
+  const finalSourceUrl = effectiveSharedUrl || originalSource?.url;
+  const finalSourceTitle = effectiveSharedTitle || originalSource?.title;
+  const finalSourceImage = effectivePreviewImg || originalSource?.image;
+  
+  // Load article preview for deep chain source when available
+  useEffect(() => {
+    const loadDeepSourcePreview = async () => {
+      // Only fetch if we have a deep source and don't have a direct URL preview
+      if (!originalSource?.url || urlToPreview) return;
+      
+      try {
+        const preview = await fetchArticlePreview(originalSource.url);
+        const platform = (preview as any)?.platform || detectPlatformFromUrl(originalSource.url);
+        setArticlePreview(preview ? { ...(preview as any), platform } : {
+          platform,
+          title: originalSource.title || getHostnameFromUrl(originalSource.url),
+          description: '',
+          image: originalSource.image || '',
+        });
+      } catch {
+        setArticlePreview({
+          platform: detectPlatformFromUrl(originalSource.url),
+          title: originalSource.title || getHostnameFromUrl(originalSource.url),
+          description: '',
+          image: originalSource.image || '',
+        });
+      }
+    };
+    loadDeepSourcePreview();
+  }, [originalSource, urlToPreview]);
+  
+  // Fetch context stack for reshare with short comment
   const { data: contextStack = [] } = useReshareContextStack(
     isReshareWithShortComment ? post.quoted_post_id : null
   );
@@ -803,20 +844,20 @@ export const ImmersivePostCard = ({
               </div>
             )}
 
-            {/* Reshare Stack Card: Source Preview from chain */}
-            {isReshareWithShortComment && effectiveSharedUrl && (
+            {/* Reshare Stack Card: Source Preview from chain (uses deep chain source) */}
+            {isReshareWithShortComment && finalSourceUrl && (
               <div 
                 className="cursor-pointer active:scale-[0.98] transition-transform"
                 onClick={(e) => {
                   e.stopPropagation();
-                  window.open(effectiveSharedUrl, '_blank', 'noopener,noreferrer');
+                  window.open(finalSourceUrl, '_blank', 'noopener,noreferrer');
                 }}
               >
                 {/* Source Image */}
-                {(articlePreview?.image || effectivePreviewImg) && (
+                {(articlePreview?.image || finalSourceImage) && (
                   <div className="mb-4 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
                     <img 
-                      src={articlePreview?.image || effectivePreviewImg} 
+                      src={articlePreview?.image || finalSourceImage} 
                       alt="" 
                       className="w-full h-56 object-cover"
                     />
@@ -825,12 +866,12 @@ export const ImmersivePostCard = ({
                 
                 {/* Source Title */}
                 <h1 className="text-xl font-bold text-white leading-tight mb-2 drop-shadow-xl">
-                  {articlePreview?.title || effectiveSharedTitle || getHostnameFromUrl(effectiveSharedUrl)}
+                  {articlePreview?.title || finalSourceTitle || getHostnameFromUrl(finalSourceUrl)}
                 </h1>
                 <div className="flex items-center gap-2 text-white/70 mb-2">
                   <ExternalLink className="w-3 h-3" />
                   <span className="text-xs uppercase font-bold tracking-widest">
-                    {getHostnameFromUrl(effectiveSharedUrl)}
+                    {getHostnameFromUrl(finalSourceUrl)}
                   </span>
                 </div>
               </div>

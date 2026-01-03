@@ -53,9 +53,9 @@ export const ReshareContextStack = ({ stack }: ReshareContextStackProps) => {
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
         <span className="text-[10px] uppercase tracking-widest text-white/50 font-bold">
-          Contesto
+          Tracce
         </span>
-        <div className="flex-1 h-px bg-white/10" />
+        <div className="flex-1 h-px bg-white/20" />
       </div>
 
       {/* Context Items */}
