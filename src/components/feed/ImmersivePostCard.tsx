@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play } from "lucide-react";
+import { useDominantColors } from "@/hooks/useDominantColors";
 import {
   Dialog,
   DialogContent,
@@ -466,10 +467,14 @@ export const ImmersivePostCard = ({
   const isSpotify = articlePreview?.platform === 'spotify';
   const isMediaOnlyPost = hasMedia && !hasLink && !quotedPost;
   const mediaUrl = post.media?.[0]?.url;
-  const backgroundImage = isMediaOnlyPost ? mediaUrl : (articlePreview?.image || post.preview_img || (hasMedia && post.media?.[0]?.url));
+  const isVideoMedia = post.media?.[0]?.type === 'video';
+  const backgroundImage = !isMediaOnlyPost ? (articlePreview?.image || post.preview_img || (hasMedia && post.media?.[0]?.url)) : undefined;
   const isTextOnly = !hasMedia && !hasLink;
   const articleTitle = articlePreview?.title || post.shared_title || '';
   const shouldShowUserText = hasLink && post.content && !isTextSimilarToTitle(post.content, articleTitle);
+  
+  // Extract dominant colors from media
+  const { primary: dominantPrimary, secondary: dominantSecondary } = useDominantColors(isMediaOnlyPost ? mediaUrl : undefined);
 
   return (
     <>
@@ -480,16 +485,15 @@ export const ImmersivePostCard = ({
         {/* Background Layer */}
         {isMediaOnlyPost && mediaUrl ? (
           <>
-            {/* Full-screen media background */}
-            <img 
-              src={mediaUrl} 
-              className="absolute inset-0 w-full h-full object-contain bg-black z-0" 
-              alt=""
+            {/* Dynamic gradient background from dominant colors */}
+            <div 
+              className="absolute inset-0 transition-colors duration-700"
+              style={{ 
+                background: `linear-gradient(to bottom, ${dominantPrimary}, ${dominantSecondary})` 
+              }}
             />
-            {/* Gradient overlay for edges */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/80 z-[1]" />
-            {/* Dark vignette for corners */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_50%,rgba(0,0,0,0.4)_100%)] z-[1]" />
+            {/* Dark overlay for text readability */}
+            <div className="absolute inset-0 bg-black/30" />
           </>
         ) : isTextOnly ? (
           <div className="absolute inset-0 bg-[#1F3347]">
@@ -636,11 +640,52 @@ export const ImmersivePostCard = ({
               </h2>
             )}
 
-            {/* User Text for media-only posts */}
+            {/* User Text for media-only posts - ABOVE the media */}
             {isMediaOnlyPost && post.content && (
-              <h2 className="text-xl font-medium text-white leading-snug tracking-wide drop-shadow-md mb-4 text-center">
+              <h2 className="text-xl font-medium text-white leading-snug tracking-wide drop-shadow-lg mb-6">
                 <MentionText content={post.content.length > 200 ? post.content.slice(0, 200) + '...' : post.content} />
               </h2>
+            )}
+
+            {/* Framed Media Window for media-only posts */}
+            {isMediaOnlyPost && mediaUrl && (
+              <button
+                role="button"
+                aria-label={isVideoMedia ? "Riproduci video" : "Apri immagine"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedMediaIndex(0);
+                }}
+                className="relative w-full max-w-[90%] mx-auto rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-white/10 active:scale-[0.98] transition-transform"
+              >
+                {isVideoMedia ? (
+                  <>
+                    <img 
+                      src={post.media?.[0]?.thumbnail_url || mediaUrl} 
+                      alt="" 
+                      className="w-full aspect-video object-cover"
+                    />
+                    {/* Play icon overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                      <div className="bg-white/90 backdrop-blur-sm p-4 rounded-full shadow-xl">
+                        <Play className="w-8 h-8 text-black fill-black" />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <img 
+                      src={mediaUrl} 
+                      alt="" 
+                      className="w-full aspect-[4/3] object-cover"
+                    />
+                    {/* Expand icon */}
+                    <div className="absolute bottom-3 right-3 bg-black/50 backdrop-blur-sm p-2 rounded-full">
+                      <Maximize2 className="w-4 h-4 text-white" />
+                    </div>
+                  </>
+                )}
+              </button>
             )}
 
             {/* Spotify Card - Dedicated styling */}
