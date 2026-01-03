@@ -64,13 +64,14 @@ export const Feed = () => {
   const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
 
-  // Salva posizione scroll quando Feed si smonta (quando navighi via)
+  // State for force refresh
+  const [refreshNonce, setRefreshNonce] = useState(0);
+
+  // Salva posizione scroll (indice) quando Feed si smonta (quando navighi via)
   useEffect(() => {
     return () => {
-      const scrollPos = feedContainerRef.current?.getScrollPosition?.() ?? window.scrollY;
-      if (scrollPos > 0) {
-        sessionStorage.setItem('feed-scroll-position', scrollPos.toString());
-      }
+      const activeIndex = feedContainerRef.current?.getActiveIndex?.() ?? 0;
+      sessionStorage.setItem('feed-active-index', activeIndex.toString());
     };
   }, []);
 
@@ -88,7 +89,7 @@ export const Feed = () => {
   // Handler per refresh quando già nel feed
   const handleHomeRefresh = () => {
     // Pulisci la posizione salvata per forzare scroll top
-    sessionStorage.removeItem('feed-scroll-position');
+    sessionStorage.removeItem('feed-active-index');
     
     // Scroll container to top (for snap scroll)
     if (feedContainerRef.current) {
@@ -96,6 +97,9 @@ export const Feed = () => {
     }
     // Fallback for window scroll
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Incrementa nonce per forzare refresh delle query
+    setRefreshNonce(prev => prev + 1);
     
     // Invalida le query per refreshare i dati
     queryClient.invalidateQueries({ queryKey: ['posts'] });
@@ -143,24 +147,22 @@ export const Feed = () => {
     return items;
   }, [dailyFocus, dbPosts, interestFocus]);
 
-  // Ripristina posizione scroll quando Feed si monta e i dati sono caricati
+  // Ripristina posizione scroll (indice) quando Feed si monta e i dati sono caricati
   useEffect(() => {
     // Attendi che i dati siano caricati
     if (isLoading || loadingDaily || !mixedFeed.length) return;
     if (hasRestoredScrollRef.current) return;
     
-    const savedPos = sessionStorage.getItem('feed-scroll-position');
-    if (savedPos) {
-      const pos = parseInt(savedPos);
+    const savedIndex = sessionStorage.getItem('feed-active-index');
+    if (savedIndex) {
+      const index = parseInt(savedIndex);
       hasRestoredScrollRef.current = true;
       
       // Doppio RAF per garantire che il DOM sia pronto
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          if (feedContainerRef.current?.scrollTo) {
-            feedContainerRef.current.scrollTo(pos);
-          } else {
-            window.scrollTo({ top: pos });
+          if (feedContainerRef.current?.scrollToIndex) {
+            feedContainerRef.current.scrollToIndex(index);
           }
         });
       });

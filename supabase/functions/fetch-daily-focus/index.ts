@@ -764,24 +764,37 @@ serve(async (req) => {
   try {
     console.log('fetch-daily-focus invoked');
     
+    // Parse request body for force parameter
+    let force = false;
+    try {
+      const body = await req.json();
+      force = body?.force === true;
+    } catch {
+      // No body or invalid JSON, use default
+    }
+    
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // 1. Check cache (valid for 24 hours)
-    const { data: cached } = await supabase
-      .from('daily_focus')
-      .select('*')
-      .gte('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    
-    if (cached) {
-      console.log('Returning cached daily focus');
-      return new Response(JSON.stringify(cached), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    // 1. Check cache (valid for 4 hours) - skip if force=true
+    if (!force) {
+      const { data: cached } = await supabase
+        .from('daily_focus')
+        .select('*')
+        .gte('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (cached) {
+        console.log('Returning cached daily focus');
+        return new Response(JSON.stringify(cached), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    } else {
+      console.log('Force refresh requested, skipping cache');
     }
     
     // 2. Fetch fresh data using multi-source search
@@ -882,7 +895,7 @@ serve(async (req) => {
       reactions: { likes: 0, comments: 0, shares: 0 },
       image_url: finalImageUrl,
       created_at: new Date().toISOString(),
-      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+      expires_at: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString() // 4 hours
     };
     
     // 6. Store in database

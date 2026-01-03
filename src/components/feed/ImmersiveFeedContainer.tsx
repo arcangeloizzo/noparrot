@@ -10,6 +10,8 @@ export interface ImmersiveFeedContainerRef {
   scrollToTop: () => void;
   getScrollPosition: () => number;
   scrollTo: (pos: number) => void;
+  getActiveIndex: () => number;
+  scrollToIndex: (index: number) => void;
 }
 
 export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, ImmersiveFeedContainerProps>(({ 
@@ -32,6 +34,18 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     },
     scrollTo: (pos: number) => {
       containerRef.current?.scrollTo({ top: pos });
+    },
+    getActiveIndex: () => {
+      if (!containerRef.current) return 0;
+      const { scrollTop, clientHeight } = containerRef.current;
+      // Calculate which "slide" is currently visible
+      return Math.round(scrollTop / clientHeight);
+    },
+    scrollToIndex: (index: number) => {
+      if (!containerRef.current) return;
+      const { clientHeight } = containerRef.current;
+      const targetPosition = index * clientHeight;
+      containerRef.current.scrollTo({ top: targetPosition });
     }
   }));
 
