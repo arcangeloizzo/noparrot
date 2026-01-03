@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogDescription,
+  DialogClose,
 } from "@/components/ui/dialog";
 
 interface Source {
@@ -103,7 +104,11 @@ export const ImmersiveFocusCard = ({
                     <Info className="w-4 h-4" />
                   </button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent 
+                  className="sm:max-w-md"
+                  onPointerDownOutside={(e) => e.preventDefault()}
+                  onInteractOutside={(e) => e.preventDefault()}
+                >
                   <DialogHeader>
                     <DialogTitle>Cos'è Il Punto</DialogTitle>
                   </DialogHeader>
@@ -112,6 +117,11 @@ export const ImmersiveFocusCard = ({
                     <p>Serve per offrire un contesto comune da cui partire per la discussione.</p>
                     <p className="font-medium text-foreground">Non rappresenta una posizione ufficiale né una verifica dei fatti.</p>
                   </div>
+                  <DialogClose asChild>
+                    <button className="w-full mt-4 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg text-sm font-medium transition-colors">
+                      Chiudi
+                    </button>
+                  </DialogClose>
                 </DialogContent>
               </Dialog>
             )}
@@ -134,7 +144,11 @@ export const ImmersiveFocusCard = ({
                   <span className="text-[10px] font-bold tracking-wider uppercase">TRUST {trustScore.toUpperCase()}</span>
                 </button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
+              <DialogContent 
+                className="sm:max-w-md"
+                onPointerDownOutside={(e) => e.preventDefault()}
+                onInteractOutside={(e) => e.preventDefault()}
+              >
                 <DialogHeader>
                   <DialogTitle>Trust Score - Il Punto</DialogTitle>
                   <DialogDescription>
@@ -169,6 +183,11 @@ export const ImmersiveFocusCard = ({
                     Nota: non è fact-checking. Valuta l'affidabilità delle fonti, non la verità assoluta.
                   </p>
                 </div>
+                <DialogClose asChild>
+                  <button className="w-full mt-4 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg text-sm font-medium transition-colors">
+                    Chiudi
+                  </button>
+                </DialogClose>
               </DialogContent>
             </Dialog>
           )}
