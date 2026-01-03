@@ -1,9 +1,10 @@
-import React, { useRef, useState, forwardRef, useImperativeHandle } from "react";
+import React, { useRef, useState, forwardRef, useImperativeHandle, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface ImmersiveFeedContainerProps {
   children: React.ReactNode;
   onRefresh?: () => Promise<void>;
+  onActiveIndexChange?: (index: number) => void;
 }
 
 export interface ImmersiveFeedContainerRef {
@@ -16,13 +17,22 @@ export interface ImmersiveFeedContainerRef {
 
 export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, ImmersiveFeedContainerProps>(({ 
   children, 
-  onRefresh 
+  onRefresh,
+  onActiveIndexChange
 }, ref) => {
   const queryClient = useQueryClient();
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartY = useRef<number>(0);
   const pullDistance = useRef<number>(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const lastReportedIndex = useRef<number>(-1);
+
+  // Calculate active index
+  const calculateActiveIndex = useCallback(() => {
+    if (!containerRef.current) return 0;
+    const { scrollTop, clientHeight } = containerRef.current;
+    return Math.round(scrollTop / clientHeight);
+  }, []);
 
   // Expose scroll methods to parent
   useImperativeHandle(ref, () => ({
@@ -35,12 +45,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     scrollTo: (pos: number) => {
       containerRef.current?.scrollTo({ top: pos });
     },
-    getActiveIndex: () => {
-      if (!containerRef.current) return 0;
-      const { scrollTop, clientHeight } = containerRef.current;
-      // Calculate which "slide" is currently visible
-      return Math.round(scrollTop / clientHeight);
-    },
+    getActiveIndex: calculateActiveIndex,
     scrollToIndex: (index: number) => {
       if (!containerRef.current) return;
       const { clientHeight } = containerRef.current;
@@ -48,6 +53,15 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
       containerRef.current.scrollTo({ top: targetPosition });
     }
   }));
+
+  // Handle scroll to track active index
+  const handleScroll = useCallback(() => {
+    const currentIndex = calculateActiveIndex();
+    if (currentIndex !== lastReportedIndex.current) {
+      lastReportedIndex.current = currentIndex;
+      onActiveIndexChange?.(currentIndex);
+    }
+  }, [calculateActiveIndex, onActiveIndexChange]);
 
   // Pull-to-refresh handlers
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -84,6 +98,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onScroll={handleScroll}
     >
       {/* Pull to refresh indicator */}
       {isRefreshing && (
