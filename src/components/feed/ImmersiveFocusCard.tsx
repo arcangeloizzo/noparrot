@@ -59,22 +59,32 @@ export const ImmersiveFocusCard = ({
   const toggleReaction = useToggleFocusReaction();
   const isDailyFocus = type === 'daily';
 
-  // Prevent "ghost clicks" on the card when closing dialogs (especially when closing by tapping outside)
-  const suppressCardClickRef = React.useRef(false);
-  const suppressNextCardClick = React.useCallback(() => {
-    suppressCardClickRef.current = true;
-    window.setTimeout(() => {
-      suppressCardClickRef.current = false;
-    }, 300);
-  }, []);
+  // Track which dialogs are open to prevent card click while any dialog is open
+  const [infoDialogOpen, setInfoDialogOpen] = React.useState(false);
+  const [trustDialogOpen, setTrustDialogOpen] = React.useState(false);
+  
+  // Suppress card click for a brief moment after dialog closes
+  const suppressUntilRef = React.useRef(0);
+  
+  const handleDialogChange = (open: boolean) => {
+    if (!open) {
+      // When dialog closes, suppress card clicks for 400ms
+      suppressUntilRef.current = Date.now() + 400;
+    }
+  };
+
+  const handleCardClick = () => {
+    // Don't trigger if any dialog is open
+    if (infoDialogOpen || trustDialogOpen) return;
+    // Don't trigger if we're in suppress window
+    if (Date.now() < suppressUntilRef.current) return;
+    onClick?.();
+  };
 
   return (
     <div 
       className="h-[100dvh] w-full snap-start relative flex flex-col p-6 overflow-hidden cursor-pointer"
-      onClick={() => {
-        if (suppressCardClickRef.current) return;
-        onClick?.();
-      }}
+      onClick={handleCardClick}
     >
       
       {/* Background Layer */}
@@ -107,9 +117,13 @@ export const ImmersiveFocusCard = ({
               {isDailyFocus ? '🌍 IL PUNTO' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
             </span>
             {isDailyFocus && (
-              <Dialog onOpenChange={(open) => {
-                if (!open) suppressNextCardClick();
-              }}>
+              <Dialog 
+                open={infoDialogOpen} 
+                onOpenChange={(open) => {
+                  setInfoDialogOpen(open);
+                  handleDialogChange(open);
+                }}
+              >
                 <DialogTrigger asChild>
                   <button
                     onClick={(e) => e.stopPropagation()}
@@ -118,11 +132,7 @@ export const ImmersiveFocusCard = ({
                     <Info className="w-4 h-4" />
                   </button>
                 </DialogTrigger>
-                <DialogContent 
-                  className="sm:max-w-md"
-                  onPointerDownOutside={(e) => e.preventDefault()}
-                  onInteractOutside={(e) => e.preventDefault()}
-                >
+                <DialogContent className="sm:max-w-md">
                   <DialogHeader>
                     <DialogTitle>Cos'è Il Punto</DialogTitle>
                   </DialogHeader>
@@ -143,9 +153,13 @@ export const ImmersiveFocusCard = ({
 
           {/* Trust Score - Clickable */}
           {trustScore && (
-            <Dialog onOpenChange={(open) => {
-              if (!open) suppressNextCardClick();
-            }}>
+            <Dialog 
+              open={trustDialogOpen} 
+              onOpenChange={(open) => {
+                setTrustDialogOpen(open);
+                handleDialogChange(open);
+              }}
+            >
               <DialogTrigger asChild>
                 <button 
                   onClick={(e) => e.stopPropagation()}
@@ -160,11 +174,7 @@ export const ImmersiveFocusCard = ({
                   <span className="text-[10px] font-bold tracking-wider uppercase">TRUST {trustScore.toUpperCase()}</span>
                 </button>
               </DialogTrigger>
-              <DialogContent 
-                className="sm:max-w-md"
-                onPointerDownOutside={(e) => e.preventDefault()}
-                onInteractOutside={(e) => e.preventDefault()}
-              >
+              <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                   <DialogTitle>Trust Score - Il Punto</DialogTitle>
                   <DialogDescription>
