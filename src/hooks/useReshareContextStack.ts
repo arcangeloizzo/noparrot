@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { getWordCount } from '@/lib/gate-utils';
 
 export interface ContextItem {
   id: string;
@@ -25,14 +24,13 @@ interface AncestorPost {
   };
 }
 
-const SHORT_COMMENT_THRESHOLD = 30; // words
 const MAX_CHAIN_DEPTH = 10; // safety limit
 
 /**
- * Traverses the quoted_post_id chain and collects short comments (< threshold words).
+ * Traverses the quoted_post_id chain and collects ALL comments in the reshare chain.
+ * No longer stops on long comments - collects the full context.
  * Stops when:
  * - quoted_post_id is null
- * - A long comment (>= threshold) is found
  * - Max depth is reached
  */
 export function useReshareContextStack(quotedPostId: string | null) {
@@ -65,12 +63,6 @@ export function useReshareContextStack(quotedPostId: string | null) {
         if (error || !data) break;
 
         const post = data as unknown as AncestorPost;
-        const wordCount = getWordCount(post.content);
-
-        // If this is a long comment (interpretation), stop here
-        if (wordCount >= SHORT_COMMENT_THRESHOLD) {
-          break;
-        }
 
         // Add to stack
         stack.push({
