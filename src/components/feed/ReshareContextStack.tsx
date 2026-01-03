@@ -49,14 +49,7 @@ export const ReshareContextStack = ({ stack }: ReshareContextStackProps) => {
   };
 
   return (
-    <div className="mt-4 pt-3 border-t border-white/10">
-      {/* Header */}
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-[10px] uppercase tracking-widest text-white/50 font-bold">
-          Tracce
-        </span>
-        <div className="flex-1 h-px bg-white/20" />
-      </div>
+    <div className="mt-4 pt-2">
 
       {/* Context Items */}
       <div className="space-y-2">
