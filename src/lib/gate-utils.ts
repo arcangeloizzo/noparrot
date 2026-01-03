@@ -20,9 +20,9 @@ export type TestMode = 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY';
  * quando è presente una fonte esterna
  */
 export function getTestModeWithSource(userWordCount: number): TestMode {
-  if (userWordCount < 50) {
+  if (userWordCount <= 30) {
     return 'SOURCE_ONLY';   // 3 domande sulla fonte
-  } else if (userWordCount <= 150) {
+  } else if (userWordCount <= 120) {
     return 'MIXED';          // 1 domanda su userText, 2 sulla fonte
   } else {
     return 'USER_ONLY';      // 3 domande solo su userText
