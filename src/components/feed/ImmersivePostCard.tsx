@@ -679,9 +679,10 @@ export const ImmersivePostCard = ({
                       alt="" 
                       className="w-full h-[44vh] object-cover"
                     />
-                    {/* Expand icon */}
-                    <div className="absolute bottom-3 right-3 bg-black/50 backdrop-blur-sm p-2 rounded-full">
-                      <Maximize2 className="w-4 h-4 text-white" />
+                    {/* Expand pill with label */}
+                    <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                      <Maximize2 className="w-3.5 h-3.5 text-white" />
+                      <span className="text-xs font-medium text-white">Apri</span>
                     </div>
                   </>
                 )}
