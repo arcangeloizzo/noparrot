@@ -426,68 +426,71 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     <div 
       ref={rootRef}
       data-reader-gate-root="true"
-      className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-[9999] animate-fade-in"
+      className="fixed inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center z-[9999] animate-fade-in"
       onClick={handleBackdropClick}
       onTouchMove={handleBackdropTouch}
     >
-      <div className="bg-background rounded-2xl w-[90vw] h-[84vh] flex flex-col border border-border animate-slide-up-blur">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <div className="flex items-center justify-center w-full">
-            <h2 className="font-semibold text-lg text-foreground text-center">
+      <div className="bg-card rounded-3xl w-[92vw] h-[86vh] flex flex-col border border-border/50 shadow-2xl animate-slide-up-blur overflow-hidden">
+        {/* Header - Modernized */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 bg-muted/30">
+          <div className="flex-1">
+            <h2 className="font-semibold text-lg text-foreground">
               Prima comprendiamo.
             </h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {source.title ? source.title.slice(0, 60) + (source.title.length > 60 ? '...' : '') : 'Fonte'}
+            </p>
           </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={onClose}
-            className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+            className="h-9 w-9 p-0 text-muted-foreground hover:text-foreground rounded-full"
           >
-            <X className="h-4 w-4" />
+            <X className="h-5 w-5" />
           </Button>
         </div>
 
         {/* Progress Bar - Semplificato (nascosto se contenuto bloccato) */}
         {!isBlocked && (
-          <div className="p-4 bg-muted/50 border-b border-border sticky top-0 z-10">
+          <div className="px-5 py-3 bg-muted/20 border-b border-border/30">
             <div className="flex items-center justify-between text-sm mb-2">
               <div className="flex items-center gap-2">
                 {showTypingIndicator ? (
                   <>
                     <TypingIndicator className="mr-2" />
-                    <span className="text-muted-foreground font-medium">Sto preparando ciò che ti serve per orientarti…</span>
+                    <span className="text-muted-foreground font-medium text-xs">Preparazione in corso…</span>
                   </>
                 ) : isReady ? (
                   <>
                     <Check className="h-4 w-4 text-[hsl(var(--cognitive-correct))]" />
-                    <span className="text-[hsl(var(--cognitive-correct))] font-medium">Hai visto abbastanza per capire. Procediamo.</span>
+                    <span className="text-[hsl(var(--cognitive-correct))] font-medium text-sm">Pronto. Procediamo.</span>
                   </>
                 ) : (
                   <>
-                    <span className="text-foreground">
-                      Tempo: {timeLeft}s
+                    <span className="text-foreground text-sm font-medium">
+                      {timeLeft}s
                     </span>
                     <span className="text-muted-foreground">•</span>
-                    <span className="text-foreground">
-                      Scroll: {Math.round(scrollProgress)}%
+                    <span className="text-foreground text-sm">
+                      {Math.round(scrollProgress)}%
                     </span>
                   </>
                 )}
               </div>
               {!isReady && (
                 <span className="text-muted-foreground text-xs">
-                  Leggi per 10s o scorri tutto
+                  10s o scorri tutto
                 </span>
               )}
             </div>
 
-            {/* Progress bars */}
-            <div className="space-y-2">
-              <div className="w-full bg-muted rounded-full h-2">
+            {/* Progress bars - Compact */}
+            <div className="flex gap-2">
+              <div className="flex-1 bg-muted rounded-full h-1.5">
                 <div
                   className={cn(
-                    "h-2 rounded-full transition-all ease-linear",
+                    "h-1.5 rounded-full transition-all ease-linear",
                     timeLeft === 0 ? "bg-trust-high" : "bg-primary"
                   )}
                   style={{
@@ -497,10 +500,10 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 />
               </div>
 
-              <div className="w-full bg-muted rounded-full h-2">
+              <div className="flex-1 bg-muted rounded-full h-1.5">
                 <div
                   className={cn(
-                    "h-2 rounded-full transition-all duration-300",
+                    "h-1.5 rounded-full transition-all duration-300",
                     hasScrolledToBottom ? "bg-trust-high" : "bg-accent"
                   )}
                   style={{ width: `${scrollProgress}%` }}
@@ -510,38 +513,33 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           </div>
         )}
 
-        {/* Source Info with Quality Badge */}
-        <div className="p-4 border-b border-border bg-card">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1">
-              <h3 className="font-semibold text-foreground mb-1">
-                {source.title || 'Fonte'}
-              </h3>
-              <p className="text-sm text-muted-foreground break-all">
-                {source.url}
-              </p>
-            </div>
+        {/* Source Badge - New */}
+        <div className="px-5 py-3 border-b border-border/30 bg-card">
+          <div className="flex items-center gap-3">
             {(source as any).contentQuality && (
               <div className={cn(
-                "px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap",
+                "px-2.5 py-1 rounded-full text-xs font-medium",
                 (source as any).contentQuality === 'complete' 
-                  ? "bg-trust-high/20 text-trust-high border border-trust-high/30"
-                  : "bg-warning/20 text-warning border border-warning/30"
+                  ? "bg-trust-high/15 text-trust-high"
+                  : "bg-warning/15 text-warning"
               )}>
                 {(source as any).contentQuality === 'complete' ? '✓ Completo' : '⚠ Parziale'}
               </div>
             )}
+            <span className="text-xs text-muted-foreground truncate flex-1">
+              {source.url}
+            </span>
           </div>
         </div>
 
-        {/* Content Area - Fixed horizontal scroll */}
+        {/* Content Area - Modernized with better typography */}
         <div
           ref={scrollContainerRef}
-          className="flex-1 p-4 overflow-y-auto overflow-x-hidden overscroll-contain"
+          className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
           style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
           onScroll={handleScroll}
         >
-          <div className="space-y-4 text-sm leading-relaxed overflow-hidden">
+          <div className="px-5 py-6 space-y-5 max-w-full overflow-hidden">
             {source.embedHtml && source.platform === 'youtube' && !isClosing ? (
               <>
                 {/* YouTube Embed */}
@@ -955,10 +953,10 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               </>
             ) : (
               <>
-                {/* Generic Article/Content - Sanitized */}
-                <div className="max-w-full mx-auto space-y-4 overflow-hidden">
+                {/* Generic Article/Content - Clean extraction without truncation */}
+                <div className="max-w-full mx-auto space-y-5 overflow-hidden">
                   {source.image && (
-                    <div className="rounded-xl overflow-hidden">
+                    <div className="rounded-2xl overflow-hidden shadow-lg">
                       <img 
                         src={source.image} 
                         alt={source.title || 'Preview'} 
@@ -969,24 +967,56 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
                   {source.content ? (
                     <div className="max-w-full overflow-hidden">
-                      <div className="text-foreground leading-relaxed break-words">
-                        {/* Sanitize content: remove markdown links, headings, social links, raw URLs */}
+                      <div className="text-foreground text-base leading-7 break-words space-y-4">
+                        {/* Clean content extraction - preserve full text, only clean formatting */}
                         {source.content
-                          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [text](url) → text
-                          .replace(/^#{1,6}\s*/gm, '') // Remove markdown headings
-                          .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove **bold**
-                          .replace(/\b(Condividi|Share|Facebook|Twitter|X \(Twitter\)|Email|WhatsApp|LinkedIn|Telegram|Leggi anche|Potrebbe interessarti|POTREBBE INTERESSARTI|Articoli correlati|Continua a leggere|Clicca qui|CLICCA QUI)\b[^\n]*/gi, '') // Remove social/nav text
-                          .replace(/https?:\/\/[^\s<>"\n]+/g, '') // Remove raw URLs
-                          .replace(/\n{3,}/g, '\n\n') // Collapse multiple newlines
-                          .trim()}
+                          // Convert markdown links to just text
+                          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+                          // Remove markdown headings markers (but keep text)
+                          .replace(/^#{1,6}\s+/gm, '')
+                          // Remove bold markdown
+                          .replace(/\*\*([^*]+)\*\*/g, '$1')
+                          // Remove italic markdown
+                          .replace(/\*([^*]+)\*/g, '$1')
+                          // Remove only lines that START with social/nav patterns
+                          .split('\n')
+                          .filter(line => {
+                            const trimmed = line.trim().toLowerCase();
+                            // Skip empty lines that would create excessive spacing
+                            if (!trimmed) return true;
+                            // Skip lines that are just social/nav elements at the START
+                            const skipPatterns = [
+                              /^condividi\s*(su|:)?$/i,
+                              /^share\s*(on|:)?$/i,
+                              /^(facebook|twitter|whatsapp|telegram|linkedin|email)\s*$/i,
+                              /^x\s*\(twitter\)\s*$/i,
+                              /^leggi anche\s*:?$/i,
+                              /^potrebbe interessarti\s*:?$/i,
+                              /^articoli correlati\s*:?$/i,
+                              /^continua a leggere\s*$/i,
+                              /^clicca qui\s*$/i,
+                              /^https?:\/\/\S+$/i, // Lines that are ONLY a URL
+                            ];
+                            return !skipPatterns.some(p => p.test(trimmed));
+                          })
+                          .join('\n')
+                          // Collapse excessive newlines
+                          .replace(/\n{4,}/g, '\n\n\n')
+                          .trim()
+                          .split(/\n\n+/)
+                          .map((paragraph, idx) => (
+                            <p key={idx} className="text-foreground">
+                              {paragraph.trim()}
+                            </p>
+                          ))}
                       </div>
                     </div>
                   ) : source.summary ? (
-                    <div className="p-4 bg-muted/30 rounded-lg border border-border">
-                      <p className="text-foreground break-words">{source.summary}</p>
+                    <div className="p-5 bg-muted/20 rounded-2xl border border-border/50">
+                      <p className="text-foreground text-base leading-7 break-words">{source.summary}</p>
                     </div>
                   ) : (
-                    <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
+                    <div className="text-center p-8 bg-muted/20 rounded-2xl border border-border/50">
                       <p className="text-sm text-muted-foreground mb-4">
                         Contenuto non disponibile per l'anteprima
                       </p>
@@ -1003,13 +1033,13 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="p-4 border-t border-border bg-card">
+        {/* Footer Actions - Modernized */}
+        <div className="px-5 py-4 border-t border-border/50 bg-card">
           <div className="flex gap-3">
             <Button 
               variant="outline" 
               onClick={openSource}
-              className="flex-1 gap-2"
+              className="flex-1 gap-2 h-12 rounded-2xl"
             >
               <ExternalLink className="h-4 w-4" />
               Apri originale
@@ -1018,7 +1048,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               onClick={handleComplete}
               disabled={!isReady || isLoading}
               className={cn(
-                "flex-1 gap-2 transition-all",
+                "flex-1 gap-2 h-12 rounded-2xl transition-all",
                 isReady 
                   ? "bg-primary text-primary-foreground hover:bg-primary/90" 
                   : "bg-muted text-muted-foreground cursor-not-allowed"

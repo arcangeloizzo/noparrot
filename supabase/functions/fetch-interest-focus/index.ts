@@ -811,7 +811,8 @@ serve(async (req) => {
   try {
     console.log('fetch-interest-focus invoked');
     
-    const { category } = await req.json();
+    const body = await req.json();
+    const { category, force } = body;
     
     if (!category) {
       return new Response(
@@ -827,21 +828,25 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // 1. Check cache (valid for 12 hours)
-    const { data: cached } = await supabase
-      .from('interest_focus')
-      .select('*')
-      .eq('category', category)
-      .gte('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    
-    if (cached) {
-      console.log(`Returning cached interest focus for category: ${category}`);
-      return new Response(JSON.stringify(cached), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    // 1. Check cache (valid for 3 hours) - skip if force=true
+    if (!force) {
+      const { data: cached } = await supabase
+        .from('interest_focus')
+        .select('*')
+        .eq('category', category)
+        .gte('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (cached) {
+        console.log(`Returning cached interest focus for category: ${category}`);
+        return new Response(JSON.stringify(cached), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    } else {
+      console.log(`Force refresh requested for category: ${category}`);
     }
     
     // 2. Fetch fresh data
@@ -944,7 +949,7 @@ serve(async (req) => {
       reactions: { likes: 0, comments: 0, shares: 0 },
       image_url: finalImageUrl,
       created_at: new Date().toISOString(),
-      expires_at: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString()
+      expires_at: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString() // 3 hours
     };
     
     // 6. Store in database

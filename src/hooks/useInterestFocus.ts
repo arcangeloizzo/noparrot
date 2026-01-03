@@ -19,9 +19,9 @@ export interface InterestFocus {
   expires_at: string;
 }
 
-export const useInterestFocus = (userCategories: string[]) => {
+export const useInterestFocus = (userCategories: string[], forceRefresh: boolean = false) => {
   return useQuery({
-    queryKey: ['interest-focus', userCategories],
+    queryKey: ['interest-focus', userCategories, forceRefresh],
     queryFn: async (): Promise<InterestFocus[]> => {
       if (userCategories.length === 0) {
         return [];
@@ -29,12 +29,27 @@ export const useInterestFocus = (userCategories: string[]) => {
 
       // Prendiamo le top 2 categorie dell'utente
       const topCategories = userCategories.slice(0, 2);
-      console.log('Fetching interest focus for categories:', topCategories);
+      console.log('Fetching interest focus for categories:', topCategories, forceRefresh ? '(FORCE)' : '');
 
       const results = await Promise.allSettled(
         topCategories.map(async (category) => {
           try {
-            // 1. Check cache (valido per 12 ore)
+            // If force refresh, skip cache
+            if (forceRefresh) {
+              console.log(`Force refreshing interest focus for ${category}...`);
+              const { data, error } = await supabase.functions.invoke('fetch-interest-focus', {
+                body: { category, force: true }
+              });
+
+              if (error) {
+                console.error(`Error force refreshing interest focus for ${category}:`, error);
+                throw error;
+              }
+
+              return data as unknown as InterestFocus;
+            }
+
+            // 1. Check cache (valido per 3 ore)
             const { data: cached } = await supabase
               .from('interest_focus')
               .select('*')
@@ -75,7 +90,7 @@ export const useInterestFocus = (userCategories: string[]) => {
         .filter((r): r is InterestFocus => r !== null);
     },
     enabled: userCategories.length > 0,
-    staleTime: 1000 * 60 * 30, // 30 minuti
+    staleTime: 1000 * 60 * 15, // 15 minuti
     refetchOnWindowFocus: false,
     retry: 1,
   });

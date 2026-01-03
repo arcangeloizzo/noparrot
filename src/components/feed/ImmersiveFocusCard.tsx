@@ -259,27 +259,27 @@ export const ImmersiveFocusCard = ({
           )}
         </div>
 
-        {/* Bottom Actions - Aligned heights */}
+        {/* Bottom Actions - Aligned heights h-11 */}
         <div className="flex items-center justify-between gap-3">
           
-          {/* Primary Share Button - Compact */}
+          {/* Primary Share Button - h-11 */}
           <button 
             onClick={(e) => {
               e.stopPropagation();
               onShare?.();
             }}
-            className="h-12 px-6 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+            className="h-11 px-5 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
           >
             <Logo variant="icon" size="sm" className="h-5 w-5" />
-            <span className="text-sm font-semibold">Condividi</span>
+            <span className="text-sm font-semibold leading-none">Condividi</span>
           </button>
 
-          {/* Reactions - Horizontal layout with counters beside icons */}
-          <div className="flex items-center gap-1 bg-black/20 backdrop-blur-xl h-12 px-3 rounded-2xl border border-white/5">
+          {/* Reactions - Horizontal layout h-11 matching share button */}
+          <div className="flex items-center gap-1 bg-black/20 backdrop-blur-xl h-11 px-2 rounded-2xl border border-white/5">
             
             {/* Like */}
             <button 
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl hover:bg-white/10 transition-colors"
+              className="flex items-center gap-1.5 px-2 py-0 rounded-xl hover:bg-white/10 transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
                 if (!user) {
@@ -301,7 +301,7 @@ export const ImmersiveFocusCard = ({
 
             {/* Comments */}
             <button 
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl hover:bg-white/10 transition-colors"
+              className="flex items-center gap-1.5 px-2 py-0 rounded-xl hover:bg-white/10 transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
                 onComment?.();
@@ -313,7 +313,7 @@ export const ImmersiveFocusCard = ({
 
             {/* Bookmark */}
             <button 
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl hover:bg-white/10 transition-colors"
+              className="flex items-center gap-1.5 px-2 py-0 rounded-xl hover:bg-white/10 transition-colors"
               onClick={(e) => {
                 e.stopPropagation();
                 toast.info('Funzionalità in arrivo');

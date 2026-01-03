@@ -647,7 +647,7 @@ export const ImmersivePostCard = ({
               </h2>
             )}
 
-            {/* Framed Media Window for media-only posts */}
+            {/* Framed Media Window for media-only posts - LARGE for user uploads */}
             {isMediaOnlyPost && mediaUrl && (
               <button
                 role="button"
@@ -656,14 +656,14 @@ export const ImmersivePostCard = ({
                   e.stopPropagation();
                   setSelectedMediaIndex(0);
                 }}
-                className="relative w-full max-w-[90%] mx-auto rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-white/10 active:scale-[0.98] transition-transform"
+                className="relative w-full max-w-[96%] mx-auto rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-white/10 active:scale-[0.98] transition-transform"
               >
                 {isVideoMedia ? (
                   <>
                     <img 
                       src={post.media?.[0]?.thumbnail_url || mediaUrl} 
                       alt="" 
-                      className="w-full aspect-video object-cover"
+                      className="w-full h-[55vh] object-cover"
                     />
                     {/* Play icon overlay */}
                     <div className="absolute inset-0 flex items-center justify-center bg-black/20">
@@ -677,7 +677,7 @@ export const ImmersivePostCard = ({
                     <img 
                       src={mediaUrl} 
                       alt="" 
-                      className="w-full aspect-[4/3] object-cover"
+                      className="w-full h-[62vh] object-cover"
                     />
                     {/* Expand icon */}
                     <div className="absolute bottom-3 right-3 bg-black/50 backdrop-blur-sm p-2 rounded-full">
@@ -820,7 +820,7 @@ export const ImmersivePostCard = ({
               
               {/* Like */}
               <button 
-                className="flex items-center gap-1.5 px-2 py-1 rounded-xl hover:bg-white/10 transition-colors"
+                className="flex items-center gap-1.5 px-2 py-0 rounded-xl hover:bg-white/10 transition-colors"
                 onClick={(e) => { e.stopPropagation(); handleHeart(e); }}
               >
                 <Heart 
@@ -832,7 +832,7 @@ export const ImmersivePostCard = ({
 
               {/* Comments */}
               <button 
-                className="flex items-center gap-1.5 px-2 py-1 rounded-xl hover:bg-white/10 transition-colors"
+                className="flex items-center gap-1.5 px-2 py-0 rounded-xl hover:bg-white/10 transition-colors"
                 onClick={(e) => { e.stopPropagation(); setShowComments(true); }}
               >
                 <MessageCircle className="w-5 h-5 text-white" />
@@ -841,7 +841,7 @@ export const ImmersivePostCard = ({
 
               {/* Bookmark */}
               <button 
-                className="flex items-center gap-1.5 px-2 py-1 rounded-xl hover:bg-white/10 transition-colors"
+                className="flex items-center gap-1.5 px-2 py-0 rounded-xl hover:bg-white/10 transition-colors"
                 onClick={handleBookmark}
               >
                 <Bookmark 

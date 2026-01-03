@@ -19,11 +19,26 @@ export interface DailyFocus {
   expires_at: string;
 }
 
-export const useDailyFocus = () => {
+export const useDailyFocus = (forceRefresh: boolean = false) => {
   return useQuery({
-    queryKey: ['daily-focus'],
+    queryKey: ['daily-focus', forceRefresh],
     queryFn: async (): Promise<DailyFocus | null> => {
-      // 1. Check cache in table (valido per 24 ore)
+      // If force refresh, skip cache and call edge function directly
+      if (forceRefresh) {
+        console.log('Force refreshing daily focus...');
+        const { data, error } = await supabase.functions.invoke('fetch-daily-focus', {
+          body: { force: true }
+        });
+
+        if (error) {
+          console.error('Error force refreshing daily focus:', error);
+          return null;
+        }
+
+        return data as unknown as DailyFocus;
+      }
+
+      // 1. Check cache in table (valido per 4 ore)
       const { data: cached, error: cacheError } = await supabase
         .from('daily_focus')
         .select('*')
@@ -52,7 +67,7 @@ export const useDailyFocus = () => {
 
       return data as unknown as DailyFocus;
     },
-    staleTime: 1000 * 60 * 30, // 30 minuti
+    staleTime: 1000 * 60 * 15, // 15 minuti
     refetchOnWindowFocus: false,
     retry: 1,
   });
