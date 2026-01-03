@@ -27,6 +27,7 @@ import { QuizModal } from "@/components/ui/quiz-modal";
 // Feed Components
 import { QuotedPostCard } from "./QuotedPostCard";
 import { MentionText } from "./MentionText";
+import { ReshareContextStack } from "./ReshareContextStack";
 
 // Media Components
 import { MediaGallery } from "@/components/media/MediaGallery";
@@ -54,6 +55,7 @@ import { useCreateThread } from "@/hooks/useMessageThreads";
 import { useSendMessage } from "@/hooks/useMessages";
 import { getWordCount, getTestModeWithSource, getQuestionCountWithoutSource } from "@/lib/gate-utils";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
+import { useReshareContextStack } from "@/hooks/useReshareContextStack";
 
 interface ImmersivePostCardProps {
   post: Post;
@@ -140,33 +142,35 @@ export const ImmersivePostCard = ({
     reasons?: string[];
   } | null>(null);
 
-  // Fetch article preview
+  // Fetch article preview - also check quoted post's URL for reshare stack cards
+  const urlToPreview = post.shared_url || quotedPost?.shared_url;
+  
   useEffect(() => {
     const loadArticlePreview = async () => {
-      if (!post.shared_url) {
+      if (!urlToPreview) {
         setArticlePreview(null);
         return;
       }
       try {
-        const preview = await fetchArticlePreview(post.shared_url);
-        const platform = (preview as any)?.platform || detectPlatformFromUrl(post.shared_url);
+        const preview = await fetchArticlePreview(urlToPreview);
+        const platform = (preview as any)?.platform || detectPlatformFromUrl(urlToPreview);
         setArticlePreview(preview ? { ...(preview as any), platform } : {
           platform,
-          title: post.shared_title || getHostnameFromUrl(post.shared_url),
+          title: post.shared_title || quotedPost?.shared_title || getHostnameFromUrl(urlToPreview),
           description: '',
-          image: post.preview_img || '',
+          image: post.preview_img || quotedPost?.preview_img || '',
         });
       } catch {
         setArticlePreview({
-          platform: detectPlatformFromUrl(post.shared_url),
-          title: post.shared_title || getHostnameFromUrl(post.shared_url),
+          platform: detectPlatformFromUrl(urlToPreview),
+          title: post.shared_title || quotedPost?.shared_title || getHostnameFromUrl(urlToPreview),
           description: '',
-          image: post.preview_img || '',
+          image: post.preview_img || quotedPost?.preview_img || '',
         });
       }
     };
     loadArticlePreview();
-  }, [post.shared_url]);
+  }, [urlToPreview, quotedPost]);
 
   // Fetch trust score
   useEffect(() => {
@@ -473,6 +477,20 @@ export const ImmersivePostCard = ({
   const articleTitle = articlePreview?.title || post.shared_title || '';
   const shouldShowUserText = hasLink && post.content && !isTextSimilarToTitle(post.content, articleTitle);
   
+  // Reshare Stack logic: detect if this is a reshare with short comment
+  const currentWordCount = getWordCount(post.content);
+  const isReshareWithShortComment = !!quotedPost && currentWordCount < 30;
+  
+  // Get source from quoted post if current post doesn't have one
+  const effectiveSharedUrl = post.shared_url || quotedPost?.shared_url;
+  const effectivePreviewImg = post.preview_img || quotedPost?.preview_img;
+  const effectiveSharedTitle = post.shared_title || quotedPost?.shared_title;
+  
+  // Fetch context stack only when this is a reshare with short comment
+  const { data: contextStack = [] } = useReshareContextStack(
+    isReshareWithShortComment ? post.quoted_post_id : null
+  );
+  
   // Extract dominant colors from media
   const { primary: dominantPrimary, secondary: dominantSecondary } = useDominantColors(isMediaOnlyPost ? mediaUrl : undefined);
 
@@ -633,8 +651,15 @@ export const ImmersivePostCard = ({
           {/* Center Content */}
           <div className="flex-1 flex flex-col justify-center px-2">
             
-            {/* User Text Content - Only if different from article title */}
-            {shouldShowUserText && (
+            {/* Reshare Stack Card: Show user's short comment prominently */}
+            {isReshareWithShortComment && post.content && (
+              <h2 className="text-2xl font-bold text-white leading-tight tracking-wide drop-shadow-lg mb-4">
+                <MentionText content={post.content} />
+              </h2>
+            )}
+
+            {/* User Text Content - Only if different from article title (and NOT reshare stack card) */}
+            {!isReshareWithShortComment && shouldShowUserText && (
               <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-6">
                 <MentionText content={post.content.length > 280 ? post.content.slice(0, 280) + '...' : post.content} />
               </h2>
@@ -735,7 +760,7 @@ export const ImmersivePostCard = ({
                   </div>
                 </div>
               </div>
-            ) : hasLink && (
+            ) : hasLink && !isReshareWithShortComment && (
               /* Generic Link Preview - Clickable to open external link */
               <div 
                 className="cursor-pointer active:scale-[0.98] transition-transform"
@@ -770,6 +795,39 @@ export const ImmersivePostCard = ({
               </div>
             )}
 
+            {/* Reshare Stack Card: Source Preview from chain */}
+            {isReshareWithShortComment && effectiveSharedUrl && (
+              <div 
+                className="cursor-pointer active:scale-[0.98] transition-transform"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(effectiveSharedUrl, '_blank', 'noopener,noreferrer');
+                }}
+              >
+                {/* Source Image */}
+                {(articlePreview?.image || effectivePreviewImg) && (
+                  <div className="mb-4 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                    <img 
+                      src={articlePreview?.image || effectivePreviewImg} 
+                      alt="" 
+                      className="w-full h-56 object-cover"
+                    />
+                  </div>
+                )}
+                
+                {/* Source Title */}
+                <h1 className="text-xl font-bold text-white leading-tight mb-2 drop-shadow-xl">
+                  {articlePreview?.title || effectiveSharedTitle || getHostnameFromUrl(effectiveSharedUrl)}
+                </h1>
+                <div className="flex items-center gap-2 text-white/70 mb-2">
+                  <ExternalLink className="w-3 h-3" />
+                  <span className="text-xs uppercase font-bold tracking-widest">
+                    {getHostnameFromUrl(effectiveSharedUrl)}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Text Content for text-only posts */}
             {isTextOnly && (
               <>
@@ -790,14 +848,19 @@ export const ImmersivePostCard = ({
               </div>
             )}
 
-            {/* Quoted Post */}
-            {quotedPost && (
+            {/* Quoted Post - Different rendering based on reshare type */}
+            {quotedPost && !isReshareWithShortComment && (
               <div className="mt-4">
                 <QuotedPostCard 
                   quotedPost={quotedPost} 
                   parentSources={post.shared_url ? [post.shared_url, ...(post.sources || [])] : (post.sources || [])} 
                 />
               </div>
+            )}
+
+            {/* Reshare Context Stack - for short comment reshares */}
+            {isReshareWithShortComment && contextStack.length > 0 && (
+              <ReshareContextStack stack={contextStack} />
             )}
           </div>
 
