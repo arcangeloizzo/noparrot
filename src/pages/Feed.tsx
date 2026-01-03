@@ -74,23 +74,8 @@ export const Feed = () => {
     };
   }, []);
 
-  // Ripristina posizione scroll quando Feed si monta
-  useEffect(() => {
-    const savedPos = sessionStorage.getItem('feed-scroll-position');
-    if (savedPos) {
-      const pos = parseInt(savedPos);
-      // Aspetta che il feed sia renderizzato
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          if (feedContainerRef.current?.scrollTo) {
-            feedContainerRef.current.scrollTo(pos);
-          } else {
-            window.scrollTo({ top: pos });
-          }
-        }, 100);
-      });
-    }
-  }, []);
+  // Ref per evitare restore multipli
+  const hasRestoredScrollRef = useRef(false);
 
   // Handler per navigazione tab (ora usa React Router)
   const handleTabChange = (tab: string) => {
@@ -158,6 +143,29 @@ export const Feed = () => {
     return items;
   }, [dailyFocus, dbPosts, interestFocus]);
 
+  // Ripristina posizione scroll quando Feed si monta e i dati sono caricati
+  useEffect(() => {
+    // Attendi che i dati siano caricati
+    if (isLoading || loadingDaily || !mixedFeed.length) return;
+    if (hasRestoredScrollRef.current) return;
+    
+    const savedPos = sessionStorage.getItem('feed-scroll-position');
+    if (savedPos) {
+      const pos = parseInt(savedPos);
+      hasRestoredScrollRef.current = true;
+      
+      // Doppio RAF per garantire che il DOM sia pronto
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (feedContainerRef.current?.scrollTo) {
+            feedContainerRef.current.scrollTo(pos);
+          } else {
+            window.scrollTo({ top: pos });
+          }
+        });
+      });
+    }
+  }, [isLoading, loadingDaily, mixedFeed.length]);
 
   useEffect(() => {
     if (showSimilarContent) {

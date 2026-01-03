@@ -534,14 +534,14 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           </div>
         </div>
 
-        {/* Content Area */}
+        {/* Content Area - Fixed horizontal scroll */}
         <div
           ref={scrollContainerRef}
-          className="flex-1 p-4 overflow-y-auto overscroll-contain"
+          className="flex-1 p-4 overflow-y-auto overflow-x-hidden overscroll-contain"
           style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
           onScroll={handleScroll}
         >
-          <div className="space-y-4 text-sm leading-relaxed">
+          <div className="space-y-4 text-sm leading-relaxed overflow-hidden">
             {source.embedHtml && source.platform === 'youtube' && !isClosing ? (
               <>
                 {/* YouTube Embed */}
@@ -955,10 +955,10 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               </>
             ) : (
               <>
-                {/* Generic Article/Content */}
-                <div className="max-w-2xl mx-auto space-y-4">
+                {/* Generic Article/Content - Sanitized */}
+                <div className="max-w-full mx-auto space-y-4 overflow-hidden">
                   {source.image && (
-                    <div className="rounded-lg overflow-hidden">
+                    <div className="rounded-xl overflow-hidden">
                       <img 
                         src={source.image} 
                         alt={source.title || 'Preview'} 
@@ -968,14 +968,22 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                   )}
 
                   {source.content ? (
-                    <div className="prose prose-sm max-w-none">
-                      <div className="whitespace-pre-wrap text-foreground leading-relaxed">
-                        {source.content}
+                    <div className="max-w-full overflow-hidden">
+                      <div className="text-foreground leading-relaxed break-words">
+                        {/* Sanitize content: remove markdown links, headings, social links, raw URLs */}
+                        {source.content
+                          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [text](url) → text
+                          .replace(/^#{1,6}\s*/gm, '') // Remove markdown headings
+                          .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove **bold**
+                          .replace(/\b(Condividi|Share|Facebook|Twitter|X \(Twitter\)|Email|WhatsApp|LinkedIn|Telegram|Leggi anche|Potrebbe interessarti|POTREBBE INTERESSARTI|Articoli correlati|Continua a leggere|Clicca qui|CLICCA QUI)\b[^\n]*/gi, '') // Remove social/nav text
+                          .replace(/https?:\/\/[^\s<>"\n]+/g, '') // Remove raw URLs
+                          .replace(/\n{3,}/g, '\n\n') // Collapse multiple newlines
+                          .trim()}
                       </div>
                     </div>
                   ) : source.summary ? (
                     <div className="p-4 bg-muted/30 rounded-lg border border-border">
-                      <p className="text-foreground">{source.summary}</p>
+                      <p className="text-foreground break-words">{source.summary}</p>
                     </div>
                   ) : (
                     <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">

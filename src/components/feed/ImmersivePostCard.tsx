@@ -745,13 +745,13 @@ export const ImmersivePostCard = ({
                   }
                 }}
               >
-                {/* Visible Metadata Image */}
+                {/* Visible Metadata Image - Taller preview */}
                 {(articlePreview?.image || post.preview_img) && (
                   <div className="mb-6 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
                     <img 
                       src={articlePreview?.image || post.preview_img} 
                       alt="" 
-                      className="w-full h-48 object-cover"
+                      className="w-full h-64 object-cover"
                     />
                   </div>
                 )}
@@ -800,27 +800,27 @@ export const ImmersivePostCard = ({
             )}
           </div>
 
-          {/* Bottom Actions - Aligned heights */}
+          {/* Bottom Actions - Aligned heights h-11 */}
           <div className="flex items-center justify-between gap-3">
             
-            {/* Primary Share Button - Compact */}
+            {/* Primary Share Button - h-11 to match reactions */}
             <button 
               onClick={(e) => {
                 e.stopPropagation();
                 handleShareClick(e);
               }}
-              className="h-12 px-6 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              className="h-11 px-5 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
             >
               <Logo variant="icon" size="sm" className="h-5 w-5" />
               <span className="text-sm font-semibold">Condividi</span>
             </button>
 
-            {/* Reactions - Horizontal layout with counters beside icons */}
-            <div className="flex items-center gap-1 bg-black/20 backdrop-blur-xl h-12 px-3 rounded-2xl border border-white/5">
+            {/* Reactions - Horizontal layout h-11 matching share button */}
+            <div className="flex items-center gap-1 bg-black/20 backdrop-blur-xl h-11 px-2 rounded-2xl border border-white/5">
               
               {/* Like */}
               <button 
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl hover:bg-white/10 transition-colors"
+                className="flex items-center gap-1.5 px-2 py-1 rounded-xl hover:bg-white/10 transition-colors"
                 onClick={(e) => { e.stopPropagation(); handleHeart(e); }}
               >
                 <Heart 
@@ -832,7 +832,7 @@ export const ImmersivePostCard = ({
 
               {/* Comments */}
               <button 
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl hover:bg-white/10 transition-colors"
+                className="flex items-center gap-1.5 px-2 py-1 rounded-xl hover:bg-white/10 transition-colors"
                 onClick={(e) => { e.stopPropagation(); setShowComments(true); }}
               >
                 <MessageCircle className="w-5 h-5 text-white" />
@@ -841,7 +841,7 @@ export const ImmersivePostCard = ({
 
               {/* Bookmark */}
               <button 
-                className="flex items-center gap-1.5 px-2 py-1.5 rounded-xl hover:bg-white/10 transition-colors"
+                className="flex items-center gap-1.5 px-2 py-1 rounded-xl hover:bg-white/10 transition-colors"
                 onClick={handleBookmark}
               >
                 <Bookmark 
