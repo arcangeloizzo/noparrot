@@ -81,19 +81,21 @@ serve(async (req) => {
       existing = fallback;
     }
 
-    // VALIDATE: cache esiste, content hash corrisponde E numero domande corrisponde
+    // VALIDATE: cache esiste, content hash corrisponde, numero domande E testMode corrispondono
     if (existing && existing.content_hash === contentHash) {
       const cachedQuestionCount = existing.questions?.length || 0;
       const requiredCount = questionCount || 3;
+      const cachedTestMode = existing.test_mode || null;
+      const requestedTestMode = testMode || null;
       
-      if (cachedQuestionCount === requiredCount) {
-        console.log('[generate-qa] Q&A cache HIT with matching content hash and question count');
+      if (cachedQuestionCount === requiredCount && cachedTestMode === requestedTestMode) {
+        console.log('[generate-qa] Q&A cache HIT with matching content hash, question count, and testMode');
         return new Response(
           JSON.stringify({ questions: existing.questions }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       } else {
-        console.log(`[generate-qa] Cache invalidated: expected ${requiredCount} questions, cached has ${cachedQuestionCount}`);
+        console.log(`[generate-qa] Cache invalidated: testMode (cached: ${cachedTestMode}, requested: ${requestedTestMode}) or questionCount (cached: ${cachedQuestionCount}, requested: ${requiredCount})`);
         // Continua a generare nuovo quiz
       }
     }
@@ -355,17 +357,18 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
 
     // Save to database (upsert to update if content changed)
     if (existing) {
-      // Update existing record with new questions and content hash
+      // Update existing record with new questions, content hash, and testMode
       await supabase.from('post_qa')
         .update({
           questions: shuffledQuestions,
           correct_answers: correctAnswers,
           content_hash: contentHash,
+          test_mode: testMode || null,
           generated_from: 'gemini',
           updated_at: new Date().toISOString()
         })
         .eq('id', existing.id);
-      console.log('[generate-qa] Q&A updated with new content');
+      console.log('[generate-qa] Q&A updated with new content and testMode:', testMode);
     } else {
       // Insert new record
       await supabase.from('post_qa').insert({
@@ -374,9 +377,10 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
         questions: shuffledQuestions,
         correct_answers: correctAnswers,
         content_hash: contentHash,
+        test_mode: testMode || null,
         generated_from: 'gemini'
       });
-      console.log('[generate-qa] Q&A generated and saved successfully');
+      console.log('[generate-qa] Q&A generated and saved with testMode:', testMode);
     }
 
     return new Response(
