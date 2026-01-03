@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { ImmersiveFeedContainer, ImmersiveFeedContainerRef } from "@/components/feed/ImmersiveFeedContainer";
 import { ImmersivePostCard } from "@/components/feed/ImmersivePostCard";
 import { ImmersiveFocusCard } from "@/components/feed/ImmersiveFocusCard";
@@ -11,9 +12,6 @@ import { ComposerModal } from "@/components/composer/ComposerModal";
 import { SimilarContentOverlay } from "@/components/feed/SimilarContentOverlay";
 import { Header } from "@/components/navigation/Header";
 import { CGProvider } from "@/lib/comprehension-gate";
-import { Search } from "./Search";
-import { Saved } from "./Saved";
-import { Notifications } from "./Notifications";
 import { usePosts, Post } from "@/hooks/usePosts";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -26,6 +24,7 @@ import { toast as sonnerToast } from "sonner";
 
 export const Feed = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { data: dbPosts = [], isLoading, refetch } = usePosts();
   const queryClient = useQueryClient();
   const feedContainerRef = useRef<ImmersiveFeedContainerRef>(null);
@@ -62,40 +61,43 @@ export const Feed = () => {
   
   // Fetch real Interest Focus based on user categories
   const { data: interestFocus = [], isLoading: loadingInterest } = useInterestFocus(userCategories);
-  const [activeNavTab, setActiveNavTab] = useState("home");
   const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
 
-  // Salva posizione scroll quando si esce dal feed
+  // Salva posizione scroll quando Feed si smonta (quando navighi via)
   useEffect(() => {
-    if (activeNavTab !== 'home') {
-      // Salva posizione quando lasciamo il feed
+    return () => {
       const scrollPos = feedContainerRef.current?.getScrollPosition?.() ?? window.scrollY;
-      sessionStorage.setItem('feed-scroll-position', scrollPos.toString());
-    }
-  }, [activeNavTab]);
+      if (scrollPos > 0) {
+        sessionStorage.setItem('feed-scroll-position', scrollPos.toString());
+      }
+    };
+  }, []);
 
-  // Ripristina posizione scroll quando si torna al feed
+  // Ripristina posizione scroll quando Feed si monta
   useEffect(() => {
-    if (activeNavTab === 'home') {
-      const savedPos = sessionStorage.getItem('feed-scroll-position');
-      if (savedPos) {
-        const pos = parseInt(savedPos);
-        // Aspetta che il feed sia renderizzato
-        requestAnimationFrame(() => {
+    const savedPos = sessionStorage.getItem('feed-scroll-position');
+    if (savedPos) {
+      const pos = parseInt(savedPos);
+      // Aspetta che il feed sia renderizzato
+      requestAnimationFrame(() => {
+        setTimeout(() => {
           if (feedContainerRef.current?.scrollTo) {
             feedContainerRef.current.scrollTo(pos);
           } else {
             window.scrollTo({ top: pos });
           }
-        });
-      }
+        }, 100);
+      });
     }
-  }, [activeNavTab]);
+  }, []);
 
-  // Handler completo per navigazione tab
+  // Handler per navigazione tab (ora usa React Router)
   const handleTabChange = (tab: string) => {
-    setActiveNavTab(tab);
+    if (tab === 'home') navigate('/');
+    else if (tab === 'search') navigate('/search');
+    else if (tab === 'saved') navigate('/saved');
+    else if (tab === 'notifications') navigate('/notifications');
   };
 
   // Handler per refresh quando già nel feed
@@ -198,58 +200,6 @@ export const Feed = () => {
     // Post removed via database
   };
 
-  // Navigation pages
-  if (activeNavTab === "search") {
-    return (
-      <div className="pb-24">
-        <Search />
-        <BottomNavigation 
-          activeTab={activeNavTab} 
-          onTabChange={handleTabChange}
-          onProfileClick={() => setShowProfileSheet(true)}
-        />
-        <ProfileSideSheet 
-          isOpen={showProfileSheet}
-          onClose={() => setShowProfileSheet(false)}
-        />
-      </div>
-    );
-  }
-
-  if (activeNavTab === "saved") {
-    return (
-      <div className="pb-24">
-        <Saved />
-        <BottomNavigation 
-          activeTab={activeNavTab} 
-          onTabChange={handleTabChange}
-          onProfileClick={() => setShowProfileSheet(true)}
-        />
-        <ProfileSideSheet 
-          isOpen={showProfileSheet}
-          onClose={() => setShowProfileSheet(false)}
-        />
-      </div>
-    );
-  }
-
-  if (activeNavTab === "notifications") {
-    return (
-      <div className="pb-24">
-        <Notifications />
-        <BottomNavigation 
-          activeTab={activeNavTab} 
-          onTabChange={handleTabChange}
-          onProfileClick={() => setShowProfileSheet(true)}
-        />
-        <ProfileSideSheet 
-          isOpen={showProfileSheet}
-          onClose={() => setShowProfileSheet(false)}
-        />
-      </div>
-    );
-  }
-
   if (isLoading || loadingDaily) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -320,7 +270,7 @@ export const Feed = () => {
 
       <FloatingActionButton onClick={handleCreatePost} />
       <BottomNavigation 
-        activeTab={activeNavTab} 
+        activeTab="home" 
         onTabChange={handleTabChange}
         onProfileClick={() => setShowProfileSheet(true)}
         onHomeRefresh={handleHomeRefresh}
