@@ -105,17 +105,10 @@ export const ImmersiveFocusCard = ({
       <div className="relative z-10 w-full h-full flex flex-col justify-between pt-14 pb-24">
         
         {/* Top Bar */}
-        <div className="flex justify-between items-start">
-          {/* Badge */}
-          <div className={cn(
-            "inline-flex items-center gap-2 px-4 py-2 rounded-full backdrop-blur-xl border",
-            isDailyFocus 
-              ? "bg-[#0A7AFF]/20 border-[#0A7AFF]/30 text-[#0A7AFF]"
-              : "bg-[#A98FF8]/20 border-[#A98FF8]/30 text-[#A98FF8]"
-          )}>
-            <span className="text-sm font-bold tracking-wide">
-              {isDailyFocus ? '🌍 IL PUNTO' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
-            </span>
+        <div className="flex flex-col gap-2">
+          {/* Row 1: Badge tipo + Trust Score (stessa altezza h-8) */}
+          <div className="flex justify-between items-center">
+            {/* Badge Tipo - compatto su 1 riga */}
             <Dialog 
               open={infoDialogOpen} 
               onOpenChange={(open) => {
@@ -126,9 +119,17 @@ export const ImmersiveFocusCard = ({
               <DialogTrigger asChild>
                 <button
                   onClick={(e) => e.stopPropagation()}
-                  className="p-0.5 rounded-full hover:bg-white/10 transition-colors"
+                  className={cn(
+                    "h-8 inline-flex items-center gap-2 px-3 rounded-full backdrop-blur-xl border cursor-pointer hover:opacity-80 transition-opacity whitespace-nowrap",
+                    isDailyFocus 
+                      ? "bg-[#0A7AFF]/20 border-[#0A7AFF]/30 text-[#0A7AFF]"
+                      : "bg-[#A98FF8]/20 border-[#A98FF8]/30 text-[#A98FF8]"
+                  )}
                 >
-                  <Info className="w-4 h-4" />
+                  <span className="text-xs font-bold tracking-wide">
+                    {isDailyFocus ? '🌍 IL PUNTO' : '🧠 PER TE'}
+                  </span>
+                  <Info className="w-3.5 h-3.5" />
                 </button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-md">
@@ -157,76 +158,83 @@ export const ImmersiveFocusCard = ({
                 </DialogClose>
               </DialogContent>
             </Dialog>
+
+            {/* Trust Score - stessa altezza h-8 */}
+            {trustScore && (
+              <Dialog 
+                open={trustDialogOpen} 
+                onOpenChange={(open) => {
+                  setTrustDialogOpen(open);
+                  handleDialogChange(open);
+                }}
+              >
+                <DialogTrigger asChild>
+                  <button 
+                    onClick={(e) => e.stopPropagation()}
+                    className={cn(
+                      "h-8 flex items-center gap-1.5 bg-black/30 backdrop-blur-xl border border-white/10 px-3 rounded-full cursor-pointer hover:bg-black/40 transition-colors whitespace-nowrap",
+                      trustScore.toLowerCase() === 'alto' && "text-emerald-400",
+                      trustScore.toLowerCase() === 'medio' && "text-amber-400",
+                      trustScore.toLowerCase() === 'basso' && "text-red-400"
+                    )}
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    <span className="text-[10px] font-bold tracking-wider uppercase">TRUST {trustScore.toUpperCase()}</span>
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Trust Score - {isDailyFocus ? 'Il Punto' : 'Per Te'}</DialogTitle>
+                    <DialogDescription>
+                      Informazioni sull'affidabilità delle fonti
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4 text-sm text-muted-foreground">
+                    <p>
+                      {isDailyFocus 
+                        ? <>Questo contenuto è generato aggregando <strong className="text-foreground">fonti giornalistiche verificate</strong> e autorevoli.</>
+                        : <>Questo approfondimento personalizzato è generato aggregando <strong className="text-foreground">fonti selezionate</strong> in base alla categoria <strong className="text-foreground">{category || 'Generale'}</strong>.</>
+                      }
+                    </p>
+                    <p>
+                      Il Trust Score "{trustScore.toUpperCase()}" indica che le fonti utilizzate hanno un buon track record di affidabilità editoriale.
+                    </p>
+                    <div className="pt-3 border-t border-border">
+                      <p className="font-medium text-foreground mb-2">Come viene calcolato:</p>
+                      <ul className="space-y-1.5">
+                        <li className="flex items-start gap-2">
+                          <span className="text-primary mt-0.5">•</span>
+                          <span>Analisi automatica delle fonti citate</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-primary mt-0.5">•</span>
+                          <span>Verifica della reputazione editoriale</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <span className="text-primary mt-0.5">•</span>
+                          <span>Coerenza tra titolo e contenuto</span>
+                        </li>
+                      </ul>
+                    </div>
+                    <p className="text-xs pt-2 border-t border-border text-muted-foreground">
+                      Nota: non è fact-checking. Valuta l'affidabilità delle fonti, non la verità assoluta.
+                    </p>
+                  </div>
+                  <DialogClose asChild>
+                    <button className="w-full mt-4 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg text-sm font-medium transition-colors">
+                      Chiudi
+                    </button>
+                  </DialogClose>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
 
-          {/* Trust Score - Clickable */}
-          {trustScore && (
-            <Dialog 
-              open={trustDialogOpen} 
-              onOpenChange={(open) => {
-                setTrustDialogOpen(open);
-                handleDialogChange(open);
-              }}
-            >
-              <DialogTrigger asChild>
-                <button 
-                  onClick={(e) => e.stopPropagation()}
-                  className={cn(
-                    "flex items-center gap-1.5 bg-black/30 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full cursor-pointer hover:bg-black/40 transition-colors",
-                    trustScore.toLowerCase() === 'alto' && "text-emerald-400",
-                    trustScore.toLowerCase() === 'medio' && "text-amber-400",
-                    trustScore.toLowerCase() === 'basso' && "text-red-400"
-                  )}
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                  <span className="text-[10px] font-bold tracking-wider uppercase">TRUST {trustScore.toUpperCase()}</span>
-                </button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Trust Score - {isDailyFocus ? 'Il Punto' : 'Per Te'}</DialogTitle>
-                  <DialogDescription>
-                    Informazioni sull'affidabilità delle fonti
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 text-sm text-muted-foreground">
-                  <p>
-                    {isDailyFocus 
-                      ? <>Questo contenuto è generato aggregando <strong className="text-foreground">fonti giornalistiche verificate</strong> e autorevoli.</>
-                      : <>Questo approfondimento personalizzato è generato aggregando <strong className="text-foreground">fonti selezionate</strong> in base alla categoria <strong className="text-foreground">{category || 'Generale'}</strong>.</>
-                    }
-                  </p>
-                  <p>
-                    Il Trust Score "{trustScore.toUpperCase()}" indica che le fonti utilizzate hanno un buon track record di affidabilità editoriale.
-                  </p>
-                  <div className="pt-3 border-t border-border">
-                    <p className="font-medium text-foreground mb-2">Come viene calcolato:</p>
-                    <ul className="space-y-1.5">
-                      <li className="flex items-start gap-2">
-                        <span className="text-primary mt-0.5">•</span>
-                        <span>Analisi automatica delle fonti citate</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-primary mt-0.5">•</span>
-                        <span>Verifica della reputazione editoriale</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-primary mt-0.5">•</span>
-                        <span>Coerenza tra titolo e contenuto</span>
-                      </li>
-                    </ul>
-                  </div>
-                  <p className="text-xs pt-2 border-t border-border text-muted-foreground">
-                    Nota: non è fact-checking. Valuta l'affidabilità delle fonti, non la verità assoluta.
-                  </p>
-                </div>
-                <DialogClose asChild>
-                  <button className="w-full mt-4 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg text-sm font-medium transition-colors">
-                    Chiudi
-                  </button>
-                </DialogClose>
-              </DialogContent>
-            </Dialog>
+          {/* Row 2: Categoria (solo per Per Te) */}
+          {!isDailyFocus && category && (
+            <div className="inline-flex self-start px-3 py-1 bg-white/10 backdrop-blur-md rounded-lg text-xs text-white/70 font-medium truncate max-w-[200px]">
+              {category}
+            </div>
           )}
         </div>
 

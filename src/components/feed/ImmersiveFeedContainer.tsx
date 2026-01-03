@@ -8,6 +8,8 @@ interface ImmersiveFeedContainerProps {
 
 export interface ImmersiveFeedContainerRef {
   scrollToTop: () => void;
+  getScrollPosition: () => number;
+  scrollTo: (pos: number) => void;
 }
 
 export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, ImmersiveFeedContainerProps>(({ 
@@ -20,10 +22,16 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   const pullDistance = useRef<number>(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Expose scrollToTop method to parent
+  // Expose scroll methods to parent
   useImperativeHandle(ref, () => ({
     scrollToTop: () => {
       containerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    getScrollPosition: () => {
+      return containerRef.current?.scrollTop ?? 0;
+    },
+    scrollTo: (pos: number) => {
+      containerRef.current?.scrollTo({ top: pos });
     }
   }));
 
