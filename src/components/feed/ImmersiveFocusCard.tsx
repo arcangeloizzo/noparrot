@@ -59,10 +59,22 @@ export const ImmersiveFocusCard = ({
   const toggleReaction = useToggleFocusReaction();
   const isDailyFocus = type === 'daily';
 
+  // Prevent "ghost clicks" on the card when closing dialogs (especially when closing by tapping outside)
+  const suppressCardClickRef = React.useRef(false);
+  const suppressNextCardClick = React.useCallback(() => {
+    suppressCardClickRef.current = true;
+    window.setTimeout(() => {
+      suppressCardClickRef.current = false;
+    }, 300);
+  }, []);
+
   return (
     <div 
       className="h-[100dvh] w-full snap-start relative flex flex-col p-6 overflow-hidden cursor-pointer"
-      onClick={() => onClick?.()}
+      onClick={() => {
+        if (suppressCardClickRef.current) return;
+        onClick?.();
+      }}
     >
       
       {/* Background Layer */}
@@ -95,7 +107,9 @@ export const ImmersiveFocusCard = ({
               {isDailyFocus ? '🌍 IL PUNTO' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
             </span>
             {isDailyFocus && (
-              <Dialog>
+              <Dialog onOpenChange={(open) => {
+                if (!open) suppressNextCardClick();
+              }}>
                 <DialogTrigger asChild>
                   <button
                     onClick={(e) => e.stopPropagation()}
@@ -129,7 +143,9 @@ export const ImmersiveFocusCard = ({
 
           {/* Trust Score - Clickable */}
           {trustScore && (
-            <Dialog>
+            <Dialog onOpenChange={(open) => {
+              if (!open) suppressNextCardClick();
+            }}>
               <DialogTrigger asChild>
                 <button 
                   onClick={(e) => e.stopPropagation()}
