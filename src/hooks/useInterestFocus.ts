@@ -19,9 +19,11 @@ export interface InterestFocus {
   expires_at: string;
 }
 
-export const useInterestFocus = (userCategories: string[], forceRefresh: boolean = false) => {
+export const useInterestFocus = (userCategories: string[], refreshNonce: number = 0) => {
+  const shouldForce = refreshNonce > 0;
+
   return useQuery({
-    queryKey: ['interest-focus', userCategories, forceRefresh],
+    queryKey: ['interest-focus', userCategories, refreshNonce],
     queryFn: async (): Promise<InterestFocus[]> => {
       if (userCategories.length === 0) {
         return [];
@@ -29,13 +31,13 @@ export const useInterestFocus = (userCategories: string[], forceRefresh: boolean
 
       // Prendiamo le top 2 categorie dell'utente
       const topCategories = userCategories.slice(0, 2);
-      console.log('Fetching interest focus for categories:', topCategories, forceRefresh ? '(FORCE)' : '');
+      console.log('Fetching interest focus for categories:', topCategories, shouldForce ? '(FORCE nonce:' + refreshNonce + ')' : '');
 
       const results = await Promise.allSettled(
         topCategories.map(async (category) => {
           try {
             // If force refresh, skip cache
-            if (forceRefresh) {
+            if (shouldForce) {
               console.log(`Force refreshing interest focus for ${category}...`);
               const { data, error } = await supabase.functions.invoke('fetch-interest-focus', {
                 body: { category, force: true }

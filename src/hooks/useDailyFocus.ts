@@ -19,13 +19,15 @@ export interface DailyFocus {
   expires_at: string;
 }
 
-export const useDailyFocus = (forceRefresh: boolean = false) => {
+export const useDailyFocus = (refreshNonce: number = 0) => {
+  const shouldForce = refreshNonce > 0;
+
   return useQuery({
-    queryKey: ['daily-focus', forceRefresh],
+    queryKey: ['daily-focus', refreshNonce],
     queryFn: async (): Promise<DailyFocus | null> => {
       // If force refresh, skip cache and call edge function directly
-      if (forceRefresh) {
-        console.log('Force refreshing daily focus...');
+      if (shouldForce) {
+        console.log('Force refreshing daily focus (nonce:', refreshNonce, ')...');
         const { data, error } = await supabase.functions.invoke('fetch-daily-focus', {
           body: { force: true }
         });

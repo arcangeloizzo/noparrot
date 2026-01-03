@@ -29,8 +29,11 @@ export const Feed = () => {
   const queryClient = useQueryClient();
   const feedContainerRef = useRef<ImmersiveFeedContainerRef>(null);
   
-  // Fetch real Daily Focus
-  const { data: dailyFocus, isLoading: loadingDaily } = useDailyFocus();
+  // State for force refresh - passed to hooks
+  const [refreshNonce, setRefreshNonce] = useState(0);
+  
+  // Fetch real Daily Focus with refreshNonce
+  const { data: dailyFocus, isLoading: loadingDaily } = useDailyFocus(refreshNonce);
   
   // Get user's profile to extract cognitive density
   const [userCategories, setUserCategories] = useState<string[]>([]);
@@ -59,21 +62,15 @@ export const Feed = () => {
     fetchUserProfile();
   }, [user?.id]);
   
-  // Fetch real Interest Focus based on user categories
-  const { data: interestFocus = [], isLoading: loadingInterest } = useInterestFocus(userCategories);
+  // Fetch real Interest Focus based on user categories with refreshNonce
+  const { data: interestFocus = [], isLoading: loadingInterest } = useInterestFocus(userCategories, refreshNonce);
   const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
 
-  // State for force refresh
-  const [refreshNonce, setRefreshNonce] = useState(0);
-
-  // Salva posizione scroll (indice) quando Feed si smonta (quando navighi via)
-  useEffect(() => {
-    return () => {
-      const activeIndex = feedContainerRef.current?.getActiveIndex?.() ?? 0;
-      sessionStorage.setItem('feed-active-index', activeIndex.toString());
-    };
-  }, []);
+  // Handler per salvare l'indice attivo durante lo scroll
+  const handleActiveIndexChange = (index: number) => {
+    sessionStorage.setItem('feed-active-index', index.toString());
+  };
 
   // Ref per evitare restore multipli
   const hasRestoredScrollRef = useRef(false);
@@ -158,12 +155,14 @@ export const Feed = () => {
       const index = parseInt(savedIndex);
       hasRestoredScrollRef.current = true;
       
-      // Doppio RAF per garantire che il DOM sia pronto
+      // Triplo RAF + timeout per garantire che il DOM sia pronto su iOS
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          if (feedContainerRef.current?.scrollToIndex) {
-            feedContainerRef.current.scrollToIndex(index);
-          }
+          setTimeout(() => {
+            if (feedContainerRef.current?.scrollToIndex) {
+              feedContainerRef.current.scrollToIndex(index);
+            }
+          }, 50);
         });
       });
     }
@@ -223,7 +222,7 @@ export const Feed = () => {
       {/* Immersive transparent header with notifications */}
       <Header variant="immersive" />
       
-      <ImmersiveFeedContainer ref={feedContainerRef} onRefresh={async () => { await refetch(); }}>
+      <ImmersiveFeedContainer ref={feedContainerRef} onRefresh={async () => { await refetch(); }} onActiveIndexChange={handleActiveIndexChange}>
         {/* Immersive Feed Items */}
         {mixedFeed.map((item) => {
           if (item.type === 'daily' || item.type === 'interest') {
