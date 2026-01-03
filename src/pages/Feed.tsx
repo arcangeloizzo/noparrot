@@ -66,6 +66,33 @@ export const Feed = () => {
   const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
 
+  // Salva posizione scroll quando si esce dal feed
+  useEffect(() => {
+    if (activeNavTab !== 'home') {
+      // Salva posizione quando lasciamo il feed
+      const scrollPos = feedContainerRef.current?.getScrollPosition?.() ?? window.scrollY;
+      sessionStorage.setItem('feed-scroll-position', scrollPos.toString());
+    }
+  }, [activeNavTab]);
+
+  // Ripristina posizione scroll quando si torna al feed
+  useEffect(() => {
+    if (activeNavTab === 'home') {
+      const savedPos = sessionStorage.getItem('feed-scroll-position');
+      if (savedPos) {
+        const pos = parseInt(savedPos);
+        // Aspetta che il feed sia renderizzato
+        requestAnimationFrame(() => {
+          if (feedContainerRef.current?.scrollTo) {
+            feedContainerRef.current.scrollTo(pos);
+          } else {
+            window.scrollTo({ top: pos });
+          }
+        });
+      }
+    }
+  }, [activeNavTab]);
+
   // Handler completo per navigazione tab
   const handleTabChange = (tab: string) => {
     setActiveNavTab(tab);
@@ -73,6 +100,9 @@ export const Feed = () => {
 
   // Handler per refresh quando già nel feed
   const handleHomeRefresh = () => {
+    // Pulisci la posizione salvata per forzare scroll top
+    sessionStorage.removeItem('feed-scroll-position');
+    
     // Scroll container to top (for snap scroll)
     if (feedContainerRef.current) {
       feedContainerRef.current.scrollToTop();

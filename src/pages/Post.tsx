@@ -156,7 +156,7 @@ export const Post = () => {
         <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-40 border-b border-border/50">
           <div className="flex items-center gap-4 px-4 h-14">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate(-1)}
             className="p-2 hover:bg-muted rounded-full transition-colors -ml-2"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -182,7 +182,7 @@ export const Post = () => {
       <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-40 border-b border-border/50">
         <div className="flex items-center gap-4 px-4 h-14">
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate(-1)}
             className="p-2 hover:bg-muted rounded-full transition-colors -ml-2"
           >
             <ArrowLeft className="w-5 h-5" />
