@@ -473,13 +473,14 @@ export const ImmersivePostCard = ({
   const mediaUrl = post.media?.[0]?.url;
   const isVideoMedia = post.media?.[0]?.type === 'video';
   const backgroundImage = !isMediaOnlyPost ? (articlePreview?.image || post.preview_img || (hasMedia && post.media?.[0]?.url)) : undefined;
-  const isTextOnly = !hasMedia && !hasLink;
+  // Exclude quotedPost from text-only to prevent quote marks on reshares
+  const isTextOnly = !hasMedia && !hasLink && !quotedPost;
   const articleTitle = articlePreview?.title || post.shared_title || '';
   const shouldShowUserText = hasLink && post.content && !isTextSimilarToTitle(post.content, articleTitle);
   
-  // Reshare Stack logic: detect if this is a reshare with short comment
-  const currentWordCount = getWordCount(post.content);
-  const isReshareWithShortComment = !!quotedPost && currentWordCount < 30;
+  // Reshare Stack logic: detect if this is a reshare where the QUOTED POST has short comment (<30 words)
+  const quotedPostWordCount = getWordCount(quotedPost?.content || '');
+  const isReshareWithShortComment = !!quotedPost && quotedPostWordCount < 30;
   
   // Get source from quoted post if current post doesn't have one
   const effectiveSharedUrl = post.shared_url || quotedPost?.shared_url;
@@ -658,8 +659,15 @@ export const ImmersivePostCard = ({
               </h2>
             )}
 
-            {/* User Text Content - Only if different from article title (and NOT reshare stack card) */}
+            {/* User Text Content - Show for link posts (if different from article title) and for normal reshares */}
             {!isReshareWithShortComment && shouldShowUserText && (
+              <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-6">
+                <MentionText content={post.content.length > 280 ? post.content.slice(0, 280) + '...' : post.content} />
+              </h2>
+            )}
+            
+            {/* User Text for normal reshares (long quoted comment): show current user's comment ABOVE the QuotedPostCard */}
+            {!isReshareWithShortComment && quotedPost && !hasLink && post.content && (
               <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-6">
                 <MentionText content={post.content.length > 280 ? post.content.slice(0, 280) + '...' : post.content} />
               </h2>
