@@ -258,7 +258,8 @@ export const ImmersivePostCard = ({
     const userText = post.content;
     const userWordCount = getWordCount(userText);
     
-    if (post.shared_url) {
+    // Use finalSourceUrl to include sources from quoted posts and deep chains
+    if (finalSourceUrl) {
       await startComprehensionGate();
       return;
     }
@@ -279,7 +280,8 @@ export const ImmersivePostCard = ({
     const userText = post.content;
     const userWordCount = getWordCount(userText);
     
-    if (post.shared_url) {
+    // Use finalSourceUrl to include sources from quoted posts and deep chains
+    if (finalSourceUrl) {
       await startComprehensionGate();
       return;
     }
@@ -308,33 +310,34 @@ export const ImmersivePostCard = ({
   };
 
   const startComprehensionGate = async () => {
-    if (!post.shared_url || !user) return;
+    // Use finalSourceUrl to include sources from quoted posts and deep chains
+    if (!finalSourceUrl || !user) return;
 
     try {
-      const host = new URL(post.shared_url).hostname.toLowerCase();
+      const host = new URL(finalSourceUrl).hostname.toLowerCase();
       if (host.includes('instagram.com') || host.includes('facebook.com') || host.includes('m.facebook.com') || host.includes('fb.com') || host.includes('fb.watch')) {
         toast({ title: 'Link non supportato', description: 'Instagram e Facebook non sono supportati.' });
-        window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+        window.open(finalSourceUrl, '_blank', 'noopener,noreferrer');
         return;
       }
     } catch {}
 
     toast({ title: 'Caricamento contenuto...', description: 'Preparazione del Comprehension Gate' });
 
-    const preview = await fetchArticlePreview(post.shared_url);
+    const preview = await fetchArticlePreview(finalSourceUrl);
     let hostname = '';
-    try { hostname = new URL(post.shared_url).hostname.replace('www.', ''); } catch {}
+    try { hostname = new URL(finalSourceUrl).hostname.replace('www.', ''); } catch {}
 
     setReaderSource({
       ...preview,
       id: post.id,
       state: 'reading' as const,
-      url: post.shared_url,
-      title: preview?.title || post.shared_title || `Contenuto da ${hostname}`,
+      url: finalSourceUrl,
+      title: preview?.title || finalSourceTitle || `Contenuto da ${hostname}`,
       content: preview?.content || preview?.description || preview?.summary || preview?.excerpt || post.content || '',
       summary: preview?.summary || preview?.description || 'Apri il link per visualizzare il contenuto completo.',
-      image: preview?.image || post.preview_img || '',
-      platform: preview?.platform || detectPlatformFromUrl(post.shared_url),
+      image: preview?.image || finalSourceImage || '',
+      platform: preview?.platform || detectPlatformFromUrl(finalSourceUrl),
       contentQuality: preview?.contentQuality || 'minimal',
     });
     setShowReader(true);
@@ -930,8 +933,8 @@ export const ImmersivePostCard = ({
 
           </div>
 
-          {/* Bottom Actions - Aligned heights h-10 */}
-          <div className="flex items-center justify-between gap-3">
+          {/* Bottom Actions - Aligned heights h-10, mr-16 for FAB clearance */}
+          <div className="flex items-center justify-between gap-3 mr-16">
             
             {/* Primary Share Button - h-10 px-4 to match reactions */}
             <button 
