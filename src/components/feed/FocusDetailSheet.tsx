@@ -19,7 +19,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { toast as sonnerToast } from "sonner";
-import { LOGO_BASE } from "@/config/brand";
+import { LOGO_BASE, EDITORIAL } from "@/config/brand";
 import { haptics } from "@/lib/haptics";
 import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "@/components/ui/logo";
@@ -692,9 +692,17 @@ const CommentItem = ({ comment, onReply, onDelete, currentUserId, isReply }: Com
   return (
     <div className="space-y-2">
       <div className="flex items-start gap-3">
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-          {comment.author.username[0].toUpperCase()}
-        </div>
+        {comment.author_id === EDITORIAL.SYSTEM_ID || comment.author.username === 'ilpunto' ? (
+          <img 
+            src={EDITORIAL.AVATAR_IMAGE}
+            alt={EDITORIAL.NAME}
+            className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+          />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+            {comment.author.username[0].toUpperCase()}
+          </div>
+        )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-white text-sm">

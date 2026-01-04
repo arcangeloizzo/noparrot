@@ -32,18 +32,12 @@ export const EditorialComment = ({ content, createdAt, className }: EditorialCom
     )}>
       {/* Header */}
       <div className="flex items-center gap-2 mb-3">
-        {/* Editorial Avatar - Cerchio con ◉ */}
-        <div 
-          className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: EDITORIAL.AVATAR_BG }}
-        >
-          <span 
-            className="text-sm font-bold"
-            style={{ color: EDITORIAL.AVATAR_SYMBOL_COLOR }}
-          >
-            {EDITORIAL.SYMBOL}
-          </span>
-        </div>
+        {/* Editorial Avatar - Immagine ufficiale */}
+        <img 
+          src={EDITORIAL.AVATAR_IMAGE}
+          alt={EDITORIAL.NAME}
+          className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+        />
         
         {/* Name and Handle */}
         <div className="flex-1 min-w-0">

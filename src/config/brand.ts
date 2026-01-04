@@ -1,6 +1,7 @@
 import LOGO_ICON from '../assets/Logo.png';
 import LOGO_WHITE_ASSET from '../assets/Logo.png';
 import LOGO_EXTENDED_ASSET from '../assets/LogoOrizzontale.png';
+import IL_PUNTO_AVATAR from '../assets/il-punto-avatar.png';
 
 // NOPARROT Brand Configuration
 export const BRAND_COLORS = {
@@ -21,6 +22,7 @@ export const EDITORIAL = {
   SYSTEM_ID: '00000000-0000-0000-0000-000000000001',
   AVATAR_BG: '#0D1B2A',
   AVATAR_SYMBOL_COLOR: '#FFFFFF',
+  AVATAR_IMAGE: IL_PUNTO_AVATAR,
   ACCENT: '#0A7AFF',
 } as const;
 
