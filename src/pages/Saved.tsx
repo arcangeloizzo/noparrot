@@ -2,11 +2,14 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { BookmarkIcon, ArrowLeftIcon } from "@/components/ui/icons";
 import { useSavedPosts } from "@/hooks/usePosts";
+import { useSavedFocus } from "@/hooks/useFocusBookmarks";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Play, Image as ImageIcon, Link2, FileText } from "lucide-react";
+import { Play, Image as ImageIcon, Link2, FileText, Newspaper } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Post } from "@/hooks/usePosts";
+import type { DailyFocus } from "@/hooks/useDailyFocus";
 
 const SavedPostThumbnail = ({ post }: { post: Post }) => {
   const navigate = useNavigate();
@@ -96,10 +99,58 @@ const SavedPostThumbnail = ({ post }: { post: Post }) => {
   );
 };
 
+// Saved Editorial Thumbnail component
+const SavedEditorialThumbnail = ({ focus, onClick }: { focus: DailyFocus; onClick: () => void }) => {
+  const displayTitle = focus.title || 'Il Punto';
+
+  return (
+    <div
+      onClick={onClick}
+      className="aspect-[4/5] relative overflow-hidden bg-gradient-to-br from-[#0D1B2A] via-[#1B263B] to-[#0E141A] cursor-pointer group"
+    >
+      {/* Background image if available */}
+      {focus.image_url && (
+        <img
+          src={focus.image_url}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover opacity-40 transition-transform duration-300 group-hover:scale-105"
+        />
+      )}
+
+      {/* Dark gradient overlay */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+
+      {/* IL PUNTO badge - top left */}
+      <div className="absolute top-2 left-2 px-2 py-1 bg-white/10 backdrop-blur-sm rounded-full">
+        <span className="text-[10px] font-bold tracking-wider text-white uppercase">IL PUNTO</span>
+      </div>
+
+      {/* Content type icon - top right */}
+      <div className="absolute top-2 right-2 p-1.5 bg-black/40 backdrop-blur-sm rounded-full text-white">
+        <Newspaper className="w-3 h-3" />
+      </div>
+
+      {/* Content overlay - bottom */}
+      <div className="absolute bottom-0 left-0 right-0 p-2">
+        <p className="text-white text-xs font-semibold line-clamp-3 leading-tight mb-1.5">
+          {displayTitle}
+        </p>
+        <div className="flex items-center gap-1.5">
+          <span className="text-white/50 text-[10px]">
+            {focus.edition_time || 'editoriale'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const Saved = () => {
   const navigate = useNavigate();
-  const { data: savedPosts = [], isLoading } = useSavedPosts();
+  const { data: savedPosts = [], isLoading: isLoadingPosts } = useSavedPosts();
+  const { data: savedFocus = [], isLoading: isLoadingFocus } = useSavedFocus();
   const [showProfileSheet, setShowProfileSheet] = useState(false);
+  const [activeTab, setActiveTab] = useState<'posts' | 'editorials'>('posts');
 
   const handleTabChange = (tab: string) => {
     if (tab === 'home') navigate('/');
@@ -107,6 +158,9 @@ export const Saved = () => {
     else if (tab === 'saved') navigate('/saved');
     else if (tab === 'notifications') navigate('/notifications');
   };
+
+  const totalCount = savedPosts.length + savedFocus.length;
+  const isLoading = isLoadingPosts || isLoadingFocus;
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -125,14 +179,28 @@ export const Saved = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-foreground">Salvati</h1>
-              {savedPosts.length > 0 && (
+              {totalCount > 0 && (
                 <p className="text-xs text-muted-foreground">
-                  {savedPosts.length} {savedPosts.length === 1 ? 'post' : 'post'}
+                  {totalCount} {totalCount === 1 ? 'elemento' : 'elementi'}
                 </p>
               )}
             </div>
           </div>
         </div>
+
+        {/* Tabs */}
+        {(savedPosts.length > 0 || savedFocus.length > 0) && (
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'posts' | 'editorials')} className="px-4 pb-2">
+            <TabsList className="w-full grid grid-cols-2 h-9">
+              <TabsTrigger value="posts" className="text-xs">
+                Post {savedPosts.length > 0 && `(${savedPosts.length})`}
+              </TabsTrigger>
+              <TabsTrigger value="editorials" className="text-xs">
+                Il Punto {savedFocus.length > 0 && `(${savedFocus.length})`}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
       </div>
 
       {/* Content */}
@@ -141,28 +209,67 @@ export const Saved = () => {
           <div className="w-10 h-10 border-2 border-brand-pink/30 border-t-brand-pink rounded-full animate-spin" />
           <p className="text-sm text-muted-foreground">Caricamento salvati...</p>
         </div>
-      ) : savedPosts.length > 0 ? (
-        <div className="grid grid-cols-3 gap-0.5 p-0.5">
-          {savedPosts.map((post, index) => (
-            <div 
-              key={post.id} 
-              className="animate-fade-in"
-              style={{ animationDelay: `${index * 30}ms` }}
-            >
-              <SavedPostThumbnail post={post} />
-            </div>
-          ))}
-        </div>
+      ) : totalCount > 0 ? (
+        <>
+          {/* Posts Tab */}
+          {activeTab === 'posts' && (
+            savedPosts.length > 0 ? (
+              <div className="grid grid-cols-3 gap-0.5 p-0.5">
+                {savedPosts.map((post, index) => (
+                  <div 
+                    key={post.id} 
+                    className="animate-fade-in"
+                    style={{ animationDelay: `${index * 30}ms` }}
+                  >
+                    <SavedPostThumbnail post={post} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 px-6">
+                <p className="text-muted-foreground text-sm text-center">
+                  Nessun post salvato. Salva i post dal feed per trovarli qui.
+                </p>
+              </div>
+            )
+          )}
+
+          {/* Editorials Tab */}
+          {activeTab === 'editorials' && (
+            savedFocus.length > 0 ? (
+              <div className="grid grid-cols-3 gap-0.5 p-0.5">
+                {savedFocus.map((focus, index) => (
+                  <div 
+                    key={focus.id} 
+                    className="animate-fade-in"
+                    style={{ animationDelay: `${index * 30}ms` }}
+                  >
+                    <SavedEditorialThumbnail 
+                      focus={focus} 
+                      onClick={() => navigate(`/?focus=${focus.id}`)}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 px-6">
+                <p className="text-muted-foreground text-sm text-center">
+                  Nessun editoriale salvato. Salva gli articoli "Il Punto" dal carousel.
+                </p>
+              </div>
+            )
+          )}
+        </>
       ) : (
         <div className="flex flex-col items-center justify-center min-h-[60vh] px-6">
           <div className="w-20 h-20 bg-brand-pink/10 rounded-3xl flex items-center justify-center mb-4">
             <BookmarkIcon className="w-10 h-10 text-brand-pink/50" />
           </div>
           <h2 className="text-lg font-semibold text-foreground mb-1">
-            Nessun post salvato
+            Nessun contenuto salvato
           </h2>
           <p className="text-muted-foreground text-sm text-center max-w-xs">
-            Inizia a salvare i post che ti interessano per trovarli facilmente qui
+            Inizia a salvare post ed editoriali per trovarli facilmente qui
           </p>
         </div>
       )}
