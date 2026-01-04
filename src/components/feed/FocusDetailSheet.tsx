@@ -413,45 +413,8 @@ export const FocusDetailSheet = ({
               </div>
             </div>
 
-            {/* Comments Section - View only, add comments via CommentsSheet */}
-            <div className="pt-6">
-              <h4 className="text-gray-400 text-sm font-semibold mb-4">
-                Commenti ({comments.length})
-              </h4>
-
-              {/* Comments List */}
-              <div className="space-y-4">
-                {commentTree.map((comment) => (
-                  <div key={comment.id}>
-                    <CommentItem 
-                      comment={comment}
-                      onReply={(id, username) => setReplyTo({ id, username })}
-                      onDelete={handleDeleteComment}
-                      currentUserId={user?.id}
-                    />
-                    {repliesMap.has(comment.id) && (
-                      <div className="ml-6 mt-2 space-y-2 border-l-2 border-white/10 pl-4">
-                        {repliesMap.get(comment.id)!.map((reply) => (
-                          <CommentItem
-                            key={reply.id}
-                            comment={reply}
-                            onReply={(id, username) => setReplyTo({ id, username })}
-                            onDelete={handleDeleteComment}
-                            currentUserId={user?.id}
-                            isReply
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {comments.length === 0 && (
-                  <p className="text-center text-gray-500 py-8">
-                    Nessun commento. Sii il primo a commentare!
-                  </p>
-                )}
-              </div>
-            </div>
+            {/* Bottom padding for visual breathing room */}
+            <div className="pb-6" />
           </div>
           </div>
         </SheetContent>
