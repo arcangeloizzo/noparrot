@@ -46,7 +46,7 @@ export const ImmersiveEditorialCarousel = ({
   const { data: reactionsData } = useFocusReactions(activeItem?.id || "", "daily");
   const toggleReaction = useToggleFocusReaction();
 
-  // Dialog states
+  // Dialog states - OUTSIDE carousel to avoid layout shifts
   const [infoDialogOpen, setInfoDialogOpen] = useState(false);
   const [trustDialogOpen, setTrustDialogOpen] = useState(false);
   const suppressUntilRef = React.useRef(0);
@@ -80,6 +80,8 @@ export const ImmersiveEditorialCarousel = ({
 
   if (!items.length) return null;
 
+  const activeTrustScore = activeItem?.trust_score;
+
   return (
     <div className="h-[100dvh] w-full snap-start relative flex flex-col overflow-hidden">
       {/* Editorial Background with noise texture */}
@@ -110,11 +112,8 @@ export const ImmersiveEditorialCarousel = ({
                 totalItems={items.length}
                 isActive={index === selectedIndex}
                 onClick={() => handleCardClick(item)}
-                infoDialogOpen={infoDialogOpen}
-                setInfoDialogOpen={setInfoDialogOpen}
-                trustDialogOpen={trustDialogOpen}
-                setTrustDialogOpen={setTrustDialogOpen}
-                onDialogChange={handleDialogChange}
+                onOpenInfoDialog={() => setInfoDialogOpen(true)}
+                onOpenTrustDialog={() => setTrustDialogOpen(true)}
                 onShare={onShare}
                 onComment={onComment}
                 reactionsData={index === selectedIndex ? reactionsData : null}
@@ -148,22 +147,95 @@ export const ImmersiveEditorialCarousel = ({
           </div>
         )}
       </div>
+
+      {/* Info Dialog - OUTSIDE carousel to prevent layout shifts */}
+      <Dialog 
+        open={infoDialogOpen} 
+        onOpenChange={(open) => {
+          setInfoDialogOpen(open);
+          handleDialogChange(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cos'è Il Punto</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm text-muted-foreground">
+            <p>Questo contenuto è una sintesi automatica generata da NoParrot usando fonti pubbliche.</p>
+            <p>Serve per offrire un contesto comune da cui partire per la discussione.</p>
+            <p className="font-medium text-foreground">Non rappresenta una posizione ufficiale né una verifica dei fatti.</p>
+          </div>
+          <DialogClose asChild>
+            <button className="w-full mt-4 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg text-sm font-medium transition-colors">
+              Chiudi
+            </button>
+          </DialogClose>
+        </DialogContent>
+      </Dialog>
+
+      {/* Trust Score Dialog - OUTSIDE carousel to prevent layout shifts */}
+      <Dialog 
+        open={trustDialogOpen} 
+        onOpenChange={(open) => {
+          setTrustDialogOpen(open);
+          handleDialogChange(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Trust Score - Il Punto</DialogTitle>
+            <DialogDescription>
+              Informazioni sull'affidabilità delle fonti
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 text-sm text-muted-foreground">
+            <p>
+              Questo contenuto è generato aggregando <strong className="text-foreground">fonti giornalistiche verificate</strong> e autorevoli.
+            </p>
+            <p>
+              Il Trust Score "{activeTrustScore?.toUpperCase() || 'MEDIO'}" indica che le fonti utilizzate hanno un buon track record di affidabilità editoriale.
+            </p>
+            <div className="pt-3 border-t border-border">
+              <p className="font-medium text-foreground mb-2">Come viene calcolato:</p>
+              <ul className="space-y-1.5">
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">•</span>
+                  <span>Analisi automatica delle fonti citate</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">•</span>
+                  <span>Verifica della reputazione editoriale</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary mt-0.5">•</span>
+                  <span>Coerenza tra titolo e contenuto</span>
+                </li>
+              </ul>
+            </div>
+            <p className="text-xs pt-2 border-t border-border text-muted-foreground">
+              Nota: non è fact-checking. Valuta l'affidabilità delle fonti, non la verità assoluta.
+            </p>
+          </div>
+          <DialogClose asChild>
+            <button className="w-full mt-4 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg text-sm font-medium transition-colors">
+              Chiudi
+            </button>
+          </DialogClose>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
-// Individual Editorial Slide Component
+// Individual Editorial Slide Component - Simplified, dialogs moved to parent
 interface EditorialSlideProps {
   item: DailyFocus;
   index: number;
   totalItems: number;
   isActive: boolean;
   onClick: () => void;
-  infoDialogOpen: boolean;
-  setInfoDialogOpen: (open: boolean) => void;
-  trustDialogOpen: boolean;
-  setTrustDialogOpen: (open: boolean) => void;
-  onDialogChange: (open: boolean) => void;
+  onOpenInfoDialog: () => void;
+  onOpenTrustDialog: () => void;
   onShare?: (item: DailyFocus) => void;
   onComment?: (item: DailyFocus) => void;
   reactionsData: { likes: number; likedByMe: boolean } | null;
@@ -176,11 +248,8 @@ const EditorialSlide = ({
   totalItems,
   isActive,
   onClick,
-  infoDialogOpen,
-  setInfoDialogOpen,
-  trustDialogOpen,
-  setTrustDialogOpen,
-  onDialogChange,
+  onOpenInfoDialog,
+  onOpenTrustDialog,
   onShare,
   onComment,
   reactionsData,
@@ -199,111 +268,41 @@ const EditorialSlide = ({
         
         {/* Masthead Row */}
         <div className="flex justify-between items-center mb-8">
-          {/* Editorial Masthead */}
-          <Dialog 
-            open={infoDialogOpen} 
-            onOpenChange={(open) => {
-              setInfoDialogOpen(open);
-              onDialogChange(open);
+          {/* Editorial Masthead - Now just a button that opens parent dialog */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenInfoDialog();
             }}
+            className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-opacity"
           >
-            <DialogTrigger asChild>
-              <button
-                onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-opacity"
-              >
-                <span className="text-xs font-bold tracking-[0.2em] uppercase">IL PUNTO</span>
-                <span className="text-white/40">·</span>
-                <span className="text-[10px] font-medium tracking-wider uppercase text-white/50">
-                  EDIZIONE DI OGGI
-                </span>
-                <Info className="w-3.5 h-3.5 ml-1 text-white/40" />
-              </button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Cos'è Il Punto</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-3 text-sm text-muted-foreground">
-                <p>Questo contenuto è una sintesi automatica generata da NoParrot usando fonti pubbliche.</p>
-                <p>Serve per offrire un contesto comune da cui partire per la discussione.</p>
-                <p className="font-medium text-foreground">Non rappresenta una posizione ufficiale né una verifica dei fatti.</p>
-              </div>
-              <DialogClose asChild>
-                <button className="w-full mt-4 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg text-sm font-medium transition-colors">
-                  Chiudi
-                </button>
-              </DialogClose>
-            </DialogContent>
-          </Dialog>
+            <span className="text-xs font-bold tracking-[0.2em] uppercase">IL PUNTO</span>
+            <span className="text-white/40">·</span>
+            <span className="text-[10px] font-medium tracking-wider uppercase text-white/50">
+              EDIZIONE DI OGGI
+            </span>
+            <Info className="w-3.5 h-3.5 ml-1 text-white/40" />
+          </button>
 
-          {/* Trust Score */}
+          {/* Trust Score - Now just a button that opens parent dialog */}
           {trustScore && (
-            <Dialog 
-              open={trustDialogOpen} 
-              onOpenChange={(open) => {
-                setTrustDialogOpen(open);
-                onDialogChange(open);
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenTrustDialog();
               }}
+              className={cn(
+                "h-8 flex items-center gap-1.5 bg-black/30 backdrop-blur-xl border border-white/10 px-3 rounded-full cursor-pointer hover:bg-black/40 transition-colors whitespace-nowrap",
+                trustScore.toLowerCase() === "alto" && "text-emerald-400",
+                trustScore.toLowerCase() === "medio" && "text-amber-400",
+                trustScore.toLowerCase() === "basso" && "text-red-400"
+              )}
             >
-              <DialogTrigger asChild>
-                <button 
-                  onClick={(e) => e.stopPropagation()}
-                  className={cn(
-                    "h-8 flex items-center gap-1.5 bg-black/30 backdrop-blur-xl border border-white/10 px-3 rounded-full cursor-pointer hover:bg-black/40 transition-colors whitespace-nowrap",
-                    trustScore.toLowerCase() === "alto" && "text-emerald-400",
-                    trustScore.toLowerCase() === "medio" && "text-amber-400",
-                    trustScore.toLowerCase() === "basso" && "text-red-400"
-                  )}
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                  <span className="text-[10px] font-bold tracking-wider uppercase">
-                    TRUST {trustScore.toUpperCase()}
-                  </span>
-                </button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Trust Score - Il Punto</DialogTitle>
-                  <DialogDescription>
-                    Informazioni sull'affidabilità delle fonti
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 text-sm text-muted-foreground">
-                  <p>
-                    Questo contenuto è generato aggregando <strong className="text-foreground">fonti giornalistiche verificate</strong> e autorevoli.
-                  </p>
-                  <p>
-                    Il Trust Score "{trustScore.toUpperCase()}" indica che le fonti utilizzate hanno un buon track record di affidabilità editoriale.
-                  </p>
-                  <div className="pt-3 border-t border-border">
-                    <p className="font-medium text-foreground mb-2">Come viene calcolato:</p>
-                    <ul className="space-y-1.5">
-                      <li className="flex items-start gap-2">
-                        <span className="text-primary mt-0.5">•</span>
-                        <span>Analisi automatica delle fonti citate</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-primary mt-0.5">•</span>
-                        <span>Verifica della reputazione editoriale</span>
-                      </li>
-                      <li className="flex items-start gap-2">
-                        <span className="text-primary mt-0.5">•</span>
-                        <span>Coerenza tra titolo e contenuto</span>
-                      </li>
-                    </ul>
-                  </div>
-                  <p className="text-xs pt-2 border-t border-border text-muted-foreground">
-                    Nota: non è fact-checking. Valuta l'affidabilità delle fonti, non la verità assoluta.
-                  </p>
-                </div>
-                <DialogClose asChild>
-                  <button className="w-full mt-4 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg text-sm font-medium transition-colors">
-                    Chiudi
-                  </button>
-                </DialogClose>
-              </DialogContent>
-            </Dialog>
+              <ShieldCheck className="w-4 h-4" />
+              <span className="text-[10px] font-bold tracking-wider uppercase">
+                TRUST {trustScore.toUpperCase()}
+              </span>
+            </button>
           )}
         </div>
 
