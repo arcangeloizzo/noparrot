@@ -115,6 +115,16 @@ export const ImmersiveEditorialCarousel = ({
                 trustDialogOpen={trustDialogOpen}
                 setTrustDialogOpen={setTrustDialogOpen}
                 onDialogChange={handleDialogChange}
+                onShare={onShare}
+                onComment={onComment}
+                reactionsData={index === selectedIndex ? reactionsData : null}
+                onLike={() => {
+                  if (!user) {
+                    toast.error("Devi effettuare il login per mettere like");
+                    return;
+                  }
+                  toggleReaction.mutate({ focusId: item.id, focusType: "daily" });
+                }}
               />
             ))}
           </div>
@@ -137,75 +147,6 @@ export const ImmersiveEditorialCarousel = ({
             ))}
           </div>
         )}
-
-        {/* Bottom Actions - Always reflects active item */}
-        <div className="flex items-center justify-between gap-3 px-6">
-          
-          {/* Primary Share Button */}
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              onShare?.(activeItem);
-            }}
-            className="h-10 px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-          >
-            <Logo variant="icon" size="sm" className="h-4 w-4" />
-            <span className="text-sm font-semibold leading-none">Condividi</span>
-          </button>
-
-          {/* Reactions */}
-          <div className="flex items-center gap-1 bg-black/20 backdrop-blur-xl h-10 px-3 rounded-2xl border border-white/5">
-            
-            {/* Like */}
-            <button 
-              className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (!user) {
-                  toast.error("Devi effettuare il login per mettere like");
-                  return;
-                }
-                toggleReaction.mutate({ focusId: activeItem.id, focusType: "daily" });
-              }}
-            >
-              <Heart 
-                className={cn(
-                  "w-5 h-5",
-                  reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-white"
-                )}
-                fill={reactionsData?.likedByMe ? "currentColor" : "none"}
-              />
-              <span className="text-xs font-bold text-white">
-                {reactionsData?.likes ?? activeItem.reactions?.likes ?? 0}
-              </span>
-            </button>
-
-            {/* Comments */}
-            <button 
-              className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
-              onClick={(e) => {
-                e.stopPropagation();
-                onComment?.(activeItem);
-              }}
-            >
-              <MessageCircle className="w-5 h-5 text-white" />
-              <span className="text-xs font-bold text-white">
-                {activeItem.reactions?.comments ?? 0}
-              </span>
-            </button>
-
-            {/* Bookmark */}
-            <button 
-              className="flex items-center justify-center h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
-              onClick={(e) => {
-                e.stopPropagation();
-                toast.info("Funzionalità in arrivo");
-              }}
-            >
-              <Bookmark className="w-5 h-5 text-white" />
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -223,6 +164,10 @@ interface EditorialSlideProps {
   trustDialogOpen: boolean;
   setTrustDialogOpen: (open: boolean) => void;
   onDialogChange: (open: boolean) => void;
+  onShare?: (item: DailyFocus) => void;
+  onComment?: (item: DailyFocus) => void;
+  reactionsData: { likes: number; likedByMe: boolean } | null;
+  onLike: () => void;
 }
 
 const EditorialSlide = ({
@@ -236,19 +181,25 @@ const EditorialSlide = ({
   trustDialogOpen,
   setTrustDialogOpen,
   onDialogChange,
+  onShare,
+  onComment,
+  reactionsData,
+  onLike,
 }: EditorialSlideProps) => {
   const trustScore = item.trust_score;
+  // Reverse numbering: latest item (index 0) gets highest number
+  const displayNumber = totalItems - index;
 
   return (
     <div 
       className="flex-[0_0_100%] min-w-0 h-full px-6 cursor-pointer"
       onClick={onClick}
     >
-      <div className="h-full flex flex-col justify-between py-4">
+      <div className="h-full flex flex-col justify-start py-4">
         
-        {/* Top Bar */}
-        <div className="flex justify-between items-center">
-          {/* IL PUNTO Badge */}
+        {/* Masthead Row */}
+        <div className="flex justify-between items-center mb-8">
+          {/* Editorial Masthead */}
           <Dialog 
             open={infoDialogOpen} 
             onOpenChange={(open) => {
@@ -259,10 +210,14 @@ const EditorialSlide = ({
             <DialogTrigger asChild>
               <button
                 onClick={(e) => e.stopPropagation()}
-                className="h-8 inline-flex items-center gap-2 px-3 rounded-full backdrop-blur-xl border cursor-pointer hover:opacity-80 transition-opacity whitespace-nowrap bg-[#0A7AFF]/20 border-[#0A7AFF]/30 text-[#0A7AFF]"
+                className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-opacity"
               >
-                <span className="text-xs font-bold tracking-wide">IL PUNTO</span>
-                <Info className="w-3.5 h-3.5" />
+                <span className="text-xs font-bold tracking-[0.2em] uppercase">IL PUNTO</span>
+                <span className="text-white/40">·</span>
+                <span className="text-[10px] font-medium tracking-wider uppercase text-white/50">
+                  EDIZIONE DI OGGI
+                </span>
+                <Info className="w-3.5 h-3.5 ml-1 text-white/40" />
               </button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
@@ -352,23 +307,18 @@ const EditorialSlide = ({
           )}
         </div>
 
-        {/* Center Content */}
-        <div className="flex-1 flex flex-col justify-center relative">
-          {/* Large Index Number - Editorial style */}
-          <div className="absolute -top-2 left-0 text-[120px] font-black text-white/[0.06] leading-none select-none pointer-events-none">
-            #{index + 1}
-          </div>
-
+        {/* Main Content Area */}
+        <div className="flex flex-col relative">
           {/* Soft glow vignette behind headline */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="w-[80%] h-[60%] bg-[#0A7AFF]/5 rounded-full blur-3xl" />
+          <div className="absolute inset-0 flex items-start justify-center pointer-events-none">
+            <div className="w-[80%] h-[200px] bg-[#0A7AFF]/5 rounded-full blur-3xl mt-8" />
           </div>
 
           {/* Content */}
           <div className="relative z-10">
-            {/* Small visible index */}
-            <span className="text-sm font-bold text-[#0A7AFF]/60 mb-2 block">
-              #{index + 1} di {totalItems}
+            {/* Chapter Number - Prominent, visible */}
+            <span className="text-3xl font-black text-white/70 tracking-tight mb-3 block">
+              #{displayNumber}
             </span>
 
             {/* Headline */}
@@ -377,24 +327,88 @@ const EditorialSlide = ({
             </h1>
 
             {/* Abstract/Lead with fade */}
-            <p className="text-base sm:text-lg text-white/70 leading-relaxed line-clamp-3 mb-6">
+            <p className="text-base sm:text-lg text-white/70 leading-relaxed line-clamp-3 mb-4">
               {item.summary.replace(/\[SOURCE:[\d,\s]+\]/g, "")}
             </p>
+
+            {/* Sources Tag */}
+            {item.sources?.length > 0 && (
+              <div className="flex items-center mb-6">
+                <button 
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center px-3 py-1.5 bg-white/5 backdrop-blur-md rounded-full text-xs text-white/60 font-medium border border-white/5 hover:bg-white/10 transition-colors"
+                >
+                  {item.sources[0]?.name?.toLowerCase() || "fonti"}
+                  {item.sources.length > 1 && ` +${item.sources.length - 1}`}
+                </button>
+              </div>
+            )}
+
+            {/* Action Bar - Integrated with content */}
+            <div className="flex items-center justify-between gap-3">
+              {/* Primary Share Button */}
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onShare?.(item);
+                }}
+                className="h-10 px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              >
+                <Logo variant="icon" size="sm" className="h-4 w-4" />
+                <span className="text-sm font-semibold leading-none">Condividi</span>
+              </button>
+
+              {/* Reactions */}
+              <div className="flex items-center gap-1 bg-black/20 backdrop-blur-xl h-10 px-3 rounded-2xl border border-white/5">
+                
+                {/* Like */}
+                <button 
+                  className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onLike();
+                  }}
+                >
+                  <Heart 
+                    className={cn(
+                      "w-5 h-5",
+                      reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-white"
+                    )}
+                    fill={reactionsData?.likedByMe ? "currentColor" : "none"}
+                  />
+                  <span className="text-xs font-bold text-white">
+                    {reactionsData?.likes ?? item.reactions?.likes ?? 0}
+                  </span>
+                </button>
+
+                {/* Comments */}
+                <button 
+                  className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onComment?.(item);
+                  }}
+                >
+                  <MessageCircle className="w-5 h-5 text-white" />
+                  <span className="text-xs font-bold text-white">
+                    {item.reactions?.comments ?? 0}
+                  </span>
+                </button>
+
+                {/* Bookmark */}
+                <button 
+                  className="flex items-center justify-center h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toast.info("Funzionalità in arrivo");
+                  }}
+                >
+                  <Bookmark className="w-5 h-5 text-white" />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-
-        {/* Sources Tag - Bottom */}
-        {item.sources?.length > 0 && (
-          <div className="flex items-center">
-            <button 
-              onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center px-3 py-1.5 bg-white/5 backdrop-blur-md rounded-full text-xs text-white/60 font-medium border border-white/5 hover:bg-white/10 transition-colors"
-            >
-              {item.sources[0]?.name?.toLowerCase() || "fonti"}
-              {item.sources.length > 1 && ` +${item.sources.length - 1}`}
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );
