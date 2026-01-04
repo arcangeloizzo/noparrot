@@ -704,7 +704,7 @@ export const ImmersivePostCard = ({
             
             {/* Stack Layout: User comment first (normal text, not bold) */}
             {useStackLayout && post.content && (
-              <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-4">
+              <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mt-4 mb-4">
                 <MentionText content={post.content} />
               </h2>
             )}
