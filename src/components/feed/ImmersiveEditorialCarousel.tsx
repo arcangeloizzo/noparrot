@@ -501,49 +501,7 @@ const EditorialSlide = ({
     >
       <div className="h-full flex flex-col justify-center py-4">
         
-        {/* Masthead Row */}
-        <div className="flex justify-between items-center mb-8">
-          {/* Editorial Masthead - ◉ IL PUNTO · timestamp */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenInfoDialog();
-            }}
-            className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-opacity"
-          >
-            <span className="text-xs font-bold tracking-[0.15em] uppercase font-mono">
-              ◉ IL PUNTO
-            </span>
-            <span className="text-white/40">·</span>
-            <span className="text-[10px] font-medium tracking-wider uppercase text-white/50 font-mono">
-              {formatEditionTime(item.edition_time, item.created_at)}
-            </span>
-            <Info className="w-3.5 h-3.5 ml-1 text-white/40" />
-          </button>
-
-          {/* Trust Score - Now just a button that opens parent dialog */}
-          {trustScore && (
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenTrustDialog();
-              }}
-              className={cn(
-                "h-8 flex items-center gap-1.5 bg-black/30 backdrop-blur-xl border border-white/10 px-3 rounded-full cursor-pointer hover:bg-black/40 transition-colors whitespace-nowrap",
-                trustScore.toLowerCase() === "alto" && "text-emerald-400",
-                trustScore.toLowerCase() === "medio" && "text-amber-400",
-                trustScore.toLowerCase() === "basso" && "text-red-400"
-              )}
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span className="text-[10px] font-bold tracking-wider uppercase">
-                TRUST {trustScore.toUpperCase()}
-              </span>
-            </button>
-          )}
-        </div>
-
-        {/* Main Content Area */}
+        {/* Main Content Area - Editorial Edition Layout */}
         <div className="flex flex-col relative">
           {/* Soft glow vignette behind headline */}
           <div className="absolute inset-0 flex items-start justify-center pointer-events-none">
@@ -552,24 +510,45 @@ const EditorialSlide = ({
 
           {/* Content */}
           <div className="relative z-10">
-            {/* Chapter Number - Prominent, visible */}
-            <span className="text-3xl font-black text-white/70 tracking-tight mb-3 block">
+            {/* Edition Number - GRANDE, tipografico, elegante */}
+            <span className="text-6xl sm:text-7xl font-extralight text-white/25 tracking-tighter mb-2 block font-serif">
               #{displayNumber}
             </span>
 
-            {/* Headline */}
-            <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight mb-4 drop-shadow-xl">
+            {/* Headline - Elemento più leggibile */}
+            <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight mb-3 drop-shadow-xl">
               {item.title}
             </h1>
 
-            {/* Abstract/Lead with fade */}
-            <p className="text-base sm:text-lg text-white/70 leading-relaxed line-clamp-3 mb-4">
+            {/* Editorial Byline - sotto il titolo, stile testata */}
+            <div className="flex items-center gap-2 text-white/60 mb-4">
+              <span className="text-sm font-medium tracking-wide font-mono">
+                ◉ IL PUNTO
+              </span>
+              <span className="text-white/30">·</span>
+              <span className="text-xs font-medium tracking-wider text-white/50">
+                {formatEditionTime(item.edition_time, item.created_at)}
+              </span>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenInfoDialog();
+                }}
+                className="ml-1 hover:text-white/80 transition-colors"
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Abstract/Lead - Preview della notizia */}
+            <p className="text-base sm:text-lg text-white/70 leading-relaxed line-clamp-3 mb-5">
               {item.summary.replace(/\[SOURCE:[\d,\s]+\]/g, "")}
             </p>
 
-            {/* Sources Tag */}
-            {item.sources?.length > 0 && (
-              <div className="flex items-center mb-6">
+            {/* Sources + Trust Badge Row - Sigilli discreti */}
+            <div className="flex items-center justify-between mb-6">
+              {/* Sources Tag */}
+              {item.sources?.length > 0 && (
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
@@ -580,10 +559,29 @@ const EditorialSlide = ({
                   {item.sources[0]?.name?.toLowerCase() || "fonti"}
                   {item.sources.length > 1 && ` +${item.sources.length - 1}`}
                 </button>
-              </div>
-            )}
+              )}
 
-            {/* Action Bar - Integrated with content */}
+              {/* Trust Badge - Sigillo piccolo, non prominente */}
+              {trustScore && (
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenTrustDialog();
+                  }}
+                  className={cn(
+                    "h-6 flex items-center gap-1 px-2 rounded-full text-[9px] uppercase tracking-wider font-bold border",
+                    trustScore.toLowerCase() === "alto" && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+                    trustScore.toLowerCase() === "medio" && "bg-amber-500/10 text-amber-400 border-amber-500/20",
+                    trustScore.toLowerCase() === "basso" && "bg-red-500/10 text-red-400 border-red-500/20"
+                  )}
+                >
+                  <ShieldCheck className="w-3 h-3" />
+                  <span>TRUST {trustScore.toUpperCase()}</span>
+                </button>
+              )}
+            </div>
+
+            {/* Action Bar */}
             <div className="flex items-center justify-between gap-3">
               {/* Primary Share Button */}
               <button 
