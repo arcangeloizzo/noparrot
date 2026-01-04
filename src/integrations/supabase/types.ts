@@ -198,6 +198,30 @@ export type Database = {
         }
         Relationships: []
       }
+      focus_bookmarks: {
+        Row: {
+          created_at: string
+          focus_id: string
+          focus_type: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          focus_id: string
+          focus_type: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          focus_id?: string
+          focus_type?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       focus_comment_reactions: {
         Row: {
           created_at: string | null

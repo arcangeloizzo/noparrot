@@ -3,6 +3,7 @@ import useEmblaCarousel from "embla-carousel-react";
 import { Heart, MessageCircle, Bookmark, Info, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFocusReactions, useToggleFocusReaction } from "@/hooks/useFocusReactions";
+import { useFocusBookmark, useToggleFocusBookmark } from "@/hooks/useFocusBookmarks";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Logo } from "@/components/ui/logo";
@@ -45,6 +46,10 @@ export const ImmersiveEditorialCarousel = ({
   const { user } = useAuth();
   const { data: reactionsData } = useFocusReactions(activeItem?.id || "", "daily");
   const toggleReaction = useToggleFocusReaction();
+  
+  // Bookmarks for active item
+  const { data: isBookmarked } = useFocusBookmark(activeItem?.id || "", "daily");
+  const toggleBookmark = useToggleFocusBookmark();
 
   // Dialog states - OUTSIDE carousel to avoid layout shifts
   const [infoDialogOpen, setInfoDialogOpen] = useState(false);
@@ -117,12 +122,20 @@ export const ImmersiveEditorialCarousel = ({
                 onShare={onShare}
                 onComment={onComment}
                 reactionsData={index === selectedIndex ? reactionsData : null}
+                isBookmarked={index === selectedIndex ? isBookmarked : false}
                 onLike={() => {
                   if (!user) {
                     toast.error("Devi effettuare il login per mettere like");
                     return;
                   }
                   toggleReaction.mutate({ focusId: item.id, focusType: "daily" });
+                }}
+                onBookmark={() => {
+                  if (!user) {
+                    toast.error("Devi effettuare il login per salvare");
+                    return;
+                  }
+                  toggleBookmark.mutate({ focusId: item.id, focusType: "daily" });
                 }}
               />
             ))}
@@ -239,7 +252,9 @@ interface EditorialSlideProps {
   onShare?: (item: DailyFocus) => void;
   onComment?: (item: DailyFocus) => void;
   reactionsData: { likes: number; likedByMe: boolean } | null;
+  isBookmarked?: boolean;
   onLike: () => void;
+  onBookmark: () => void;
 }
 
 // Format edition time: "2:30 pm | gen 04"
@@ -274,7 +289,9 @@ const EditorialSlide = ({
   onShare,
   onComment,
   reactionsData,
+  isBookmarked,
   onLike,
+  onBookmark,
 }: EditorialSlideProps) => {
   const trustScore = item.trust_score;
   // Reverse numbering: latest item (index 0) gets highest number
@@ -420,10 +437,15 @@ const EditorialSlide = ({
                   className="flex items-center justify-center h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
                   onClick={(e) => {
                     e.stopPropagation();
-                    toast.info("Funzionalità in arrivo");
+                    onBookmark();
                   }}
                 >
-                  <Bookmark className="w-5 h-5 text-white" />
+                  <Bookmark 
+                    className={cn(
+                      "w-5 h-5",
+                      isBookmarked ? "text-brand-pink fill-brand-pink" : "text-white"
+                    )}
+                  />
                 </button>
               </div>
             </div>
