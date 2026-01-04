@@ -656,6 +656,7 @@ ${articles.map((a, idx) => `[${idx}] ${a.source}: "${a.title}"`).join('\n')}
 
 Il tuo compito è creare:
 1. Un TITOLO FINALE chiaro e specifico sull'evento principale (max 80 caratteri)
+   ⚠️ NON citare MAI il nome di una fonte nel titolo (es: "- Corriere della Sera", "secondo Repubblica" è VIETATO)
 2. Un SUMMARY per la card che descrive SOLO questo evento (400-500 caratteri, SENZA marker [SOURCE:N])
 3. Un APPROFONDIMENTO ESTESO (deep_content) di 1500-2000 caratteri FOCALIZZATO su questo evento con:
    - Spiegazione dettagliata di cosa è successo in QUESTO evento specifico
@@ -764,37 +765,51 @@ serve(async (req) => {
   try {
     console.log('fetch-daily-focus invoked');
     
-    // Parse request body for force parameter
-    let force = false;
+    // Parse request body for scheduled generation
+    let scheduled = false;
+    let edition_time: string | null = null;
     try {
       const body = await req.json();
-      force = body?.force === true;
+      scheduled = body?.scheduled === true;
+      edition_time = body?.edition_time || null;
     } catch {
       // No body or invalid JSON, use default
     }
+    
+    // If not scheduled, calculate edition_time from current CET time
+    if (!edition_time) {
+      const now = new Date();
+      const cetFormatter = new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Europe/Rome'
+      });
+      edition_time = cetFormatter.format(now).toLowerCase().replace(' ', ' ');
+    }
+    
+    console.log('Edition time:', edition_time, '| Scheduled:', scheduled);
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
     
-    // 1. Check cache (valid for 4 hours) - skip if force=true
-    if (!force) {
+    // Skip cache check for scheduled runs - always generate new content
+    // For non-scheduled runs, check if we have recent content
+    if (!scheduled) {
       const { data: cached } = await supabase
         .from('daily_focus')
         .select('*')
-        .gte('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
       
       if (cached) {
-        console.log('Returning cached daily focus');
+        console.log('Returning latest daily focus (non-scheduled call)');
         return new Response(JSON.stringify(cached), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
-    } else {
-      console.log('Force refresh requested, skipping cache');
     }
     
     // 2. Fetch fresh data using multi-source search
@@ -924,8 +939,9 @@ serve(async (req) => {
       trust_score: 'Alto' as const, // Multi-source = higher trust
       reactions: { likes: 0, comments: 0, shares: 0 },
       image_url: finalImageUrl,
+      edition_time, // "2:30 pm", "8:30 am", etc.
       created_at: new Date().toISOString(),
-      expires_at: new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString() // 4 hours
+      expires_at: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString() // 48 hours
     };
     
     // 6. Store in database
