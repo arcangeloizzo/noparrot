@@ -79,8 +79,8 @@ export const ExternalFocusCard = ({
       {/* Header */}
       <div className="p-4 pb-3 pt-5">
         <div className="flex items-center gap-2">
-          <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0")}>
-            {isDailyFocus ? '🌍 IL PUNTO' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
+          <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0 font-mono")}>
+            {isDailyFocus ? '◉ IL PUNTO' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
           </Badge>
           {isDailyFocus && (
             <Dialog>

@@ -503,7 +503,7 @@ const EditorialSlide = ({
         
         {/* Masthead Row */}
         <div className="flex justify-between items-center mb-8">
-          {/* Editorial Masthead - Now just a button that opens parent dialog */}
+          {/* Editorial Masthead - ◉ IL PUNTO · timestamp */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -511,9 +511,11 @@ const EditorialSlide = ({
             }}
             className="inline-flex items-center gap-2 text-white/80 hover:text-white transition-opacity"
           >
-            <span className="text-xs font-bold tracking-[0.2em] uppercase">IL PUNTO</span>
+            <span className="text-xs font-bold tracking-[0.15em] uppercase font-mono">
+              ◉ IL PUNTO
+            </span>
             <span className="text-white/40">·</span>
-            <span className="text-[10px] font-medium tracking-wider uppercase text-white/50">
+            <span className="text-[10px] font-medium tracking-wider uppercase text-white/50 font-mono">
               {formatEditionTime(item.edition_time, item.created_at)}
             </span>
             <Info className="w-3.5 h-3.5 ml-1 text-white/40" />
