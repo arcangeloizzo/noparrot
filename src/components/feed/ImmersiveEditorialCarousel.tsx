@@ -242,6 +242,27 @@ interface EditorialSlideProps {
   onLike: () => void;
 }
 
+// Format edition time: "2:30 pm | gen 04"
+const formatEditionTime = (editionTime?: string, createdAt?: string): string => {
+  if (!editionTime && !createdAt) return 'edizione di oggi';
+  
+  const date = new Date(createdAt || Date.now());
+  const months = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+  const month = months[date.getMonth()];
+  const day = date.getDate().toString().padStart(2, '0');
+  
+  if (editionTime) {
+    return `${editionTime} | ${month} ${day}`;
+  }
+  
+  // Fallback: format from created_at
+  const hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'pm' : 'am';
+  const hour12 = hours % 12 || 12;
+  return `${hour12}:${minutes} ${ampm} | ${month} ${day}`;
+};
+
 const EditorialSlide = ({
   item,
   index,
@@ -279,7 +300,7 @@ const EditorialSlide = ({
             <span className="text-xs font-bold tracking-[0.2em] uppercase">IL PUNTO</span>
             <span className="text-white/40">·</span>
             <span className="text-[10px] font-medium tracking-wider uppercase text-white/50">
-              EDIZIONE DI OGGI
+              {formatEditionTime(item.edition_time, item.created_at)}
             </span>
             <Info className="w-3.5 h-3.5 ml-1 text-white/40" />
           </button>

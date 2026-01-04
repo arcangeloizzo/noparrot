@@ -10,6 +10,7 @@ export interface DailyFocus {
   trust_score: 'Alto' | 'Medio' | 'Basso';
   category?: string;
   image_url?: string;
+  edition_time?: string;
   reactions: {
     likes: number;
     comments: number;
@@ -23,19 +24,17 @@ export const useDailyFocus = (refreshNonce: number = 0) => {
   return useQuery({
     queryKey: ['daily-focus', refreshNonce],
     queryFn: async (): Promise<DailyFocus[]> => {
-      // Always fetch directly from DB - no force=true that generates new content
+      // Fetch latest 8 articles (2 full days) - no expires_at filter
       console.log('Fetching daily focus from DB (nonce:', refreshNonce, ')...');
       
-      // Fetch latest 3 non-expired daily focus items (newest first)
       const { data: cached, error: cacheError } = await supabase
         .from('daily_focus')
         .select('*')
-        .gte('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
-        .limit(3);
+        .limit(8);
 
       if (cacheError) {
-        console.error('Error fetching cached daily focus:', cacheError);
+        console.error('Error fetching daily focus:', cacheError);
         return [];
       }
 
@@ -46,7 +45,9 @@ export const useDailyFocus = (refreshNonce: number = 0) => {
 
       // Only if NO items in DB, call edge function to generate the first one
       console.log('No cached items, generating initial daily focus...');
-      const { data, error } = await supabase.functions.invoke('fetch-daily-focus');
+      const { data, error } = await supabase.functions.invoke('fetch-daily-focus', {
+        body: { scheduled: false }
+      });
 
       if (error) {
         console.error('Error fetching daily focus:', error);
@@ -56,7 +57,7 @@ export const useDailyFocus = (refreshNonce: number = 0) => {
       // Return as array (single item from edge function)
       return data ? [data as unknown as DailyFocus] : [];
     },
-    staleTime: 1000 * 60 * 5, // 5 minuti (permite refresh più frequenti dal DB)
+    staleTime: 1000 * 60 * 5, // 5 minuti
     refetchOnWindowFocus: false,
     retry: 1,
   });
