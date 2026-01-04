@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ImmersiveFeedContainer, ImmersiveFeedContainerRef } from "@/components/feed/ImmersiveFeedContainer";
 import { ImmersivePostCard } from "@/components/feed/ImmersivePostCard";
 import { ImmersiveFocusCard } from "@/components/feed/ImmersiveFocusCard";
+import { ImmersiveEditorialCarousel } from "@/components/feed/ImmersiveEditorialCarousel";
 import { FocusDetailSheet } from "@/components/feed/FocusDetailSheet";
 import { CommentsDrawer } from "@/components/feed/CommentsDrawer";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
@@ -15,7 +16,7 @@ import { CGProvider } from "@/lib/comprehension-gate";
 import { usePosts, Post } from "@/hooks/usePosts";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { useDailyFocus } from "@/hooks/useDailyFocus";
+import { useDailyFocus, DailyFocus } from "@/hooks/useDailyFocus";
 import { useInterestFocus } from "@/hooks/useInterestFocus";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,8 +33,8 @@ export const Feed = () => {
   // State for force refresh - passed to hooks
   const [refreshNonce, setRefreshNonce] = useState(0);
   
-  // Fetch real Daily Focus with refreshNonce
-  const { data: dailyFocus, isLoading: loadingDaily } = useDailyFocus(refreshNonce);
+  // Fetch real Daily Focus items (now returns array) with refreshNonce
+  const { data: dailyFocusItems = [], isLoading: loadingDaily } = useDailyFocus(refreshNonce);
   
   // Get user's profile to extract cognitive density
   const [userCategories, setUserCategories] = useState<string[]>([]);
@@ -116,13 +117,17 @@ export const Feed = () => {
   const [focusCommentsOpen, setFocusCommentsOpen] = useState(false);
   const [selectedFocusForComments, setSelectedFocusForComments] = useState<any>(null);
 
-  // Build mixed feed: Daily Focus + User Posts + Interest Focus every 6 posts
+  // Build mixed feed: Daily Focus Carousel + User Posts + Interest Focus every 6 posts
   const mixedFeed = useMemo(() => {
-    const items: Array<{ type: 'daily' | 'interest' | 'post'; data: any; id: string }> = [];
+    const items: Array<{ type: 'daily-carousel' | 'interest' | 'post'; data: any; id: string }> = [];
     
-    // 1. Daily Focus always at top (REAL DATA)
-    if (dailyFocus) {
-      items.push({ type: 'daily', data: dailyFocus, id: dailyFocus.id });
+    // 1. Daily Focus Carousel always at top (array of items)
+    if (dailyFocusItems.length > 0) {
+      items.push({ 
+        type: 'daily-carousel', 
+        data: dailyFocusItems, 
+        id: 'daily-carousel-' + dailyFocusItems[0].id 
+      });
     }
     
     // 2. Intercalate user posts with Interest Focus every 6
@@ -142,7 +147,7 @@ export const Feed = () => {
     });
     
     return items;
-  }, [dailyFocus, dbPosts, interestFocus]);
+  }, [dailyFocusItems, dbPosts, interestFocus]);
 
   // Ripristina posizione scroll (indice) quando Feed si monta e i dati sono caricati
   useEffect(() => {
@@ -225,12 +230,35 @@ export const Feed = () => {
       <ImmersiveFeedContainer ref={feedContainerRef} onRefresh={async () => { await refetch(); }} onActiveIndexChange={handleActiveIndexChange}>
         {/* Immersive Feed Items */}
         {mixedFeed.map((item) => {
-          if (item.type === 'daily' || item.type === 'interest') {
+          if (item.type === 'daily-carousel') {
+            // Editorial Carousel for Il Punto
+            return (
+              <ImmersiveEditorialCarousel
+                key={item.id}
+                items={item.data as DailyFocus[]}
+                onItemClick={(focusItem) => {
+                  setSelectedFocus({ type: 'daily', data: focusItem });
+                  setFocusDetailOpen(true);
+                }}
+                onComment={(focusItem) => {
+                  setSelectedFocusForComments({ type: 'daily', data: focusItem });
+                  setFocusCommentsOpen(true);
+                }}
+                onShare={() => {
+                  toast({
+                    title: "Condividi",
+                    description: "Conta rilanci nel feed (da implementare)"
+                  });
+                }}
+              />
+            );
+          } else if (item.type === 'interest') {
+            // Interest Focus (Per Te) - still uses ImmersiveFocusCard
             return (
               <ImmersiveFocusCard
                 key={item.id}
                 focusId={item.data.id}
-                type={item.type}
+                type="interest"
                 category={item.data.category}
                 title={item.data.title}
                 summary={item.data.summary}
