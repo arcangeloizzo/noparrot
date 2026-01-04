@@ -23,10 +23,19 @@ export interface DailyFocus {
 export const useDailyFocus = (refreshNonce: number = 0) => {
   return useQuery({
     queryKey: ['daily-focus', refreshNonce],
-    queryFn: async (): Promise<DailyFocus[]> => {
-      // Fetch latest 8 articles (2 full days) - no expires_at filter
+    queryFn: async (): Promise<{ items: DailyFocus[]; totalCount: number }> => {
+      // Fetch total count of ALL editorials in DB
       console.log('Fetching daily focus from DB (nonce:', refreshNonce, ')...');
       
+      const { count: totalCount, error: countError } = await supabase
+        .from('daily_focus')
+        .select('*', { count: 'exact', head: true });
+      
+      if (countError) {
+        console.error('Error fetching daily focus count:', countError);
+      }
+      
+      // Fetch latest 8 articles (2 full days) - no expires_at filter
       const { data: cached, error: cacheError } = await supabase
         .from('daily_focus')
         .select('*')
@@ -35,12 +44,15 @@ export const useDailyFocus = (refreshNonce: number = 0) => {
 
       if (cacheError) {
         console.error('Error fetching daily focus:', cacheError);
-        return [];
+        return { items: [], totalCount: 0 };
       }
 
       if (cached && cached.length > 0) {
-        console.log('Using cached daily focus items:', cached.length);
-        return cached as unknown as DailyFocus[];
+        console.log('Using cached daily focus items:', cached.length, 'total in DB:', totalCount);
+        return { 
+          items: cached as unknown as DailyFocus[], 
+          totalCount: totalCount || cached.length 
+        };
       }
 
       // Only if NO items in DB, call edge function to generate the first one
@@ -51,11 +63,11 @@ export const useDailyFocus = (refreshNonce: number = 0) => {
 
       if (error) {
         console.error('Error fetching daily focus:', error);
-        return [];
+        return { items: [], totalCount: 0 };
       }
 
       // Return as array (single item from edge function)
-      return data ? [data as unknown as DailyFocus] : [];
+      return data ? { items: [data as unknown as DailyFocus], totalCount: 1 } : { items: [], totalCount: 0 };
     },
     staleTime: 1000 * 60 * 5, // 5 minuti
     refetchOnWindowFocus: false,

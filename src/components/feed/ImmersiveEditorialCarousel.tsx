@@ -20,6 +20,7 @@ import { DailyFocus } from "@/hooks/useDailyFocus";
 
 interface ImmersiveEditorialCarouselProps {
   items: DailyFocus[];
+  totalCount: number; // Total editorials in DB for correct numbering
   onItemClick?: (item: DailyFocus) => void;
   onComment?: (item: DailyFocus) => void;
   onShare?: (item: DailyFocus) => void;
@@ -27,6 +28,7 @@ interface ImmersiveEditorialCarouselProps {
 
 export const ImmersiveEditorialCarousel = ({
   items,
+  totalCount,
   onItemClick,
   onComment,
   onShare,
@@ -114,7 +116,7 @@ export const ImmersiveEditorialCarousel = ({
                 key={item.id}
                 item={item}
                 index={index}
-                totalItems={items.length}
+                totalCount={totalCount}
                 isActive={index === selectedIndex}
                 onClick={() => handleCardClick(item)}
                 onOpenInfoDialog={() => setInfoDialogOpen(true)}
@@ -244,7 +246,7 @@ export const ImmersiveEditorialCarousel = ({
 interface EditorialSlideProps {
   item: DailyFocus;
   index: number;
-  totalItems: number;
+  totalCount: number; // Total editorials in DB for correct numbering
   isActive: boolean;
   onClick: () => void;
   onOpenInfoDialog: () => void;
@@ -281,7 +283,7 @@ const formatEditionTime = (editionTime?: string, createdAt?: string): string => 
 const EditorialSlide = ({
   item,
   index,
-  totalItems,
+  totalCount,
   isActive,
   onClick,
   onOpenInfoDialog,
@@ -294,8 +296,8 @@ const EditorialSlide = ({
   onBookmark,
 }: EditorialSlideProps) => {
   const trustScore = item.trust_score;
-  // Reverse numbering: latest item (index 0) gets highest number
-  const displayNumber = totalItems - index;
+  // Correct numbering: latest item (index 0) gets totalCount, second gets totalCount-1, etc.
+  const displayNumber = totalCount - index;
 
   return (
     <div 
