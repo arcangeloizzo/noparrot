@@ -648,29 +648,39 @@ TITOLO PRINCIPALE DAL RSS: ${mainTitle}
 FONTI DISPONIBILI:
 ${articles.map((a, idx) => `[${idx}] ${a.source}: "${a.title}"`).join('\n')}
 
-⚠️ REGOLA FONDAMENTALE: Devi parlare di UNA SOLA NOTIZIA SPECIFICA, quella più importante tra le fonti.
-- NON creare una "rassegna stampa" o "panoramica delle notizie"
-- NON elencare multiple notizie diverse
-- FOCALIZZATI su UN evento/fatto specifico
-- Il titolo deve essere specifico (es. "Inter batte l'Atletico in Champions" NON "Le notizie sportive di oggi")
+⚠️ REGOLE FONDAMENTALI:
+1. VERIFICA RILEVANZA FONTI: Prima di usare una fonte, assicurati che parli dello STESSO evento/argomento del titolo principale.
+   - Se una fonte parla di un argomento COMPLETAMENTE DIVERSO (es. Pippo Baudo quando il titolo parla di Maduro), NON includerla.
+   - ELIMINA qualsiasi fonte non pertinente all'evento principale.
+   
+2. UN SOLO EVENTO: Devi parlare di UNA SOLA NOTIZIA SPECIFICA, quella del titolo principale.
+   - NON creare una "rassegna stampa" o "panoramica delle notizie"
+   - NON elencare multiple notizie diverse
+   - FOCALIZZATI su UN evento/fatto specifico
+   
+3. TITOLO SENZA FONTE: Il titolo deve essere specifico (es. "Inter batte l'Atletico in Champions" NON "Le notizie sportive di oggi")
+   ⚠️ NON citare MAI il nome di una fonte nel titolo (es: "- Corriere della Sera", "secondo Repubblica" è VIETATO)
+
+4. TESTO FLUIDO: Il deep_content deve essere un testo DISCORSIVO che sintetizza le informazioni.
+   - NON deve sembrare una lista di notizie copiate dalle testate
+   - SINTETIZZA e RIELABORA le informazioni in un testo originale
+   - Scrivi in modo giornalistico, coinvolgente, NO elenchi puntati
 
 Il tuo compito è creare:
-1. Un TITOLO FINALE chiaro e specifico sull'evento principale (max 80 caratteri)
-   ⚠️ NON citare MAI il nome di una fonte nel titolo (es: "- Corriere della Sera", "secondo Repubblica" è VIETATO)
+1. Un TITOLO FINALE chiaro e specifico sull'evento principale (max 80 caratteri, SENZA nome fonte)
 2. Un SUMMARY per la card che descrive SOLO questo evento (400-500 caratteri, SENZA marker [SOURCE:N])
 3. Un APPROFONDIMENTO ESTESO (deep_content) di 1500-2000 caratteri FOCALIZZATO su questo evento con:
    - Spiegazione dettagliata di cosa è successo in QUESTO evento specifico
    - Contesto storico/politico quando rilevante
    - Chi sono i protagonisti e perché è importante
-   - Cosa dicono le diverse fonti su QUESTO evento
+   - Cosa dicono le diverse fonti su QUESTO evento (USA SOLO fonti pertinenti!)
    - Implicazioni e sviluppi futuri
-   - Scrivi in modo discorsivo, coinvolgente, NO elenchi puntati
 
 ⚠️ CRITICAL RULES FOR [SOURCE:N] MARKERS - MUST BE FOLLOWED EXACTLY:
 1. VALID INDEX RANGE: You have ${articles.length} sources (indices 0 to ${articles.length - 1})
    - ONLY use indices in this range: ${Array.from({length: articles.length}, (_, i) => i).join(', ')}
    - NEVER use indices ${articles.length} or higher
-   - Example: If you have 5 sources, ONLY use [SOURCE:0] through [SOURCE:4]
+   - ONLY reference sources that are ACTUALLY RELEVANT to the main story
 
 2. PLACEMENT RULES:
    - Place markers ONLY at the END of paragraphs, NEVER mid-sentence
@@ -685,17 +695,11 @@ Il tuo compito è creare:
 STRUTTURA CORRETTA DI OGNI PARAGRAFO:
 "Frase 1. Frase 2. Frase 3 che conclude l'idea del paragrafo. [SOURCE:0] [SOURCE:1]"
 
-ESEMPIO ERRATO ❌:
-"Trump ha affermato [SOURCE:0] che ci sono buone chance per un accordo"
-
-ESEMPIO CORRETTO ✅:
-"Trump ha affermato che ci sono buone chance per un accordo tra le due nazioni, un'affermazione attesa da tempo che potrebbe cambiare gli equilibri diplomatici. [SOURCE:0] [SOURCE:1]"
-
 Rispondi SOLO con JSON valido:
 {
-  "title": "Titolo conciso e chiaro",
+  "title": "Titolo conciso e chiaro SENZA nome fonte",
   "summary": "Sintesi per card SENZA marker (400-500 caratteri)",
-  "deep_content": "Approfondimento esteso con marker [SOURCE:N] SOLO a fine paragrafo (1500-2000 caratteri)"
+  "deep_content": "Approfondimento esteso FLUIDO E DISCORSIVO con marker [SOURCE:N] SOLO a fine paragrafo (1500-2000 caratteri)"
 }`;
 
   try {

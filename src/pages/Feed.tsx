@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ImmersiveFeedContainer, ImmersiveFeedContainerRef } from "@/components/feed/ImmersiveFeedContainer";
 import { ImmersivePostCard } from "@/components/feed/ImmersivePostCard";
 import { ImmersiveFocusCard } from "@/components/feed/ImmersiveFocusCard";
@@ -26,6 +26,7 @@ import { toast as sonnerToast } from "sonner";
 export const Feed = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { data: dbPosts = [], isLoading, refetch } = usePosts();
   const queryClient = useQueryClient();
   const feedContainerRef = useRef<ImmersiveFeedContainerRef>(null);
@@ -33,8 +34,10 @@ export const Feed = () => {
   // State for force refresh - passed to hooks
   const [refreshNonce, setRefreshNonce] = useState(0);
   
-  // Fetch real Daily Focus items (now returns array) with refreshNonce
-  const { data: dailyFocusItems = [], isLoading: loadingDaily } = useDailyFocus(refreshNonce);
+  // Fetch real Daily Focus items (now returns { items, totalCount }) with refreshNonce
+  const { data: dailyFocusData, isLoading: loadingDaily } = useDailyFocus(refreshNonce);
+  const dailyFocusItems = dailyFocusData?.items || [];
+  const dailyFocusTotalCount = dailyFocusData?.totalCount || dailyFocusItems.length;
   
   // Get user's profile to extract cognitive density
   const [userCategories, setUserCategories] = useState<string[]>([]);
@@ -173,6 +176,54 @@ export const Feed = () => {
     }
   }, [isLoading, loadingDaily, mixedFeed.length]);
 
+  // Handle ?focus= URL parameter (from Saved page navigation)
+  useEffect(() => {
+    const focusId = searchParams.get('focus');
+    if (!focusId || loadingDaily) return;
+    
+    // Find the focus item in current data
+    const focusItem = dailyFocusItems.find(item => item.id === focusId);
+    
+    if (focusItem) {
+      const clickedIndex = dailyFocusItems.findIndex(d => d.id === focusId);
+      const editorialNumber = dailyFocusTotalCount - clickedIndex;
+      setSelectedFocus({ type: 'daily', data: focusItem, editorialNumber });
+      setFocusDetailOpen(true);
+      
+      // Clear the URL parameter
+      setSearchParams({}, { replace: true });
+    } else {
+      // Focus not in current carousel - fetch directly from DB
+      (async () => {
+        const { data: fetchedFocus, error } = await supabase
+          .from('daily_focus')
+          .select('*')
+          .eq('id', focusId)
+          .single();
+        
+        if (!error && fetchedFocus) {
+          // Calculate editorial number by counting items newer than this one
+          const { count } = await supabase
+            .from('daily_focus')
+            .select('*', { count: 'exact', head: true })
+            .gte('created_at', fetchedFocus.created_at);
+          
+          const editorialNumber = dailyFocusTotalCount - (count || 1) + 1;
+          
+          setSelectedFocus({ 
+            type: 'daily', 
+            data: fetchedFocus as unknown as DailyFocus, 
+            editorialNumber 
+          });
+          setFocusDetailOpen(true);
+        }
+        
+        // Clear the URL parameter
+        setSearchParams({}, { replace: true });
+      })();
+    }
+  }, [searchParams, dailyFocusItems, loadingDaily, dailyFocusTotalCount, setSearchParams]);
+
   useEffect(() => {
     if (showSimilarContent) {
       document.body.style.overflow = 'hidden';
@@ -236,8 +287,12 @@ export const Feed = () => {
               <ImmersiveEditorialCarousel
                 key={item.id}
                 items={item.data as DailyFocus[]}
+                totalCount={dailyFocusTotalCount}
                 onItemClick={(focusItem) => {
-                  setSelectedFocus({ type: 'daily', data: focusItem });
+                  // Find index of clicked item to pass editorialNumber
+                  const clickedIndex = dailyFocusItems.findIndex(d => d.id === focusItem.id);
+                  const editorialNumber = dailyFocusTotalCount - clickedIndex;
+                  setSelectedFocus({ type: 'daily', data: focusItem, editorialNumber });
                   setFocusDetailOpen(true);
                 }}
                 onComment={(focusItem) => {
@@ -347,6 +402,7 @@ export const Feed = () => {
             sources={selectedFocus.data.sources}
             imageUrl={selectedFocus.data.image_url}
             focusId={selectedFocus.data.id}
+            editorialNumber={selectedFocus.editorialNumber}
             reactions={selectedFocus.data.reactions}
             onLike={() => {
               if (!user) {

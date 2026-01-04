@@ -67,10 +67,9 @@ export const SourcesDrawer = ({ open, onOpenChange, sources, highlightIndex }: S
                   </div>
                 ))}
               </div>
-              <div>
-                <h3 className="text-white font-bold text-lg">Fonti</h3>
-                <p className="text-gray-400 text-xs">{sources.length} {sources.length === 1 ? 'fonte' : 'fonti'}</p>
-              </div>
+              <h3 className="text-white font-bold text-lg">
+                {sources.length} {sources.length === 1 ? 'Fonte' : 'Fonti'}
+              </h3>
             </div>
             <button
               onClick={() => onOpenChange(false)}

@@ -38,6 +38,7 @@ interface FocusDetailSheetProps {
   sources: Source[];
   imageUrl?: string;
   focusId: string;
+  editorialNumber?: number; // For "IL PUNTO - #N" display
   reactions: { likes: number; comments: number; shares: number };
   userReactions?: { hasLiked: boolean };
   onLike?: () => void;
@@ -55,6 +56,7 @@ export const FocusDetailSheet = ({
   sources,
   imageUrl,
   focusId,
+  editorialNumber,
   reactions,
   userReactions,
   onLike,
@@ -250,7 +252,10 @@ export const FocusDetailSheet = ({
           <div className="sticky top-0 z-10 bg-[#0E141A] pt-4 pb-3 border-b border-white/10">
             <div className="flex items-center justify-between">
               <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0")}>
-                {isDailyFocus ? '🌍 IL PUNTO' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
+                {isDailyFocus 
+                  ? (editorialNumber ? `IL PUNTO - #${editorialNumber}` : 'IL PUNTO')
+                  : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`
+                }
               </Badge>
               
               {/* X custom più grande e cliccabile */}
@@ -264,18 +269,8 @@ export const FocusDetailSheet = ({
             </div>
           </div>
 
-          {/* Contenuto scrollabile */}
+          {/* Contenuto scrollabile - REMOVED imageUrl section */}
           <div className="flex-1 overflow-y-auto">
-            {imageUrl && (
-              <div className="w-full h-48 rounded-lg overflow-hidden mt-4">
-                <img 
-                  src={imageUrl} 
-                  alt="" 
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            )}
-            
             <h2 className="text-white text-2xl font-bold text-left leading-tight mt-4 pb-4 border-b border-white/10">
               {title}
             </h2>
