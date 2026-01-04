@@ -57,72 +57,78 @@ export const ReshareContextStack = ({ stack }: ReshareContextStackProps) => {
         <ChevronDown className="w-3 h-3" />
       </div>
 
-      {/* Context Items with thread line */}
-      <div className="relative">
-        {/* Thread line verticale */}
-        <div className="absolute left-[11px] top-3 bottom-3 w-px bg-white/15" />
+      {/* Context Items with CSS thread connectors */}
+      <div className="relative pl-[11px]">
+        {visibleItems.map((item, index) => {
+          const timeAgo = formatDistanceToNow(new Date(item.created_at), { 
+            addSuffix: false, 
+            locale: it 
+          });
+          const isLastVisible = index === visibleItems.length - 1;
+          const isOriginal = index === stack.length - 1 && (expanded || !hasMore);
 
-        <div className="space-y-1">
-          {visibleItems.map((item, index) => {
-            const timeAgo = formatDistanceToNow(new Date(item.created_at), { 
-              addSuffix: false, 
-              locale: it 
-            });
-            const isLastVisible = index === visibleItems.length - 1;
-            const isOriginal = index === stack.length - 1 && (expanded || !hasMore);
-
-            return (
-              <div key={item.id} className="relative flex items-stretch">
-                {/* Connettore visivo */}
-                <div className="flex items-start pt-2.5 w-6 flex-shrink-0 z-10">
-                  <span className={cn(
-                    "text-white/25 text-xs font-mono leading-none",
-                    isLastVisible && "text-white/35"
-                  )}>
-                    {isLastVisible ? '└' : '├'}
-                  </span>
-                </div>
-
-                {/* Card contenuto */}
-                <button
-                  onClick={(e) => handleItemClick(item.id, e)}
-                  className="flex-1 text-left bg-white/5 hover:bg-white/10 rounded-xl p-2.5 transition-colors active:scale-[0.99]"
-                >
-                  <div className="flex items-start gap-2">
-                    {/* Small Avatar */}
-                    <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10 flex-shrink-0">
-                      {getAvatarContent(item.author)}
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      {/* Username + Time + Badge */}
-                      <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="text-xs font-semibold text-white/80 truncate">
-                          {getDisplayUsername(item.author.username)}
-                        </span>
-                        <span className="text-[10px] text-white/40">·</span>
-                        <span className="text-[10px] text-white/40 flex-shrink-0">
-                          {timeAgo}
-                        </span>
-                        {isOriginal && (
-                          <span className="ml-auto text-[9px] px-1.5 py-0.5 bg-white/10 rounded-full text-white/50 flex-shrink-0">
-                            originale
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Comment snippet */}
-                      <p className="text-xs text-white/60 line-clamp-2 leading-relaxed">
-                        {item.content || 'Ha condiviso'}
-                      </p>
-                    </div>
-                  </div>
-                </button>
+          return (
+            <div key={item.id} className="relative flex">
+              {/* Thread connector - CSS based */}
+              <div className="absolute left-0 flex flex-col items-center w-[1px]">
+                {/* Vertical line above node */}
+                <div className={cn(
+                  "w-px bg-white/15",
+                  index === 0 ? "h-5" : "h-full absolute top-0"
+                )} />
+                {/* Vertical line below node (not for last) */}
+                {!isLastVisible && (
+                  <div className="w-px bg-white/15 absolute top-5 bottom-0" />
+                )}
               </div>
-            );
-          })}
-        </div>
+              
+              {/* Node + horizontal connector */}
+              <div className="relative flex items-start ml-[-1px] pt-[18px]">
+                {/* Node dot */}
+                <div className="w-[5px] h-[5px] rounded-full bg-white/30 flex-shrink-0 z-10" />
+                {/* Horizontal line */}
+                <div className="w-3 h-px bg-white/15 mt-[2px]" />
+              </div>
+
+              {/* Card contenuto */}
+              <button
+                onClick={(e) => handleItemClick(item.id, e)}
+                className="flex-1 text-left bg-white/5 hover:bg-white/10 rounded-xl p-2.5 transition-colors active:scale-[0.99] ml-1 mb-1"
+              >
+                <div className="flex items-start gap-2">
+                  {/* Small Avatar */}
+                  <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10 flex-shrink-0">
+                    {getAvatarContent(item.author)}
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    {/* Username + Time + Badge */}
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="text-xs font-semibold text-white/80 truncate">
+                        {getDisplayUsername(item.author.username)}
+                      </span>
+                      <span className="text-[10px] text-white/40">·</span>
+                      <span className="text-[10px] text-white/40 flex-shrink-0">
+                        {timeAgo}
+                      </span>
+                      {isOriginal && (
+                        <span className="ml-auto text-[9px] px-1.5 py-0.5 bg-white/10 rounded-full text-white/50 flex-shrink-0">
+                          originale
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Comment snippet */}
+                    <p className="text-xs text-white/60 line-clamp-2 leading-relaxed">
+                      {item.content || 'Ha condiviso'}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </div>
+          );
+        })}
       </div>
 
       {/* Expand/Collapse Button */}
