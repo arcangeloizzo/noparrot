@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { Heart, MessageCircle, Bookmark, Info, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,11 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { DailyFocus } from "@/hooks/useDailyFocus";
+import { SourceReaderGate } from "@/components/composer/SourceReaderGate";
+import { SourceWithGate } from "@/lib/comprehension-gate-extended";
+import { QuizModal } from "@/components/ui/quiz-modal";
+import { SourcesDrawer } from "@/components/feed/SourcesDrawer";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ImmersiveEditorialCarouselProps {
   items: DailyFocus[];
@@ -24,6 +29,7 @@ interface ImmersiveEditorialCarouselProps {
   onItemClick?: (item: DailyFocus) => void;
   onComment?: (item: DailyFocus) => void;
   onShare?: (item: DailyFocus) => void;
+  onShareComplete?: (item: DailyFocus) => void; // Called after gate passed
 }
 
 export const ImmersiveEditorialCarousel = ({
@@ -32,6 +38,7 @@ export const ImmersiveEditorialCarousel = ({
   onItemClick,
   onComment,
   onShare,
+  onShareComplete,
 }: ImmersiveEditorialCarouselProps) => {
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: false,
@@ -58,6 +65,19 @@ export const ImmersiveEditorialCarousel = ({
   const [trustDialogOpen, setTrustDialogOpen] = useState(false);
   const suppressUntilRef = React.useRef(0);
 
+  // Sources drawer state
+  const [sourcesDrawerOpen, setSourcesDrawerOpen] = useState(false);
+  const [sourcesDrawerItem, setSourcesDrawerItem] = useState<DailyFocus | null>(null);
+
+  // Comprehension Gate state for editorial share
+  const [showReader, setShowReader] = useState(false);
+  const [readerSource, setReaderSource] = useState<SourceWithGate | null>(null);
+  const [readerClosing, setReaderClosing] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [quizData, setQuizData] = useState<{ questions: any[]; correctAnswers: number[] } | null>(null);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const pendingShareItemRef = useRef<DailyFocus | null>(null);
+
   const handleDialogChange = (open: boolean) => {
     if (!open) {
       suppressUntilRef.current = Date.now() + 400;
@@ -83,6 +103,101 @@ export const ImmersiveEditorialCarousel = ({
     if (infoDialogOpen || trustDialogOpen) return;
     if (Date.now() < suppressUntilRef.current) return;
     onItemClick?.(item);
+  };
+
+  // Handle sources drawer open
+  const handleOpenSources = (item: DailyFocus) => {
+    setSourcesDrawerItem(item);
+    setSourcesDrawerOpen(true);
+  };
+
+  // Handle share with comprehension gate
+  const handleShareWithGate = async (item: DailyFocus) => {
+    if (!user) {
+      toast.error("Devi effettuare il login per condividere");
+      return;
+    }
+
+    pendingShareItemRef.current = item;
+
+    // Build reader source from editorial deep_content
+    const content = item.deep_content || item.summary;
+    const readerSrc: SourceWithGate = {
+      id: item.id,
+      state: 'reading',
+      url: `editorial://${item.id}`,
+      title: item.title,
+      content: content,
+      platform: 'article',
+    };
+
+    setReaderSource(readerSrc);
+    setShowReader(true);
+  };
+
+  // Handle reader complete -> generate quiz
+  const handleReaderComplete = async () => {
+    setReaderClosing(true);
+    
+    setTimeout(async () => {
+      setShowReader(false);
+      setReaderClosing(false);
+      setQuizLoading(true);
+
+      try {
+        const item = pendingShareItemRef.current;
+        if (!item) throw new Error("No pending item");
+
+        const content = item.deep_content || item.summary;
+
+        // Generate quiz from editorial content
+        const { data, error } = await supabase.functions.invoke('generate-qa', {
+          body: {
+            content: content,
+            test_mode: 'USER_ONLY', // Use content-based questions for editorials
+          }
+        });
+
+        if (error) throw error;
+
+        if (data?.questions && data.questions.length > 0) {
+          setQuizData({
+            questions: data.questions,
+            correctAnswers: data.correct_answers || data.questions.map((q: any) => q.correctIndex)
+          });
+          setShowQuiz(true);
+        } else {
+          // No quiz needed, proceed directly
+          handleQuizPass();
+        }
+      } catch (err) {
+        console.error('[EditorialCarousel] Quiz generation error:', err);
+        toast.error("Errore nella generazione del test");
+        pendingShareItemRef.current = null;
+      } finally {
+        setQuizLoading(false);
+      }
+    }, 300);
+  };
+
+  // Handle quiz pass -> trigger share completion
+  const handleQuizPass = () => {
+    setShowQuiz(false);
+    setQuizData(null);
+
+    const item = pendingShareItemRef.current;
+    pendingShareItemRef.current = null;
+
+    if (item) {
+      onShareComplete?.(item);
+    }
+  };
+
+  // Handle quiz close without passing
+  const handleQuizClose = () => {
+    setShowQuiz(false);
+    setQuizData(null);
+    pendingShareItemRef.current = null;
   };
 
   if (!items.length) return null;
@@ -121,7 +236,8 @@ export const ImmersiveEditorialCarousel = ({
                 onClick={() => handleCardClick(item)}
                 onOpenInfoDialog={() => setInfoDialogOpen(true)}
                 onOpenTrustDialog={() => setTrustDialogOpen(true)}
-                onShare={onShare}
+                onShare={() => handleShareWithGate(item)}
+                onOpenSources={() => handleOpenSources(item)}
                 onComment={onComment}
                 reactionsData={index === selectedIndex ? reactionsData : null}
                 isBookmarked={index === selectedIndex ? isBookmarked : false}
@@ -238,6 +354,77 @@ export const ImmersiveEditorialCarousel = ({
           </DialogClose>
         </DialogContent>
       </Dialog>
+
+      {/* Sources Drawer */}
+      <SourcesDrawer
+        open={sourcesDrawerOpen}
+        onOpenChange={setSourcesDrawerOpen}
+        sources={(sourcesDrawerItem?.sources || []).map((s: any, i: number) => ({
+          icon: '📰',
+          name: s.name || `Fonte ${i + 1}`,
+          url: s.url || '',
+          title: s.title || s.name || '',
+          description: s.description || '',
+        }))}
+      />
+
+      {/* Comprehension Gate Reader */}
+      {readerSource && (
+        <SourceReaderGate
+          source={readerSource}
+          isOpen={showReader}
+          isClosing={readerClosing}
+          onClose={() => {
+            setShowReader(false);
+            setReaderSource(null);
+            pendingShareItemRef.current = null;
+          }}
+          onComplete={handleReaderComplete}
+        />
+      )}
+
+      {/* Quiz Modal */}
+      {showQuiz && quizData && (
+        <QuizModal
+          questions={quizData.questions}
+          onSubmit={async (answers) => {
+            // Validate answers against correctAnswers
+            const correct = quizData.correctAnswers;
+            let score = 0;
+            const wrongIndexes: string[] = [];
+            
+            Object.entries(answers).forEach(([qId, choiceId], idx) => {
+              const question = quizData.questions[idx];
+              if (question && question.correctId === choiceId) {
+                score++;
+              } else {
+                wrongIndexes.push(qId);
+              }
+            });
+            
+            const passed = wrongIndexes.length === 0 || score >= quizData.questions.length - 1;
+            return { passed, score, total: quizData.questions.length, wrongIndexes };
+          }}
+          onCancel={handleQuizClose}
+          onComplete={(passed) => {
+            if (passed) {
+              handleQuizPass();
+            } else {
+              handleQuizClose();
+            }
+          }}
+        />
+      )}
+
+      {/* Quiz Loading Overlay */}
+      {quizLoading && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998] flex items-center justify-center">
+          <div className="text-white text-center">
+            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-sm">Preparazione test...</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -251,7 +438,8 @@ interface EditorialSlideProps {
   onClick: () => void;
   onOpenInfoDialog: () => void;
   onOpenTrustDialog: () => void;
-  onShare?: (item: DailyFocus) => void;
+  onShare?: () => void;
+  onOpenSources?: () => void;
   onComment?: (item: DailyFocus) => void;
   reactionsData: { likes: number; likedByMe: boolean } | null;
   isBookmarked?: boolean;
@@ -289,6 +477,7 @@ const EditorialSlide = ({
   onOpenInfoDialog,
   onOpenTrustDialog,
   onShare,
+  onOpenSources,
   onComment,
   reactionsData,
   isBookmarked,
@@ -374,7 +563,10 @@ const EditorialSlide = ({
             {item.sources?.length > 0 && (
               <div className="flex items-center mb-6">
                 <button 
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenSources?.();
+                  }}
                   className="inline-flex items-center px-3 py-1.5 bg-white/5 backdrop-blur-md rounded-full text-xs text-white/60 font-medium border border-white/5 hover:bg-white/10 transition-colors"
                 >
                   {item.sources[0]?.name?.toLowerCase() || "fonti"}
@@ -389,7 +581,7 @@ const EditorialSlide = ({
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
-                  onShare?.(item);
+                  onShare?.();
                 }}
                 className="h-10 px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
               >

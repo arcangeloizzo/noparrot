@@ -299,11 +299,33 @@ export const Feed = () => {
                   setSelectedFocusForComments({ type: 'daily', data: focusItem });
                   setFocusCommentsOpen(true);
                 }}
-                onShare={() => {
-                  toast({
-                    title: "Condividi",
-                    description: "Conta rilanci nel feed (da implementare)"
-                  });
+                onShareComplete={(focusItem) => {
+                  // After gate passed, open composer with editorial as quoted content
+                  setQuotedPost({
+                    id: focusItem.id,
+                    content: focusItem.summary,
+                    author_id: 'system',
+                    created_at: focusItem.created_at || new Date().toISOString(),
+                    author: {
+                      id: 'system',
+                      username: 'Il Punto',
+                      full_name: 'Il Punto',
+                      avatar_url: null
+                    },
+                    topic_tag: null,
+                    shared_title: focusItem.title,
+                    shared_url: `focus://daily/${focusItem.id}`,
+                    preview_img: focusItem.image_url,
+                    full_article: null,
+                    article_content: focusItem.deep_content,
+                    trust_level: focusItem.trust_score,
+                    stance: null,
+                    sources: focusItem.sources?.map((s: any) => s.url).filter(Boolean) || [],
+                    quoted_post_id: null,
+                    category: focusItem.category || null,
+                    reactions: focusItem.reactions || { likes: 0, comments: 0, shares: 0 }
+                  } as unknown as Post);
+                  setShowComposer(true);
                 }}
               />
             );
