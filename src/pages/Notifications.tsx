@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BellIcon, HeartIcon, MessageCircleIcon, UserPlusIcon, AtSignIcon, CheckIcon, ArrowLeftIcon } from "@/components/ui/icons";
+import { BellIcon, HeartIcon, MessageCircleIcon, UserPlusIcon, AtSignIcon, CheckIcon, ArrowLeftIcon, RepeatIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { useNotifications, useMarkAsRead, useMarkAllAsRead } from "@/hooks/useNotifications";
 import { formatDistanceToNow } from "date-fns";
@@ -39,6 +39,12 @@ const notificationStyles = {
     border: "border-l-brand-pink",
     iconBg: "bg-brand-pink/10",
     avatarRing: "ring-brand-pink"
+  },
+  reshare: {
+    gradient: "bg-gradient-to-r from-trust-high/10 to-transparent",
+    border: "border-l-trust-high",
+    iconBg: "bg-trust-high/10",
+    avatarRing: "ring-trust-high"
   }
 };
 
@@ -69,6 +75,8 @@ export const Notifications = () => {
         return <UserPlusIcon className={cn(iconClass, "text-trust-high")} />;
       case "mention":
         return <AtSignIcon className={cn(iconClass, "text-brand-yellow")} />;
+      case "reshare":
+        return <RepeatIcon className={cn(iconClass, "text-trust-high")} />;
       default:
         return <BellIcon className={cn(iconClass, "text-muted-foreground")} />;
     }
@@ -167,6 +175,8 @@ export const Notifications = () => {
           : 'ti ha menzionato in un post';
       case 'message_like':
         return 'ha messo like al tuo messaggio';
+      case 'reshare':
+        return 'ha condiviso il tuo post';
       default:
         return '';
     }

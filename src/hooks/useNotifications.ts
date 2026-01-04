@@ -7,7 +7,7 @@ import { usePushNotifications } from './usePushNotifications';
 export interface Notification {
   id: string;
   user_id: string;
-  type: 'like' | 'comment' | 'follow' | 'mention' | 'message_like';
+  type: 'like' | 'comment' | 'follow' | 'mention' | 'message_like' | 'reshare';
   actor_id: string;
   post_id: string | null;
   comment_id: string | null;
@@ -120,6 +120,10 @@ export const useNotifications = () => {
               case 'message_like':
                 title = 'Like al messaggio ❤️';
                 body = 'Il tuo messaggio è piaciuto!';
+                break;
+              case 'reshare':
+                title = 'Nuovo reshare 🔄';
+                body = 'Il tuo post è stato condiviso!';
                 break;
             }
             
