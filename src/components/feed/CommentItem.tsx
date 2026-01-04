@@ -16,7 +16,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { LOGO_BASE } from '@/config/brand';
+import { LOGO_BASE, EDITORIAL } from '@/config/brand';
 
 interface CommentItemProps {
   comment: Comment;
@@ -80,6 +80,19 @@ export const CommentItem = ({
   };
 
   const getAvatar = () => {
+    // Check if this is IL PUNTO editorial account
+    if (comment.author_id === EDITORIAL.SYSTEM_ID || 
+        comment.author.username?.toLowerCase() === 'ilpunto' ||
+        comment.author.username?.toLowerCase() === 'il punto') {
+      return (
+        <img
+          src={EDITORIAL.AVATAR_IMAGE}
+          alt={EDITORIAL.NAME}
+          className="w-10 h-10 rounded-full object-cover"
+        />
+      );
+    }
+    
     const name = comment.author.full_name || comment.author.username;
     if (comment.author.avatar_url) {
       return (

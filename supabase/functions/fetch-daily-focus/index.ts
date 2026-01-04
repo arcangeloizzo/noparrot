@@ -629,6 +629,26 @@ function validateAndFixSources(deepContent: string, maxSourceIndex: number): str
   return fixedParagraphs.join('\n\n');
 }
 
+// Clean title: remove source names that AI might have left
+function cleanTitle(title: string, sources: Array<{ source: string }>): string {
+  let cleaned = title;
+  
+  // Remove patterns like "- [source]" at the end
+  cleaned = cleaned.replace(/\s*[-–—]\s*[^-–—]{3,50}$/i, '').trim();
+  
+  // Remove known source names
+  const sourceNames = sources.map(s => s.source.toLowerCase());
+  for (const name of sourceNames) {
+    const regex = new RegExp(`\\s*[-–—]?\\s*${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'gi');
+    cleaned = cleaned.replace(regex, '').trim();
+  }
+  
+  // Remove common patterns like "secondo X", "riporta Y"
+  cleaned = cleaned.replace(/\s*[-–—]\s*(secondo|riporta|fonte|via)\s+.+$/i, '').trim();
+  
+  return cleaned || title; // Fallback to original if empty
+}
+
 // Synthesize articles about the SAME story using AI
 async function synthesizeWithAI(
   mainTitle: string,
@@ -641,65 +661,83 @@ async function synthesizeWithAI(
     throw new Error('LOVABLE_API_KEY not configured');
   }
   
-  const prompt = `Sei un giornalista esperto. Il tuo compito è sintetizzare UNA SINGOLA NOTIZIA specifica, NON una rassegna stampa generica.
+  const prompt = `Sei il caporedattore di IL PUNTO, una testata editoriale indipendente. Scrivi un ARTICOLO ORIGINALE, NON una rassegna stampa.
 
-TITOLO PRINCIPALE DAL RSS: ${mainTitle}
+EVENTO DA RACCONTARE:
+${mainTitle}
 
-FONTI DISPONIBILI:
+FONTI DISPONIBILI (usale per informarti, NON per citarle esplicitamente nel testo):
 ${articles.map((a, idx) => `[${idx}] ${a.source}: "${a.title}"`).join('\n')}
 
-⚠️ REGOLE FONDAMENTALI:
-1. VERIFICA RILEVANZA FONTI: Prima di usare una fonte, assicurati che parli dello STESSO evento/argomento del titolo principale.
-   - Se una fonte parla di un argomento COMPLETAMENTE DIVERSO (es. Pippo Baudo quando il titolo parla di Maduro), NON includerla.
-   - ELIMINA qualsiasi fonte non pertinente all'evento principale.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 IL TUO OBIETTIVO:
+Scrivi un ARTICOLO EDITORIALE ORIGINALE come se fossi tu il giornalista che ha raccolto le informazioni.
+NON sei un aggregatore di notizie. Sei un AUTORE che scrive un pezzo unico e originale.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⛔ ASSOLUTAMENTE VIETATO (IL SISTEMA RIFIUTERÀ IL TUO OUTPUT SE VIOLI QUESTE REGOLE):
+1. MAI citare nomi di testate nel titolo (es: "- il manifesto", "secondo Repubblica") 
+2. MAI usare costrutti come:
+   - "Secondo [fonte]..."
+   - "[Testata] riporta che..."
+   - "Come riferisce [fonte]..."
+   - "Stando a [testata]..."
+   - "Per [giornale]..."
+3. MAI iniziare frasi con nomi di testate
+4. MAI scrivere "Sintesi automatica", "Questa notizia è stata aggregata", "sintesi delle fonti" o simili
+5. MAI elencare cosa dice ogni singola fonte separatamente (NO "X dice A, Y dice B, Z dice C")
+6. MAI usare fonti non pertinenti all'evento principale
+7. MAI creare elenchi puntati o liste
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✅ COSA DEVI FARE:
+
+1. TITOLO (max 80 caratteri):
+   - Specifico sull'evento, giornalisticamente incisivo
+   - NESSUN nome di testata, NESSUN trattino con fonte
+   - Stile: "Maduro apre a Trump: dialogo su petrolio e droga"
    
-2. UN SOLO EVENTO: Devi parlare di UNA SOLA NOTIZIA SPECIFICA, quella del titolo principale.
-   - NON creare una "rassegna stampa" o "panoramica delle notizie"
-   - NON elencare multiple notizie diverse
-   - FOCALIZZATI su UN evento/fatto specifico
+2. SUMMARY (400-500 caratteri):
+   - Lead giornalistico in terza persona
+   - Descrivi il fatto principale come fosse un articolo tuo
+   - NESSUN marker [SOURCE:N] nel summary
+   - NESSUN riferimento a "fonti" o "testate"
    
-3. TITOLO SENZA FONTE: Il titolo deve essere specifico (es. "Inter batte l'Atletico in Champions" NON "Le notizie sportive di oggi")
-   ⚠️ NON citare MAI il nome di una fonte nel titolo (es: "- Corriere della Sera", "secondo Repubblica" è VIETATO)
+3. DEEP_CONTENT (1500-2000 caratteri):
+   - Articolo FLUIDO scritto come se fossi TU il giornalista
+   - I fatti vengono presentati come TUE conoscenze, NON come "X dice che..."
+   - Struttura narrativa: Fatto principale → Contesto → Dettagli → Implicazioni
+   - Scrivi in prima persona editoriale ("emerge", "si delinea", "il quadro che si presenta")
+   - Marker [SOURCE:N] SOLO alla fine di ogni paragrafo (mai a metà frase)
+   - Ogni paragrafo integra informazioni da più fonti, poi cita tutte insieme alla fine
 
-4. TESTO FLUIDO: Il deep_content deve essere un testo DISCORSIVO che sintetizza le informazioni.
-   - NON deve sembrare una lista di notizie copiate dalle testate
-   - SINTETIZZA e RIELABORA le informazioni in un testo originale
-   - Scrivi in modo giornalistico, coinvolgente, NO elenchi puntati
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Il tuo compito è creare:
-1. Un TITOLO FINALE chiaro e specifico sull'evento principale (max 80 caratteri, SENZA nome fonte)
-2. Un SUMMARY per la card che descrive SOLO questo evento (400-500 caratteri, SENZA marker [SOURCE:N])
-3. Un APPROFONDIMENTO ESTESO (deep_content) di 1500-2000 caratteri FOCALIZZATO su questo evento con:
-   - Spiegazione dettagliata di cosa è successo in QUESTO evento specifico
-   - Contesto storico/politico quando rilevante
-   - Chi sono i protagonisti e perché è importante
-   - Cosa dicono le diverse fonti su QUESTO evento (USA SOLO fonti pertinenti!)
-   - Implicazioni e sviluppi futuri
+📐 ESEMPIO DI STILE CORRETTO:
 
-⚠️ CRITICAL RULES FOR [SOURCE:N] MARKERS - MUST BE FOLLOWED EXACTLY:
-1. VALID INDEX RANGE: You have ${articles.length} sources (indices 0 to ${articles.length - 1})
-   - ONLY use indices in this range: ${Array.from({length: articles.length}, (_, i) => i).join(', ')}
-   - NEVER use indices ${articles.length} or higher
-   - ONLY reference sources that are ACTUALLY RELEVANT to the main story
+❌ SBAGLIATO (rassegna stampa):
+"Secondo il Corriere, Maduro ha detto X. Repubblica invece riporta che Y. Il Manifesto aggiunge che Z."
 
-2. PLACEMENT RULES:
-   - Place markers ONLY at the END of paragraphs, NEVER mid-sentence
-   - NEVER place [SOURCE:N] before commas or conjunctions
-   - EVERY paragraph MUST end with at least one valid [SOURCE:N] marker
+✅ CORRETTO (articolo editoriale):
+"Maduro ha aperto al dialogo con Washington su droga e petrolio. La mossa arriva dopo settimane di tensioni diplomatiche e rappresenta un cambio di rotta significativo per Caracas. Il presidente venezuelano ha dichiarato la disponibilità a trattare su più fronti, segnalando una possibile distensione nei rapporti con gli Stati Uniti. [SOURCE:0] [SOURCE:2] [SOURCE:5]"
 
-3. FORMAT RULES:
-   - Multiple sources: [SOURCE:0] [SOURCE:1] [SOURCE:2] ✅
-   - NEVER use comma format: [SOURCE:0, 1, 2] ❌
-   - Space-separated individual markers ONLY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-STRUTTURA CORRETTA DI OGNI PARAGRAFO:
-"Frase 1. Frase 2. Frase 3 che conclude l'idea del paragrafo. [SOURCE:0] [SOURCE:1]"
+⚠️ REGOLE MARKER [SOURCE:N]:
+- Indici validi: 0 a ${articles.length - 1}
+- Formato: [SOURCE:0] [SOURCE:1] (separati da spazio, MAI virgole)
+- Posizione: SOLO fine paragrafo, MAI a metà frase
+- Ogni paragrafo DEVE avere almeno un marker
+- USA SOLO fonti pertinenti all'evento principale
 
 Rispondi SOLO con JSON valido:
 {
-  "title": "Titolo conciso e chiaro SENZA nome fonte",
-  "summary": "Sintesi per card SENZA marker (400-500 caratteri)",
-  "deep_content": "Approfondimento esteso FLUIDO E DISCORSIVO con marker [SOURCE:N] SOLO a fine paragrafo (1500-2000 caratteri)"
+  "title": "Titolo originale SENZA nome testata",
+  "summary": "Lead giornalistico SENZA marker e SENZA riferimenti a fonti",
+  "deep_content": "Articolo editoriale originale con marker SOLO a fine paragrafo"
 }`;
 
   try {
@@ -714,7 +752,7 @@ Rispondi SOLO con JSON valido:
         messages: [
           { 
             role: 'system', 
-            content: 'Sei un giornalista esperto. Rispondi SOLO con JSON valido, nessun testo prima o dopo.' 
+            content: 'Sei il caporedattore di IL PUNTO. Scrivi articoli editoriali ORIGINALI, MAI rassegne stampa. Rispondi SOLO con JSON valido.' 
           },
           { role: 'user', content: prompt }
         ],
@@ -741,21 +779,27 @@ Rispondi SOLO con JSON valido:
     const result = JSON.parse(jsonMatch[0]);
     console.log('AI synthesis completed:', result.title);
     
+    // Post-process: clean title from any remaining source names
+    const cleanedTitle = cleanTitle(result.title, articles);
+    console.log('Cleaned title:', cleanedTitle);
+    
     // Validate and fix deep_content: ensure every paragraph has source markers
     const fixedDeepContent = validateAndFixSources(result.deep_content, articles.length);
     
     return {
-      title: result.title,
+      title: cleanedTitle,
       summary: result.summary,
       deep_content: fixedDeepContent
     };
   } catch (error) {
     console.error('AI synthesis error:', error);
     
+    // Improved fallback - less robotic
+    const cleanedMainTitle = mainTitle.replace(/\s*[-–—]\s*[^-–—]+$/, '').trim();
     return {
-      title: mainTitle,
-      summary: `Sintesi automatica: ${mainTitle}. Questa notizia è stata aggregata da ${articles.length} fonti diverse.`,
-      deep_content: `${mainTitle}\n\nQuesta notizia è stata riportata da diverse fonti:\n${articles.map((a, idx) => `\n[SOURCE:${idx}] ${a.source}: ${a.title}`).join('')}\n\nPer maggiori dettagli, consulta le fonti originali.`
+      title: cleanedMainTitle,
+      summary: `${cleanedMainTitle}. Una notizia seguita da ${articles.length} testate nazionali e internazionali.`,
+      deep_content: `${cleanedMainTitle}\n\nI principali sviluppi della notizia secondo le fonti disponibili.\n\n${articles.slice(0, 3).map((a, idx) => `${a.title.replace(/\s*[-–—]\s*[^-–—]+$/, '')} [SOURCE:${idx}]`).join('\n\n')}`
     };
   }
 }
