@@ -593,7 +593,7 @@ export const ImmersivePostCard = ({
         )}
 
         {/* Content Layer */}
-        <div className="relative z-10 w-full h-full flex flex-col justify-between pt-14 pb-24">
+        <div className="relative z-10 w-full h-full flex flex-col justify-between pt-14 pb-20 sm:pb-24">
           
           {/* Top Bar */}
           <div className="flex justify-between items-start">
@@ -700,7 +700,7 @@ export const ImmersivePostCard = ({
           </div>
 
           {/* Center Content */}
-          <div className="flex-1 flex flex-col justify-center px-2">
+          <div className="flex-1 flex flex-col justify-end px-2 mb-4 sm:mb-6">
             
             {/* Stack Layout: User comment first (normal text, not bold) */}
             {useStackLayout && post.content && (
@@ -903,7 +903,7 @@ export const ImmersivePostCard = ({
                     <img 
                       src={articlePreview?.image || finalSourceImage} 
                       alt="" 
-                      className="w-full h-48 object-cover"
+                      className="w-full h-40 sm:h-48 object-cover"
                     />
                   </div>
                 )}
