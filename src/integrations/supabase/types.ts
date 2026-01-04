@@ -262,6 +262,8 @@ export type Database = {
           focus_id: string
           focus_type: string
           id: string
+          is_editorial: boolean | null
+          is_pinned: boolean | null
           is_verified: boolean | null
           level: number
           parent_id: string | null
@@ -273,6 +275,8 @@ export type Database = {
           focus_id: string
           focus_type: string
           id?: string
+          is_editorial?: boolean | null
+          is_pinned?: boolean | null
           is_verified?: boolean | null
           level?: number
           parent_id?: string | null
@@ -284,6 +288,8 @@ export type Database = {
           focus_id?: string
           focus_type?: string
           id?: string
+          is_editorial?: boolean | null
+          is_pinned?: boolean | null
           is_verified?: boolean | null
           level?: number
           parent_id?: string | null
