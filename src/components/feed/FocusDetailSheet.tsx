@@ -44,7 +44,6 @@ interface FocusDetailSheetProps {
   reactions: { likes: number; comments: number; shares: number };
   userReactions?: { hasLiked: boolean };
   onLike?: () => void;
-  onComment?: () => void; // Apre scelta consapevole/rapido
   onShare?: () => void;
 }
 
@@ -62,7 +61,6 @@ export const FocusDetailSheet = ({
   reactions,
   userReactions,
   onLike,
-  onComment,
   onShare,
 }: FocusDetailSheetProps) => {
   const isDailyFocus = type === 'daily';
@@ -79,6 +77,7 @@ export const FocusDetailSheet = ({
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizData, setQuizData] = useState<any>(null);
   const [showCommentForm, setShowCommentForm] = useState(false);
+  const [commentsExpanded, setCommentsExpanded] = useState(false);
   
   const { data: comments = [] } = useFocusComments(focusId, type);
   const addComment = useAddFocusComment();
@@ -379,16 +378,19 @@ export const FocusDetailSheet = ({
                   </span>
                 </button>
 
-                {/* Comments */}
+                {/* Comments - Toggle inline expansion */}
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
-                    onComment?.();
+                    setCommentsExpanded(!commentsExpanded);
                   }}
-                  className="flex items-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                  className={cn(
+                    "flex items-center gap-1.5 h-full px-2 rounded-xl transition-colors",
+                    commentsExpanded ? "bg-white/20" : "hover:bg-white/10"
+                  )}
                 >
-                  <MessageCircle className="w-5 h-5 text-white" />
-                  <span className="text-xs font-bold text-white">{reactions.comments}</span>
+                  <MessageCircle className={cn("w-5 h-5", commentsExpanded ? "text-primary" : "text-white")} />
+                  <span className="text-xs font-bold text-white">{comments.length}</span>
                 </button>
 
                 {/* Bookmark */}
@@ -413,7 +415,128 @@ export const FocusDetailSheet = ({
               </div>
             </div>
 
-            {/* Bottom padding for visual breathing room */}
+            {/* Inline Expandable Comments Section */}
+            {commentsExpanded && (
+              <div className="pt-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                {/* Comment Mode Selection */}
+                <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+                  <Label className="font-semibold mb-3 block text-sm text-white">
+                    Come vuoi commentare?
+                  </Label>
+                  <RadioGroup 
+                    value={showCommentForm ? commentMode : ''} 
+                    onValueChange={(val) => handleModeChange(val as 'unread' | 'read')}
+                    className="space-y-2"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <RadioGroupItem value="unread" id="unread" className="border-white/30" />
+                      <Label htmlFor="unread" className="text-gray-300 text-sm cursor-pointer">
+                        Commento spontaneo
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <RadioGroupItem value="read" id="read" className="border-white/30" />
+                      <Label htmlFor="read" className="text-gray-300 text-sm cursor-pointer flex items-center gap-2">
+                        Dopo aver letto
+                        <Shield className="w-3.5 h-3.5 text-primary" />
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {/* Comment Form */}
+                {showCommentForm && (
+                  <div className="flex gap-3 items-start animate-in fade-in duration-200">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+                      {user?.email?.[0]?.toUpperCase() || '?'}
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      {replyTo && (
+                        <div className="flex items-center gap-2 text-xs text-gray-400">
+                          <span>Rispondendo a @{replyTo.username}</span>
+                          <button 
+                            onClick={() => setReplyTo(null)}
+                            className="text-red-400 hover:text-red-300"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )}
+                      <Textarea
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        placeholder={replyTo ? `Rispondi a @${replyTo.username}...` : "Scrivi un commento..."}
+                        className="min-h-[80px] bg-white/5 border-white/10 text-white placeholder:text-gray-500 resize-none"
+                      />
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-xs text-gray-400">
+                          {commentMode === 'read' && (
+                            <>
+                              <Shield className="w-3 h-3 text-primary fill-primary" />
+                              <span>Commento verificato</span>
+                            </>
+                          )}
+                        </div>
+                        <Button 
+                          onClick={handleSubmitComment}
+                          disabled={!commentText.trim() || addComment.isPending}
+                          size="sm"
+                          className="bg-primary hover:bg-primary/90"
+                        >
+                          {addComment.isPending ? 'Invio...' : 'Invia'}
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Comments List */}
+                <div className="space-y-4 pt-2">
+                  <h4 className="text-gray-400 text-sm font-semibold">
+                    Commenti ({comments.length})
+                  </h4>
+                  
+                  {commentTree.length > 0 ? (
+                    commentTree.map((comment) => (
+                      <div key={comment.id}>
+                        <CommentItem 
+                          comment={comment}
+                          onReply={(id, username) => {
+                            setReplyTo({ id, username });
+                            setShowCommentForm(true);
+                          }}
+                          onDelete={handleDeleteComment}
+                          currentUserId={user?.id}
+                        />
+                        {repliesMap.has(comment.id) && (
+                          <div className="ml-6 mt-2 space-y-2 border-l-2 border-white/10 pl-4">
+                            {repliesMap.get(comment.id)!.map((reply) => (
+                              <CommentItem
+                                key={reply.id}
+                                comment={reply}
+                                onReply={(id, username) => {
+                                  setReplyTo({ id, username });
+                                  setShowCommentForm(true);
+                                }}
+                                onDelete={handleDeleteComment}
+                                currentUserId={user?.id}
+                                isReply
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-center text-gray-500 py-6 text-sm">
+                      Nessun commento. Sii il primo a commentare!
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Bottom padding */}
             <div className="pb-6" />
           </div>
           </div>

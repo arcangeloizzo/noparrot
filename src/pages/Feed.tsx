@@ -433,11 +433,6 @@ export const Feed = () => {
               }
               haptics.light();
             }}
-            onComment={() => {
-              setSelectedFocusForComments(selectedFocus);
-              setFocusDetailOpen(false);
-              setTimeout(() => setFocusCommentsOpen(true), 150);
-            }}
             onShare={() => {
               toast({
                 title: "Condividi",
