@@ -933,6 +933,9 @@ export const ImmersivePostCard = ({
 
           </div>
 
+          {/* Flexible spacer with minimum gap for small screens */}
+          <div className="min-h-4 sm:min-h-0 flex-shrink-0" />
+
           {/* Bottom Actions - Aligned heights h-10, mr-16 for FAB clearance */}
           <div className="flex items-center justify-between gap-3 mr-16">
             
