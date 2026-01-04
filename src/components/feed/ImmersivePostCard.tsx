@@ -700,7 +700,7 @@ export const ImmersivePostCard = ({
           </div>
 
           {/* Center Content */}
-          <div className="flex-1 flex flex-col justify-end px-2 mb-4 sm:mb-6">
+          <div className="flex-1 flex flex-col justify-center px-2">
             
             {/* Stack Layout: User comment first (normal text, not bold) */}
             {useStackLayout && post.content && (
