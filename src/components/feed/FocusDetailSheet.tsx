@@ -306,9 +306,9 @@ export const FocusDetailSheet = ({
           {/* Header fisso con badge e X allineati orizzontalmente */}
           <div className="sticky top-0 z-10 bg-[#0E141A] pt-4 pb-3 border-b border-white/10">
             <div className="flex items-center justify-between">
-              <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0")}>
+              <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0 font-mono")}>
                 {isDailyFocus 
-                  ? (editorialNumber ? `IL PUNTO - #${editorialNumber}` : 'IL PUNTO')
+                  ? (editorialNumber ? `◉ IL PUNTO · #${editorialNumber}` : '◉ IL PUNTO')
                   : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`
                 }
               </Badge>

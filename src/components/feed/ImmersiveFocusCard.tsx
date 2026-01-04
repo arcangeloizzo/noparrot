@@ -126,8 +126,8 @@ export const ImmersiveFocusCard = ({
                       : "bg-[#A98FF8]/20 border-[#A98FF8]/30 text-[#A98FF8]"
                   )}
                 >
-                  <span className="text-xs font-bold tracking-wide">
-                    {isDailyFocus ? '🌍 IL PUNTO' : '🧠 PER TE'}
+                  <span className="text-xs font-bold tracking-wide font-mono">
+                    {isDailyFocus ? '◉ IL PUNTO' : '🧠 PER TE'}
                   </span>
                   <Info className="w-3.5 h-3.5" />
                 </button>

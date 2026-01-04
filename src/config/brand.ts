@@ -6,10 +6,22 @@ import LOGO_EXTENDED_ASSET from '../assets/LogoOrizzontale.png';
 export const BRAND_COLORS = {
   PRIMARY_BLUE: '#0A7AFF',
   DARK_BLUE: '#1F3347',
+  EDITORIAL_DARK: '#0D1B2A',
   LIGHT_BLUE: '#BFE9E9',
   LIGHT_GRAY: '#F2F7F7',
   BRAND_PINK: '#E41E52',
   BRAND_YELLOW: '#FFD464',
+} as const;
+
+// ◉ IL PUNTO - Editorial Identity
+export const EDITORIAL = {
+  SYMBOL: '◉',
+  NAME: 'IL PUNTO',
+  HANDLE: '@ilpunto',
+  SYSTEM_ID: '00000000-0000-0000-0000-000000000001',
+  AVATAR_BG: '#0D1B2A',
+  AVATAR_SYMBOL_COLOR: '#FFFFFF',
+  ACCENT: '#0A7AFF',
 } as const;
 
 // Trust Score Colors (now using Tailwind classes)
