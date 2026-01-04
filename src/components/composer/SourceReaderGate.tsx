@@ -968,8 +968,10 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                   {source.content ? (
                     <div className="max-w-full overflow-hidden">
                       <div className="text-foreground text-base leading-7 break-words space-y-4">
-                        {/* Clean content extraction - preserve full text, only clean formatting */}
+                      {/* Clean content extraction - preserve full text, only clean formatting */}
                         {source.content
+                          // Remove [SOURCE:N] markers
+                          .replace(/\[SOURCE:\d+\]/g, '')
                           // Convert markdown links to just text
                           .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
                           // Remove markdown headings markers (but keep text)

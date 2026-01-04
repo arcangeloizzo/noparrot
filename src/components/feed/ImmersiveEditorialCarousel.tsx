@@ -122,12 +122,15 @@ export const ImmersiveEditorialCarousel = ({
 
     // Build reader source from editorial deep_content
     const content = item.deep_content || item.summary;
+    // Clean [SOURCE:N] markers for display in reader
+    const cleanContent = content.replace(/\[SOURCE:\d+\]/g, '').trim();
+    
     const readerSrc: SourceWithGate = {
       id: item.id,
       state: 'reading',
       url: `editorial://${item.id}`,
       title: item.title,
-      content: content,
+      content: cleanContent,
       platform: 'article',
     };
 
@@ -153,8 +156,11 @@ export const ImmersiveEditorialCarousel = ({
         // Generate quiz from editorial content
         const { data, error } = await supabase.functions.invoke('generate-qa', {
           body: {
-            content: content,
-            test_mode: 'USER_ONLY', // Use content-based questions for editorials
+            title: item.title,
+            summary: content,
+            sourceUrl: `editorial://${item.id}`,
+            testMode: 'USER_ONLY',
+            isPrePublish: true,
           }
         });
 
