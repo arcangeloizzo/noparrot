@@ -537,10 +537,8 @@ export const ImmersivePostCard = ({
     loadDeepSourcePreview();
   }, [originalSource, urlToPreview]);
   
-  // Fetch context stack for reshare with SHORT comment only (long comments render inline)
-  const { data: contextStack = [] } = useReshareContextStack(
-    isReshareWithShortComment ? post.quoted_post_id : null
-  );
+  // Fetch context stack for ALL reshares (show chain for any reshare)
+  const { data: contextStack = [] } = useReshareContextStack(post.quoted_post_id);
   
   // Extract dominant colors from media
   const { primary: dominantPrimary, secondary: dominantSecondary } = useDominantColors(isMediaOnlyPost ? mediaUrl : undefined);
@@ -709,8 +707,8 @@ export const ImmersivePostCard = ({
               </h2>
             )}
 
-            {/* Stack Layout with SHORT comment: show context stack (multiple ancestors) */}
-            {isReshareWithShortComment && contextStack.length > 0 && (
+            {/* Stack Layout: show context stack (reshare chain) for ALL reshares */}
+            {quotedPost && contextStack.length > 0 && (
               <ReshareContextStack stack={contextStack} />
             )}
             
