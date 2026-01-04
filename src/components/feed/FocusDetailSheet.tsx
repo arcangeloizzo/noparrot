@@ -3,11 +3,12 @@ import { createPortal } from "react-dom";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Heart, MessageCircle, Share2, Trash2, Shield, X } from "lucide-react";
+import { Heart, MessageCircle, Trash2, Shield, X, Bookmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFocusComments, useAddFocusComment, useDeleteFocusComment } from "@/hooks/useFocusComments";
 import { useFocusReactions, useToggleFocusReaction } from "@/hooks/useFocusReactions";
 import { useFocusCommentReactions, useToggleFocusCommentReaction } from "@/hooks/useFocusCommentReactions";
+import { useFocusBookmark, useToggleFocusBookmark } from "@/hooks/useFocusBookmarks";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { formatDistanceToNow } from "date-fns";
@@ -21,6 +22,7 @@ import { toast as sonnerToast } from "sonner";
 import { LOGO_BASE } from "@/config/brand";
 import { haptics } from "@/lib/haptics";
 import { supabase } from "@/integrations/supabase/client";
+import { Logo } from "@/components/ui/logo";
 
 interface Source {
   icon: string;
@@ -85,6 +87,60 @@ export const FocusDetailSheet = ({
   // Hook per le reazioni
   const { data: reactionsData } = useFocusReactions(focusId, type);
   const toggleReaction = useToggleFocusReaction();
+  
+  // Hook per il bookmark
+  const { data: isBookmarked } = useFocusBookmark(focusId, type);
+  const toggleBookmark = useToggleFocusBookmark();
+
+  // Skip reader - genera quiz direttamente dal drawer (utente ha già letto)
+  const handleShareFromDrawer = async () => {
+    if (!deepContent) {
+      onShare?.(); // Fallback se non c'è contenuto
+      return;
+    }
+    
+    if (!user) {
+      sonnerToast.error('Devi effettuare il login per condividere');
+      return;
+    }
+    
+    setIsProcessing(true);
+    sonnerToast.info('Generando il quiz di comprensione...');
+    
+    try {
+      // Generate quiz directly (skip reader - user already read in drawer)
+      const { data, error } = await supabase.functions.invoke('generate-qa', {
+        body: {
+          title: title,
+          summary: deepContent,
+          sourceUrl: `editorial://${focusId}`,
+          testMode: 'USER_ONLY',
+          isPrePublish: true,
+        }
+      });
+
+      if (error || !data?.questions?.length) {
+        console.error('[FocusDetailSheet] Quiz generation error:', error);
+        sonnerToast.error('Errore nella generazione del quiz');
+        setIsProcessing(false);
+        return;
+      }
+
+      // Show quiz modal directly for share
+      setQuizData({
+        questions: data.questions,
+        sourceUrl: `editorial://${focusId}`,
+        forShare: true, // Flag to trigger onShare after quiz passed
+      });
+      setShowQuiz(true);
+      setIsProcessing(false);
+      
+    } catch (error) {
+      console.error('[FocusDetailSheet] Error:', error);
+      sonnerToast.error('Errore nella verifica');
+      setIsProcessing(false);
+    }
+  };
 
   // Parse deep_content and render with SourceTag components
   const parseContentWithSources = (content: string) => {
@@ -284,53 +340,77 @@ export const FocusDetailSheet = ({
               </p>
             </div>
             
-            {/* Reaction Bar - MOVED HERE */}
-            <div className="py-4 flex items-center gap-4 border-y border-white/10">
-              <button
-                onClick={() => {
-                  if (!user) {
-                    sonnerToast.error('Devi effettuare il login per mettere like');
-                    return;
-                  }
-                  toggleReaction.mutate({ focusId, focusType: type });
-                  haptics.light();
-                }}
-                className={cn(
-                  "reaction-btn-heart",
-                  reactionsData?.likedByMe && "liked"
-                )}
+            {/* Action Bar - Stile ImmersiveCard */}
+            <div className="py-4 flex items-center justify-between gap-3 border-y border-white/10">
+              {/* Primary Share Button - Pulsante bianco con logo */}
+              <button 
+                onClick={handleShareFromDrawer}
+                disabled={isProcessing}
+                className="h-10 px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
               >
-                <Heart 
-                  className="w-5 h-5 transition-all"
-                  fill={reactionsData?.likedByMe ? "currentColor" : "none"}
-                  strokeWidth={reactionsData?.likedByMe ? 0 : 2}
-                />
-                <span className="text-sm">{reactionsData?.likes || reactions.likes || 0}</span>
+                <Logo variant="icon" size="sm" className="h-4 w-4" />
+                <span className="text-sm font-semibold">
+                  {isProcessing ? 'Caricamento...' : 'Condividi'}
+                </span>
               </button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  console.log('[FocusDetailSheet] Comment button clicked');
-                  onComment?.();
-                }}
-                className="flex items-center gap-2 text-gray-400 hover:text-primary"
-              >
-                <MessageCircle className="w-5 h-5" />
-                <span className="text-sm">{reactions.comments}</span>
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onShare}
-                className="flex items-center gap-2 text-gray-400 hover:text-blue-500"
-              >
-                <Share2 className="w-5 h-5" />
-                <span className="text-sm">{reactions.shares}</span>
-              </Button>
+
+              {/* Reactions Bar - Glassmorphism */}
+              <div className="flex items-center gap-1 bg-white/5 backdrop-blur-xl h-10 px-3 rounded-2xl border border-white/10">
+                {/* Like */}
+                <button 
+                  onClick={() => {
+                    if (!user) {
+                      sonnerToast.error('Devi effettuare il login per mettere like');
+                      return;
+                    }
+                    toggleReaction.mutate({ focusId, focusType: type });
+                    haptics.light();
+                  }}
+                  className="flex items-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                >
+                  <Heart 
+                    className={cn(
+                      "w-5 h-5 transition-all",
+                      reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-white"
+                    )} 
+                  />
+                  <span className="text-xs font-bold text-white">
+                    {reactionsData?.likes || reactions.likes || 0}
+                  </span>
+                </button>
+
+                {/* Comments */}
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onComment?.();
+                  }}
+                  className="flex items-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                >
+                  <MessageCircle className="w-5 h-5 text-white" />
+                  <span className="text-xs font-bold text-white">{reactions.comments}</span>
+                </button>
+
+                {/* Bookmark */}
+                <button 
+                  onClick={() => {
+                    if (!user) {
+                      sonnerToast.error('Devi effettuare il login per salvare');
+                      return;
+                    }
+                    toggleBookmark.mutate({ focusId, focusType: type });
+                    haptics.light();
+                  }}
+                  className="flex items-center h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                >
+                  <Bookmark 
+                    className={cn(
+                      "w-5 h-5 transition-all",
+                      isBookmarked ? "text-primary fill-primary" : "text-white"
+                    )} 
+                  />
+                </button>
+              </div>
             </div>
 
             {/* Comments Section - View only, add comments via CommentsSheet */}
@@ -389,6 +469,7 @@ export const FocusDetailSheet = ({
       {showQuiz && quizData && !quizData.error && quizData.questions && (() => {
         // Capture questions in a stable reference for the onSubmit callback
         const questionsSnapshot = [...quizData.questions];
+        const isForShare = quizData.forShare === true;
         
         return createPortal(
           <QuizModal
@@ -402,7 +483,8 @@ export const FocusDetailSheet = ({
                 
                 console.log('[FocusDetailSheet] Validating with snapshot:', { 
                   questionsCount: questionsSnapshot.length, 
-                  answersCount: Object.keys(answers).length 
+                  answersCount: Object.keys(answers).length,
+                  isForShare
                 });
                 
                 questionsSnapshot.forEach((q: any, index: number) => {
@@ -428,12 +510,23 @@ export const FocusDetailSheet = ({
                 }
 
                 haptics.success();
-                sonnerToast.success('Hai fatto chiarezza. Il tuo commento sarà verificato.');
-                setUserPassedGate(true);
-                setCommentMode('read');
-                setShowCommentForm(true);
-                setShowQuiz(false);
-                setQuizData(null);
+                
+                // Se il quiz era per share, apri il composer
+                if (isForShare) {
+                  sonnerToast.success('Hai superato il test!');
+                  setShowQuiz(false);
+                  setQuizData(null);
+                  onShare?.(); // Trigger share callback (opens composer)
+                } else {
+                  // Quiz per commento verificato
+                  sonnerToast.success('Hai fatto chiarezza. Il tuo commento sarà verificato.');
+                  setUserPassedGate(true);
+                  setCommentMode('read');
+                  setShowCommentForm(true);
+                  setShowQuiz(false);
+                  setQuizData(null);
+                }
+                
                 return { passed: true, score: correctCount, total, wrongIndexes: [] };
               } catch (err) {
                 console.error('[FocusDetailSheet] Unexpected error:', err);
