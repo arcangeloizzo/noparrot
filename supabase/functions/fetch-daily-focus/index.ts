@@ -822,6 +822,36 @@ serve(async (req) => {
       });
     }
     
+    // 2.5 Deduplication check: avoid inserting duplicate news (same first 6 words of title)
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data: recentNews } = await supabase
+      .from('daily_focus')
+      .select('id, title')
+      .gte('created_at', thirtyMinutesAgo)
+      .order('created_at', { ascending: false })
+      .limit(5);
+    
+    const newTitleWords = mainTitle.toLowerCase().split(' ').slice(0, 6).join(' ');
+    const existingDuplicate = recentNews?.find(existing => {
+      const existingWords = existing.title.toLowerCase().split(' ').slice(0, 6).join(' ');
+      return newTitleWords === existingWords;
+    });
+    
+    if (existingDuplicate) {
+      console.log('Duplicate news detected, returning existing item:', existingDuplicate.id);
+      const { data: latestItem } = await supabase
+        .from('daily_focus')
+        .select('*')
+        .eq('id', existingDuplicate.id)
+        .single();
+      
+      if (latestItem) {
+        return new Response(JSON.stringify(latestItem), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+    
     // 3. Synthesize with AI
     const { title, summary, deep_content } = await synthesizeWithAI(mainTitle, articles);
     

@@ -20,26 +20,19 @@ export interface DailyFocus {
 }
 
 export const useDailyFocus = (refreshNonce: number = 0) => {
-  const shouldForce = refreshNonce > 0;
-
   return useQuery({
     queryKey: ['daily-focus', refreshNonce],
     queryFn: async (): Promise<DailyFocus[]> => {
-      // If force refresh, call edge function to ensure fresh data, then fetch array
-      if (shouldForce) {
-        console.log('Force refreshing daily focus (nonce:', refreshNonce, ')...');
-        await supabase.functions.invoke('fetch-daily-focus', {
-          body: { force: true }
-        });
-      }
-
-      // Fetch latest 6 non-expired daily focus items (newest first)
+      // Always fetch directly from DB - no force=true that generates new content
+      console.log('Fetching daily focus from DB (nonce:', refreshNonce, ')...');
+      
+      // Fetch latest 3 non-expired daily focus items (newest first)
       const { data: cached, error: cacheError } = await supabase
         .from('daily_focus')
         .select('*')
         .gte('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false })
-        .limit(6);
+        .limit(3);
 
       if (cacheError) {
         console.error('Error fetching cached daily focus:', cacheError);
@@ -51,8 +44,8 @@ export const useDailyFocus = (refreshNonce: number = 0) => {
         return cached as unknown as DailyFocus[];
       }
 
-      // If no cache, trigger edge function to generate one
-      console.log('Fetching fresh daily focus...');
+      // Only if NO items in DB, call edge function to generate the first one
+      console.log('No cached items, generating initial daily focus...');
       const { data, error } = await supabase.functions.invoke('fetch-daily-focus');
 
       if (error) {
@@ -63,7 +56,7 @@ export const useDailyFocus = (refreshNonce: number = 0) => {
       // Return as array (single item from edge function)
       return data ? [data as unknown as DailyFocus] : [];
     },
-    staleTime: 1000 * 60 * 15, // 15 minuti
+    staleTime: 1000 * 60 * 5, // 5 minuti (permite refresh più frequenti dal DB)
     refetchOnWindowFocus: false,
     retry: 1,
   });
