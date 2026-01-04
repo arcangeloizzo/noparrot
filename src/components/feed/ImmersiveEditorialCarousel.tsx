@@ -195,7 +195,7 @@ const EditorialSlide = ({
       className="flex-[0_0_100%] min-w-0 h-full px-6 cursor-pointer"
       onClick={onClick}
     >
-      <div className="h-full flex flex-col justify-start py-4">
+      <div className="h-full flex flex-col justify-center py-4">
         
         {/* Masthead Row */}
         <div className="flex justify-between items-center mb-8">
