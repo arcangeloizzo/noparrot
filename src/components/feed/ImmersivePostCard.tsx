@@ -477,6 +477,7 @@ export const ImmersivePostCard = ({
   const hasMedia = post.media && post.media.length > 0;
   const hasLink = !!post.shared_url;
   const isSpotify = articlePreview?.platform === 'spotify';
+  const isTwitter = articlePreview?.platform === 'twitter' || detectPlatformFromUrl(post.shared_url || '') === 'twitter';
   const isMediaOnlyPost = hasMedia && !hasLink && !quotedPost;
   const mediaUrl = post.media?.[0]?.url;
   const isVideoMedia = post.media?.[0]?.type === 'video';
@@ -573,6 +574,10 @@ export const ImmersivePostCard = ({
             albumArtUrl={articlePreview?.image || post.preview_img || ''}
             audioFeatures={articlePreview?.audioFeatures}
           />
+        ) : isTwitter ? (
+          <div className="absolute inset-0 bg-gradient-to-b from-[#15202B] via-[#192734] to-[#0d1117]">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#1DA1F2]/10 to-transparent" />
+          </div>
         ) : (
           <>
             <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/90 z-0" />
@@ -783,8 +788,89 @@ export const ImmersivePostCard = ({
               </button>
             )}
 
-            {/* Spotify Card - Dedicated styling */}
-            {hasLink && isSpotify ? (
+            {/* Twitter/X Card - Dedicated styling */}
+            {hasLink && isTwitter && !isReshareWithShortComment ? (
+              <div className="flex flex-col items-center w-full max-w-md mx-auto">
+                {/* Author Header */}
+                <div className="flex items-center gap-3 mb-5 w-full">
+                  <div className="w-14 h-14 rounded-full border-2 border-white/20 overflow-hidden bg-[#15202B]">
+                    {articlePreview?.author_avatar ? (
+                      <img 
+                        src={articlePreview.author_avatar}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-white/50 text-xl font-bold">
+                        {(articlePreview?.author_name || articlePreview?.author_username || 'X').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-white font-bold text-lg leading-tight">
+                      {articlePreview?.author_name || articlePreview?.title?.replace('Post by ', '').replace('@', '') || 'X User'}
+                    </p>
+                    {articlePreview?.author_username && (
+                      <p className="text-white/60 text-sm">@{articlePreview.author_username}</p>
+                    )}
+                  </div>
+                  {/* X Logo */}
+                  <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
+                    <span className="text-black font-bold text-sm">𝕏</span>
+                  </div>
+                </div>
+                
+                {/* Tweet Content Card */}
+                <div 
+                  className="w-full bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/20 cursor-pointer active:scale-[0.98] transition-transform"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (post.shared_url) {
+                      window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
+                >
+                  <p className="text-white text-base leading-relaxed">
+                    {articlePreview?.content || articlePreview?.summary || post.content}
+                  </p>
+                  
+                  {/* Tweet Media (if any) */}
+                  {articlePreview?.image && (
+                    <div className="mt-4 rounded-xl overflow-hidden">
+                      <img 
+                        src={articlePreview.image} 
+                        alt="" 
+                        className="w-full h-48 object-cover"
+                      />
+                    </div>
+                  )}
+                  
+                  {/* Tweet Date */}
+                  {articlePreview?.tweetDate && (
+                    <p className="text-white/50 text-sm mt-4">
+                      {articlePreview.tweetDate}
+                    </p>
+                  )}
+                </div>
+                
+                {/* Open on X CTA */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (post.shared_url) {
+                      window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
+                  className="mt-4 flex items-center gap-2 text-white/60 hover:text-white transition-colors"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  <span className="text-xs uppercase tracking-wider">Apri su X</span>
+                </button>
+              </div>
+            ) : hasLink && isSpotify ? (
               <div 
                 className="cursor-pointer active:scale-[0.98] transition-transform"
                 onClick={(e) => {
