@@ -791,52 +791,12 @@ export const ImmersivePostCard = ({
               </button>
             )}
 
-            {/* Twitter/X Card - Dedicated styling */}
+            {/* Twitter/X Card - Unified glassmorphic container */}
             {hasLink && isTwitter && !isReshareWithShortComment ? (
-              <div className="flex flex-col items-center w-full max-w-md mx-auto">
-                {/* Author Header */}
-                <div className="flex items-center gap-3 mb-5 w-full">
-                  <div className="w-14 h-14 rounded-full border-2 border-white/20 overflow-hidden bg-[#15202B]">
-                    {articlePreview?.author_avatar ? (
-                      <img 
-                        src={articlePreview.author_avatar}
-                        alt=""
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white/50 text-xl font-bold">
-                        {(articlePreview?.author_name || articlePreview?.author_username || 'X').charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-white font-bold text-lg leading-tight">
-                        {articlePreview?.author_name || articlePreview?.title?.replace('Post by ', '').replace('@', '') || 'X User'}
-                      </p>
-                      {/* Verification Badge */}
-                      {articlePreview?.is_verified && (
-                        <svg className="w-5 h-5 text-[#1DA1F2] flex-shrink-0" viewBox="0 0 22 22" fill="currentColor">
-                          <path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"/>
-                        </svg>
-                      )}
-                    </div>
-                    {articlePreview?.author_username && (
-                      <p className="text-white/60 text-sm">@{articlePreview.author_username}</p>
-                    )}
-                  </div>
-                  {/* X Logo */}
-                  <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
-                    <span className="text-black font-bold text-sm">𝕏</span>
-                  </div>
-                </div>
-                
-                {/* Tweet Content Card */}
+              <div className="w-full max-w-md mx-auto">
+                {/* Unified Twitter Card - Author + Content in one container */}
                 <div 
-                  className="w-full bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/20 cursor-pointer active:scale-[0.98] transition-transform"
+                  className="bg-gradient-to-br from-[#15202B]/95 to-[#0d1117]/95 backdrop-blur-xl rounded-3xl p-5 border border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.5)] cursor-pointer active:scale-[0.98] transition-transform"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (post.shared_url) {
@@ -844,38 +804,87 @@ export const ImmersivePostCard = ({
                     }
                   }}
                 >
-                  <p className="text-white text-base leading-relaxed">
+                  {/* Author Row */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full border border-white/20 overflow-hidden bg-[#1DA1F2]/10 flex-shrink-0">
+                      {articlePreview?.author_avatar ? (
+                        <img 
+                          src={articlePreview.author_avatar}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-white/50 text-xl font-bold">
+                          {(articlePreview?.author_name || articlePreview?.author_username || 'X').charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-white font-semibold truncate">
+                          {articlePreview?.author_name || articlePreview?.title?.replace('Post by ', '').replace('@', '') || 'X User'}
+                        </p>
+                        {/* Verification Badge - Filled circle with checkmark */}
+                        {articlePreview?.is_verified && (
+                          <div className="flex-shrink-0 w-[18px] h-[18px] rounded-full bg-[#1DA1F2] flex items-center justify-center">
+                            <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      {articlePreview?.author_username && (
+                        <p className="text-white/50 text-sm">@{articlePreview.author_username}</p>
+                      )}
+                    </div>
+                    {/* X Logo */}
+                    <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center flex-shrink-0">
+                      <span className="text-black font-bold text-xs">𝕏</span>
+                    </div>
+                  </div>
+                  
+                  {/* Tweet Text - already cleaned of URLs by backend */}
+                  <p className="text-white text-base leading-relaxed mb-4">
                     {articlePreview?.content || articlePreview?.summary || post.content}
                   </p>
                   
                   {/* Tweet Media (if any) */}
                   {articlePreview?.image && (
-                    <div className="mt-4 rounded-xl overflow-hidden">
+                    <div className="rounded-xl overflow-hidden mb-4">
                       <img 
                         src={articlePreview.image} 
                         alt="" 
-                        className="w-full h-48 object-cover"
+                        className="w-full h-52 object-cover"
                       />
                     </div>
                   )}
                   
                   {/* Engagement Metrics */}
                   {(articlePreview?.likes > 0 || articlePreview?.retweets > 0 || articlePreview?.views > 0) && (
-                    <div className="flex items-center gap-4 text-white/50 text-sm mt-4 pt-3 border-t border-white/10">
+                    <div className="flex items-center gap-5 text-white/40 text-sm pt-3 border-t border-white/10">
                       {articlePreview.likes > 0 && (
-                        <span className="flex items-center gap-1">
-                          <Heart className="w-3.5 h-3.5" />
+                        <span className="flex items-center gap-1.5">
+                          <Heart className="w-4 h-4" />
                           {articlePreview.likes >= 1000 ? `${(articlePreview.likes / 1000).toFixed(1)}K` : articlePreview.likes}
                         </span>
                       )}
                       {articlePreview.retweets > 0 && (
-                        <span className="flex items-center gap-1">
-                          🔁 {articlePreview.retweets >= 1000 ? `${(articlePreview.retweets / 1000).toFixed(1)}K` : articlePreview.retweets}
+                        <span className="flex items-center gap-1.5">
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M4.5 3.88l4.432 4.14-1.364 1.46L5.5 7.55V16c0 1.1.896 2 2 2H13v2H7.5c-2.209 0-4-1.79-4-4V7.55L1.432 9.48.068 8.02 4.5 3.88zM16.5 6H11V4h5.5c2.209 0 4 1.79 4 4v8.45l2.068-1.93 1.364 1.46-4.432 4.14-4.432-4.14 1.364-1.46 2.068 1.93V8c0-1.1-.896-2-2-2z"/>
+                          </svg>
+                          {articlePreview.retweets >= 1000 ? `${(articlePreview.retweets / 1000).toFixed(1)}K` : articlePreview.retweets}
                         </span>
                       )}
                       {articlePreview.views > 0 && (
-                        <span className="flex items-center gap-1">
-                          👁️ {articlePreview.views >= 1000 ? `${(articlePreview.views / 1000).toFixed(1)}K` : articlePreview.views}
+                        <span className="flex items-center gap-1.5">
+                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+                          </svg>
+                          {articlePreview.views >= 1000 ? `${(articlePreview.views / 1000).toFixed(1)}K` : articlePreview.views}
                         </span>
                       )}
                     </div>
@@ -883,13 +892,13 @@ export const ImmersivePostCard = ({
                   
                   {/* Tweet Date (fallback if no metrics) */}
                   {articlePreview?.tweetDate && !(articlePreview?.likes > 0 || articlePreview?.retweets > 0 || articlePreview?.views > 0) && (
-                    <p className="text-white/50 text-sm mt-4">
+                    <p className="text-white/40 text-sm pt-3 border-t border-white/10">
                       {articlePreview.tweetDate}
                     </p>
                   )}
                 </div>
                 
-                {/* Open on X CTA */}
+                {/* Open on X CTA - Below the card */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -897,9 +906,9 @@ export const ImmersivePostCard = ({
                       window.open(post.shared_url, '_blank', 'noopener,noreferrer');
                     }
                   }}
-                  className="mt-4 flex items-center gap-2 text-white/60 hover:text-white transition-colors"
+                  className="mt-3 mx-auto flex items-center gap-2 text-white/50 hover:text-white transition-colors"
                 >
-                  <ExternalLink className="w-3 h-3" />
+                  <ExternalLink className="w-3.5 h-3.5" />
                   <span className="text-xs uppercase tracking-wider">Apri su X</span>
                 </button>
               </div>
