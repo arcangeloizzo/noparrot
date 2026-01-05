@@ -1118,6 +1118,23 @@ serve(async (req) => {
             
             if (vxResponse.ok) {
               const vxData = await vxResponse.json();
+              
+              // DEBUG: Log ALL possible verification fields
+              console.log('[Twitter] 🔍 VERIFICATION DEBUG - All fields:', {
+                is_blue_verified: vxData.is_blue_verified,
+                verified: vxData.verified,
+                user_verified: vxData.user_verified,
+                twitterBlue: vxData.twitterBlue,
+                is_twitter_blue: vxData.is_twitter_blue,
+                blue_verified: vxData.blue_verified,
+                // Check if verification is nested in user object
+                user_object: vxData.user ? {
+                  is_blue_verified: vxData.user.is_blue_verified,
+                  verified: vxData.user.verified,
+                  blue_verified: vxData.user.blue_verified
+                } : 'no user object'
+              });
+              
               console.log('[Twitter] ✅ vxTwitter response:', {
                 hasText: !!vxData.text,
                 textLength: vxData.text?.length || 0,
@@ -1135,7 +1152,14 @@ serve(async (req) => {
               if (vxData.text || vxData.user_name) {
                 const authorUsername = vxData.user_screen_name || urlUsername;
                 const authorDisplayName = vxData.user_name || authorUsername;
-                const tweetText = vxData.text || '';
+                
+                // Clean tweet text - remove t.co URLs and trailing links
+                let tweetText = vxData.text || '';
+                tweetText = tweetText
+                  .replace(/https?:\/\/t\.co\/\w+/g, '')  // Remove t.co short links
+                  .replace(/\s{2,}/g, ' ')                 // Multiple spaces to single
+                  .trim();
+                
                 const profileImageUrl = vxData.user_profile_image_url || `https://unavatar.io/twitter/${authorUsername}`;
                 
                 // Get the first media image (could be tweet image OR link card image)
@@ -1162,8 +1186,20 @@ serve(async (req) => {
                   }
                 }
                 
-                // Check verification status (vxTwitter may use different field names)
-                const isVerified = vxData.is_blue_verified || vxData.verified || vxData.user_verified || false;
+                // Check verification status - try ALL possible field names from vxTwitter
+                const isVerified = Boolean(
+                  vxData.is_blue_verified || 
+                  vxData.verified || 
+                  vxData.user_verified ||
+                  vxData.twitterBlue ||
+                  vxData.is_twitter_blue ||
+                  vxData.blue_verified ||
+                  vxData.user?.is_blue_verified ||
+                  vxData.user?.verified ||
+                  vxData.user?.blue_verified
+                );
+                
+                console.log('[Twitter] 🔵 Final isVerified value:', isVerified);
                 
                 console.log('[Twitter] 🎉 vxTwitter success:', {
                   displayName: authorDisplayName,
