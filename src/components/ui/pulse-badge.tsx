@@ -74,6 +74,7 @@ export function PulseBadge({
     <Dialog>
       <DialogTrigger asChild>
         <button
+          onClick={(e) => e.stopPropagation()}
           className={cn(
             "inline-flex items-center rounded-2xl bg-black/30 backdrop-blur-xl border border-white/10 transition-all duration-200 hover:bg-black/40 active:scale-[0.97]",
             sizeClasses,
@@ -88,7 +89,7 @@ export function PulseBadge({
             className="font-bold tracking-wide"
             style={{ color: "rgba(255,255,255,0.6)" }}
           >
-            ◉ PULSE
+            PULSE
           </span>
           
           {/* Category Icon */}
