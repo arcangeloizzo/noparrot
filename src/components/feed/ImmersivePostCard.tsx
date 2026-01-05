@@ -179,10 +179,30 @@ export const ImmersivePostCard = ({
     loadArticlePreview();
   }, [urlToPreview, quotedPost]);
 
+  // Get source from quoted post if current post doesn't have one (2 levels)
+  const effectiveSharedUrl = post.shared_url || quotedPost?.shared_url;
+  const effectivePreviewImg = post.preview_img || quotedPost?.preview_img;
+  const effectiveSharedTitle = post.shared_title || quotedPost?.shared_title;
+  
+  // For multi-level reshares, find the original source deep in the chain
+  // NOTE: Hook called unconditionally first, condition handled inside
+  const quotedPostWordCount = quotedPost?.content?.trim().split(/\s+/).length || 0;
+  const isReshareWithShortCommentEarly = !!quotedPost && quotedPostWordCount < 30;
+  const isReshareWithSourceEarly = !!quotedPost && !!(quotedPost.shared_url || post.shared_url);
+  const useStackLayoutEarly = isReshareWithShortCommentEarly || isReshareWithSourceEarly;
+  
+  const { data: originalSource } = useOriginalSource(
+    useStackLayoutEarly && !effectiveSharedUrl ? post.quoted_post_id : null
+  );
+  
+  // Final effective source: prefer direct, fallback to deep chain search
+  const finalSourceUrl = effectiveSharedUrl || originalSource?.url;
+  const finalSourceTitle = effectiveSharedTitle || originalSource?.title;
+  const finalSourceImage = effectivePreviewImg || originalSource?.image;
+
   // For reshares: lookup cached trust score directly from DB (zero AI calls)
-  // Use effectiveSourceUrl which includes sources from quoted posts
-  const effectiveSourceUrlForCache = post.shared_url || quotedPost?.shared_url;
-  const { data: cachedTrustScore } = useCachedTrustScore(effectiveSourceUrlForCache);
+  // Use finalSourceUrl which includes deep chain sources
+  const { data: cachedTrustScore } = useCachedTrustScore(finalSourceUrl);
 
   // Fetch trust score - only for posts with DIRECT links (not reshares)
   // For Twitter/X links, wait for articlePreview to load first to get verified status
@@ -516,7 +536,7 @@ export const ImmersivePostCard = ({
   const shouldShowUserText = hasLink && post.content && !isTextSimilarToTitle(post.content, articleTitle);
   
   // Reshare Stack logic: detect if this is a reshare where the QUOTED POST has short comment (<30 words)
-  const quotedPostWordCount = getWordCount(quotedPost?.content || '');
+  // (quotedPostWordCount already computed early for hook ordering)
   const isReshareWithShortComment = !!quotedPost && quotedPostWordCount < 30;
   
   // New: detect if reshare has a source (URL) - use stack layout for any length
@@ -524,22 +544,6 @@ export const ImmersivePostCard = ({
   
   // Use stack layout for: short comments OR reshares with source (any comment length)
   const useStackLayout = isReshareWithShortComment || isReshareWithSource;
-  
-  // Get source from quoted post if current post doesn't have one (2 levels)
-  const effectiveSharedUrl = post.shared_url || quotedPost?.shared_url;
-  const effectivePreviewImg = post.preview_img || quotedPost?.preview_img;
-  const effectiveSharedTitle = post.shared_title || quotedPost?.shared_title;
-  
-  // For multi-level reshares, find the original source deep in the chain
-  const { data: originalSource } = useOriginalSource(
-    // Only fetch if we're a reshare stack and don't have a direct source
-    useStackLayout && !effectiveSharedUrl ? post.quoted_post_id : null
-  );
-  
-  // Final effective source: prefer direct, fallback to deep chain search
-  const finalSourceUrl = effectiveSharedUrl || originalSource?.url;
-  const finalSourceTitle = effectiveSharedTitle || originalSource?.title;
-  const finalSourceImage = effectivePreviewImg || originalSource?.image;
   
   // Load article preview for deep chain source when available
   useEffect(() => {
@@ -975,6 +979,7 @@ export const ImmersivePostCard = ({
                       <TrustBadgeOverlay 
                         band={displayTrustScore.band}
                         score={displayTrustScore.score}
+                        reasons={displayTrustScore.reasons}
                       />
                     )}
                   </div>
@@ -1015,6 +1020,7 @@ export const ImmersivePostCard = ({
                       <TrustBadgeOverlay 
                         band={displayTrustScore.band}
                         score={displayTrustScore.score}
+                        reasons={displayTrustScore.reasons}
                       />
                     )}
                   </div>
