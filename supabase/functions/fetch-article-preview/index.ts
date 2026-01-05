@@ -371,8 +371,12 @@ async function getSpotifyAccessToken(): Promise<string | null> {
   }
 }
 
-// Fetch track metadata from Spotify Web API
-async function fetchSpotifyTrackMetadata(trackId: string, accessToken: string): Promise<{ artist: string; title: string } | null> {
+// Fetch track metadata from Spotify Web API (includes popularity for PULSE)
+async function fetchSpotifyTrackMetadata(trackId: string, accessToken: string): Promise<{ 
+  artist: string; 
+  title: string; 
+  popularity?: number;
+} | null> {
   try {
     console.log(`[Spotify] 🎵 Fetching track metadata for: ${trackId}`);
     
@@ -391,10 +395,11 @@ async function fetchSpotifyTrackMetadata(trackId: string, accessToken: string): 
     
     const artist = track.artists?.[0]?.name || '';
     const title = track.name || '';
+    const popularity = track.popularity; // 0-100
     
-    console.log(`[Spotify] ✅ Track metadata: "${title}" by "${artist}"`);
+    console.log(`[Spotify] ✅ Track metadata: "${title}" by "${artist}" (popularity: ${popularity})`);
     
-    return { artist, title };
+    return { artist, title, popularity };
   } catch (error) {
     console.error('[Spotify] ❌ Error fetching track metadata:', error);
     return null;
@@ -747,8 +752,9 @@ serve(async (req) => {
         // Parse artist and track title - PRIORITÀ 1: Spotify Web API
         let artist = '';
         let trackTitle = oembedData.title || '';
+        let trackPopularity: number | undefined;
         
-        // METODO PRIMARIO: Spotify Web API (più affidabile)
+        // METODO PRIMARIO: Spotify Web API (più affidabile + popularity per PULSE)
         if (spotifyInfo.type === 'track') {
           const accessToken = await getSpotifyAccessToken();
           
@@ -758,7 +764,8 @@ serve(async (req) => {
             if (trackMetadata) {
               artist = trackMetadata.artist;
               trackTitle = trackMetadata.title;
-              console.log(`[Spotify] ✅ WEB API: "${trackTitle}" by "${artist}"`);
+              trackPopularity = trackMetadata.popularity;
+              console.log(`[Spotify] ✅ WEB API: "${trackTitle}" by "${artist}" (PULSE: ${trackPopularity})`);
             }
           }
         }
@@ -841,6 +848,8 @@ serve(async (req) => {
           geniusUrl,
           contentQuality: transcriptAvailable ? 'complete' : 'partial',
           hostname: 'open.spotify.com',
+          // PULSE: popularity for music momentum indicator
+          popularity: trackPopularity,
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
