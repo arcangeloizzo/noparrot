@@ -49,7 +49,7 @@ export const ReshareContextStack = ({ stack }: ReshareContextStackProps) => {
   };
 
   return (
-    <div className="mt-4 pt-2 ml-4">
+    <div className="mt-4 pt-2">
       {/* Header - flusso di condivisione */}
       <div className="flex items-center gap-1.5 mb-3 text-white/40 relative">
         <Repeat className="w-3 h-3" />
@@ -80,14 +80,14 @@ export const ReshareContextStack = ({ stack }: ReshareContextStackProps) => {
                 )}
                 {/* Node dot - positioned on the thread line */}
                 <div className="absolute left-[9px] top-[22px] w-[5px] h-[5px] rounded-full bg-white/30 z-10" />
-                {/* Horizontal connector from node to card */}
-                <div className="absolute left-[14px] top-[24px] w-2 h-px bg-white/15" />
+                {/* Horizontal connector from node to card - longer */}
+                <div className="absolute left-[14px] top-[24px] w-4 h-px bg-white/15" />
               </div>
 
-              {/* Card contenuto */}
+              {/* Card contenuto - slight indentation */}
               <button
                 onClick={(e) => handleItemClick(item.id, e)}
-                className="flex-1 text-left bg-white/5 hover:bg-white/10 rounded-xl p-2.5 transition-colors active:scale-[0.99]"
+                className="flex-1 ml-1 text-left bg-white/5 hover:bg-white/10 rounded-xl p-2.5 transition-colors active:scale-[0.99]"
               >
                 <div className="flex items-start gap-2">
                   {/* Small Avatar */}
