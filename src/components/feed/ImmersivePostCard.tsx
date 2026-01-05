@@ -178,12 +178,21 @@ export const ImmersivePostCard = ({
   }, [urlToPreview, quotedPost]);
 
   // Fetch trust score - now includes author info for verified accounts
+  // For Twitter/X links, wait for articlePreview to load first to get verified status
   useEffect(() => {
     const loadTrustScore = async () => {
       if (!post.shared_url) {
         setTrustScore(null);
         return;
       }
+      
+      // For Twitter/X: wait until articlePreview is loaded to get verified status
+      const isTwitterUrl = post.shared_url.includes('x.com') || post.shared_url.includes('twitter.com');
+      if (isTwitterUrl && !articlePreview) {
+        // Don't fetch yet, wait for articlePreview to load first
+        return;
+      }
+      
       try {
         const result = await fetchTrustScore({
           postText: post.content,
@@ -202,7 +211,7 @@ export const ImmersivePostCard = ({
       } catch {}
     };
     loadTrustScore();
-  }, [post.shared_url, post.content, articlePreview?.author_username, articlePreview?.is_verified]);
+  }, [post.shared_url, post.content, articlePreview]);
 
   const handleHeart = (e?: React.MouseEvent) => {
     e?.stopPropagation();
