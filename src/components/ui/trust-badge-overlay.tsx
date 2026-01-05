@@ -9,18 +9,18 @@ interface TrustBadgeOverlayProps {
 export function TrustBadgeOverlay({ band, score, className }: TrustBadgeOverlayProps) {
   const config = {
     ALTO: {
-      bg: 'bg-emerald-500/90',
-      text: 'text-white',
+      bg: 'hsl(142 76% 46% / 0.35)',
+      text: 'white',
       letter: 'A'
     },
     MEDIO: {
-      bg: 'bg-yellow-500/90',
-      text: 'text-white',
+      bg: 'hsl(38 92% 50% / 0.4)',
+      text: 'hsl(38 92% 50%)',
       letter: 'M'
     },
     BASSO: {
-      bg: 'bg-red-500/90',
-      text: 'text-white',
+      bg: 'hsl(0 84% 60% / 0.5)',
+      text: 'hsl(0 84% 60%)',
       letter: 'B'
     },
   };
@@ -28,14 +28,19 @@ export function TrustBadgeOverlay({ band, score, className }: TrustBadgeOverlayP
   const { bg, text, letter } = config[band];
   
   return (
-    <div className={cn(
-      "absolute top-3 right-3 px-2.5 py-1 rounded-full",
-      "backdrop-blur-md border border-white/20 shadow-lg",
-      "flex items-center gap-1.5 text-xs font-bold",
-      bg,
-      text,
-      className
-    )}>
+    <div 
+      className={cn(
+        "absolute top-3 right-3 px-2.5 py-1 rounded-full",
+        "backdrop-blur-md border shadow-lg",
+        "flex items-center gap-1.5 text-xs font-bold",
+        className
+      )}
+      style={{
+        backgroundColor: bg,
+        color: text,
+        borderColor: 'hsl(0 0% 50% / 0.3)'
+      }}
+    >
       <span>{letter}</span>
       <span className="opacity-80">{score}</span>
     </div>
