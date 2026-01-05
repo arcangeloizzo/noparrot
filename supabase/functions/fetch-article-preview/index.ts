@@ -1186,6 +1186,14 @@ serve(async (req) => {
                   }
                 }
                 
+                // Known verified accounts (fallback for vxTwitter field inconsistencies)
+                const knownVerifiedAccounts = [
+                  'petergomezblog', 'matteorenzi', 'giuseppeconteit', 'enricoletta',
+                  'giorgiameloni', 'mov5stelle', 'pdnetwork', 'skytg24', 'agenzia_ansa',
+                  'rainews', 'corriere', 'lastampa', 'aborbone', 'repubblica',
+                  'sole24ore', 'fattoquotidiano', 'ilpost', 'fanpage', 'openonline'
+                ];
+                
                 // Check verification status - try ALL possible field names from vxTwitter
                 const isVerified = Boolean(
                   vxData.is_blue_verified || 
@@ -1197,9 +1205,18 @@ serve(async (req) => {
                   vxData.user?.is_blue_verified ||
                   vxData.user?.verified ||
                   vxData.user?.blue_verified
-                );
+                ) || knownVerifiedAccounts.includes(authorUsername.toLowerCase());
                 
-                console.log('[Twitter] 🔵 Final isVerified value:', isVerified);
+                console.log('[Twitter] 🔵 Verification check:', {
+                  username: authorUsername.toLowerCase(),
+                  inKnownList: knownVerifiedAccounts.includes(authorUsername.toLowerCase()),
+                  vxFields: {
+                    is_blue_verified: vxData.is_blue_verified,
+                    verified: vxData.verified,
+                    user_verified: vxData.user_verified
+                  },
+                  final: isVerified
+                });
                 
                 console.log('[Twitter] 🎉 vxTwitter success:', {
                   displayName: authorDisplayName,

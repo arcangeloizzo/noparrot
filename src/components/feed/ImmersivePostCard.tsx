@@ -793,7 +793,7 @@ export const ImmersivePostCard = ({
 
             {/* Twitter/X Card - Unified glassmorphic container */}
             {hasLink && isTwitter && !isReshareWithShortComment ? (
-              <div className="w-full max-w-md mx-auto">
+              <div className="w-full max-w-md mx-auto mt-6">
                 {/* Unified Twitter Card - Author + Content in one container */}
                 <div 
                   className="bg-gradient-to-br from-[#15202B]/95 to-[#0d1117]/95 backdrop-blur-xl rounded-3xl p-5 border border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.5)] cursor-pointer active:scale-[0.98] transition-transform"
@@ -846,55 +846,24 @@ export const ImmersivePostCard = ({
                     </div>
                   </div>
                   
-                  {/* Tweet Text - already cleaned of URLs by backend */}
-                  <p className="text-white text-base leading-relaxed mb-4">
-                    {articlePreview?.content || articlePreview?.summary || post.content}
+                  {/* Tweet Text - cleaned and clamped */}
+                  <p className="text-white text-base leading-relaxed mb-4 line-clamp-4">
+                    {(articlePreview?.content || articlePreview?.summary || post.content || '')
+                      .replace(/https?:\/\/t\.co\/\w+/g, '')
+                      .replace(/https?:\/\/[^\s]+/g, '')
+                      .replace(/\s{2,}/g, ' ')
+                      .trim()}
                   </p>
                   
-                  {/* Tweet Media (if any) */}
+                  {/* Tweet Media (if any) - compact height */}
                   {articlePreview?.image && (
-                    <div className="rounded-xl overflow-hidden mb-4">
+                    <div className="rounded-xl overflow-hidden">
                       <img 
                         src={articlePreview.image} 
                         alt="" 
-                        className="w-full h-52 object-cover"
+                        className="w-full h-40 object-cover"
                       />
                     </div>
-                  )}
-                  
-                  {/* Engagement Metrics */}
-                  {(articlePreview?.likes > 0 || articlePreview?.retweets > 0 || articlePreview?.views > 0) && (
-                    <div className="flex items-center gap-5 text-white/40 text-sm pt-3 border-t border-white/10">
-                      {articlePreview.likes > 0 && (
-                        <span className="flex items-center gap-1.5">
-                          <Heart className="w-4 h-4" />
-                          {articlePreview.likes >= 1000 ? `${(articlePreview.likes / 1000).toFixed(1)}K` : articlePreview.likes}
-                        </span>
-                      )}
-                      {articlePreview.retweets > 0 && (
-                        <span className="flex items-center gap-1.5">
-                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M4.5 3.88l4.432 4.14-1.364 1.46L5.5 7.55V16c0 1.1.896 2 2 2H13v2H7.5c-2.209 0-4-1.79-4-4V7.55L1.432 9.48.068 8.02 4.5 3.88zM16.5 6H11V4h5.5c2.209 0 4 1.79 4 4v8.45l2.068-1.93 1.364 1.46-4.432 4.14-4.432-4.14 1.364-1.46 2.068 1.93V8c0-1.1-.896-2-2-2z"/>
-                          </svg>
-                          {articlePreview.retweets >= 1000 ? `${(articlePreview.retweets / 1000).toFixed(1)}K` : articlePreview.retweets}
-                        </span>
-                      )}
-                      {articlePreview.views > 0 && (
-                        <span className="flex items-center gap-1.5">
-                          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
-                          </svg>
-                          {articlePreview.views >= 1000 ? `${(articlePreview.views / 1000).toFixed(1)}K` : articlePreview.views}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  
-                  {/* Tweet Date (fallback if no metrics) */}
-                  {articlePreview?.tweetDate && !(articlePreview?.likes > 0 || articlePreview?.retweets > 0 || articlePreview?.views > 0) && (
-                    <p className="text-white/40 text-sm pt-3 border-t border-white/10">
-                      {articlePreview.tweetDate}
-                    </p>
                   )}
                 </div>
                 
