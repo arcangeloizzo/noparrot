@@ -66,15 +66,24 @@ serve(async (req) => {
       .maybeSingle();
 
     if (cachedScore) {
-      console.log('[TrustScore Edge] Cache hit:', normalizedSourceUrl);
-      return new Response(
-        JSON.stringify({
-          band: cachedScore.band,
-          score: cachedScore.score,
-          reasons: cachedScore.reasons
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      // INVALIDATE cache if account is now verified but cached score is low
+      const isVerifiedNow = isVerified === true;
+      const cachedWasLow = cachedScore.band === 'BASSO';
+      
+      if (isVerifiedNow && cachedWasLow) {
+        console.log('[TrustScore Edge] Cache invalidated: verified account with low score, recalculating');
+        // Don't return cached score, proceed to recalculate
+      } else {
+        console.log('[TrustScore Edge] Cache hit:', normalizedSourceUrl);
+        return new Response(
+          JSON.stringify({
+            band: cachedScore.band,
+            score: cachedScore.score,
+            reasons: cachedScore.reasons
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     console.log('[TrustScore Edge] Cache miss, calling AI:', normalizedSourceUrl);
