@@ -796,8 +796,8 @@ export const ImmersivePostCard = ({
               >
                 {/* Spotify Artwork - Large centered square */}
                 {(articlePreview?.image || post.preview_img) && (
-                  <div className="flex justify-center mb-6">
-                    <div className="w-56 h-56 rounded-xl overflow-hidden shadow-[0_8px_32px_rgba(29,185,84,0.3)] border border-white/10">
+                  <div className="flex justify-center mb-4">
+                    <div className="w-72 h-72 sm:w-80 sm:h-80 rounded-2xl overflow-hidden shadow-[0_12px_48px_rgba(29,185,84,0.4)] border border-white/10">
                       <img 
                         src={articlePreview?.image || post.preview_img} 
                         alt="" 
