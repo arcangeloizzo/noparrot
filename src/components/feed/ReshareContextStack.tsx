@@ -51,14 +51,20 @@ export const ReshareContextStack = ({ stack }: ReshareContextStackProps) => {
   return (
     <div className="mt-4 pt-2">
       {/* Header - flusso di condivisione */}
-      <div className="flex items-center gap-1.5 mb-3 text-white/40">
+      <div className="flex items-center gap-1.5 mb-3 text-white/40 relative">
         <Repeat className="w-3 h-3" />
         <span className="text-[11px] font-medium">ha condiviso</span>
         <ChevronDown className="w-3 h-3" />
       </div>
 
-      {/* Context Items with CSS thread connectors */}
-      <div className="relative pl-[11px]">
+      {/* Context Items with continuous CSS thread */}
+      <div className="relative">
+        {/* Main continuous vertical thread line */}
+        <div 
+          className="absolute left-[11px] top-0 w-px bg-white/15"
+          style={{ height: `calc(100% - 24px)` }}
+        />
+        
         {visibleItems.map((item, index) => {
           const timeAgo = formatDistanceToNow(new Date(item.created_at), { 
             addSuffix: false, 
@@ -68,32 +74,19 @@ export const ReshareContextStack = ({ stack }: ReshareContextStackProps) => {
           const isOriginal = index === stack.length - 1 && (expanded || !hasMore);
 
           return (
-            <div key={item.id} className="relative flex">
-              {/* Thread connector - CSS based */}
-              <div className="absolute left-0 flex flex-col items-center w-[1px]">
-                {/* Vertical line above node */}
-                <div className={cn(
-                  "w-px bg-white/15",
-                  index === 0 ? "h-5" : "h-full absolute top-0"
-                )} />
-                {/* Vertical line below node (not for last) */}
-                {!isLastVisible && (
-                  <div className="w-px bg-white/15 absolute top-5 bottom-0" />
-                )}
-              </div>
-              
-              {/* Node + horizontal connector */}
-              <div className="relative flex items-start ml-[-1px] pt-[18px]">
-                {/* Node dot */}
-                <div className="w-[5px] h-[5px] rounded-full bg-white/30 flex-shrink-0 z-10" />
-                {/* Horizontal line */}
-                <div className="w-3 h-px bg-white/15 mt-[2px]" />
+            <div key={item.id} className="relative flex items-stretch mb-1">
+              {/* Connector column */}
+              <div className="relative w-6 flex-shrink-0">
+                {/* Node dot - positioned on the thread line */}
+                <div className="absolute left-[9px] top-[22px] w-[5px] h-[5px] rounded-full bg-white/30 z-10" />
+                {/* Horizontal connector from node to card */}
+                <div className="absolute left-[14px] top-[24px] w-2 h-px bg-white/15" />
               </div>
 
               {/* Card contenuto */}
               <button
                 onClick={(e) => handleItemClick(item.id, e)}
-                className="flex-1 text-left bg-white/5 hover:bg-white/10 rounded-xl p-2.5 transition-colors active:scale-[0.99] ml-1 mb-1"
+                className="flex-1 text-left bg-white/5 hover:bg-white/10 rounded-xl p-2.5 transition-colors active:scale-[0.99]"
               >
                 <div className="flex items-start gap-2">
                   {/* Small Avatar */}

@@ -711,36 +711,6 @@ export const ImmersivePostCard = ({
             {quotedPost && contextStack.length > 0 && (
               <ReshareContextStack stack={contextStack} />
             )}
-            
-            {/* Stack Layout with LONG comment: show quoted post's full comment inline */}
-            {useStackLayout && !isReshareWithShortComment && quotedPost && (
-              <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/10 mb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-6 h-6 rounded-full overflow-hidden bg-white/10 flex-shrink-0">
-                    {quotedPost.author?.avatar_url ? (
-                      <img 
-                        src={quotedPost.author.avatar_url} 
-                        alt="" 
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-white/60 text-xs font-medium">
-                        {(quotedPost.author?.full_name || quotedPost.author?.username || '?')[0].toUpperCase()}
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-white/80 text-xs font-medium truncate">
-                    {quotedPost.author?.full_name || quotedPost.author?.username}
-                  </span>
-                  <span className="text-white/50 text-xs truncate">
-                    @{quotedPost.author?.username}
-                  </span>
-                </div>
-                <p className="text-white/90 text-sm leading-relaxed whitespace-pre-wrap">
-                  <MentionText content={quotedPost.content} />
-                </p>
-              </div>
-            )}
 
             {/* User Text Content - Show for link posts (if different from article title) - NON stack layout */}
             {!useStackLayout && shouldShowUserText && (
