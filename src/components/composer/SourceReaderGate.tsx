@@ -836,33 +836,70 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               </>
             ) : source.platform === 'twitter' && !isClosing ? (
               <>
-                {/* Twitter Content - iOS Safe Mode: no embed widget */}
+                {/* Twitter Content - iOS Safe Mode: Enhanced card */}
                 <div className="max-w-2xl mx-auto space-y-4">
                   {isIOS ? (
-                    // iOS Safe Mode: static card instead of embed
-                    <div className="rounded-xl border border-border bg-muted/30 p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="mt-0.5 rounded-lg border border-border bg-card p-2">
-                          <ExternalLink className="h-4 w-4 text-foreground" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-foreground">Widget Twitter disattivato su iOS</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Per evitare schermate bianche/crash su Safari iOS.
-                          </p>
-                          {source.content && (
-                            <div className="mt-3 p-3 bg-card rounded-lg border border-border">
-                              <p className="text-sm text-foreground whitespace-pre-wrap">{source.content}</p>
+                    // iOS Safe Mode: Enhanced X-styled card instead of embed
+                    <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-[#15202B] to-[#0d1117] p-5">
+                      {/* Author Header with Avatar */}
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-12 h-12 rounded-full border border-white/20 overflow-hidden bg-[#15202B]">
+                          {(source as any).author_avatar ? (
+                            <img 
+                              src={(source as any).author_avatar}
+                              alt=""
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-white/50 text-lg font-bold">
+                              {((source as any).author_name || (source as any).author_username || source.author || 'X').charAt(0).toUpperCase()}
                             </div>
                           )}
-                          <div className="mt-3">
-                            <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
-                              <ExternalLink className="h-3 w-3" />
-                              Apri su X/Twitter
-                            </Button>
-                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-white font-semibold">
+                            {(source as any).author_name || source.author || 'X User'}
+                          </p>
+                          {(source as any).author_username && (
+                            <p className="text-gray-400 text-sm">@{(source as any).author_username}</p>
+                          )}
+                        </div>
+                        <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center">
+                          <span className="text-black font-bold text-xs">𝕏</span>
                         </div>
                       </div>
+                      
+                      {/* Tweet Text */}
+                      {source.content && (
+                        <p className="text-white text-base leading-relaxed mb-4 whitespace-pre-wrap">
+                          {source.content}
+                        </p>
+                      )}
+                      
+                      {/* Media if available */}
+                      {source.image && (
+                        <div className="rounded-xl overflow-hidden mb-4">
+                          <img src={source.image} alt="" className="w-full h-48 object-cover" />
+                        </div>
+                      )}
+                      
+                      {/* Tweet Date */}
+                      {(source as any).tweetDate && (
+                        <p className="text-gray-500 text-sm mb-4">{(source as any).tweetDate}</p>
+                      )}
+                      
+                      {/* CTA */}
+                      <Button 
+                        variant="outline" 
+                        onClick={openSource} 
+                        className="w-full gap-2 bg-white/10 border-white/20 text-white hover:bg-white/20"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        Apri su X
+                      </Button>
                     </div>
                   ) : source.embedHtml ? (
                     // Desktop: show embed widget

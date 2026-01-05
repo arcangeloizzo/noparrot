@@ -1111,36 +1111,101 @@ serve(async (req) => {
           if (response.ok) {
             const data = await response.json();
             
-            // Extract plain text from HTML for content field
-            const plainText = extractTextFromHtml(data.html || '');
+            // Enhanced Twitter blockquote parsing
+            const html = data.html || '';
             
-            // Extract image URL from oEmbed data or HTML
+            // Extract username from author_name or HTML
+            let authorUsername = data.author_name || '';
+            let authorDisplayName = data.author_name || '';
+            
+            // Try to extract display name and username from HTML: &mdash; Display Name (@username)
+            const authorMatch = html.match(/&mdash;\s*([^(]+)\s*\(@(\w+)\)/);
+            if (authorMatch) {
+              authorDisplayName = authorMatch[1].trim();
+              authorUsername = authorMatch[2];
+            }
+            
+            // Extract tweet text from blockquote <p> tags (before the dash)
+            let tweetText = '';
+            const blockquoteMatch = html.match(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/i);
+            if (blockquoteMatch) {
+              const blockquoteContent = blockquoteMatch[1];
+              // Get text from <p> tags (tweet content, not the author line)
+              const pMatches = blockquoteContent.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi);
+              const paragraphs: string[] = [];
+              for (const pMatch of pMatches) {
+                const pText = extractTextFromHtml(pMatch[1]);
+                // Skip the author/date line
+                if (!pText.includes('—') && pText.length > 0) {
+                  paragraphs.push(pText);
+                }
+              }
+              tweetText = paragraphs.join('\n\n');
+            }
+            
+            // Fallback to plain text extraction if blockquote parsing failed
+            if (!tweetText) {
+              tweetText = extractTextFromHtml(html);
+            }
+            
+            // Extract tweet date from the last <a> tag in blockquote
+            let tweetDate = '';
+            const dateMatch = html.match(/<a[^>]*>([A-Z][a-z]+ \d{1,2}, \d{4})<\/a>/);
+            if (dateMatch) {
+              tweetDate = dateMatch[1];
+            }
+            
+            // Extract media image from blockquote (if any pic.twitter.com links or embedded images)
             let imageUrl = '';
             if (data.thumbnail_url) {
               imageUrl = data.thumbnail_url;
-            } else if (data.html) {
+            } else {
+              // Try to find pic.twitter.com image or media URL
+              const picMatch = html.match(/pic\.twitter\.com\/\w+/);
+              if (picMatch) {
+                // Note: pic.twitter.com URLs don't directly resolve to images, but indicate media presence
+                console.log('[Twitter] Media detected:', picMatch[0]);
+              }
               // Try to extract image from HTML
-              const imgMatch = data.html.match(/<img[^>]+src="([^">]+)"/);
+              const imgMatch = html.match(/<img[^>]+src="([^">]+)"/);
               if (imgMatch) {
                 imageUrl = imgMatch[1];
               }
             }
             
+            // Generate profile image URL using unavatar.io
+            const profileImageUrl = authorUsername 
+              ? `https://unavatar.io/twitter/${authorUsername}` 
+              : '';
+            
+            console.log('[Twitter] 📊 Enhanced oEmbed parsing:', {
+              displayName: authorDisplayName,
+              username: authorUsername,
+              tweetTextLength: tweetText.length,
+              tweetDate,
+              hasProfileImage: !!profileImageUrl,
+              hasMediaImage: !!imageUrl
+            });
+            
             const result = {
-              title: data.author_name ? `Post by @${data.author_name}` : 'Post da X/Twitter',
-              author_username: data.author_name || '',
-              author_name: data.author_name || '',
-              summary: plainText,
-              content: plainText,
+              success: true,
+              title: authorDisplayName || (authorUsername ? `@${authorUsername}` : 'Post da X/Twitter'),
+              author_username: authorUsername,
+              author_name: authorDisplayName,
+              author_avatar: profileImageUrl,
+              summary: tweetText.slice(0, 280),
+              content: tweetText,
+              tweetDate,
               image: imageUrl,
               previewImg: imageUrl,
               platform: 'twitter',
               type: 'social',
-              embedHtml: data.html,
-              hostname: 'x.com'
+              embedHtml: html,
+              hostname: 'x.com',
+              contentQuality: tweetText.length > 50 ? 'complete' : 'partial'
             };
 
-            return new Response(JSON.stringify({ success: true, ...result }), {
+            return new Response(JSON.stringify(result), {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
           }
