@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play } from "lucide-react";
 import { useDominantColors } from "@/hooks/useDominantColors";
+import { useCachedTrustScore } from "@/hooks/useCachedTrustScore";
 import { PulseBadge } from "@/components/ui/pulse-badge";
+import { TrustBadgeOverlay } from "@/components/ui/trust-badge-overlay";
 import {
   Dialog,
   DialogContent,
@@ -177,12 +179,23 @@ export const ImmersivePostCard = ({
     loadArticlePreview();
   }, [urlToPreview, quotedPost]);
 
-  // Fetch trust score - now includes author info for verified accounts
+  // For reshares: lookup cached trust score directly from DB (zero AI calls)
+  // Use effectiveSourceUrl which includes sources from quoted posts
+  const effectiveSourceUrlForCache = post.shared_url || quotedPost?.shared_url;
+  const { data: cachedTrustScore } = useCachedTrustScore(effectiveSourceUrlForCache);
+
+  // Fetch trust score - only for posts with DIRECT links (not reshares)
   // For Twitter/X links, wait for articlePreview to load first to get verified status
   useEffect(() => {
     const loadTrustScore = async () => {
+      // Skip if no direct shared_url (reshares use cached score)
       if (!post.shared_url) {
         setTrustScore(null);
+        return;
+      }
+      
+      // Skip if we already have a cached score
+      if (cachedTrustScore) {
         return;
       }
       
@@ -211,7 +224,10 @@ export const ImmersivePostCard = ({
       } catch {}
     };
     loadTrustScore();
-  }, [post.shared_url, post.content, articlePreview]);
+  }, [post.shared_url, post.content, articlePreview, cachedTrustScore]);
+
+  // Use cached trust score for reshares, or calculated for original posts
+  const displayTrustScore = cachedTrustScore || trustScore;
 
   const handleHeart = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -640,21 +656,21 @@ export const ImmersivePostCard = ({
                 popularity={articlePreview.popularity} 
                 size="sm" 
               />
-            ) : hasLink && trustScore ? (
+            ) : hasLink && displayTrustScore ? (
               <Dialog>
                 <DialogTrigger asChild>
                   <button 
                     onClick={(e) => e.stopPropagation()}
                     className={cn(
                       "flex items-center gap-1.5 bg-black/30 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full cursor-pointer hover:bg-black/40 transition-colors shadow-xl",
-                      trustScore.band === 'ALTO' && "text-emerald-400",
-                      trustScore.band === 'MEDIO' && "text-amber-400",
-                      trustScore.band === 'BASSO' && "text-red-400"
+                      displayTrustScore.band === 'ALTO' && "text-emerald-400",
+                      displayTrustScore.band === 'MEDIO' && "text-amber-400",
+                      displayTrustScore.band === 'BASSO' && "text-red-400"
                     )}
                   >
                     <ShieldCheck className="w-4 h-4" />
                     <span className="text-[10px] font-bold tracking-wider uppercase">
-                      TRUST {trustScore.band}
+                      TRUST {displayTrustScore.band}
                     </span>
                   </button>
                 </DialogTrigger>
@@ -669,11 +685,11 @@ export const ImmersivePostCard = ({
                     </p>
                     <p>È calcolato automaticamente e può contenere errori.</p>
                     
-                    {trustScore.reasons?.length > 0 && (
+                    {displayTrustScore.reasons && displayTrustScore.reasons.length > 0 && (
                       <div className="pt-3 border-t border-border">
                         <p className="font-medium text-foreground mb-2">Perché questo punteggio:</p>
                         <ul className="space-y-1.5">
-                          {trustScore.reasons.map((reason: string, i: number) => (
+                          {displayTrustScore.reasons.map((reason: string, i: number) => (
                             <li key={i} className="flex items-start gap-2">
                               <span className="text-primary mt-0.5">•</span>
                               <span>{reason}</span>
@@ -948,12 +964,19 @@ export const ImmersivePostCard = ({
               >
                 {/* Visible Metadata Image - Taller preview */}
                 {(articlePreview?.image || post.preview_img) && (
-                  <div className="mb-6 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                  <div className="relative mb-6 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
                     <img 
                       src={articlePreview?.image || post.preview_img} 
                       alt="" 
                       className="w-full h-64 object-cover"
                     />
+                    {/* Trust Score Badge Overlay */}
+                    {displayTrustScore && (
+                      <TrustBadgeOverlay 
+                        band={displayTrustScore.band}
+                        score={displayTrustScore.score}
+                      />
+                    )}
                   </div>
                 )}
                 
@@ -981,12 +1004,19 @@ export const ImmersivePostCard = ({
               >
                 {/* Source Image */}
                 {(articlePreview?.image || finalSourceImage) && (
-                  <div className="mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                  <div className="relative mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
                     <img 
                       src={articlePreview?.image || finalSourceImage} 
                       alt="" 
                       className="w-full h-40 sm:h-48 object-cover"
                     />
+                    {/* Trust Score Badge Overlay - mirrored from cache */}
+                    {displayTrustScore && (
+                      <TrustBadgeOverlay 
+                        band={displayTrustScore.band}
+                        score={displayTrustScore.score}
+                      />
+                    )}
                   </div>
                 )}
                 
