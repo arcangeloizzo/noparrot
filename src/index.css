@@ -286,30 +286,6 @@
   100% { box-shadow: 0 0 0 4px rgba(10, 122, 255, 0.2); }
 }
 
-/* Spotify Pulse Animations - Based on BPM/Tempo */
-@keyframes spotify-pulse {
-  0%, 100% { 
-    opacity: 1; 
-    filter: brightness(1); 
-  }
-  50% { 
-    opacity: 0.88; 
-    filter: brightness(1.12); 
-  }
-}
-
-.animate-spotify-pulse-slow {
-  animation: spotify-pulse 4s ease-in-out infinite;
-}
-
-.animate-spotify-pulse-medium {
-  animation: spotify-pulse 2s ease-in-out infinite;
-}
-
-.animate-spotify-pulse-fast {
-  animation: spotify-pulse 1.5s ease-in-out infinite;
-}
-
 @layer base {
   * {
     @apply border-border;

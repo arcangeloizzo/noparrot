@@ -29,7 +29,6 @@ import { QuizModal } from "@/components/ui/quiz-modal";
 import { QuotedPostCard } from "./QuotedPostCard";
 import { MentionText } from "./MentionText";
 import { ReshareContextStack } from "./ReshareContextStack";
-import { SpotifyGradientBackground } from "./SpotifyGradientBackground";
 
 // Media Components
 import { MediaGallery } from "@/components/media/MediaGallery";
@@ -569,10 +568,9 @@ export const ImmersivePostCard = ({
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10" />
           </div>
         ) : isSpotify ? (
-          <SpotifyGradientBackground 
-            albumArtUrl={articlePreview?.image || post.preview_img || ''}
-            audioFeatures={articlePreview?.audioFeatures}
-          />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#121212] via-[#1a1a2e] to-[#0d1117]">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#1DB954]/10 to-transparent" />
+          </div>
         ) : (
           <>
             <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/90 z-0" />

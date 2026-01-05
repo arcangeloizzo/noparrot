@@ -406,45 +406,6 @@ async function fetchSpotifyTrackMetadata(trackId: string, accessToken: string): 
   }
 }
 
-// Fetch Audio Features from Spotify Web API (for generative backgrounds)
-async function fetchSpotifyAudioFeatures(trackId: string, accessToken: string): Promise<{
-  energy: number;
-  valence: number;
-  tempo: number;
-  danceability: number;
-} | null> {
-  try {
-    console.log(`[Spotify] 🎨 Fetching audio features for: ${trackId}`);
-    
-    const response = await fetch(`https://api.spotify.com/v1/audio-features/${trackId}`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`
-      }
-    });
-    
-    if (!response.ok) {
-      console.error('[Spotify] ❌ Audio Features API request failed:', response.status);
-      return null;
-    }
-    
-    const features = await response.json();
-    
-    const audioFeatures = {
-      energy: features.energy ?? 0.5,
-      valence: features.valence ?? 0.5,
-      tempo: features.tempo ?? 120,
-      danceability: features.danceability ?? 0.5
-    };
-    
-    console.log(`[Spotify] ✅ Audio Features: energy=${audioFeatures.energy.toFixed(2)}, valence=${audioFeatures.valence.toFixed(2)}, tempo=${Math.round(audioFeatures.tempo)}BPM`);
-    
-    return audioFeatures;
-  } catch (error) {
-    console.error('[Spotify] ❌ Error fetching audio features:', error);
-    return null;
-  }
-}
-
 // Fetch lyrics from our fetch-lyrics edge function
 async function fetchLyricsFromGenius(artist: string, title: string): Promise<{ lyrics: string; source: string; geniusUrl: string } | null> {
   try {
@@ -793,15 +754,11 @@ serve(async (req) => {
         let trackTitle = oembedData.title || '';
         let trackPopularity: number | undefined;
         
-        // Audio Features for generative backgrounds
-        let audioFeatures: { energy: number; valence: number; tempo: number; danceability: number } | undefined;
-        
-        // METODO PRIMARIO: Spotify Web API (più affidabile + popularity per PULSE + audio features)
+        // METODO PRIMARIO: Spotify Web API (più affidabile + popularity per PULSE)
         if (spotifyInfo.type === 'track') {
           const accessToken = await getSpotifyAccessToken();
           
           if (accessToken) {
-            // Fetch track metadata (popularity for PULSE)
             const trackMetadata = await fetchSpotifyTrackMetadata(spotifyInfo.id, accessToken);
             
             if (trackMetadata) {
@@ -809,12 +766,6 @@ serve(async (req) => {
               trackTitle = trackMetadata.title;
               trackPopularity = trackMetadata.popularity;
               console.log(`[Spotify] ✅ WEB API: "${trackTitle}" by "${artist}" (PULSE: ${trackPopularity})`);
-            }
-            
-            // Fetch audio features (for generative backgrounds)
-            const features = await fetchSpotifyAudioFeatures(spotifyInfo.id, accessToken);
-            if (features) {
-              audioFeatures = features;
             }
           }
         }
@@ -899,8 +850,6 @@ serve(async (req) => {
           hostname: 'open.spotify.com',
           // PULSE: popularity for music momentum indicator
           popularity: trackPopularity,
-          // Audio Features for generative backgrounds
-          audioFeatures,
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
