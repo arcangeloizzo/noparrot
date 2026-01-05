@@ -1100,9 +1100,197 @@ serve(async (req) => {
         });
       }
       
-      // Fallback to oEmbed ONLY for Twitter (last resort)
+      // Twitter/X: Use vxTwitter API first (free, rich data), then fallback to oEmbed
       if (socialPlatform === 'twitter') {
+        // Extract tweet ID and username from URL
+        const tweetMatch = url.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/i);
+        
+        if (tweetMatch) {
+          const [, urlUsername, tweetId] = tweetMatch;
+          console.log(`[Twitter] 🔍 Extracted from URL: @${urlUsername}, ID: ${tweetId}`);
+          
+          // PRIORITY 1: Try vxTwitter API (free, no API key needed, rich data)
+          try {
+            console.log('[Twitter] 🌐 Attempting vxTwitter API...');
+            const vxResponse = await fetch(`https://api.vxtwitter.com/${urlUsername}/status/${tweetId}`, {
+              headers: { 'User-Agent': 'NoParrot/1.0' }
+            });
+            
+            if (vxResponse.ok) {
+              const vxData = await vxResponse.json();
+              console.log('[Twitter] ✅ vxTwitter response:', {
+                hasText: !!vxData.text,
+                textLength: vxData.text?.length || 0,
+                userName: vxData.user_name,
+                userScreenName: vxData.user_screen_name,
+                hasMedia: !!vxData.mediaURLs?.length,
+                mediaCount: vxData.mediaURLs?.length || 0,
+                likes: vxData.likes,
+                retweets: vxData.retweets,
+                views: vxData.views,
+                hasProfileImage: !!vxData.user_profile_image_url
+              });
+              
+              // Check if the response has meaningful data
+              if (vxData.text || vxData.user_name) {
+                const authorUsername = vxData.user_screen_name || urlUsername;
+                const authorDisplayName = vxData.user_name || authorUsername;
+                const tweetText = vxData.text || '';
+                const profileImageUrl = vxData.user_profile_image_url || `https://unavatar.io/twitter/${authorUsername}`;
+                
+                // Get the first media image (could be tweet image OR link card image)
+                let imageUrl = '';
+                if (vxData.mediaURLs && vxData.mediaURLs.length > 0) {
+                  imageUrl = vxData.mediaURLs[0];
+                } else if (vxData.media_extended && vxData.media_extended.length > 0) {
+                  // Some tweets have media in media_extended
+                  imageUrl = vxData.media_extended[0]?.url || vxData.media_extended[0]?.thumbnail_url || '';
+                }
+                
+                // Parse date from vxTwitter (format: "Sat Jan 04 10:30:00 +0000 2026")
+                let tweetDate = '';
+                if (vxData.date) {
+                  try {
+                    const dateObj = new Date(vxData.date);
+                    tweetDate = dateObj.toLocaleDateString('it-IT', { 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    });
+                  } catch {
+                    tweetDate = vxData.date;
+                  }
+                }
+                
+                // Check verification status (vxTwitter may use different field names)
+                const isVerified = vxData.is_blue_verified || vxData.verified || vxData.user_verified || false;
+                
+                console.log('[Twitter] 🎉 vxTwitter success:', {
+                  displayName: authorDisplayName,
+                  username: authorUsername,
+                  textLength: tweetText.length,
+                  hasImage: !!imageUrl,
+                  imageUrl: imageUrl?.slice(0, 100),
+                  isVerified,
+                  likes: vxData.likes,
+                  retweets: vxData.retweets
+                });
+                
+                const result = {
+                  success: true,
+                  title: authorDisplayName || `@${authorUsername}`,
+                  author_username: authorUsername,
+                  author_name: authorDisplayName,
+                  author_avatar: profileImageUrl,
+                  is_verified: isVerified,
+                  summary: tweetText.slice(0, 280),
+                  content: tweetText,
+                  tweetDate,
+                  image: imageUrl,
+                  previewImg: imageUrl,
+                  // All media URLs
+                  media: vxData.mediaURLs || [],
+                  // Engagement metrics
+                  likes: vxData.likes || 0,
+                  retweets: vxData.retweets || 0,
+                  replies: vxData.replies || 0,
+                  views: vxData.views || 0,
+                  // Quoted tweet if present
+                  quoted_tweet: vxData.quote ? {
+                    text: vxData.quote.text,
+                    author_username: vxData.quote.user_screen_name,
+                    author_name: vxData.quote.user_name
+                  } : null,
+                  platform: 'twitter',
+                  type: 'social',
+                  hostname: 'x.com',
+                  contentQuality: tweetText.length > 50 ? 'complete' : 'partial',
+                  source: 'vxtwitter'
+                };
+                
+                return new Response(JSON.stringify(result), {
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                });
+              }
+            } else {
+              console.log(`[Twitter] ⚠️ vxTwitter failed: ${vxResponse.status}`);
+            }
+          } catch (vxError: any) {
+            console.error('[Twitter] ❌ vxTwitter error:', vxError.message);
+          }
+          
+          // PRIORITY 2: Try FxTwitter API as fallback
+          try {
+            console.log('[Twitter] 🌐 Attempting FxTwitter API...');
+            const fxResponse = await fetch(`https://api.fxtwitter.com/${urlUsername}/status/${tweetId}`, {
+              headers: { 'User-Agent': 'NoParrot/1.0' }
+            });
+            
+            if (fxResponse.ok) {
+              const fxData = await fxResponse.json();
+              const tweet = fxData.tweet;
+              
+              if (tweet) {
+                console.log('[Twitter] ✅ FxTwitter response:', {
+                  hasText: !!tweet.text,
+                  authorName: tweet.author?.name,
+                  authorUsername: tweet.author?.screen_name,
+                  hasMedia: !!tweet.media?.all?.length
+                });
+                
+                const authorUsername = tweet.author?.screen_name || urlUsername;
+                const authorDisplayName = tweet.author?.name || authorUsername;
+                const tweetText = tweet.text || '';
+                const profileImageUrl = tweet.author?.avatar_url || `https://unavatar.io/twitter/${authorUsername}`;
+                
+                // Get media
+                let imageUrl = '';
+                const mediaArray: string[] = [];
+                if (tweet.media?.all?.length > 0) {
+                  for (const m of tweet.media.all) {
+                    if (m.url) mediaArray.push(m.url);
+                  }
+                  imageUrl = mediaArray[0] || '';
+                }
+                
+                const isVerified = tweet.author?.verified || false;
+                
+                const result = {
+                  success: true,
+                  title: authorDisplayName || `@${authorUsername}`,
+                  author_username: authorUsername,
+                  author_name: authorDisplayName,
+                  author_avatar: profileImageUrl,
+                  is_verified: isVerified,
+                  summary: tweetText.slice(0, 280),
+                  content: tweetText,
+                  image: imageUrl,
+                  previewImg: imageUrl,
+                  media: mediaArray,
+                  likes: tweet.likes || 0,
+                  retweets: tweet.retweets || 0,
+                  replies: tweet.replies || 0,
+                  views: tweet.views || 0,
+                  platform: 'twitter',
+                  type: 'social',
+                  hostname: 'x.com',
+                  contentQuality: tweetText.length > 50 ? 'complete' : 'partial',
+                  source: 'fxtwitter'
+                };
+                
+                return new Response(JSON.stringify(result), {
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                });
+              }
+            }
+          } catch (fxError: any) {
+            console.error('[Twitter] ❌ FxTwitter error:', fxError.message);
+          }
+        }
+        
+        // PRIORITY 3: Fallback to oEmbed (last resort)
         try {
+          console.log('[Twitter] 📜 Falling back to oEmbed...');
           const twitterUrl = url.replace('x.com', 'twitter.com');
           const oembedUrl = `https://publish.twitter.com/oembed?url=${encodeURIComponent(twitterUrl)}`;
           
@@ -1130,12 +1318,10 @@ serve(async (req) => {
             const blockquoteMatch = html.match(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/i);
             if (blockquoteMatch) {
               const blockquoteContent = blockquoteMatch[1];
-              // Get text from <p> tags (tweet content, not the author line)
               const pMatches = blockquoteContent.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi);
               const paragraphs: string[] = [];
               for (const pMatch of pMatches) {
                 const pText = extractTextFromHtml(pMatch[1]);
-                // Skip the author/date line
                 if (!pText.includes('—') && pText.length > 0) {
                   paragraphs.push(pText);
                 }
@@ -1143,34 +1329,15 @@ serve(async (req) => {
               tweetText = paragraphs.join('\n\n');
             }
             
-            // Fallback to plain text extraction if blockquote parsing failed
             if (!tweetText) {
               tweetText = extractTextFromHtml(html);
             }
             
-            // Extract tweet date from the last <a> tag in blockquote
+            // Extract tweet date
             let tweetDate = '';
             const dateMatch = html.match(/<a[^>]*>([A-Z][a-z]+ \d{1,2}, \d{4})<\/a>/);
             if (dateMatch) {
               tweetDate = dateMatch[1];
-            }
-            
-            // Extract media image from blockquote (if any pic.twitter.com links or embedded images)
-            let imageUrl = '';
-            if (data.thumbnail_url) {
-              imageUrl = data.thumbnail_url;
-            } else {
-              // Try to find pic.twitter.com image or media URL
-              const picMatch = html.match(/pic\.twitter\.com\/\w+/);
-              if (picMatch) {
-                // Note: pic.twitter.com URLs don't directly resolve to images, but indicate media presence
-                console.log('[Twitter] Media detected:', picMatch[0]);
-              }
-              // Try to extract image from HTML
-              const imgMatch = html.match(/<img[^>]+src="([^">]+)"/);
-              if (imgMatch) {
-                imageUrl = imgMatch[1];
-              }
             }
             
             // Generate profile image URL using unavatar.io
@@ -1178,13 +1345,11 @@ serve(async (req) => {
               ? `https://unavatar.io/twitter/${authorUsername}` 
               : '';
             
-            console.log('[Twitter] 📊 Enhanced oEmbed parsing:', {
+            console.log('[Twitter] 📊 oEmbed parsing:', {
               displayName: authorDisplayName,
               username: authorUsername,
               tweetTextLength: tweetText.length,
-              tweetDate,
-              hasProfileImage: !!profileImageUrl,
-              hasMediaImage: !!imageUrl
+              hasProfileImage: !!profileImageUrl
             });
             
             const result = {
@@ -1193,16 +1358,18 @@ serve(async (req) => {
               author_username: authorUsername,
               author_name: authorDisplayName,
               author_avatar: profileImageUrl,
+              is_verified: false, // oEmbed doesn't provide verification status
               summary: tweetText.slice(0, 280),
               content: tweetText,
               tweetDate,
-              image: imageUrl,
-              previewImg: imageUrl,
+              image: '', // oEmbed doesn't reliably provide images
+              previewImg: '',
               platform: 'twitter',
               type: 'social',
               embedHtml: html,
               hostname: 'x.com',
-              contentQuality: tweetText.length > 50 ? 'complete' : 'partial'
+              contentQuality: tweetText.length > 50 ? 'complete' : 'partial',
+              source: 'oembed'
             };
 
             return new Response(JSON.stringify(result), {
@@ -1210,8 +1377,23 @@ serve(async (req) => {
             });
           }
         } catch (twitterError) {
-          console.error('[fetch-article-preview] Twitter oEmbed fallback failed:', twitterError);
+          console.error('[Twitter] ❌ oEmbed fallback failed:', twitterError);
         }
+        
+        // Final fallback for Twitter - return minimal data
+        console.log('[Twitter] ⚠️ All extraction methods failed');
+        return new Response(JSON.stringify({
+          success: true,
+          title: 'Post X/Twitter',
+          content: '',
+          summary: 'Contenuto X - apri il link originale',
+          platform: 'twitter',
+          type: 'social',
+          hostname: 'x.com',
+          contentQuality: 'blocked'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
     }
 
