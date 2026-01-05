@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    const { sourceUrl, postText } = await req.json();
+    const { sourceUrl, postText, authorUsername, isVerified } = await req.json();
     
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -23,7 +23,9 @@ serve(async (req) => {
 
     console.log('[TrustScore Edge] Request received:', {
       sourceUrl,
-      postTextLength: postText?.length || 0
+      postTextLength: postText?.length || 0,
+      authorUsername: authorUsername || 'N/A',
+      isVerified: isVerified || false
     });
 
     if (!sourceUrl) {
@@ -77,10 +79,15 @@ serve(async (req) => {
 
     console.log('[TrustScore Edge] Cache miss, calling AI:', normalizedSourceUrl);
 
+    // Build author info string if available
+    const authorInfo = authorUsername 
+      ? `\nAUTORE: @${authorUsername}${isVerified ? ' (✓ ACCOUNT VERIFICATO)' : ''}`
+      : '';
+
     const prompt = `Sei un esperto valutatore di fonti e contenuti web.
 
 FONTE DA VALUTARE:
-URL: ${normalizedSourceUrl}
+URL: ${normalizedSourceUrl}${authorInfo}
 Contesto post: ${postText?.substring(0, 300) || 'N/A'}
 
 COMPITO:
@@ -96,9 +103,15 @@ DOMINI RICONOSCIUTI:
 - Siti istituzionali (.edu, .gov, .org): ALTO
 - Testate giornalistiche primarie: ALTO
 
+ACCOUNT SOCIAL VERIFICATI:
+- Su Twitter/X, un account verificato (✓) indica un'identità confermata
+- Giornalisti verificati (es. @petergomezblog, @marcotravaglio): boost di credibilità +15 punti
+- Account istituzionali verificati: boost +20 punti
+- Account verificati generici: boost +10 punti
+
 CLASSIFICAZIONE:
-- ALTO (85-100): Fonti accademiche, governative, istituzioni riconosciute, giornali primari
-- MEDIO (50-84): Blog professionali, media regionali, siti con autori identificabili, YouTube
+- ALTO (85-100): Fonti accademiche, governative, istituzioni riconosciute, giornali primari, account verificati di giornalisti noti
+- MEDIO (50-84): Blog professionali, media regionali, siti con autori identificabili, YouTube, account social non verificati
 - BASSO (0-49): Siti dubbi, no autore, clickbait, domini sospetti
 
 OUTPUT JSON RIGOROSO:
@@ -117,6 +130,7 @@ REGOLE:
 - Reasons brevi e specifici
 - Se non puoi valutare con certezza, usa MEDIO con score 50
 - Rispondi SOLO con JSON valido, senza commenti
+- Per account verificati, includi "Account verificato" tra i reasons
 
 IMPORTANTE: Sii conservativo. In caso di dubbio, preferisci MEDIO.`;
 

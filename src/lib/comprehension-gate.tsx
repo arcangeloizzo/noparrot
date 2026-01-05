@@ -78,17 +78,23 @@ type CGContextValue = {
 export async function fetchTrustScore({ 
   postText, 
   sources, 
-  userMeta 
+  userMeta,
+  authorUsername,
+  isVerified
 }: { 
   postText: string; 
   sources: string[]; 
   userMeta?: any;
+  authorUsername?: string;
+  isVerified?: boolean;
 }): Promise<TrustScoreResult | null> {
   console.log('[TrustScore] Request:', {
     postTextLength: postText.length,
     sources,
     sourcesCount: sources.length,
-    firstSource: sources[0]
+    firstSource: sources[0],
+    authorUsername,
+    isVerified
   });
   
   try {
@@ -104,7 +110,9 @@ export async function fetchTrustScore({
     const { data, error } = await supabase.functions.invoke('evaluate-trust-score', {
       body: {
         sourceUrl,
-        postText
+        postText,
+        authorUsername,
+        isVerified
       }
     });
 
