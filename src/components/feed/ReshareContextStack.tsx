@@ -49,7 +49,7 @@ export const ReshareContextStack = ({ stack }: ReshareContextStackProps) => {
   };
 
   return (
-    <div className="mt-4 pt-2">
+    <div className="mt-4 pt-2 ml-4">
       {/* Header - flusso di condivisione */}
       <div className="flex items-center gap-1.5 mb-3 text-white/40 relative">
         <Repeat className="w-3 h-3" />
@@ -57,14 +57,8 @@ export const ReshareContextStack = ({ stack }: ReshareContextStackProps) => {
         <ChevronDown className="w-3 h-3" />
       </div>
 
-      {/* Context Items with continuous CSS thread */}
+      {/* Context Items with CSS thread - line managed per-item */}
       <div className="relative">
-        {/* Main continuous vertical thread line */}
-        <div 
-          className="absolute left-[11px] top-0 w-px bg-white/15"
-          style={{ height: `calc(100% - 24px)` }}
-        />
-        
         {visibleItems.map((item, index) => {
           const timeAgo = formatDistanceToNow(new Date(item.created_at), { 
             addSuffix: false, 
@@ -77,6 +71,13 @@ export const ReshareContextStack = ({ stack }: ReshareContextStackProps) => {
             <div key={item.id} className="relative flex items-stretch mb-1">
               {/* Connector column */}
               <div className="relative w-6 flex-shrink-0">
+                {/* Vertical line - full height if NOT last, only to node if last */}
+                {!isLastVisible && (
+                  <div className="absolute left-[11px] top-0 bottom-0 w-px bg-white/15" />
+                )}
+                {isLastVisible && (
+                  <div className="absolute left-[11px] top-0 h-[24px] w-px bg-white/15" />
+                )}
                 {/* Node dot - positioned on the thread line */}
                 <div className="absolute left-[9px] top-[22px] w-[5px] h-[5px] rounded-full bg-white/30 z-10" />
                 {/* Horizontal connector from node to card */}
