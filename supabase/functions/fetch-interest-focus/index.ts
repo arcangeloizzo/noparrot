@@ -560,15 +560,41 @@ async function fetchTopCategoryStoryWithMultiSourceCoverage(
     rssUrl = `https://news.google.com/rss/topics/${topicId}?hl=it&gl=IT&ceid=IT:it`;
   }
   
-  const response = await fetch(rssUrl, {
-    headers: { 
-      'User-Agent': 'Mozilla/5.0 (compatible; NoParrotBot/1.0)',
-      'Accept': 'application/xml, text/xml, */*'
-    }
-  });
+  // Retry logic for RSS fetch (Google News can be flaky)
+  let response: Response | null = null;
+  let lastError: string = '';
   
-  if (!response.ok) {
-    throw new Error(`Failed to fetch category RSS: ${response.statusText}`);
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      response = await fetch(rssUrl, {
+        headers: { 
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/xml, text/xml, */*'
+        }
+      });
+      
+      if (response.ok) {
+        break;
+      }
+      
+      lastError = response.statusText;
+      console.log(`[RSS] Attempt ${attempt}/3 failed: ${response.status} ${response.statusText}`);
+      
+      if (attempt < 3) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+      }
+    } catch (e) {
+      lastError = e instanceof Error ? e.message : 'Network error';
+      console.log(`[RSS] Attempt ${attempt}/3 network error: ${lastError}`);
+      
+      if (attempt < 3) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+      }
+    }
+  }
+  
+  if (!response || !response.ok) {
+    throw new Error(`Failed to fetch category RSS after 3 attempts: ${lastError}`);
   }
   
   const text = await response.text();
