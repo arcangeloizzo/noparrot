@@ -974,14 +974,7 @@ export const ImmersivePostCard = ({
                       alt="" 
                       className="w-full h-64 object-cover"
                     />
-                    {/* Trust Score Badge Overlay */}
-                    {displayTrustScore && (
-                      <TrustBadgeOverlay 
-                        band={displayTrustScore.band}
-                        score={displayTrustScore.score}
-                        reasons={displayTrustScore.reasons}
-                      />
-                    )}
+                    {/* Trust Score Badge Overlay - ONLY on reshares (avoid duplication with header) */}
                   </div>
                 )}
                 
@@ -1015,7 +1008,7 @@ export const ImmersivePostCard = ({
                       alt="" 
                       className="w-full h-40 sm:h-48 object-cover"
                     />
-                    {/* Trust Score Badge Overlay - mirrored from cache */}
+                    {/* Trust Score Badge Overlay - shown only in stack layout (reshares) */}
                     {displayTrustScore && (
                       <TrustBadgeOverlay 
                         band={displayTrustScore.band}
