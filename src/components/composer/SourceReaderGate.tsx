@@ -1,20 +1,18 @@
-// SourceReaderGate - Simplified Reading view
-// ============================================
-// ✅ Semplificato: solo timer 10s OPPURE scroll 100%
-// ✅ Rimosso block tracking complesso
-// ✅ Rimosso velocity detection e attrition
-// ✅ Async YouTube transcript loading
+// SourceReaderGate - Source-first Reading view
+// =============================================
+// ✅ SOURCE-FIRST: Uses iframe/embed ONLY, no full text rendering
+// ✅ No content/transcript/lyrics displayed (copyright compliance)
+// ✅ Timer or playback gating based on gateConfig
 // ✅ iOS Safe Mode: no iframes/embeds on iOS Safari
 
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Check, ExternalLink, Music, Loader2 } from 'lucide-react';
+import { X, Check, ExternalLink, Music, Loader2, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TypingIndicator } from '@/components/ui/typing-indicator';
 import { cn } from '@/lib/utils';
 import { SourceWithGate } from '@/lib/comprehension-gate-extended';
 import { sendReaderTelemetry } from '@/lib/telemetry';
-import { fetchYouTubeTranscript } from '@/lib/ai-helpers';
-import { lockBodyScroll, unlockBodyScroll, transferLock } from '@/lib/bodyScrollLock';
+import { lockBodyScroll, unlockBodyScroll } from '@/lib/bodyScrollLock';
 import { addBreadcrumb } from '@/lib/crashBreadcrumbs';
 
 // Safe iframe extraction utilities
@@ -67,7 +65,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const [showTypingIndicator, setShowTypingIndicator] = useState(false);
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
-  // Protezione unmount per evitare setState su componenti smontati
+  // Protection for unmount
   const isMountedRef = useRef(true);
   const timeoutRefs = useRef<number[]>([]);
 
@@ -81,7 +79,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     return id;
   }, []);
 
-  // Cleanup al unmount
+  // Cleanup on unmount
   React.useEffect(() => {
     isMountedRef.current = true;
     return () => {
@@ -91,74 +89,54 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     };
   }, []);
 
-  // Ref per cleanup sicuro iframe (iOS Safari)
+  // Iframe refs for cleanup
   const rootRef = useRef<HTMLDivElement>(null);
   const spotifyIframeRef = useRef<HTMLIFrameElement>(null);
   const youtubeIframeRef = useRef<HTMLIFrameElement>(null);
 
-  // SEMPLIFICATO: Solo timer 10s + scroll 100%
-  const [timeLeft, setTimeLeft] = useState(10);
+  // Gate config from source or defaults
+  const gateConfig = source.gateConfig || { mode: 'timer' as const, minSeconds: 10 };
+  const minSeconds = gateConfig.minSeconds;
+
+  // Timer and scroll state
+  const [timeLeft, setTimeLeft] = useState(minSeconds);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Async YouTube transcript state
-  const [asyncTranscript, setAsyncTranscript] = useState<string | null>(null);
-  const [transcriptLoading, setTranscriptLoading] = useState(false);
-  const [transcriptError, setTranscriptError] = useState<string | null>(null);
-  const transcriptFetchedRef = useRef(false);
-
-  // Load and render Twitter widgets ONLY for Twitter embeds
-  // CRITICAL: Disabled on iOS to prevent Safari crashes
+  // Load Twitter widgets (desktop only)
   useEffect(() => {
-    // iOS GUARD: Never load Twitter widgets on iOS Safari (causes crashes)
-    if (isIOS) {
-      console.log('[SourceReaderGate] iOS detected - skipping Twitter widget loading');
-      return;
-    }
-    
+    if (isIOS) return;
     if (source.platform !== 'twitter') return;
     if (!source.embedHtml || !isOpen) return;
 
-    console.log('[SourceReaderGate] Loading Twitter embed for:', source.url);
     const win = window as any;
     setIsRenderingTwitter(true);
     let renderTimeout: number;
     let observer: MutationObserver;
 
     const renderWidgets = () => {
-      console.log('[SourceReaderGate] Attempting to render Twitter widgets...');
-      
       const embedContainer = document.querySelector('.twitter-embed-container');
       if (!embedContainer) {
-        console.warn('[SourceReaderGate] Embed container not found in DOM');
         setIsRenderingTwitter(false);
         return;
       }
 
       const blockquote = embedContainer.querySelector('blockquote.twitter-tweet');
       if (!blockquote) {
-        console.warn('[SourceReaderGate] Blockquote not found in embed container');
         setIsRenderingTwitter(false);
         return;
       }
 
-      console.log('[SourceReaderGate] Embed HTML found in DOM, calling twttr.widgets.load()');
-      
       if (win.twttr?.widgets) {
         win.twttr.widgets.load(embedContainer)
           .then(() => {
-            console.log('[SourceReaderGate] Twitter widgets rendered successfully');
             setIsRenderingTwitter(false);
             setTwitterScriptLoaded(true);
             if (renderTimeout) clearTimeout(renderTimeout);
           })
-          .catch((err: any) => {
-            console.error('[SourceReaderGate] Twitter widgets render error:', err);
-            setIsRenderingTwitter(false);
-          });
+          .catch(() => setIsRenderingTwitter(false));
       } else {
-        console.warn('[SourceReaderGate] twttr.widgets not available');
         setIsRenderingTwitter(false);
       }
     };
@@ -166,36 +144,29 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     const initTwitterWidget = () => {
       renderTimeout = window.setTimeout(() => {
         if (!isMountedRef.current) return;
-        console.warn('[SourceReaderGate] Twitter render timeout, showing fallback');
         setIsRenderingTwitter(false);
       }, 5000);
 
       const embedContainer = document.querySelector('.twitter-embed-container');
       if (embedContainer) {
-        observer = new MutationObserver((mutations) => {
+        observer = new MutationObserver(() => {
           const blockquote = embedContainer.querySelector('blockquote.twitter-tweet');
           if (blockquote) {
-            console.log('[SourceReaderGate] Blockquote detected in DOM via MutationObserver');
             observer.disconnect();
             safeSetTimeout(renderWidgets, 100);
           }
         });
 
-        observer.observe(embedContainer, { 
-          childList: true, 
-          subtree: true 
-        });
+        observer.observe(embedContainer, { childList: true, subtree: true });
 
         const blockquote = embedContainer.querySelector('blockquote.twitter-tweet');
         if (blockquote) {
-          console.log('[SourceReaderGate] Blockquote already in DOM');
           safeSetTimeout(renderWidgets, 100);
         }
       }
     };
 
     if (win.twttr) {
-      console.log('[SourceReaderGate] Twitter script already loaded');
       initTwitterWidget();
       return () => {
         if (renderTimeout) clearTimeout(renderTimeout);
@@ -203,20 +174,15 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       };
     }
 
-    console.log('[SourceReaderGate] Loading Twitter script...');
     const script = document.createElement('script');
     script.src = 'https://platform.twitter.com/widgets.js';
     script.async = true;
     script.charset = 'utf-8';
     script.onload = () => {
-      console.log('[SourceReaderGate] Twitter script loaded');
       setTwitterScriptLoaded(true);
       safeSetTimeout(initTwitterWidget, 200);
     };
-    script.onerror = (err) => {
-      console.error('[SourceReaderGate] Failed to load Twitter widgets script:', err);
-      setIsRenderingTwitter(false);
-    };
+    script.onerror = () => setIsRenderingTwitter(false);
     
     document.body.appendChild(script);
 
@@ -224,9 +190,9 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       if (renderTimeout) clearTimeout(renderTimeout);
       if (observer) observer.disconnect();
     };
-  }, [source.embedHtml, source.url, isOpen, isIOS, safeSetTimeout]);
+  }, [source.embedHtml, source.url, isOpen, isIOS, safeSetTimeout, source.platform]);
 
-  // Pre-cleanup esplicito iframe PRIMA dello smontaggio (iOS Safari)
+  // Pre-cleanup iframes before unmount (iOS Safari)
   useEffect(() => {
     if (!isClosing) return;
 
@@ -252,55 +218,42 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     }
   }, [isClosing]);
 
-  // Cleanup sicuro iframe Spotify e YouTube su unmount
+  // Cleanup iframes on unmount
   useEffect(() => {
     return () => {
       if (spotifyIframeRef.current) {
         try {
           spotifyIframeRef.current.src = 'about:blank';
-        } catch (e) {
-          console.warn('[SourceReaderGate] Error cleaning up Spotify iframe:', e);
-        }
+        } catch (e) {}
       }
       if (youtubeIframeRef.current) {
         try {
           youtubeIframeRef.current.src = 'about:blank';
-        } catch (e) {
-          console.warn('[SourceReaderGate] Error cleaning up YouTube iframe:', e);
-        }
+        } catch (e) {}
       }
     };
   }, []);
 
   useEffect(() => {
     if (!isOpen) {
-      setTimeLeft(10);
+      setTimeLeft(minSeconds);
       setScrollProgress(0);
       setHasScrolledToBottom(false);
       setShowTypingIndicator(false);
-      setAsyncTranscript(null);
-      setTranscriptLoading(false);
-      setTranscriptError(null);
-      transcriptFetchedRef.current = false;
-
-      // Use centralized scroll lock
       unlockBodyScroll('reader');
       return;
     }
 
-    // Use centralized scroll lock
     lockBodyScroll('reader');
 
-    // Show typing indicator briefly at start
+    // Show typing indicator briefly
     setShowTypingIndicator(true);
     const indicatorTimer = safeSetTimeout(() => setShowTypingIndicator(false), 2000);
 
-    // Timer countdown (10s)
+    // Timer countdown
     const timer = setInterval(() => {
       setTimeLeft(prev => {
-        if (prev <= 1) {
-          return 0;
-        }
+        if (prev <= 1) return 0;
         return prev - 1;
       });
     }, 1000);
@@ -308,70 +261,17 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     return () => {
       clearTimeout(indicatorTimer);
       clearInterval(timer);
-      // Use centralized scroll lock
       unlockBodyScroll('reader');
     };
-  }, [isOpen, safeSetTimeout]);
+  }, [isOpen, safeSetTimeout, minSeconds]);
 
-  // Async YouTube transcript fetch
-  useEffect(() => {
-    if (!isOpen || source.platform !== 'youtube') return;
-    if (transcriptFetchedRef.current) return;
-    
-    // Check if transcript is already available from cache
-    const existingTranscript = source.transcript;
-    const transcriptStatus = (source as any).transcriptStatus;
-    
-    if (existingTranscript && existingTranscript.length > 50) {
-      console.log('[SourceReaderGate] Transcript already cached:', existingTranscript.length, 'chars');
-      setAsyncTranscript(existingTranscript);
-      return;
-    }
-    
-    // If transcriptStatus is 'pending', fetch async
-    if (transcriptStatus === 'pending' || !existingTranscript) {
-      transcriptFetchedRef.current = true;
-      setTranscriptLoading(true);
-      setTranscriptError(null);
-      
-      console.log('[SourceReaderGate] Starting async transcript fetch for:', source.url);
-      
-      fetchYouTubeTranscript(source.url)
-        .then((result) => {
-          if (!isMountedRef.current) return;
-          
-          if (result.transcript && result.transcript.length > 50) {
-            console.log('[SourceReaderGate] Async transcript received:', result.transcript.length, 'chars');
-            setAsyncTranscript(result.transcript);
-            setTranscriptError(null);
-          } else if (result.error) {
-            console.warn('[SourceReaderGate] Transcript error:', result.error);
-            setTranscriptError(result.error);
-          } else if (result.source === 'none') {
-            setTranscriptError('Questo video non ha sottotitoli disponibili');
-          }
-        })
-        .catch((err) => {
-          if (!isMountedRef.current) return;
-          console.error('[SourceReaderGate] Transcript fetch failed:', err);
-          setTranscriptError('Errore nel caricamento della trascrizione');
-        })
-        .finally(() => {
-          if (isMountedRef.current) {
-            setTranscriptLoading(false);
-          }
-        });
-    }
-  }, [isOpen, source.platform, source.url, source.transcript]);
-
-  // Scroll handler semplificato
+  // Scroll handler
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
     const progressValue = Math.min(100, (scrollTop / (scrollHeight - clientHeight)) * 100);
     setScrollProgress(progressValue);
 
     const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
-
     if (isAtBottom && !hasScrolledToBottom) {
       setHasScrolledToBottom(true);
     }
@@ -383,16 +283,16 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
   if (!isOpen) return null;
 
-  // Check if content is blocked (anti-bot protection)
-  const isBlocked = (source as any).contentQuality === 'blocked';
+  // Check if content is blocked
+  const isBlocked = source.contentQuality === 'blocked';
 
-  // SEMPLIFICATO: isReady = timer 0 OPPURE scroll 100% OPPURE contenuto bloccato (bypass gate)
+  // Gate ready = timer 0 OR scroll 100% OR blocked (bypass gate)
   const isReady = isBlocked || timeLeft === 0 || hasScrolledToBottom;
 
   const handleComplete = () => {
     addBreadcrumb('reader_proceed_clicked', {
-      platform: (source as any).platform,
-      isBlocked: (source as any).contentQuality === 'blocked'
+      platform: source.platform,
+      isBlocked: source.contentQuality === 'blocked'
     });
 
     sendReaderTelemetry({
@@ -400,12 +300,11 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       articleId: source.url,
       finalReadRatio: 1
     });
+    
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (window as any).__np_last_gate_event = { event: 'reader_complete_clicked', at: Date.now(), url: source.url };
-    } catch {
-      // ignore
-    }
+    } catch {}
+    
     onComplete();
   };
 
@@ -422,6 +321,420 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     }
   };
 
+  // Render platform-specific content
+  const renderContent = () => {
+    // YouTube
+    if (source.platform === 'youtube' && source.embedHtml && !isClosing) {
+      return (
+        <div className="max-w-2xl mx-auto space-y-4">
+          {/* YouTube Embed */}
+          {!isIOS ? (
+            <div className="w-full">
+              <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden">
+                {(() => {
+                  const iframeSrc = extractIframeSrc(source.embedHtml!);
+                  const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
+
+                  return isValidSrc ? (
+                    <iframe
+                      ref={youtubeIframeRef}
+                      src={iframeSrc}
+                      className="w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      sandbox="allow-scripts allow-same-origin allow-presentation"
+                      title="Embedded YouTube video"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full p-4 text-destructive">
+                      Invalid embed source
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border bg-muted/30 p-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 rounded-lg border border-border bg-card p-2">
+                  <ExternalLink className="h-4 w-4 text-foreground" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-foreground">Player YouTube disattivato su iOS</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Per evitare schermate bianche/crash su Safari iOS, apriamo il video fuori dall'app.
+                  </p>
+                  <div className="mt-3">
+                    <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
+                      <ExternalLink className="h-3 w-3" />
+                      Apri su YouTube
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Transcript status badge (no full text shown) */}
+          {source.transcriptStatus === 'cached' && (
+            <div className="bg-trust-high/10 border border-trust-high/20 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-trust-high" />
+                <span className="text-sm font-medium text-trust-high">
+                  Trascrizione disponibile per il test
+                </span>
+              </div>
+            </div>
+          )}
+          
+          {source.transcriptStatus === 'pending' && (
+            <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                <span className="text-sm font-medium text-primary">
+                  Trascrizione in preparazione...
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // TikTok
+    if (source.platform === 'tiktok' && !isClosing) {
+      return (
+        <div className="max-w-2xl mx-auto space-y-4">
+          <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-lg">
+            <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center">
+              <span className="text-lg">🎵</span>
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">TikTok</p>
+              {source.author && (
+                <p className="text-sm text-muted-foreground">{source.author}</p>
+              )}
+            </div>
+          </div>
+
+          {source.embedHtml && !isIOS ? (
+            <div className="w-full flex justify-center bg-muted/50 rounded-lg p-4">
+              {(() => {
+                const iframeSrc = extractIframeSrc(source.embedHtml!);
+                const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
+
+                return isValidSrc ? (
+                  <iframe
+                    src={iframeSrc}
+                    className="w-full max-w-[325px]"
+                    style={{ height: '738px' }}
+                    allow="encrypted-media"
+                    sandbox="allow-scripts allow-same-origin allow-presentation"
+                    title="Embedded TikTok video"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-64 p-4 text-destructive">
+                    Invalid embed source
+                  </div>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
+              <p className="text-sm text-muted-foreground mb-4">
+                {isIOS ? 'Player TikTok disattivato su iOS' : 'Contenuto TikTok non visualizzabile'}
+              </p>
+              <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
+                <ExternalLink className="h-3 w-3" />
+                Apri su TikTok
+              </Button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Spotify
+    if (source.platform === 'spotify' && !isClosing) {
+      return (
+        <div className="max-w-2xl mx-auto space-y-4">
+          <div className="flex items-center gap-3 p-4 bg-[#1DB954]/10 border border-[#1DB954]/20 rounded-lg">
+            <div className="w-10 h-10 rounded-full bg-[#1DB954] flex items-center justify-center">
+              <Music className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">Spotify</p>
+              {source.author && (
+                <p className="text-sm text-muted-foreground">{source.author}</p>
+              )}
+            </div>
+          </div>
+
+          {source.embedHtml && !isIOS ? (
+            <div className="w-full flex justify-center bg-muted/50 rounded-lg p-4">
+              {(() => {
+                const iframeSrc = extractIframeSrc(source.embedHtml!);
+                const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
+
+                return isValidSrc ? (
+                  <iframe
+                    ref={spotifyIframeRef}
+                    src={iframeSrc}
+                    className="w-full rounded-xl"
+                    style={{ height: '352px' }}
+                    allow="encrypted-media"
+                    sandbox="allow-scripts allow-same-origin allow-presentation"
+                    title="Embedded Spotify content"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-64 p-4 text-destructive">
+                    Invalid embed source
+                  </div>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border bg-muted/30 p-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 rounded-lg border border-border bg-card p-2">
+                  <ExternalLink className="h-4 w-4 text-foreground" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-foreground">Player Spotify disattivato su iOS</p>
+                  <div className="mt-3">
+                    <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
+                      <ExternalLink className="h-3 w-3" />
+                      Apri su Spotify
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Lyrics status badge (no full lyrics shown) */}
+          {source.lyricsAvailable && (
+            <div className="bg-trust-high/10 border border-trust-high/20 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-trust-high" />
+                <span className="text-sm font-medium text-trust-high">
+                  Testo disponibile per il test
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Twitter/X
+    if (source.platform === 'twitter' && !isClosing) {
+      return (
+        <div className="max-w-2xl mx-auto space-y-4">
+          {isIOS ? (
+            // iOS: Enhanced X-styled card
+            <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-[#15202B] to-[#0d1117] p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 rounded-full border border-white/20 overflow-hidden bg-[#15202B]">
+                  {(source as any).author_avatar ? (
+                    <img 
+                      src={(source as any).author_avatar}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-white/50 text-lg font-bold">
+                      {((source as any).author_name || source.author || 'X').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-white font-semibold">
+                      {(source as any).author_name || source.author || 'X User'}
+                    </p>
+                    {(source as any).is_verified && (
+                      <svg className="w-4 h-4 text-[#1DA1F2] flex-shrink-0" viewBox="0 0 22 22" fill="currentColor">
+                        <path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"/>
+                      </svg>
+                    )}
+                  </div>
+                  {source.author_username && (
+                    <p className="text-gray-400 text-sm">@{source.author_username}</p>
+                  )}
+                </div>
+                <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center">
+                  <span className="text-black font-bold text-xs">𝕏</span>
+                </div>
+              </div>
+              
+              {/* Short summary only, no full tweet text */}
+              {source.summary && (
+                <p className="text-white text-base leading-relaxed mb-4">
+                  {source.summary}
+                </p>
+              )}
+              
+              {source.image && (
+                <div className="rounded-xl overflow-hidden mb-4">
+                  <img src={source.image} alt="" className="w-full h-48 object-cover" />
+                </div>
+              )}
+              
+              <Button 
+                variant="outline" 
+                onClick={openSource} 
+                className="w-full gap-2 bg-white/10 border-white/20 text-white hover:bg-white/20"
+              >
+                <ExternalLink className="h-4 w-4" />
+                Apri su X
+              </Button>
+            </div>
+          ) : source.embedHtml ? (
+            // Desktop: show embed widget
+            <div className="twitter-embed-container">
+              {isRenderingTwitter && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                  <span className="text-sm text-muted-foreground">Caricamento tweet...</span>
+                </div>
+              )}
+              <div 
+                dangerouslySetInnerHTML={{ __html: source.embedHtml }}
+                className="overflow-hidden"
+              />
+            </div>
+          ) : (
+            // No embed: show CTA
+            <div className="p-4 bg-muted/30 rounded-lg border border-border">
+              <p className="text-foreground mb-3">{source.summary || 'Tweet'}</p>
+              <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
+                <ExternalLink className="h-3 w-3" />
+                Apri su X/Twitter
+              </Button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Blocked content
+    if (isBlocked) {
+      return (
+        <div className="max-w-2xl mx-auto space-y-4">
+          <div className="p-6 bg-warning/10 border border-warning/30 rounded-xl">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-full bg-warning/20 flex items-center justify-center flex-shrink-0">
+                <span className="text-2xl">🛡️</span>
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-foreground mb-2">
+                  Sito protetto
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Questo sito utilizza protezioni anti-bot che impediscono la lettura automatica del contenuto.
+                  Per leggere l'articolo, aprilo direttamente nel browser.
+                </p>
+                <Button 
+                  onClick={openSource}
+                  className="gap-2 bg-warning text-warning-foreground hover:bg-warning/90"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Apri l'originale
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 bg-card border border-border rounded-lg">
+            <div className="flex items-center gap-3">
+              {source.image && (
+                <img 
+                  src={source.image} 
+                  alt="" 
+                  className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <h4 className="font-medium text-foreground truncate">
+                  {source.title || 'Articolo'}
+                </h4>
+                <p className="text-xs text-muted-foreground truncate mt-1">
+                  {source.hostname || new URL(source.url).hostname}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <p className="text-xs text-muted-foreground">
+              Puoi comunque procedere al test basandoti sulla lettura nell'originale
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // Generic article - SOURCE-FIRST: Use iframe instead of showing full text
+    return (
+      <div className="max-w-2xl mx-auto space-y-4">
+        {/* Article preview card */}
+        <div className="p-4 bg-card border border-border rounded-lg">
+          <div className="flex items-start gap-4">
+            {source.image && (
+              <img 
+                src={source.image} 
+                alt="" 
+                className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
+              />
+            )}
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-foreground">
+                {source.title || 'Articolo'}
+              </h3>
+              {source.author && (
+                <p className="text-sm text-muted-foreground mt-1">{source.author}</p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                {source.hostname || new URL(source.url).hostname}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Short summary only */}
+        {source.summary && (
+          <div className="p-4 bg-muted/20 rounded-xl border border-border/50">
+            <p className="text-foreground text-base leading-7">{source.summary}</p>
+          </div>
+        )}
+
+        {/* Content quality badge */}
+        {source.contentQuality === 'complete' && (
+          <div className="bg-trust-high/10 border border-trust-high/20 rounded-lg p-3">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-trust-high" />
+              <span className="text-sm font-medium text-trust-high">
+                Contenuto completo disponibile per il test
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* CTA to open original */}
+        <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl text-center">
+          <p className="text-sm text-muted-foreground mb-3">
+            Leggi l'articolo completo nell'originale
+          </p>
+          <Button variant="outline" onClick={openSource} className="gap-2">
+            <ExternalLink className="h-4 w-4" />
+            Apri l'originale
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div 
       ref={rootRef}
@@ -431,7 +744,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       onTouchMove={handleBackdropTouch}
     >
       <div className="bg-card rounded-3xl w-[92vw] h-[86vh] flex flex-col border border-border/50 shadow-2xl animate-slide-up-blur overflow-hidden">
-        {/* Header - Modernized */}
+        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 bg-muted/30">
           <div className="flex-1">
             <h2 className="font-semibold text-lg text-foreground">
@@ -451,7 +764,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           </Button>
         </div>
 
-        {/* Progress Bar - Semplificato (nascosto se contenuto bloccato) */}
+        {/* Progress Bar (hidden if blocked) */}
         {!isBlocked && (
           <div className="px-5 py-3 bg-muted/20 border-b border-border/30">
             <div className="flex items-center justify-between text-sm mb-2">
@@ -480,12 +793,12 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               </div>
               {!isReady && (
                 <span className="text-muted-foreground text-xs">
-                  10s o scorri tutto
+                  {minSeconds}s o scorri tutto
                 </span>
               )}
             </div>
 
-            {/* Progress bars - Compact */}
+            {/* Progress bars */}
             <div className="flex gap-2">
               <div className="flex-1 bg-muted rounded-full h-1.5">
                 <div
@@ -494,7 +807,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                     timeLeft === 0 ? "bg-trust-high" : "bg-primary"
                   )}
                   style={{
-                    width: `${((10 - timeLeft) / 10) * 100}%`,
+                    width: `${((minSeconds - timeLeft) / minSeconds) * 100}%`,
                     transitionDuration: '1000ms'
                   }}
                 />
@@ -513,17 +826,21 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           </div>
         )}
 
-        {/* Source Badge - New */}
+        {/* Source Badge */}
         <div className="px-5 py-3 border-b border-border/30 bg-card">
           <div className="flex items-center gap-3">
-            {(source as any).contentQuality && (
+            {source.contentQuality && (
               <div className={cn(
                 "px-2.5 py-1 rounded-full text-xs font-medium",
-                (source as any).contentQuality === 'complete' 
+                source.contentQuality === 'complete' 
                   ? "bg-trust-high/15 text-trust-high"
-                  : "bg-warning/15 text-warning"
+                  : source.contentQuality === 'blocked'
+                    ? "bg-warning/15 text-warning"
+                    : "bg-muted text-muted-foreground"
               )}>
-                {(source as any).contentQuality === 'complete' ? '✓ Completo' : '⚠ Parziale'}
+                {source.contentQuality === 'complete' ? '✓ Completo' : 
+                 source.contentQuality === 'blocked' ? '🛡️ Protetto' : 
+                 '⚠ Parziale'}
               </div>
             )}
             <span className="text-xs text-muted-foreground truncate flex-1">
@@ -532,7 +849,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           </div>
         </div>
 
-        {/* Content Area - Modernized with better typography */}
+        {/* Content Area */}
         <div
           ref={scrollContainerRef}
           className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
@@ -540,547 +857,18 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           onScroll={handleScroll}
         >
           <div className="px-5 py-6 space-y-5 max-w-full overflow-hidden">
-            {source.embedHtml && source.platform === 'youtube' && !isClosing ? (
-              <>
-                {/* YouTube Embed */}
-                {!isIOS ? (
-                  <div className="w-full">
-                    <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden">
-                      {(() => {
-                        const iframeSrc = extractIframeSrc(source.embedHtml);
-                        const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
-
-                        return isValidSrc ? (
-                          <iframe
-                            ref={youtubeIframeRef}
-                            src={iframeSrc}
-                            className="w-full h-full"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                            sandbox="allow-scripts allow-same-origin allow-presentation"
-                            title="Embedded YouTube video"
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center h-full p-4 text-destructive">
-                            Invalid embed source
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-border bg-muted/30 p-4">
-                    <div className="flex items-start gap-3">
-                      <div className="mt-0.5 rounded-lg border border-border bg-card p-2">
-                        <ExternalLink className="h-4 w-4 text-foreground" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-foreground">Player YouTube disattivato su iOS</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Per evitare schermate bianche/crash su Safari iOS, apriamo il video fuori dall'app.
-                        </p>
-                        <div className="mt-3">
-                          <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
-                            <ExternalLink className="h-3 w-3" />
-                            Apri su YouTube
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {/* Transcript Status Badges - Async aware */}
-                {(() => {
-                  const displayTranscript = asyncTranscript || source.transcript;
-                  const hasTranscript = displayTranscript && displayTranscript.length > 50;
-                  
-                  if (transcriptLoading) {
-                    return (
-                      <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
-                        <div className="flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                          <span className="text-sm font-medium text-primary">
-                            Trascrizione in caricamento...
-                          </span>
-                        </div>
-                        <p className="text-xs text-primary/70 mt-1">
-                          Potrebbe richiedere fino a 60 secondi per video lunghi
-                        </p>
-                      </div>
-                    );
-                  }
-                  
-                  if (hasTranscript) {
-                    return (
-                      <div className="bg-trust-high/10 border border-trust-high/20 rounded-lg p-3">
-                        <div className="flex items-center gap-2">
-                          <Check className="h-4 w-4 text-trust-high" />
-                          <span className="text-sm font-medium text-trust-high">
-                            Trascrizione Completa Disponibile
-                          </span>
-                        </div>
-                        <p className="text-xs text-trust-high/70 mt-1">
-                          Lunghezza: {displayTranscript.length} caratteri
-                        </p>
-                      </div>
-                    );
-                  }
-                  
-                  if (transcriptError) {
-                    return (
-                      <div className="bg-warning/10 border border-warning/20 rounded-lg p-3">
-                        <div className="flex items-start gap-2">
-                          <div className="flex-1">
-                            <span className="text-sm font-medium text-warning block">
-                              ⚠️ Trascrizione Non Disponibile
-                            </span>
-                            <p className="text-xs text-warning/70 mt-1">
-                              {transcriptError}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-                  
-                  return null;
-                })()}
-                
-                {/* Transcript Text - Simple render (async aware) */}
-                {(() => {
-                  const displayTranscript = asyncTranscript || source.transcript;
-                  if (!displayTranscript || displayTranscript.length < 50) return null;
-                  
-                  return (
-                    <div className="prose prose-sm max-w-none">
-                      <h4 className="text-base font-semibold text-foreground mb-3">
-                        Trascrizione del Video
-                      </h4>
-                      <div className="whitespace-pre-wrap text-foreground leading-relaxed bg-muted/30 rounded-lg p-4 border border-border">
-                        {displayTranscript}
-                      </div>
-                    </div>
-                  );
-                })()}
-                
-                <div className="h-32"></div>
-              </>
-            ) : isClosing ? (
+            {isClosing ? (
               <div className="flex items-center justify-center py-12">
                 <span className="text-sm text-muted-foreground">Chiusura…</span>
               </div>
-            ) : source.platform === 'tiktok' && !isClosing ? (
-              <>
-                {/* TikTok Content */}
-                <div className="max-w-2xl mx-auto space-y-4">
-                  <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-lg">
-                    <div className="w-10 h-10 rounded-full bg-black flex items-center justify-center">
-                      <span className="text-lg">🎵</span>
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground">TikTok</p>
-                      {source.author && (
-                        <p className="text-sm text-muted-foreground">{source.author}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {source.embedHtml ? (
-                    <div className="w-full flex justify-center bg-muted/50 rounded-lg p-4">
-                      {isIOS ? (
-                        <div className="w-full text-center">
-                          <p className="text-sm text-muted-foreground">
-                            Per evitare schermate bianche/crash su Safari iOS, il player TikTok è disattivato.
-                          </p>
-                          <div className="mt-3 flex justify-center">
-                            <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
-                              <ExternalLink className="h-3 w-3" />
-                              Apri su TikTok
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        (() => {
-                          const iframeSrc = extractIframeSrc(source.embedHtml);
-                          const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
-
-                          return isValidSrc ? (
-                            <iframe
-                              src={iframeSrc}
-                              className="w-full max-w-[325px]"
-                              style={{ height: '738px' }}
-                              allow="encrypted-media"
-                              sandbox="allow-scripts allow-same-origin allow-presentation"
-                              title="Embedded TikTok video"
-                            />
-                          ) : (
-                            <div className="flex items-center justify-center h-64 p-4 text-destructive">
-                              <div className="text-center">
-                                <p className="text-sm">Invalid embed source</p>
-                              </div>
-                            </div>
-                          );
-                        })()
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Contenuto TikTok non visualizzabile
-                      </p>
-                      <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
-                        <ExternalLink className="h-3 w-3" />
-                        Apri su TikTok
-                      </Button>
-                    </div>
-                  )}
-
-                  {source.content && (
-                    <div className="p-4 bg-muted/30 rounded-lg border border-border">
-                      <p className="text-foreground">{source.content}</p>
-                    </div>
-                  )}
-                </div>
-                <div className="h-32"></div>
-              </>
-            ) : source.platform === 'spotify' && !isClosing ? (
-              <>
-                {/* Spotify Content */}
-                <div className="max-w-2xl mx-auto space-y-4">
-                  <div className="flex items-center gap-3 p-4 bg-[#1DB954]/10 border border-[#1DB954]/20 rounded-lg">
-                    <div className="w-10 h-10 rounded-full bg-[#1DB954] flex items-center justify-center">
-                      <Music className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground">Spotify</p>
-                      {source.author && (
-                        <p className="text-sm text-muted-foreground">{source.author}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {source.embedHtml && !isIOS ? (
-                    <div className="w-full flex justify-center bg-muted/50 rounded-lg p-4">
-                      {(() => {
-                        const iframeSrc = extractIframeSrc(source.embedHtml);
-                        const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
-
-                        return isValidSrc ? (
-                          <iframe
-                            ref={spotifyIframeRef}
-                            src={iframeSrc}
-                            className="w-full rounded-xl"
-                            style={{ height: '352px' }}
-                            allow="encrypted-media"
-                            sandbox="allow-scripts allow-same-origin allow-presentation"
-                            title="Embedded Spotify content"
-                          />
-                        ) : (
-                          <div className="flex items-center justify-center h-64 p-4 text-destructive">
-                            <div className="text-center">
-                              <p className="text-sm">Invalid embed source</p>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  ) : isIOS ? (
-                    <div className="rounded-xl border border-border bg-muted/30 p-4">
-                      <div className="flex items-start gap-3">
-                        <div className="mt-0.5 rounded-lg border border-border bg-card p-2">
-                          <ExternalLink className="h-4 w-4 text-foreground" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-foreground">Player Spotify disattivato su iOS</p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Per evitare schermate bianche/crash su Safari iOS.
-                          </p>
-                          <div className="mt-3">
-                            <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
-                              <ExternalLink className="h-3 w-3" />
-                              Apri su Spotify
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {/* Lyrics/Transcript */}
-                  {source.transcript && (
-                    <div className="prose prose-sm max-w-none">
-                      <h4 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
-                        <Music className="h-4 w-4" />
-                        {(source as any).geniusUrl ? 'Testo da Genius' : 'Contenuto'}
-                      </h4>
-                      <div className="whitespace-pre-wrap text-foreground leading-relaxed bg-muted/30 rounded-lg p-4 border border-border font-mono text-sm">
-                        {source.transcript}
-                      </div>
-                    </div>
-                  )}
-
-                  {(source as any).geniusUrl && (
-                    <a 
-                      href={(source as any).geniusUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      Vedi su Genius
-                    </a>
-                  )}
-                </div>
-                <div className="h-32"></div>
-              </>
-            ) : source.platform === 'twitter' && !isClosing ? (
-              <>
-                {/* Twitter Content - iOS Safe Mode: Enhanced card */}
-                <div className="max-w-2xl mx-auto space-y-4">
-                  {isIOS ? (
-                    // iOS Safe Mode: Enhanced X-styled card instead of embed
-                    <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-[#15202B] to-[#0d1117] p-5">
-                      {/* Author Header with Avatar */}
-                      <div className="flex items-center gap-3 mb-4">
-                        <div className="w-12 h-12 rounded-full border border-white/20 overflow-hidden bg-[#15202B]">
-                          {(source as any).author_avatar ? (
-                            <img 
-                              src={(source as any).author_avatar}
-                              alt=""
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-white/50 text-lg font-bold">
-                              {((source as any).author_name || (source as any).author_username || source.author || 'X').charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-white font-semibold">
-                              {(source as any).author_name || source.author || 'X User'}
-                            </p>
-                            {/* Verification Badge */}
-                            {(source as any).is_verified && (
-                              <svg className="w-4 h-4 text-[#1DA1F2] flex-shrink-0" viewBox="0 0 22 22" fill="currentColor">
-                                <path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"/>
-                              </svg>
-                            )}
-                          </div>
-                          {(source as any).author_username && (
-                            <p className="text-gray-400 text-sm">@{(source as any).author_username}</p>
-                          )}
-                        </div>
-                        <div className="w-7 h-7 rounded-full bg-white flex items-center justify-center">
-                          <span className="text-black font-bold text-xs">𝕏</span>
-                        </div>
-                      </div>
-                      
-                      {/* Tweet Text */}
-                      {source.content && (
-                        <p className="text-white text-base leading-relaxed mb-4 whitespace-pre-wrap">
-                          {source.content}
-                        </p>
-                      )}
-                      
-                      {/* Media if available */}
-                      {source.image && (
-                        <div className="rounded-xl overflow-hidden mb-4">
-                          <img src={source.image} alt="" className="w-full h-48 object-cover" />
-                        </div>
-                      )}
-                      
-                      {/* Tweet Date */}
-                      {(source as any).tweetDate && (
-                        <p className="text-gray-500 text-sm mb-4">{(source as any).tweetDate}</p>
-                      )}
-                      
-                      {/* CTA */}
-                      <Button 
-                        variant="outline" 
-                        onClick={openSource} 
-                        className="w-full gap-2 bg-white/10 border-white/20 text-white hover:bg-white/20"
-                      >
-                        <ExternalLink className="h-4 w-4" />
-                        Apri su X
-                      </Button>
-                    </div>
-                  ) : source.embedHtml ? (
-                    // Desktop: show embed widget
-                    <div className="twitter-embed-container">
-                      {isRenderingTwitter && (
-                        <div className="flex items-center justify-center py-8">
-                          <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
-                          <span className="text-sm text-muted-foreground">Caricamento tweet...</span>
-                        </div>
-                      )}
-                      <div 
-                        dangerouslySetInnerHTML={{ __html: source.embedHtml }}
-                        className="overflow-hidden"
-                      />
-                    </div>
-                  ) : (
-                    // No embed available: show content text
-                    <div className="p-4 bg-muted/30 rounded-lg border border-border">
-                      <p className="text-foreground">{source.content || 'Contenuto Twitter non disponibile'}</p>
-                      <div className="mt-3">
-                        <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
-                          <ExternalLink className="h-3 w-3" />
-                          Apri su X/Twitter
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="h-32"></div>
-              </>
-            ) : isBlocked ? (
-              <>
-                {/* Blocked Content - Anti-bot protection detected */}
-                <div className="max-w-2xl mx-auto space-y-4">
-                  {/* Blocked notice card */}
-                  <div className="p-6 bg-warning/10 border border-warning/30 rounded-xl">
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-full bg-warning/20 flex items-center justify-center flex-shrink-0">
-                        <span className="text-2xl">🛡️</span>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-foreground mb-2">
-                          Sito protetto
-                        </h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          Questo sito utilizza protezioni anti-bot che impediscono la lettura automatica del contenuto.
-                          Per leggere l'articolo, aprilo direttamente nel browser.
-                        </p>
-                        <Button 
-                          onClick={openSource}
-                          className="gap-2 bg-warning text-warning-foreground hover:bg-warning/90"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                          Apri l'originale
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Source preview card */}
-                  <div className="p-4 bg-card border border-border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      {source.image && (
-                        <img 
-                          src={source.image} 
-                          alt="" 
-                          className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-foreground truncate">
-                          {source.title || 'Articolo'}
-                        </h4>
-                        <p className="text-xs text-muted-foreground truncate mt-1">
-                          {new URL(source.url).hostname}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground">
-                      Puoi comunque procedere al test basandoti sulla lettura nell'originale
-                    </p>
-                  </div>
-                </div>
-                <div className="h-32"></div>
-              </>
             ) : (
-              <>
-                {/* Generic Article/Content - Clean extraction without truncation */}
-                <div className="max-w-full mx-auto space-y-5 overflow-hidden">
-                  {source.image && (
-                    <div className="rounded-2xl overflow-hidden shadow-lg">
-                      <img 
-                        src={source.image} 
-                        alt={source.title || 'Preview'} 
-                        className="w-full h-auto object-cover"
-                      />
-                    </div>
-                  )}
-
-                  {source.content ? (
-                    <div className="max-w-full overflow-hidden">
-                      <div className="text-foreground text-base leading-7 break-words space-y-4">
-                      {/* Clean content extraction - preserve full text, only clean formatting */}
-                        {source.content
-                          // Remove [SOURCE:N] markers
-                          .replace(/\[SOURCE:\d+\]/g, '')
-                          // Convert markdown links to just text
-                          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-                          // Remove markdown headings markers (but keep text)
-                          .replace(/^#{1,6}\s+/gm, '')
-                          // Remove bold markdown
-                          .replace(/\*\*([^*]+)\*\*/g, '$1')
-                          // Remove italic markdown
-                          .replace(/\*([^*]+)\*/g, '$1')
-                          // Remove only lines that START with social/nav patterns
-                          .split('\n')
-                          .filter(line => {
-                            const trimmed = line.trim().toLowerCase();
-                            // Skip empty lines that would create excessive spacing
-                            if (!trimmed) return true;
-                            // Skip lines that are just social/nav elements at the START
-                            const skipPatterns = [
-                              /^condividi\s*(su|:)?$/i,
-                              /^share\s*(on|:)?$/i,
-                              /^(facebook|twitter|whatsapp|telegram|linkedin|email)\s*$/i,
-                              /^x\s*\(twitter\)\s*$/i,
-                              /^leggi anche\s*:?$/i,
-                              /^potrebbe interessarti\s*:?$/i,
-                              /^articoli correlati\s*:?$/i,
-                              /^continua a leggere\s*$/i,
-                              /^clicca qui\s*$/i,
-                              /^https?:\/\/\S+$/i, // Lines that are ONLY a URL
-                            ];
-                            return !skipPatterns.some(p => p.test(trimmed));
-                          })
-                          .join('\n')
-                          // Collapse excessive newlines
-                          .replace(/\n{4,}/g, '\n\n\n')
-                          .trim()
-                          .split(/\n\n+/)
-                          .map((paragraph, idx) => (
-                            <p key={idx} className="text-foreground">
-                              {paragraph.trim()}
-                            </p>
-                          ))}
-                      </div>
-                    </div>
-                  ) : source.summary ? (
-                    <div className="p-5 bg-muted/20 rounded-2xl border border-border/50">
-                      <p className="text-foreground text-base leading-7 break-words">{source.summary}</p>
-                    </div>
-                  ) : (
-                    <div className="text-center p-8 bg-muted/20 rounded-2xl border border-border/50">
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Contenuto non disponibile per l'anteprima
-                      </p>
-                      <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
-                        <ExternalLink className="h-3 w-3" />
-                        Apri l'originale
-                      </Button>
-                    </div>
-                  )}
-                </div>
-                <div className="h-32"></div>
-              </>
+              renderContent()
             )}
+            <div className="h-32"></div>
           </div>
         </div>
 
-        {/* Footer Actions - Modernized */}
+        {/* Footer Actions */}
         <div className="px-5 py-4 border-t border-border/50 bg-card">
           <div className="flex gap-3">
             <Button 
