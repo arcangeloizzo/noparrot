@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.fetch-lyrics]
 verify_jwt = true
+
+[functions.cleanup-expired-cache]
+verify_jwt = false
