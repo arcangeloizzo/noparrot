@@ -1,5 +1,5 @@
 import React from "react";
-import { Heart, MessageCircle, Bookmark, Info, ShieldCheck, Quote } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, Info, ShieldCheck, Quote, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFocusReactions, useToggleFocusReaction } from "@/hooks/useFocusReactions";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,6 +14,7 @@ import {
   DialogDescription,
   DialogClose,
 } from "@/components/ui/dialog";
+import { WhyAmISeeingThis } from "./WhyAmISeeingThis";
 
 interface Source {
   icon: string;
@@ -62,6 +63,7 @@ export const ImmersiveFocusCard = ({
   // Track which dialogs are open to prevent card click while any dialog is open
   const [infoDialogOpen, setInfoDialogOpen] = React.useState(false);
   const [trustDialogOpen, setTrustDialogOpen] = React.useState(false);
+  const [whyDialogOpen, setWhyDialogOpen] = React.useState(false);
   
   // Suppress card click for a brief moment after dialog closes
   const suppressUntilRef = React.useRef(0);
@@ -75,7 +77,7 @@ export const ImmersiveFocusCard = ({
 
   const handleCardClick = () => {
     // Don't trigger if any dialog is open
-    if (infoDialogOpen || trustDialogOpen) return;
+    if (infoDialogOpen || trustDialogOpen || whyDialogOpen) return;
     // Don't trigger if we're in suppress window
     if (Date.now() < suppressUntilRef.current) return;
     onClick?.();
@@ -230,13 +232,37 @@ export const ImmersiveFocusCard = ({
             )}
           </div>
 
-          {/* Row 2: Categoria (solo per Per Te) */}
-          {!isDailyFocus && category && (
-            <div className="inline-flex self-start px-3 py-1 bg-white/10 backdrop-blur-md rounded-lg text-xs text-white/70 font-medium truncate max-w-[200px]">
-              {category}
+          {/* Row 2: Categoria + DSA "Perché vedo questo?" (solo per Per Te) */}
+          {!isDailyFocus && (
+            <div className="flex items-center gap-2">
+              {category && (
+                <div className="inline-flex px-3 py-1 bg-white/10 backdrop-blur-md rounded-lg text-xs text-white/70 font-medium truncate max-w-[200px]">
+                  {category}
+                </div>
+              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setWhyDialogOpen(true);
+                }}
+                className="inline-flex items-center gap-1 px-2 py-1 bg-white/5 hover:bg-white/10 backdrop-blur-md rounded-lg text-xs text-white/50 hover:text-white/70 transition-colors"
+              >
+                <HelpCircle className="w-3 h-3" />
+                <span>Perché vedo questo?</span>
+              </button>
             </div>
           )}
         </div>
+        
+        {/* DSA WhyAmISeeingThis Dialog */}
+        <WhyAmISeeingThis 
+          open={whyDialogOpen} 
+          onOpenChange={(open) => {
+            setWhyDialogOpen(open);
+            handleDialogChange(open);
+          }}
+          category={category || 'Generale'}
+        />
 
         {/* Center Content */}
         <div className="flex-1 flex flex-col justify-center px-2">

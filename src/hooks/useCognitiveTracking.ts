@@ -11,21 +11,32 @@ export function useCognitiveTracking() {
     mutationFn: async (enabled: boolean) => {
       if (!user) throw new Error("Not authenticated");
       
+      // Update cognitive tracking
       const { error } = await supabase
         .from("profiles")
         .update({ cognitive_tracking_enabled: enabled })
         .eq("id", user.id);
       
       if (error) throw error;
+
+      // GDPR coherence: if tracking is disabled, also disable ads personalization
+      if (!enabled) {
+        await supabase
+          .from("user_consents")
+          .update({ ads_personalization_opt_in: false })
+          .eq("user_id", user.id);
+      }
+      
       return enabled;
     },
     onSuccess: (enabled) => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       queryClient.invalidateQueries({ queryKey: ["currentProfile"] });
+      queryClient.invalidateQueries({ queryKey: ["userConsents"] });
       toast.success(
         enabled 
           ? "Feed personalizzato attivato" 
-          : "Feed personalizzato disattivato"
+          : "Feed personalizzato disattivato. Annunci personalizzati disattivati."
       );
     },
     onError: () => {

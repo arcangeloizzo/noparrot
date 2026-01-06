@@ -53,6 +53,17 @@ export default function PrivacyPolicy() {
                 <li>EU–US Data Privacy Framework</li>
                 <li>Standard Contractual Clauses (SCC)</li>
               </ul>
+              <div className="mt-4 p-3 bg-muted/30 rounded-lg border border-border">
+                <p className="text-sm text-muted-foreground">
+                  Quando i dati vengono trasferiti fuori dall'Unione Europea (ad esempio negli Stati Uniti), 
+                  utilizziamo meccanismi legali di protezione come le Standard Contractual Clauses (SCC) 
+                  e il Data Privacy Framework UE–USA.
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Puoi richiedere una copia delle clausole contrattuali applicabili scrivendo a{" "}
+                  <a href="mailto:support@noparrot.app" className="text-primary underline">support@noparrot.app</a>.
+                </p>
+              </div>
             </section>
 
             {/* 3. Cosa raccogliamo */}
@@ -113,6 +124,27 @@ export default function PrivacyPolicy() {
               <p className="text-muted-foreground mt-3">
                 <strong>Se lo disattivi:</strong> il feed non è personalizzato e non tracciamo interessi.
               </p>
+              <div className="mt-4 p-3 bg-muted/30 rounded-lg border border-border">
+                <p className="text-sm font-medium text-foreground mb-2">Art. 22 GDPR</p>
+                <p className="text-sm text-muted-foreground">
+                  La profilazione utilizzata da NoParrot non produce effetti giuridici né impatti significativi 
+                  automatici sull'utente. Serve esclusivamente a organizzare e suggerire contenuti e annunci 
+                  all'interno della piattaforma.
+                </p>
+              </div>
+            </section>
+
+            {/* 4.5 Messaggi privati */}
+            <section className="space-y-3">
+              <h3 className="text-lg font-semibold">4.5 Messaggi privati</h3>
+              <p className="text-muted-foreground">
+                I messaggi privati tra utenti sono trattati come comunicazioni riservate.
+              </p>
+              <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-2">
+                <li>Non vengono analizzati né utilizzati dall'intelligenza artificiale</li>
+                <li>Sono trasmessi in modo sicuro</li>
+                <li>Possono essere cancellati in qualsiasi momento dagli utenti</li>
+              </ul>
             </section>
 
             {/* 5. AI */}

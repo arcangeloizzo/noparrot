@@ -28,7 +28,7 @@ export default function TermsOfService() {
         <Card className="p-8">
           <h1 className="text-3xl font-bold mb-2">Termini di Servizio</h1>
           <p className="text-sm text-muted-foreground mb-8">
-            Versione: v1 — Ultimo aggiornamento: 26 dicembre 2025
+            Versione: v2.0 — Ultimo aggiornamento: 6 gennaio 2026
           </p>
 
           <div className="prose prose-sm max-w-none space-y-6">
@@ -48,7 +48,10 @@ export default function TermsOfService() {
             <section>
               <h2 className="text-xl font-semibold mb-3 text-foreground">2. Requisiti d'età</h2>
               <p className="text-foreground">
-                Per utilizzare NoParrot devi avere almeno 13 anni.
+                Per utilizzare NoParrot devi avere almeno 16 anni. Se hai meno di 16 anni non puoi creare un account né utilizzare i servizi.
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Questo requisito è conforme all'Art. 8 del GDPR sul consenso digitale dei minori nell'Unione Europea.
               </p>
             </section>
 
