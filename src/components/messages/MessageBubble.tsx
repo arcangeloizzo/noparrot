@@ -1,14 +1,20 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
-import { Message } from "@/hooks/useMessages";
+import { Message, useDeleteMessageForMe } from "@/hooks/useMessages";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
-import { ExternalLink, Heart } from "lucide-react";
+import { ExternalLink, Heart, MoreHorizontal, Trash2 } from "lucide-react";
 import { memo, useEffect, useState } from "react";
 import { fetchArticlePreview } from "@/lib/ai-helpers";
 import { useMessageReactions } from "@/hooks/useMessageReactions";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const getHostnameFromUrl = (url: string): string => {
   try {
@@ -28,6 +34,12 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
   const isSent = message.sender_id === user?.id;
   const [articlePreview, setArticlePreview] = useState<any>(null);
   const { likes, isLiked, toggleLike, isLoading: isLikeLoading } = useMessageReactions(message.id);
+  const deleteMessageForMe = useDeleteMessageForMe();
+
+  const handleDeleteForMe = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    deleteMessageForMe.mutate({ messageId: message.id, threadId: message.thread_id });
+  };
 
   // Fetch article preview for link_url
   useEffect(() => {
@@ -221,6 +233,24 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
           "flex items-center gap-2 mt-1 px-1",
           isSent ? "flex-row-reverse" : "flex-row"
         )}>
+          {/* More menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="text-muted-foreground hover:text-foreground transition-colors p-0.5">
+                <MoreHorizontal className="w-3.5 h-3.5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align={isSent ? "end" : "start"} className="min-w-[160px]">
+              <DropdownMenuItem 
+                onClick={handleDeleteForMe}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Rimuovi dalla chat
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {/* Like button */}
           <button
             onClick={handleLike}

@@ -34,7 +34,7 @@ export default function ConsentScreen({ onComplete }: ConsentScreenProps) {
           accepted_terms: true,
           accepted_privacy: true,
           ads_personalization_opt_in: adsOptIn,
-          consent_version: "v1",
+          consent_version: "2.0",
         });
       } else {
         // User not authenticated, save to localStorage
@@ -42,7 +42,7 @@ export default function ConsentScreen({ onComplete }: ConsentScreenProps) {
           accepted_terms: true,
           accepted_privacy: true,
           ads_personalization_opt_in: adsOptIn,
-          consent_version: "v1",
+          consent_version: "2.0",
         });
       }
       

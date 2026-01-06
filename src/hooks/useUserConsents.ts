@@ -114,7 +114,7 @@ export const useUpsertConsents = () => {
           accepted_terms: consent.accepted_terms ?? false,
           accepted_privacy: consent.accepted_privacy ?? false,
           ads_personalization_opt_in: consent.ads_personalization_opt_in ?? false,
-          consent_version: consent.consent_version ?? "v1",
+          consent_version: consent.consent_version ?? "2.0",
         });
         setConsentCompleted();
         return null;
@@ -126,7 +126,7 @@ export const useUpsertConsents = () => {
         accepted_terms: consent.accepted_terms ?? false,
         accepted_privacy: consent.accepted_privacy ?? false,
         ads_personalization_opt_in: consent.ads_personalization_opt_in ?? false,
-        consent_version: consent.consent_version ?? "v1",
+        consent_version: consent.consent_version ?? "2.0",
         terms_accepted_at: consent.accepted_terms ? now : null,
         privacy_accepted_at: consent.accepted_privacy ? now : null,
         ads_opt_in_at: consent.ads_personalization_opt_in ? now : null,
