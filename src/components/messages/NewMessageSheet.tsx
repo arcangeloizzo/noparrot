@@ -11,6 +11,7 @@ import { runGateBeforeAction } from "@/lib/runGateBeforeAction";
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 interface NewMessageSheetProps {
   isOpen: boolean;
@@ -143,10 +144,38 @@ export const NewMessageSheet = ({ isOpen, onClose, selectedUsers }: NewMessageSh
         <QuizModal
           questions={quizData.questions}
           onSubmit={async (answers: Record<string, string>) => {
-            quizData.onSuccess();
-            setShowQuiz(false);
-            setQuizData(null);
-            return { passed: true, wrongIndexes: [] };
+            // SECURITY HARDENED: All validation via submit-qa edge function
+            try {
+              const { data, error } = await supabase.functions.invoke('submit-qa', {
+                body: {
+                  qaId: quizData.qaId, // Server-generated qaId
+                  sourceUrl: quizData.sourceUrl,
+                  answers,
+                  gateType: 'message'
+                }
+              });
+
+              if (error) {
+                console.error('[NewMessageSheet] Validation error:', error);
+                return { passed: false, wrongIndexes: [] };
+              }
+
+              if (data?.passed) {
+                quizData.onSuccess();
+                setShowQuiz(false);
+                setQuizData(null);
+              }
+
+              return { 
+                passed: data?.passed || false, 
+                score: data?.score || 0,
+                total: data?.total || quizData.questions.length,
+                wrongIndexes: data?.wrongIndexes || [] 
+              };
+            } catch (err) {
+              console.error('[NewMessageSheet] Unexpected error:', err);
+              return { passed: false, wrongIndexes: [] };
+            }
           }}
           onCancel={() => {
             quizData.onCancel();

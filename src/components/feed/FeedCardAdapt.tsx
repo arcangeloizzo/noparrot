@@ -556,7 +556,9 @@ export const FeedCard = ({
       // 5️⃣ OVERLAY APPROACH (iOS-safe): monta il quiz SOPRA al reader, poi chiudi il reader
       // STEP A: monta il quiz mentre il reader è ancora visibile (nessuno “schermo bianco”)
       setGateStep('quiz:mount');
+      // SECURITY HARDENED: Always save qaId from server for submit-qa validation
       setQuizData({
+        qaId: result.qaId, // Server-generated qaId for secure validation
         questions: result.questions,
         sourceUrl,
       });
@@ -602,8 +604,10 @@ export const FeedCard = ({
     try {
       console.log('Quiz submitted:', { answers, postId: post.id, sourceUrl: quizData.sourceUrl });
       
+      // SECURITY HARDENED: Use qaId for deterministic server-side validation
       const { data, error } = await supabase.functions.invoke('submit-qa', {
         body: {
+          qaId: quizData.qaId, // Server-generated qaId
           postId: post.id,
           sourceUrl: quizData.sourceUrl,
           answers,
@@ -618,19 +622,18 @@ export const FeedCard = ({
         throw error;
       }
 
-      // IMPORTANTE: aprire composer SOLO se il test è superato (max 2 errori totali)
-      const actualPassed = data.passed && (data.total - data.score) <= 2;
+      // SECURITY HARDENED: Server is the ONLY source of truth - no client-side overrides
+      const passed = data.passed;
       
       console.log('Quiz result details:', {
         score: data.score,
         total: data.total,
         errors: data.total - data.score,
         percentage: ((data.score / data.total) * 100).toFixed(0) + '%',
-        backendPassed: data.passed,
-        actualPassed
+        passed
       });
       
-      if (actualPassed) {
+      if (passed) {
         toast({
           title: 'Possiamo procedere.',
           description: 'Hai messo a fuoco.'

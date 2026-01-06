@@ -91,7 +91,9 @@ export async function runGateBeforeAction({
 
     // 3. Show quiz modal
     if (setQuizData && setShowQuiz) {
+      // SECURITY HARDENED: Always save qaId from server for submit-qa validation
       setQuizData({
+        qaId: qaData.qaId, // Server-generated qaId for secure validation
         questions: qaData.questions,
         sourceUrl: linkUrl,
         onSuccess,

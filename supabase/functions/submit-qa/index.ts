@@ -218,6 +218,24 @@ serve(async (req) => {
 
     // Validate answers server-side
     const correctAnswers = answersData.correct_answers;
+    
+    // SECURITY HARDENED: Fail-fast if correct_answers is empty or invalid
+    if (!Array.isArray(correctAnswers) || correctAnswers.length === 0) {
+      console.error('[submit-qa] CRITICAL: correct_answers is empty or invalid', { 
+        qaIdResolved, 
+        hasAnswersRow: true, 
+        correctAnswersType: typeof correctAnswers,
+        correctAnswersLength: Array.isArray(correctAnswers) ? correctAnswers.length : 'N/A'
+      });
+      return new Response(
+        JSON.stringify({ 
+          error: 'Quiz answers not properly configured', 
+          code: 'INVALID_ANSWER_KEYSET' 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     let score = 0;
     let errorCount = 0;
     const wrongIndexes: string[] = [];
