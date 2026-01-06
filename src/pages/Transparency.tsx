@@ -1,6 +1,5 @@
+import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Sparkles, Shield, Brain } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 
@@ -9,93 +8,104 @@ export default function Transparency() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-        <div className="flex items-center gap-4 p-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(-1)}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
+        <div className="flex items-center gap-4 px-4 py-3">
+          <button onClick={() => navigate(-1)} className="p-2 -ml-2 hover:bg-muted rounded-full transition-colors">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
           <h1 className="text-lg font-semibold">Trasparenza su AI e fonti</h1>
         </div>
-      </div>
+      </header>
 
-      <div className="p-4 max-w-2xl mx-auto space-y-6">
-        {/* Logo */}
+      <main className="p-4 pb-24 max-w-2xl mx-auto space-y-6">
         <div className="flex justify-center py-4">
-          <Logo size="md" />
+          <Logo size="lg" />
         </div>
 
-        <Card className="bg-card border-border">
-          <CardContent className="p-6 space-y-6">
-            {/* Section: Contenuti AI */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-blue-500/10">
-                  <Sparkles className="w-5 h-5 text-blue-400" />
-                </div>
-                <h2 className="text-lg font-bold">Contenuti AI</h2>
-              </div>
-              <div className="pl-11">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Alcuni contenuti (es. "Il Punto.") sono sintesi automatiche generate 
-                  da sistemi di intelligenza artificiale e possono contenere inesattezze, 
-                  omissioni o errori. <strong className="text-foreground">Invitiamo sempre 
-                  a consultare le fonti originali.</strong>
-                </p>
-              </div>
-            </div>
-
-            <div className="border-t border-border" />
-
-            {/* Section: Trust Score */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-green-500/10">
-                  <Shield className="w-5 h-5 text-green-400" />
-                </div>
-                <h2 className="text-lg font-bold">Trust Score</h2>
-              </div>
-              <div className="pl-11">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Il Trust Score indica esclusivamente l'affidabilità delle fonti citate, 
-                  <strong className="text-foreground"> non la verità o la qualità del contenuto</strong>. 
-                  È calcolato automaticamente e può contenere errori.
-                </p>
-              </div>
-            </div>
-
-            <div className="border-t border-border" />
-
-            {/* Section: Percorso di comprensione */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-purple-500/10">
-                  <Brain className="w-5 h-5 text-purple-400" />
-                </div>
-                <h2 className="text-lg font-bold">Percorso di comprensione</h2>
-              </div>
-              <div className="pl-11">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Il percorso di comprensione è uno strumento automatico che verifica 
-                  la coerenza delle risposte rispetto a un contenuto, ma 
-                  <strong className="text-foreground"> non garantisce la reale comprensione dell'utente</strong>.
-                </p>
-              </div>
-            </div>
-
-            {/* Version footer */}
-            <div className="pt-6 border-t border-border">
-              <p className="text-xs text-muted-foreground text-center">
-                Versione: v1 — Ultimo aggiornamento: 26 dicembre 2025
+        <Card>
+          <CardContent className="pt-6 space-y-8">
+            {/* Come funziona il feed */}
+            <section className="space-y-4">
+              <h3 className="text-lg font-semibold">Come funziona il feed</h3>
+              <p className="text-muted-foreground">
+                NoParrot mostra tre tipi di contenuti:
               </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-2 font-medium">Tipo</th>
+                      <th className="text-left py-2 font-medium">Personalizzato</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-muted-foreground">
+                    <tr className="border-b border-border/50">
+                      <td className="py-2">Daily Focus (Il Punto)</td>
+                      <td className="py-2">No</td>
+                    </tr>
+                    <tr className="border-b border-border/50">
+                      <td className="py-2">Interest Focus (Per Te)</td>
+                      <td className="py-2">Sì</td>
+                    </tr>
+                    <tr>
+                      <td className="py-2">Post utenti</td>
+                      <td className="py-2">No</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-muted-foreground">
+                Il feed personalizzato usa:
+              </p>
+              <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-2">
+                <li>categorie di interesse</li>
+                <li>attività consapevoli (letture, commenti)</li>
+              </ul>
+              <p className="text-muted-foreground font-medium">
+                Puoi disattivarlo in ogni momento dalle Impostazioni → Privacy.
+              </p>
+            </section>
+
+            {/* Come funziona l'AI */}
+            <section className="space-y-4">
+              <h3 className="text-lg font-semibold">Come funziona l'AI</h3>
+              <p className="text-muted-foreground">L'AI:</p>
+              <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-2">
+                <li><strong>non decide</strong> cosa è vero</li>
+                <li><strong>non decide</strong> cosa pensare</li>
+                <li>aiuta a classificare e sintetizzare</li>
+              </ul>
+              <div className="bg-muted/50 rounded-lg p-4 mt-4">
+                <p className="text-sm text-muted-foreground italic">
+                  ⚠️ Può sbagliare. Consulta sempre le fonti originali per verificare le informazioni.
+                </p>
+              </div>
+            </section>
+
+            {/* Trust Score */}
+            <section className="space-y-4">
+              <h3 className="text-lg font-semibold">Trust Score</h3>
+              <p className="text-muted-foreground">
+                Il Trust Score indica l'affidabilità della <strong>fonte</strong>, non la verità del contenuto.
+              </p>
+              <p className="text-muted-foreground">
+                È calcolato automaticamente in base a:
+              </p>
+              <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-2">
+                <li>reputazione del dominio</li>
+                <li>trasparenza editoriale</li>
+                <li>storico verificabilità</li>
+              </ul>
+            </section>
+
+            {/* Footer */}
+            <div className="pt-6 border-t border-border text-center text-xs text-muted-foreground">
+              <p>NoParrot — Versione 2.0</p>
+              <p>Ultimo aggiornamento: 6 gennaio 2026</p>
             </div>
           </CardContent>
         </Card>
-      </div>
+      </main>
     </div>
   );
 }

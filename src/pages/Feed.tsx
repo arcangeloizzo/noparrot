@@ -39,8 +39,9 @@ export const Feed = () => {
   const dailyFocusItems = dailyFocusData?.items || [];
   const dailyFocusTotalCount = dailyFocusData?.totalCount || dailyFocusItems.length;
   
-  // Get user's profile to extract cognitive density
+  // Get user's profile to extract cognitive density and tracking preference
   const [userCategories, setUserCategories] = useState<string[]>([]);
+  const [cognitiveTrackingEnabled, setCognitiveTrackingEnabled] = useState(true);
   
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -48,9 +49,12 @@ export const Feed = () => {
       
       const { data: profile } = await supabase
         .from('profiles')
-        .select('cognitive_density')
+        .select('cognitive_density, cognitive_tracking_enabled')
         .eq('id', user.id)
         .single();
+      
+      // Set tracking preference (default true if null)
+      setCognitiveTrackingEnabled(profile?.cognitive_tracking_enabled ?? true);
       
       if (profile?.cognitive_density) {
         // Estrai top 2 categorie
@@ -67,7 +71,12 @@ export const Feed = () => {
   }, [user?.id]);
   
   // Fetch real Interest Focus based on user categories with refreshNonce
-  const { data: interestFocus = [], isLoading: loadingInterest } = useInterestFocus(userCategories, refreshNonce);
+  // Pass cognitiveTrackingEnabled to control personalization
+  const { data: interestFocus = [], isLoading: loadingInterest } = useInterestFocus(
+    userCategories, 
+    cognitiveTrackingEnabled,
+    refreshNonce
+  );
   const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
 

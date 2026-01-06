@@ -1041,6 +1041,7 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           cognitive_density: Json | null
+          cognitive_tracking_enabled: boolean | null
           created_at: string | null
           date_of_birth: string | null
           full_name: string | null
@@ -1052,6 +1053,7 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           cognitive_density?: Json | null
+          cognitive_tracking_enabled?: boolean | null
           created_at?: string | null
           date_of_birth?: string | null
           full_name?: string | null
@@ -1063,6 +1065,7 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           cognitive_density?: Json | null
+          cognitive_tracking_enabled?: boolean | null
           created_at?: string | null
           date_of_birth?: string | null
           full_name?: string | null

@@ -32,15 +32,21 @@ export async function updateCognitiveDensityWeighted(
   console.log(`⚖️ [cognitiveDensity] Action weight: ${weight}`);
 
   try {
-    // 1. Leggi il profilo attuale
+    // 1. Leggi il profilo attuale (incluso cognitive_tracking_enabled)
     const { data: profile, error: fetchError } = await supabase
       .from('profiles')
-      .select('cognitive_density')
+      .select('cognitive_density, cognitive_tracking_enabled')
       .eq('id', userId)
       .single();
 
     if (fetchError) {
       console.error('❌ [cognitiveDensity] Error fetching profile:', fetchError);
+      return;
+    }
+
+    // Check if tracking is disabled
+    if (profile?.cognitive_tracking_enabled === false) {
+      console.log('🚫 [cognitiveDensity] Tracking disabled for user, skipping update');
       return;
     }
 
