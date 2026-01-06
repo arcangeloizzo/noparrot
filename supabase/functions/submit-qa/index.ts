@@ -241,8 +241,29 @@ serve(async (req) => {
     const wrongIndexes: string[] = [];
     const totalQuestions = correctAnswers.length;
 
-    correctAnswers.forEach((correct: any) => {
-      if (answers[correct.id] === correct.correctId) {
+    // FORENSIC LOG: Compare submitted answers vs correct answers
+    console.log('[submit-qa] FORENSIC validation:', {
+      qaIdResolved,
+      totalQuestions,
+      submittedAnswerCount: Object.keys(answers).length,
+      submittedAnswerKeys: Object.keys(answers),
+      correctAnswerKeys: correctAnswers.map((c: any) => c.id),
+    });
+
+    correctAnswers.forEach((correct: any, index: number) => {
+      const submitted = answers[correct.id];
+      const expected = correct.correctId;
+      const isCorrect = submitted === expected;
+      
+      // FORENSIC LOG: Per-question comparison
+      console.log(`[submit-qa] Q${index + 1}:`, {
+        questionId: correct.id,
+        submitted,
+        expected,
+        isCorrect,
+      });
+      
+      if (isCorrect) {
         score++;
       } else {
         errorCount++;
@@ -257,7 +278,7 @@ serve(async (req) => {
     const passed = errorCount <= maxAllowedErrors;
     const completionTime = Date.now() - startTime;
     
-    console.log(`[submit-qa] Result: ${score}/${totalQuestions} correct, passed: ${passed}`);
+    console.log(`[submit-qa] FINAL RESULT: score=${score}/${totalQuestions}, errorCount=${errorCount}, maxAllowed=${maxAllowedErrors}, passed=${passed}`);
 
     // Log attempt to post_gate_attempts
     await supabase.from('post_gate_attempts').insert({

@@ -517,6 +517,15 @@ export const ImmersivePostCard = ({
   const handleQuizSubmit = async (answers: Record<string, string>) => {
     if (!user || !quizData) return { passed: false, score: 0, total: 0, wrongIndexes: [] };
 
+    // FORENSIC LOG: Before submit-qa call
+    console.log('[ImmersivePostCard] handleQuizSubmit called:', {
+      qaId: quizData.qaId,
+      postId: post.id,
+      sourceUrl: quizData.sourceUrl,
+      answerCount: Object.keys(answers).length,
+      answerKeys: Object.keys(answers),
+    });
+
     try {
       // SECURITY HARDENED: Include qaId for server-side validation
       const { data, error } = await supabase.functions.invoke('submit-qa', {
@@ -529,7 +538,11 @@ export const ImmersivePostCard = ({
         }
       });
 
+      // FORENSIC LOG: After submit-qa call
+      console.log('[ImmersivePostCard] submit-qa response:', { data, error });
+
       if (error || !data) {
+        console.error('[ImmersivePostCard] submit-qa failed:', error);
         toast({ title: 'Errore', description: 'Errore durante la validazione', variant: 'destructive' });
         return { passed: false, score: 0, total: 0, wrongIndexes: [] };
       }
