@@ -54,7 +54,11 @@ export const ComprehensionTest = ({
 
   const questions: QuizQuestion[] = providedQuestions;
 
+  // SECURITY HARDENED: NO feedback until server validation
+  // Fixes "every answer appears correct" bug
   const handleAnswer = async (choiceId: string) => {
+    if (isSubmitting) return;
+    
     const question = questions[currentQuestion];
     const newAnswers = { ...answers, [question.id]: choiceId };
     setAnswers(newAnswers);
@@ -72,6 +76,7 @@ export const ComprehensionTest = ({
           gateType: 'share'
         });
         
+        // SECURITY: Only show feedback AFTER server responds
         if (result.passed) {
           setShowResult('correct');
           setTimeout(() => {
@@ -79,7 +84,7 @@ export const ComprehensionTest = ({
             setIsComplete(true);
           }, 1500);
         } else {
-          // Mark wrong questions
+          // Mark wrong questions based on server response
           setWrongQuestions(new Set(result.wrongIndexes));
           setShowResult('wrong');
           
@@ -98,18 +103,18 @@ export const ComprehensionTest = ({
         }
       } catch (error) {
         console.error('[ComprehensionTest] Validation error:', error);
+        // SECURITY: On error, show failure - never assume correct
         setShowResult('wrong');
-        setTimeout(() => setShowResult(null), 800);
+        setTimeout(() => setShowResult(null), 1500);
       } finally {
         setIsSubmitting(false);
       }
     } else {
-      // Not last question, move to next
-      setShowResult('correct');
+      // Not last question - move to next WITHOUT any feedback
+      // NO setShowResult('correct') - that was the bug!
       setTimeout(() => {
-        setShowResult(null);
         setCurrentQuestion(prev => prev + 1);
-      }, 500);
+      }, 300);
     }
   };
 

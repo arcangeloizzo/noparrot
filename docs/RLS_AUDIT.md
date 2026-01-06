@@ -236,6 +236,15 @@
 
 ## Changelog
 
+- **2026-01-06 v2.3**: Critical bug fix - "every answer correct" bug
+  - **ROOT CAUSE**: `setShowResult('correct')` called for intermediate questions BEFORE server validation
+  - **FIX**: Removed ALL local feedback for non-final questions in:
+    - `QuizModal.tsx` - no more `setIsCorrect(true)` during progression
+    - `ComprehensionTest.tsx` - no more `setShowResult('correct')` for intermediate questions
+    - `SourceMCQTest.tsx` - same fix
+  - **NEW RULE**: Feedback only shown AFTER `submit-qa` responds
+  - **FAIL-SAFE**: On server error, show 'wrong' - never assume correct
+
 - **2026-01-06 v2.2**: Complete audit and mock removal
   - Removed fallback mock questions from `ComprehensionTest.tsx`
   - Hard-fail if no server-side questions provided

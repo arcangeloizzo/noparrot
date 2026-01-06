@@ -118,21 +118,21 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
   }
 
   // SECURITY HARDENED: No client-side validation - all answers submitted to server
+  // NO feedback shown until server responds - prevents "all correct" bug
   const handleAnswer = async (questionId: string, choiceId: string) => {
-    if (showFeedback) return;
+    if (showFeedback || isSubmitting) return;
     
     setSelectedChoice(choiceId);
     const newAnswers = { ...answers, [questionId]: choiceId };
     setAnswers(newAnswers);
     
-    // Move to next question or submit
+    // Move to next question or submit - NO feedback for intermediate questions
     if (currentStep < validQuestions.length - 1) {
-      setShowFeedback(true);
-      setIsCorrect(true); // Show neutral feedback while progressing
+      // Just transition to next question, no correct/wrong feedback
       safeSetTimeout(() => {
         setCurrentStep(prev => prev + 1);
-        resetFeedback();
-      }, 500);
+        setSelectedChoice(null);
+      }, 300);
     } else {
       // Last question - submit all answers for server-side validation
       setShowFeedback(true);
@@ -331,16 +331,12 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
                   })}
                 </div>
 
-                {showFeedback && (
-                  <div className={cn("p-3 sm:p-5 rounded-xl sm:rounded-2xl mt-4 sm:mt-6 text-center animate-fade-in",
-                    isCorrect ? "bg-[hsl(var(--cognitive-correct))]/10 border-2 border-[hsl(var(--cognitive-correct))]/30" : 
-                    "bg-[hsl(var(--cognitive-incorrect))]/20 border-2 border-[hsl(var(--cognitive-incorrect))]/40")}>
-                    <p className={cn("font-medium text-sm sm:text-[15px]", isCorrect ? "text-[hsl(var(--cognitive-correct))]" : "text-foreground")}>
-                      {isCorrect ? "Ottimo. Continuiamo." : "Questa parte non è ancora limpida. Riguardiamola insieme."}
+                {/* SECURITY: Feedback only shown after final server validation */}
+                {showFeedback && isSubmitting && (
+                  <div className="p-3 sm:p-5 rounded-xl sm:rounded-2xl mt-4 sm:mt-6 text-center animate-fade-in bg-muted/20 border-2 border-border">
+                    <p className="font-medium text-sm sm:text-[15px] text-muted-foreground">
+                      Sto verificando…
                     </p>
-                    {!isCorrect && showRetryMessage && (
-                      <p className="text-xs sm:text-sm mt-1 sm:mt-2 opacity-80">Hai ancora 1 tentativo disponibile.</p>
-                    )}
                   </div>
                 )}
               </div>
