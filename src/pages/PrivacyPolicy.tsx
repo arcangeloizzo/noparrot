@@ -64,6 +64,10 @@ export default function PrivacyPolicy() {
                   <a href="mailto:support@noparrot.app" className="text-primary underline">support@noparrot.app</a>.
                 </p>
               </div>
+              <p className="text-sm text-muted-foreground mt-2">
+                I principali importatori dei dati sono Supabase Inc. e Google LLC 
+                in qualità di fornitori di infrastruttura e intelligenza artificiale.
+              </p>
             </section>
 
             {/* 3. Cosa raccogliamo */}
@@ -127,8 +131,8 @@ export default function PrivacyPolicy() {
               <div className="mt-4 p-3 bg-muted/30 rounded-lg border border-border">
                 <p className="text-sm font-medium text-foreground mb-2">Art. 22 GDPR</p>
                 <p className="text-sm text-muted-foreground">
-                  La profilazione utilizzata da NoParrot non produce effetti giuridici né impatti significativi 
-                  automatici sull'utente. Serve esclusivamente a organizzare e suggerire contenuti e annunci 
+                  La profilazione utilizzata da NoParrot non produce effetti giuridici né effetti equivalenti 
+                  o significativi sull'utente. Serve esclusivamente a organizzare e suggerire contenuti e annunci 
                   all'interno della piattaforma.
                 </p>
               </div>
@@ -143,6 +147,7 @@ export default function PrivacyPolicy() {
               <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-2">
                 <li>Non vengono analizzati né utilizzati dall'intelligenza artificiale</li>
                 <li>Sono trasmessi in modo sicuro</li>
+                <li>Sono protetti tramite crittografia TLS durante la trasmissione</li>
                 <li>Possono essere cancellati in qualsiasi momento dagli utenti</li>
               </ul>
             </section>

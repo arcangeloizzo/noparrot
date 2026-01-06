@@ -53,6 +53,11 @@ export default function TermsOfService() {
               <p className="text-sm text-muted-foreground mt-2">
                 Questo requisito è conforme all'Art. 8 del GDPR sul consenso digitale dei minori nell'Unione Europea.
               </p>
+              <p className="text-foreground mt-3">
+                NoParrot si basa sulle informazioni fornite dall'utente. 
+                Fornire una data di nascita falsa costituisce violazione dei Termini 
+                e può comportare la sospensione immediata dell'account.
+              </p>
             </section>
 
             <section>
