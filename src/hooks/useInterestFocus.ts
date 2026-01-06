@@ -19,13 +19,18 @@ export interface InterestFocus {
   expires_at: string;
 }
 
-export const useInterestFocus = (userCategories: string[], refreshNonce: number = 0) => {
+export const useInterestFocus = (
+  userCategories: string[], 
+  trackingEnabled: boolean = true,
+  refreshNonce: number = 0
+) => {
   const shouldForce = refreshNonce > 0;
 
   return useQuery({
-    queryKey: ['interest-focus', userCategories, refreshNonce],
+    queryKey: ['interest-focus', userCategories, trackingEnabled, refreshNonce],
     queryFn: async (): Promise<InterestFocus[]> => {
-      if (userCategories.length === 0) {
+      // If tracking is disabled, return empty array (no personalized feed)
+      if (!trackingEnabled || userCategories.length === 0) {
         return [];
       }
 
@@ -91,7 +96,7 @@ export const useInterestFocus = (userCategories: string[], refreshNonce: number 
         .map(r => r.value)
         .filter((r): r is InterestFocus => r !== null);
     },
-    enabled: userCategories.length > 0,
+    enabled: trackingEnabled && userCategories.length > 0,
     staleTime: 1000 * 60 * 15, // 15 minuti
     refetchOnWindowFocus: false,
     retry: 1,

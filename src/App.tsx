@@ -18,6 +18,7 @@ import TermsOfService from "./pages/TermsOfService";
 import SettingsPrivacy from "./pages/SettingsPrivacy";
 import AdsPolicy from "./pages/AdsPolicy";
 import Transparency from "./pages/Transparency";
+import CookiePolicy from "./pages/CookiePolicy";
 import ConsentScreen from "./pages/ConsentScreen";
 import Messages from "./pages/Messages";
 import MessageThread from "./pages/MessageThread";
@@ -75,6 +76,7 @@ const App = () => (
               <Route path="/settings/privacy" element={<SettingsPrivacy />} />
               <Route path="/legal/ads" element={<AdsPolicy />} />
               <Route path="/legal/transparency" element={<Transparency />} />
+              <Route path="/cookies" element={<CookiePolicy />} />
               <Route path="/messages" element={<Messages />} />
               <Route path="/messages/:threadId" element={<MessageThread />} />
               <Route path="/notifications" element={<Notifications />} />

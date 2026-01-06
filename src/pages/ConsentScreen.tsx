@@ -84,9 +84,8 @@ export default function ConsentScreen({ onComplete }: ConsentScreenProps) {
             {/* Main explanation */}
             <div className="text-sm text-muted-foreground space-y-4">
               <p>
-                NoParrot ti aiuta a leggere e discutere i contenuti in modo consapevole.
-                Per farlo, utilizziamo intelligenza artificiale e registriamo alcune interazioni
-                (per esempio: cosa leggi, cosa commenti o cosa salvi).
+                Usiamo una <strong className="text-foreground">mappa di interessi</strong> per personalizzare il feed.
+                Puoi disattivarla in qualsiasi momento dalle Impostazioni → Privacy.
               </p>
               
               <div>
@@ -100,7 +99,7 @@ export default function ConsentScreen({ onComplete }: ConsentScreenProps) {
               
               <p>
                 Puoi scegliere se ricevere annunci più pertinenti in base ai tuoi interessi.
-                Se non dai il consenso, vedrai comunque annunci legati al tema del contenuto che stai visualizzando.
+                Se non dai il consenso, vedrai comunque annunci legati al tema del contenuto.
               </p>
             </div>
 

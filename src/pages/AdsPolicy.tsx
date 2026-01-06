@@ -77,6 +77,10 @@ export default function AdsPolicy() {
 
               <div className="pt-4 border-t border-border space-y-3">
                 <p>
+                  Gli annunci personalizzati usano solo la mappa di interessi se hai dato consenso.
+                  Se disattivi la profilazione, vedrai solo annunci contestuali.
+                </p>
+                <p>
                   Puoi attivare o disattivare la personalizzazione in qualsiasi momento 
                   dalle <strong className="text-foreground">Impostazioni e privacy</strong>.
                 </p>
@@ -89,7 +93,7 @@ export default function AdsPolicy() {
             {/* Version footer */}
             <div className="pt-6 border-t border-border">
               <p className="text-xs text-muted-foreground text-center">
-                Versione: v1 — Ultimo aggiornamento: 26 dicembre 2025
+                Versione: v2 — Ultimo aggiornamento: 6 gennaio 2026
               </p>
             </div>
           </CardContent>
