@@ -667,8 +667,9 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                     return;
                   }
                   
-                  // Show quiz
+                  // Show quiz - include qaId for server validation
                   setQuizData({
+                    qaId: result.qaId,
                     questions: result.questions,
                     sourceUrl: post.shared_url
                   });
@@ -730,6 +731,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                 
                 const { data, error } = await supabase.functions.invoke('submit-qa', {
                   body: {
+                    qaId: quizData.qaId,
                     postId: isFocusContent ? null : post.id,
                     sourceUrl: sourceUrl,
                     answers,
@@ -764,7 +766,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                 setShowQuiz(false);
                 setQuizData(null);
                 setTimeout(() => textareaRef.current?.focus(), 150);
-                return { passed: true, score, total, wrongIndexes: [] };
+                return { passed: true, score, total, wrongIndexes };
               } catch (err) {
                 console.error('[QuizModal] Unexpected error:', err);
                 sonnerToast.error("Errore durante la validazione del quiz");

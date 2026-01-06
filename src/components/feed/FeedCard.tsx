@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { CommentReplySheet } from "./CommentReplySheet";
-import { generateQA, validateAnswers, fetchArticlePreview } from "@/lib/ai-helpers";
+import { generateQA, fetchArticlePreview } from "@/lib/ai-helpers";
+import { supabase } from "@/integrations/supabase/client";
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -579,24 +580,40 @@ export const FeedCard = ({
         questions={quizData.questions}
         provider="gemini"
         onSubmit={async (answers) => {
-          const result = await validateAnswers({
-            postId: quizData.postId,
-            sourceUrl: quizData.sourceUrl,
-            answers,
-            gateType: 'share'
-          });
+          try {
+            // SECURITY HARDENED: Use submit-qa directly with qaId
+            const { data, error } = await supabase.functions.invoke('submit-qa', {
+              body: {
+                qaId: quizData.qaId,
+                postId: quizData.postId,
+                sourceUrl: quizData.sourceUrl,
+                answers,
+                gateType: 'share'
+              }
+            });
 
-          if (result.passed) {
-            haptics.success();
-            // Esegui callback onSuccess
-            if (quizData.onSuccess) {
-              quizData.onSuccess();
+            if (error || !data) {
+              console.error('[FeedCard] Quiz validation error:', error);
+              toast.error('Errore durante la validazione');
+              return { passed: false, wrongIndexes: [] };
             }
-            setShowQuiz(false);
-            setQuizData(null);
-          }
 
-          return result;
+            const passed = !!data.passed;
+
+            if (passed) {
+              haptics.success();
+              if (quizData.onSuccess) {
+                quizData.onSuccess();
+              }
+              setShowQuiz(false);
+              setQuizData(null);
+            }
+
+            return data;
+          } catch (err) {
+            console.error('[FeedCard] Unexpected error:', err);
+            return { passed: false, wrongIndexes: [] };
+          }
         }}
         onCancel={() => {
           if (quizData.onCancel) {

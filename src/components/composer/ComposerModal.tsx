@@ -322,9 +322,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         return; // DO NOT publish - block
       }
       
-      // Show quiz directly (no reader)
+      // Show quiz directly (no reader) - include qaId
       addBreadcrumb('ios_quiz_mount');
       setQuizData({
+        qaId: result.qaId,
         questions: result.questions,
         sourceUrl: detectedUrl || '',
       });
@@ -418,7 +419,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       }
 
       // Mount quiz first, then close reader (prevents intermediate blank state)
+      // Include qaId for server-side validation
       setQuizData({
+        qaId: result.qaId,
         questions: result.questions,
         sourceUrl: detectedUrl || '',
       });
@@ -451,8 +454,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     if (!user || !quizData) return { passed: false, score: 0, total: 0, wrongIndexes: [] };
 
     try {
+      // SECURITY HARDENED: Include qaId for server-side validation
       const { data, error } = await supabase.functions.invoke('submit-qa', {
         body: {
+          qaId: quizData.qaId,
           postId: null,
           sourceUrl: quizData.sourceUrl,
           answers,
@@ -460,10 +465,15 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         }
       });
 
-      if (error) throw error;
+      if (error || !data) {
+        console.error('Error validating quiz:', error);
+        setQuizPassed(false);
+        return { passed: false, score: 0, total: 0, wrongIndexes: [] };
+      }
 
-      const actualPassed = data.passed && (data.total - data.score) <= 2;
-      setQuizPassed(actualPassed);
+      // Use ONLY server verdict - no client override
+      const passed = !!data.passed;
+      setQuizPassed(passed);
       
       return data;
     } catch (error) {

@@ -489,7 +489,8 @@ export const ImmersivePostCard = ({
 
       const sourceUrl = readerSource.url || '';
       setGateStep('quiz:mount');
-      setQuizData({ questions: result.questions, sourceUrl });
+      // Include qaId for server-side validation
+      setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl });
       setShowQuiz(true);
 
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -517,15 +518,26 @@ export const ImmersivePostCard = ({
     if (!user || !quizData) return { passed: false, score: 0, total: 0, wrongIndexes: [] };
 
     try {
+      // SECURITY HARDENED: Include qaId for server-side validation
       const { data, error } = await supabase.functions.invoke('submit-qa', {
-        body: { postId: post.id, sourceUrl: quizData.sourceUrl, answers, gateType: 'share' }
+        body: { 
+          qaId: quizData.qaId,
+          postId: post.id, 
+          sourceUrl: quizData.sourceUrl, 
+          answers, 
+          gateType: 'share' 
+        }
       });
 
-      if (error) throw error;
+      if (error || !data) {
+        toast({ title: 'Errore', description: 'Errore durante la validazione', variant: 'destructive' });
+        return { passed: false, score: 0, total: 0, wrongIndexes: [] };
+      }
 
-      const actualPassed = data.passed && (data.total - data.score) <= 2;
+      // Use ONLY server verdict - no client override
+      const passed = !!data.passed;
       
-      if (actualPassed) {
+      if (passed) {
         toast({ title: 'Possiamo procedere.', description: 'Hai messo a fuoco.' });
         setShowQuiz(false);
         setQuizData(null);
