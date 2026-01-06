@@ -665,8 +665,15 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
             </div>
           </div>
 
-          {/* Iframe container - expands to fill remaining space */}
-          <div className="relative flex-1 min-h-0 rounded-xl border border-border overflow-hidden bg-muted/30">
+          {/* Iframe container - expands to fill remaining space with proper scroll handling */}
+          <div 
+            className="relative flex-1 min-h-0 rounded-xl border border-border overflow-hidden bg-muted/30"
+            style={{ 
+              overflowY: 'auto', 
+              WebkitOverflowScrolling: 'touch',
+              touchAction: 'pan-y'
+            }}
+          >
             {!iframeLoaded && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/50 z-10">
                 <Loader2 className="h-6 w-6 animate-spin text-primary mb-2" />
@@ -680,7 +687,8 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 "w-full h-full border-0 transition-opacity duration-300",
                 iframeLoaded ? "opacity-100" : "opacity-0"
               )}
-              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+              style={{ touchAction: 'pan-y' }}
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-top-navigation-by-user-activation"
               onLoad={() => {
                 console.log('[SourceReaderGate] Iframe loaded successfully');
                 setIframeLoaded(true);

@@ -543,6 +543,9 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
       correctId: q.correctId
     }));
 
+    // Declare qaIdToReturn BEFORE the if/else block to ensure proper scope
+    let qaIdToReturn: string | null = null;
+
     // Save to SECURE split tables
     if (existing) {
       // Update questions in public table
@@ -563,6 +566,7 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
           correct_answers: correctAnswers
         });
       
+      qaIdToReturn = existing.id;
       console.log('[generate-qa] Q&A updated in secure tables');
     } else {
       // Insert into public table first
@@ -591,6 +595,7 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
         correct_answers: correctAnswers
       });
       
+      qaIdToReturn = insertedQA.id;
       console.log('[generate-qa] Q&A generated and saved to secure tables');
     }
 
@@ -603,9 +608,6 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
         text: c.text
       }))
     }));
-
-    // SECURITY HARDENED: Always return qaId for server-side validation
-    const qaIdToReturn = existing ? existing.id : insertedQA?.id;
     
     console.log('[generate-qa] Returning qaId:', qaIdToReturn);
 
