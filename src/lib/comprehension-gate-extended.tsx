@@ -67,6 +67,7 @@ export interface SourceWithGate {
   // REMOVED: transcript - no longer sent from server (copyright compliance)
   summary?: string; // Short summary only (max 200 chars)
   excerpt?: string;
+  articleContent?: string; // Full editorial text for in-reader display (editorials only)
   previewImg?: string;
   image?: string;
   hostname?: string;
