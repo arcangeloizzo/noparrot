@@ -279,6 +279,15 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   // Bridge screen: always ready to proceed (no timer/scroll gate)
   const isReady = true;
 
+  // Check if content needs full-height layout (iframe for generic articles)
+  const isFullHeightContent = !isBlocked && 
+    source.platform !== 'youtube' && 
+    source.platform !== 'spotify' && 
+    source.platform !== 'twitter' && 
+    source.platform !== 'tiktok' && 
+    source.iframeAllowed !== false && 
+    !iframeFailed;
+
   const handleComplete = () => {
     addBreadcrumb('reader_proceed_clicked', {
       platform: source.platform,
@@ -631,7 +640,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     
     if (showIframe) {
       return (
-        <div className="flex flex-col h-full space-y-3">
+        <div className="flex flex-col flex-1 h-full gap-3">
           {/* Compact article header */}
           <div className="p-3 bg-card border border-border rounded-lg flex-shrink-0">
             <div className="flex items-center gap-3">
@@ -639,7 +648,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                 <img 
                   src={source.image} 
                   alt="" 
-                  className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                  className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
                 />
               )}
               <div className="flex-1 min-w-0">
@@ -656,8 +665,8 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
             </div>
           </div>
 
-          {/* Iframe container */}
-          <div className="relative flex-1 rounded-xl border border-border overflow-hidden bg-muted/30">
+          {/* Iframe container - expands to fill remaining space */}
+          <div className="relative flex-1 min-h-0 rounded-xl border border-border overflow-hidden bg-muted/30">
             {!iframeLoaded && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/50 z-10">
                 <Loader2 className="h-6 w-6 animate-spin text-primary mb-2" />
@@ -814,10 +823,20 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
         {/* Content Area */}
         <div
           ref={scrollContainerRef}
-          className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
+          className={cn(
+            "flex-1 overflow-x-hidden overscroll-contain",
+            isFullHeightContent 
+              ? "flex flex-col" 
+              : "overflow-y-auto"
+          )}
           style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
         >
-          <div className="px-5 py-6 space-y-5 max-w-full overflow-hidden">
+          <div className={cn(
+            "max-w-full overflow-hidden",
+            isFullHeightContent 
+              ? "flex-1 flex flex-col px-4 py-3" 
+              : "px-5 py-6 space-y-5"
+          )}>
             {isClosing ? (
               <div className="flex items-center justify-center py-12">
                 <span className="text-sm text-muted-foreground">Chiusura…</span>
@@ -825,7 +844,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
             ) : (
               renderContent()
             )}
-            <div className="h-32"></div>
+            {!isFullHeightContent && <div className="h-32"></div>}
           </div>
         </div>
 
