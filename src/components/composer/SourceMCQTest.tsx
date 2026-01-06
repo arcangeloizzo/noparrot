@@ -1,7 +1,7 @@
 // SourceMCQTest - Multiple choice test for source comprehension
 // ==============================================================
 // ✅ Shows 3 questions (2 macro + 1 detail) for source
-// ✅ Max 2 attempts per question with shake/bounce animations
+// ✅ SECURITY HARDENED: No client-side correctId - validation via submit-qa
 // ✅ Deterministic questions based on source URL/domain
 
 import React, { useState, useEffect } from 'react';
@@ -9,8 +9,9 @@ import { X, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { SourceWithGate } from '@/lib/comprehension-gate-extended';
-import { fetchArticlePreview, generateQA, type QuizQuestion } from '@/lib/ai-helpers';
+import { fetchArticlePreview, generateQA, validateAnswers, type QuizQuestion } from '@/lib/ai-helpers';
 import { getWordCount, getTestModeWithSource } from '@/lib/gate-utils';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SourceMCQTestProps {
   source: SourceWithGate;
@@ -27,12 +28,14 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
 }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [attempts, setAttempts] = useState<Record<string, number>>({});
+  const [wrongQuestions, setWrongQuestions] = useState<Set<string>>(new Set());
   const [showResult, setShowResult] = useState<'correct' | 'wrong' | null>(null);
   const [isComplete, setIsComplete] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
   const [questionError, setQuestionError] = useState<string | null>(null);
+  const [qaId, setQaId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen && source) {
@@ -47,9 +50,10 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
     // Reset state
     setCurrentQuestion(0);
     setAnswers({});
-    setAttempts({});
+    setWrongQuestions(new Set());
     setShowResult(null);
     setIsComplete(false);
+    setQaId(null);
     
     try {
       console.log('[SourceMCQTest] Loading questions for:', source.url);
@@ -105,12 +109,17 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
         throw new Error('Contenuto insufficiente per generare domande');
       }
       
-      if (!result.questions || result.questions.length !== 3) {
+      if (!result.questions || result.questions.length === 0) {
         throw new Error('Formato domande non valido');
       }
       
       console.log('[SourceMCQTest] Questions loaded successfully');
       setQuestions(result.questions);
+      
+      // Store qaId if returned
+      if ((result as any).qaId) {
+        setQaId((result as any).qaId);
+      }
       
     } catch (error: any) {
       console.error('[SourceMCQTest] Error loading questions:', error);
@@ -120,47 +129,75 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
     }
   };
 
-  const handleAnswer = (questionId: string, choiceId: string) => {
-    const question = questions.find(q => q.id === questionId);
-    if (!question) return;
-
-    const isCorrect = choiceId === question.correctId;
+  const handleAnswer = async (questionId: string, choiceId: string) => {
+    // Store the answer
+    const newAnswers = { ...answers, [questionId]: choiceId };
+    setAnswers(newAnswers);
     
-    if (isCorrect) {
-      setAnswers(prev => ({ ...prev, [questionId]: choiceId }));
-      setShowResult('correct');
+    // If this is the last question, submit all answers for validation
+    if (currentQuestion === questions.length - 1) {
+      setIsSubmitting(true);
       
+      try {
+        const result = await validateAnswers({
+          qaId: qaId || undefined,
+          postId: null,
+          sourceUrl: source.url,
+          answers: newAnswers,
+          gateType: 'composer'
+        });
+        
+        // Check if this specific question was wrong
+        const isCurrentWrong = result.wrongIndexes.includes(questionId);
+        
+        if (result.passed) {
+          setShowResult('correct');
+          setTimeout(() => {
+            setShowResult(null);
+            setIsComplete(true);
+          }, 1500);
+        } else {
+          // Mark wrong questions
+          setWrongQuestions(new Set(result.wrongIndexes));
+          setShowResult('wrong');
+          
+          setTimeout(() => {
+            setShowResult(null);
+            // Reset to first wrong question for retry
+            const firstWrongIndex = questions.findIndex(q => result.wrongIndexes.includes(q.id));
+            if (firstWrongIndex >= 0) {
+              setCurrentQuestion(firstWrongIndex);
+              // Clear answers for wrong questions to allow retry
+              const clearedAnswers = { ...newAnswers };
+              result.wrongIndexes.forEach(id => delete clearedAnswers[id]);
+              setAnswers(clearedAnswers);
+            } else {
+              // All wrong or test failed completely
+              onComplete(false);
+            }
+          }, 1500);
+        }
+      } catch (error) {
+        console.error('[SourceMCQTest] Validation error:', error);
+        setShowResult('wrong');
+        setTimeout(() => setShowResult(null), 800);
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      // Not last question, just move to next
+      setShowResult('correct');
       setTimeout(() => {
         setShowResult(null);
-        if (currentQuestion < questions.length - 1) {
-          setCurrentQuestion(prev => prev + 1);
-        } else {
-          // Test completed successfully
-          setIsComplete(true);
-        }
-      }, 1500);
-    } else {
-      const currentAttempts = attempts[questionId] || 0;
-      const newAttempts = currentAttempts + 1;
-      setAttempts(prev => ({ ...prev, [questionId]: newAttempts }));
-      
-      if (newAttempts >= 2) {
-        // Max attempts reached - fail the test
-        setTimeout(() => {
-          onComplete(false);
-        }, 1000);
-        return;
-      }
-      
-      setShowResult('wrong');
-      setTimeout(() => setShowResult(null), 800);
+        setCurrentQuestion(prev => prev + 1);
+      }, 500);
     }
   };
 
   const handleRetry = () => {
     setCurrentQuestion(0);
     setAnswers({});
-    setAttempts({});
+    setWrongQuestions(new Set());
     setShowResult(null);
     setIsComplete(false);
   };
@@ -235,7 +272,7 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
   }
 
   const question = questions[currentQuestion];
-  const questionAttempts = attempts[question.id] || 0;
+  const isQuestionWrong = wrongQuestions.has(question.id);
   const questionType = currentQuestion < 2 ? 'macro' : 'detail';
 
   return (
@@ -288,9 +325,9 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
                   <Check className="w-5 h-5 text-[hsl(var(--cognitive-correct))] animate-bounce-check" />
                 )}
               </div>
-              {questionAttempts > 0 && (
+              {isQuestionWrong && (
                 <span className="text-xs text-[hsl(var(--cognitive-incorrect))]">
-                  Tentativo {questionAttempts + 1}/2
+                  Riprova
                 </span>
               )}
             </div>
@@ -305,21 +342,22 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
                   key={choice.id}
                   variant="outline"
                   onClick={() => handleAnswer(question.id, choice.id)}
-                  disabled={showResult !== null}
+                  disabled={showResult !== null || isSubmitting}
                   className="w-full justify-start text-left h-auto p-3 bg-card hover:bg-muted border-border hover:border-border text-foreground"
                 >
+                  {isSubmitting && currentQuestion === questions.length - 1 ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : null}
                   {choice.text}
                 </Button>
               ))}
             </div>
           </div>
 
-          {questionAttempts > 0 && showResult !== 'correct' && (
+          {isQuestionWrong && showResult !== 'correct' && (
             <div className="p-3 bg-[hsl(var(--cognitive-incorrect))]/10 border border-[hsl(var(--cognitive-incorrect))]/20 rounded-lg">
               <p className="text-sm text-[hsl(var(--cognitive-incorrect))]">
-                {questionAttempts === 1 
-                  ? "Non è questa la prospettiva giusta. Hai un altro tentativo." 
-                  : "Ultimo tentativo disponibile."}
+                Non è questa la prospettiva giusta. Riprova.
               </p>
             </div>
           )}
@@ -332,7 +370,7 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
               Passo {currentQuestion + 1} di {questions.length}
             </span>
             <span className="text-sm text-muted-foreground">
-              {Object.keys(answers).length} risposte corrette
+              {Object.keys(answers).length} risposte
             </span>
           </div>
           <div className="w-full bg-muted rounded-full h-2">

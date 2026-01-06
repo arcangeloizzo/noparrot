@@ -537,7 +537,7 @@ export const FeedCard = ({
         return; // Reader resta aperto
       }
 
-      const invalidQuestion = result.questions.find(q => !q.id || !q.stem || !q.choices || !q.correctId);
+      const invalidQuestion = result.questions.find(q => !q.id || !q.stem || !q.choices);
       if (invalidQuestion) {
         console.error('[Gate] Invalid question format:', invalidQuestion);
         toast({ title: 'Errore', description: 'Formato domanda non valido', variant: 'destructive' });

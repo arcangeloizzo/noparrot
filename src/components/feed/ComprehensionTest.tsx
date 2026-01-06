@@ -1,96 +1,137 @@
+// ComprehensionTest - Quiz component for feed posts
+// ==================================================
+// ✅ SECURITY HARDENED: No client-side correct answers
+// ✅ Validation happens server-side only via submit-qa
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { X, Check, Share, Send } from "lucide-react";
+import { X, Check, Share, Send, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MockPost } from "@/data/mockData";
+import { validateAnswers, type QuizQuestion } from "@/lib/ai-helpers";
 
 interface ComprehensionTestProps {
   post: MockPost;
   isOpen: boolean;
   onClose: () => void;
   onComplete: () => void;
+  questions?: QuizQuestion[];
+  sourceUrl?: string;
+  qaId?: string;
 }
 
-export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: ComprehensionTestProps) => {
+export const ComprehensionTest = ({ 
+  post, 
+  isOpen, 
+  onClose, 
+  onComplete,
+  questions: providedQuestions,
+  sourceUrl,
+  qaId
+}: ComprehensionTestProps) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState<(number | null)[]>([null, null, null]);
-  const [attempts, setAttempts] = useState<number[]>([0, 0, 0]);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [wrongQuestions, setWrongQuestions] = useState<Set<string>>(new Set());
   const [showResult, setShowResult] = useState<'correct' | 'wrong' | null>(null);
   const [isComplete, setIsComplete] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen) return null;
 
-  const questions = post.questions || [
+  // Use provided questions or fallback mock (for legacy support)
+  const questions: QuizQuestion[] = providedQuestions || [
     {
-      question: "Qual è il tema principale dell'articolo?",
-      options: ["Tecnologia", "Politica", "Economia"],
-      correct: 0
+      id: "q1",
+      stem: "Qual è il tema principale dell'articolo?",
+      choices: [
+        { id: "a", text: "Tecnologia" },
+        { id: "b", text: "Politica" },
+        { id: "c", text: "Economia" }
+      ]
     },
     {
-      question: "Secondo l'articolo, quale tendenza è evidenziata?",
-      options: ["Crescita", "Declino", "Stabilità"],
-      correct: 1
+      id: "q2",
+      stem: "Secondo l'articolo, quale tendenza è evidenziata?",
+      choices: [
+        { id: "a", text: "Crescita" },
+        { id: "b", text: "Declino" },
+        { id: "c", text: "Stabilità" }
+      ]
     },
     {
-      question: "Quale dato specifico viene citato nel testo?",
-      options: ["50%", "25%", "75%"],
-      correct: 2
+      id: "q3",
+      stem: "Quale dato specifico viene citato nel testo?",
+      choices: [
+        { id: "a", text: "50%" },
+        { id: "b", text: "25%" },
+        { id: "c", text: "75%" }
+      ]
     }
   ];
 
-  const handleAnswer = (optionIndex: number) => {
+  const handleAnswer = async (choiceId: string) => {
     const question = questions[currentQuestion];
-    const isCorrect = optionIndex === question.correct;
+    const newAnswers = { ...answers, [question.id]: choiceId };
+    setAnswers(newAnswers);
     
-    if (isCorrect) {
-      setAnswers(prev => {
-        const newAnswers = [...prev];
-        newAnswers[currentQuestion] = optionIndex;
-        return newAnswers;
-      });
-      setShowResult('correct');
+    // If this is the last question, submit all answers for validation
+    if (currentQuestion === questions.length - 1) {
+      setIsSubmitting(true);
       
-      setTimeout(() => {
-        setShowResult(null);
-        if (currentQuestion < questions.length - 1) {
-          setCurrentQuestion(prev => prev + 1);
-        } else {
-          setIsComplete(true);
-        }
-      }, 1500);
-    } else {
-      const newAttempts = [...attempts];
-      newAttempts[currentQuestion]++;
-      setAttempts(newAttempts);
-      
-      if (newAttempts[currentQuestion] >= 2) {
-        // Max attempts reached, force correct answer
-        setAnswers(prev => {
-          const newAnswers = [...prev];
-          newAnswers[currentQuestion] = question.correct;
-          return newAnswers;
+      try {
+        const result = await validateAnswers({
+          qaId: qaId,
+          postId: post.id,
+          sourceUrl: sourceUrl || (post as any).shared_url,
+          answers: newAnswers,
+          gateType: 'share'
         });
-        setShowResult('correct');
         
-        setTimeout(() => {
-          setShowResult(null);
-          if (currentQuestion < questions.length - 1) {
-            setCurrentQuestion(prev => prev + 1);
-          } else {
+        if (result.passed) {
+          setShowResult('correct');
+          setTimeout(() => {
+            setShowResult(null);
             setIsComplete(true);
-          }
-        }, 1500);
-      } else {
+          }, 1500);
+        } else {
+          // Mark wrong questions
+          setWrongQuestions(new Set(result.wrongIndexes));
+          setShowResult('wrong');
+          
+          setTimeout(() => {
+            setShowResult(null);
+            // Reset to first wrong question for retry
+            const firstWrongIndex = questions.findIndex(q => result.wrongIndexes.includes(q.id));
+            if (firstWrongIndex >= 0) {
+              setCurrentQuestion(firstWrongIndex);
+              // Clear answers for wrong questions
+              const clearedAnswers = { ...newAnswers };
+              result.wrongIndexes.forEach(id => delete clearedAnswers[id]);
+              setAnswers(clearedAnswers);
+            }
+          }, 1500);
+        }
+      } catch (error) {
+        console.error('[ComprehensionTest] Validation error:', error);
         setShowResult('wrong');
         setTimeout(() => setShowResult(null), 800);
+      } finally {
+        setIsSubmitting(false);
       }
+    } else {
+      // Not last question, move to next
+      setShowResult('correct');
+      setTimeout(() => {
+        setShowResult(null);
+        setCurrentQuestion(prev => prev + 1);
+      }, 500);
     }
   };
 
   const reset = () => {
     setCurrentQuestion(0);
-    setAnswers([null, null, null]);
-    setAttempts([0, 0, 0]);
+    setAnswers({});
+    setWrongQuestions(new Set());
     setShowResult(null);
     setIsComplete(false);
   };
@@ -133,6 +174,7 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
   }
 
   const question = questions[currentQuestion];
+  const isQuestionWrong = wrongQuestions.has(question.id);
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
@@ -161,31 +203,33 @@ export const ComprehensionTest = ({ post, isOpen, onClose, onComplete }: Compreh
             !showResult && "bg-gray-800 border-gray-700"
           )}>
             <h3 className="font-medium mb-4 flex items-center text-white">
-              {question.question}
+              {question.stem}
               {showResult === 'correct' && (
                 <Check className="w-5 h-5 text-[hsl(var(--cognitive-correct))] ml-2 animate-bounce-check" />
               )}
             </h3>
             
             <div className="space-y-2">
-              {question.options.map((option, index) => (
+              {question.choices.map((choice) => (
                 <Button
-                  key={index}
+                  key={choice.id}
                   variant="outline"
-                  onClick={() => handleAnswer(index)}
-                  disabled={showResult !== null}
+                  onClick={() => handleAnswer(choice.id)}
+                  disabled={showResult !== null || isSubmitting}
                   className="w-full justify-start bg-gray-800 hover:bg-gray-700 text-white border-gray-600 hover:border-gray-500"
                 >
-                  {option}
+                  {isSubmitting && currentQuestion === questions.length - 1 ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : null}
+                  {choice.text}
                 </Button>
               ))}
             </div>
           </div>
 
-          {attempts[currentQuestion] > 0 && showResult !== 'correct' && (
+          {isQuestionWrong && showResult !== 'correct' && (
             <p className="text-sm text-[hsl(var(--cognitive-incorrect))] mb-4">
-              Tentativo {attempts[currentQuestion]}/2. 
-              {attempts[currentQuestion] === 1 && " Riprova."}
+              Non è questa la prospettiva giusta. Riprova.
             </p>
           )}
         </div>
