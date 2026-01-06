@@ -38,36 +38,21 @@ export const ComprehensionTest = ({
 
   if (!isOpen) return null;
 
-  // Use provided questions or fallback mock (for legacy support)
-  const questions: QuizQuestion[] = providedQuestions || [
-    {
-      id: "q1",
-      stem: "Qual è il tema principale dell'articolo?",
-      choices: [
-        { id: "a", text: "Tecnologia" },
-        { id: "b", text: "Politica" },
-        { id: "c", text: "Economia" }
-      ]
-    },
-    {
-      id: "q2",
-      stem: "Secondo l'articolo, quale tendenza è evidenziata?",
-      choices: [
-        { id: "a", text: "Crescita" },
-        { id: "b", text: "Declino" },
-        { id: "c", text: "Stabilità" }
-      ]
-    },
-    {
-      id: "q3",
-      stem: "Quale dato specifico viene citato nel testo?",
-      choices: [
-        { id: "a", text: "50%" },
-        { id: "b", text: "25%" },
-        { id: "c", text: "75%" }
-      ]
-    }
-  ];
+  // HARDENED: Questions MUST come from server-side generate-qa
+  // No fallback mock - if questions are missing, the component should not render
+  if (!providedQuestions || providedQuestions.length === 0) {
+    console.error('[ComprehensionTest] SECURITY: No questions provided. Cannot render without server-side questions.');
+    return (
+      <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+        <div className="bg-gray-900 rounded-2xl p-6 text-center border border-gray-700 max-w-sm">
+          <p className="text-red-400 mb-4">Errore: domande non disponibili</p>
+          <Button onClick={onClose} variant="outline">Chiudi</Button>
+        </div>
+      </div>
+    );
+  }
+
+  const questions: QuizQuestion[] = providedQuestions;
 
   const handleAnswer = async (choiceId: string) => {
     const question = questions[currentQuestion];
