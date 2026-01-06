@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
+// QuizQuestion type - NO correctId on client side (security hardening)
+// Correct answers are NEVER sent to the client
 export interface QuizQuestion {
   id: string;
   stem: string;
@@ -7,7 +9,7 @@ export interface QuizQuestion {
     id: string;
     text: string;
   }>;
-  correctId: string;
+  // correctId is NOT included - answers validated server-side only
 }
 
 export interface QAGenerationResult {

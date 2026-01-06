@@ -117,56 +117,26 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
     );
   }
 
+  // SECURITY HARDENED: No client-side validation - all answers submitted to server
   const handleAnswer = async (questionId: string, choiceId: string) => {
     if (showFeedback) return;
     
     setSelectedChoice(choiceId);
-    setShowFeedback(true);
+    const newAnswers = { ...answers, [questionId]: choiceId };
+    setAnswers(newAnswers);
     
-    const correct = currentQuestion.correctId === choiceId;
-    setIsCorrect(correct);
-    
-    if (!correct) {
-      setAnswers(prev => ({ ...prev, [questionId]: choiceId }));
-      const attempts = (questionAttempts[questionId] || 0) + 1;
-      setQuestionAttempts(prev => ({ ...prev, [questionId]: attempts }));
-      const newTotalErrors = totalErrors + 1;
-      setTotalErrors(newTotalErrors);
-      
-      // Mostra messaggio "riprova" solo se ha ancora tentativi GLOBALI disponibili
-      setShowRetryMessage(newTotalErrors < 2 && attempts < 2);
-      
-      if (newTotalErrors >= 2) {
-        // Non chiamare onSubmit, decidere localmente che è fallito
-        safeSetTimeout(() => {
-          setResult({ passed: false, score: 0, total: validQuestions.length, wrongIndexes: [] });
-        }, 1500);
-        return;
-      }
-      
-      if (attempts >= 2) {
-        safeSetTimeout(() => {
-          if (currentStep < validQuestions.length - 1) {
-            setCurrentStep(prev => prev + 1);
-            resetFeedback();
-          } else {
-            handleFinalSubmit();
-          }
-        }, 1500);
-      } else {
-        safeSetTimeout(() => resetFeedback(), 1500);
-      }
-    } else {
-      setAnswers(prev => ({ ...prev, [questionId]: choiceId }));
-      setShowRetryMessage(false);
+    // Move to next question or submit
+    if (currentStep < validQuestions.length - 1) {
+      setShowFeedback(true);
+      setIsCorrect(true); // Show neutral feedback while progressing
       safeSetTimeout(() => {
-        if (currentStep < validQuestions.length - 1) {
-          setCurrentStep(prev => prev + 1);
-          resetFeedback();
-        } else {
-          handleFinalSubmit();
-        }
-      }, 1500);
+        setCurrentStep(prev => prev + 1);
+        resetFeedback();
+      }, 500);
+    } else {
+      // Last question - submit all answers for server-side validation
+      setShowFeedback(true);
+      handleFinalSubmit();
     }
   };
 
@@ -339,8 +309,8 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
                 <div className="space-y-2 sm:space-y-3">
                   {(currentQuestion.choices || []).map((choice) => {
                     const isSelected = selectedChoice === choice.id;
-                    const isRightAndSelected = showFeedback && isSelected && choice.id === currentQuestion.correctId;
-                    const isWrong = showFeedback && isSelected && choice.id !== currentQuestion.correctId;
+                    // SECURITY: No client-side correctId check - just show selection state
+                    const isSelectedAndFeedback = showFeedback && isSelected;
 
                     return (
                       <button 
@@ -354,9 +324,8 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
                         className={cn("w-full p-3 sm:p-5 rounded-xl sm:rounded-2xl text-left transition-all border-2 pointer-events-auto text-sm sm:text-base",
                           !showFeedback && !isSelected && "border-border bg-muted/20 hover:border-muted-foreground hover:bg-muted/40",
                           !showFeedback && isSelected && "border-[hsl(var(--cognitive-glow-blue))] bg-[hsl(var(--cognitive-glow-blue))]/10",
-                          isRightAndSelected && "border-[hsl(var(--cognitive-correct))] bg-[hsl(var(--cognitive-correct))]/10",
-                          isWrong && "border-[hsl(var(--cognitive-incorrect))] bg-[hsl(var(--cognitive-incorrect))]/20")}>
-                        <span className={cn("flex-1 leading-relaxed", (isRightAndSelected || isWrong) && "font-medium")}>{choice.text}</span>
+                          isSelectedAndFeedback && "border-[hsl(var(--cognitive-glow-blue))] bg-[hsl(var(--cognitive-glow-blue))]/10")}>
+                        <span className={cn("flex-1 leading-relaxed", isSelectedAndFeedback && "font-medium")}>{choice.text}</span>
                       </button>
                     );
                   })}
