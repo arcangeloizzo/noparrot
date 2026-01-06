@@ -129,7 +129,11 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
     }
   };
 
+  // SECURITY HARDENED: NO feedback until server validation
+  // Fixes "every answer appears correct" bug
   const handleAnswer = async (questionId: string, choiceId: string) => {
+    if (isSubmitting) return;
+    
     // Store the answer
     const newAnswers = { ...answers, [questionId]: choiceId };
     setAnswers(newAnswers);
@@ -147,9 +151,7 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
           gateType: 'composer'
         });
         
-        // Check if this specific question was wrong
-        const isCurrentWrong = result.wrongIndexes.includes(questionId);
-        
+        // SECURITY: Only show feedback AFTER server responds
         if (result.passed) {
           setShowResult('correct');
           setTimeout(() => {
@@ -157,7 +159,7 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
             setIsComplete(true);
           }, 1500);
         } else {
-          // Mark wrong questions
+          // Mark wrong questions based on server response
           setWrongQuestions(new Set(result.wrongIndexes));
           setShowResult('wrong');
           
@@ -179,18 +181,18 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
         }
       } catch (error) {
         console.error('[SourceMCQTest] Validation error:', error);
+        // SECURITY: On error, show failure - never assume correct
         setShowResult('wrong');
-        setTimeout(() => setShowResult(null), 800);
+        setTimeout(() => setShowResult(null), 1500);
       } finally {
         setIsSubmitting(false);
       }
     } else {
-      // Not last question, just move to next
-      setShowResult('correct');
+      // Not last question - move to next WITHOUT any feedback
+      // NO setShowResult('correct') - that was the bug!
       setTimeout(() => {
-        setShowResult(null);
         setCurrentQuestion(prev => prev + 1);
-      }, 500);
+      }, 300);
     }
   };
 
