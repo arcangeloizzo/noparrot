@@ -341,13 +341,20 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     }
   };
 
-  const closeReaderSafely = async () => {
+  const closeReaderSafely = async (preserveUrlState = false) => {
     addBreadcrumb('reader_close_start');
     setReaderClosing(true);
     await new Promise((resolve) => setTimeout(resolve, 200));
     setShowReader(false);
     await new Promise((resolve) => setTimeout(resolve, 50));
     setReaderClosing(false);
+    
+    // Reset URL state when user closes without completing (allows new URL detection)
+    if (!preserveUrlState) {
+      setDetectedUrl(null);
+      setUrlPreview(null);
+    }
+    
     addBreadcrumb('reader_closed');
   };
 
@@ -358,7 +365,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
     try {
       if (!urlPreview || !user) {
-        await closeReaderSafely();
+        await closeReaderSafely(false);
         return;
       }
 
@@ -366,7 +373,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       if (!urlPreview.qaSourceRef) {
         console.error('[ComposerModal] Missing qaSourceRef');
         toast.error('Impossibile avviare il test: riferimento mancante. Riprova.');
-        await closeReaderSafely();
+        await closeReaderSafely(false);
         return; // DO NOT publish
       }
 
@@ -392,7 +399,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       if (result.insufficient_context) {
         toast.error('Contenuto insufficiente per generare il test');
         addBreadcrumb('quiz_insufficient');
-        await closeReaderSafely();
+        await closeReaderSafely(false);
         return; // DO NOT publish - block
       }
 
@@ -406,7 +413,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         });
         addBreadcrumb('quiz_unavailable');
         toast.error('Quiz non disponibile. Riprova.');
-        await closeReaderSafely();
+        await closeReaderSafely(false);
         return; // DO NOT publish - block
       }
 
@@ -421,8 +428,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       // Wait one frame to ensure quiz is rendered above reader
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
-      // NOW close reader (quiz is already visible on top)
-      await closeReaderSafely();
+      // NOW close reader (quiz is already visible on top) - preserve URL state
+      await closeReaderSafely(true);
     } catch (error) {
       console.error('[ComposerModal] handleReaderComplete error:', error);
       toast.dismiss();
@@ -430,7 +437,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       addBreadcrumb('quiz_error', { error: String(error) });
 
       try {
-        await closeReaderSafely();
+        await closeReaderSafely(false);
       } catch (closeError) {
         console.error('[ComposerModal] closeReaderSafely error:', closeError);
       }
@@ -986,7 +993,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
           isOpen={showReader}
           isClosing={readerClosing}
           onClose={() => {
-            void closeReaderSafely();
+            void closeReaderSafely(false);
           }}
           source={urlPreview}
           onComplete={handleReaderComplete}
