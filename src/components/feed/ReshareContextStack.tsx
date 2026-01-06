@@ -27,6 +27,14 @@ export const ReshareContextStack = ({ stack }: ReshareContextStackProps) => {
   };
 
   const getAvatarContent = (author: ContextItem['author']) => {
+    if (!author) {
+      return (
+        <div className="bg-gray-500 w-full h-full flex items-center justify-center text-white font-bold text-[10px]">
+          ?
+        </div>
+      );
+    }
+    
     if (author.avatar_url) {
       return (
         <img 
