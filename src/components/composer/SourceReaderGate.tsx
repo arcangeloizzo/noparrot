@@ -1,14 +1,13 @@
-// SourceReaderGate - Source-first Reading view
+// SourceReaderGate - Source-first Bridge screen
 // =============================================
 // ✅ SOURCE-FIRST: Uses iframe/embed ONLY, no full text rendering
 // ✅ No content/transcript/lyrics displayed (copyright compliance)
-// ✅ Timer or playback gating based on gateConfig
+// ✅ Simple bridge screen - user can view source and proceed when ready
 // ✅ iOS Safe Mode: no iframes/embeds on iOS Safari
 
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Check, ExternalLink, Music, Loader2, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { TypingIndicator } from '@/components/ui/typing-indicator';
 import { cn } from '@/lib/utils';
 import { SourceWithGate } from '@/lib/comprehension-gate-extended';
 import { sendReaderTelemetry } from '@/lib/telemetry';
@@ -62,7 +61,6 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 }) => {
   const [twitterScriptLoaded, setTwitterScriptLoaded] = useState(false);
   const [isRenderingTwitter, setIsRenderingTwitter] = useState(false);
-  const [showTypingIndicator, setShowTypingIndicator] = useState(false);
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   // Protection for unmount
@@ -93,15 +91,6 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const rootRef = useRef<HTMLDivElement>(null);
   const spotifyIframeRef = useRef<HTMLIFrameElement>(null);
   const youtubeIframeRef = useRef<HTMLIFrameElement>(null);
-
-  // Gate config from source or defaults
-  const gateConfig = source.gateConfig || { mode: 'timer' as const, minSeconds: 10 };
-  const minSeconds = gateConfig.minSeconds;
-
-  // Timer and scroll state
-  const [timeLeft, setTimeLeft] = useState(minSeconds);
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   // Iframe loading state for generic articles
@@ -267,46 +256,16 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
   useEffect(() => {
     if (!isOpen) {
-      setTimeLeft(minSeconds);
-      setScrollProgress(0);
-      setHasScrolledToBottom(false);
-      setShowTypingIndicator(false);
       unlockBodyScroll('reader');
       return;
     }
 
     lockBodyScroll('reader');
 
-    // Show typing indicator briefly
-    setShowTypingIndicator(true);
-    const indicatorTimer = safeSetTimeout(() => setShowTypingIndicator(false), 2000);
-
-    // Timer countdown
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) return 0;
-        return prev - 1;
-      });
-    }, 1000);
-
     return () => {
-      clearTimeout(indicatorTimer);
-      clearInterval(timer);
       unlockBodyScroll('reader');
     };
-  }, [isOpen, safeSetTimeout, minSeconds]);
-
-  // Scroll handler
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    const progressValue = Math.min(100, (scrollTop / (scrollHeight - clientHeight)) * 100);
-    setScrollProgress(progressValue);
-
-    const isAtBottom = scrollTop + clientHeight >= scrollHeight - 10;
-    if (isAtBottom && !hasScrolledToBottom) {
-      setHasScrolledToBottom(true);
-    }
-  };
+  }, [isOpen]);
 
   const openSource = () => {
     window.open(source.url, '_blank', 'noopener,noreferrer');
@@ -317,8 +276,8 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   // Check if content is blocked
   const isBlocked = source.contentQuality === 'blocked';
 
-  // Gate ready = timer 0 OR scroll 100% OR blocked (bypass gate)
-  const isReady = isBlocked || timeLeft === 0 || hasScrolledToBottom;
+  // Bridge screen: always ready to proceed (no timer/scroll gate)
+  const isReady = true;
 
   const handleComplete = () => {
     addBreadcrumb('reader_proceed_clicked', {
@@ -388,28 +347,6 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
             </div>
           </div>
           
-          {/* Transcript status badge (no full text shown) */}
-          {source.transcriptStatus === 'cached' && (
-            <div className="bg-trust-high/10 border border-trust-high/20 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-trust-high" />
-                <span className="text-sm font-medium text-trust-high">
-                  Trascrizione disponibile per il test
-                </span>
-              </div>
-            </div>
-          )}
-          
-          {source.transcriptStatus === 'pending' && (
-            <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
-              <div className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                <span className="text-sm font-medium text-primary">
-                  Trascrizione in preparazione...
-                </span>
-              </div>
-            </div>
-          )}
         </div>
       );
     }
@@ -746,11 +683,6 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               title="Article content"
             />
           </div>
-
-          {/* Gate hint */}
-          <p className="text-xs text-center text-muted-foreground flex-shrink-0">
-            Naviga il sito per {minSeconds} secondi per sbloccare il test
-          </p>
         </div>
       );
     }
@@ -840,10 +772,10 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
         <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 bg-muted/30">
           <div className="flex-1">
             <h2 className="font-semibold text-lg text-foreground">
-              Prima comprendiamo.
+              Contenuto pronto
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {source.title ? source.title.slice(0, 60) + (source.title.length > 60 ? '...' : '') : 'Fonte'}
+              Ora puoi entrare nella fase di comprensione.
             </p>
           </div>
           <Button
@@ -855,68 +787,6 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
             <X className="h-5 w-5" />
           </Button>
         </div>
-
-        {/* Progress Bar (hidden if blocked) */}
-        {!isBlocked && (
-          <div className="px-5 py-3 bg-muted/20 border-b border-border/30">
-            <div className="flex items-center justify-between text-sm mb-2">
-              <div className="flex items-center gap-2">
-                {showTypingIndicator ? (
-                  <>
-                    <TypingIndicator className="mr-2" />
-                    <span className="text-muted-foreground font-medium text-xs">Preparazione in corso…</span>
-                  </>
-                ) : isReady ? (
-                  <>
-                    <Check className="h-4 w-4 text-[hsl(var(--cognitive-correct))]" />
-                    <span className="text-[hsl(var(--cognitive-correct))] font-medium text-sm">Pronto. Procediamo.</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-foreground text-sm font-medium">
-                      {timeLeft}s
-                    </span>
-                    <span className="text-muted-foreground">•</span>
-                    <span className="text-foreground text-sm">
-                      {Math.round(scrollProgress)}%
-                    </span>
-                  </>
-                )}
-              </div>
-              {!isReady && (
-                <span className="text-muted-foreground text-xs">
-                  {minSeconds}s o scorri tutto
-                </span>
-              )}
-            </div>
-
-            {/* Progress bars */}
-            <div className="flex gap-2">
-              <div className="flex-1 bg-muted rounded-full h-1.5">
-                <div
-                  className={cn(
-                    "h-1.5 rounded-full transition-all ease-linear",
-                    timeLeft === 0 ? "bg-trust-high" : "bg-primary"
-                  )}
-                  style={{
-                    width: `${((minSeconds - timeLeft) / minSeconds) * 100}%`,
-                    transitionDuration: '1000ms'
-                  }}
-                />
-              </div>
-
-              <div className="flex-1 bg-muted rounded-full h-1.5">
-                <div
-                  className={cn(
-                    "h-1.5 rounded-full transition-all duration-300",
-                    hasScrolledToBottom ? "bg-trust-high" : "bg-accent"
-                  )}
-                  style={{ width: `${scrollProgress}%` }}
-                />
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Source Badge */}
         <div className="px-5 py-3 border-b border-border/30 bg-card">
@@ -946,7 +816,6 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           ref={scrollContainerRef}
           className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain"
           style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
-          onScroll={handleScroll}
         >
           <div className="px-5 py-6 space-y-5 max-w-full overflow-hidden">
             {isClosing ? (
@@ -961,7 +830,11 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="px-5 py-4 border-t border-border/50 bg-card">
+        {/* Footer Actions */}
+        <div className="px-5 py-4 border-t border-border/50 bg-card space-y-3">
+          <p className="text-xs text-center text-muted-foreground">
+            Puoi rivedere la fonte in qualsiasi momento.
+          </p>
           <div className="flex gap-3">
             <Button 
               variant="outline" 
@@ -969,31 +842,22 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               className="flex-1 gap-2 h-12 rounded-2xl"
             >
               <ExternalLink className="h-4 w-4" />
-              Apri originale
+              Apri la fonte
             </Button>
             <Button 
               onClick={handleComplete}
-              disabled={!isReady || isLoading}
-              className={cn(
-                "flex-1 gap-2 h-12 rounded-2xl transition-all",
-                isReady 
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90" 
-                  : "bg-muted text-muted-foreground cursor-not-allowed"
-              )}
+              disabled={isLoading}
+              className="flex-1 gap-2 h-12 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Caricamento...
                 </>
-              ) : isReady ? (
-                <>
-                  <Check className="h-4 w-4" />
-                  Procedi al test
-                </>
               ) : (
                 <>
-                  Attendi...
+                  <Check className="h-4 w-4" />
+                  Continua
                 </>
               )}
             </Button>
