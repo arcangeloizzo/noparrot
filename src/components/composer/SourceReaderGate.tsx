@@ -322,6 +322,36 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
   // Render platform-specific content
   const renderContent = () => {
+    // Editorial content - full text display (for Il Punto editorials)
+    if (source.url?.startsWith('editorial://') && (source as any).articleContent) {
+      const articleContent = (source as any).articleContent as string;
+      return (
+        <div className="max-w-2xl mx-auto space-y-4">
+          {/* Editorial Header - Il Punto branding */}
+          <div className="flex items-center gap-3 p-4 bg-[#0D1B2A] border border-white/10 rounded-lg">
+            <div className="w-10 h-10 rounded-full bg-[#0D1B2A] border border-white/20 flex items-center justify-center">
+              <span className="text-lg">◉</span>
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">IL PUNTO</p>
+              <p className="text-sm text-muted-foreground line-clamp-1">{source.title}</p>
+            </div>
+          </div>
+
+          {/* Full Editorial Content - scrollable */}
+          <div 
+            ref={scrollContainerRef}
+            className="bg-card border border-border rounded-lg p-5 max-h-[55vh] overflow-y-auto"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
+            <p className="text-foreground leading-relaxed whitespace-pre-wrap">
+              {articleContent}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     // YouTube - iOS enabled with tap-to-load
     if (source.platform === 'youtube' && source.embedHtml && !isClosing) {
       const iframeSrc = extractIframeSrc(source.embedHtml);

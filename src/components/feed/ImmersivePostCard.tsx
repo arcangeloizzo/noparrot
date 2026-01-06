@@ -29,6 +29,7 @@ import { QuizModal } from "@/components/ui/quiz-modal";
 
 // Feed Components
 import { QuotedPostCard } from "./QuotedPostCard";
+import { QuotedEditorialCard } from "./QuotedEditorialCard";
 import { MentionText } from "./MentionText";
 import { ReshareContextStack } from "./ReshareContextStack";
 import { SpotifyGradientBackground } from "./SpotifyGradientBackground";
@@ -1161,10 +1162,25 @@ export const ImmersivePostCard = ({
             {/* Quoted Post - Only for reshares WITHOUT source (pure comment reshares) */}
             {quotedPost && !useStackLayout && (
               <div className="mt-4">
-                <QuotedPostCard 
-                  quotedPost={quotedPost} 
-                  parentSources={post.shared_url ? [post.shared_url, ...(post.sources || [])] : (post.sources || [])} 
-                />
+                {/* Detect if quoted post is an editorial (Il Punto) */}
+                {quotedPost.shared_url?.startsWith('focus://') || quotedPost.author?.username === 'ilpunto' ? (
+                  <QuotedEditorialCard
+                    title={quotedPost.shared_title || quotedPost.content}
+                    summary={quotedPost.content}
+                    imageUrl={quotedPost.preview_img || undefined}
+                    onClick={() => {
+                      const focusId = quotedPost.shared_url?.replace('focus://daily/', '');
+                      if (focusId) {
+                        navigate(`/?focus=${focusId}`);
+                      }
+                    }}
+                  />
+                ) : (
+                  <QuotedPostCard 
+                    quotedPost={quotedPost} 
+                    parentSources={post.shared_url ? [post.shared_url, ...(post.sources || [])] : (post.sources || [])} 
+                  />
+                )}
               </div>
             )}
 
