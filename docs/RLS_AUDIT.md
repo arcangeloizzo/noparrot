@@ -225,6 +225,7 @@
 - [x] `apiCreateOrGetQuiz` in comprehension-gate.tsx → throws Error (deprecated)
 - [x] `validate-answers` edge function → returns 410 Gone
 - [x] Nessun "mock passed" o "assume correct" nel codebase
+- [x] `ComprehensionTest.tsx` → hard-fail senza fallback mock (v2.2)
 
 ### D) Focus/Il Punto
 - [x] `qaId` generato server-side via `generate-qa`
@@ -234,6 +235,11 @@
 ---
 
 ## Changelog
+
+- **2026-01-06 v2.2**: Complete audit and mock removal
+  - Removed fallback mock questions from `ComprehensionTest.tsx`
+  - Hard-fail if no server-side questions provided
+  - Full grep audit completed - zero leaks confirmed
 
 - **2026-01-06 v2.1**: Final hardening - single source of truth
   - Deprecated `apiSubmitAnswers` and `apiCreateOrGetQuiz` in comprehension-gate.tsx
