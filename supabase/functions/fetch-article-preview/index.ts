@@ -736,10 +736,10 @@ serve(async (req) => {
           author: oembedData.author_name,
           authorUrl: oembedData.author_url,
           contentQuality: transcriptStatus === 'cached' ? 'complete' : 'partial',
-          // Gate config for client
+          // Gate config for client (15s timer, iOS-compatible)
           gateConfig: {
-            mode: 'playback',
-            minSeconds: 45
+            mode: 'timer',
+            minSeconds: 15
           },
           // QA source reference for generate-qa
           qaSourceRef: {

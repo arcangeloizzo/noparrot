@@ -54,20 +54,23 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
     try {
       console.log('[SourceMCQTest] Loading questions for:', source.url);
       
-      // 1. Fetch article preview to get full metadata
+      // 1. Fetch article preview to get metadata and qaSourceRef
       const preview = await fetchArticlePreview(source.url);
       
-      if (!preview) {
+      if (!preview || !preview.success) {
         throw new Error('Impossibile recuperare il contenuto della fonte');
       }
       
       console.log('[SourceMCQTest] Preview fetched:', {
         title: preview.title?.substring(0, 50),
-        summaryLength: preview.summary?.length,
-        contentLength: preview.content?.length,
-        excerptLength: preview.excerpt?.length,
+        qaSourceRef: preview.qaSourceRef,
         type: preview.type
       });
+      
+      // Check if qaSourceRef is available
+      if (!preview.qaSourceRef) {
+        throw new Error('Riferimento contenuto mancante');
+      }
       
       // 2. Calcola testMode se c'è testo utente
       const userText = (source as any).userText || '';
@@ -76,14 +79,12 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
 
       console.log('[SourceMCQTest] Test mode:', testMode, 'userWordCount:', userWordCount);
       
-      // 3. Generate AI questions
+      // 3. Generate AI questions using qaSourceRef (source-first)
       const result = await generateQA({
         contentId: null,
         isPrePublish: true,
         title: preview.title || source.title || '',
-        summary: preview.content || preview.summary || preview.excerpt || '',
-        excerpt: preview.excerpt || '',
-        type: preview.type as any || 'article',
+        qaSourceRef: preview.qaSourceRef,
         sourceUrl: source.url,
         userText: userText,
         testMode: testMode,

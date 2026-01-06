@@ -433,10 +433,12 @@ export const ImmersivePostCard = ({
 
       const fullContent = readerSource.content || readerSource.summary || readerSource.excerpt || post.content;
 
+      // Use qaSourceRef for source-first, fallback to summary for original posts
       const result = await generateQA({
         contentId: post.id,
         title: readerSource.title,
-        summary: fullContent,
+        summary: isOriginalPost ? fullContent : undefined,
+        qaSourceRef: !isOriginalPost ? readerSource.qaSourceRef : undefined,
         userText: userText || '',
         sourceUrl: isOriginalPost ? undefined : readerSource.url,
         testMode,
