@@ -87,7 +87,9 @@ export default function TermsOfService() {
             <section>
               <h2 className="text-xl font-semibold mb-3 text-foreground">6. Cancellazione dell'account</h2>
               <p className="text-foreground">
-                Puoi cancellare in qualsiasi momento il tuo account dalla sezione Impostazioni e privacy.
+                Puoi cancellare in qualsiasi momento il tuo account dalla sezione Impostazioni → Privacy 
+                o scrivendo a{" "}
+                <a href="mailto:noparrot.info@gmail.com" className="text-primary underline">noparrot.info@gmail.com</a>.
               </p>
             </section>
 

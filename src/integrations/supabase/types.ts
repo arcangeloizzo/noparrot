@@ -198,6 +198,21 @@ export type Database = {
         }
         Relationships: []
       }
+      export_requests: {
+        Row: {
+          last_export_at: string
+          user_id: string
+        }
+        Insert: {
+          last_export_at?: string
+          user_id: string
+        }
+        Update: {
+          last_export_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       focus_bookmarks: {
         Row: {
           created_at: string
@@ -581,6 +596,32 @@ export type Database = {
             columns: ["media_id"]
             isOneToOne: false
             referencedRelation: "media"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      message_deletions: {
+        Row: {
+          deleted_at: string
+          message_id: string
+          user_id: string
+        }
+        Insert: {
+          deleted_at?: string
+          message_id: string
+          user_id: string
+        }
+        Update: {
+          deleted_at?: string
+          message_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_deletions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
             referencedColumns: ["id"]
           },
         ]
@@ -1043,7 +1084,7 @@ export type Database = {
           cognitive_density: Json | null
           cognitive_tracking_enabled: boolean | null
           created_at: string | null
-          date_of_birth: string | null
+          date_of_birth: string
           full_name: string | null
           id: string
           last_seen_at: string | null
@@ -1055,7 +1096,7 @@ export type Database = {
           cognitive_density?: Json | null
           cognitive_tracking_enabled?: boolean | null
           created_at?: string | null
-          date_of_birth?: string | null
+          date_of_birth: string
           full_name?: string | null
           id: string
           last_seen_at?: string | null
@@ -1067,7 +1108,7 @@ export type Database = {
           cognitive_density?: Json | null
           cognitive_tracking_enabled?: boolean | null
           created_at?: string | null
-          date_of_birth?: string | null
+          date_of_birth?: string
           full_name?: string | null
           id?: string
           last_seen_at?: string | null
@@ -1362,6 +1403,7 @@ export type Database = {
         Row: {
           cached_at: string | null
           created_at: string | null
+          expires_at: string | null
           id: string
           language: string | null
           source: string
@@ -1371,6 +1413,7 @@ export type Database = {
         Insert: {
           cached_at?: string | null
           created_at?: string | null
+          expires_at?: string | null
           id?: string
           language?: string | null
           source: string
@@ -1380,6 +1423,7 @@ export type Database = {
         Update: {
           cached_at?: string | null
           created_at?: string | null
+          expires_at?: string | null
           id?: string
           language?: string | null
           source?: string

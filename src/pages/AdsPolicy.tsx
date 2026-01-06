@@ -77,12 +77,12 @@ export default function AdsPolicy() {
 
               <div className="pt-4 border-t border-border space-y-3">
                 <p>
-                  Gli annunci personalizzati usano solo la mappa di interessi se hai dato consenso.
-                  Se disattivi la profilazione, vedrai solo annunci contestuali.
+                  Se disattivi il feed personalizzato, gli annunci basati sugli interessi 
+                  vengono disattivati e vedrai solo annunci contestuali.
                 </p>
                 <p>
                   Puoi attivare o disattivare la personalizzazione in qualsiasi momento 
-                  dalle <strong className="text-foreground">Impostazioni e privacy</strong>.
+                  dalle <strong className="text-foreground">Impostazioni → Privacy</strong>.
                 </p>
                 <div className="p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
                   <p className="text-sm text-amber-200">

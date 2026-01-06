@@ -5,6 +5,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const RATE_LIMIT_SECONDS = 60;
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -33,6 +35,42 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    console.log(`📦 [export-user-data] Checking rate limit for user: ${user.id}`);
+
+    // Rate limit check
+    const { data: lastExport } = await supabase
+      .from("export_requests")
+      .select("last_export_at")
+      .eq("user_id", user.id)
+      .single();
+
+    if (lastExport) {
+      const lastExportTime = new Date(lastExport.last_export_at).getTime();
+      const now = Date.now();
+      const secondsSinceLastExport = (now - lastExportTime) / 1000;
+      
+      if (secondsSinceLastExport < RATE_LIMIT_SECONDS) {
+        const waitTime = Math.ceil(RATE_LIMIT_SECONDS - secondsSinceLastExport);
+        console.log(`⏳ [export-user-data] Rate limited. Wait ${waitTime}s`);
+        return new Response(
+          JSON.stringify({ 
+            error: "Rate limit exceeded", 
+            retry_after: waitTime,
+            message: `Attendi ${waitTime} secondi prima di richiedere un nuovo export`
+          }), 
+          {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+    }
+
+    // Update/insert rate limit record
+    await supabase
+      .from("export_requests")
+      .upsert({ user_id: user.id, last_export_at: new Date().toISOString() });
 
     console.log(`📦 [export-user-data] Exporting data for user: ${user.id}`);
 
