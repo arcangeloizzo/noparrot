@@ -140,6 +140,8 @@ export function QuizModal({ questions, qaId, onSubmit, onCancel, onComplete, pos
 
   /**
    * Handle answer selection with server-side step validation
+   * BLOCK-ON-WRONG UX: User must answer correctly to proceed
+   * 2 total errors = immediate failure
    */
   const handleAnswer = async (questionId: string, choiceId: string) => {
     if (showFeedback || isSubmitting) return;
@@ -150,27 +152,48 @@ export function QuizModal({ questions, qaId, onSubmit, onCancel, onComplete, pos
     const newAnswers = { ...answers, [questionId]: choiceId };
     setAnswers(newAnswers);
     
-    if (currentStep < validQuestions.length - 1) {
-      // STEP MODE: Validate single question server-side
-      const stepResult = await validateStep(questionId, choiceId);
+    // STEP MODE: Validate single question server-side
+    const stepResult = await validateStep(questionId, choiceId);
+    
+    if (!stepResult) {
+      // FAIL-CLOSED: Show error, block quiz
+      toast.error("Errore nella verifica della risposta");
+      setIsSubmitting(false);
+      return;
+    }
+    
+    // Show feedback (blue for correct, yellow for incorrect)
+    setStepFeedback(stepResult);
+    setShowFeedback(true);
+    
+    if (!stepResult.isCorrect) {
+      // WRONG ANSWER
+      const newTotalErrors = totalErrors + 1;
+      setTotalErrors(newTotalErrors);
       
-      if (!stepResult) {
-        // FAIL-CLOSED: Show error, block quiz
-        toast.error("Errore nella verifica della risposta");
-        setIsSubmitting(false);
+      if (newTotalErrors >= 2) {
+        // 2nd error = IMMEDIATE FAILURE
+        addBreadcrumb('quiz_fail_2_errors');
+        safeSetTimeout(() => {
+          setResult({ passed: false, wrongIndexes: [] });
+        }, 800);
         return;
       }
       
-      // Show feedback (blue for correct, yellow for incorrect)
-      setStepFeedback(stepResult);
-      setShowFeedback(true);
-      
-      // Track errors locally for progress dots (display only, NOT for verdict)
-      if (!stepResult.isCorrect) {
-        setTotalErrors(prev => prev + 1);
-      }
-      
-      // After feedback delay, move to next question
+      // 1st error: show feedback but DON'T advance - allow retry
+      safeSetTimeout(() => {
+        setSelectedChoice(null);
+        setShowFeedback(false);
+        setStepFeedback(null);
+        setIsSubmitting(false);
+        // Stay on same question - user must answer correctly
+      }, 800);
+      return;
+    }
+    
+    // CORRECT ANSWER - proceed
+    if (currentStep < validQuestions.length - 1) {
+      // Move to next question
       safeSetTimeout(() => {
         setCurrentStep(prev => prev + 1);
         setSelectedChoice(null);
@@ -179,25 +202,7 @@ export function QuizModal({ questions, qaId, onSubmit, onCancel, onComplete, pos
         setIsSubmitting(false);
       }, 800);
     } else {
-      // FINAL: Last question - also validate step then submit all for final verdict
-      const stepResult = await validateStep(questionId, choiceId);
-      
-      if (!stepResult) {
-        // FAIL-CLOSED: Show error
-        toast.error("Errore nella verifica della risposta");
-        setIsSubmitting(false);
-        return;
-      }
-      
-      // Show feedback for last question
-      setStepFeedback(stepResult);
-      setShowFeedback(true);
-      
-      if (!stepResult.isCorrect) {
-        setTotalErrors(prev => prev + 1);
-      }
-      
-      // Small delay then submit final
+      // FINAL: Last question answered correctly - submit all for final verdict
       safeSetTimeout(() => {
         handleFinalSubmit(newAnswers);
       }, 600);

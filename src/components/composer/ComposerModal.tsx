@@ -204,6 +204,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         return;
       }
 
+      // Fetch preview - main operation
       const preview = await fetchArticlePreview(url);
       console.log('[Composer] fetchArticlePreview result:', { success: preview?.success, error: preview?.error });
       
@@ -215,15 +216,20 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         return;
       }
       
-      // Success - set preview
+      // Success - set preview IMMEDIATELY (don't block on classification)
       setUrlPreview({ url, ...preview });
+      setIsPreviewLoading(false); // Show preview now
       
-      const category = await classifyContent({
+      // Classification in background - non-blocking
+      classifyContent({
         text: content,
         title: preview.title,
         summary: preview.content || preview.summary || preview.excerpt
+      }).then(setContentCategory).catch((err) => {
+        console.warn('[Composer] Classification failed (non-blocking):', err);
       });
-      setContentCategory(category);
+      
+      return; // Early return since we already set loading=false
     } catch (error) {
       console.error('[Composer] Error loading preview:', error);
       toast.error('Errore nel caricamento dell\'anteprima.');
