@@ -134,9 +134,10 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
         setSelectedChoice(null);
       }, 300);
     } else {
-      // Last question - submit all answers for server-side validation
+      // CRITICAL FIX: Pass newAnswers directly to avoid stale state bug
+      // Previously handleFinalSubmit() used `answers` state which didn't include the last answer
       setShowFeedback(true);
-      handleFinalSubmit();
+      handleFinalSubmit(newAnswers);
     }
   };
 
@@ -146,11 +147,36 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
     setShowFeedback(false);
   };
 
-  const handleFinalSubmit = async () => {
+  // CRITICAL: Accept answersToSubmit parameter to ensure last answer is included
+  const handleFinalSubmit = async (answersToSubmit: Record<string, string>) => {
     setIsSubmitting(true);
     addBreadcrumb('quiz_submit_start');
+    
+    // FORENSIC LOG: Track exactly what we're sending
+    console.log('[QuizModal] handleFinalSubmit called with:', {
+      answerCount: Object.keys(answersToSubmit).length,
+      questionCount: validQuestions.length,
+      answerKeys: Object.keys(answersToSubmit),
+    });
+    
     try {
-      const validationResult = await onSubmit(answers);
+      const validationResult = await onSubmit(answersToSubmit);
+      
+      // FORENSIC LOG: Track server response
+      console.log('[QuizModal] Server validation result:', {
+        passed: validationResult?.passed,
+        score: validationResult?.score,
+        total: validationResult?.total,
+        wrongIndexes: validationResult?.wrongIndexes,
+      });
+      
+      // FAIL-FAST: If result is null/undefined, treat as failure
+      if (!validationResult) {
+        console.error('[QuizModal] Null validation result - treating as failure');
+        setResult({ passed: false, wrongIndexes: [] });
+        return;
+      }
+      
       setResult(validationResult);
       addBreadcrumb('quiz_submit_result', { passed: validationResult.passed });
       
@@ -172,8 +198,10 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
         }, 800); // 800ms per far vedere "Hai compreso" poi auto-chiude
       }
     } catch (error) {
-      console.error('Error submitting quiz:', error);
+      console.error('[QuizModal] Error submitting quiz:', error);
       addBreadcrumb('quiz_submit_error', { error: String(error) });
+      // FAIL-FAST on exception: show failure, don't leave in limbo
+      setResult({ passed: false, wrongIndexes: [] });
     } finally {
       setIsSubmitting(false);
     }
