@@ -24,20 +24,37 @@ export interface ValidationResult {
   completionTime?: number;
 }
 
+// QA Source Reference for server-side content fetching
+export interface QASourceRef {
+  kind: 'url' | 'youtubeId' | 'spotifyId' | 'tweetId';
+  id: string;
+  url?: string;
+}
+
+// Gate configuration for client
+export interface GateConfig {
+  mode: 'timer' | 'playback';
+  minSeconds: number;
+}
+
 /**
  * Genera Q&A per un contenuto usando Lovable AI
+ * SOURCE-FIRST: Receives qaSourceRef, fetches content server-side
  */
 export async function generateQA(params: {
   contentId: string | null;
   isPrePublish?: boolean;
   title?: string;
-  summary: string;
+  // DEPRECATED: summary no longer sent from client for new sources
+  summary?: string;
   userText?: string;
   excerpt?: string;
   type?: 'article' | 'video' | 'audio' | 'image';
   sourceUrl?: string;
   testMode?: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY';
   questionCount?: 1 | 3;
+  // NEW: Server-side content reference
+  qaSourceRef?: QASourceRef;
 }): Promise<QAGenerationResult> {
   try {
     const { data, error } = await supabase.functions.invoke('generate-qa', {

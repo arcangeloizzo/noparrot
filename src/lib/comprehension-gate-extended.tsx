@@ -43,6 +43,19 @@ export interface ReadingProgress {
   scrollAttritionActive: boolean;
 }
 
+// QA Source Reference for server-side content fetching
+export interface QASourceRef {
+  kind: 'url' | 'youtubeId' | 'spotifyId' | 'tweetId';
+  id: string;
+  url?: string;
+}
+
+// Gate configuration for client
+export interface GateConfig {
+  mode: 'timer' | 'playback';
+  minSeconds: number;
+}
+
 export interface SourceWithGate {
   id: string;
   url: string;
@@ -50,8 +63,9 @@ export interface SourceWithGate {
   state: SourceGateState;
   attempts?: number;
   lastAttempt?: Date;
-  content?: string;
-  summary?: string;
+  // REMOVED: content - no longer sent from server (copyright compliance)
+  // REMOVED: transcript - no longer sent from server (copyright compliance)
+  summary?: string; // Short summary only (max 200 chars)
   excerpt?: string;
   previewImg?: string;
   image?: string;
@@ -62,10 +76,17 @@ export interface SourceWithGate {
   videoId?: string;
   platform?: string;
   duration?: string;
-  transcript?: string;
+  // REMOVED: transcript - no longer sent from server
   transcriptSource?: 'youtube_captions' | 'whisper' | 'manual' | 'none';
+  transcriptStatus?: 'cached' | 'pending' | 'unavailable'; // Just status for UI
+  lyricsAvailable?: boolean; // Just boolean for Spotify
   author?: string;
   author_username?: string;
+  // NEW: Source-first fields
+  iframeAllowed?: boolean;
+  qaSourceRef?: QASourceRef;
+  gateConfig?: GateConfig;
+  contentQuality?: 'complete' | 'partial' | 'minimal' | 'blocked';
 }
 
 export interface GateQueueState {

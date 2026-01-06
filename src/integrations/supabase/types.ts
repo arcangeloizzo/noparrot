@@ -153,6 +153,36 @@ export type Database = {
           },
         ]
       }
+      content_cache: {
+        Row: {
+          content_text: string
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          source_type: string
+          source_url: string
+          title: string | null
+        }
+        Insert: {
+          content_text: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          source_type: string
+          source_url: string
+          title?: string | null
+        }
+        Update: {
+          content_text?: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          source_type?: string
+          source_url?: string
+          title?: string | null
+        }
+        Relationships: []
+      }
       daily_focus: {
         Row: {
           category: string | null

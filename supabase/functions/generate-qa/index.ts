@@ -6,6 +6,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ============================================================================
+// SOURCE-FIRST Q/A GENERATION
+// ============================================================================
+// This edge function now:
+// 1. Receives ONLY qaSourceRef from client (no full text)
+// 2. Fetches full content server-side from cache or fresh extraction
+// 3. Generates questions and returns ONLY questions (no source text)
+// ============================================================================
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -16,13 +25,16 @@ serve(async (req) => {
       contentId, 
       isPrePublish, 
       title, 
-      summary, 
+      // DEPRECATED: summary - no longer received from client
+      summary,
       excerpt, 
       type, 
       sourceUrl,
       userText,
       testMode,
-      questionCount 
+      questionCount,
+      // NEW: qaSourceRef for server-side content fetching
+      qaSourceRef
     } = await req.json();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -31,8 +43,177 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    console.log('[generate-qa] Request params:', { 
+      sourceUrl, 
+      contentId, 
+      isPrePublish, 
+      testMode, 
+      questionCount,
+      qaSourceRef: qaSourceRef ? { kind: qaSourceRef.kind, id: qaSourceRef.id?.substring(0, 20) } : null
+    });
+
+    // ========================================================================
+    // SERVER-SIDE CONTENT FETCHING
+    // ========================================================================
+    let serverSideContent = '';
+    let contentSource = 'none';
+    
+    // If client sent summary (legacy support), use it but log warning
+    if (summary && summary.length > 100) {
+      console.log('[generate-qa] ⚠️ Legacy mode: using client-provided summary');
+      serverSideContent = summary;
+      contentSource = 'client-legacy';
+    }
+    
+    // NEW: Fetch content server-side based on qaSourceRef
+    if (qaSourceRef && !serverSideContent) {
+      console.log(`[generate-qa] 📥 Fetching content server-side for ${qaSourceRef.kind}: ${qaSourceRef.id?.substring(0, 30)}`);
+      
+      switch (qaSourceRef.kind) {
+        case 'youtubeId': {
+          // Fetch from youtube_transcripts_cache
+          const { data: cached } = await supabase
+            .from('youtube_transcripts_cache')
+            .select('transcript')
+            .eq('video_id', qaSourceRef.id)
+            .gt('expires_at', new Date().toISOString())
+            .maybeSingle();
+          
+          if (cached?.transcript) {
+            serverSideContent = cached.transcript;
+            contentSource = 'youtube_cache';
+            console.log(`[generate-qa] ✅ YouTube transcript from cache: ${serverSideContent.length} chars`);
+          } else {
+            // Trigger async fetch via transcribe-youtube
+            console.log(`[generate-qa] ⏳ YouTube transcript not cached, triggering fetch...`);
+            try {
+              const ytUrl = `https://www.youtube.com/watch?v=${qaSourceRef.id}`;
+              const transcribeResponse = await fetch(`${supabaseUrl}/functions/v1/transcribe-youtube`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabaseKey}`
+                },
+                body: JSON.stringify({ url: ytUrl })
+              });
+              
+              if (transcribeResponse.ok) {
+                const transcribeData = await transcribeResponse.json();
+                if (transcribeData.transcript) {
+                  serverSideContent = transcribeData.transcript;
+                  contentSource = 'youtube_fresh';
+                  console.log(`[generate-qa] ✅ YouTube transcript fetched: ${serverSideContent.length} chars`);
+                }
+              }
+            } catch (err) {
+              console.error('[generate-qa] YouTube transcript fetch failed:', err);
+            }
+          }
+          break;
+        }
+        
+        case 'spotifyId': {
+          // Fetch from content_cache (lyrics were cached there)
+          const spotifyUrl = `https://open.spotify.com/track/${qaSourceRef.id}`;
+          const { data: cached } = await supabase
+            .from('content_cache')
+            .select('content_text')
+            .eq('source_url', spotifyUrl)
+            .gt('expires_at', new Date().toISOString())
+            .maybeSingle();
+          
+          if (cached?.content_text) {
+            serverSideContent = cached.content_text;
+            contentSource = 'content_cache';
+            console.log(`[generate-qa] ✅ Spotify lyrics from cache: ${serverSideContent.length} chars`);
+          } else {
+            // Try fetching lyrics fresh
+            console.log(`[generate-qa] ⏳ Spotify lyrics not cached, trying fresh fetch...`);
+            try {
+              const lyricsResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-lyrics`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabaseKey}`
+                },
+                body: JSON.stringify({ trackId: qaSourceRef.id })
+              });
+              
+              if (lyricsResponse.ok) {
+                const lyricsData = await lyricsResponse.json();
+                if (lyricsData.lyrics) {
+                  serverSideContent = lyricsData.lyrics;
+                  contentSource = 'spotify_fresh';
+                }
+              }
+            } catch (err) {
+              console.error('[generate-qa] Spotify lyrics fetch failed:', err);
+            }
+          }
+          break;
+        }
+        
+        case 'tweetId':
+        case 'url': {
+          // Fetch from content_cache
+          const cacheUrl = qaSourceRef.url || sourceUrl;
+          if (cacheUrl) {
+            const { data: cached } = await supabase
+              .from('content_cache')
+              .select('content_text')
+              .eq('source_url', cacheUrl)
+              .gt('expires_at', new Date().toISOString())
+              .maybeSingle();
+            
+            if (cached?.content_text) {
+              serverSideContent = cached.content_text;
+              contentSource = 'content_cache';
+              console.log(`[generate-qa] ✅ Content from cache: ${serverSideContent.length} chars`);
+            } else {
+              // Try Jina AI Reader as fallback
+              console.log(`[generate-qa] ⏳ Content not cached, trying Jina...`);
+              try {
+                const jinaUrl = `https://r.jina.ai/${cacheUrl}`;
+                const jinaResponse = await fetch(jinaUrl, {
+                  headers: {
+                    'Accept': 'application/json',
+                    'X-Return-Format': 'json'
+                  }
+                });
+                
+                if (jinaResponse.ok) {
+                  const jinaData = await jinaResponse.json();
+                  if (jinaData.content && jinaData.content.length > 100) {
+                    serverSideContent = jinaData.content;
+                    contentSource = 'jina_fresh';
+                    console.log(`[generate-qa] ✅ Content from Jina: ${serverSideContent.length} chars`);
+                    
+                    // Cache for future use
+                    const expiresAt = new Date();
+                    expiresAt.setDate(expiresAt.getDate() + 7);
+                    await supabase.from('content_cache').upsert({
+                      source_url: cacheUrl,
+                      source_type: 'article',
+                      content_text: serverSideContent,
+                      title: jinaData.title || null,
+                      expires_at: expiresAt.toISOString()
+                    }, { onConflict: 'source_url' });
+                  }
+                }
+              } catch (err) {
+                console.error('[generate-qa] Jina fetch failed:', err);
+              }
+            }
+          }
+          break;
+        }
+      }
+    }
+    
+    // Combine content sources for hash and prompt
+    const contentText = `${title || ''}\n\n${serverSideContent || ''}\n\n${excerpt || ''}`.trim();
+    
     // Create content hash for cache invalidation
-    const contentText = `${title || ''}\n\n${summary || ''}\n\n${excerpt || ''}`.trim();
     const contentHash = await crypto.subtle.digest(
       'SHA-256',
       new TextEncoder().encode(contentText)
@@ -43,19 +224,11 @@ serve(async (req) => {
         .substring(0, 16)
     );
 
-    console.log('[generate-qa] Query params:', { 
-      sourceUrl, 
-      contentId, 
-      isPrePublish, 
-      testMode, 
-      questionCount 
-    });
     console.log('[generate-qa] Content hash:', contentHash);
+    console.log('[generate-qa] Content source:', contentSource);
     console.log('[generate-qa] Content text length:', contentText.length);
-    console.log('[generate-qa] Title:', title);
-    console.log('[generate-qa] Summary preview:', summary?.substring(0, 100));
 
-    // Check if Q&A already exists - IMPROVED CACHE LOOKUP
+    // Check if Q&A already exists
     let query = supabase
       .from('post_qa')
       .select('*')
@@ -69,9 +242,9 @@ serve(async (req) => {
     
     let { data: existing } = await query.maybeSingle();
 
-    // FALLBACK: se non trovato e non è prePublish, cerca anche con post_id = null
+    // Fallback: if not found and not prePublish, check with post_id = null
     if (!existing && !isPrePublish && sourceUrl) {
-      console.log('[generate-qa] Cache MISS with specific post_id, trying fallback with post_id = null');
+      console.log('[generate-qa] Cache MISS with specific post_id, trying fallback');
       const { data: fallback } = await supabase
         .from('post_qa')
         .select('*')
@@ -81,7 +254,7 @@ serve(async (req) => {
       existing = fallback;
     }
 
-    // VALIDATE: cache esiste, content hash corrisponde, numero domande E testMode corrispondono
+    // Validate cache
     if (existing && existing.content_hash === contentHash) {
       const cachedQuestionCount = existing.questions?.length || 0;
       const requiredCount = questionCount || 3;
@@ -89,29 +262,23 @@ serve(async (req) => {
       const requestedTestMode = testMode || null;
       
       if (cachedQuestionCount === requiredCount && cachedTestMode === requestedTestMode) {
-        console.log('[generate-qa] Q&A cache HIT with matching content hash, question count, and testMode');
+        console.log('[generate-qa] Q&A cache HIT');
         return new Response(
           JSON.stringify({ questions: existing.questions }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       } else {
-        console.log(`[generate-qa] Cache invalidated: testMode (cached: ${cachedTestMode}, requested: ${requestedTestMode}) or questionCount (cached: ${cachedQuestionCount}, requested: ${requiredCount})`);
-        // Continua a generare nuovo quiz
+        console.log(`[generate-qa] Cache invalidated: testMode or questionCount mismatch`);
       }
     }
 
     if (existing && existing.content_hash !== contentHash) {
-      console.log('[generate-qa] Q&A cache MISS - content hash changed, regenerating');
-      console.log('[generate-qa] Old hash:', existing.content_hash);
-      console.log('[generate-qa] New hash:', contentHash);
+      console.log('[generate-qa] Q&A cache MISS - content hash changed');
     }
 
-    if (!existing) {
-      console.log('[generate-qa] No existing Q&A found, generating new');
-    }
-
-    // Check if content is sufficient for Q&A generation
+    // Check if content is sufficient
     if (contentText.length < 50) {
+      console.log('[generate-qa] ⚠️ Insufficient content for Q/A generation');
       return new Response(
         JSON.stringify({ insufficient_context: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -121,15 +288,14 @@ serve(async (req) => {
     const isVideo = type === 'video';
     const expectedQuestions = questionCount || 3;
 
-    // Costruzione prompt dinamico basato su testMode e questionCount
+    // Build prompt based on testMode
     let contentDescription = '';
     let questionRules = '';
 
     if (testMode === 'SOURCE_ONLY') {
-      // 3 domande solo sulla fonte
       contentDescription = `${isVideo ? 'CONTENUTO VIDEO DA ANALIZZARE:' : 'CONTENUTO FONTE DA ANALIZZARE:'}
 Titolo: ${title || ''}
-Descrizione: ${summary || ''}
+Contenuto: ${serverSideContent || ''}
 ${excerpt ? `Dettagli: ${excerpt}` : ''}`;
       
       questionRules = `1. Genera ESATTAMENTE 3 domande sulla FONTE${isVideo ? ' (sul contenuto del video)' : ''}:
@@ -138,13 +304,12 @@ ${excerpt ? `Dettagli: ${excerpt}` : ''}`;
    - Domanda 3 (DETTAGLIO): Su un dato specifico, cifra o fatto nella fonte`;
 
     } else if (testMode === 'MIXED') {
-      // 1 domanda sul testo utente, 2 sulla fonte
       contentDescription = `TESTO UTENTE DA ANALIZZARE:
 ${userText || ''}
 
 CONTENUTO FONTE DA ANALIZZARE:
 Titolo: ${title || ''}
-Descrizione: ${summary || ''}
+Contenuto: ${serverSideContent || ''}
 ${excerpt ? `Dettagli: ${excerpt}` : ''}`;
 
       questionRules = `1. Genera ESATTAMENTE 3 domande:
@@ -153,9 +318,8 @@ ${excerpt ? `Dettagli: ${excerpt}` : ''}`;
    - Domanda 3: Sulla FONTE (dettaglio specifico, dato o fatto)`;
 
     } else if (testMode === 'USER_ONLY') {
-      // 3 domande solo sul testo utente
       contentDescription = `TESTO DA ANALIZZARE:
-${userText || summary || ''}`;
+${userText || serverSideContent || ''}`;
 
       questionRules = `1. Genera ESATTAMENTE 3 domande sul TESTO:
    - Domanda 1 (MACRO): Sul tema principale o idea centrale
@@ -163,18 +327,16 @@ ${userText || summary || ''}`;
    - Domanda 3 (DETTAGLIO): Su un dettaglio specifico, fatto o informazione`;
 
     } else if (!testMode && questionCount === 1) {
-      // 1 domanda per contenuto originale breve
       contentDescription = `TESTO DA ANALIZZARE:
-${userText || summary || ''}`;
+${userText || serverSideContent || ''}`;
 
       questionRules = `1. Genera ESATTAMENTE 1 domanda sul TESTO:
    - Domanda di comprensione sul tema o punto principale del testo`;
 
     } else {
-      // Default: 3 domande sul contenuto disponibile
       contentDescription = `${isVideo ? 'CONTENUTO VIDEO DA ANALIZZARE:' : 'CONTENUTO DA ANALIZZARE:'}
 Titolo: ${title || ''}
-Descrizione: ${summary || ''}
+Contenuto: ${serverSideContent || ''}
 ${excerpt ? `Dettagli: ${excerpt}` : ''}`;
 
       questionRules = `1. Genera ESATTAMENTE ${expectedQuestions} domande${isVideo ? ' sul contenuto del video' : ''}:
@@ -298,17 +460,14 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
     // Parse JSON from AI response
     let parsedContent;
     try {
-      // Strip markdown code fences if present
       let cleanContent = content.trim();
       
-      // Remove ```json at the start
       if (cleanContent.startsWith('```json')) {
         cleanContent = cleanContent.slice(7);
       } else if (cleanContent.startsWith('```')) {
         cleanContent = cleanContent.slice(3);
       }
       
-      // Remove ``` at the end
       if (cleanContent.endsWith('```')) {
         cleanContent = cleanContent.slice(0, -3);
       }
@@ -334,7 +493,7 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
       throw new Error(`Invalid Q&A schema: expected ${expectedQuestions} questions`);
     }
 
-    // Shuffle choices for each question to randomize answer positions
+    // Shuffle choices
     function shuffleArray<T>(array: T[]): T[] {
       const shuffled = [...array];
       for (let i = shuffled.length - 1; i > 0; i--) {
@@ -349,15 +508,13 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
       choices: shuffleArray(q.choices)
     }));
 
-    // Extract correct answers
     const correctAnswers = shuffledQuestions.map((q: any) => ({
       id: q.id,
       correctId: q.correctId
     }));
 
-    // Save to database (upsert to update if content changed)
+    // Save to database
     if (existing) {
-      // Update existing record with new questions, content hash, and testMode
       await supabase.from('post_qa')
         .update({
           questions: shuffledQuestions,
@@ -368,9 +525,8 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
           updated_at: new Date().toISOString()
         })
         .eq('id', existing.id);
-      console.log('[generate-qa] Q&A updated with new content and testMode:', testMode);
+      console.log('[generate-qa] Q&A updated');
     } else {
-      // Insert new record
       await supabase.from('post_qa').insert({
         post_id: isPrePublish ? null : contentId,
         source_url: sourceUrl || '',
@@ -380,7 +536,7 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
         test_mode: testMode || null,
         generated_from: 'gemini'
       });
-      console.log('[generate-qa] Q&A generated and saved with testMode:', testMode);
+      console.log('[generate-qa] Q&A generated and saved');
     }
 
     return new Response(

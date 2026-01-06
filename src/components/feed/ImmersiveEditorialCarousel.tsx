@@ -130,8 +130,9 @@ export const ImmersiveEditorialCarousel = ({
       state: 'reading',
       url: `editorial://${item.id}`,
       title: item.title,
-      content: cleanContent,
+      summary: cleanContent.substring(0, 200), // Short summary only
       platform: 'article',
+      contentQuality: 'complete',
     };
 
     setReaderSource(readerSrc);
