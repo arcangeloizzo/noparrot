@@ -323,57 +323,39 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
   // Render platform-specific content
   const renderContent = () => {
-    // YouTube
+    // YouTube - iOS enabled with tap-to-load
     if (source.platform === 'youtube' && source.embedHtml && !isClosing) {
+      const iframeSrc = extractIframeSrc(source.embedHtml);
+      const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
+      
       return (
         <div className="max-w-2xl mx-auto space-y-4">
-          {/* YouTube Embed */}
-          {!isIOS ? (
-            <div className="w-full">
-              <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden">
-                {(() => {
-                  const iframeSrc = extractIframeSrc(source.embedHtml!);
-                  const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
-
-                  return isValidSrc ? (
-                    <iframe
-                      ref={youtubeIframeRef}
-                      src={iframeSrc}
-                      className="w-full h-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                      sandbox="allow-scripts allow-same-origin allow-presentation"
-                      title="Embedded YouTube video"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full p-4 text-destructive">
-                      Invalid embed source
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-border bg-muted/30 p-4">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 rounded-lg border border-border bg-card p-2">
-                  <ExternalLink className="h-4 w-4 text-foreground" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">Player YouTube disattivato su iOS</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Per evitare schermate bianche/crash su Safari iOS, apriamo il video fuori dall'app.
-                  </p>
-                  <div className="mt-3">
-                    <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
-                      <ExternalLink className="h-3 w-3" />
-                      Apri su YouTube
-                    </Button>
+          {/* YouTube Embed - Works on all platforms including iOS */}
+          <div className="w-full">
+            <div className="aspect-video w-full bg-muted rounded-lg overflow-hidden">
+              {isValidSrc ? (
+                <iframe
+                  ref={youtubeIframeRef}
+                  src={iframeSrc}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  sandbox="allow-scripts allow-same-origin allow-presentation"
+                  title="Embedded YouTube video"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full p-4 gap-4 bg-muted/50">
+                  <div className="text-muted-foreground text-sm text-center">
+                    Impossibile caricare il player
                   </div>
+                  <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
+                    <ExternalLink className="h-3 w-3" />
+                    Apri su YouTube
+                  </Button>
                 </div>
-              </div>
+              )}
             </div>
-          )}
+          </div>
           
           {/* Transcript status badge (no full text shown) */}
           {source.transcriptStatus === 'cached' && (

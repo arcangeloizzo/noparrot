@@ -273,6 +273,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   };
   
   // iOS-specific: Skip reader, go directly to quiz (mirrors comment flow)
+  // FIXED: Uses qaSourceRef instead of full-text summary, blocks publish on failure
   const handleIOSQuizOnlyFlow = async () => {
     if (isGeneratingQuiz || !urlPreview || !user) return;
     
@@ -280,14 +281,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       setIsGeneratingQuiz(true);
       addBreadcrumb('ios_generating_quiz');
       
-      // Check if content is too short (Spotify without lyrics, etc.)
-      if (
-        urlPreview.platform === 'spotify' &&
-        (!urlPreview.transcript || urlPreview.transcript.length < 100)
-      ) {
-        toast.info('Contenuto Spotify senza testo, pubblicazione diretta');
-        addBreadcrumb('ios_skip_quiz_spotify');
-        await publishPost();
+      // Check if qaSourceRef is available (required for source-first)
+      if (!urlPreview.qaSourceRef) {
+        console.error('[ComposerModal] iOS: Missing qaSourceRef');
+        toast.error('Impossibile avviare il test: riferimento mancante. Riprova.');
+        setIsGeneratingQuiz(false);
         return;
       }
       
@@ -296,13 +294,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       
       toast.loading('Stiamo mettendo a fuoco ciò che conta…');
       
-      const summaryForQA = (urlPreview.content || urlPreview.summary || urlPreview.excerpt || '').substring(0, 5000);
-      
       const result = await generateQA({
         contentId: null,
         isPrePublish: true,
         title: urlPreview.title || '',
-        summary: summaryForQA,
+        qaSourceRef: urlPreview.qaSourceRef,
         sourceUrl: detectedUrl || undefined,
         userText: content,
         testMode: testMode,
@@ -312,18 +308,18 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       addBreadcrumb('ios_qa_generated', { hasQuestions: !!result.questions, error: result.error });
       
       if (result.insufficient_context) {
-        toast.info('Contenuto troppo breve, pubblicazione diretta');
-        addBreadcrumb('ios_skip_quiz_short');
-        await publishPost();
-        return;
+        toast.error('Contenuto insufficiente per generare il test');
+        addBreadcrumb('ios_insufficient');
+        setIsGeneratingQuiz(false);
+        return; // DO NOT publish - block
       }
       
       if (result.error || !result.questions) {
         console.error('[ComposerModal] iOS Quiz generation failed:', result.error);
-        toast.error('Errore generazione quiz, pubblicazione diretta');
+        toast.error('Errore generazione quiz. Riprova.');
         addBreadcrumb('ios_quiz_error', { error: result.error });
-        await publishPost();
-        return;
+        setIsGeneratingQuiz(false);
+        return; // DO NOT publish - block
       }
       
       // Show quiz directly (no reader)
@@ -337,15 +333,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     } catch (error) {
       console.error('[ComposerModal] iOS quiz flow error:', error);
       toast.dismiss();
-      toast.error('Errore durante la generazione del quiz');
+      toast.error('Errore durante la generazione del quiz. Riprova.');
       addBreadcrumb('ios_quiz_flow_error', { error: String(error) });
-      
-      // Fallback: publish anyway
-      try {
-        await publishPost();
-      } catch (publishError) {
-        console.error('[ComposerModal] iOS publishPost fallback error:', publishError);
-      }
+      // DO NOT publish on error - gate is mandatory
     } finally {
       setIsGeneratingQuiz(false);
     }
@@ -372,14 +362,12 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         return;
       }
 
-      if (
-        urlPreview.platform === 'spotify' &&
-        (!urlPreview.transcript || urlPreview.transcript.length < 100)
-      ) {
-        toast.info('Contenuto Spotify senza testo, pubblicazione diretta');
+      // Check if qaSourceRef is available (required for source-first)
+      if (!urlPreview.qaSourceRef) {
+        console.error('[ComposerModal] Missing qaSourceRef');
+        toast.error('Impossibile avviare il test: riferimento mancante. Riprova.');
         await closeReaderSafely();
-        await publishPost();
-        return;
+        return; // DO NOT publish
       }
 
       setIsGeneratingQuiz(true);
@@ -389,13 +377,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
       toast.loading('Stiamo mettendo a fuoco ciò che conta…');
 
-      const summaryForQA = (urlPreview.content || urlPreview.summary || urlPreview.excerpt || '').substring(0, 5000);
-
       const result = await generateQA({
         contentId: null,
         isPrePublish: true,
         title: urlPreview.title || '',
-        summary: summaryForQA,
+        qaSourceRef: urlPreview.qaSourceRef,
         sourceUrl: detectedUrl || undefined,
         userText: content,
         testMode: testMode,
@@ -404,14 +390,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       toast.dismiss();
 
       if (result.insufficient_context) {
-        toast.info('Contenuto troppo breve, pubblicazione diretta');
+        toast.error('Contenuto insufficiente per generare il test');
+        addBreadcrumb('quiz_insufficient');
         await closeReaderSafely();
-        await publishPost();
-        return;
+        return; // DO NOT publish - block
       }
 
       // Minimal validation: just check it's a non-empty array
-      // QuizModal handles its own error state for invalid questions
       const hasQuestions = Array.isArray(result.questions) && result.questions.length > 0;
 
       if (result.error || !hasQuestions) {
@@ -419,11 +404,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
           error: result.error, 
           hasQuestions
         });
-        addBreadcrumb('quiz_unavailable_fallback');
-        toast.info('Quiz non disponibile, pubblicazione diretta');
+        addBreadcrumb('quiz_unavailable');
+        toast.error('Quiz non disponibile. Riprova.');
         await closeReaderSafely();
-        await publishPost();
-        return;
+        return; // DO NOT publish - block
       }
 
       // Mount quiz first, then close reader (prevents intermediate blank state)
@@ -442,19 +426,15 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     } catch (error) {
       console.error('[ComposerModal] handleReaderComplete error:', error);
       toast.dismiss();
-      toast.error('Errore durante la generazione del quiz');
+      toast.error('Errore durante la generazione del quiz. Riprova.');
+      addBreadcrumb('quiz_error', { error: String(error) });
 
       try {
         await closeReaderSafely();
       } catch (closeError) {
         console.error('[ComposerModal] closeReaderSafely error:', closeError);
       }
-
-      try {
-        await publishPost();
-      } catch (publishError) {
-        console.error('[ComposerModal] publishPost fallback error:', publishError);
-      }
+      // DO NOT publish on error - gate is mandatory
     } finally {
       setIsGeneratingQuiz(false);
     }
