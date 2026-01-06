@@ -572,6 +572,7 @@ export const FocusDetailSheet = ({
         return createPortal(
           <QuizModal
             questions={questionsSnapshot}
+            qaId={quizData.qaId}
             onSubmit={async (answers: Record<string, string>) => {
               try {
                 // SECURITY HARDENED: All validation via submit-qa edge function with qaId

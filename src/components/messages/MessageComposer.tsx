@@ -235,6 +235,7 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
       {showQuiz && quizData && !quizData.error && (
         <QuizModal
           questions={quizData.questions}
+          qaId={quizData.qaId}
           onSubmit={async (answers: Record<string, string>) => {
             // SECURITY HARDENED: All validation via submit-qa edge function
             try {

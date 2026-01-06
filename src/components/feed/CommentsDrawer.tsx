@@ -721,6 +721,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
         return createPortal(
           <QuizModal
             questions={questionsSnapshot}
+            qaId={quizData.qaId}
             onSubmit={async (answers: Record<string, string>) => {
               try {
                 // SECURITY HARDENED: All validation via submit-qa edge function

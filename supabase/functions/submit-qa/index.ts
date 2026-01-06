@@ -14,11 +14,11 @@ const MAX_ATTEMPTS_PER_WINDOW = 10;
  * SUBMIT-QA Edge Function
  * 
  * Security hardened endpoint to validate quiz answers.
- * - Requires valid JWT
- * - Validates answers server-side only
- * - Never returns correct answers to client
- * - Implements rate limiting
- * - Rejects expired Q&A with 410 Gone
+ * Supports two modes:
+ * - "step": Validate single question, return only { isCorrect: boolean }
+ * - "final" (default): Validate all answers, return { passed, score, total, wrongIndexes }
+ * 
+ * Privacy-safe: Never returns correct answers to client.
  */
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -52,17 +52,76 @@ serve(async (req) => {
     const userId = user.id;
     const startTime = Date.now();
 
-    const { qaId, sourceUrl, postId, answers, gateType } = await req.json();
+    const body = await req.json();
+    const { qaId, sourceUrl, postId, answers, gateType, mode, questionId, choiceId } = body;
 
     console.log('[submit-qa] Request:', { 
       qaId, 
       sourceUrl, 
       postId,
       gateType,
+      mode: mode || 'final',
       userId: userId.substring(0, 8),
-      answerCount: Object.keys(answers || {}).length 
+      ...(mode === 'step' ? { questionId, choiceId } : { answerCount: Object.keys(answers || {}).length })
     });
 
+    // ===== MODE: STEP - Validate single question =====
+    if (mode === 'step') {
+      if (!qaId || !questionId || !choiceId) {
+        return new Response(
+          JSON.stringify({ error: 'Missing qaId, questionId, or choiceId for step mode' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Fetch correct answers from private table
+      const { data: answersData, error: answersError } = await supabase
+        .from('post_qa_answers')
+        .select('correct_answers')
+        .eq('id', qaId)
+        .maybeSingle();
+
+      if (answersError || !answersData) {
+        console.error('[submit-qa][step] Failed to fetch correct answers:', answersError);
+        return new Response(
+          JSON.stringify({ error: 'Quiz answers not found', code: 'ANSWERS_NOT_FOUND' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const correctAnswers = answersData.correct_answers;
+      
+      if (!Array.isArray(correctAnswers) || correctAnswers.length === 0) {
+        console.error('[submit-qa][step] CRITICAL: correct_answers is empty or invalid');
+        return new Response(
+          JSON.stringify({ error: 'Quiz answers not properly configured', code: 'INVALID_ANSWER_KEYSET' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Find the specific question's correct answer
+      const correctAnswer = correctAnswers.find((c: any) => c.id === questionId);
+      
+      if (!correctAnswer) {
+        console.log('[submit-qa][step] Question not found:', questionId);
+        return new Response(
+          JSON.stringify({ error: 'Question not found', code: 'QUESTION_NOT_FOUND' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const isCorrect = choiceId === correctAnswer.correctId;
+      
+      console.log(`[submit-qa][step] Q:${questionId.substring(0, 8)} submitted:${choiceId.substring(0, 8)} isCorrect:${isCorrect}`);
+
+      // Return ONLY isCorrect - no other information
+      return new Response(
+        JSON.stringify({ isCorrect }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // ===== MODE: FINAL - Validate all answers =====
     if (!answers || typeof answers !== 'object') {
       return new Response(
         JSON.stringify({ error: 'Invalid answers format' }),

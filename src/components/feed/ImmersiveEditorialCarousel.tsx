@@ -396,6 +396,7 @@ export const ImmersiveEditorialCarousel = ({
       {showQuiz && quizData && (
         <QuizModal
           questions={quizData.questions}
+          qaId={quizData.qaId}
           onSubmit={async (answers) => {
             // SECURITY HARDENED: All validation via submit-qa edge function with qaId
             const qaId = quizData.qaId;

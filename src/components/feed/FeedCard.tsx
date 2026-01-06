@@ -578,6 +578,7 @@ export const FeedCard = ({
     {showQuiz && quizData && user && !quizData.error && quizData.questions && (
       <QuizModal
         questions={quizData.questions}
+        qaId={quizData.qaId}
         provider="gemini"
         onSubmit={async (answers) => {
           try {

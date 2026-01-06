@@ -558,6 +558,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
       {showQuiz && quizData && !quizData.error && quizData.questions && (
         <QuizModal
           questions={quizData.questions}
+          qaId={quizData.qaId}
           onSubmit={async (answers: Record<string, string>) => {
             try {
               // SECURITY HARDENED: All validation via submit-qa with qaId
