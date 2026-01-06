@@ -154,20 +154,32 @@ export default function SettingsPrivacy() {
               Gli annunci su NoParrot sono mostrati in base al tema dei contenuti che leggi.
               Puoi scegliere se riceverne di più pertinenti in base ai tuoi interessi.
             </p>
-            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
+            <div className={`flex items-center justify-between p-3 rounded-lg border ${
+              profile?.cognitive_tracking_enabled === false 
+                ? "bg-muted/10 border-muted" 
+                : "bg-muted/30 border-border"
+            }`}>
               <div className="space-y-1 flex-1 mr-4">
-                <Label htmlFor="ads-personalization" className="text-sm font-medium cursor-pointer">
+                <Label 
+                  htmlFor="ads-personalization" 
+                  className={`text-sm font-medium ${
+                    profile?.cognitive_tracking_enabled === false ? "text-muted-foreground" : "cursor-pointer"
+                  }`}
+                >
                   Annunci basati sui miei interessi
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Se disattivato, vedrai solo annunci legati al tema della conversazione.
+                  {profile?.cognitive_tracking_enabled === false 
+                    ? "Per attivare gli annunci personalizzati, devi prima attivare il feed personalizzato."
+                    : "Se disattivato, vedrai solo annunci legati al tema della conversazione."
+                  }
                 </p>
               </div>
               <Switch
                 id="ads-personalization"
-                checked={consents?.ads_personalization_opt_in ?? false}
+                checked={profile?.cognitive_tracking_enabled === false ? false : (consents?.ads_personalization_opt_in ?? false)}
                 onCheckedChange={handleAdsToggle}
-                disabled={consentsLoading || toggleAds.isPending}
+                disabled={consentsLoading || toggleAds.isPending || profile?.cognitive_tracking_enabled === false}
               />
             </div>
             <p className="text-xs text-muted-foreground mt-2 text-center">

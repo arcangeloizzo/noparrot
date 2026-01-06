@@ -59,17 +59,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signUpStep1 = async (email: string, password: string, fullName: string, dateOfBirth: string) => {
-    // Validazione età (>=13 anni)
+    // Validazione età (>=16 anni) - GDPR Art.8
     const birthDate = new Date(dateOfBirth);
     const today = new Date();
     const age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
     if (
-      age < 13 || 
-      (age === 13 && monthDiff < 0) ||
-      (age === 13 && monthDiff === 0 && today.getDate() < birthDate.getDate())
+      age < 16 || 
+      (age === 16 && monthDiff < 0) ||
+      (age === 16 && monthDiff === 0 && today.getDate() < birthDate.getDate())
     ) {
-      return { error: { message: 'Devi avere almeno 13 anni per registrarti' } };
+      return { error: { message: 'Devi avere almeno 16 anni per registrarti' } };
     }
 
     const { error } = await supabase.auth.signUp({

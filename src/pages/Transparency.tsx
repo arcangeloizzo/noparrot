@@ -64,6 +64,14 @@ export default function Transparency() {
               <p className="text-muted-foreground font-medium">
                 Puoi disattivarlo in ogni momento dalle Impostazioni → Privacy.
               </p>
+              <div className="mt-4 p-3 bg-muted/30 rounded-lg border border-border">
+                <p className="text-sm font-medium text-foreground mb-2">DSA: "Perché vedo questo?"</p>
+                <p className="text-sm text-muted-foreground">
+                  Per ogni contenuto personalizzato puoi vedere perché ti viene mostrato, 
+                  cliccando su "Perché vedo questo?". Questo spiega quali segnali hanno 
+                  contribuito alla selezione.
+                </p>
+              </div>
             </section>
 
             {/* Come funziona l'AI */}

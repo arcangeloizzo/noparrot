@@ -84,6 +84,13 @@ export default function AdsPolicy() {
                   Puoi attivare o disattivare la personalizzazione in qualsiasi momento 
                   dalle <strong className="text-foreground">Impostazioni e privacy</strong>.
                 </p>
+                <div className="p-3 bg-amber-500/10 rounded-lg border border-amber-500/20">
+                  <p className="text-sm text-amber-200">
+                    ⚠️ Se disattivi il profilo cognitivo, gli annunci non potranno più essere 
+                    personalizzati in base ai tuoi interessi, anche se avevi precedentemente 
+                    dato il consenso.
+                  </p>
+                </div>
                 <p className="font-medium text-foreground">
                   NoParrot non vende dati personali.
                 </p>
