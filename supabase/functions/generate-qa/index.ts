@@ -279,11 +279,24 @@ serve(async (req) => {
       const requestedTestMode = testMode || null;
       
       if (cachedQuestionCount === requiredCount && cachedTestMode === requestedTestMode) {
-        console.log('[generate-qa] Q&A cache HIT');
-        return new Response(
-          JSON.stringify({ questions: existing.questions }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        console.log('[generate-qa] Q&A cache HIT, returning qaId:', existing.id);
+        
+        // SECURITY HARDENED: Verify answers exist before returning cache hit
+        const { data: answersCheck } = await supabase
+          .from('post_qa_answers')
+          .select('id')
+          .eq('id', existing.id)
+          .maybeSingle();
+        
+        if (!answersCheck) {
+          console.log('[generate-qa] Cache hit but answers missing, forcing regeneration');
+          // Fall through to regeneration
+        } else {
+          return new Response(
+            JSON.stringify({ qaId: existing.id, questions: existing.questions }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       } else {
         console.log(`[generate-qa] Cache invalidated: testMode or questionCount mismatch`);
       }
@@ -591,8 +604,13 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
       }))
     }));
 
+    // SECURITY HARDENED: Always return qaId for server-side validation
+    const qaIdToReturn = existing ? existing.id : insertedQA?.id;
+    
+    console.log('[generate-qa] Returning qaId:', qaIdToReturn);
+
     return new Response(
-      JSON.stringify({ questions: sanitizedQuestions }),
+      JSON.stringify({ qaId: qaIdToReturn, questions: sanitizedQuestions }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

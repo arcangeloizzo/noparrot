@@ -13,6 +13,7 @@ export interface QuizQuestion {
 }
 
 export interface QAGenerationResult {
+  qaId?: string; // Server-generated ID for secure submit-qa validation
   questions?: QuizQuestion[];
   insufficient_context?: boolean;
   error?: string;
