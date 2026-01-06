@@ -249,6 +249,10 @@ export default function PrivacyPolicy() {
                   </tbody>
                 </table>
               </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Localizzazione: può includere Stati Uniti e/o altre giurisdizioni a seconda del fornitore.
+                Per dettagli, consultare le rispettive privacy policy.
+              </p>
             </section>
 
             {/* 11. Diritti */}

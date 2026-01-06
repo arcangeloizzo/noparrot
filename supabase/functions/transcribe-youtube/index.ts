@@ -260,12 +260,13 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // LEVEL 1: Check cache first
+    // LEVEL 1: Check cache first (only non-expired entries)
     console.log(`[Cache] Checking cache for video ${videoId}...`);
     const { data: cached, error: cacheError } = await supabase
       .from('youtube_transcripts_cache')
       .select('*')
       .eq('video_id', videoId)
+      .gt('expires_at', new Date().toISOString())
       .maybeSingle();
 
     if (cacheError) {

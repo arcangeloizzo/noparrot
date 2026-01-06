@@ -62,13 +62,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Validazione età (>=16 anni) - GDPR Art.8
     const birthDate = new Date(dateOfBirth);
     const today = new Date();
-    const age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (
-      age < 16 || 
-      (age === 16 && monthDiff < 0) ||
-      (age === 16 && monthDiff === 0 && today.getDate() < birthDate.getDate())
-    ) {
+    
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const m = today.getMonth() - birthDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    if (age < 16) {
       return { error: { message: 'Devi avere almeno 16 anni per registrarti' } };
     }
 
