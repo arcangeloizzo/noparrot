@@ -722,45 +722,16 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
             questions={questionsSnapshot}
             onSubmit={async (answers: Record<string, string>) => {
               try {
-                // For Focus items, validate locally since questions are generated on-the-fly
-                if (isFocusContent) {
-                  let correctCount = 0;
-                  const wrongIndexes: string[] = [];
-                  
-                  questionsSnapshot.forEach((q: any, index: number) => {
-                    const userAnswer = answers[q.id];
-                    if (userAnswer === q.correctId) {
-                      correctCount++;
-                    } else {
-                      wrongIndexes.push(index.toString());
-                    }
-                  });
-                  
-                  const total = questionsSnapshot.length;
-                  const passed = correctCount >= Math.ceil(total * 0.6);
-                  
-                  console.log('[CommentsDrawer] Local Focus validation:', { correctCount, total, passed });
-                  
-                  if (!passed) {
-                    sonnerToast.error('Non ancora chiaro. Puoi comunque fare un commento spontaneo.');
-                    setShowQuiz(false);
-                    setQuizData(null);
-                    return { passed: false, score: correctCount, total, wrongIndexes };
-                  }
-
-                  sonnerToast.success('Hai fatto chiarezza. Il tuo commento avrà il segno di NoParrot.');
-                  setSelectedCommentType('informed');
-                  setShowQuiz(false);
-                  setQuizData(null);
-                  setTimeout(() => textareaRef.current?.focus(), 150);
-                  return { passed: true, score: correctCount, total, wrongIndexes: [] };
-                }
+                // SECURITY HARDENED: All validation via submit-qa edge function
+                // For Focus items, use sourceUrl-based validation
+                const sourceUrl = isFocusContent 
+                  ? `focus://${post.id}` 
+                  : quizData.sourceUrl;
                 
-                // For regular posts, use edge function validation
-                const { data, error } = await supabase.functions.invoke('validate-answers', {
+                const { data, error } = await supabase.functions.invoke('submit-qa', {
                   body: {
-                    postId: post.id,
-                    sourceUrl: quizData.sourceUrl,
+                    postId: isFocusContent ? null : post.id,
+                    sourceUrl: sourceUrl,
                     answers,
                     gateType: 'comment'
                   }
@@ -774,23 +745,26 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
                   return { passed: false, wrongIndexes: [] };
                 }
 
-                const actualPassed = data.passed && (data.total - data.score) <= 2;
+                const total = questionsSnapshot.length;
+                const passed = data?.passed || false;
+                const wrongIndexes = data?.wrongIndexes || [];
+                const score = data?.score || 0;
                 
-                if (!actualPassed) {
-                  console.log('[QuizModal] Quiz failed:', data);
+                console.log('[CommentsDrawer] Server validation:', { score, total, passed, wrongIndexes });
+                
+                if (!passed) {
                   sonnerToast.error('Non ancora chiaro. Puoi comunque fare un commento spontaneo.');
                   setShowQuiz(false);
                   setQuizData(null);
-                  return { passed: false, wrongIndexes: data?.wrongIndexes || [] };
+                  return { passed: false, score, total, wrongIndexes };
                 }
 
-                console.log('[QuizModal] Quiz passed!');
                 sonnerToast.success('Hai fatto chiarezza. Il tuo commento avrà il segno di NoParrot.');
                 setSelectedCommentType('informed');
                 setShowQuiz(false);
                 setQuizData(null);
                 setTimeout(() => textareaRef.current?.focus(), 150);
-                return { passed: true, wrongIndexes: [] };
+                return { passed: true, score, total, wrongIndexes: [] };
               } catch (err) {
                 console.error('[QuizModal] Unexpected error:', err);
                 sonnerToast.error("Errore durante la validazione del quiz");

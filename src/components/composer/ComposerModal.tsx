@@ -451,7 +451,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     if (!user || !quizData) return { passed: false, score: 0, total: 0, wrongIndexes: [] };
 
     try {
-      const { data, error } = await supabase.functions.invoke('validate-answers', {
+      const { data, error } = await supabase.functions.invoke('submit-qa', {
         body: {
           postId: null,
           sourceUrl: quizData.sourceUrl,

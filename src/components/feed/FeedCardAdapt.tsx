@@ -602,7 +602,7 @@ export const FeedCard = ({
     try {
       console.log('Quiz submitted:', { answers, postId: post.id, sourceUrl: quizData.sourceUrl });
       
-      const { data, error } = await supabase.functions.invoke('validate-answers', {
+      const { data, error } = await supabase.functions.invoke('submit-qa', {
         body: {
           postId: post.id,
           sourceUrl: quizData.sourceUrl,

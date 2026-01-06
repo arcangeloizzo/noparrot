@@ -74,7 +74,7 @@ export const ImmersiveEditorialCarousel = ({
   const [readerSource, setReaderSource] = useState<SourceWithGate | null>(null);
   const [readerClosing, setReaderClosing] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
-  const [quizData, setQuizData] = useState<{ questions: any[]; correctAnswers: number[] } | null>(null);
+  const [quizData, setQuizData] = useState<{ questions: any[]; focusId?: string } | null>(null);
   const [quizLoading, setQuizLoading] = useState(false);
   const pendingShareItemRef = useRef<DailyFocus | null>(null);
 
@@ -170,7 +170,7 @@ export const ImmersiveEditorialCarousel = ({
         if (data?.questions && data.questions.length > 0) {
           setQuizData({
             questions: data.questions,
-            correctAnswers: data.correct_answers || data.questions.map((q: any) => q.correctIndex)
+            focusId: item.id
           });
           setShowQuiz(true);
         } else {
@@ -395,22 +395,33 @@ export const ImmersiveEditorialCarousel = ({
         <QuizModal
           questions={quizData.questions}
           onSubmit={async (answers) => {
-            // Validate answers against correctAnswers
-            const correct = quizData.correctAnswers;
-            let score = 0;
-            const wrongIndexes: string[] = [];
+            // SECURITY HARDENED: All validation via submit-qa edge function
+            const sourceUrl = `focus://daily/${quizData.focusId}`;
             
-            Object.entries(answers).forEach(([qId, choiceId], idx) => {
-              const question = quizData.questions[idx];
-              if (question && question.correctId === choiceId) {
-                score++;
-              } else {
-                wrongIndexes.push(qId);
+            try {
+              const { data, error } = await supabase.functions.invoke('submit-qa', {
+                body: {
+                  postId: null,
+                  sourceUrl: sourceUrl,
+                  answers,
+                  gateType: 'share'
+                }
+              });
+
+              if (error) {
+                console.error('[ImmersiveEditorialCarousel] Validation error:', error);
+                return { passed: false, score: 0, total: quizData.questions.length, wrongIndexes: [] };
               }
-            });
-            
-            const passed = wrongIndexes.length === 0 || score >= quizData.questions.length - 1;
-            return { passed, score, total: quizData.questions.length, wrongIndexes };
+
+              const passed = data?.passed || false;
+              const score = data?.score || 0;
+              const wrongIndexes = data?.wrongIndexes || [];
+              
+              return { passed, score, total: quizData.questions.length, wrongIndexes };
+            } catch (err) {
+              console.error('[ImmersiveEditorialCarousel] Unexpected error:', err);
+              return { passed: false, score: 0, total: quizData.questions.length, wrongIndexes: [] };
+            }
           }}
           onCancel={handleQuizClose}
           onComplete={(passed) => {

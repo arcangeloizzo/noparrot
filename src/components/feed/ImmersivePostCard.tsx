@@ -517,7 +517,7 @@ export const ImmersivePostCard = ({
     if (!user || !quizData) return { passed: false, score: 0, total: 0, wrongIndexes: [] };
 
     try {
-      const { data, error } = await supabase.functions.invoke('validate-answers', {
+      const { data, error } = await supabase.functions.invoke('submit-qa', {
         body: { postId: post.id, sourceUrl: quizData.sourceUrl, answers, gateType: 'share' }
       });
 
