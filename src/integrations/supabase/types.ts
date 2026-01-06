@@ -1022,6 +1022,79 @@ export type Database = {
           },
         ]
       }
+      post_qa_answers: {
+        Row: {
+          correct_answers: Json
+          created_at: string
+          id: string
+        }
+        Insert: {
+          correct_answers: Json
+          created_at?: string
+          id: string
+        }
+        Update: {
+          correct_answers?: Json
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_qa_answers_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "post_qa_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_qa_questions: {
+        Row: {
+          content_hash: string | null
+          expires_at: string | null
+          generated_at: string | null
+          generated_from: string | null
+          id: string
+          owner_id: string
+          post_id: string | null
+          questions: Json
+          source_url: string | null
+          test_mode: string | null
+        }
+        Insert: {
+          content_hash?: string | null
+          expires_at?: string | null
+          generated_at?: string | null
+          generated_from?: string | null
+          id?: string
+          owner_id: string
+          post_id?: string | null
+          questions: Json
+          source_url?: string | null
+          test_mode?: string | null
+        }
+        Update: {
+          content_hash?: string | null
+          expires_at?: string | null
+          generated_at?: string | null
+          generated_from?: string | null
+          id?: string
+          owner_id?: string
+          post_id?: string | null
+          questions?: Json
+          source_url?: string | null
+          test_mode?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_qa_questions_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           article_content: string | null
@@ -1196,6 +1269,41 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      qa_submit_attempts: {
+        Row: {
+          attempt_count: number
+          id: string
+          last_attempt_at: string
+          qa_id: string
+          user_id: string
+          window_start: string
+        }
+        Insert: {
+          attempt_count?: number
+          id?: string
+          last_attempt_at?: string
+          qa_id: string
+          user_id: string
+          window_start?: string
+        }
+        Update: {
+          attempt_count?: number
+          id?: string
+          last_attempt_at?: string
+          qa_id?: string
+          user_id?: string
+          window_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "qa_submit_attempts_qa_id_fkey"
+            columns: ["qa_id"]
+            isOneToOne: false
+            referencedRelation: "post_qa_questions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       questions: {
         Row: {
@@ -1464,41 +1572,6 @@ export type Database = {
       }
     }
     Views: {
-      post_qa_public: {
-        Row: {
-          generated_at: string | null
-          generated_from: string | null
-          id: string | null
-          post_id: string | null
-          questions: Json | null
-          source_url: string | null
-        }
-        Insert: {
-          generated_at?: string | null
-          generated_from?: string | null
-          id?: string | null
-          post_id?: string | null
-          questions?: Json | null
-          source_url?: string | null
-        }
-        Update: {
-          generated_at?: string | null
-          generated_from?: string | null
-          id?: string | null
-          post_id?: string | null
-          questions?: Json | null
-          source_url?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "post_qa_post_id_fkey"
-            columns: ["post_id"]
-            isOneToOne: false
-            referencedRelation: "posts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       public_profiles: {
         Row: {
           avatar_url: string | null

@@ -77,17 +77,20 @@ export async function generateQA(params: {
 }
 
 /**
- * Valida le risposte dell'utente
+ * Valida le risposte dell'utente usando submit-qa (hardened)
+ * Calls the secure submit-qa edge function
  */
 export async function validateAnswers(params: {
+  qaId?: string;
   postId: string | null;
   sourceUrl?: string;
   answers: Record<string, string>;
-  gateType: 'share' | 'composer';
+  gateType: 'share' | 'composer' | 'comment';
 }): Promise<ValidationResult> {
   try {
-    const { data, error } = await supabase.functions.invoke('validate-answers', {
+    const { data, error } = await supabase.functions.invoke('submit-qa', {
       body: {
+        qaId: params.qaId,
         postId: params.postId,
         sourceUrl: params.sourceUrl,
         answers: params.answers,
@@ -100,6 +103,37 @@ export async function validateAnswers(params: {
   } catch (error) {
     console.error('Error validating answers:', error);
     throw error;
+  }
+}
+
+/**
+ * Fetch quiz questions using get-qa (hardened)
+ * Calls the secure get-qa edge function - never returns correct answers
+ */
+export async function getQuizQuestions(params: {
+  qaId?: string;
+  postId?: string | null;
+  sourceUrl?: string;
+}): Promise<{
+  qaId: string;
+  questions: QuizQuestion[];
+  testMode?: string;
+  expiresAt?: string;
+} | null> {
+  try {
+    const { data, error } = await supabase.functions.invoke('get-qa', {
+      body: params
+    });
+
+    if (error) {
+      console.error('Error fetching quiz:', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error fetching quiz:', error);
+    return null;
   }
 }
 

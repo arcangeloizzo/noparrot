@@ -1,10 +1,16 @@
 project_id = "nwmpstvoutkjshhhtmrk"
 
 [functions.generate-qa]
-verify_jwt = true
+verify_jwt = false
 
 [functions.validate-answers]
-verify_jwt = true
+verify_jwt = false
+
+[functions.get-qa]
+verify_jwt = false
+
+[functions.submit-qa]
+verify_jwt = false
 
 [functions.fetch-article-preview]
 verify_jwt = true
