@@ -71,6 +71,10 @@ export default function Transparency() {
                   cliccando su "Perché vedo questo?". Questo spiega quali segnali hanno 
                   contribuito alla selezione.
                 </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Puoi modificare o disattivare in qualsiasi momento i criteri che influenzano 
+                  il feed personalizzato dalle Impostazioni → Privacy.
+                </p>
               </div>
             </section>
 
