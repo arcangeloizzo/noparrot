@@ -32,6 +32,7 @@ export function useMessages(threadId: string | undefined) {
     queryFn: async () => {
       if (!threadId || !user) return [];
 
+      // Fetch messages
       const { data, error } = await supabase
         .from('messages')
         .select(`
@@ -48,9 +49,20 @@ export function useMessages(threadId: string | undefined) {
 
       if (error) throw error;
 
+      // Fetch user's deleted messages
+      const { data: deletedMessages } = await supabase
+        .from('message_deletions')
+        .select('message_id')
+        .eq('user_id', user.id);
+
+      const deletedMessageIds = new Set(deletedMessages?.map(d => d.message_id) || []);
+
+      // Filter out deleted messages
+      const visibleMessages = (data || []).filter(msg => !deletedMessageIds.has(msg.id));
+
       // Fetch media per ogni messaggio
       const messagesWithMedia = await Promise.all(
-        (data || []).map(async (msg) => {
+        visibleMessages.map(async (msg) => {
           const { data: mediaData } = await supabase
             .from('message_media')
             .select(`
@@ -128,6 +140,36 @@ export function useSendMessage() {
     onError: (error) => {
       console.error('Send message error:', error);
       toast.error('Impossibile inviare il messaggio');
+    }
+  });
+}
+
+// Hook per eliminare un messaggio dalla propria vista
+export function useDeleteMessageForMe() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ messageId, threadId }: { messageId: string; threadId: string }) => {
+      if (!user) throw new Error('User not authenticated');
+
+      const { error } = await supabase
+        .from('message_deletions')
+        .insert({
+          message_id: messageId,
+          user_id: user.id
+        });
+
+      if (error) throw error;
+      return { messageId, threadId };
+    },
+    onSuccess: (variables) => {
+      queryClient.invalidateQueries({ queryKey: ['messages', variables.threadId] });
+      toast.success('Messaggio rimosso dalla tua chat');
+    },
+    onError: (error) => {
+      console.error('Delete message error:', error);
+      toast.error('Impossibile eliminare il messaggio');
     }
   });
 }

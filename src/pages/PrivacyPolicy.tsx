@@ -35,44 +35,64 @@ export default function PrivacyPolicy() {
             <section className="space-y-3">
               <h3 className="text-lg font-semibold">1. Titolare del trattamento</h3>
               <p className="text-muted-foreground">
-                Arcangelo Izzo<br />
-                Email: <a href="mailto:support@noparrot.app" className="text-primary underline">support@noparrot.app</a>
+                Arcangelo Izzo (persona fisica)<br />
+                Email: <a href="mailto:noparrot.info@gmail.com" className="text-primary underline">noparrot.info@gmail.com</a>
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Per qualsiasi richiesta privacy puoi scrivere a{" "}
+                <a href="mailto:noparrot.info@gmail.com" className="text-primary underline">noparrot.info@gmail.com</a>.
+                Se non ricevi risposta entro un tempo ragionevole, puoi esercitare i tuoi diritti 
+                anche tramite l'Autorità Garante competente.
               </p>
             </section>
 
-            {/* 2. Dove sono i dati */}
+            {/* 2. Base giuridica */}
             <section className="space-y-3">
-              <h3 className="text-lg font-semibold">2. Dove sono i tuoi dati</h3>
+              <h3 className="text-lg font-semibold">2. Base giuridica del trattamento</h3>
               <p className="text-muted-foreground">
-                NoParrot utilizza Supabase (USA – AWS us-east-1). I dati possono essere trattati negli Stati Uniti.
-              </p>
-              <p className="text-muted-foreground">
-                Il trasferimento è coperto da:
+                Trattiamo i dati per:
               </p>
               <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-2">
-                <li>EU–US Data Privacy Framework</li>
-                <li>Standard Contractual Clauses (SCC)</li>
+                <li><strong>Esecuzione del servizio</strong> — creazione account, uso del feed, pubblicazione contenuti, messaggi</li>
+                <li><strong>Sicurezza e prevenzione abusi</strong> — protezione account, logging essenziale, anti-spam</li>
+                <li><strong>Consenso</strong> — solo per funzionalità opzionali come annunci basati sugli interessi, se attivati</li>
               </ul>
-              <div className="mt-4 p-3 bg-muted/30 rounded-lg border border-border">
-                <p className="text-sm text-muted-foreground">
-                  Quando i dati vengono trasferiti fuori dall'Unione Europea (ad esempio negli Stati Uniti), 
-                  utilizziamo meccanismi legali di protezione come le Standard Contractual Clauses (SCC) 
-                  e il Data Privacy Framework UE–USA.
-                </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Puoi richiedere una copia delle clausole contrattuali applicabili scrivendo a{" "}
-                  <a href="mailto:support@noparrot.app" className="text-primary underline">support@noparrot.app</a>.
-                </p>
-              </div>
-              <p className="text-sm text-muted-foreground mt-2">
+            </section>
+
+            {/* 3. Dove sono i dati */}
+            <section className="space-y-3">
+              <h3 className="text-lg font-semibold">3. Dove sono i tuoi dati</h3>
+              <p className="text-muted-foreground">
+                NoParrot utilizza Supabase (AWS us-east-1, USA). Alcuni dati possono essere trattati negli Stati Uniti.
+              </p>
+              <p className="text-muted-foreground mt-2">
+                Quando avvengono trasferimenti extra-UE, utilizziamo meccanismi legali applicabili 
+                (ad es. EU–US Data Privacy Framework e/o Standard Contractual Clauses, a seconda del fornitore).
+              </p>
+              <p className="text-muted-foreground mt-2">
                 I principali importatori dei dati sono Supabase Inc. e Google LLC 
                 in qualità di fornitori di infrastruttura e intelligenza artificiale.
               </p>
+              <p className="text-sm text-muted-foreground mt-3">
+                Puoi richiedere informazioni sul meccanismo applicato ai principali fornitori 
+                scrivendo a{" "}
+                <a href="mailto:noparrot.info@gmail.com" className="text-primary underline">noparrot.info@gmail.com</a>.
+              </p>
             </section>
 
-            {/* 3. Cosa raccogliamo */}
+            {/* 4. Età minima */}
             <section className="space-y-3">
-              <h3 className="text-lg font-semibold">3. Cosa raccogliamo</h3>
+              <h3 className="text-lg font-semibold">4. Età minima</h3>
+              <p className="text-muted-foreground">
+                NoParrot è riservato a utenti con almeno 16 anni. Durante la registrazione 
+                richiediamo la data di nascita e blocchiamo automaticamente la creazione 
+                dell'account se l'età dichiarata è inferiore a 16 anni.
+              </p>
+            </section>
+
+            {/* 5. Cosa raccogliamo */}
+            <section className="space-y-3">
+              <h3 className="text-lg font-semibold">5. Cosa raccogliamo</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -107,54 +127,61 @@ export default function PrivacyPolicy() {
               </div>
             </section>
 
-            {/* 4. Profilazione */}
+            {/* 6. Profilazione */}
             <section className="space-y-3">
-              <h3 className="text-lg font-semibold">4. Profilazione (Cognitive Density)</h3>
+              <h3 className="text-lg font-semibold">6. Profilazione (Cognitive Density)</h3>
               <p className="text-muted-foreground">
-                NoParrot crea un profilo di interessi basato sulle tue interazioni.
+                NoParrot può creare una mappa di interessi basata su interazioni 
+                (es. letture, commenti, reazioni) per personalizzare alcune sezioni ("Per Te").
               </p>
-              <p className="text-muted-foreground font-medium mt-3">Serve per:</p>
-              <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-2">
-                <li>personalizzare il feed</li>
-                <li>suggerire contenuti</li>
-                <li>(solo con consenso) annunci</li>
-              </ul>
-              <p className="text-muted-foreground font-medium mt-3">Hai il diritto di:</p>
-              <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-2">
-                <li>visualizzarlo</li>
-                <li>esportarlo</li>
-                <li>disattivarlo</li>
-              </ul>
               <p className="text-muted-foreground mt-3">
-                <strong>Se lo disattivi:</strong> il feed non è personalizzato e non tracciamo interessi.
+                Puoi disattivare in qualsiasi momento il feed personalizzato 
+                dalle <strong>Impostazioni → Privacy</strong>.
+              </p>
+              <p className="text-muted-foreground mt-3">
+                <strong>Se lo disattivi:</strong> il feed non è personalizzato 
+                e non aggiorniamo più la mappa di interessi.
               </p>
               <div className="mt-4 p-3 bg-muted/30 rounded-lg border border-border">
                 <p className="text-sm font-medium text-foreground mb-2">Art. 22 GDPR</p>
                 <p className="text-sm text-muted-foreground">
-                  La profilazione utilizzata da NoParrot non produce effetti giuridici né effetti equivalenti 
-                  o significativi sull'utente. Serve esclusivamente a organizzare e suggerire contenuti e annunci 
-                  all'interno della piattaforma.
+                  Questa profilazione non produce effetti giuridici né effetti equivalenti 
+                  o significativamente rilevanti sull'utente; serve solo a organizzare 
+                  e suggerire contenuti e, se attivato, annunci basati sugli interessi.
                 </p>
               </div>
             </section>
 
-            {/* 4.5 Messaggi privati */}
+            {/* 7. Messaggi privati */}
             <section className="space-y-3">
-              <h3 className="text-lg font-semibold">4.5 Messaggi privati</h3>
+              <h3 className="text-lg font-semibold">7. Messaggi privati</h3>
               <p className="text-muted-foreground">
                 I messaggi privati tra utenti sono trattati come comunicazioni riservate.
               </p>
               <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-2">
-                <li>Non vengono analizzati né utilizzati dall'intelligenza artificiale</li>
-                <li>Sono trasmessi in modo sicuro</li>
+                <li>Non vengono inviati ai sistemi di intelligenza artificiale</li>
                 <li>Sono protetti tramite crittografia TLS durante la trasmissione</li>
-                <li>Possono essere cancellati in qualsiasi momento dagli utenti</li>
+                <li>Puoi eliminare i messaggi dalla tua conversazione in qualsiasi momento</li>
               </ul>
             </section>
 
-            {/* 5. AI */}
+            {/* 8. Conservazione */}
             <section className="space-y-3">
-              <h3 className="text-lg font-semibold">5. AI e automazione</h3>
+              <h3 className="text-lg font-semibold">8. Conservazione dei dati</h3>
+              <p className="text-muted-foreground">
+                Conserviamo i dati dell'account e i contenuti finché l'account è attivo 
+                o finché non richiedi la cancellazione.
+              </p>
+              <p className="text-muted-foreground mt-2">
+                Alcuni dati tecnici e cache (es. trascrizioni/copie tecniche usate per 
+                generare domande) possono essere conservati per un periodo limitato 
+                e poi eliminati automaticamente.
+              </p>
+            </section>
+
+            {/* 9. AI */}
+            <section className="space-y-3">
+              <h3 className="text-lg font-semibold">9. AI e automazione</h3>
               <p className="text-muted-foreground">
                 Utilizziamo modelli Google Gemini tramite Lovable AI Gateway per:
               </p>
@@ -171,9 +198,9 @@ export default function PrivacyPolicy() {
               </ul>
             </section>
 
-            {/* 6. Terze parti */}
+            {/* 10. Terze parti */}
             <section className="space-y-3">
-              <h3 className="text-lg font-semibold">6. Terze parti (sub-processor)</h3>
+              <h3 className="text-lg font-semibold">10. Terze parti (sub-processor)</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -224,9 +251,9 @@ export default function PrivacyPolicy() {
               </div>
             </section>
 
-            {/* 7. Diritti */}
+            {/* 11. Diritti */}
             <section className="space-y-3">
-              <h3 className="text-lg font-semibold">7. I tuoi diritti</h3>
+              <h3 className="text-lg font-semibold">11. I tuoi diritti</h3>
               <p className="text-muted-foreground">Hai diritto a:</p>
               <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-2">
                 <li>accesso</li>
@@ -237,7 +264,7 @@ export default function PrivacyPolicy() {
               </ul>
               <p className="text-muted-foreground mt-3">
                 Puoi esercitarli da <strong>Impostazioni → Privacy</strong> o scrivendo a{" "}
-                <a href="mailto:support@noparrot.app" className="text-primary underline">support@noparrot.app</a>.
+                <a href="mailto:noparrot.info@gmail.com" className="text-primary underline">noparrot.info@gmail.com</a>.
               </p>
             </section>
 
