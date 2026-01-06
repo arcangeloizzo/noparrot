@@ -8,8 +8,9 @@ interface CachedTrustScore {
 }
 
 /**
- * Hook to fetch cached trust score directly from database.
+ * Hook to fetch cached trust score via edge function.
  * Used for reshared posts to avoid recalculating the score.
+ * Requires authenticated user.
  */
 export function useCachedTrustScore(sourceUrl: string | null | undefined) {
   return useQuery({
@@ -17,43 +18,27 @@ export function useCachedTrustScore(sourceUrl: string | null | undefined) {
     queryFn: async (): Promise<CachedTrustScore | null> => {
       if (!sourceUrl) return null;
 
-      // Normalize URL (same logic as backend)
-      let normalizedUrl = sourceUrl;
-      try {
-        const url = new URL(sourceUrl);
-        // Normalize YouTube URLs
-        if (url.hostname.includes('youtube.com') || url.hostname.includes('youtu.be')) {
-          let videoId = '';
-          if (url.hostname.includes('youtu.be')) {
-            videoId = url.pathname.slice(1);
-          } else {
-            videoId = url.searchParams.get('v') || '';
-          }
-          if (videoId) {
-            normalizedUrl = `https://www.youtube.com/watch?v=${videoId}`;
-          }
-        }
-        // Normalize Twitter/X URLs
-        if (url.hostname.includes('twitter.com') || url.hostname.includes('x.com')) {
-          normalizedUrl = url.href.replace('twitter.com', 'x.com');
-        }
-      } catch {
-        // Keep original URL if parsing fails
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        console.log('useCachedTrustScore: No session, skipping fetch');
+        return null;
       }
 
-      const { data, error } = await supabase
-        .from('trust_scores')
-        .select('band, score, reasons')
-        .eq('source_url', normalizedUrl)
-        .gt('expires_at', new Date().toISOString())
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke('get-trust-score', {
+        body: { source_url: sourceUrl }
+      });
 
-      if (error || !data) return null;
+      if (error) {
+        console.error('Error fetching cached trust score:', error);
+        return null;
+      }
+
+      if (!data?.data) return null;
       
       return {
-        band: data.band as 'ALTO' | 'MEDIO' | 'BASSO',
-        score: data.score,
-        reasons: data.reasons as string[]
+        band: data.data.band as 'ALTO' | 'MEDIO' | 'BASSO',
+        score: data.data.score,
+        reasons: data.data.reasons as string[]
       };
     },
     enabled: !!sourceUrl,

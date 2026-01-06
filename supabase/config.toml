@@ -44,3 +44,6 @@ verify_jwt = true
 
 [functions.cleanup-expired-cache]
 verify_jwt = false
+
+[functions.get-trust-score]
+verify_jwt = false

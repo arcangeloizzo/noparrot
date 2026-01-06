@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-admin-token',
 };
 
 serve(async (req) => {
@@ -13,23 +13,31 @@ serve(async (req) => {
   }
 
   try {
-    // This function requires service_role key - verify it's not being called with anon key
-    const authHeader = req.headers.get('Authorization');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    // Check if caller is using service_role key (admin only)
-    if (!authHeader || !authHeader.includes(serviceRoleKey!)) {
-      console.log('Unauthorized: service_role key required');
+    // Custom token-based authentication
+    const adminToken = req.headers.get('x-admin-token');
+    const expectedToken = Deno.env.get('CLEANUP_ADMIN_TOKEN');
+
+    if (!expectedToken || adminToken !== expectedToken) {
+      console.log('Unauthorized: invalid or missing x-admin-token');
       return new Response(
-        JSON.stringify({ error: 'Unauthorized - admin access required' }), 
+        JSON.stringify({ error: 'Unauthorized' }), 
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      serviceRoleKey!
-    );
+    // Use service_role internally only for Supabase client
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+
+    if (!serviceRoleKey || !supabaseUrl) {
+      console.error('Missing Supabase environment variables');
+      return new Response(
+        JSON.stringify({ error: 'Server configuration error' }), 
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const now = new Date().toISOString();
     const results = {
@@ -45,7 +53,7 @@ serve(async (req) => {
       .from('content_cache')
       .delete()
       .lt('expires_at', now)
-      .select('id');
+      .select('source_url');
     
     if (ccError) {
       console.error('Error cleaning content_cache:', ccError);
@@ -59,7 +67,7 @@ serve(async (req) => {
       .from('youtube_transcripts_cache')
       .delete()
       .lt('expires_at', now)
-      .select('id');
+      .select('video_id');
     
     if (ytError) {
       console.error('Error cleaning youtube_transcripts_cache:', ytError);
@@ -73,7 +81,7 @@ serve(async (req) => {
       .from('trust_scores')
       .delete()
       .lt('expires_at', now)
-      .select('id');
+      .select('source_url');
     
     if (tsError) {
       console.error('Error cleaning trust_scores:', tsError);
