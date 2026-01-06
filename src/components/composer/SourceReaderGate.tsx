@@ -103,6 +103,11 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const [scrollProgress, setScrollProgress] = useState(0);
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Iframe loading state for generic articles
+  const [iframeLoaded, setIframeLoaded] = useState(false);
+  const [iframeFailed, setIframeFailed] = useState(false);
+  const articleIframeRef = useRef<HTMLIFrameElement>(null);
 
   // Load Twitter widgets (desktop only)
   useEffect(() => {
@@ -233,6 +238,32 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       }
     };
   }, []);
+
+  // Reset iframe state when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      setIframeLoaded(false);
+      setIframeFailed(false);
+    }
+  }, [isOpen]);
+
+  // Iframe timeout for generic articles (5 seconds)
+  useEffect(() => {
+    if (!isOpen) return;
+    if (source.platform === 'youtube' || source.platform === 'spotify' || 
+        source.platform === 'twitter' || source.platform === 'tiktok') return;
+    if (source.contentQuality === 'blocked') return;
+    if (iframeLoaded || iframeFailed) return;
+    
+    const timeout = safeSetTimeout(() => {
+      if (!iframeLoaded) {
+        console.log('[SourceReaderGate] Iframe timeout - falling back to preview card');
+        setIframeFailed(true);
+      }
+    }, 5000);
+    
+    return () => clearTimeout(timeout);
+  }, [isOpen, iframeLoaded, iframeFailed, source.platform, source.contentQuality, safeSetTimeout]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -657,7 +688,74 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       );
     }
 
-    // Generic article - SOURCE-FIRST: Use iframe instead of showing full text
+    // Generic article - SOURCE-FIRST: Attempt iframe with fallback
+    // If iframeAllowed and not failed, try to show iframe
+    const showIframe = source.iframeAllowed !== false && !iframeFailed;
+    
+    if (showIframe) {
+      return (
+        <div className="flex flex-col h-full space-y-3">
+          {/* Compact article header */}
+          <div className="p-3 bg-card border border-border rounded-lg flex-shrink-0">
+            <div className="flex items-center gap-3">
+              {source.image && (
+                <img 
+                  src={source.image} 
+                  alt="" 
+                  className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-foreground text-sm truncate">
+                  {source.title || 'Articolo'}
+                </h3>
+                <p className="text-xs text-muted-foreground truncate">
+                  {source.hostname || new URL(source.url).hostname}
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={openSource} className="flex-shrink-0 h-8 px-2">
+                <ExternalLink className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Iframe container */}
+          <div className="relative flex-1 rounded-xl border border-border overflow-hidden bg-muted/30">
+            {!iframeLoaded && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/50 z-10">
+                <Loader2 className="h-6 w-6 animate-spin text-primary mb-2" />
+                <span className="text-sm text-muted-foreground">Caricamento sito...</span>
+              </div>
+            )}
+            <iframe
+              ref={articleIframeRef}
+              src={source.url}
+              className={cn(
+                "w-full h-full border-0 transition-opacity duration-300",
+                iframeLoaded ? "opacity-100" : "opacity-0"
+              )}
+              sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+              onLoad={() => {
+                console.log('[SourceReaderGate] Iframe loaded successfully');
+                setIframeLoaded(true);
+              }}
+              onError={() => {
+                console.log('[SourceReaderGate] Iframe error - falling back');
+                setIframeFailed(true);
+              }}
+              title="Article content"
+            />
+          </div>
+
+          {/* Gate hint */}
+          <p className="text-xs text-center text-muted-foreground flex-shrink-0">
+            Naviga il sito per {minSeconds} secondi per sbloccare il test
+          </p>
+        </div>
+      );
+    }
+    
+    // Fallback: Preview card when iframe fails or not allowed
     return (
       <div className="max-w-2xl mx-auto space-y-4">
         {/* Article preview card */}
@@ -691,8 +789,20 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           </div>
         )}
 
+        {/* Iframe blocked notice */}
+        {iframeFailed && (
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3">
+            <div className="flex items-center gap-2">
+              <ExternalLink className="h-4 w-4 text-amber-600" />
+              <span className="text-sm text-amber-700 dark:text-amber-400">
+                Il sito non permette la visualizzazione incorporata
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Content quality badge */}
-        {source.contentQuality === 'complete' && (
+        {source.contentQuality === 'complete' && !iframeFailed && (
           <div className="bg-trust-high/10 border border-trust-high/20 rounded-lg p-3">
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-trust-high" />
