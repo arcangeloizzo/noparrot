@@ -1015,6 +1015,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         <div className="fixed inset-0 z-[10060]">
           <QuizModal
             questions={Array.isArray(quizData.questions) ? quizData.questions : []}
+            qaId={quizData.qaId}
             onSubmit={handleQuizSubmit}
             onCancel={() => {
               // User cancelled DURING quiz (before completing)

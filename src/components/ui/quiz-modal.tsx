@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "./button";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { QuizQuestion } from "@/lib/ai-helpers";
 import { cn } from "@/lib/utils";
 import { updateCognitiveDensityWeighted } from "@/lib/cognitiveDensity";
@@ -8,34 +8,34 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { lockBodyScroll, unlockBodyScroll, getCurrentLockOwner } from "@/lib/bodyScrollLock";
 import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
+import { toast } from "sonner";
 
 interface QuizModalProps {
   questions: QuizQuestion[];
+  qaId: string; // Required for server-side step validation
   onSubmit: (answers: Record<string, string>) => Promise<{ passed: boolean; score?: number; total?: number; wrongIndexes: string[] }>;
   onCancel?: () => void;
-  onComplete?: (passed: boolean) => void; // Called when quiz finishes (pass or fail)
+  onComplete?: (passed: boolean) => void;
   provider?: string;
   postCategory?: string;
 }
 
-export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCategory }: QuizModalProps) {
+export function QuizModal({ questions, qaId, onSubmit, onCancel, onComplete, postCategory }: QuizModalProps) {
   const { user } = useAuth();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<{ passed: boolean; score?: number; total?: number; wrongIndexes: string[] } | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
-  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+  const [stepFeedback, setStepFeedback] = useState<{ isCorrect: boolean } | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
-  const [questionAttempts, setQuestionAttempts] = useState<Record<string, number>>({});
   const [totalErrors, setTotalErrors] = useState(0);
-  const [showRetryMessage, setShowRetryMessage] = useState(false);
 
   // Protezione unmount per evitare setState su componenti smontati
   const isMountedRef = useRef(true);
   const timeoutRefs = useRef<number[]>([]);
 
-  // Guard to prevent double-firing of close/complete handlers (iOS Safari double-tap issue)
+  // Guard to prevent double-firing of close/complete handlers
   const closeInProgressRef = useRef(false);
   const [buttonsDisabled, setButtonsDisabled] = useState(false);
 
@@ -59,16 +59,14 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
     };
   }, []);
 
-  // Body scroll lock - Use centralized utility
+  // Body scroll lock
   useEffect(() => {
-    // Quiz takes over lock from reader (if reader had it)
     addBreadcrumb('quiz_mount');
     addBreadcrumb('quiz_scroll_lock');
     lockBodyScroll('quiz');
 
     return () => {
       addBreadcrumb('quiz_cleanup_start');
-      // Only unlock if quiz still owns the lock (avoid double-unlock if forceUnlock was called)
       const owner = getCurrentLockOwner();
       if (owner === 'quiz') {
         addBreadcrumb('quiz_scroll_unlock_do');
@@ -80,22 +78,14 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
     };
   }, []);
 
-  // Debugging: log questions received
-  useEffect(() => {
-    console.log('[QuizModal] Received questions:', questions);
-    console.log('[QuizModal] Questions type:', typeof questions);
-    console.log('[QuizModal] Is array:', Array.isArray(questions));
-    console.log('[QuizModal] Length:', questions?.length);
-  }, [questions]);
-
   // Validate questions is actually an array
   const validQuestions = Array.isArray(questions) ? questions : [];
   const currentQuestion = validQuestions[currentStep];
   const hasValidQuestions = validQuestions.length > 0 && currentQuestion;
 
-  // Safety check - if no valid questions, show error state
-  if (!hasValidQuestions) {
-    console.log('[QuizModal] No valid questions - showing error state');
+  // Safety check - if no valid questions or no qaId, show error state
+  if (!hasValidQuestions || !qaId) {
+    console.log('[QuizModal] No valid questions or qaId - showing error state', { hasValidQuestions, qaId });
     return (
       <div 
         className="fixed inset-0 bg-black/80 z-[9999] pointer-events-auto"
@@ -117,76 +107,137 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
     );
   }
 
-  // SECURITY HARDENED: No client-side validation - all answers submitted to server
-  // NO feedback shown until server responds - prevents "all correct" bug
+  /**
+   * PRIVACY-SAFE STEP VALIDATION
+   * Calls submit-qa with mode: "step" to get only { isCorrect: boolean }
+   * Server never reveals correctId to client
+   */
+  const validateStep = async (questionId: string, choiceId: string): Promise<{ isCorrect: boolean } | null> => {
+    try {
+      console.log('[QuizModal] Validating step:', { qaId, questionId, choiceId });
+      
+      const { data, error } = await supabase.functions.invoke('submit-qa', {
+        body: { qaId, questionId, choiceId, mode: 'step' }
+      });
+
+      if (error) {
+        console.error('[QuizModal] Step validation error:', error);
+        return null;
+      }
+
+      if (data && typeof data.isCorrect === 'boolean') {
+        console.log('[QuizModal] Step result:', { isCorrect: data.isCorrect });
+        return { isCorrect: data.isCorrect };
+      }
+
+      console.error('[QuizModal] Invalid step response:', data);
+      return null;
+    } catch (err) {
+      console.error('[QuizModal] Step validation exception:', err);
+      return null;
+    }
+  };
+
+  /**
+   * Handle answer selection with server-side step validation
+   */
   const handleAnswer = async (questionId: string, choiceId: string) => {
     if (showFeedback || isSubmitting) return;
     
     setSelectedChoice(choiceId);
+    setIsSubmitting(true);
+    
     const newAnswers = { ...answers, [questionId]: choiceId };
     setAnswers(newAnswers);
     
-    // Move to next question or submit - NO feedback for intermediate questions
     if (currentStep < validQuestions.length - 1) {
-      // Just transition to next question, no correct/wrong feedback
+      // STEP MODE: Validate single question server-side
+      const stepResult = await validateStep(questionId, choiceId);
+      
+      if (!stepResult) {
+        // FAIL-CLOSED: Show error, block quiz
+        toast.error("Errore nella verifica della risposta");
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Show feedback (blue for correct, yellow for incorrect)
+      setStepFeedback(stepResult);
+      setShowFeedback(true);
+      
+      // Track errors locally for progress dots (display only, NOT for verdict)
+      if (!stepResult.isCorrect) {
+        setTotalErrors(prev => prev + 1);
+      }
+      
+      // After feedback delay, move to next question
       safeSetTimeout(() => {
         setCurrentStep(prev => prev + 1);
         setSelectedChoice(null);
-      }, 300);
+        setShowFeedback(false);
+        setStepFeedback(null);
+        setIsSubmitting(false);
+      }, 800);
     } else {
-      // CRITICAL FIX: Pass newAnswers directly to avoid stale state bug
-      // Previously handleFinalSubmit() used `answers` state which didn't include the last answer
+      // FINAL: Last question - also validate step then submit all for final verdict
+      const stepResult = await validateStep(questionId, choiceId);
+      
+      if (!stepResult) {
+        // FAIL-CLOSED: Show error
+        toast.error("Errore nella verifica della risposta");
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Show feedback for last question
+      setStepFeedback(stepResult);
       setShowFeedback(true);
-      handleFinalSubmit(newAnswers);
+      
+      if (!stepResult.isCorrect) {
+        setTotalErrors(prev => prev + 1);
+      }
+      
+      // Small delay then submit final
+      safeSetTimeout(() => {
+        handleFinalSubmit(newAnswers);
+      }, 600);
     }
   };
 
-  const resetFeedback = () => {
-    setSelectedChoice(null);
-    setIsCorrect(null);
-    setShowFeedback(false);
-  };
-
-  // CRITICAL: Accept answersToSubmit parameter to ensure last answer is included
+  /**
+   * FINAL VERDICT - Server-only decision
+   * Client never calculates passed status
+   */
   const handleFinalSubmit = async (answersToSubmit: Record<string, string>) => {
-    setIsSubmitting(true);
     addBreadcrumb('quiz_submit_start');
     
-    // FORENSIC LOG: Track exactly what we're sending
-    console.log('[QuizModal] handleFinalSubmit called with:', {
+    console.log('[QuizModal] handleFinalSubmit:', {
       answerCount: Object.keys(answersToSubmit).length,
       questionCount: validQuestions.length,
-      answerKeys: Object.keys(answersToSubmit),
     });
     
     try {
       const validationResult = await onSubmit(answersToSubmit);
       
-      // FORENSIC LOG: Track server response
-      console.log('[QuizModal] Server validation result:', {
-        passed: validationResult?.passed,
-        score: validationResult?.score,
-        total: validationResult?.total,
-        wrongIndexes: validationResult?.wrongIndexes,
-      });
+      console.log('[QuizModal] Server final result:', validationResult);
       
       // FAIL-FAST: If result is null/undefined, treat as failure
       if (!validationResult) {
         console.error('[QuizModal] Null validation result - treating as failure');
         setResult({ passed: false, wrongIndexes: [] });
+        setIsSubmitting(false);
         return;
       }
       
       setResult(validationResult);
       addBreadcrumb('quiz_submit_result', { passed: validationResult.passed });
       
-      // Se passato e c'è una categoria, incrementa cognitive_density con peso COMMENT_WITH_GATE
+      // Update cognitive density if passed
       if (validationResult.passed && user && postCategory) {
         await updateCognitiveDensityWeighted(user.id, postCategory, 'COMMENT_WITH_GATE');
       }
 
-      // AUTO-PUBLISH: se passato, chiama onComplete(true) automaticamente dopo breve delay
-      // L'utente NON deve premere "Chiudi" - il publish parte da solo
+      // AUTO-PUBLISH: if passed, call onComplete(true) after delay
       if (validationResult.passed && onComplete) {
         addBreadcrumb('quiz_auto_complete_scheduled');
         setButtonsDisabled(true);
@@ -195,12 +246,12 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
           closeInProgressRef.current = true;
           addBreadcrumb('quiz_auto_complete_fire');
           onComplete(true);
-        }, 800); // 800ms per far vedere "Hai compreso" poi auto-chiude
+        }, 800);
       }
     } catch (error) {
       console.error('[QuizModal] Error submitting quiz:', error);
       addBreadcrumb('quiz_submit_error', { error: String(error) });
-      // FAIL-FAST on exception: show failure, don't leave in limbo
+      // FAIL-FAST on exception
       setResult({ passed: false, wrongIndexes: [] });
     } finally {
       setIsSubmitting(false);
@@ -208,8 +259,6 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
   };
 
   const handleBackdropClick = (e: React.MouseEvent) => {
-    // Ignore backdrop clicks if result is showing (user must use button)
-    // Also ignore if close is already in progress
     if (result || closeInProgressRef.current) {
       e.preventDefault();
       e.stopPropagation();
@@ -223,7 +272,6 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
     }
   };
 
-  // Centralized close handler to prevent double-firing
   const handleCloseClick = (passed: boolean) => {
     if (closeInProgressRef.current) {
       addBreadcrumb('quiz_close_ignored_double', { passed });
@@ -235,11 +283,9 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
 
     if (passed) {
       addBreadcrumb('quiz_complete_passed');
-      addBreadcrumb('quiz_closed', { via: 'complete', passed: true });
       onComplete ? onComplete(true) : onCancel?.();
     } else {
       addBreadcrumb('quiz_complete_failed');
-      addBreadcrumb('quiz_closed', { via: 'complete', passed: false });
       onComplete ? onComplete(false) : onCancel?.();
     }
   };
@@ -274,7 +320,6 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
                   </div>
                   <h2 className="text-xl sm:text-2xl font-bold mb-3 sm:mb-4">Hai compreso.</h2>
                   <p className="text-muted-foreground mb-4 sm:mb-6 text-sm sm:text-base">Pubblicazione in corso…</p>
-                  {/* Il bottone resta come fallback ma non è richiesto - auto-publish parte */}
                   <Button 
                     type="button"
                     onClick={(e) => { 
@@ -337,40 +382,81 @@ export function QuizModal({ questions, onSubmit, onCancel, onComplete, postCateg
                 <div className="space-y-2 sm:space-y-3">
                   {(currentQuestion.choices || []).map((choice) => {
                     const isSelected = selectedChoice === choice.id;
-                    // SECURITY: No client-side correctId check - just show selection state
-                    const isSelectedAndFeedback = showFeedback && isSelected;
+                    const showingFeedbackForThis = showFeedback && isSelected && stepFeedback;
 
                     return (
                       <button 
                         key={choice.id} 
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (!showFeedback) handleAnswer(currentQuestion.id, choice.id);
+                          if (!showFeedback && !isSubmitting) handleAnswer(currentQuestion.id, choice.id);
                         }}
-                        disabled={showFeedback}
+                        disabled={showFeedback || isSubmitting}
                         style={{ pointerEvents: 'auto' }}
-                        className={cn("w-full p-3 sm:p-5 rounded-xl sm:rounded-2xl text-left transition-all border-2 pointer-events-auto text-sm sm:text-base",
-                          !showFeedback && !isSelected && "border-border bg-muted/20 hover:border-muted-foreground hover:bg-muted/40",
-                          !showFeedback && isSelected && "border-[hsl(var(--cognitive-glow-blue))] bg-[hsl(var(--cognitive-glow-blue))]/10",
-                          isSelectedAndFeedback && "border-[hsl(var(--cognitive-glow-blue))] bg-[hsl(var(--cognitive-glow-blue))]/10")}>
-                        <span className={cn("flex-1 leading-relaxed", isSelectedAndFeedback && "font-medium")}>{choice.text}</span>
+                        className={cn(
+                          "w-full p-3 sm:p-5 rounded-xl sm:rounded-2xl text-left transition-all border-2 pointer-events-auto text-sm sm:text-base",
+                          // Default state
+                          !showFeedback && !isSelected && !isSubmitting && "border-border bg-muted/20 hover:border-muted-foreground hover:bg-muted/40",
+                          // Selected but validating (loading)
+                          !showFeedback && isSelected && isSubmitting && "border-[hsl(var(--cognitive-glow-blue))] bg-[hsl(var(--cognitive-glow-blue))]/10",
+                          // Correct feedback - Blue NoParrot
+                          showingFeedbackForThis && stepFeedback?.isCorrect && "border-[hsl(var(--cognitive-glow-blue))] bg-[hsl(var(--cognitive-glow-blue))]/20",
+                          // Incorrect feedback - Yellow NoParrot
+                          showingFeedbackForThis && stepFeedback?.isCorrect === false && "border-[hsl(var(--cognitive-incorrect))] bg-[hsl(var(--cognitive-incorrect))]/20",
+                          // Other choices during feedback (dim)
+                          showFeedback && !isSelected && "opacity-50"
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          {/* Loading spinner when validating */}
+                          {!showFeedback && isSelected && isSubmitting && (
+                            <Loader2 className="w-4 h-4 animate-spin text-[hsl(var(--cognitive-glow-blue))]" />
+                          )}
+                          {/* Feedback icon */}
+                          {showingFeedbackForThis && stepFeedback?.isCorrect && (
+                            <CheckCircle2 className="w-5 h-5 text-[hsl(var(--cognitive-glow-blue))]" />
+                          )}
+                          {showingFeedbackForThis && stepFeedback?.isCorrect === false && (
+                            <XCircle className="w-5 h-5 text-[hsl(var(--cognitive-incorrect))]" />
+                          )}
+                          <span className={cn("flex-1 leading-relaxed", showingFeedbackForThis && "font-medium")}>
+                            {choice.text}
+                          </span>
+                        </div>
                       </button>
                     );
                   })}
                 </div>
 
-                {/* SECURITY: Feedback only shown after final server validation */}
+                {/* Submitting final indicator */}
                 {showFeedback && isSubmitting && (
                   <div className="p-3 sm:p-5 rounded-xl sm:rounded-2xl mt-4 sm:mt-6 text-center animate-fade-in bg-muted/20 border-2 border-border">
-                    <p className="font-medium text-sm sm:text-[15px] text-muted-foreground">
-                      Sto verificando…
-                    </p>
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <p className="font-medium text-sm sm:text-[15px] text-muted-foreground">
+                        Sto verificando il risultato…
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
 
               <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex gap-3 pointer-events-auto flex-shrink-0" style={{ pointerEvents: 'auto', paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)' }}>
-                {onCancel && <Button onClick={(e) => { e.stopPropagation(); addBreadcrumb('quiz_closed', { via: 'cancel' }); addBreadcrumb('quiz_cancel_button'); onCancel(); }} variant="outline" className="flex-1 pointer-events-auto" style={{ pointerEvents: 'auto' }}>Annulla</Button>}
+                {onCancel && (
+                  <Button 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      addBreadcrumb('quiz_closed', { via: 'cancel' }); 
+                      onCancel(); 
+                    }} 
+                    variant="outline" 
+                    className="flex-1 pointer-events-auto" 
+                    style={{ pointerEvents: 'auto' }}
+                    disabled={isSubmitting}
+                  >
+                    Annulla
+                  </Button>
+                )}
               </div>
             </>
           )}

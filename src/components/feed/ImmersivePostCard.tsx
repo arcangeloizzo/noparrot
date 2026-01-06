@@ -1258,6 +1258,7 @@ export const ImmersivePostCard = ({
         <div className="fixed inset-0 z-[10060]">
           <QuizModal
             questions={quizData.questions}
+            qaId={quizData.qaId}
             onSubmit={handleQuizSubmit}
             onCancel={() => {
               setShowQuiz(false);

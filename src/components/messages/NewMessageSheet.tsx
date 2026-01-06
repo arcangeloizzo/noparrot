@@ -143,6 +143,7 @@ export const NewMessageSheet = ({ isOpen, onClose, selectedUsers }: NewMessageSh
       {showQuiz && quizData && !quizData.error && (
         <QuizModal
           questions={quizData.questions}
+          qaId={quizData.qaId}
           onSubmit={async (answers: Record<string, string>) => {
             // SECURITY HARDENED: All validation via submit-qa edge function
             try {
