@@ -636,7 +636,7 @@ export const FocusDetailSheet = ({
                   setQuizData(null);
                 }
                 
-                return { passed: true, score, total, wrongIndexes: [] };
+                return { passed: true, score, total, wrongIndexes };
               } catch (err) {
                 console.error('[FocusDetailSheet] Unexpected error:', err);
                 sonnerToast.error("Errore durante la validazione");

@@ -559,13 +559,52 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
         <QuizModal
           questions={quizData.questions}
           onSubmit={async (answers: Record<string, string>) => {
-            quizData.onSuccess();
-            setShowQuiz(false);
-            setQuizData(null);
-            return { passed: true, wrongIndexes: [] };
+            try {
+              // SECURITY HARDENED: All validation via submit-qa with qaId
+              const { data, error } = await supabase.functions.invoke('submit-qa', {
+                body: {
+                  qaId: quizData.qaId,
+                  postId: post.id,
+                  sourceUrl: quizData.sourceUrl,
+                  answers,
+                  gateType: 'comment'
+                }
+              });
+
+              if (error || !data) {
+                console.error('[CommentsSheet] Validation error:', error);
+                sonnerToast.error("Errore durante la validazione del quiz");
+                setShowQuiz(false);
+                setQuizData(null);
+                return { passed: false, wrongIndexes: [] };
+              }
+
+              const passed = !!data.passed;
+              const wrongIndexes = data.wrongIndexes || [];
+              const score = data.score || 0;
+              const total = data.total || quizData.questions.length;
+
+              if (passed) {
+                quizData.onSuccess();
+                sonnerToast.success('Hai fatto chiarezza.');
+              } else {
+                sonnerToast.error('Non ancora chiaro. Riprova.');
+                if (quizData.onCancel) quizData.onCancel();
+              }
+
+              setShowQuiz(false);
+              setQuizData(null);
+              return { passed, score, total, wrongIndexes };
+            } catch (err) {
+              console.error('[CommentsSheet] Unexpected error:', err);
+              sonnerToast.error("Errore durante la validazione");
+              setShowQuiz(false);
+              setQuizData(null);
+              return { passed: false, wrongIndexes: [] };
+            }
           }}
           onCancel={() => {
-            quizData.onCancel();
+            if (quizData.onCancel) quizData.onCancel();
             setShowQuiz(false);
             setQuizData(null);
           }}
