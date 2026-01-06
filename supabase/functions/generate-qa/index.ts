@@ -7,12 +7,13 @@ const corsHeaders = {
 };
 
 // ============================================================================
-// SOURCE-FIRST Q/A GENERATION
+// SOURCE-FIRST Q/A GENERATION - SECURITY HARDENED
 // ============================================================================
-// This edge function now:
+// This edge function:
 // 1. Receives ONLY qaSourceRef from client (no full text)
 // 2. Fetches full content server-side from cache or fresh extraction
-// 3. Generates questions and returns ONLY questions (no source text)
+// 3. Saves questions to post_qa_questions (public) and answers to post_qa_answers (private)
+// 4. Returns ONLY questions (no correct answers, no source text)
 // ============================================================================
 
 serve(async (req) => {
@@ -21,6 +22,28 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Verify JWT and extract user (owner_id for Q&A)
+    const authHeader = req.headers.get('Authorization');
+    let ownerId: string | null = null;
+    
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user } } = await supabase.auth.getUser(token);
+      ownerId = user?.id || null;
+    }
+
+    // Fallback owner for legacy/system calls
+    if (!ownerId) {
+      ownerId = '00000000-0000-0000-0000-000000000000';
+      console.log('[generate-qa] No JWT, using system owner');
+    }
+
     const { 
       contentId, 
       isPrePublish, 
@@ -36,12 +59,6 @@ serve(async (req) => {
       // NEW: qaSourceRef for server-side content fetching
       qaSourceRef
     } = await req.json();
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
-    
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
     console.log('[generate-qa] Request params:', { 
       sourceUrl, 
@@ -228,10 +245,10 @@ serve(async (req) => {
     console.log('[generate-qa] Content source:', contentSource);
     console.log('[generate-qa] Content text length:', contentText.length);
 
-    // Check if Q&A already exists
+    // Check if Q&A already exists in NEW secure tables
     let query = supabase
-      .from('post_qa')
-      .select('*')
+      .from('post_qa_questions')
+      .select('id, questions, content_hash, test_mode, owner_id')
       .eq('source_url', sourceUrl || '');
     
     if (isPrePublish) {
@@ -246,8 +263,8 @@ serve(async (req) => {
     if (!existing && !isPrePublish && sourceUrl) {
       console.log('[generate-qa] Cache MISS with specific post_id, trying fallback');
       const { data: fallback } = await supabase
-        .from('post_qa')
-        .select('*')
+        .from('post_qa_questions')
+        .select('id, questions, content_hash, test_mode, owner_id')
         .eq('source_url', sourceUrl)
         .is('post_id', null)
         .maybeSingle();
@@ -513,34 +530,69 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
       correctId: q.correctId
     }));
 
-    // Save to database
+    // Save to SECURE split tables
     if (existing) {
-      await supabase.from('post_qa')
+      // Update questions in public table
+      await supabase.from('post_qa_questions')
         .update({
           questions: shuffledQuestions,
-          correct_answers: correctAnswers,
           content_hash: contentHash,
           test_mode: testMode || null,
           generated_from: 'gemini',
-          updated_at: new Date().toISOString()
+          generated_at: new Date().toISOString()
         })
         .eq('id', existing.id);
-      console.log('[generate-qa] Q&A updated');
+      
+      // Update correct answers in private table
+      await supabase.from('post_qa_answers')
+        .upsert({
+          id: existing.id,
+          correct_answers: correctAnswers
+        });
+      
+      console.log('[generate-qa] Q&A updated in secure tables');
     } else {
-      await supabase.from('post_qa').insert({
-        post_id: isPrePublish ? null : contentId,
-        source_url: sourceUrl || '',
-        questions: shuffledQuestions,
-        correct_answers: correctAnswers,
-        content_hash: contentHash,
-        test_mode: testMode || null,
-        generated_from: 'gemini'
+      // Insert into public table first
+      const { data: insertedQA, error: insertError } = await supabase
+        .from('post_qa_questions')
+        .insert({
+          post_id: isPrePublish ? null : contentId,
+          source_url: sourceUrl || '',
+          questions: shuffledQuestions,
+          content_hash: contentHash,
+          test_mode: testMode || null,
+          generated_from: 'gemini',
+          owner_id: ownerId
+        })
+        .select('id')
+        .single();
+      
+      if (insertError || !insertedQA) {
+        console.error('[generate-qa] Failed to insert Q&A:', insertError);
+        throw new Error('Failed to save Q&A');
+      }
+      
+      // Insert correct answers into private table
+      await supabase.from('post_qa_answers').insert({
+        id: insertedQA.id,
+        correct_answers: correctAnswers
       });
-      console.log('[generate-qa] Q&A generated and saved');
+      
+      console.log('[generate-qa] Q&A generated and saved to secure tables');
     }
 
+    // Return ONLY questions - strip correctId
+    const sanitizedQuestions = shuffledQuestions.map((q: any) => ({
+      id: q.id,
+      stem: q.stem,
+      choices: q.choices.map((c: any) => ({
+        id: c.id,
+        text: c.text
+      }))
+    }));
+
     return new Response(
-      JSON.stringify({ questions: shuffledQuestions }),
+      JSON.stringify({ questions: sanitizedQuestions }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
