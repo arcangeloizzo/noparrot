@@ -698,10 +698,17 @@ Quando analizzi questa notizia, chiediti:
 
 ✅ COSA DEVI FARE:
 
-1. TITOLO (max 80 caratteri):
-   - Specifico sull'evento, giornalisticamente incisivo
+1. TITOLO (max 60 caratteri TASSATIVI):
+   - NON cronaca o breaking news - SOLO analisi strutturale
+   - Deve rispondere a "cosa rivela?" non "cosa è successo?"
+   - Formula: [Soggetto/Contesto]: [insight o dinamica rivelata]
    - NESSUN nome di testata, NESSUN trattino con fonte
-   - Stile: "Maduro apre a Trump: dialogo su petrolio e droga"
+   
+   ❌ SBAGLIATO (cronaca): "Allerta rossa a Roma: l'Aniene esonda"
+   ✅ CORRETTO (analisi): "Roma e il nodo infrastrutture: l'allerta che si ripete"
+   
+   ❌ SBAGLIATO (cronaca): "Maduro apre a Trump: dialogo su petrolio"
+   ✅ CORRETTO (analisi): "Venezuela-USA: il disgelo che ridisegna gli equilibri"
    
 2. SUMMARY (400-500 caratteri):
    - Lead giornalistico in terza persona
@@ -772,6 +779,17 @@ Il lettore, dopo Il Punto, deve capire meglio cosa sta succedendo. Non deve sape
 
 Il tuo stile è: editoriale, lucido, analitico, distaccato, strutturale.
 Non neutro come un comunicato. Non opinabile come un commento.
+
+IMPORTANTE PER IL TITOLO:
+- NON stai scrivendo per un'agenzia di stampa (ANSA, Reuters)
+- NON stai scrivendo un titolo da TG o breaking news
+- Stai scrivendo l'intestazione di un'ANALISI (max 60 caratteri)
+- Il lettore deve capire DAL TITOLO che vedrà un insight, non una cronaca
+
+Esempi di trasformazione titolo:
+"Incendio a Los Angeles" → "California in fiamme: i pattern del rischio climatico"
+"Terremoto in Turchia" → "Turchia e la fragilità edilizia: un copione che si ripete"
+"Meloni incontra Macron" → "Roma-Parigi: il disgelo strategico oltre le tensioni"
 
 Rispondi SOLO con JSON valido.`
           },
