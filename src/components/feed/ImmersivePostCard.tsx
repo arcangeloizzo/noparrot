@@ -93,6 +93,23 @@ const detectPlatformFromUrl = (url: string): string | undefined => {
   }
 };
 
+const extractYoutubeVideoId = (url: string): string | null => {
+  try {
+    const urlObj = new URL(url);
+    // youtu.be/VIDEO_ID
+    if (urlObj.hostname.includes('youtu.be')) {
+      return urlObj.pathname.slice(1).split('?')[0];
+    }
+    // youtube.com/watch?v=VIDEO_ID
+    if (urlObj.hostname.includes('youtube.com')) {
+      return urlObj.searchParams.get('v');
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
 // Helper to detect if user text is similar to article title (avoids duplication)
 const isTextSimilarToTitle = (userText: string, title: string): boolean => {
   if (!userText || !title) return false;
@@ -134,6 +151,9 @@ export const ImmersivePostCard = ({
   
   // Comments state
   const [showComments, setShowComments] = useState(false);
+  
+  // YouTube embed state
+  const [youtubeEmbedActive, setYoutubeEmbedActive] = useState(false);
   
   // Share states
   const [showShareSheet, setShowShareSheet] = useState(false);
@@ -178,6 +198,11 @@ export const ImmersivePostCard = ({
     };
     loadArticlePreview();
   }, [urlToPreview, quotedPost]);
+
+  // Reset YouTube embed state when post changes
+  useEffect(() => {
+    setYoutubeEmbedActive(false);
+  }, [post.id]);
 
   // Get source from quoted post if current post doesn't have one (2 levels)
   const effectiveSharedUrl = post.shared_url || quotedPost?.shared_url;
@@ -528,6 +553,8 @@ export const ImmersivePostCard = ({
   const hasLink = !!post.shared_url;
   const isSpotify = articlePreview?.platform === 'spotify';
   const isTwitter = articlePreview?.platform === 'twitter' || detectPlatformFromUrl(post.shared_url || '') === 'twitter';
+  const isYoutube = articlePreview?.platform === 'youtube' || 
+    (post.shared_url?.includes('youtube.com') || post.shared_url?.includes('youtu.be'));
   const isMediaOnlyPost = hasMedia && !hasLink && !quotedPost;
   const mediaUrl = post.media?.[0]?.url;
   const isVideoMedia = post.media?.[0]?.type === 'video';
@@ -910,6 +937,74 @@ export const ImmersivePostCard = ({
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span className="text-xs uppercase tracking-wider">Apri su X</span>
+                </button>
+              </div>
+            ) : hasLink && isYoutube && !isReshareWithShortComment ? (
+              /* YouTube Video Card - Tap to play */
+              <div className="w-full max-w-md mx-auto mt-4">
+                {!youtubeEmbedActive ? (
+                  /* Thumbnail with Play button */
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setYoutubeEmbedActive(true);
+                    }}
+                    className="relative w-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl active:scale-[0.98] transition-transform"
+                  >
+                    {/* Video Thumbnail */}
+                    <img 
+                      src={articlePreview?.image || post.preview_img || `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url!)}/maxresdefault.jpg`}
+                      alt=""
+                      className="w-full aspect-video object-cover"
+                    />
+                    
+                    {/* Play Button Overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                      <div className="bg-red-600 p-4 rounded-full shadow-xl">
+                        <Play className="w-8 h-8 text-white fill-white" />
+                      </div>
+                    </div>
+                    
+                    {/* YouTube Badge */}
+                    <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-2">
+                      <svg className="w-4 h-4 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z"/>
+                        <polygon fill="white" points="9.545,15.568 15.818,12 9.545,8.432"/>
+                      </svg>
+                      <span className="text-white text-xs font-medium">YouTube</span>
+                    </div>
+                  </button>
+                ) : (
+                  /* Active YouTube Embed */
+                  <div className="w-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                    <div className="aspect-video">
+                      <iframe
+                        src={`https://www.youtube.com/embed/${extractYoutubeVideoId(post.shared_url!)}?autoplay=1&rel=0`}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+                        title="YouTube video"
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {/* Video Title */}
+                <h1 className="text-xl font-bold text-white leading-tight mt-4 mb-2 drop-shadow-xl">
+                  {articlePreview?.title || post.shared_title}
+                </h1>
+                
+                {/* Open on YouTube CTA */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                  }}
+                  className="flex items-center gap-2 text-white/50 hover:text-white transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span className="text-xs uppercase tracking-wider">Apri su YouTube</span>
                 </button>
               </div>
             ) : hasLink && isSpotify ? (
