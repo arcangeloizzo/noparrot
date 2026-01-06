@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play } from "lucide-react";
 import { useDominantColors } from "@/hooks/useDominantColors";
@@ -199,9 +199,13 @@ export const ImmersivePostCard = ({
     loadArticlePreview();
   }, [urlToPreview, quotedPost]);
 
-  // Reset YouTube embed state when post changes
+  // Reset YouTube embed state when post changes (use ref to track previous id)
+  const prevPostIdRef = useRef(post.id);
   useEffect(() => {
-    setYoutubeEmbedActive(false);
+    if (prevPostIdRef.current !== post.id) {
+      setYoutubeEmbedActive(false);
+      prevPostIdRef.current = post.id;
+    }
   }, [post.id]);
 
   // Get source from quoted post if current post doesn't have one (2 levels)
@@ -979,7 +983,7 @@ export const ImmersivePostCard = ({
                   <div className="w-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
                     <div className="aspect-video">
                       <iframe
-                        src={`https://www.youtube.com/embed/${extractYoutubeVideoId(post.shared_url!)}?autoplay=1&rel=0`}
+                        src={`https://www.youtube.com/embed/${extractYoutubeVideoId(post.shared_url!)}?autoplay=1&mute=1&cc_load_policy=1&rel=0`}
                         className="w-full h-full"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
