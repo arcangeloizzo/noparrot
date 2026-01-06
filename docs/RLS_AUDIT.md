@@ -208,7 +208,37 @@
 
 ---
 
+## Gate Hardening Checklist (Definition of Done)
+
+### A) UX Invariata
+- [x] Nessuna risposta corretta mostrata all'utente
+- [x] Feedback "riprova" basato su `wrongIndexes` (server-side)
+- [x] Stesso flow step/modal/copy
+
+### B) Sicurezza
+- [x] Nessun `correctId`/`correct_answers` in network responses
+- [x] Validazione solo via `submit-qa` edge function
+- [x] Rate limiting attivo (10 tentativi / 5 min)
+
+### C) No Bypass
+- [x] `apiSubmitAnswers` in comprehension-gate.tsx → throws Error (deprecated)
+- [x] `apiCreateOrGetQuiz` in comprehension-gate.tsx → throws Error (deprecated)
+- [x] `validate-answers` edge function → returns 410 Gone
+- [x] Nessun "mock passed" o "assume correct" nel codebase
+
+### D) Focus/Il Punto
+- [x] `qaId` generato server-side via `generate-qa`
+- [x] `FocusDetailSheet` passa `qaId` a `submit-qa`
+- [x] `ImmersiveEditorialCarousel` passa `qaId` a `submit-qa`
+
+---
+
 ## Changelog
+
+- **2026-01-06 v2.1**: Final hardening - single source of truth
+  - Deprecated `apiSubmitAnswers` and `apiCreateOrGetQuiz` in comprehension-gate.tsx
+  - Added `qaId` propagation from `generate-qa` to `submit-qa` in Focus/Il Punto components
+  - Added Definition of Done checklist
 
 - **2026-01-06 v2.0**: Major security hardening
   - Created `post_qa_questions` and `post_qa_answers` tables

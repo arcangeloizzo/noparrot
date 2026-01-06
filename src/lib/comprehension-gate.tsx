@@ -153,65 +153,22 @@ export async function fetchTrustScore({
  * ========================== */
 const quizCache = new Map<string, QuizPayload>();
 
-async function apiCreateOrGetQuiz(content: ContentDescriptor): Promise<QuizPayload> {
-  // SECURITY HARDENED: Questions created without correctId
-  // Correct answers are validated server-side only via submit-qa
-  const base = (content.title || content.text || content.url || "Contenuto").slice(0, 80);
-  const q1: QuizQuestion = {
-    id: "q1",
-    stem: `Qual è il tema principale del contenuto: "${base}"?`,
-    choices: [
-      { id: "a", text: "Il tema principale descritto nel testo" },
-      { id: "b", text: "Un argomento secondario non centrale" },
-      { id: "c", text: "Un elemento non menzionato" },
-    ],
-  };
-  const q2: QuizQuestion = {
-    id: "q2",
-    stem: "Quale evidenza supporta l'idea principale?",
-    choices: [
-      { id: "a", text: "Un esempio o dato citato nel contenuto" },
-      { id: "b", text: "Un'opinione esterna non presente" },
-      { id: "c", text: "Una congettura senza base" },
-    ],
-  };
-  const q3: QuizQuestion = {
-    id: "q3",
-    stem: "Quale dettaglio specifico viene menzionato?",
-    choices: [
-      { id: "a", text: "Il dettaglio citato nel testo" },
-      { id: "b", text: "Un dettaglio inventato" },
-      { id: "c", text: "Un dettaglio irrilevante" },
-    ],
-  };
-  const payload = { id: `qz_${content.id}`, questions: [q1, q2, q3] };
-  quizCache.set(payload.id, payload);
-  return payload;
+async function apiCreateOrGetQuiz(_content: ContentDescriptor): Promise<QuizPayload> {
+  // DEPRECATED: This mock function should not be used
+  // All quiz generation must go through generate-qa edge function
+  console.error('[comprehension-gate] DEPRECATED: apiCreateOrGetQuiz is a mock. Use generate-qa edge function.');
+  throw new Error('DEPRECATED: Use generate-qa edge function for quiz generation');
 }
 
 async function apiSubmitAnswers(
-  quizId: string, 
-  answers: Record<string, string>, 
-  rule: GatingPolicy["passingRule"]
+  _quizId: string, 
+  _answers: Record<string, string>, 
+  _rule: GatingPolicy["passingRule"]
 ): Promise<QuizResult> {
-  // SECURITY HARDENED: Local validation removed
-  // This is a mock/legacy function - real validation happens via submit-qa edge function
-  // For legacy compatibility, we return a mock result based on answer count
-  const payload = quizCache.get(quizId);
-  if (!payload) return { passed: false, score: 0 };
-  
-  // Mock: assume all answers provided are correct (actual validation is server-side)
-  const score = Object.keys(answers).length;
-  
-  const passed = (rule === "all_correct") 
-    ? score === payload.questions.length 
-    : score >= 2;
-    
-  return { 
-    passed,
-    score, 
-    attestation: passed ? `att-${quizId}-${Date.now()}` : undefined 
-  };
+  // DEPRECATED: This mock function should not be used
+  // All answer validation must go through submit-qa edge function
+  console.error('[comprehension-gate] DEPRECATED: apiSubmitAnswers is a mock. Use submit-qa edge function.');
+  throw new Error('DEPRECATED: Use submit-qa edge function for answer validation');
 }
 
 // -------------------------------------------------------------

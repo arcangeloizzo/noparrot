@@ -75,7 +75,7 @@ export const FocusDetailSheet = ({
   const [userPassedGate, setUserPassedGate] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
-  const [quizData, setQuizData] = useState<any>(null);
+  const [quizData, setQuizData] = useState<{ qaId?: string; questions: any[]; sourceUrl: string; forShare?: boolean; error?: boolean; errorMessage?: string } | null>(null);
   const [showCommentForm, setShowCommentForm] = useState(false);
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   
@@ -125,8 +125,9 @@ export const FocusDetailSheet = ({
         return;
       }
 
-      // Show quiz modal directly for share
+      // SECURITY HARDENED: Save qaId from server for submit-qa validation
       setQuizData({
+        qaId: data.qaId, // Server-generated qaId for secure validation
         questions: data.questions,
         sourceUrl: `editorial://${focusId}`,
         forShare: true, // Flag to trigger onShare after quiz passed
@@ -232,8 +233,9 @@ export const FocusDetailSheet = ({
 
       console.log('[FocusDetailSheet] Quiz questions generated:', qaData.questions.length);
       
-      // Show the quiz modal
+      // SECURITY HARDENED: Save qaId from server for submit-qa validation
       setQuizData({
+        qaId: qaData.qaId, // Server-generated qaId
         questions: qaData.questions,
         sourceUrl: 'focus://internal'
       });
@@ -572,10 +574,12 @@ export const FocusDetailSheet = ({
             questions={questionsSnapshot}
             onSubmit={async (answers: Record<string, string>) => {
               try {
-                // SECURITY HARDENED: All validation via submit-qa edge function
-                const sourceUrl = `focus://${type}/${focusId}`;
+                // SECURITY HARDENED: All validation via submit-qa edge function with qaId
+                const qaId = quizData.qaId;
+                const sourceUrl = quizData.sourceUrl || `focus://${type}/${focusId}`;
                 
-                console.log('[FocusDetailSheet] Validating with snapshot:', { 
+                console.log('[FocusDetailSheet] Validating with server qaId:', { 
+                  qaId,
                   questionsCount: questionsSnapshot.length, 
                   answersCount: Object.keys(answers).length,
                   isForShare,
@@ -584,6 +588,7 @@ export const FocusDetailSheet = ({
                 
                 const { data, error } = await supabase.functions.invoke('submit-qa', {
                   body: {
+                    qaId, // Use server-generated qaId for secure lookup
                     postId: null,
                     sourceUrl: sourceUrl,
                     answers,

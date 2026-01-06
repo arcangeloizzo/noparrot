@@ -74,7 +74,7 @@ export const ImmersiveEditorialCarousel = ({
   const [readerSource, setReaderSource] = useState<SourceWithGate | null>(null);
   const [readerClosing, setReaderClosing] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
-  const [quizData, setQuizData] = useState<{ questions: any[]; focusId?: string } | null>(null);
+  const [quizData, setQuizData] = useState<{ qaId?: string; questions: any[]; focusId?: string } | null>(null);
   const [quizLoading, setQuizLoading] = useState(false);
   const pendingShareItemRef = useRef<DailyFocus | null>(null);
 
@@ -168,7 +168,9 @@ export const ImmersiveEditorialCarousel = ({
         if (error) throw error;
 
         if (data?.questions && data.questions.length > 0) {
+          // SECURITY HARDENED: Save qaId from server for submit-qa validation
           setQuizData({
+            qaId: data.qaId, // Server-generated qaId
             questions: data.questions,
             focusId: item.id
           });
@@ -395,12 +397,14 @@ export const ImmersiveEditorialCarousel = ({
         <QuizModal
           questions={quizData.questions}
           onSubmit={async (answers) => {
-            // SECURITY HARDENED: All validation via submit-qa edge function
+            // SECURITY HARDENED: All validation via submit-qa edge function with qaId
+            const qaId = quizData.qaId;
             const sourceUrl = `focus://daily/${quizData.focusId}`;
             
             try {
               const { data, error } = await supabase.functions.invoke('submit-qa', {
                 body: {
+                  qaId, // Use server-generated qaId for secure lookup
                   postId: null,
                   sourceUrl: sourceUrl,
                   answers,
