@@ -173,9 +173,10 @@ export default function PrivacyPolicy() {
                 o finché non richiedi la cancellazione.
               </p>
               <p className="text-muted-foreground mt-2">
-                Alcuni dati tecnici e cache (es. trascrizioni/copie tecniche usate per 
-                generare domande) possono essere conservati per un periodo limitato 
-                e poi eliminati automaticamente.
+                I contenuti di cache tecnica (es. trascrizioni, trust scores) hanno una 
+                scadenza e non vengono più utilizzati o restituiti dopo la scadenza 
+                (7-30 giorni a seconda del tipo). I record scaduti possono rimanere 
+                nei sistemi fino a successiva pulizia tecnica.
               </p>
             </section>
 
