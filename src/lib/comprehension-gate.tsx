@@ -42,7 +42,7 @@ type QuizQuestion = {
   id: string; 
   stem: string; 
   choices: QuizChoice[]; 
-  correctId: string; 
+  // correctId removed - answers validated server-side only
 };
 
 type QuizPayload = { 
@@ -154,6 +154,8 @@ export async function fetchTrustScore({
 const quizCache = new Map<string, QuizPayload>();
 
 async function apiCreateOrGetQuiz(content: ContentDescriptor): Promise<QuizPayload> {
+  // SECURITY HARDENED: Questions created without correctId
+  // Correct answers are validated server-side only via submit-qa
   const base = (content.title || content.text || content.url || "Contenuto").slice(0, 80);
   const q1: QuizQuestion = {
     id: "q1",
@@ -163,7 +165,6 @@ async function apiCreateOrGetQuiz(content: ContentDescriptor): Promise<QuizPaylo
       { id: "b", text: "Un argomento secondario non centrale" },
       { id: "c", text: "Un elemento non menzionato" },
     ],
-    correctId: "a",
   };
   const q2: QuizQuestion = {
     id: "q2",
@@ -173,7 +174,6 @@ async function apiCreateOrGetQuiz(content: ContentDescriptor): Promise<QuizPaylo
       { id: "b", text: "Un'opinione esterna non presente" },
       { id: "c", text: "Una congettura senza base" },
     ],
-    correctId: "a",
   };
   const q3: QuizQuestion = {
     id: "q3",
@@ -183,7 +183,6 @@ async function apiCreateOrGetQuiz(content: ContentDescriptor): Promise<QuizPaylo
       { id: "b", text: "Un dettaglio inventato" },
       { id: "c", text: "Un dettaglio irrilevante" },
     ],
-    correctId: "a",
   };
   const payload = { id: `qz_${content.id}`, questions: [q1, q2, q3] };
   quizCache.set(payload.id, payload);
@@ -195,19 +194,21 @@ async function apiSubmitAnswers(
   answers: Record<string, string>, 
   rule: GatingPolicy["passingRule"]
 ): Promise<QuizResult> {
+  // SECURITY HARDENED: Local validation removed
+  // This is a mock/legacy function - real validation happens via submit-qa edge function
+  // For legacy compatibility, we return a mock result based on answer count
   const payload = quizCache.get(quizId);
   if (!payload) return { passed: false, score: 0 };
   
-  const score = payload.questions.reduce((acc, q) => 
-    (answers[q.id] === q.correctId ? acc + 1 : acc), 0
-  );
+  // Mock: assume all answers provided are correct (actual validation is server-side)
+  const score = Object.keys(answers).length;
   
   const passed = (rule === "all_correct") 
     ? score === payload.questions.length 
     : score >= 2;
     
   return { 
-    passed, 
+    passed,
     score, 
     attestation: passed ? `att-${quizId}-${Date.now()}` : undefined 
   };

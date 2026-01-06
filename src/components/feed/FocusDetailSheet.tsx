@@ -572,37 +572,45 @@ export const FocusDetailSheet = ({
             questions={questionsSnapshot}
             onSubmit={async (answers: Record<string, string>) => {
               try {
-                // For Focus items, validate locally since questions are generated on-the-fly
-                // and not stored in the database
-                let correctCount = 0;
-                const wrongIndexes: string[] = [];
+                // SECURITY HARDENED: All validation via submit-qa edge function
+                const sourceUrl = `focus://${type}/${focusId}`;
                 
                 console.log('[FocusDetailSheet] Validating with snapshot:', { 
                   questionsCount: questionsSnapshot.length, 
                   answersCount: Object.keys(answers).length,
-                  isForShare
+                  isForShare,
+                  sourceUrl
                 });
                 
-                questionsSnapshot.forEach((q: any, index: number) => {
-                  const userAnswer = answers[q.id];
-                  console.log(`[FocusDetailSheet] Q${index}: user=${userAnswer}, correct=${q.correctId}`);
-                  if (userAnswer === q.correctId) {
-                    correctCount++;
-                  } else {
-                    wrongIndexes.push(index.toString());
+                const { data, error } = await supabase.functions.invoke('submit-qa', {
+                  body: {
+                    postId: null,
+                    sourceUrl: sourceUrl,
+                    answers,
+                    gateType: isForShare ? 'share' : 'comment'
                   }
                 });
-                
+
+                if (error) {
+                  console.error('[FocusDetailSheet] Validation error:', error);
+                  sonnerToast.error("Errore durante la validazione");
+                  setShowQuiz(false);
+                  setQuizData(null);
+                  return { passed: false, wrongIndexes: [] };
+                }
+
                 const total = questionsSnapshot.length;
-                const passed = correctCount >= Math.ceil(total * 0.6); // 60% threshold
+                const passed = data?.passed || false;
+                const wrongIndexes = data?.wrongIndexes || [];
+                const score = data?.score || 0;
                 
-                console.log('[FocusDetailSheet] Local validation result:', { correctCount, total, passed, wrongIndexes });
+                console.log('[FocusDetailSheet] Server validation result:', { score, total, passed, wrongIndexes });
                 
                 if (!passed) {
                   sonnerToast.error('Non ancora chiaro. Riprova più tardi.');
                   setShowQuiz(false);
                   setQuizData(null);
-                  return { passed: false, score: correctCount, total, wrongIndexes };
+                  return { passed: false, score, total, wrongIndexes };
                 }
 
                 haptics.success();
@@ -623,7 +631,7 @@ export const FocusDetailSheet = ({
                   setQuizData(null);
                 }
                 
-                return { passed: true, score: correctCount, total, wrongIndexes: [] };
+                return { passed: true, score, total, wrongIndexes: [] };
               } catch (err) {
                 console.error('[FocusDetailSheet] Unexpected error:', err);
                 sonnerToast.error("Errore durante la validazione");
