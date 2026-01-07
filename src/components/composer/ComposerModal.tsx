@@ -106,17 +106,25 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const isLoading = isPublishing || isGeneratingQuiz || isFinalizingPublish;
 
   // Gate status indicator (real-time feedback)
+  // Character-based gate applies ONLY to reshares (quotedPost), not free text
   const gateStatus = (() => {
+    // Gate attivo se c'è un URL
     if (detectedUrl) {
       return { icon: Lock, label: 'Gate attivo', color: 'text-amber-400' };
     }
-    const wordCount = getWordCount(content);
-    if (wordCount > 150) {
-      return { icon: Lock, label: 'Gate completo', color: 'text-amber-400' };
+    
+    // Gate sui caratteri SOLO per ricondivisioni (quotedPost presente)
+    if (quotedPost) {
+      const wordCount = getWordCount(content);
+      if (wordCount > 150) {
+        return { icon: Lock, label: 'Gate completo', color: 'text-amber-400' };
+      }
+      if (wordCount > 50) {
+        return { icon: Unlock, label: 'Gate light', color: 'text-amber-300/70' };
+      }
     }
-    if (wordCount > 50) {
-      return { icon: Unlock, label: 'Gate light', color: 'text-amber-300/70' };
-    }
+    
+    // Nessun gate per testo libero senza URL
     return { icon: Check, label: 'Nessun gate', color: 'text-white/40' };
   })();
 
@@ -845,12 +853,23 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
           onClick={onClose} 
         />
         
-        <div className={cn(
-          "relative w-full max-w-2xl max-h-[90vh] overflow-hidden",
-          "bg-gradient-to-b from-[#0A0F14]/98 to-[#121A23]/95 backdrop-blur-xl",
-          "border border-white/10 rounded-3xl shadow-2xl",
-          "animate-scale-in"
-        )}>
+        <div 
+          className={cn(
+            "relative w-full max-w-2xl max-h-[90vh] overflow-hidden",
+            "bg-gradient-to-b from-[#0A0F14]/98 to-[#121A23]/95 backdrop-blur-xl",
+            "rounded-3xl",
+            "animate-scale-in"
+          )}
+          style={{
+            border: '1px solid rgba(56, 189, 248, 0.3)',
+            boxShadow: `
+              0 0 0 1px rgba(56, 189, 248, 0.15),
+              0 0 20px rgba(56, 189, 248, 0.15),
+              0 0 40px rgba(56, 189, 248, 0.08),
+              0 4px 32px rgba(0, 0, 0, 0.5)
+            `
+          }}
+        >
           {/* Urban texture overlay */}
           <div 
             className="absolute inset-0 opacity-[0.03] pointer-events-none rounded-3xl overflow-hidden"
