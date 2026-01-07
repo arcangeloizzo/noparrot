@@ -216,14 +216,22 @@ export const ImmersiveEditorialCarousel = ({
 
   return (
     <div className="h-[100dvh] w-full snap-start relative flex flex-col overflow-hidden">
-      {/* Editorial Background with noise texture */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0D1B2A] via-[#1B263B] to-[#0E141A] z-0" />
+      {/* Editorial Background - Deep urban gradient */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#0A0F14] via-[#121A23] to-[#0A0F14] z-0" />
       
-      {/* Subtle noise texture overlay */}
+      {/* Urban concrete texture - more visible, raw aesthetic */}
       <div 
-        className="absolute inset-0 z-[1] opacity-[0.03] pointer-events-none"
+        className="absolute inset-0 z-[1] opacity-[0.06] pointer-events-none mix-blend-overlay"
         style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+        }}
+      />
+      
+      {/* Vignette effect on edges */}
+      <div 
+        className="absolute inset-0 z-[2] pointer-events-none"
+        style={{
+          background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.5) 100%)'
         }}
       />
 
@@ -528,8 +536,15 @@ const EditorialSlide = ({
 
           {/* Content */}
           <div className="relative z-10">
-            {/* Edition Number - GRANDE, tipografico, elegante */}
-            <span className="text-6xl sm:text-7xl font-extralight text-white/25 tracking-tighter mb-2 block font-serif">
+            {/* Edition Number - Stencil-style, urban typography */}
+            <span 
+              className="text-7xl sm:text-8xl font-black text-white/10 tracking-tighter mb-3 block"
+              style={{
+                fontFamily: "'Impact', 'Arial Black', sans-serif",
+                letterSpacing: '-0.05em',
+                textShadow: '2px 2px 0 rgba(0,0,0,0.3)'
+              }}
+            >
               #{displayNumber}
             </span>
 

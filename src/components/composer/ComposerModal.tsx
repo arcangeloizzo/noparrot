@@ -23,6 +23,7 @@ import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { cn } from "@/lib/utils";
 import { addBreadcrumb, generateIdempotencyKey, setPendingPublish, clearPendingPublish, getPendingPublish } from "@/lib/crashBreadcrumbs";
 import { forceUnlockBodyScroll } from "@/lib/bodyScrollLock";
+import { Lock, Unlock, Check } from "lucide-react";
 
 // iOS detection for stability tweaks (includes iPadOS reporting as Mac)
 const isIOS =
@@ -103,6 +104,21 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
   const canPublish = content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!quotedPost;
   const isLoading = isPublishing || isGeneratingQuiz || isFinalizingPublish;
+
+  // Gate status indicator (real-time feedback)
+  const gateStatus = (() => {
+    if (detectedUrl) {
+      return { icon: Lock, label: 'Gate attivo', color: 'text-amber-400' };
+    }
+    const wordCount = getWordCount(content);
+    if (wordCount > 150) {
+      return { icon: Lock, label: 'Gate completo', color: 'text-amber-400' };
+    }
+    if (wordCount > 50) {
+      return { icon: Unlock, label: 'Gate light', color: 'text-amber-300/70' };
+    }
+    return { icon: Check, label: 'Nessun gate', color: 'text-white/40' };
+  })();
 
   // Reset all state for clean composer on reopen
   const resetAllState = () => {
@@ -831,11 +847,18 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         
         <div className={cn(
           "relative w-full max-w-2xl max-h-[90vh] overflow-hidden",
-          "bg-gradient-to-b from-card/95 to-card/90 backdrop-blur-xl",
+          "bg-gradient-to-b from-[#0A0F14]/98 to-[#121A23]/95 backdrop-blur-xl",
           "border border-white/10 rounded-3xl shadow-2xl",
           "animate-scale-in"
         )}>
-          <div className="flex flex-col h-full">
+          {/* Urban texture overlay */}
+          <div 
+            className="absolute inset-0 opacity-[0.03] pointer-events-none rounded-3xl overflow-hidden"
+            style={{
+              backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+            }}
+          />
+          <div className="flex flex-col h-full relative z-10">
             {/* Modern Header */}
             <div className="flex items-center gap-3 p-4 border-b border-white/10">
               <Avatar className="w-11 h-11 aspect-square ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
@@ -916,13 +939,25 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                   )}
                   rows={5}
                 />
-                {/* Character counter */}
-                <div className={cn(
-                  "absolute bottom-2 right-3 text-xs",
-                  content.length > 2500 ? "text-amber-400" : "text-muted-foreground/50",
-                  content.length >= 3000 && "text-red-400"
-                )}>
-                  {content.length}/3000
+                {/* Character counter + Gate indicator */}
+                <div className="absolute bottom-2 right-3 flex items-center gap-3">
+                  {/* Gate indicator */}
+                  <div className={cn(
+                    "flex items-center gap-1.5 text-xs",
+                    gateStatus.color
+                  )}>
+                    <gateStatus.icon className="w-3 h-3" />
+                    <span className="font-medium">{gateStatus.label}</span>
+                  </div>
+                  
+                  {/* Character counter */}
+                  <div className={cn(
+                    "text-xs",
+                    content.length > 2500 ? "text-amber-400" : "text-muted-foreground/50",
+                    content.length >= 3000 && "text-red-400"
+                  )}>
+                    {content.length}/3000
+                  </div>
                 </div>
                 
                 {showMentions && (
