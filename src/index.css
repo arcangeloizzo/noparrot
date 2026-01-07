@@ -13,6 +13,26 @@
   scrollbar-width: none;
 }
 
+/* Force scrollbar visibility - overrides no-scrollbar for specific containers */
+.force-scrollbar::-webkit-scrollbar {
+  display: block !important;
+  width: 6px;
+}
+.force-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.force-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+.force-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+.force-scrollbar {
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent !important;
+}
+
 @layer base {
   :root {
     /* X/Threads Brand Colors */

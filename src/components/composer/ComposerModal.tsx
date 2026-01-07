@@ -867,6 +867,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                 <Textarea
                   ref={textareaRef}
                   value={content}
+                  maxLength={3000}
                   onChange={(e) => {
                     const value = e.target.value;
                     const cursorPos = e.target.selectionStart;
@@ -915,6 +916,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                   )}
                   rows={5}
                 />
+                {/* Character counter */}
+                <div className={cn(
+                  "absolute bottom-2 right-3 text-xs",
+                  content.length > 2500 ? "text-amber-400" : "text-muted-foreground/50",
+                  content.length >= 3000 && "text-red-400"
+                )}>
+                  {content.length}/3000
+                </div>
                 
                 {showMentions && (
                   <MentionDropdown

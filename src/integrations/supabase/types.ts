@@ -1109,6 +1109,7 @@ export type Database = {
           quoted_post_id: string | null
           shared_title: string | null
           shared_url: string | null
+          shares_count: number | null
           sources: Json | null
           stance: string | null
           topic_tag: string | null
@@ -1129,6 +1130,7 @@ export type Database = {
           quoted_post_id?: string | null
           shared_title?: string | null
           shared_url?: string | null
+          shares_count?: number | null
           sources?: Json | null
           stance?: string | null
           topic_tag?: string | null
@@ -1149,6 +1151,7 @@ export type Database = {
           quoted_post_id?: string | null
           shared_title?: string | null
           shared_url?: string | null
+          shares_count?: number | null
           sources?: Json | null
           stance?: string | null
           topic_tag?: string | null
@@ -1614,6 +1617,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_post_shares: {
+        Args: { target_post_id: string }
+        Returns: undefined
       }
       is_valid_username: { Args: { username: string }; Returns: boolean }
       update_last_seen: { Args: never; Returns: undefined }

@@ -176,6 +176,9 @@ export const ImmersivePostCard = ({
   
   // Editorial summary fallback (for legacy posts without article_content)
   const [editorialSummary, setEditorialSummary] = useState<string | null>(null);
+  
+  // Full text modal for long posts
+  const [showFullText, setShowFullText] = useState(false);
 
   // Fetch article preview - check post, quoted post, and deep chain source
   // We use finalSourceUrl computed below, but since this runs before those computations,
@@ -865,16 +868,44 @@ export const ImmersivePostCard = ({
 
             {/* User Text Content - Show for link posts (if different from article title) - NON stack layout */}
             {!useStackLayout && shouldShowUserText && (
-              <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-6">
-                <MentionText content={post.content.length > 280 ? post.content.slice(0, 280) + '...' : post.content} />
-              </h2>
+              post.content.length > 400 ? (
+                <div className="mb-6">
+                  <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md">
+                    <MentionText content={post.content.slice(0, 400) + '...'} />
+                  </h2>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                    className="mt-2 text-sm text-primary font-semibold hover:underline"
+                  >
+                    Mostra tutto
+                  </button>
+                </div>
+              ) : (
+                <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-6">
+                  <MentionText content={post.content} />
+                </h2>
+              )
             )}
             
             {/* User Text for normal reshares (long quoted comment, no source): show current user's comment ABOVE the QuotedPostCard */}
             {!useStackLayout && quotedPost && !hasLink && post.content && (
-              <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-6">
-                <MentionText content={post.content.length > 280 ? post.content.slice(0, 280) + '...' : post.content} />
-              </h2>
+              post.content.length > 400 ? (
+                <div className="mb-6">
+                  <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md">
+                    <MentionText content={post.content.slice(0, 400) + '...'} />
+                  </h2>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                    className="mt-2 text-sm text-primary font-semibold hover:underline"
+                  >
+                    Mostra tutto
+                  </button>
+                </div>
+              ) : (
+                <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-6">
+                  <MentionText content={post.content} />
+                </h2>
+              )
             )}
 
             {/* User Text for media-only posts - ABOVE the media */}
@@ -1138,11 +1169,11 @@ export const ImmersivePostCard = ({
                   const raw = post.article_content || '';
                   const cleaned = raw.replace(/\[SOURCE:[\d,\s]+\]/g, '').trim();
                   if (cleaned.length > 20) {
-                    return cleaned.substring(0, 180).trim();
+                    return cleaned.substring(0, 260).trim() + '…';
                   }
                   // Use fetched summary from daily_focus
                   if (editorialSummary) {
-                    return editorialSummary.substring(0, 180).trim();
+                    return editorialSummary.substring(0, 260).trim() + '…';
                   }
                   return undefined;
                 })()}
@@ -1201,10 +1232,10 @@ export const ImmersivePostCard = ({
                     const raw = post.article_content || '';
                     const cleaned = raw.replace(/\[SOURCE:[\d,\s]+\]/g, '').trim();
                     if (cleaned.length > 20) {
-                      return cleaned.substring(0, 180).trim();
+                      return cleaned.substring(0, 260).trim() + '…';
                     }
                     if (editorialSummary) {
-                      return editorialSummary.substring(0, 180).trim();
+                      return editorialSummary.substring(0, 260).trim() + '…';
                     }
                     return undefined;
                   })()}
@@ -1300,6 +1331,9 @@ export const ImmersivePostCard = ({
             >
               <Logo variant="icon" size="sm" className="h-4 w-4" />
               <span className="text-sm font-semibold leading-none">Condividi</span>
+              {(post.shares_count ?? 0) > 0 && (
+                <span className="text-xs opacity-70">({post.shares_count})</span>
+              )}
             </button>
 
             {/* Reactions - Horizontal layout h-10 matching share button */}
@@ -1422,6 +1456,12 @@ export const ImmersivePostCard = ({
               }
             } catch {}
           }
+          // Increment shares count for DM shares
+          try {
+            await supabase.rpc('increment_post_shares', { target_post_id: post.id });
+          } catch (e) {
+            console.warn('[ImmersivePostCard] Failed to increment shares count:', e);
+          }
           toast({
             title: 'Messaggio inviato',
             description: `Post condiviso con ${userIds.length} ${userIds.length === 1 ? 'amico' : 'amici'}`
@@ -1430,6 +1470,21 @@ export const ImmersivePostCard = ({
           setShareAction(null);
         }}
       />
+
+      {/* Full Text Modal for long posts */}
+      <Dialog open={showFullText} onOpenChange={setShowFullText}>
+        <DialogContent className="max-h-[80vh] overflow-y-auto max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Post di</span>
+              <span className="font-bold">{post.author.full_name || post.author.username}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-foreground whitespace-pre-wrap leading-relaxed">
+            <MentionText content={post.content} />
+          </p>
+        </DialogContent>
+      </Dialog>
 
       {/* Comments Drawer */}
       {showComments && (
