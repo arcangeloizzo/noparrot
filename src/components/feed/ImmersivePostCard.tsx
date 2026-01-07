@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play } from "lucide-react";
 import { useDominantColors } from "@/hooks/useDominantColors";
@@ -135,6 +136,7 @@ export const ImmersivePostCard = ({
   scrollToCommentId
 }: ImmersivePostCardProps) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const toggleReaction = useToggleReaction();
   const deletePost = useDeletePost();
@@ -1467,6 +1469,15 @@ export const ImmersivePostCard = ({
           // Increment shares count for DM shares
           try {
             await supabase.rpc('increment_post_shares', { target_post_id: post.id });
+
+            // Optimistic UI update (immediate badge)
+            queryClient.setQueriesData({ queryKey: ['posts'] }, (old: any) => {
+              if (!Array.isArray(old)) return old;
+              return old.map((p: any) =>
+                p?.id === post.id ? { ...p, shares_count: (p.shares_count ?? 0) + 1 } : p
+              );
+            });
+            queryClient.invalidateQueries({ queryKey: ['posts'] });
           } catch (e) {
             console.warn('[ImmersivePostCard] Failed to increment shares count:', e);
           }
