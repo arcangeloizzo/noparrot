@@ -558,11 +558,16 @@ const EditorialSlide = ({
               </button>
             </div>
 
-            {/* Abstract/Lead - Preview della notizia con CTA inline */}
-            <p className="text-base sm:text-lg text-white/70 leading-relaxed line-clamp-3 mb-5">
-              {item.summary.replace(/\[SOURCE:[\d,\s]+\]/g, "")}
-              <span className="text-white font-bold"> Leggi tutto</span>
-            </p>
+            {/* Abstract/Lead - Preview della notizia */}
+            <div className="relative mb-5">
+              <p className="text-base sm:text-lg text-white/70 leading-relaxed line-clamp-3 pr-24">
+                {item.summary.replace(/\[SOURCE:[\d,\s]+\]/g, "")}
+              </p>
+              {/* CTA sempre visibile, posizionato in basso a destra */}
+              <span className="absolute bottom-0 right-0 text-base sm:text-lg text-white font-bold bg-gradient-to-l from-[#0D1B2A] via-[#0D1B2A] to-transparent pl-6">
+                Leggi tutto
+              </span>
+            </div>
 
             {/* Sources + Trust Badge Row - Sigilli discreti */}
             <div className="flex items-center justify-between mb-6">
