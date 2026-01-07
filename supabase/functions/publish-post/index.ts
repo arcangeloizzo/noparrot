@@ -243,6 +243,16 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Increment shares count for reshares (quoted posts)
+    if (body.quotedPostId) {
+      const { error: shareErr } = await supabase.rpc('increment_post_shares', { target_post_id: body.quotedPostId });
+      if (shareErr) {
+        console.warn(`[publish-post:${reqId}] stage=increment_shares_error`, shareErr.message);
+      } else {
+        console.log(`[publish-post:${reqId}] stage=increment_shares_ok quotedPostId=${body.quotedPostId}`);
+      }
+    }
+
     console.log(`[publish-post:${reqId}] stage=done postId=${inserted.id}`)
 
     return new Response(JSON.stringify({ postId: inserted.id, idempotent: false }), {
