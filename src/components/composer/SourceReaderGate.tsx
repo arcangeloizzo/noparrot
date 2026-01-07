@@ -580,18 +580,36 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               </Button>
             </div>
           ) : source.embedHtml ? (
-            // Desktop: show embed widget
+            // Desktop: show embed widget using safe iframe extraction
             <div className="twitter-embed-container">
-              {isRenderingTwitter && (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
-                  <span className="text-sm text-muted-foreground">Caricamento tweet...</span>
-                </div>
-              )}
-              <div 
-                dangerouslySetInnerHTML={{ __html: source.embedHtml }}
-                className="overflow-hidden"
-              />
+              {(() => {
+                const iframeSrc = extractIframeSrc(source.embedHtml!);
+                const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
+                
+                if (isValidSrc) {
+                  return (
+                    <iframe
+                      src={iframeSrc}
+                      className="w-full min-h-[400px] border-0 rounded-lg"
+                      allow="autoplay; encrypted-media"
+                      allowFullScreen
+                      sandbox="allow-scripts allow-same-origin allow-popups"
+                      title="Twitter/X embed"
+                    />
+                  );
+                }
+                
+                // Fallback: CTA if iframe extraction fails
+                return (
+                  <div className="p-4 bg-muted/30 rounded-lg border border-border">
+                    <p className="text-foreground mb-3">{source.summary || 'Tweet'}</p>
+                    <Button variant="outline" size="sm" onClick={openSource} className="gap-2">
+                      <ExternalLink className="h-3 w-3" />
+                      Apri su X/Twitter
+                    </Button>
+                  </div>
+                );
+              })()}
             </div>
           ) : (
             // No embed: show CTA
