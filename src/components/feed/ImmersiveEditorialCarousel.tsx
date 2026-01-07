@@ -558,15 +558,11 @@ const EditorialSlide = ({
               </button>
             </div>
 
-            {/* Abstract/Lead - Preview della notizia */}
-            <p className="text-base sm:text-lg text-white/70 leading-relaxed line-clamp-3 mb-2">
+            {/* Abstract/Lead - Preview della notizia con CTA inline */}
+            <p className="text-base sm:text-lg text-white/70 leading-relaxed line-clamp-3 mb-5">
               {item.summary.replace(/\[SOURCE:[\d,\s]+\]/g, "")}
+              <span className="text-white font-bold"> Leggi tutto</span>
             </p>
-
-            {/* CTA testuale - nessun onClick, serve solo come indicatore visivo */}
-            <span className="text-sm text-white/50 font-semibold mb-5 block">
-              Leggi tutto
-            </span>
 
             {/* Sources + Trust Badge Row - Sigilli discreti */}
             <div className="flex items-center justify-between mb-6">
