@@ -775,6 +775,22 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
           if (list.some((p: any) => p?.id === postId)) return list;
           return [optimisticPost, ...list];
         });
+
+        // If this is a reshare, also bump the ORIGINAL post share counter immediately.
+        // Backend increments shares_count for quotedPostId on successful publish.
+        if (!wasIdempotent && quotedPost?.id && !isQuotingEditorial) {
+          const bump = (old: any) => {
+            const list = Array.isArray(old) ? old : [];
+            return list.map((p: any) =>
+              p?.id === quotedPost.id
+                ? { ...p, shares_count: (p.shares_count ?? 0) + 1 }
+                : p
+            );
+          };
+
+          queryClient.setQueriesData({ queryKey: ['posts'] }, bump);
+          queryClient.setQueryData(['posts', user.id], bump);
+        }
       }
 
       // iOS/Safari stability: keep a lightweight blocking overlay while we teardown UI
