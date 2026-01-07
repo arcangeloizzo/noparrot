@@ -298,7 +298,7 @@ export const ImmersiveFocusCard = ({
           >
             <Logo variant="icon" size="sm" className="h-4 w-4" />
             <span className="text-sm font-semibold leading-none">
-              Condividi{reactions.shares > 0 && ` (${reactions.shares})`}
+              Condividi ({reactions.shares ?? 0})
             </span>
           </button>
 
