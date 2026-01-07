@@ -101,7 +101,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
 
-  const canPublish = content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl;
+  const canPublish = content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!quotedPost;
   const isLoading = isPublishing || isGeneratingQuiz || isFinalizingPublish;
 
   // Reset all state for clean composer on reopen
@@ -510,10 +510,18 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
       // If user pasted only a URL, stripping it would make content empty (DB requires content NOT NULL)
       const strippedText = snapshotContent.replace(URL_REGEX, '').trim();
+      
+      // Detect if quoting an editorial
+      const isQuotingEditorial = quotedPost?.shared_url?.startsWith('focus://') || 
+                                  quotedPost?.author?.username === 'ilpunto';
+      
+      // Fallback content: for editorials use their title, otherwise use URL preview title or hostname
       const cleanContent =
         strippedText ||
+        (isQuotingEditorial ? (quotedPost?.shared_title || 'Il Punto') : null) ||
         snapshotPreview?.title ||
-        (snapshotDetectedUrl ? `Link: ${new URL(snapshotDetectedUrl).hostname}` : '');
+        (snapshotDetectedUrl ? `Link: ${new URL(snapshotDetectedUrl).hostname}` : '') ||
+        (quotedPost?.content?.substring(0, 100) || '');
 
       // TEMP: Disable classification during publish to prevent crash/reload
       addBreadcrumb('publish_classify_skipped_by_client');
@@ -560,9 +568,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       let wasIdempotent = false;
       let usedFallback = false;
 
-      // Detect if quoting an editorial (not a regular post - would violate FK)
-      const isQuotingEditorial = quotedPost?.shared_url?.startsWith('focus://') || 
-                                  quotedPost?.author?.username === 'ilpunto';
+      // Use isQuotingEditorial already defined above
 
       try {
         const { data, error: fnError } = await supabase.functions.invoke('publish-post', {
@@ -955,6 +961,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                     title={quotedPost.shared_title || quotedPost.content}
                     summary={quotedPost.content}
                     imageUrl={quotedPost.preview_img}
+                    variant="composer"
                   />
                 ) : (
                   <QuotedPostCard 

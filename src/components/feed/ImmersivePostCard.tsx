@@ -1082,6 +1082,19 @@ export const ImmersivePostCard = ({
                   </div>
                 </div>
               </div>
+            ) : hasLink && post.shared_url?.startsWith('focus://') ? (
+              /* Editorial Share - Internal navigation, not external link */
+              <QuotedEditorialCard
+                title={post.shared_title || 'Il Punto'}
+                summary={post.content}
+                imageUrl={post.preview_img || undefined}
+                onClick={() => {
+                  const focusId = post.shared_url?.replace('focus://daily/', '');
+                  if (focusId) {
+                    navigate(`/?focus=${focusId}`);
+                  }
+                }}
+              />
             ) : hasLink && !isReshareWithShortComment && (
               /* Generic Link Preview - Clickable to open external link */
               <div 
@@ -1120,43 +1133,59 @@ export const ImmersivePostCard = ({
 
             {/* Stack Layout: Source Preview LAST (uses deep chain source) */}
             {useStackLayout && finalSourceUrl && (
-              <div 
-                className="cursor-pointer active:scale-[0.98] transition-transform mt-4"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  window.open(finalSourceUrl, '_blank', 'noopener,noreferrer');
-                }}
-              >
-                {/* Source Image */}
-                {(articlePreview?.image || finalSourceImage) && (
-                  <div className="relative mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
-                    <img 
-                      src={articlePreview?.image || finalSourceImage} 
-                      alt="" 
-                      className="w-full h-40 sm:h-48 object-cover"
-                    />
-                    {/* Trust Score Badge Overlay - shown only in stack layout (reshares) */}
-                    {displayTrustScore && (
-                      <TrustBadgeOverlay 
-                        band={displayTrustScore.band}
-                        score={displayTrustScore.score}
-                        reasons={displayTrustScore.reasons}
+              finalSourceUrl.startsWith('focus://') ? (
+                /* Editorial source in stack - internal navigation */
+                <QuotedEditorialCard
+                  title={finalSourceTitle || 'Il Punto'}
+                  summary={quotedPost?.content || ''}
+                  imageUrl={finalSourceImage || undefined}
+                  onClick={() => {
+                    const focusId = finalSourceUrl.replace('focus://daily/', '');
+                    if (focusId) {
+                      navigate(`/?focus=${focusId}`);
+                    }
+                  }}
+                />
+              ) : (
+                /* External source - open in browser */
+                <div 
+                  className="cursor-pointer active:scale-[0.98] transition-transform mt-4"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.open(finalSourceUrl, '_blank', 'noopener,noreferrer');
+                  }}
+                >
+                  {/* Source Image */}
+                  {(articlePreview?.image || finalSourceImage) && (
+                    <div className="relative mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                      <img 
+                        src={articlePreview?.image || finalSourceImage} 
+                        alt="" 
+                        className="w-full h-40 sm:h-48 object-cover"
                       />
-                    )}
+                      {/* Trust Score Badge Overlay - shown only in stack layout (reshares) */}
+                      {displayTrustScore && (
+                        <TrustBadgeOverlay 
+                          band={displayTrustScore.band}
+                          score={displayTrustScore.score}
+                          reasons={displayTrustScore.reasons}
+                        />
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Source Title */}
+                  <h1 className="text-lg font-semibold text-white leading-tight mb-1 drop-shadow-xl">
+                    {articlePreview?.title || finalSourceTitle || getHostnameFromUrl(finalSourceUrl)}
+                  </h1>
+                  <div className="flex items-center gap-2 text-white/60">
+                    <ExternalLink className="w-3 h-3" />
+                    <span className="text-xs uppercase tracking-widest">
+                      {getHostnameFromUrl(finalSourceUrl)}
+                    </span>
                   </div>
-                )}
-                
-                {/* Source Title */}
-                <h1 className="text-lg font-semibold text-white leading-tight mb-1 drop-shadow-xl">
-                  {articlePreview?.title || finalSourceTitle || getHostnameFromUrl(finalSourceUrl)}
-                </h1>
-                <div className="flex items-center gap-2 text-white/60">
-                  <ExternalLink className="w-3 h-3" />
-                  <span className="text-xs uppercase tracking-widest">
-                    {getHostnameFromUrl(finalSourceUrl)}
-                  </span>
                 </div>
-              </div>
+              )
             )}
 
             {/* Quoted Post - Only for reshares WITHOUT source (pure comment reshares) */}
