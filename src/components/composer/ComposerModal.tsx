@@ -959,8 +959,6 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                 quotedPost.shared_url?.startsWith('focus://') || quotedPost.author?.username === 'ilpunto' ? (
                   <QuotedEditorialCard
                     title={quotedPost.shared_title || quotedPost.content}
-                    summary={quotedPost.content}
-                    imageUrl={quotedPost.preview_img}
                     variant="composer"
                   />
                 ) : (

@@ -802,11 +802,11 @@ export const ImmersivePostCard = ({
           </div>
 
           {/* Center Content */}
-          <div className="flex-1 flex flex-col justify-center px-2">
+          <div className="flex-1 flex flex-col justify-center px-2 pt-4 sm:pt-2">
             
-            {/* Stack Layout: User comment first (normal text, not bold) */}
-            {useStackLayout && post.content && (
-              <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mt-4 mb-4">
+            {/* Stack Layout: User comment first (normal text, not bold) - hide if same as shared_title */}
+            {useStackLayout && post.content && post.content !== post.shared_title && (
+              <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-4">
                 <MentionText content={post.content} />
               </h2>
             )}
@@ -1086,14 +1086,13 @@ export const ImmersivePostCard = ({
               /* Editorial Share - Internal navigation, not external link */
               <QuotedEditorialCard
                 title={post.shared_title || 'Il Punto'}
-                summary={post.content}
-                imageUrl={post.preview_img || undefined}
                 onClick={() => {
                   const focusId = post.shared_url?.replace('focus://daily/', '');
                   if (focusId) {
                     navigate(`/?focus=${focusId}`);
                   }
                 }}
+                trustScore={displayTrustScore}
               />
             ) : hasLink && !isReshareWithShortComment && (
               /* Generic Link Preview - Clickable to open external link */
@@ -1137,14 +1136,13 @@ export const ImmersivePostCard = ({
                 /* Editorial source in stack - internal navigation */
                 <QuotedEditorialCard
                   title={finalSourceTitle || 'Il Punto'}
-                  summary={quotedPost?.content || ''}
-                  imageUrl={finalSourceImage || undefined}
                   onClick={() => {
                     const focusId = finalSourceUrl.replace('focus://daily/', '');
                     if (focusId) {
                       navigate(`/?focus=${focusId}`);
                     }
                   }}
+                  trustScore={displayTrustScore}
                 />
               ) : (
                 /* External source - open in browser */
@@ -1195,14 +1193,13 @@ export const ImmersivePostCard = ({
                 {quotedPost.shared_url?.startsWith('focus://') || quotedPost.author?.username === 'ilpunto' ? (
                   <QuotedEditorialCard
                     title={quotedPost.shared_title || quotedPost.content}
-                    summary={quotedPost.content}
-                    imageUrl={quotedPost.preview_img || undefined}
                     onClick={() => {
                       const focusId = quotedPost.shared_url?.replace('focus://daily/', '');
                       if (focusId) {
                         navigate(`/?focus=${focusId}`);
                       }
                     }}
+                    trustScore={displayTrustScore}
                   />
                 ) : (
                   <QuotedPostCard 
