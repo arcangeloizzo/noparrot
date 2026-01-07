@@ -67,6 +67,10 @@ interface ImmersivePostCardProps {
   post: Post;
   onRemove?: () => void;
   onQuoteShare?: (post: Post) => void;
+  /** Open comments drawer automatically when navigating from notifications */
+  initialOpenComments?: boolean;
+  /** Scroll to specific comment when opening drawer */
+  scrollToCommentId?: string;
 }
 
 const getHostnameFromUrl = (url: string | undefined): string => {
@@ -126,7 +130,9 @@ const isTextSimilarToTitle = (userText: string, title: string): boolean => {
 export const ImmersivePostCard = ({ 
   post, 
   onRemove,
-  onQuoteShare
+  onQuoteShare,
+  initialOpenComments = false,
+  scrollToCommentId
 }: ImmersivePostCardProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -150,8 +156,8 @@ export const ImmersivePostCard = ({
   const [quizData, setQuizData] = useState<any>(null);
   const [gateStep, setGateStep] = useState<string>('idle');
   
-  // Comments state
-  const [showComments, setShowComments] = useState(false);
+  // Comments state - use initialOpenComments for auto-open from notifications
+  const [showComments, setShowComments] = useState(initialOpenComments);
   
   // YouTube embed state
   const [youtubeEmbedActive, setYoutubeEmbedActive] = useState(false);
@@ -1368,6 +1374,7 @@ export const ImmersivePostCard = ({
           isOpen={showComments}
           onClose={() => setShowComments(false)}
           mode="view"
+          scrollToCommentId={scrollToCommentId}
         />
       )}
     </>

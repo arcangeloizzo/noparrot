@@ -29,20 +29,20 @@ export const QuotedEditorialCard = ({
       onClick={onClick}
     >
       {/* Header - Stile profilo utente */}
-      <div className="flex items-center gap-3 mb-3">
-        {/* Avatar circolare con sfondo bianco e ring azzurro */}
-        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center ring-2 ring-[#0A7AFF]/40">
+      <div className="flex items-center gap-4 mb-4">
+        {/* Avatar circolare con sfondo bianco e ring azzurro - più grande */}
+        <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center ring-2 ring-[#0A7AFF]/50 shadow-lg">
           <img 
             src={EDITORIAL.AVATAR_IMAGE} 
             alt="Il Punto"
-            className="w-10 h-10 rounded-full object-cover"
+            className="w-11 h-11 rounded-full object-cover"
           />
         </div>
         
         {/* Nome e handle */}
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-white text-sm">Il Punto</p>
-          <p className="text-xs text-white/50">{EDITORIAL.HANDLE}</p>
+          <p className="font-bold text-white text-base">Il Punto</p>
+          <p className="text-sm text-white/50">{EDITORIAL.HANDLE}</p>
         </div>
         
         {/* Trust Score Badge (se disponibile e non in composer) */}
@@ -61,13 +61,13 @@ export const QuotedEditorialCard = ({
       </div>
 
       {/* Editorial Title - Prominente */}
-      <h3 className="font-bold text-white text-base leading-tight mb-2 line-clamp-2">
+      <h3 className="font-bold text-white text-base leading-tight mb-3 line-clamp-2">
         {title}
       </h3>
       
       {/* Summary/Abstract - Solo nel feed */}
       {!isComposer && summary && (
-        <p className="text-sm text-white/60 line-clamp-2 leading-relaxed">
+        <p className="text-sm text-white/60 line-clamp-3 leading-relaxed">
           {summary}
         </p>
       )}

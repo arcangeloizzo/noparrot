@@ -74,7 +74,7 @@ export default function ConsentScreen({ onComplete }: ConsentScreenProps) {
           <Logo size="lg" />
         </div>
 
-        <Card className="bg-card border-border">
+        <Card className="bg-card border-border rounded-2xl overflow-hidden">
           <CardHeader className="pb-4">
             <CardTitle className="text-xl font-bold text-center">
               Prima di iniziare

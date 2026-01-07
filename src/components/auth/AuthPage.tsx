@@ -247,7 +247,7 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
   if (showUpdatePassword) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-        <Card className="w-full max-w-md p-6 shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
+        <Card className="w-full max-w-md p-6 rounded-2xl overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
           <div className="text-center mb-6">
             <Logo />
             <h1 className="text-2xl font-bold mt-4">Imposta Nuova Password</h1>
@@ -293,7 +293,7 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
     if (showForgotPassword) {
       return (
         <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-          <Card className="w-full max-w-md p-6 shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
+          <Card className="w-full max-w-md p-6 rounded-2xl overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
             <div className="text-center mb-6">
               <Logo />
               <h1 className="text-2xl font-bold mt-4">Recupera Password</h1>
@@ -334,7 +334,7 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
 
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-        <Card className="w-full max-w-md p-6 shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
+        <Card className="w-full max-w-md p-6 rounded-2xl overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
           <div className="text-center mb-6">
             <Logo />
             <h1 className="text-2xl font-bold mt-4">Accedi a NoParrot</h1>
@@ -393,7 +393,7 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
   if (registrationStep === 1) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-        <Card className="w-full max-w-md p-6 shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
+        <Card className="w-full max-w-md p-6 rounded-2xl overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
           <div className="text-center mb-6">
             <Logo />
             <h1 className="text-2xl font-bold mt-4">Crea il tuo account</h1>
@@ -491,7 +491,7 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
   if (registrationStep === 2) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-        <Card className="w-full max-w-md p-6 shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
+        <Card className="w-full max-w-md p-6 rounded-2xl overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
           <div className="text-center mb-6">
             <Logo />
             <h1 className="text-2xl font-bold mt-4">Verifica la tua email</h1>
@@ -527,7 +527,7 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
   if (registrationStep === 3) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
-        <Card className="w-full max-w-md p-6 shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
+        <Card className="w-full max-w-md p-6 rounded-2xl overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
           <div className="text-center mb-6">
             <Logo />
             <h1 className="text-2xl font-bold mt-4">Completa il tuo profilo</h1>

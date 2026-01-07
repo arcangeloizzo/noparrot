@@ -36,9 +36,11 @@ interface CommentsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   mode: 'view' | 'reply';
+  /** Scroll to specific comment when opening drawer from notification */
+  scrollToCommentId?: string;
 }
 
-export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerProps) => {
+export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId }: CommentsDrawerProps) => {
   const { user } = useAuth();
   const postHasSource = !!post.shared_url;
   const isFocusContent = post.shared_url === 'focus://internal';
@@ -116,6 +118,24 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode }: CommentsDrawerPr
       setTimeout(() => textareaRef.current?.focus(), 100);
     }
   }, [mode, isOpen]);
+
+  // Scroll to specific comment when coming from notification
+  useEffect(() => {
+    if (isOpen && scrollToCommentId && !isLoading && comments.length > 0) {
+      // Wait for render then scroll
+      setTimeout(() => {
+        const commentElement = document.getElementById(`comment-${scrollToCommentId}`);
+        if (commentElement) {
+          commentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Add highlight effect
+          commentElement.classList.add('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+          setTimeout(() => {
+            commentElement.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'ring-offset-background');
+          }, 2000);
+        }
+      }, 300);
+    }
+  }, [isOpen, scrollToCommentId, isLoading, comments.length]);
 
   // Reset completo dello stato quando il drawer si chiude
   useEffect(() => {
@@ -837,8 +857,9 @@ const CommentItem = ({ comment, currentUserId, onReply, onLike, onDelete, onMedi
 
   return (
     <div 
+      id={`comment-${comment.id}`}
       className={cn(
-        "cognitive-comment-item",
+        "cognitive-comment-item transition-all duration-300",
         comment.level > 0 && "border-l-2 border-l-muted"
       )}
       style={{ 

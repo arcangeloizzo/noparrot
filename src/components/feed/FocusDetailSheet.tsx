@@ -302,11 +302,11 @@ export const FocusDetailSheet = ({
       <Sheet open={open} onOpenChange={onOpenChange} modal={!showQuiz}>
         <SheetContent 
           side="bottom" 
-          className="h-[85vh] bg-[#0E141A] border-white/10 flex flex-col overflow-hidden"
+          className="h-[85vh] bg-[#0E141A] border-white/10 flex flex-col"
           hideClose={true}
         >
           {/* Header fisso con badge e X allineati orizzontalmente */}
-          <div className="sticky top-0 z-10 bg-[#0E141A] pt-4 pb-3 border-b border-white/10">
+          <div className="shrink-0 bg-[#0E141A] pt-4 pb-3 border-b border-white/10">
             <div className="flex items-center justify-between">
               <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0 font-mono")}>
                 {isDailyFocus 
@@ -326,8 +326,8 @@ export const FocusDetailSheet = ({
             </div>
           </div>
 
-          {/* Contenuto scrollabile */}
-          <div className="flex-1 overflow-y-auto pb-24">
+          {/* Contenuto scrollabile - flex-1 min-h-0 per scroll corretto */}
+          <div className="flex-1 min-h-0 overflow-y-auto pb-32">
             <h2 className="text-white text-2xl font-bold text-left leading-tight mt-4 pb-4 border-b border-white/10">
               {title}
             </h2>
