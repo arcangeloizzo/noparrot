@@ -90,11 +90,39 @@ export const useInterestFocus = (
         })
       );
 
-      // Filtra risultati fulfilled e non null
-      return results
+      const items = results
         .filter((r): r is PromiseFulfilledResult<InterestFocus> => r.status === 'fulfilled')
-        .map(r => r.value)
+        .map((r) => r.value)
         .filter((r): r is InterestFocus => r !== null);
+
+      // Compute shares count from posts referencing this focus item
+      const shareCounts = await Promise.all(
+        items.map(async (item) => {
+          const sharedUrl = `focus://interest/${item.id}`;
+          const { count, error } = await supabase
+            .from('posts')
+            .select('id', { count: 'exact', head: true })
+            .eq('shared_url', sharedUrl);
+
+          if (error) {
+            console.warn('Error fetching interest focus share count for', item.id, error);
+            return 0;
+          }
+          return count || 0;
+        })
+      );
+
+      return items.map((raw, idx) => {
+        const r = (raw.reactions || {}) as any;
+        return {
+          ...raw,
+          reactions: {
+            likes: r.likes ?? 0,
+            comments: r.comments ?? 0,
+            shares: shareCounts[idx] ?? r.shares ?? 0,
+          },
+        };
+      });
     },
     enabled: trackingEnabled && userCategories.length > 0,
     staleTime: 1000 * 60 * 15, // 15 minuti
