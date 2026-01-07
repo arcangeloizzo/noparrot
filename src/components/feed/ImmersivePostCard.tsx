@@ -713,13 +713,13 @@ export const ImmersivePostCard = ({
               </div>
             </div>
 
-            {/* PULSE Badge for Spotify / Trust Score / Category */}
+            {/* PULSE Badge for Spotify / Trust Score / Category - Hide Trust Score for editorial shares (shown in card) */}
             {hasLink && isSpotify && articlePreview?.popularity !== undefined ? (
               <PulseBadge 
                 popularity={articlePreview.popularity} 
                 size="sm" 
               />
-            ) : hasLink && displayTrustScore ? (
+            ) : hasLink && displayTrustScore && !post.shared_url?.startsWith('focus://') ? (
               <Dialog>
                 <DialogTrigger asChild>
                   <button 
@@ -1083,16 +1083,17 @@ export const ImmersivePostCard = ({
                 </div>
               </div>
             ) : hasLink && post.shared_url?.startsWith('focus://') ? (
-              /* Editorial Share - Internal navigation, not external link */
+              /* Editorial Share - Internal navigation, Trust Score always ALTO */
               <QuotedEditorialCard
                 title={post.shared_title || 'Il Punto'}
+                summary={post.article_content?.replace(/\[SOURCE:[\d,\s]+\]/g, "").substring(0, 120)}
                 onClick={() => {
                   const focusId = post.shared_url?.replace('focus://daily/', '');
                   if (focusId) {
                     navigate(`/?focus=${focusId}`);
                   }
                 }}
-                trustScore={displayTrustScore}
+                trustScore={{ band: 'ALTO', score: 90 }}
               />
             ) : hasLink && !isReshareWithShortComment && (
               /* Generic Link Preview - Clickable to open external link */
@@ -1133,16 +1134,17 @@ export const ImmersivePostCard = ({
             {/* Stack Layout: Source Preview LAST (uses deep chain source) */}
             {useStackLayout && finalSourceUrl && (
               finalSourceUrl.startsWith('focus://') ? (
-                /* Editorial source in stack - internal navigation */
+                /* Editorial source in stack - internal navigation, Trust Score always ALTO */
                 <QuotedEditorialCard
                   title={finalSourceTitle || 'Il Punto'}
+                  summary={post.article_content?.replace(/\[SOURCE:[\d,\s]+\]/g, "").substring(0, 120)}
                   onClick={() => {
                     const focusId = finalSourceUrl.replace('focus://daily/', '');
                     if (focusId) {
                       navigate(`/?focus=${focusId}`);
                     }
                   }}
-                  trustScore={displayTrustScore}
+                  trustScore={{ band: 'ALTO', score: 90 }}
                 />
               ) : (
                 /* External source - open in browser */
