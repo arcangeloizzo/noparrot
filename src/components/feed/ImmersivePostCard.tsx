@@ -732,6 +732,14 @@ export const ImmersivePostCard = ({
           </>
         )}
 
+        {/* Urban texture overlay - applied to all backgrounds */}
+        <div 
+          className="absolute inset-0 z-[1] opacity-[0.025] pointer-events-none mix-blend-overlay"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          }}
+        />
+
         {/* Heart animation */}
         {showHeartAnimation && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
@@ -924,7 +932,7 @@ export const ImmersivePostCard = ({
                   e.stopPropagation();
                   setSelectedMediaIndex(0);
                 }}
-                className="relative w-full max-w-[88%] mx-auto rounded-2xl overflow-hidden shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-white/10 active:scale-[0.98] transition-transform mb-6"
+                className="relative w-full max-w-[88%] mx-auto rounded-2xl overflow-hidden shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_20px_rgba(0,0,0,0.3)] border border-white/10 active:scale-[0.98] transition-transform mb-6"
               >
                 {isVideoMedia ? (
                   <>
@@ -962,7 +970,7 @@ export const ImmersivePostCard = ({
               <div className="w-full max-w-md mx-auto mt-6">
                 {/* Unified Twitter Card - Author + Content in one container */}
                 <div 
-                  className="bg-gradient-to-br from-[#15202B]/95 to-[#0d1117]/95 backdrop-blur-xl rounded-3xl p-5 border border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.5)] cursor-pointer active:scale-[0.98] transition-transform"
+                  className="bg-gradient-to-br from-[#15202B]/95 to-[#0d1117]/95 backdrop-blur-xl rounded-3xl p-5 border border-white/15 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_16px_rgba(29,161,242,0.12)] cursor-pointer active:scale-[0.98] transition-transform"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (post.shared_url) {
@@ -1057,7 +1065,7 @@ export const ImmersivePostCard = ({
                       e.stopPropagation();
                       setYoutubeEmbedActive(true);
                     }}
-                    className="relative w-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl active:scale-[0.98] transition-transform"
+                    className="relative w-full rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_16px_rgba(255,0,0,0.1)] active:scale-[0.98] transition-transform"
                   >
                     {/* Video Thumbnail */}
                     <img 
@@ -1084,7 +1092,7 @@ export const ImmersivePostCard = ({
                   </button>
                 ) : (
                   /* Active YouTube Embed */
-                  <div className="w-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                  <div className="w-full rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_16px_rgba(255,0,0,0.1)]">
                     <div className="aspect-video">
                       <iframe
                         src={`https://www.youtube.com/embed/${extractYoutubeVideoId(post.shared_url!)}?autoplay=1&mute=1&cc_load_policy=1&rel=0`}
@@ -1128,7 +1136,7 @@ export const ImmersivePostCard = ({
                 {/* Spotify Artwork - Large centered square */}
                 {(articlePreview?.image || post.preview_img) && (
                   <div className="flex justify-center mb-4">
-                    <div className="w-72 h-72 sm:w-80 sm:h-80 rounded-2xl overflow-hidden shadow-[0_12px_48px_rgba(29,185,84,0.4)] border border-white/10">
+                    <div className="w-72 h-72 sm:w-80 sm:h-80 rounded-2xl overflow-hidden shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_24px_rgba(30,215,96,0.25)] border border-white/10">
                       <img 
                         src={articlePreview?.image || post.preview_img} 
                         alt="" 
@@ -1198,7 +1206,7 @@ export const ImmersivePostCard = ({
               >
                 {/* Visible Metadata Image - Taller preview */}
                 {(articlePreview?.image || post.preview_img) && (
-                  <div className="relative mb-6 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                  <div className="relative mb-6 rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_20px_rgba(0,0,0,0.3)]">
                     <img 
                       src={articlePreview?.image || post.preview_img} 
                       alt="" 
@@ -1258,7 +1266,7 @@ export const ImmersivePostCard = ({
                 >
                   {/* Source Image */}
                   {(articlePreview?.image || finalSourceImage) && (
-                    <div className="relative mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                <div className="relative mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_20px_rgba(0,0,0,0.3)]">
                       <img 
                         src={articlePreview?.image || finalSourceImage} 
                         alt="" 
