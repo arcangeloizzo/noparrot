@@ -149,7 +149,11 @@ export const Notifications = () => {
       // Navigate to messages (we could enhance to go to specific thread later)
       navigate('/messages');
     } else if (notification.post_id) {
-      navigate(`/post/${notification.post_id}`);
+      // Navigate to post, and if there's a comment_id, add anchor to scroll to it
+      const url = notification.comment_id 
+        ? `/post/${notification.post_id}?scrollTo=${notification.comment_id}`
+        : `/post/${notification.post_id}`;
+      navigate(url);
     }
   };
 

@@ -1,13 +1,16 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Post as PostType } from '@/hooks/usePosts';
 import { useAuth } from '@/contexts/AuthContext';
 import { ImmersivePostCard } from '@/components/feed/ImmersivePostCard';
+import { useEffect } from 'react';
 
 export const Post = () => {
   const { postId } = useParams<{ postId: string }>();
+  const [searchParams] = useSearchParams();
+  const scrollToCommentId = searchParams.get('scrollTo');
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -147,6 +150,8 @@ export const Post = () => {
       <div className="h-full w-full [&>div]:!snap-start-none [&>div]:snap-align-none">
         <ImmersivePostCard 
           post={post}
+          initialOpenComments={!!scrollToCommentId}
+          scrollToCommentId={scrollToCommentId || undefined}
           onQuoteShare={(quotedPost) => {
             navigate('/', { state: { quotePost: quotedPost } });
           }}
