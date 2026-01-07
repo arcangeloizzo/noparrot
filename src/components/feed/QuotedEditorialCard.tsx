@@ -26,7 +26,10 @@ export const QuotedEditorialCard = ({
       style={{ 
         background: 'linear-gradient(135deg, #0D1B2A 0%, #1B263B 100%)'
       }}
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.();
+      }}
     >
       {/* Header - Stile profilo utente */}
       <div className="flex items-center gap-4 mb-4">

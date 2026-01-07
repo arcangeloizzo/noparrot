@@ -1092,7 +1092,15 @@ export const ImmersivePostCard = ({
               /* Editorial Share - Internal navigation, Trust Score always ALTO */
               <QuotedEditorialCard
                 title={post.shared_title || 'Il Punto'}
-                summary={post.article_content?.replace(/\[SOURCE:[\d,\s]+\]/g, "").substring(0, 120)}
+                summary={(() => {
+                  const raw = post.article_content || '';
+                  const cleaned = raw.replace(/\[SOURCE:[\d,\s]+\]/g, '').trim();
+                  // Fallback: if empty, use a trimmed excerpt from post.content
+                  const fallback = (post.content || '').trim();
+                  const base = (cleaned.length > 0 ? cleaned : fallback);
+                  const excerpt = base.substring(0, 180).trim();
+                  return excerpt.length > 0 ? excerpt : undefined;
+                })()}
                 onClick={() => {
                   const focusId = post.shared_url?.replace('focus://daily/', '');
                   if (focusId) {
@@ -1143,7 +1151,14 @@ export const ImmersivePostCard = ({
                 /* Editorial source in stack - internal navigation, Trust Score always ALTO */
                 <QuotedEditorialCard
                   title={finalSourceTitle || 'Il Punto'}
-                  summary={post.article_content?.replace(/\[SOURCE:[\d,\s]+\]/g, "").substring(0, 120)}
+                  summary={(() => {
+                    const raw = post.article_content || '';
+                    const cleaned = raw.replace(/\[SOURCE:[\d,\s]+\]/g, '').trim();
+                    const fallback = (post.content || '').trim();
+                    const base = (cleaned.length > 0 ? cleaned : fallback);
+                    const excerpt = base.substring(0, 180).trim();
+                    return excerpt.length > 0 ? excerpt : undefined;
+                  })()}
                   onClick={() => {
                     const focusId = finalSourceUrl.replace('focus://daily/', '');
                     if (focusId) {
