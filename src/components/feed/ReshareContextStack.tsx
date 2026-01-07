@@ -108,7 +108,7 @@ export const ReshareContextStack = ({ stack }: ReshareContextStackProps) => {
                     {/* Username + Time + Badge */}
                     <div className="flex items-center gap-1.5 mb-0.5">
                       <span className="text-xs font-semibold text-white/80 truncate">
-                        {getDisplayUsername(item.author.username)}
+                        {item.author ? getDisplayUsername(item.author.username) : 'Utente'}
                       </span>
                       <span className="text-[10px] text-white/40">·</span>
                       <span className="text-[10px] text-white/40 flex-shrink-0">
