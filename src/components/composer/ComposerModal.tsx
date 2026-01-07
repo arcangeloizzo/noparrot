@@ -855,21 +855,56 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         
         <div 
           className={cn(
-            "relative w-full max-w-2xl max-h-[90vh] overflow-hidden",
+            "relative w-full max-w-2xl max-h-[90vh] overflow-visible",
             "bg-gradient-to-b from-[#0A0F14]/98 to-[#121A23]/95 backdrop-blur-xl",
             "rounded-3xl",
             "animate-scale-in"
           )}
           style={{
-            border: '1px solid rgba(56, 189, 248, 0.3)',
-            boxShadow: `
-              0 0 0 1px rgba(56, 189, 248, 0.15),
-              0 0 20px rgba(56, 189, 248, 0.15),
-              0 0 40px rgba(56, 189, 248, 0.08),
-              0 4px 32px rgba(0, 0, 0, 0.5)
-            `
+            border: '1px solid rgba(56, 189, 248, 0.15)',
+            boxShadow: '0 4px 32px rgba(0, 0, 0, 0.5)'
           }}
         >
+          {/* Curved light arc effect - positioned above modal */}
+          <svg 
+            className="absolute -top-6 left-1/2 -translate-x-1/2 w-[105%] h-16 pointer-events-none"
+            viewBox="0 0 400 50"
+            preserveAspectRatio="none"
+          >
+            <defs>
+              <linearGradient id="composerLightArc" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="transparent" />
+                <stop offset="15%" stopColor="rgba(56, 189, 248, 0.4)" />
+                <stop offset="50%" stopColor="rgba(56, 189, 248, 0.8)" />
+                <stop offset="85%" stopColor="rgba(56, 189, 248, 0.4)" />
+                <stop offset="100%" stopColor="transparent" />
+              </linearGradient>
+              <filter id="composerGlow">
+                <feGaussianBlur stdDeviation="2.5" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+            <path 
+              d="M 0,45 Q 100,15 200,30 T 400,20" 
+              stroke="url(#composerLightArc)" 
+              strokeWidth="2"
+              fill="none"
+              filter="url(#composerGlow)"
+            />
+          </svg>
+
+          {/* Subtle top edge highlight */}
+          <div 
+            className="absolute -top-[1px] left-8 right-8 h-[2px] pointer-events-none rounded-full"
+            style={{
+              background: 'linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.4), transparent)',
+              filter: 'blur(0.5px)'
+            }}
+          />
+
           {/* Urban texture overlay */}
           <div 
             className="absolute inset-0 opacity-[0.03] pointer-events-none rounded-3xl overflow-hidden"
