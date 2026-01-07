@@ -22,17 +22,25 @@ export const QuotedEditorialCard = ({
   
   return (
     <div 
-      className="rounded-2xl p-4 mt-3 cursor-pointer active:scale-[0.98] transition-transform border border-white/10"
+      className="rounded-2xl p-4 mt-3 cursor-pointer active:scale-[0.98] transition-transform border border-white/10 relative overflow-hidden"
       style={{ 
-        background: 'linear-gradient(135deg, #0D1B2A 0%, #1B263B 100%)'
+        background: 'linear-gradient(135deg, #0A0F14 0%, #151D27 100%)'
       }}
       onClick={(e) => {
         e.stopPropagation();
         onClick?.();
       }}
     >
+      {/* Urban texture overlay */}
+      <div 
+        className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+        }}
+      />
+      
       {/* Header - Stile profilo utente */}
-      <div className="flex items-center gap-4 mb-4">
+      <div className="flex items-center gap-4 mb-4 relative z-10">
         {/* Avatar circolare con sfondo bianco e ring azzurro - più grande */}
         <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center ring-2 ring-[#0A7AFF]/50 shadow-lg overflow-hidden">
           <img 
@@ -64,13 +72,13 @@ export const QuotedEditorialCard = ({
       </div>
 
       {/* Editorial Title - Prominente */}
-      <h3 className="font-bold text-white text-base leading-tight mb-3 line-clamp-2">
+      <h3 className="font-bold text-white text-base leading-tight mb-3 line-clamp-2 relative z-10">
         {title}
       </h3>
       
       {/* Summary/Abstract - Solo nel feed con CTA */}
       {!isComposer && summary && (
-        <p className="text-sm text-white/60 line-clamp-5 leading-relaxed">
+        <p className="text-sm text-white/60 line-clamp-5 leading-relaxed relative z-10">
           {summary}
           <span className="text-white font-semibold"> Leggi tutto</span>
         </p>
