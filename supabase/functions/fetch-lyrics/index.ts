@@ -5,6 +5,70 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// =====================================================
+// Spotify API helpers for trackId lookup
+// =====================================================
+
+async function getSpotifyAccessToken(): Promise<string | null> {
+  const clientId = Deno.env.get('SPOTIFY_CLIENT_ID');
+  const clientSecret = Deno.env.get('SPOTIFY_CLIENT_SECRET');
+  
+  if (!clientId || !clientSecret) {
+    console.log('[Spotify] Missing client credentials');
+    return null;
+  }
+  
+  try {
+    const response = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${btoa(`${clientId}:${clientSecret}`)}`
+      },
+      body: 'grant_type=client_credentials'
+    });
+    
+    if (!response.ok) {
+      console.error(`[Spotify] Token request failed: ${response.status}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    console.log('[Spotify] Access token obtained');
+    return data.access_token;
+  } catch (error) {
+    console.error('[Spotify] Token error:', error);
+    return null;
+  }
+}
+
+async function fetchSpotifyTrackMetadata(trackId: string, accessToken: string): Promise<{ artist: string; title: string } | null> {
+  try {
+    const response = await fetch(`https://api.spotify.com/v1/tracks/${trackId}`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    
+    if (!response.ok) {
+      console.error(`[Spotify] Track fetch failed: ${response.status}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    const artist = data.artists?.[0]?.name || '';
+    const title = data.name || '';
+    
+    console.log(`[Spotify] Track metadata: "${title}" by "${artist}"`);
+    return { artist, title };
+  } catch (error) {
+    console.error('[Spotify] Track metadata error:', error);
+    return null;
+  }
+}
+
+// =====================================================
+// Genius API helpers
+// =====================================================
+
 // Search Genius for a song and get lyrics URL
 async function searchGenius(
   query: string,
@@ -230,7 +294,7 @@ async function fetchLyricsFromLyricsOvh(artist: string, title: string, retries =
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout (increased from 5s)
       
       const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(a)}/${encodeURIComponent(t)}`;
       console.log(`[lyrics.ovh] Attempt ${attempt}/${retries}: ${url}`);
@@ -412,12 +476,33 @@ serve(async (req) => {
   }
 
   try {
-    const { artist, title } = await req.json();
+    const body = await req.json();
+    let { artist, title } = body;
+    const { trackId } = body;
+
+    // If trackId is provided without artist/title, fetch from Spotify API
+    if (trackId && (!artist || !title)) {
+      console.log(`[fetch-lyrics] trackId provided: ${trackId}, fetching metadata from Spotify`);
+      
+      const accessToken = await getSpotifyAccessToken();
+      if (accessToken) {
+        const metadata = await fetchSpotifyTrackMetadata(trackId, accessToken);
+        if (metadata) {
+          artist = metadata.artist;
+          title = metadata.title;
+          console.log(`[fetch-lyrics] Spotify metadata resolved: "${title}" by "${artist}"`);
+        } else {
+          console.error('[fetch-lyrics] Failed to fetch Spotify track metadata');
+        }
+      } else {
+        console.error('[fetch-lyrics] Failed to get Spotify access token');
+      }
+    }
 
     // Permetti ricerca anche solo con titolo
     if (!title) {
       return new Response(
-        JSON.stringify({ error: 'Missing title parameter' }),
+        JSON.stringify({ error: 'Missing title parameter (and trackId lookup failed)' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
