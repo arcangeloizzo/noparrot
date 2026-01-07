@@ -34,11 +34,11 @@ export const QuotedEditorialCard = ({
       {/* Header - Stile profilo utente */}
       <div className="flex items-center gap-4 mb-4">
         {/* Avatar circolare con sfondo bianco e ring azzurro - più grande */}
-        <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center ring-2 ring-[#0A7AFF]/50 shadow-lg">
+        <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center ring-2 ring-[#0A7AFF]/50 shadow-lg overflow-hidden">
           <img 
             src={EDITORIAL.AVATAR_IMAGE} 
             alt="Il Punto"
-            className="w-11 h-11 rounded-full object-cover"
+            className="w-full h-full object-cover"
           />
         </div>
         

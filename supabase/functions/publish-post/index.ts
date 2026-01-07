@@ -13,6 +13,7 @@ type PublishPostBody = {
   sharedUrl?: string | null
   sharedTitle?: string | null
   previewImg?: string | null
+  articleContent?: string | null
   quotedPostId?: string | null
   mediaIds?: string[]
   idempotencyKey?: string | null
@@ -174,6 +175,7 @@ Deno.serve(async (req) => {
       shared_url: body.sharedUrl ? String(body.sharedUrl).substring(0, 2000) : null,
       shared_title: body.sharedTitle ? String(body.sharedTitle).substring(0, 500) : null,
       preview_img: body.previewImg ? String(body.previewImg).substring(0, 2000) : null,
+      article_content: body.articleContent ? String(body.articleContent).substring(0, 10000) : null,
       quoted_post_id: body.quotedPostId ?? null,
       category: null as string | null,
     }

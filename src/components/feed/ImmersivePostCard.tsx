@@ -173,6 +173,9 @@ export const ImmersivePostCard = ({
     score: number;
     reasons?: string[];
   } | null>(null);
+  
+  // Editorial summary fallback (for legacy posts without article_content)
+  const [editorialSummary, setEditorialSummary] = useState<string | null>(null);
 
   // Fetch article preview - check post, quoted post, and deep chain source
   // We use finalSourceUrl computed below, but since this runs before those computations,
@@ -206,7 +209,45 @@ export const ImmersivePostCard = ({
     loadArticlePreview();
   }, [urlToPreview, quotedPost]);
 
-  // Reset YouTube embed state when post changes (use ref to track previous id)
+  // Fetch editorial summary for legacy posts (without article_content stored)
+  useEffect(() => {
+    const loadEditorialSummary = async () => {
+      // Only fetch if this is an editorial share without article_content
+      if (!post.shared_url?.startsWith('focus://daily/')) {
+        setEditorialSummary(null);
+        return;
+      }
+      
+      // Check if article_content is already populated
+      const raw = post.article_content || '';
+      const cleaned = raw.replace(/\[SOURCE:[\d,\s]+\]/g, '').trim();
+      if (cleaned.length > 20) {
+        setEditorialSummary(null); // Already have content
+        return;
+      }
+      
+      // Extract focusId and fetch summary from daily_focus
+      const focusId = post.shared_url.replace('focus://daily/', '');
+      if (!focusId) return;
+      
+      try {
+        const { data } = await supabase
+          .from('daily_focus')
+          .select('summary')
+          .eq('id', focusId)
+          .maybeSingle();
+        
+        if (data?.summary) {
+          setEditorialSummary(data.summary);
+        }
+      } catch (err) {
+        console.warn('[ImmersivePostCard] Failed to fetch editorial summary:', err);
+      }
+    };
+    
+    loadEditorialSummary();
+  }, [post.shared_url, post.article_content]);
+
   const prevPostIdRef = useRef(post.id);
   useEffect(() => {
     if (prevPostIdRef.current !== post.id) {
@@ -1093,13 +1134,17 @@ export const ImmersivePostCard = ({
               <QuotedEditorialCard
                 title={post.shared_title || 'Il Punto'}
                 summary={(() => {
+                  // Priority: article_content > editorialSummary (fetched from DB)
                   const raw = post.article_content || '';
                   const cleaned = raw.replace(/\[SOURCE:[\d,\s]+\]/g, '').trim();
-                  // Fallback: if empty, use a trimmed excerpt from post.content
-                  const fallback = (post.content || '').trim();
-                  const base = (cleaned.length > 0 ? cleaned : fallback);
-                  const excerpt = base.substring(0, 180).trim();
-                  return excerpt.length > 0 ? excerpt : undefined;
+                  if (cleaned.length > 20) {
+                    return cleaned.substring(0, 180).trim();
+                  }
+                  // Use fetched summary from daily_focus
+                  if (editorialSummary) {
+                    return editorialSummary.substring(0, 180).trim();
+                  }
+                  return undefined;
                 })()}
                 onClick={() => {
                   const focusId = post.shared_url?.replace('focus://daily/', '');
@@ -1152,12 +1197,16 @@ export const ImmersivePostCard = ({
                 <QuotedEditorialCard
                   title={finalSourceTitle || 'Il Punto'}
                   summary={(() => {
+                    // Priority: article_content > editorialSummary (fetched from DB)
                     const raw = post.article_content || '';
                     const cleaned = raw.replace(/\[SOURCE:[\d,\s]+\]/g, '').trim();
-                    const fallback = (post.content || '').trim();
-                    const base = (cleaned.length > 0 ? cleaned : fallback);
-                    const excerpt = base.substring(0, 180).trim();
-                    return excerpt.length > 0 ? excerpt : undefined;
+                    if (cleaned.length > 20) {
+                      return cleaned.substring(0, 180).trim();
+                    }
+                    if (editorialSummary) {
+                      return editorialSummary.substring(0, 180).trim();
+                    }
+                    return undefined;
                   })()}
                   onClick={() => {
                     const focusId = finalSourceUrl.replace('focus://daily/', '');
