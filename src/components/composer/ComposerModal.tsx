@@ -865,34 +865,35 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             boxShadow: '0 4px 32px rgba(0, 0, 0, 0.5)'
           }}
         >
-          {/* Curved light arc effect - hugging the top border */}
+          {/* Curved light arc effect - prominent glow hugging top border */}
           <svg 
-            className="absolute -top-1 left-0 w-full h-8 pointer-events-none z-20"
-            viewBox="0 0 400 30"
+            className="absolute -top-3 left-0 w-full h-12 pointer-events-none z-20"
+            viewBox="0 0 400 40"
             preserveAspectRatio="none"
           >
             <defs>
               <linearGradient id="composerLightArc" x1="0%" y1="0%" x2="100%" y2="0%">
                 <stop offset="0%" stopColor="transparent" />
-                <stop offset="10%" stopColor="rgba(56, 189, 248, 0.3)" />
-                <stop offset="35%" stopColor="rgba(56, 189, 248, 0.6)" />
-                <stop offset="50%" stopColor="rgba(56, 189, 248, 0.7)" />
-                <stop offset="65%" stopColor="rgba(56, 189, 248, 0.6)" />
-                <stop offset="90%" stopColor="rgba(56, 189, 248, 0.3)" />
+                <stop offset="10%" stopColor="rgba(56, 189, 248, 0.5)" />
+                <stop offset="30%" stopColor="rgba(56, 189, 248, 0.9)" />
+                <stop offset="50%" stopColor="rgba(125, 211, 252, 1)" />
+                <stop offset="70%" stopColor="rgba(56, 189, 248, 0.9)" />
+                <stop offset="90%" stopColor="rgba(56, 189, 248, 0.5)" />
                 <stop offset="100%" stopColor="transparent" />
               </linearGradient>
               <filter id="composerGlow">
-                <feGaussianBlur stdDeviation="1.5" result="blur" />
+                <feGaussianBlur stdDeviation="3" result="blur" />
                 <feMerge>
+                  <feMergeNode in="blur" />
                   <feMergeNode in="blur" />
                   <feMergeNode in="SourceGraphic" />
                 </feMerge>
               </filter>
             </defs>
             <path 
-              d="M 20,25 Q 120,8 200,18 T 380,12" 
+              d="M 10,35 Q 100,12 200,28 T 390,18" 
               stroke="url(#composerLightArc)" 
-              strokeWidth="1.5"
+              strokeWidth="3"
               fill="none"
               filter="url(#composerGlow)"
               strokeLinecap="round"
