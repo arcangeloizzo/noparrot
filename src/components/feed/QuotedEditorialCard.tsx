@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 
 interface QuotedEditorialCardProps {
   title: string;
+  summary?: string;
   onClick?: () => void;
   /** "feed" shows full branding, "composer" shows minimal branding */
   variant?: 'feed' | 'composer';
@@ -12,6 +13,7 @@ interface QuotedEditorialCardProps {
 
 export const QuotedEditorialCard = ({ 
   title, 
+  summary,
   onClick,
   variant = 'feed',
   trustScore
@@ -28,12 +30,14 @@ export const QuotedEditorialCard = ({
     >
       {/* Header - Stile profilo utente */}
       <div className="flex items-center gap-3 mb-3">
-        {/* Avatar circolare con ring */}
-        <img 
-          src={EDITORIAL.AVATAR_IMAGE} 
-          alt="Il Punto"
-          className="w-10 h-10 rounded-full object-cover ring-2 ring-[#0A7AFF]/40"
-        />
+        {/* Avatar circolare con sfondo bianco e ring azzurro */}
+        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center ring-2 ring-[#0A7AFF]/40">
+          <img 
+            src={EDITORIAL.AVATAR_IMAGE} 
+            alt="Il Punto"
+            className="w-10 h-10 rounded-full object-cover"
+          />
+        </div>
         
         {/* Nome e handle */}
         <div className="flex-1 min-w-0">
@@ -57,14 +61,14 @@ export const QuotedEditorialCard = ({
       </div>
 
       {/* Editorial Title - Prominente */}
-      <h3 className="font-bold text-white text-base leading-tight mb-1 line-clamp-2">
+      <h3 className="font-bold text-white text-base leading-tight mb-2 line-clamp-2">
         {title}
       </h3>
       
-      {/* Sottotitolo editoriale */}
-      {!isComposer && (
-        <p className="text-xs text-[#0A7AFF] font-medium">
-          ◉ Approfondimento editoriale
+      {/* Summary/Abstract - Solo nel feed */}
+      {!isComposer && summary && (
+        <p className="text-sm text-white/60 line-clamp-2 leading-relaxed">
+          {summary}
         </p>
       )}
     </div>

@@ -558,10 +558,10 @@ const EditorialSlide = ({
               </button>
             </div>
 
-            {/* Abstract/Lead - Preview della notizia */}
-            <p className="text-base sm:text-lg text-white/70 leading-relaxed line-clamp-3 mb-5">
-              {item.summary.replace(/\[SOURCE:[\d,\s]+\]/g, "").substring(0, 140)}
-              <span className="text-white font-bold">… Leggi tutto</span>
+            {/* Abstract/Lead - Preview della notizia con "Leggi tutto" inline */}
+            <p className="text-base sm:text-lg text-white/70 leading-relaxed mb-5">
+              {item.summary.replace(/\[SOURCE:[\d,\s]+\]/g, "").substring(0, 150).trim()}
+              <span className="text-white font-bold"> …Leggi tutto</span>
             </p>
 
             {/* Sources + Trust Badge Row - Sigilli discreti */}

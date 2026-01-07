@@ -302,7 +302,7 @@ export const FocusDetailSheet = ({
       <Sheet open={open} onOpenChange={onOpenChange} modal={!showQuiz}>
         <SheetContent 
           side="bottom" 
-          className="h-[85vh] bg-[#0E141A] border-white/10 flex flex-col"
+          className="h-[85vh] bg-[#0E141A] border-white/10 flex flex-col overflow-hidden"
           hideClose={true}
         >
           {/* Header fisso con badge e X allineati orizzontalmente */}
@@ -326,8 +326,8 @@ export const FocusDetailSheet = ({
             </div>
           </div>
 
-          {/* Contenuto scrollabile - REMOVED imageUrl section */}
-          <div className="flex-1 overflow-y-auto pb-8">
+          {/* Contenuto scrollabile */}
+          <div className="flex-1 overflow-y-auto pb-24">
             <h2 className="text-white text-2xl font-bold text-left leading-tight mt-4 pb-4 border-b border-white/10">
               {title}
             </h2>
