@@ -297,7 +297,9 @@ export const ImmersiveFocusCard = ({
             className="h-10 px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
           >
             <Logo variant="icon" size="sm" className="h-4 w-4" />
-            <span className="text-sm font-semibold leading-none">Condividi</span>
+            <span className="text-sm font-semibold leading-none">
+              Condividi{reactions.shares > 0 && ` (${reactions.shares})`}
+            </span>
           </button>
 
           {/* Reactions - Horizontal layout h-10 matching share button */}
