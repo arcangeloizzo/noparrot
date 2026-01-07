@@ -26,15 +26,15 @@ export const useDailyFocus = (refreshNonce: number = 0) => {
     queryFn: async (): Promise<{ items: DailyFocus[]; totalCount: number }> => {
       // Fetch total count of ALL editorials in DB
       console.log('Fetching daily focus from DB (nonce:', refreshNonce, ')...');
-      
+
       const { count: totalCount, error: countError } = await supabase
         .from('daily_focus')
         .select('*', { count: 'exact', head: true });
-      
+
       if (countError) {
         console.error('Error fetching daily focus count:', countError);
       }
-      
+
       // Fetch latest 8 articles (2 full days) - no expires_at filter
       const { data: cached, error: cacheError } = await supabase
         .from('daily_focus')
@@ -48,17 +48,47 @@ export const useDailyFocus = (refreshNonce: number = 0) => {
       }
 
       if (cached && cached.length > 0) {
-        console.log('Using cached daily focus items:', cached.length, 'total in DB:', totalCount);
-        return { 
-          items: cached as unknown as DailyFocus[], 
-          totalCount: totalCount || cached.length 
+        // Compute shares count from posts that reference this focus item
+        // This makes the UI reflect real shares even if daily_focus.reactions.shares isn't kept in sync.
+        const shareCounts = await Promise.all(
+          cached.map(async (item: any) => {
+            const sharedUrl = `focus://daily/${item.id}`;
+            const { count, error } = await supabase
+              .from('posts')
+              .select('id', { count: 'exact', head: true })
+              .eq('shared_url', sharedUrl);
+
+            if (error) {
+              console.warn('Error fetching daily focus share count for', item.id, error);
+              return 0;
+            }
+            return count || 0;
+          })
+        );
+
+        const items = cached.map((raw: any, idx: number) => {
+          const r = (raw.reactions || {}) as any;
+          return {
+            ...(raw as DailyFocus),
+            reactions: {
+              likes: r.likes ?? 0,
+              comments: r.comments ?? 0,
+              shares: shareCounts[idx] ?? r.shares ?? 0,
+            },
+          } as DailyFocus;
+        });
+
+        console.log('Using cached daily focus items:', items.length, 'total in DB:', totalCount);
+        return {
+          items,
+          totalCount: totalCount || items.length,
         };
       }
 
       // Only if NO items in DB, call edge function to generate the first one
       console.log('No cached items, generating initial daily focus...');
       const { data, error } = await supabase.functions.invoke('fetch-daily-focus', {
-        body: { scheduled: false }
+        body: { scheduled: false },
       });
 
       if (error) {

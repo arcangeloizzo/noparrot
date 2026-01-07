@@ -1341,7 +1341,9 @@ export const ImmersivePostCard = ({
             >
               <Logo variant="icon" size="sm" className="h-4 w-4" />
               <span className="text-sm font-semibold leading-none">Condividi</span>
-              <span className="text-xs opacity-70">({post.shares_count ?? 0})</span>
+              {(post.shares_count ?? 0) > 0 && (
+                <span className="text-xs opacity-70">({post.shares_count})</span>
+              )}
             </button>
 
             {/* Reactions - Horizontal layout h-10 matching share button */}

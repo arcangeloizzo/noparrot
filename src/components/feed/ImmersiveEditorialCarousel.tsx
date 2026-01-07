@@ -627,7 +627,9 @@ const EditorialSlide = ({
               >
                 <Logo variant="icon" size="sm" className="h-4 w-4" />
                 <span className="text-sm font-semibold leading-none">Condividi</span>
-                <span className="text-xs opacity-70">({item.reactions?.shares ?? 0})</span>
+                {(item.reactions?.shares ?? 0) > 0 && (
+                  <span className="text-xs opacity-70">({item.reactions?.shares})</span>
+                )}
               </button>
 
               {/* Reactions */}
