@@ -69,7 +69,11 @@ Deno.serve(async (req) => {
     }
 
     const finalContent = content || ''
+
     const {
+      data: { user },
+      error: userErr,
+    } = await supabase.auth.getUser()
 
     if (userErr || !user) {
       console.warn(`[publish-post:${reqId}] stage=auth failed`, userErr?.message || 'no user')
