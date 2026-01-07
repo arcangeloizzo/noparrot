@@ -62,6 +62,7 @@ export interface Post {
     options: string[];
     correct_index: number;
   }>;
+  shares_count?: number;
 }
 
 export const usePosts = () => {

@@ -68,10 +68,11 @@ export const QuotedEditorialCard = ({
         {title}
       </h3>
       
-      {/* Summary/Abstract - Solo nel feed */}
+      {/* Summary/Abstract - Solo nel feed con CTA */}
       {!isComposer && summary && (
-        <p className="text-sm text-white/60 line-clamp-3 leading-relaxed">
+        <p className="text-sm text-white/60 line-clamp-5 leading-relaxed">
           {summary}
+          <span className="text-white font-semibold"> Leggi tutto</span>
         </p>
       )}
     </div>
