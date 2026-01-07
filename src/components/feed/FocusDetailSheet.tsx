@@ -326,8 +326,15 @@ export const FocusDetailSheet = ({
             </div>
           </div>
 
-          {/* Contenuto scrollabile - flex-1 min-h-0 per scroll corretto */}
-          <div className="flex-1 min-h-0 overflow-y-auto pb-32">
+          {/* Contenuto scrollabile - mostra scrollbar per UX migliorata */}
+          <div 
+            className="flex-1 min-h-0 overflow-y-auto pb-32"
+            style={{
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'rgba(255,255,255,0.3) transparent'
+            }}
+          >
             <h2 className="text-white text-2xl font-bold text-left leading-tight mt-4 pb-4 border-b border-white/10">
               {title}
             </h2>

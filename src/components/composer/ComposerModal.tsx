@@ -578,6 +578,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             sharedUrl: isQuotingEditorial ? quotedPost.shared_url : (snapshotDetectedUrl || null),
             sharedTitle: isQuotingEditorial ? quotedPost.shared_title : null,
             previewImg: isQuotingEditorial ? quotedPost.preview_img : null,
+            articleContent: isQuotingEditorial ? quotedPost.article_content : null,
             quotedPostId: isQuotingEditorial ? null : (quotedPost?.id || null),
             mediaIds: mediaIdsSnapshot,
             idempotencyKey,
