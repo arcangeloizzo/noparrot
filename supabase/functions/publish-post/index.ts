@@ -53,8 +53,14 @@ Deno.serve(async (req) => {
       })
     }
 
-    const content = typeof body.content === 'string' ? body.content.trim() : ''
-    if (!content) {
+    const rawContent = typeof body.content === 'string' ? body.content : ''
+    const content = rawContent.trim()
+
+    // Allow empty content ONLY for reshares, link-only posts, or media-only posts.
+    // This prevents "ghost" text-only posts, while letting users share without adding a comment.
+    const mediaCount = Array.isArray(body.mediaIds) ? body.mediaIds.filter(Boolean).length : 0
+    const allowEmpty = !!body.quotedPostId || !!body.sharedUrl || mediaCount > 0
+    if (!content && !allowEmpty) {
       console.error(`[publish-post:${reqId}] stage=validate empty content`)
       return new Response(JSON.stringify({ error: 'content_required', stage: 'validate' }), {
         status: 400,
@@ -62,10 +68,8 @@ Deno.serve(async (req) => {
       })
     }
 
+    const finalContent = content || ''
     const {
-      data: { user },
-      error: userErr,
-    } = await supabase.auth.getUser()
 
     if (userErr || !user) {
       console.warn(`[publish-post:${reqId}] stage=auth failed`, userErr?.message || 'no user')
@@ -81,7 +85,7 @@ Deno.serve(async (req) => {
       userId: user.id,
       hasSharedUrl: !!body.sharedUrl,
       mediaCount: Array.isArray(body.mediaIds) ? body.mediaIds.length : 0,
-      contentLen: content.length,
+      contentLen: finalContent.length,
       idempotencyKey,
     })
 
@@ -170,7 +174,7 @@ Deno.serve(async (req) => {
     }
 
     const insertPayload = {
-      content: content.substring(0, 5000),
+      content: finalContent.substring(0, 5000),
       author_id: user.id,
       shared_url: body.sharedUrl ? String(body.sharedUrl).substring(0, 2000) : null,
       shared_title: body.sharedTitle ? String(body.sharedTitle).substring(0, 500) : null,

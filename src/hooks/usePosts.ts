@@ -136,6 +136,7 @@ export const usePosts = () => {
         quoted_post_id: post.quoted_post_id,
         category: post.category || null,
         quoted_post: post.quoted_post || null,
+        shares_count: post.shares_count ?? 0,
         media: (post.post_media || [])
           .sort((a: any, b: any) => a.order_idx - b.order_idx)
           .map((pm: any) => pm.media)

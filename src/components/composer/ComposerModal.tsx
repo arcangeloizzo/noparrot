@@ -532,26 +532,31 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       const snapshotContent = content;
       const snapshotUploadedMedia = [...uploadedMedia];
 
-      // If user pasted only a URL, stripping it would make content empty (DB requires content NOT NULL)
+      // If user pasted only a URL, stripping it would make content empty.
+      // For reshares (quoted post) or media-only posts we allow an empty commentary.
       const strippedText = snapshotContent.replace(URL_REGEX, '').trim();
+      const mediaIdsSnapshot = snapshotUploadedMedia.map((m) => m.id);
       
       // Detect if quoting an editorial
       const isQuotingEditorial = quotedPost?.shared_url?.startsWith('focus://') || 
                                   quotedPost?.author?.username === 'ilpunto';
-      
-      // Fallback content: for editorials use their title, otherwise use URL preview title or hostname
-      const cleanContent =
-        strippedText ||
-        (isQuotingEditorial ? (quotedPost?.shared_title || 'Il Punto') : null) ||
-        snapshotPreview?.title ||
-        (snapshotDetectedUrl ? `Link: ${new URL(snapshotDetectedUrl).hostname}` : '') ||
-        (quotedPost?.content?.substring(0, 100) || '');
+
+      const allowEmptyCommentary = !!quotedPost || mediaIdsSnapshot.length > 0;
+
+      // Fallback content: keep legacy behavior for link-only posts, but NEVER auto-fill text for reshares.
+      const cleanContent = allowEmptyCommentary
+        ? strippedText
+        : (
+            strippedText ||
+            snapshotPreview?.title ||
+            (snapshotDetectedUrl ? `Link: ${new URL(snapshotDetectedUrl).hostname}` : '') ||
+            ''
+          );
 
       // TEMP: Disable classification during publish to prevent crash/reload
       addBreadcrumb('publish_classify_skipped_by_client');
 
       // Reuse pending publish idempotency key if it matches the same payload (crash/retry)
-      const mediaIdsSnapshot = snapshotUploadedMedia.map((m) => m.id);
       const pending = getPendingPublish();
       const isRecentPending = !!pending && pending.timestamp > Date.now() - 5 * 60 * 1000;
 
