@@ -10,6 +10,7 @@ import { MediaActionBar } from "./MediaActionBar";
 import { MediaPreviewTray } from "@/components/media/MediaPreviewTray";
 import { fetchArticlePreview, classifyContent, generateQA } from "@/lib/ai-helpers";
 import { QuotedPostCard } from "@/components/feed/QuotedPostCard";
+import { QuotedEditorialCard } from "@/components/feed/QuotedEditorialCard";
 import { SourceReaderGate } from "./SourceReaderGate";
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { getWordCount, getTestModeWithSource } from '@/lib/gate-utils';
@@ -559,12 +560,19 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       let wasIdempotent = false;
       let usedFallback = false;
 
+      // Detect if quoting an editorial (not a regular post - would violate FK)
+      const isQuotingEditorial = quotedPost?.shared_url?.startsWith('focus://') || 
+                                  quotedPost?.author?.username === 'ilpunto';
+
       try {
         const { data, error: fnError } = await supabase.functions.invoke('publish-post', {
           body: {
             content: cleanContent,
-            sharedUrl: snapshotDetectedUrl || null,
-            quotedPostId: quotedPost?.id || null,
+            // For editorials: embed metadata directly, don't use quoted_post_id
+            sharedUrl: isQuotingEditorial ? quotedPost.shared_url : (snapshotDetectedUrl || null),
+            sharedTitle: isQuotingEditorial ? quotedPost.shared_title : null,
+            previewImg: isQuotingEditorial ? quotedPost.preview_img : null,
+            quotedPostId: isQuotingEditorial ? null : (quotedPost?.id || null),
             mediaIds: mediaIdsSnapshot,
             idempotencyKey,
           },
@@ -615,8 +623,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             .insert({
               content: cleanContent.substring(0, 5000),
               author_id: user.id,
-              shared_url: snapshotDetectedUrl || null,
-              quoted_post_id: quotedPost?.id || null,
+              shared_url: isQuotingEditorial ? quotedPost.shared_url : (snapshotDetectedUrl || null),
+              shared_title: isQuotingEditorial ? quotedPost.shared_title : null,
+              preview_img: isQuotingEditorial ? quotedPost.preview_img : null,
+              quoted_post_id: isQuotingEditorial ? null : (quotedPost?.id || null),
             })
             .select('id')
             .single();
@@ -938,12 +948,20 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                 </div>
               )}
 
-              {/* Quoted Post */}
+              {/* Quoted Post - Editorial vs Regular */}
               {quotedPost && (
-                <QuotedPostCard 
-                  quotedPost={quotedPost} 
-                  parentSources={[]} 
-                />
+                quotedPost.shared_url?.startsWith('focus://') || quotedPost.author?.username === 'ilpunto' ? (
+                  <QuotedEditorialCard
+                    title={quotedPost.shared_title || quotedPost.content}
+                    summary={quotedPost.content}
+                    imageUrl={quotedPost.preview_img}
+                  />
+                ) : (
+                  <QuotedPostCard 
+                    quotedPost={quotedPost} 
+                    parentSources={[]} 
+                  />
+                )
               )}
 
               {/* Media Preview */}

@@ -11,6 +11,8 @@ const corsHeaders = {
 type PublishPostBody = {
   content: string
   sharedUrl?: string | null
+  sharedTitle?: string | null
+  previewImg?: string | null
   quotedPostId?: string | null
   mediaIds?: string[]
   idempotencyKey?: string | null
@@ -170,6 +172,8 @@ Deno.serve(async (req) => {
       content: content.substring(0, 5000),
       author_id: user.id,
       shared_url: body.sharedUrl ? String(body.sharedUrl).substring(0, 2000) : null,
+      shared_title: body.sharedTitle ? String(body.sharedTitle).substring(0, 500) : null,
+      preview_img: body.previewImg ? String(body.previewImg).substring(0, 2000) : null,
       quoted_post_id: body.quotedPostId ?? null,
       category: null as string | null,
     }
