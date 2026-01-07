@@ -865,40 +865,24 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             boxShadow: '0 4px 32px rgba(0, 0, 0, 0.5)'
           }}
         >
-          {/* Curved light arc effect - prominent glow hugging top border */}
-          <svg 
-            className="absolute -top-3 left-0 w-full h-12 pointer-events-none z-20"
-            viewBox="0 0 400 40"
-            preserveAspectRatio="none"
-          >
-            <defs>
-              <linearGradient id="composerLightArc" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="transparent" />
-                <stop offset="10%" stopColor="rgba(56, 189, 248, 0.5)" />
-                <stop offset="30%" stopColor="rgba(56, 189, 248, 0.9)" />
-                <stop offset="50%" stopColor="rgba(125, 211, 252, 1)" />
-                <stop offset="70%" stopColor="rgba(56, 189, 248, 0.9)" />
-                <stop offset="90%" stopColor="rgba(56, 189, 248, 0.5)" />
-                <stop offset="100%" stopColor="transparent" />
-              </linearGradient>
-              <filter id="composerGlow">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-            <path 
-              d="M 10,35 Q 100,12 200,28 T 390,18" 
-              stroke="url(#composerLightArc)" 
-              strokeWidth="3"
-              fill="none"
-              filter="url(#composerGlow)"
-              strokeLinecap="round"
-            />
-          </svg>
+          {/* Light arc following the top rounded border */}
+          <div 
+            className="absolute -top-[2px] left-4 right-4 h-[3px] pointer-events-none z-20"
+            style={{
+              background: 'linear-gradient(90deg, transparent 0%, rgba(56, 189, 248, 0.4) 15%, rgba(125, 211, 252, 0.9) 50%, rgba(56, 189, 248, 0.4) 85%, transparent 100%)',
+              filter: 'blur(1px)',
+              borderRadius: '9999px'
+            }}
+          />
+          {/* Glow layer for the light arc */}
+          <div 
+            className="absolute -top-[4px] left-8 right-8 h-[6px] pointer-events-none z-10"
+            style={{
+              background: 'linear-gradient(90deg, transparent 0%, rgba(56, 189, 248, 0.3) 20%, rgba(125, 211, 252, 0.5) 50%, rgba(56, 189, 248, 0.3) 80%, transparent 100%)',
+              filter: 'blur(4px)',
+              borderRadius: '9999px'
+            }}
+          />
 
           {/* Urban texture overlay */}
           <div 
