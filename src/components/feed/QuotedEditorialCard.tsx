@@ -1,61 +1,71 @@
 import { EDITORIAL } from '@/config/brand';
+import { ShieldCheck } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface QuotedEditorialCardProps {
   title: string;
-  summary: string;
-  imageUrl?: string;
   onClick?: () => void;
   /** "feed" shows full branding, "composer" shows minimal branding */
   variant?: 'feed' | 'composer';
+  trustScore?: { band: string; score?: number };
 }
 
 export const QuotedEditorialCard = ({ 
   title, 
-  summary, 
-  imageUrl, 
   onClick,
-  variant = 'feed'
+  variant = 'feed',
+  trustScore
 }: QuotedEditorialCardProps) => {
   const isComposer = variant === 'composer';
   
   return (
     <div 
-      className="border border-white/10 rounded-xl p-4 mt-3 bg-gradient-to-b from-[#0D1B2A] to-[#1B263B] cursor-pointer active:scale-[0.98] transition-transform"
+      className="rounded-2xl p-4 mt-3 cursor-pointer active:scale-[0.98] transition-transform border border-white/10"
+      style={{ 
+        background: 'linear-gradient(135deg, #0D1B2A 0%, #1B263B 100%)'
+      }}
       onClick={onClick}
     >
-      {/* Header with Il Punto branding - minimal in composer to avoid duplication */}
-      <div className="flex items-center gap-2 mb-3">
+      {/* Header - Stile profilo utente */}
+      <div className="flex items-center gap-3 mb-3">
+        {/* Avatar circolare con ring */}
         <img 
           src={EDITORIAL.AVATAR_IMAGE} 
           alt="Il Punto"
-          className="w-6 h-6 rounded-full object-cover"
+          className="w-10 h-10 rounded-full object-cover ring-2 ring-[#0A7AFF]/40"
         />
-        {!isComposer && (
-          <span className="text-xs font-medium text-white/60 tracking-wide font-mono">
-            ◉ IL PUNTO
-          </span>
+        
+        {/* Nome e handle */}
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-white text-sm">Il Punto</p>
+          <p className="text-xs text-white/50">{EDITORIAL.HANDLE}</p>
+        </div>
+        
+        {/* Trust Score Badge (se disponibile e non in composer) */}
+        {trustScore && !isComposer && (
+          <div className={cn(
+            "flex items-center gap-1 px-2 py-1 rounded-full text-[9px] uppercase font-bold shrink-0",
+            trustScore.band === 'ALTO' && "bg-emerald-500/20 text-emerald-400",
+            trustScore.band === 'MEDIO' && "bg-amber-500/20 text-amber-400",
+            trustScore.band === 'BASSO' && "bg-red-500/20 text-red-400",
+            !trustScore.band && "bg-white/10 text-white/60"
+          )}>
+            <ShieldCheck className="w-3 h-3" />
+            <span>TRUST {trustScore.band || '—'}</span>
+          </div>
         )}
       </div>
 
-      {/* Editorial Title */}
-      <h3 className="font-bold text-white text-sm leading-tight mb-2 line-clamp-2">
+      {/* Editorial Title - Prominente */}
+      <h3 className="font-bold text-white text-base leading-tight mb-1 line-clamp-2">
         {title}
       </h3>
-
-      {/* Summary preview */}
-      <p className="text-xs text-white/60 leading-relaxed line-clamp-2">
-        {summary.replace(/\[SOURCE:[\d,\s]+\]/g, '').substring(0, 150)}...
-      </p>
-
-      {/* Optional image - not shown in composer to keep it compact */}
-      {imageUrl && !isComposer && (
-        <div className="mt-3 rounded-lg overflow-hidden aspect-video">
-          <img 
-            src={imageUrl} 
-            alt="" 
-            className="w-full h-full object-cover"
-          />
-        </div>
+      
+      {/* Sottotitolo editoriale */}
+      {!isComposer && (
+        <p className="text-xs text-[#0A7AFF] font-medium">
+          ◉ Approfondimento editoriale
+        </p>
       )}
     </div>
   );
