@@ -244,6 +244,15 @@ export const FeedCard = ({
         }
       }
 
+      // Increment shares count for DM shares (once per share action)
+      if (successCount > 0 && post.id) {
+        try {
+          await supabase.rpc('increment_post_shares', { target_post_id: post.id });
+        } catch (e) {
+          console.warn('[FeedCard] Failed to increment shares count:', e);
+        }
+      }
+
       if (successCount === userIds.length) {
         toast.success('Messaggio inviato!', {
           description: `Inviato a ${successCount} ${successCount === 1 ? 'persona' : 'persone'}`

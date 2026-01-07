@@ -1080,6 +1080,15 @@ export const FeedCard = ({
               console.error('Error sending message:', error);
             }
           }
+
+          // Increment shares count for DM shares (once per share action)
+          if (userIds.length > 0) {
+            try {
+              await supabase.rpc('increment_post_shares', { target_post_id: post.id });
+            } catch (e) {
+              console.warn('[FeedCardAdapt] Failed to increment shares count:', e);
+            }
+          }
           
           toast({
             title: 'Messaggio inviato',

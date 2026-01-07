@@ -265,8 +265,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   };
 
   const handlePublish = async () => {
-    // Allow publish if user has text, media, or a detected URL
-    if (!user || (!content.trim() && !detectedUrl && uploadedMedia.length === 0)) return;
+    // Allow publish if user has text, media, a detected URL, or a quoted post (reshare)
+    if (!user || (!content.trim() && !detectedUrl && uploadedMedia.length === 0 && !quotedPost)) return;
     
     addBreadcrumb('publish_attempt', { hasUrl: !!detectedUrl, isIOS });
     
