@@ -136,21 +136,12 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
     </div>
   );
 
-  // Slide 3: L'Autore - Tap icon navigation
+  // Slide 3: L'Autore - Tap "Tocca" navigation
   const SlideAutore = () => (
     <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
-      {/* Icona penna + nebulosa stilizzata - TAPPABILE */}
+      {/* Icona penna + nebulosa stilizzata - statica, non cliccabile */}
       <div className="relative mb-12">
-        {/* Ring pulsante esterno */}
-        <div className="absolute -inset-4 rounded-full border border-primary/20 animate-ping" />
-        <div className="absolute -inset-2 rounded-full border border-primary/30 animate-pulse" />
-        
-        <div 
-          className="relative w-24 h-24 flex items-center justify-center cursor-pointer 
-                     hover:scale-110 active:scale-95 transition-transform duration-200
-                     rounded-full bg-primary/10"
-          onClick={(e) => { e.stopPropagation(); nextSlide(); }}
-        >
+        <div className="relative w-24 h-24 flex items-center justify-center rounded-full bg-primary/10">
           <Sparkles className="absolute w-28 h-28 text-primary/30 stroke-[0.5]" />
           <PenLine className="w-14 h-14 text-primary stroke-[1.5]" />
         </div>
@@ -166,10 +157,14 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
         Niente post usa e getta. Il tuo profilo è un blog personale dove ciò che scrivi e ciò che comprendi costruisce la tua identità. Lascia un segno, non solo rumore.
       </p>
       
-      {/* Tap hint - icona mano che punta verso l'alto */}
-      <div className="mt-12 flex flex-col items-center gap-2">
-        <Hand className="w-5 h-5 text-white/40 animate-bounce" />
-        <span className="text-xs text-white/40">Tocca</span>
+      {/* Tap CTA - CLICCABILE, più grande */}
+      <div 
+        className="mt-12 flex flex-col items-center gap-3 cursor-pointer 
+                   hover:scale-110 active:scale-95 transition-transform duration-200"
+        onClick={(e) => { e.stopPropagation(); nextSlide(); }}
+      >
+        <Hand className="w-10 h-10 text-white/60 animate-bounce" />
+        <span className="text-base text-white/60 font-medium">Tocca</span>
       </div>
     </div>
   );
