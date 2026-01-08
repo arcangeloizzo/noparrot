@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { SlideToUnlock } from "./SlideToUnlock";
@@ -12,6 +12,8 @@ interface OnboardingSlidesProps {
 export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showCheck, setShowCheck] = useState(false);
+  const touchStartRef = useRef<number | null>(null);
+  const touchEndRef = useRef<number | null>(null);
 
   const nextSlide = () => {
     if (currentSlide < 3) {
@@ -21,11 +23,43 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
     }
   };
 
+  const prevSlide = () => {
+    if (currentSlide > 0) {
+      setCurrentSlide(currentSlide - 1);
+    }
+  };
+
+  // Touch handlers for swipe
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndRef.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartRef.current || !touchEndRef.current) return;
+    
+    const distance = touchStartRef.current - touchEndRef.current;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+    
+    if (isLeftSwipe && currentSlide < 3) {
+      nextSlide();
+    } else if (isRightSwipe && currentSlide > 0) {
+      prevSlide();
+    }
+    
+    touchStartRef.current = null;
+    touchEndRef.current = null;
+  };
+
   // Slide 1: Il Nemico
   const SlideNemico = () => (
-    <div className="flex flex-col items-center justify-center flex-1 px-8 pt-16 pb-20 text-center">
-      {/* Logo grande */}
-      <Logo variant="icon" size="xl" className="w-32 h-32 mb-12" />
+    <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
+      {/* Logo grande - aspect ratio preserved */}
+      <Logo variant="icon" size="xl" className="w-auto h-32 mb-12" />
       
       {/* Titolo */}
       <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-6">
@@ -38,7 +72,7 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
       </p>
       
       {/* Hint swipe */}
-      <p className="mt-auto text-xs text-white/30 animate-pulse">
+      <p className="mt-12 text-xs text-white/30 animate-pulse">
         Scorri o tocca per continuare →
       </p>
     </div>
@@ -46,7 +80,7 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
 
   // Slide 2: La Difesa
   const SlideDifesa = () => (
-    <div className="flex flex-col items-center justify-center flex-1 px-8 pt-16 pb-20 text-center">
+    <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
       {/* Icona animata Lock -> Check */}
       <div 
         className="relative w-24 h-24 mb-12 flex items-center justify-center"
@@ -79,7 +113,7 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
       
       {/* Button */}
       <Button
-        onClick={nextSlide}
+        onClick={(e) => { e.stopPropagation(); nextSlide(); }}
         className="mt-12 px-8 bg-primary hover:bg-primary/90"
       >
         Continua
@@ -89,7 +123,7 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
 
   // Slide 3: L'Autore
   const SlideAutore = () => (
-    <div className="flex flex-col items-center justify-center flex-1 px-8 pt-16 pb-20 text-center">
+    <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
       {/* Icona penna + nebulosa stilizzata */}
       <div className="relative w-24 h-24 mb-12 flex items-center justify-center">
         <Sparkles className="absolute w-28 h-28 text-primary/20 stroke-[0.5]" />
@@ -108,7 +142,7 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
       
       {/* Button */}
       <Button
-        onClick={nextSlide}
+        onClick={(e) => { e.stopPropagation(); nextSlide(); }}
         className="mt-12 px-8 bg-primary hover:bg-primary/90"
       >
         Continua
@@ -118,7 +152,7 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
 
   // Slide 4: Il Patto
   const SlidePatto = () => (
-    <div className="flex flex-col items-center justify-center flex-1 px-8 pt-16 pb-20 text-center">
+    <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
       {/* Titolo */}
       <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-6">
         NoParrot richiede tempo.
@@ -130,7 +164,7 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
       </p>
       
       {/* Slider */}
-      <div className="w-full max-w-sm">
+      <div className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
         <SlideToUnlock onUnlock={onComplete} />
       </div>
     </div>
@@ -139,8 +173,10 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
   const slides = [SlideNemico, SlideDifesa, SlideAutore, SlidePatto];
   const CurrentSlideComponent = slides[currentSlide];
 
-  // Handle tap/swipe for first slide
-  const handleTap = () => {
+  // Handle tap for first slide only
+  const handleTap = (e: React.MouseEvent) => {
+    // Prevent double-triggering from buttons
+    if ((e.target as HTMLElement).closest('button')) return;
     if (currentSlide === 0) {
       nextSlide();
     }
@@ -148,11 +184,14 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
 
   return (
     <div 
-      className="min-h-screen bg-black flex flex-col relative"
+      className="min-h-screen bg-[#0E141A] flex flex-col relative"
       onClick={handleTap}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       {/* Dots indicator */}
-      <div className="absolute top-8 left-0 right-0 flex justify-center gap-2 z-10">
+      <div className="absolute top-8 left-0 right-0 flex justify-center gap-2 z-10 pt-safe">
         {slides.map((_, index) => (
           <div
             key={index}
@@ -169,7 +208,7 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
       </div>
 
       {/* Current slide */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col pt-16 pb-8">
         <CurrentSlideComponent />
       </div>
     </div>
