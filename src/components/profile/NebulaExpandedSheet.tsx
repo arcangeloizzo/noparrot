@@ -23,6 +23,7 @@ export const NebulaExpandedSheet = ({
       <SheetContent 
         side="bottom" 
         className="bg-[#0A0F14] border-t border-white/10 rounded-t-3xl h-[85vh] px-4 pb-8 pt-4"
+        hideClose
       >
         {/* Urban texture background */}
         <div 
