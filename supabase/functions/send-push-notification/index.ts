@@ -160,6 +160,29 @@ serve(async (req) => {
         data: { url: `/messages/${body.thread_id}`, type: 'message' },
       };
       
+    } else if (body.type === 'editorial') {
+      // Editorial notification - broadcast to all users with push subscriptions
+      const { data: allSubscriptions } = await supabase
+        .from('push_subscriptions')
+        .select('user_id');
+      
+      // Deduplicate user IDs
+      targetUserIds = [...new Set(allSubscriptions?.map(s => s.user_id) || [])];
+      
+      console.log(`[Push] Editorial broadcast to ${targetUserIds.length} unique users`);
+      
+      notificationPayload = {
+        title: '◉ Il Punto',
+        body: body.editorial_title || 'Nuovo editoriale disponibile',
+        icon: '/lovable-uploads/feed-logo.png',
+        badge: '/lovable-uploads/feed-logo.png',
+        tag: `editorial-${body.editorial_id}`,
+        data: { 
+          url: `/?focus=${body.editorial_id}`, 
+          type: 'editorial' 
+        },
+      };
+      
     } else {
       return new Response(JSON.stringify({ error: 'Invalid notification type' }), {
         status: 400,

@@ -989,6 +989,33 @@ serve(async (req) => {
     
     console.log(`Daily focus created: "${title}" [${classification.topic_cluster}/${classification.angle_tag}]`);
     
+    // Send push notification (skip night edition 02:30 CET = 01:30 UTC)
+    const utcHour = new Date().getUTCHours();
+    const isNightEdition = utcHour >= 1 && utcHour < 3;
+    
+    if (!isNightEdition) {
+      try {
+        const pushResponse = await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseKey}`,
+          },
+          body: JSON.stringify({
+            type: 'editorial',
+            editorial_id: dailyFocus.id,
+            editorial_title: dailyFocus.title,
+          }),
+        });
+        console.log(`[Notify] Editorial push sent: ${dailyFocus.title} (status: ${pushResponse.status})`);
+      } catch (notifyError) {
+        console.error('[Notify] Failed to send editorial push:', notifyError);
+        // Non-blocking - continue anyway
+      }
+    } else {
+      console.log('[Notify] Night edition (02:30 CET) - skipping push notification');
+    }
+    
     return new Response(JSON.stringify(dailyFocus), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
