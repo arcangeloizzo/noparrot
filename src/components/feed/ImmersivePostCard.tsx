@@ -923,25 +923,46 @@ export const ImmersivePostCard = ({
               )
             )}
 
-            {/* Pure Text-Only Posts - no link, no media, no quoted post */}
+            {/* Pure Text-Only Posts - Immersive editorial-style card */}
             {isTextOnly && post.content && (
-              post.content.length > 400 ? (
-                <div className="mb-6">
-                  <h2 className="text-xl font-medium text-white leading-relaxed tracking-wide drop-shadow-lg whitespace-pre-wrap">
-                    <MentionText content={post.content.slice(0, 400) + '...'} />
-                  </h2>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                    className="mt-3 text-sm text-primary font-semibold hover:underline"
-                  >
-                    Mostra tutto
-                  </button>
+              <div className="relative w-full max-w-lg mx-auto">
+                {/* Card container with glassmorphism and urban texture */}
+                <div className="relative bg-gradient-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-xl rounded-3xl p-6 sm:p-8 border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.5),_0_0_24px_rgba(31,51,71,0.3)] overflow-hidden">
+                  
+                  {/* Urban texture overlay */}
+                  <div 
+                    className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay rounded-3xl"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+                    }}
+                  />
+                  
+                  {/* Decorative quote mark */}
+                  <div className="absolute top-4 left-5 text-white/[0.06] text-[80px] font-serif leading-none pointer-events-none select-none">"</div>
+                  
+                  {/* Content */}
+                  <div className="relative z-10">
+                    {post.content.length > 400 ? (
+                      <>
+                        <p className="text-[17px] sm:text-lg font-normal text-white/95 leading-[1.65] tracking-[0.01em] whitespace-pre-wrap">
+                          <MentionText content={post.content.slice(0, 400) + '...'} />
+                        </p>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                          className="mt-4 inline-flex items-center gap-1.5 text-sm text-primary/90 font-semibold hover:text-primary transition-colors"
+                        >
+                          <span>Mostra tutto</span>
+                          <Maximize2 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    ) : (
+                      <p className="text-[17px] sm:text-lg font-normal text-white/95 leading-[1.65] tracking-[0.01em] whitespace-pre-wrap">
+                        <MentionText content={post.content} />
+                      </p>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <h2 className="text-xl font-medium text-white leading-relaxed tracking-wide drop-shadow-lg whitespace-pre-wrap mb-6">
-                  <MentionText content={post.content} />
-                </h2>
-              )
+              </div>
             )}
 
             {/* User Text for media-only posts - ABOVE the media */}
