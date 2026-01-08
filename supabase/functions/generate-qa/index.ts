@@ -245,30 +245,56 @@ serve(async (req) => {
     console.log('[generate-qa] Content source:', contentSource);
     console.log('[generate-qa] Content text length:', contentText.length);
 
-    // Check if Q&A already exists in NEW secure tables
-    let query = supabase
-      .from('post_qa_questions')
-      .select('id, questions, content_hash, test_mode, owner_id')
-      .eq('source_url', sourceUrl || '');
-    
-    if (isPrePublish) {
-      query = query.is('post_id', null);
-    } else {
-      query = query.eq('post_id', contentId);
-    }
-    
-    let { data: existing } = await query.maybeSingle();
+    // Check if Q&A already exists - GLOBAL lookup first for cost efficiency
+    let existing: any = null;
 
-    // Fallback: if not found and not prePublish, check with post_id = null
-    if (!existing && !isPrePublish && sourceUrl) {
-      console.log('[generate-qa] Cache MISS with specific post_id, trying fallback');
-      const { data: fallback } = await supabase
+    if (sourceUrl) {
+      // Strategy 1: Global lookup by source_url + content_hash + testMode
+      // This ensures we reuse Q&A across ALL posts/users sharing the same source
+      const { data: globalMatch } = await supabase
+        .from('post_qa_questions')
+        .select('id, questions, content_hash, test_mode, owner_id')
+        .eq('source_url', sourceUrl)
+        .eq('content_hash', contentHash)
+        .eq('test_mode', testMode || null)
+        .limit(1)
+        .maybeSingle();
+      
+      if (globalMatch) {
+        console.log('[generate-qa] Found GLOBAL cache for source_url');
+        existing = globalMatch;
+      }
+    }
+
+    // Strategy 2: If no global match and we have a specific post_id, check for exact post match
+    if (!existing && contentId && !isPrePublish) {
+      const { data: postMatch } = await supabase
+        .from('post_qa_questions')
+        .select('id, questions, content_hash, test_mode, owner_id')
+        .eq('post_id', contentId)
+        .limit(1)
+        .maybeSingle();
+      
+      if (postMatch) {
+        console.log('[generate-qa] Found cache by post_id');
+        existing = postMatch;
+      }
+    }
+
+    // Strategy 3: Pre-publish fallback (no post_id yet)
+    if (!existing && isPrePublish && sourceUrl) {
+      const { data: prePublishMatch } = await supabase
         .from('post_qa_questions')
         .select('id, questions, content_hash, test_mode, owner_id')
         .eq('source_url', sourceUrl)
         .is('post_id', null)
+        .limit(1)
         .maybeSingle();
-      existing = fallback;
+      
+      if (prePublishMatch) {
+        console.log('[generate-qa] Found pre-publish cache');
+        existing = prePublishMatch;
+      }
     }
 
     // Validate cache
