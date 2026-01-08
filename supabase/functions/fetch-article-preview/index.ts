@@ -1123,11 +1123,39 @@ serve(async (req) => {
                 }
               }
               
-              // Attempt to extract author name from title format "Post di [Name] | LinkedIn"
+              // Attempt to extract author name from title format "Post di [Name] | LinkedIn" or "[Name] su LinkedIn"
               let authorName = '';
-              const authorMatch = ogTitle.match(/(?:Post di|Post by)\s+([^|]+)/i);
+              const authorMatch = ogTitle.match(/(?:Post di|Post by)\s+([^|–\-]+)/i) ||
+                                  ogTitle.match(/^([^|–\-]+?)\s+su\s+LinkedIn/i) ||
+                                  ogTitle.match(/^([^|–\-]+?)\s*[|–\-]\s*LinkedIn/i);
               if (authorMatch) {
                 authorName = authorMatch[1].trim();
+                // If it looks like a post title rather than a name (too long), clear it
+                if (authorName.length > 50) {
+                  authorName = '';
+                }
+              }
+              
+              // Also try to extract from JSON-LD author field
+              if (!authorName && jsonLdMatch) {
+                for (const match of jsonLdMatch) {
+                  try {
+                    const jsonContent = match.replace(/<script[^>]*>/i, '').replace(/<\/script>/i, '');
+                    const parsed = JSON.parse(jsonContent);
+                    const items = Array.isArray(parsed) ? parsed : [parsed];
+                    for (const item of items) {
+                      if (item.author?.name) {
+                        authorName = item.author.name;
+                        break;
+                      }
+                      if (typeof item.author === 'string') {
+                        authorName = item.author;
+                        break;
+                      }
+                    }
+                    if (authorName) break;
+                  } catch (e) {}
+                }
               }
               
               if (ogTitle || ogDescription) {
