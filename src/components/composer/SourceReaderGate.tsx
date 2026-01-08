@@ -322,6 +322,36 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
   // Render platform-specific content
   const renderContent = () => {
+    // Original post content - full text display (for text-only post shares)
+    if (source.url?.startsWith('post://') && (source as any).isOriginalPost) {
+      const postContent = (source as any).content || '';
+      return (
+        <div className="max-w-2xl mx-auto space-y-4">
+          {/* Post Header */}
+          <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-lg">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/40 to-primary/20 flex items-center justify-center border border-white/20">
+              <FileText className="w-5 h-5 text-foreground" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">{source.title || 'Post'}</p>
+              <p className="text-sm text-muted-foreground">Contenuto testuale originale</p>
+            </div>
+          </div>
+
+          {/* Full Post Content - scrollable */}
+          <div 
+            ref={scrollContainerRef}
+            className="bg-card border border-border rounded-lg p-5 max-h-[55vh] overflow-y-auto"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
+            <p className="text-foreground leading-relaxed whitespace-pre-wrap">
+              {postContent}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     // Editorial content - full text display (for Il Punto editorials)
     if (source.url?.startsWith('editorial://') && (source as any).articleContent) {
       const articleContent = (source as any).articleContent as string;

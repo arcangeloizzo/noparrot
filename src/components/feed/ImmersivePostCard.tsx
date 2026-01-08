@@ -1678,22 +1678,15 @@ export const ImmersivePostCard = ({
             </div>
             
             {/* Scrollable content area */}
-            <div className="relative z-10 px-6 py-5 max-h-[55vh] overflow-y-auto no-scrollbar">
-              {/* Render content with visual paragraph breaks */}
+            <div className="relative z-10 px-6 py-5 max-h-[45vh] overflow-y-auto no-scrollbar">
+              {/* Render content with visual paragraph breaks - uniform styling */}
               {(() => {
                 const paragraphs = post.content.split(/\n\n+/);
                 return paragraphs.map((paragraph, idx) => (
                   <div key={idx} className={cn(idx > 0 && "mt-5")}>
-                    {/* First paragraph gets slight emphasis */}
-                    {idx === 0 ? (
-                      <p className="text-[17px] sm:text-lg font-medium text-white/95 leading-[1.7] tracking-[0.005em] whitespace-pre-wrap">
-                        <MentionText content={paragraph} />
-                      </p>
-                    ) : (
-                      <p className="text-[15px] sm:text-base font-normal text-white/85 leading-[1.75] tracking-[0.01em] whitespace-pre-wrap">
-                        <MentionText content={paragraph} />
-                      </p>
-                    )}
+                    <p className="text-[16px] sm:text-[17px] font-normal text-white/90 leading-[1.7] tracking-[0.01em] whitespace-pre-wrap">
+                      <MentionText content={paragraph} />
+                    </p>
                     {/* Soft divider between paragraphs (except last) */}
                     {idx < paragraphs.length - 1 && (
                       <div className="mt-5 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
@@ -1701,6 +1694,75 @@ export const ImmersivePostCard = ({
                   </div>
                 ));
               })()}
+            </div>
+            
+            {/* Action bar - same as immersive cards */}
+            <div className="relative z-10 px-6 py-3 border-t border-white/[0.06] bg-black/10">
+              <div className="flex items-center justify-between">
+                {/* Left: Reactions */}
+                <div className="flex items-center gap-5">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleHeart(e); }}
+                    className="flex items-center gap-1.5 text-white/70 hover:text-white transition-colors"
+                  >
+                    <Heart 
+                      className={cn(
+                        "w-5 h-5 transition-all",
+                        post.user_reactions?.has_hearted && "fill-red-500 text-red-500"
+                      )} 
+                    />
+                    {(post.reactions?.hearts || 0) > 0 && (
+                      <span className="text-xs font-medium">{post.reactions?.hearts}</span>
+                    )}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowFullText(false); setTimeout(() => setShowComments(true), 100); }}
+                    className="flex items-center gap-1.5 text-white/70 hover:text-white transition-colors"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    {(post.reactions?.comments || 0) > 0 && (
+                      <span className="text-xs font-medium">{post.reactions?.comments}</span>
+                    )}
+                  </button>
+                </div>
+                
+                {/* Right: Share + Bookmark */}
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      setShowFullText(false);
+                      // Text-only posts go directly to composer (no gate needed for text-only)
+                      const userWordCount = getWordCount(post.content);
+                      const questionCount = getQuestionCountWithoutSource(userWordCount);
+                      if (questionCount === 0) {
+                        onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [] });
+                        toast({ title: 'Post pronto per la condivisione', description: 'Aggiungi un tuo commento' });
+                      } else {
+                        setShareAction('feed');
+                        await startComprehensionGateForPost();
+                      }
+                    }}
+                    className="flex items-center gap-1.5 text-white/70 hover:text-white transition-colors"
+                  >
+                    <Quote className="w-5 h-5" />
+                    {(post.shares_count || 0) > 0 && (
+                      <span className="text-xs font-medium">{post.shares_count}</span>
+                    )}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleBookmark(e); }}
+                    className="text-white/70 hover:text-white transition-colors"
+                  >
+                    <Bookmark 
+                      className={cn(
+                        "w-5 h-5 transition-all",
+                        post.user_reactions?.has_bookmarked && "fill-primary text-primary"
+                      )} 
+                    />
+                  </button>
+                </div>
+              </div>
             </div>
             
             {/* Footer with immersive CTA */}
