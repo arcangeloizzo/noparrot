@@ -6,7 +6,6 @@ import { useNotifications, useMarkAsRead, useMarkAllAsRead } from "@/hooks/useNo
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
-import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 
 // Colori per tipo di notifica
 const notificationStyles = {
@@ -51,7 +50,6 @@ const notificationStyles = {
 export const Notifications = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"all" | "mentions">("all");
-  const [showProfileSheet, setShowProfileSheet] = useState(false);
   const { data: notifications = [], isLoading } = useNotifications();
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
@@ -370,11 +368,6 @@ export const Notifications = () => {
       <BottomNavigation 
         activeTab="notifications"
         onTabChange={handleNavTabChange}
-        onProfileClick={() => setShowProfileSheet(true)}
-      />
-      <ProfileSideSheet 
-        isOpen={showProfileSheet}
-        onClose={() => setShowProfileSheet(false)}
       />
     </div>
   );

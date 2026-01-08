@@ -4,7 +4,6 @@ import { BookmarkIcon, ArrowLeftIcon } from "@/components/ui/icons";
 import { useSavedPosts } from "@/hooks/usePosts";
 import { useSavedFocus } from "@/hooks/useFocusBookmarks";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
-import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Play, Image as ImageIcon, Link2, FileText, Newspaper, Music, Video, Globe, Linkedin } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -210,7 +209,6 @@ export const Saved = () => {
   const navigate = useNavigate();
   const { data: savedPosts = [], isLoading: isLoadingPosts } = useSavedPosts();
   const { data: savedFocus = [], isLoading: isLoadingFocus } = useSavedFocus();
-  const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [activeTab, setActiveTab] = useState<'posts' | 'editorials'>('posts');
 
   const handleTabChange = (tab: string) => {
@@ -339,11 +337,6 @@ export const Saved = () => {
       <BottomNavigation 
         activeTab="saved"
         onTabChange={handleTabChange}
-        onProfileClick={() => setShowProfileSheet(true)}
-      />
-      <ProfileSideSheet 
-        isOpen={showProfileSheet}
-        onClose={() => setShowProfileSheet(false)}
       />
     </div>
   );
