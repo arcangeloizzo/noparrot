@@ -128,6 +128,47 @@ const isTextSimilarToTitle = (userText: string, title: string): boolean => {
          normalizedUser === normalizedTitle;
 };
 
+// Helper to detect if user text is similar to ANY extracted article content (title, description, content, summary)
+// This prevents showing duplicated text when the system auto-filled post.content with extracted text
+const isTextSimilarToArticleContent = (userText: string, articlePreview: any): boolean => {
+  if (!userText || !articlePreview) return false;
+  
+  const normalize = (s: string) => s?.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim() || '';
+  const normalizedUser = normalize(userText);
+  
+  if (normalizedUser.length < 10) return false; // Very short text is likely user-written
+  
+  // Check against all possible extracted fields
+  const fieldsToCheck = [
+    articlePreview.title,
+    articlePreview.description,
+    articlePreview.content,
+    articlePreview.summary,
+    articlePreview.excerpt
+  ].filter(Boolean);
+  
+  for (const field of fieldsToCheck) {
+    const normalizedField = normalize(field);
+    if (normalizedField.length < 10) continue;
+    
+    // If one contains the other (substring match)
+    if (normalizedUser.includes(normalizedField) || normalizedField.includes(normalizedUser)) {
+      return true;
+    }
+    
+    // Check word overlap (>80% of words match)
+    const userWords = new Set(normalizedUser.split(' ').filter(w => w.length > 2));
+    const fieldWords = new Set(normalizedField.split(' ').filter(w => w.length > 2));
+    if (userWords.size > 0 && fieldWords.size > 0) {
+      const overlap = [...userWords].filter(w => fieldWords.has(w)).length;
+      const overlapRatio = overlap / Math.min(userWords.size, fieldWords.size);
+      if (overlapRatio > 0.8) return true;
+    }
+  }
+  
+  return false;
+};
+
 export const ImmersivePostCard = ({ 
   post, 
   onRemove,
@@ -693,7 +734,10 @@ export const ImmersivePostCard = ({
   // Exclude quotedPost from text-only to prevent quote marks on reshares
   const isTextOnly = !hasMedia && !hasLink && !quotedPost;
   const articleTitle = articlePreview?.title || post.shared_title || '';
-  const shouldShowUserText = hasLink && post.content && !isTextSimilarToTitle(post.content, articleTitle);
+  // Show user text ONLY if it's genuinely different from title AND extracted content
+  const shouldShowUserText = hasLink && post.content && 
+    !isTextSimilarToTitle(post.content, articleTitle) &&
+    !isTextSimilarToArticleContent(post.content, articlePreview);
   
   // Reshare Stack logic: detect if this is a reshare where the QUOTED POST has short comment (<30 words)
   // (quotedPostWordCount already computed early for hook ordering)
