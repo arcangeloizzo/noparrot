@@ -1632,18 +1632,87 @@ export const ImmersivePostCard = ({
         }}
       />
 
-      {/* Full Text Modal for long posts */}
+      {/* Full Text Modal for long posts - Expanded capsule style */}
       <Dialog open={showFullText} onOpenChange={setShowFullText}>
-        <DialogContent className="max-h-[80vh] overflow-y-auto max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Post di</span>
-              <span className="font-bold">{post.author.full_name || post.author.username}</span>
-            </DialogTitle>
-          </DialogHeader>
-          <p className="text-foreground whitespace-pre-wrap leading-relaxed">
-            <MentionText content={post.content} />
-          </p>
+        <DialogContent className="max-h-[85vh] max-w-lg p-0 bg-transparent border-0 shadow-none overflow-hidden">
+          {/* Immersive glass card container */}
+          <div className="relative bg-gradient-to-br from-[#1F3347]/95 to-[#0f1a24]/98 backdrop-blur-md rounded-3xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.7),_0_0_40px_rgba(31,51,71,0.4)] overflow-hidden">
+            
+            {/* Urban texture overlay */}
+            <div 
+              className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+              }}
+            />
+            
+            {/* Decorative quote marks */}
+            <div className="absolute top-6 left-6 text-white/[0.05] text-[100px] font-serif leading-none pointer-events-none select-none">"</div>
+            <div className="absolute bottom-16 right-6 text-white/[0.05] text-[100px] font-serif leading-none pointer-events-none select-none rotate-180">"</div>
+            
+            {/* Header with author info */}
+            <div className="relative z-10 px-6 pt-6 pb-4 border-b border-white/[0.06]">
+              <div className="flex items-center gap-3">
+                {post.author.avatar_url ? (
+                  <img 
+                    src={post.author.avatar_url} 
+                    alt="" 
+                    className="w-10 h-10 rounded-full object-cover border border-white/20"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/40 to-primary/20 flex items-center justify-center border border-white/20">
+                    <span className="text-white/80 font-semibold text-sm">
+                      {(post.author.full_name || post.author.username)?.[0]?.toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <div className="flex flex-col">
+                  <span className="font-semibold text-white/95 text-sm">
+                    {post.author.full_name || post.author.username}
+                  </span>
+                  <span className="text-xs text-white/50">
+                    @{post.author.username}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Scrollable content area */}
+            <div className="relative z-10 px-6 py-5 max-h-[55vh] overflow-y-auto no-scrollbar">
+              {/* Render content with visual paragraph breaks */}
+              {(() => {
+                const paragraphs = post.content.split(/\n\n+/);
+                return paragraphs.map((paragraph, idx) => (
+                  <div key={idx} className={cn(idx > 0 && "mt-5")}>
+                    {/* First paragraph gets slight emphasis */}
+                    {idx === 0 ? (
+                      <p className="text-[17px] sm:text-lg font-medium text-white/95 leading-[1.7] tracking-[0.005em] whitespace-pre-wrap">
+                        <MentionText content={paragraph} />
+                      </p>
+                    ) : (
+                      <p className="text-[15px] sm:text-base font-normal text-white/85 leading-[1.75] tracking-[0.01em] whitespace-pre-wrap">
+                        <MentionText content={paragraph} />
+                      </p>
+                    )}
+                    {/* Soft divider between paragraphs (except last) */}
+                    {idx < paragraphs.length - 1 && (
+                      <div className="mt-5 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+                    )}
+                  </div>
+                ));
+              })()}
+            </div>
+            
+            {/* Footer with immersive CTA */}
+            <div className="relative z-10 px-6 py-4 border-t border-white/[0.06] bg-black/20">
+              <button
+                onClick={() => setShowFullText(false)}
+                className="w-full py-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/10 text-white/90 font-medium text-sm transition-all active:scale-[0.98]"
+              >
+                Torna al feed
+              </button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
