@@ -267,7 +267,20 @@ export const useSavedPosts = () => {
               reaction_type,
               user_id
             ),
-            comments(count)
+            comments(count),
+            post_media!post_media_post_id_fkey (
+              order_idx,
+              media:media_id (
+                id,
+                type,
+                url,
+                thumbnail_url,
+                width,
+                height,
+                mime,
+                duration_sec
+              )
+            )
           )
         `)
         .eq('user_id', user.id)
@@ -295,6 +308,10 @@ export const useSavedPosts = () => {
           quoted_post_id: post.quoted_post_id,
           category: post.category || null,
           quoted_post: null,
+          media: (post.post_media || [])
+            .sort((a: any, b: any) => a.order_idx - b.order_idx)
+            .map((pm: any) => pm.media)
+            .filter(Boolean),
           reactions: {
             hearts: post.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
             comments: post.comments?.[0]?.count || 0,
