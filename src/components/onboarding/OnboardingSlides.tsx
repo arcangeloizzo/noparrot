@@ -56,10 +56,14 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
     const isLeftSwipe = distance > 50;
     const isRightSwipe = distance < -50;
     
-    // Forward swipe: only on Slide 2 (index 1)
+    // Forward swipe: allowed on Slide 2 (index 1) only, other slides have their own navigation
     if (isLeftSwipe && currentSlide === 1) {
       nextSlide();
     }
+    
+    // Allow forward swipe on all slides except last (which uses SlideToUnlock)
+    // Note: Slide 0 uses button, Slide 2 uses tap, Slide 3 uses slider
+    // But we keep swipe working on Slide 2 as primary navigation
     
     // Back swipe: always allowed
     if (isRightSwipe && currentSlide > 0) {
