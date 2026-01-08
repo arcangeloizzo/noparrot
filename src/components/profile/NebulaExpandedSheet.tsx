@@ -50,7 +50,7 @@ export const NebulaExpandedSheet = ({
         </SheetHeader>
 
         <div className="h-[calc(100%-80px)] flex items-center justify-center relative z-10">
-          <CognitiveNebulaCanvas data={cognitiveDensity} />
+          <CognitiveNebulaCanvas data={cognitiveDensity} showCounts />
         </div>
       </SheetContent>
     </Sheet>

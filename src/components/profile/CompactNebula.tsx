@@ -52,15 +52,59 @@ const CATEGORY_ANGLES: Record<string, number> = {
   'Media & Comunicazione': Math.PI * 1.75,    // Top-right
 };
 
-// Label positions for compact view (radar style around center)
-const LABEL_POSITIONS: { name: string; left: string; top: string; textAlign: 'left' | 'right' | 'center' }[] = [
-  { name: 'Società & Politica', left: '2%', top: '38%', textAlign: 'left' },
-  { name: 'Sport & Lifestyle', left: '5%', top: '58%', textAlign: 'left' },
-  { name: 'Economia & Business', left: '8%', top: '78%', textAlign: 'left' },
-  { name: 'Cultura & Arte', left: '78%', top: '38%', textAlign: 'right' },
-  { name: 'Scienza & Tecnologia', left: '75%', top: '58%', textAlign: 'right' },
-  { name: 'Media & Comunicazione', left: '78%', top: '78%', textAlign: 'right' },
+// Circular positions for 8 categories around the nebula (like a radar chart)
+// Angles: 0=right, 45=bottom-right, 90=bottom, etc., going clockwise
+const LABEL_POSITIONS: { name: string; angle: number }[] = [
+  { name: 'Società & Politica', angle: 0 },          // Right
+  { name: 'Economia & Business', angle: 45 },        // Bottom-right
+  { name: 'Scienza & Tecnologia', angle: 90 },       // Bottom
+  { name: 'Cultura & Arte', angle: 135 },            // Bottom-left
+  { name: 'Pianeta & Ambiente', angle: 180 },        // Left
+  { name: 'Sport & Lifestyle', angle: 225 },         // Top-left
+  { name: 'Salute & Benessere', angle: 270 },        // Top
+  { name: 'Media & Comunicazione', angle: 315 },     // Top-right
 ];
+
+// Helper to get label position based on angle and radius
+const getLabelStyle = (angle: number, containerWidth: number, containerHeight: number) => {
+  const radians = (angle * Math.PI) / 180;
+  const radiusX = containerWidth * 0.45; // Horizontal radius
+  const radiusY = containerHeight * 0.42; // Vertical radius
+  const centerX = containerWidth / 2;
+  const centerY = containerHeight / 2;
+  
+  const x = centerX + Math.cos(radians) * radiusX;
+  const y = centerY + Math.sin(radians) * radiusY;
+  
+  // Determine text alignment based on position
+  let textAlign: 'left' | 'right' | 'center' = 'center';
+  let translateX = '-50%';
+  
+  if (angle > 45 && angle < 135) {
+    // Bottom area
+    textAlign = 'center';
+    translateX = '-50%';
+  } else if (angle >= 135 && angle <= 225) {
+    // Left side
+    textAlign = 'right';
+    translateX = '-100%';
+  } else if (angle > 225 && angle < 315) {
+    // Top area
+    textAlign = 'center';
+    translateX = '-50%';
+  } else {
+    // Right side (315-360, 0-45)
+    textAlign = 'left';
+    translateX = '0%';
+  }
+  
+  return {
+    left: `${x}px`,
+    top: `${y}px`,
+    transform: `translate(${translateX}, -50%)`,
+    textAlign,
+  };
+};
 
 const hexToRgb = (hex: string) => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -224,10 +268,14 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
     .map(cat => ({ name: cat, value: data[cat] || 0 }))
     .filter(c => c.value > 0);
 
-  // Get labels to show (max 6, positioned around)
+  // Get labels to show - only active categories
   const labelsToShow = LABEL_POSITIONS.filter(pos => 
     activeCategories.some(cat => cat.name === pos.name)
   );
+
+  // Container dimensions for label positioning
+  const containerWidth = 320;
+  const containerHeight = 180;
 
   return (
     <button
@@ -252,28 +300,31 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
         <ChevronDown className="w-5 h-5 text-muted-foreground" />
       </div>
 
-      {/* Main nebula area with radar-style labels */}
-      <div className="relative h-[160px] z-10">
-        {/* Radar-style labels positioned around the nebula */}
-        {labelsToShow.map((pos) => (
-          <span
-            key={pos.name}
-            className="absolute text-sm font-medium whitespace-nowrap"
-            style={{ 
-              color: CATEGORY_COLORS[pos.name],
-              left: pos.left,
-              top: pos.top,
-              textAlign: pos.textAlign,
-              transform: pos.textAlign === 'right' ? 'translateX(0)' : 'translateX(0)',
-            }}
-          >
-            {CATEGORY_SHORT_NAMES[pos.name]}
-          </span>
-        ))}
+      {/* Main nebula area with circular radar-style labels */}
+      <div className="relative h-[180px] z-10" style={{ width: `${containerWidth}px`, margin: '0 auto' }}>
+        {/* Circular labels positioned around the nebula */}
+        {labelsToShow.map((pos) => {
+          const style = getLabelStyle(pos.angle, containerWidth, containerHeight);
+          return (
+            <span
+              key={pos.name}
+              className="absolute text-[11px] font-semibold whitespace-nowrap pointer-events-none"
+              style={{ 
+                color: CATEGORY_COLORS[pos.name],
+                left: style.left,
+                top: style.top,
+                transform: style.transform,
+                textShadow: '0 1px 3px rgba(0,0,0,0.8)',
+              }}
+            >
+              {CATEGORY_SHORT_NAMES[pos.name]}
+            </span>
+          );
+        })}
 
         {/* Center canvas for particle nebula */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-[55%] h-full">
+          <div className="w-[50%] h-[70%]">
             <canvas
               ref={canvasRef}
               className="w-full h-full"
