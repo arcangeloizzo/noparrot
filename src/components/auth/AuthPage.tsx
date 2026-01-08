@@ -468,7 +468,8 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
                 <Select value={yearOfBirth} onValueChange={setYearOfBirth}>
                   <SelectTrigger><SelectValue placeholder="Anno" /></SelectTrigger>
                   <SelectContent>
-                    {Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i).map((year) => (
+                    {/* Start from 16 years ago (min age) to 100 years ago */}
+                    {Array.from({ length: 85 }, (_, i) => new Date().getFullYear() - 16 - i).map((year) => (
                       <SelectItem key={year} value={String(year)}>{year}</SelectItem>
                     ))}
                   </SelectContent>
