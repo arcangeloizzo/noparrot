@@ -509,29 +509,32 @@ export const FocusDetailSheet = ({
       {/* Quiz Modal */}
       {showQuiz && quizData && (
         <QuizModal
-          isOpen={showQuiz}
-          onClose={() => {
-            setShowQuiz(false);
-            setQuizData(null);
-          }}
           questions={quizData.questions}
           qaId={quizData.qaId}
-          sourceUrl={quizData.sourceUrl}
-          onPass={() => {
-            setUserPassedGate(true);
+          onSubmit={async (answers) => {
+            const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-qa`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ qaId: quizData.qaId, answers })
+            });
+            return res.json();
+          }}
+          onCancel={() => {
             setShowQuiz(false);
-            
-            if (quizData.forShare) {
-              onShare?.();
-            } else {
-              setCommentMode('read');
-              setShowCommentForm(true);
-            }
-            
             setQuizData(null);
           }}
-          onFail={() => {
-            sonnerToast.error('Quiz non superato. Riprova dopo aver riletto.');
+          onComplete={(passed) => {
+            if (passed) {
+              setUserPassedGate(true);
+              if (quizData.forShare) {
+                onShare?.();
+              } else {
+                setCommentMode('read');
+                setShowCommentForm(true);
+              }
+            } else {
+              sonnerToast.error('Quiz non superato. Riprova dopo aver riletto.');
+            }
             setShowQuiz(false);
             setQuizData(null);
           }}
@@ -586,14 +589,14 @@ const CommentItem = ({ comment, replies, onReply, onDelete, currentUserId, focus
                   sonnerToast.error('Devi effettuare il login');
                   return;
                 }
-                toggleReaction.mutate({ focusCommentId: comment.id, focusId, focusType });
+                toggleReaction.mutate({ focusCommentId: comment.id, isLiked: reactionData?.likedByMe || false });
               }}
               className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-400 transition-colors"
             >
               <Heart 
                 className={cn("w-3.5 h-3.5", reactionData?.likedByMe && "fill-red-400 text-red-400")} 
               />
-              <span>{reactionData?.likes || 0}</span>
+              <span>{reactionData?.likesCount || 0}</span>
             </button>
             <button
               onClick={() => onReply(comment)}

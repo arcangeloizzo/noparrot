@@ -394,6 +394,7 @@ export const Feed = () => {
             setFocusCommentsOpen(false);
             setSelectedFocusForComments(null);
           }}
+          mode="view"
         />
       )}
     </>
