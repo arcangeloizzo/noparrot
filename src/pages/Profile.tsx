@@ -3,46 +3,38 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
-import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 import { CognitiveMap } from "@/components/profile/CognitiveMap";
-import { CognitiveIdentity } from "@/components/profile/CognitiveIdentity";
-import { SharedPaths } from "@/components/profile/SharedPaths";
+import { DiaryEntry, DiaryEntryData, DiaryEntryType } from "@/components/profile/DiaryEntry";
+import { DiaryFilters, DiaryFilterType } from "@/components/profile/DiaryFilters";
+import { ProfileActions } from "@/components/profile/ProfileActions";
 import { getDisplayUsername } from "@/lib/utils";
 import { recalculateCognitiveDensityFromPosts } from "@/lib/cognitiveDensity";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const Profile = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [navTab, setNavTab] = useState("");
-  const [showProfileSheet, setShowProfileSheet] = useState(false);
-
   const queryClient = useQueryClient();
+  const [diaryFilter, setDiaryFilter] = useState<DiaryFilterType>('all');
 
   const { data: profile, isLoading, error } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => {
-      if (!user) {
-        throw new Error("Not authenticated");
-      }
+      if (!user) throw new Error("Not authenticated");
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .single();
       
-      if (error) {
-        console.error("❌ Profile fetch error:", error);
-        throw error;
-      }
-      console.log("✅ Profile fetched:", data);
+      if (error) throw error;
       return data;
     },
     enabled: !!user,
   });
 
-  // Ricalcola cognitive density se vuoto - separato in useEffect
+  // Recalculate cognitive density if empty
   useEffect(() => {
     const recalculateIfNeeded = async () => {
       if (profile && user?.id) {
@@ -50,23 +42,15 @@ export const Profile = () => {
         const isEmpty = !density || Object.keys(density).length === 0;
         
         if (isEmpty) {
-          console.log('🔄 Cognitive density vuoto, ricalcolo dai post...');
           const result = await recalculateCognitiveDensityFromPosts(user.id);
-          
           if (result && Object.keys(result).length > 0) {
-            console.log('✅ Cognitive density ricalcolato:', result);
-            // Invalida la query per forzare refetch
             queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
-          } else {
-            console.log('⚠️ Nessun post con categoria trovato');
           }
         }
       }
     };
-    
     recalculateIfNeeded();
   }, [profile?.id, user?.id, queryClient]);
-
 
   const { data: stats } = useQuery({
     queryKey: ["profile-stats", user?.id],
@@ -79,7 +63,6 @@ export const Profile = () => {
         supabase.from("posts").select("id", { count: "exact" }).eq("author_id", user.id),
       ]);
 
-      // Calcola ambiti attivi dalla cognitive density
       const cognitiveDensity = (profile?.cognitive_density as Record<string, number>) || {};
       const activeTopics = Object.values(cognitiveDensity).filter(val => val > 0).length;
 
@@ -93,62 +76,106 @@ export const Profile = () => {
     enabled: !!user && !!profile,
   });
 
-  const { data: userPosts = [], error: postsError } = useQuery({
-    queryKey: ["user-posts", user?.id],
+  // Fetch diary entries (user posts + gated posts)
+  const { data: diaryEntries = [], isLoading: loadingDiary } = useQuery({
+    queryKey: ["diary-entries", user?.id, diaryFilter],
     queryFn: async () => {
       if (!user) return [];
-      
-      try {
-        const { data, error } = await supabase
-          .from("posts")
-          .select(`
-            *,
-            author:profiles!author_id(id, username, full_name, avatar_url),
-            reactions:reactions(reaction_type, user_id),
-            comments:comments(id)
-          `)
-          .eq("author_id", user.id)
-          .order("created_at", { ascending: false });
-        
-        if (error) {
-          console.error("❌ Posts query error:", error);
-          return [];
-        }
-        
-        // Format the posts to match the Post type
-        const formattedPosts = data?.map(post => ({
-          ...post,
-          author: post.author,
-          reactions: {
-            hearts: post.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
-            comments: post.comments?.length || 0,
-          },
-          user_reactions: {
-            has_hearted: post.reactions?.some((r: any) => r.reaction_type === 'heart' && r.user_id === user.id) || false,
-            has_bookmarked: post.reactions?.some((r: any) => r.reaction_type === 'bookmark' && r.user_id === user.id) || false,
-          }
-        })) || [];
-        
-        return formattedPosts;
-      } catch (err) {
-        console.error("❌ Exception fetching posts:", err);
+
+      // 1. Fetch user's own posts
+      const { data: userPosts, error: postsError } = await supabase
+        .from("posts")
+        .select(`
+          id, content, shared_title, shared_url, quoted_post_id, 
+          sources, preview_img, created_at, category
+        `)
+        .eq("author_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (postsError) {
+        console.error("Error fetching user posts:", postsError);
         return [];
       }
+
+      // 2. Fetch posts where user passed gate
+      const { data: gatedPosts, error: gatedError } = await supabase
+        .from("post_gate_attempts")
+        .select(`
+          post_id, created_at,
+          posts!inner(id, content, shared_title, shared_url, quoted_post_id, 
+            sources, preview_img, created_at, category, author_id)
+        `)
+        .eq("user_id", user.id)
+        .eq("passed", true)
+        .order("created_at", { ascending: false });
+
+      if (gatedError) {
+        console.error("Error fetching gated posts:", gatedError);
+      }
+
+      // Map user posts to diary entries
+      const userEntries: DiaryEntryData[] = (userPosts || []).map(post => {
+        let type: DiaryEntryType = 'original';
+        if (post.quoted_post_id) type = 'reshared';
+        else if (post.shared_url || (post.sources && Array.isArray(post.sources) && post.sources.length > 0)) type = 'gated';
+
+        return {
+          id: post.id,
+          content: post.content,
+          shared_title: post.shared_title,
+          shared_url: post.shared_url,
+          quoted_post_id: post.quoted_post_id,
+          sources: post.sources,
+          preview_img: post.preview_img,
+          created_at: post.created_at,
+          category: post.category,
+          type,
+        };
+      });
+
+      // Map gated posts (not authored by user)
+      const gatedEntries: DiaryEntryData[] = (gatedPosts || [])
+        .filter(g => g.posts.author_id !== user.id)
+        .map(g => ({
+          id: g.posts.id,
+          content: g.posts.content,
+          shared_title: g.posts.shared_title,
+          shared_url: g.posts.shared_url,
+          quoted_post_id: g.posts.quoted_post_id,
+          sources: g.posts.sources,
+          preview_img: g.posts.preview_img,
+          created_at: g.created_at,
+          category: g.posts.category,
+          type: 'gated' as DiaryEntryType,
+          passed_gate: true,
+        }));
+
+      // Merge and deduplicate
+      const allEntries = [...userEntries, ...gatedEntries];
+      const uniqueEntries = allEntries.filter((entry, index, self) =>
+        index === self.findIndex(e => e.id === entry.id)
+      );
+
+      // Sort by date
+      uniqueEntries.sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateB - dateA;
+      });
+
+      return uniqueEntries;
     },
     enabled: !!user,
   });
 
-  // Debug logging
-  useEffect(() => {
-    console.log("🔍 Profile render state:", {
-      hasProfile: !!profile,
-      hasStats: !!stats,
-      userPostsCount: userPosts?.length || 0,
-      isLoading,
-      hasError: !!error,
-      hasPostsError: !!postsError
-    });
-  }, [profile, stats, userPosts, isLoading, error, postsError]);
+  // Filter diary entries
+  const filteredEntries = diaryEntries.filter(entry => {
+    if (diaryFilter === 'all') return true;
+    if (diaryFilter === 'original') return entry.type === 'original';
+    if (diaryFilter === 'reshared') return entry.type === 'reshared';
+    if (diaryFilter === 'gated') return entry.type === 'gated';
+    return true;
+  });
 
   const getInitials = (name: string) => {
     return name
@@ -180,97 +207,125 @@ export const Profile = () => {
     );
   }
 
-  console.log("🎨 Rendering Profile - Stats:", { 
-    followers: stats?.followers, 
-    following: stats?.following,
-    posts: stats?.posts,
-    userPostsLength: userPosts?.length 
-  });
-
   const cognitiveDensity = (profile?.cognitive_density as Record<string, number>) || {};
   const totalPaths = Object.values(cognitiveDensity).reduce((sum, val) => sum + val, 0);
   const activeTopics = Object.values(cognitiveDensity).filter(val => val > 0).length;
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-24 urban-texture">
       <div className="max-w-[600px] mx-auto">
-        {/* Header centrato con sottotitolo cognitivo */}
-        <div className="px-6 pt-12 pb-6 text-center">
-          {/* Avatar grande con alone cognitivo */}
+        {/* Header - Avatar, Name, Bio */}
+        <div className="px-6 pt-12 pb-8 text-center">
+          {/* Large Avatar with cognitive glow */}
           <div className="flex justify-center mb-4">
             {profile?.avatar_url ? (
               <img
                 src={profile.avatar_url}
                 alt="Avatar"
-                className="w-24 h-24 rounded-full object-cover shadow-[0_0_20px_rgba(10,122,255,0.15)]"
+                className="w-24 h-24 rounded-full object-cover shadow-[0_0_30px_rgba(10,122,255,0.2)] ring-2 ring-white/10"
               />
             ) : (
-              <div className="w-24 h-24 rounded-full bg-primary flex items-center justify-center text-3xl font-semibold text-primary-foreground shadow-[0_0_20px_rgba(10,122,255,0.15)]">
+              <div className="w-24 h-24 rounded-full bg-primary flex items-center justify-center text-3xl font-semibold text-primary-foreground shadow-[0_0_30px_rgba(10,122,255,0.2)] ring-2 ring-white/10">
                 {getInitials(getDisplayUsername(profile?.username || "U"))}
               </div>
             )}
           </div>
 
-          <h1 className="text-2xl font-bold mb-2">
+          {/* Name */}
+          <h1 className="text-2xl font-bold mb-1">
             {profile?.full_name?.trim() && !profile.full_name.includes('@') && profile.full_name.includes(' ')
               ? profile.full_name 
               : getDisplayUsername(profile?.username || '')}
           </h1>
-          <p className="text-xs text-[#9AA3AB] tracking-wide">
-            Le tue letture. I tuoi percorsi. In un'unica vista.
-          </p>
-        </div>
 
-        {/* Micro-cards: Percorsi / Ambiti / Connessioni */}
-        <div className="px-4 mb-8">
-          <div className="grid grid-cols-3 gap-3">
-            <div className="bg-[#141A1E] p-4 rounded-xl text-center">
-              <div className="text-2xl font-bold text-foreground mb-1">{Math.round(totalPaths)}</div>
-              <div className="text-xs text-muted-foreground">Percorsi completati</div>
+          {/* Micro-tagline (bio) */}
+          {profile?.bio && (
+            <p className="text-sm text-muted-foreground max-w-xs mx-auto mb-4">
+              {profile.bio}
+            </p>
+          )}
+
+          {/* Metrics Pills */}
+          <div className="flex justify-center gap-3 flex-wrap">
+            <div className="px-4 py-1.5 bg-[#141A1E] rounded-full text-sm">
+              <span className="font-bold text-foreground">{Math.round(totalPaths)}</span>
+              <span className="text-muted-foreground ml-1">percorsi</span>
             </div>
-            <div className="bg-[#141A1E] p-4 rounded-xl text-center">
-              <div className="text-2xl font-bold text-foreground mb-1">{activeTopics}</div>
-              <div className="text-xs text-muted-foreground">Ambiti attivi</div>
+            <div className="px-4 py-1.5 bg-[#141A1E] rounded-full text-sm">
+              <span className="font-bold text-foreground">{activeTopics}</span>
+              <span className="text-muted-foreground ml-1">ambiti</span>
             </div>
-            <div className="bg-[#141A1E] p-4 rounded-xl text-center">
-              <div className="text-2xl font-bold text-foreground mb-1">{stats?.following || 0}</div>
-              <div className="text-xs text-muted-foreground">Connessioni</div>
+            <div className="px-4 py-1.5 bg-[#141A1E] rounded-full text-sm">
+              <span className="font-bold text-foreground">{stats?.following || 0}</span>
+              <span className="text-muted-foreground ml-1">conn.</span>
             </div>
           </div>
         </div>
 
-        {/* Nebulosa Cognitiva */}
-        <div className="px-6 py-8 border-t border-border">
+        {/* Cognitive Nebula */}
+        <div className="px-6 py-6 mx-4 mb-6 rounded-2xl bg-[#0E1419]/80 backdrop-blur-xl border border-white/5">
           <CognitiveMap cognitiveDensity={cognitiveDensity} />
         </div>
 
-        {/* Modifica profilo discreto in fondo */}
-        <div className="px-6 py-8 border-t border-border flex justify-center">
-          <Button
-            variant="outline"
-            className="rounded-full text-sm"
-            onClick={() => navigate("/profile/edit")}
-          >
-            Modifica profilo
-          </Button>
+        {/* Cognitive Diary */}
+        <div className="px-4 pb-6">
+          <div className="mb-4">
+            <h3 className="text-lg font-semibold mb-1">Diario Cognitivo</h3>
+            <p className="text-sm text-muted-foreground">
+              Tutto ciò che hai compreso, condiviso e creato.
+            </p>
+          </div>
+
+          {/* Filters */}
+          <div className="mb-4">
+            <DiaryFilters activeFilter={diaryFilter} onFilterChange={setDiaryFilter} />
+          </div>
+
+          {/* Diary Entries */}
+          {loadingDiary ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <Skeleton key={i} className="h-20 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : filteredEntries.length > 0 ? (
+            <div className="space-y-2">
+              {filteredEntries.map((entry, index) => (
+                <div 
+                  key={entry.id}
+                  className="animate-fade-in"
+                  style={{ animationDelay: `${index * 30}ms` }}
+                >
+                  <DiaryEntry entry={entry} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <p className="text-sm">
+                {diaryFilter === 'all' 
+                  ? 'Nessun contenuto nel tuo diario. Inizia a creare o condividere!'
+                  : 'Nessun contenuto per questo filtro.'}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Profile Actions */}
+        <div className="px-4 py-6 border-t border-border/20">
+          <ProfileActions />
         </div>
       </div>
 
       <BottomNavigation 
-        activeTab={navTab} 
+        activeTab="profile" 
         onTabChange={(tab) => {
           if (tab === 'home') navigate('/');
           else if (tab === 'search') navigate('/search');
           else if (tab === 'saved') navigate('/saved');
           else if (tab === 'notifications') navigate('/notifications');
         }}
-        onProfileClick={() => setShowProfileSheet(true)}
-      />
-      
-      {/* Profile Sheet */}
-      <ProfileSideSheet 
-        isOpen={showProfileSheet}
-        onClose={() => setShowProfileSheet(false)}
+        onProfileClick={() => {}} // Already on profile
       />
     </div>
   );

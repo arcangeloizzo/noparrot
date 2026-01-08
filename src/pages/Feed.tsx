@@ -7,7 +7,7 @@ import { ImmersiveEditorialCarousel } from "@/components/feed/ImmersiveEditorial
 import { FocusDetailSheet } from "@/components/feed/FocusDetailSheet";
 import { CommentsDrawer } from "@/components/feed/CommentsDrawer";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
-import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
+
 import { FloatingActionButton } from "@/components/fab/FloatingActionButton";
 import { ComposerModal } from "@/components/composer/ComposerModal";
 import { SimilarContentOverlay } from "@/components/feed/SimilarContentOverlay";
@@ -77,7 +77,6 @@ export const Feed = () => {
     cognitiveTrackingEnabled,
     refreshNonce
   );
-  const [showProfileSheet, setShowProfileSheet] = useState(false);
   const [showComposer, setShowComposer] = useState(false);
 
   // Handler per salvare l'indice attivo durante lo scroll
@@ -395,13 +394,7 @@ export const Feed = () => {
       <BottomNavigation 
         activeTab="home" 
         onTabChange={handleTabChange}
-        onProfileClick={() => setShowProfileSheet(true)}
         onHomeRefresh={handleHomeRefresh}
-      />
-
-      <ProfileSideSheet 
-        isOpen={showProfileSheet}
-        onClose={() => setShowProfileSheet(false)}
       />
 
       <ComposerModal

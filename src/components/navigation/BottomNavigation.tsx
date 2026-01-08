@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { HomeIcon, SearchIcon, BookmarkIcon, UserIcon } from "@/components/ui/icons";
 import { Send } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -17,6 +18,7 @@ interface BottomNavigationProps {
 
 export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick, onHomeRefresh }: BottomNavigationProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: threads } = useMessageThreads();
 
@@ -69,30 +71,36 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick, onHom
     { id: "profile", icon: null, label: "Profile", isAvatar: true },
   ];
 
+  const handleTabClick = (id: string) => {
+    if (id === "profile") {
+      // Navigate directly to profile page instead of opening drawer
+      navigate("/profile");
+    } else if (id === "messages") {
+      navigate("/messages");
+    } else if (id === "home" && activeTab === "home") {
+      onHomeRefresh?.();
+    } else {
+      onTabChange(id);
+    }
+  };
+
   return (
     <nav className="liquid-glass-navbar fixed bottom-0 left-0 right-0 z-40">
       <div className="flex justify-around items-center h-14 max-w-[600px] mx-auto">
         {tabs.map(({ id, icon: Icon, label, isAvatar, isLucide }) => (
           <button
             key={id}
-            onClick={() => {
-              if (id === "profile") {
-                onProfileClick?.();
-              } else if (id === "messages") {
-                window.location.href = "/messages";
-              } else if (id === "home" && activeTab === "home") {
-                onHomeRefresh?.();
-              } else {
-                onTabChange(id);
-              }
-            }}
+            onClick={() => handleTabClick(id)}
             className={cn(
               "flex flex-col items-center justify-center gap-0.5 px-4 h-full transition-all duration-200 relative",
               activeTab === id ? "text-white" : "text-gray-400 hover:text-white"
             )}
           >
             {isAvatar ? (
-              <div className="ring-2 ring-white/20 rounded-full">
+              <div className={cn(
+                "ring-2 rounded-full",
+                activeTab === "profile" ? "ring-white" : "ring-white/20"
+              )}>
                 {getAvatarContent()}
               </div>
             ) : Icon && (
