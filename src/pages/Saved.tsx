@@ -6,15 +6,77 @@ import { useSavedFocus } from "@/hooks/useFocusBookmarks";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { ProfileSideSheet } from "@/components/navigation/ProfileSideSheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Play, Image as ImageIcon, Link2, FileText, Newspaper } from "lucide-react";
+import { Play, Image as ImageIcon, Link2, FileText, Newspaper, Music, Video, Globe, Linkedin } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Post } from "@/hooks/usePosts";
 import type { DailyFocus } from "@/hooks/useDailyFocus";
 
+// Detect platform from URL
+const detectPlatform = (url: string | null): 'spotify' | 'youtube' | 'linkedin' | 'twitter' | 'tiktok' | 'article' | 'text' => {
+  if (!url) return 'text';
+  const lower = url.toLowerCase();
+  if (lower.includes('spotify.com') || lower.includes('open.spotify')) return 'spotify';
+  if (lower.includes('youtube.com') || lower.includes('youtu.be')) return 'youtube';
+  if (lower.includes('linkedin.com')) return 'linkedin';
+  if (lower.includes('twitter.com') || lower.includes('x.com')) return 'twitter';
+  if (lower.includes('tiktok.com')) return 'tiktok';
+  return 'article';
+};
+
+// Platform-specific fallback design
+const PlatformFallback = ({ platform }: { platform: ReturnType<typeof detectPlatform> }) => {
+  const configs = {
+    spotify: {
+      gradient: 'from-[#1DB954] via-[#1DB954]/80 to-[#191414]',
+      icon: Music,
+      iconColor: 'text-white',
+    },
+    youtube: {
+      gradient: 'from-[#FF0000] via-[#FF0000]/80 to-[#282828]',
+      icon: Play,
+      iconColor: 'text-white',
+    },
+    linkedin: {
+      gradient: 'from-[#0A66C2] via-[#0A66C2]/80 to-[#0D1B2A]',
+      icon: Linkedin,
+      iconColor: 'text-white',
+    },
+    twitter: {
+      gradient: 'from-[#1DA1F2] via-[#1DA1F2]/80 to-[#14171A]',
+      icon: Globe,
+      iconColor: 'text-white',
+    },
+    tiktok: {
+      gradient: 'from-[#FF0050] via-[#00F2EA]/60 to-[#000000]',
+      icon: Video,
+      iconColor: 'text-white',
+    },
+    article: {
+      gradient: 'from-[#3B82F6] via-[#3B82F6]/70 to-[#1E3A5F]',
+      icon: Newspaper,
+      iconColor: 'text-white',
+    },
+    text: {
+      gradient: 'from-[#1F3347] via-[#1F3347]/90 to-[#0E141A]',
+      icon: FileText,
+      iconColor: 'text-white/60',
+    },
+  };
+
+  const config = configs[platform];
+  const Icon = config.icon;
+
+  return (
+    <div className={`absolute inset-0 bg-gradient-to-br ${config.gradient} flex items-center justify-center`}>
+      <Icon className={`w-10 h-10 ${config.iconColor} opacity-40`} />
+    </div>
+  );
+};
+
 const SavedPostThumbnail = ({ post }: { post: Post }) => {
   const navigate = useNavigate();
 
-  // Determine background image - prioritize content images, fallback to author avatar
+  // Determine background image - prioritize content images
   const getBackgroundImage = (): string | null => {
     // First check media
     if (post.media && post.media.length > 0) {
@@ -24,10 +86,6 @@ const SavedPostThumbnail = ({ post }: { post: Post }) => {
     // Then check preview image (for links)
     if (post.preview_img) {
       return post.preview_img;
-    }
-    // Fallback to author avatar if available (better than initials)
-    if (post.author?.avatar_url) {
-      return post.author.avatar_url;
     }
     return null;
   };
@@ -48,6 +106,7 @@ const SavedPostThumbnail = ({ post }: { post: Post }) => {
   };
 
   const backgroundImage = getBackgroundImage();
+  const platform = detectPlatform(post.shared_url);
   const displayText = post.shared_title || post.content;
   const authorInitials = post.author?.full_name
     ?.split(' ')
@@ -69,9 +128,7 @@ const SavedPostThumbnail = ({ post }: { post: Post }) => {
           className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-[#1F3347] to-[#0E141A] flex items-center justify-center">
-          <span className="text-3xl font-bold text-white/20">{authorInitials}</span>
-        </div>
+        <PlatformFallback platform={platform} />
       )}
 
       {/* Dark gradient overlay */}
