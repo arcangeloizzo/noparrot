@@ -993,18 +993,23 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                   )}
                   rows={4}
                 />
-                {/* Hint text inside textarea area - bottom left */}
-                <div className="absolute bottom-3 left-3 flex items-center gap-1.5 text-xs text-muted-foreground/50 pointer-events-none">
+
+                {/* Hint text inside textarea area - bottom left (no overlap with counter) */}
+                <div className="absolute bottom-3 left-3 right-20 flex items-center gap-1.5 text-xs text-muted-foreground/50 pointer-events-none">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
-                  <span>Le fonti e i link attivano il percorso di comprensione</span>
+                  <span className="truncate">Le fonti e i link attivano il percorso di comprensione</span>
                 </div>
-                
+
                 {/* Character counter - bottom right inside textarea */}
-                <div className={cn(
-                  "absolute bottom-3 right-3 text-xs pointer-events-none",
-                  content.length > 2500 ? "text-amber-400" : "text-muted-foreground/50",
-                  content.length >= 3000 && "text-red-400"
-                )}>
+                <div
+                  className={cn(
+                    "absolute bottom-3 right-3 text-xs pointer-events-none",
+                    content.length > 2500
+                      ? "text-[hsl(var(--warning))]"
+                      : "text-muted-foreground/50",
+                    content.length >= 3000 && "text-destructive"
+                  )}
+                >
                   {content.length}/3000
                 </div>
                 
@@ -1019,23 +1024,22 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                 )}
               </div>
               
-              {/* Gate status indicator - outside textarea, aligned with action bar */}
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground/60">Aggiungi prove o contesto visivo</span>
-                {(detectedUrl || quotedPost) && (
+              {/* Gate status indicator - outside textarea (no extra helper text) */}
+              {(detectedUrl || quotedPost) && (
+                <div className="flex items-center justify-end text-xs">
                   <div className={cn(
                     "flex items-center gap-1.5 px-2 py-1 rounded-full",
-                    gateStatus.label === 'Nessun gate' 
+                    gateStatus.label === 'Nessun gate'
                       ? "bg-muted/20 text-muted-foreground/60"
-                      : "bg-emerald-500/15 text-emerald-400"
+                      : "bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))]"
                   )}>
                     <span className="inline-block w-1.5 h-1.5 rounded-full bg-current" />
                     <span className="font-medium">
                       {gateStatus.label === 'Nessun gate' ? 'Nessun gate' : 'Comprensione richiesta'}
                     </span>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* URL Preview - Compact Modern */}
               {urlPreview && (
