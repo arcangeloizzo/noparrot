@@ -1696,71 +1696,69 @@ export const ImmersivePostCard = ({
               })()}
             </div>
             
-            {/* Action bar - same as immersive cards */}
-            <div className="relative z-10 px-6 py-3 border-t border-white/[0.06] bg-black/10">
-              <div className="flex items-center justify-between">
-                {/* Left: Reactions */}
-                <div className="flex items-center gap-5">
-                  <button
+            {/* Action Bar - Stile ImmersiveCard standard */}
+            <div className="relative z-10 px-6 py-4 border-t border-white/[0.06]">
+              <div className="flex items-center justify-between gap-3">
+                {/* Primary Share Button - h-10 px-4 */}
+                <button 
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    setShowFullText(false);
+                    // Text-only posts: check if gate needed
+                    const userWordCount = getWordCount(post.content);
+                    const questionCount = getQuestionCountWithoutSource(userWordCount);
+                    if (questionCount === 0) {
+                      onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [] });
+                      toast({ title: 'Post pronto per la condivisione', description: 'Aggiungi un tuo commento' });
+                    } else {
+                      setShareAction('feed');
+                      await startComprehensionGateForPost();
+                    }
+                  }}
+                  className="h-10 px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                >
+                  <Logo variant="icon" size="sm" className="h-4 w-4" />
+                  <span className="text-sm font-semibold leading-none">Condividi</span>
+                  {(post.shares_count ?? 0) > 0 && (
+                    <span className="text-xs opacity-70">({post.shares_count})</span>
+                  )}
+                </button>
+
+                {/* Reactions - Horizontal layout h-10 matching share button */}
+                <div className="flex items-center gap-1 bg-black/20 backdrop-blur-xl h-10 px-3 rounded-2xl border border-white/5">
+                  
+                  {/* Like */}
+                  <button 
+                    className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
                     onClick={(e) => { e.stopPropagation(); handleHeart(e); }}
-                    className="flex items-center gap-1.5 text-white/70 hover:text-white transition-colors"
                   >
                     <Heart 
-                      className={cn(
-                        "w-5 h-5 transition-all",
-                        post.user_reactions?.has_hearted && "fill-red-500 text-red-500"
-                      )} 
+                      className={cn("w-5 h-5", post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
+                      fill={post.user_reactions?.has_hearted ? "currentColor" : "none"}
                     />
-                    {(post.reactions?.hearts || 0) > 0 && (
-                      <span className="text-xs font-medium">{post.reactions?.hearts}</span>
-                    )}
+                    <span className="text-xs font-bold text-white">{post.reactions?.hearts || 0}</span>
                   </button>
-                  <button
+
+                  {/* Comments */}
+                  <button 
+                    className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
                     onClick={(e) => { e.stopPropagation(); setShowFullText(false); setTimeout(() => setShowComments(true), 100); }}
-                    className="flex items-center gap-1.5 text-white/70 hover:text-white transition-colors"
                   >
-                    <MessageCircle className="w-5 h-5" />
-                    {(post.reactions?.comments || 0) > 0 && (
-                      <span className="text-xs font-medium">{post.reactions?.comments}</span>
-                    )}
+                    <MessageCircle className="w-5 h-5 text-white" />
+                    <span className="text-xs font-bold text-white">{post.reactions?.comments || 0}</span>
                   </button>
-                </div>
-                
-                {/* Right: Share + Bookmark */}
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      setShowFullText(false);
-                      // Text-only posts go directly to composer (no gate needed for text-only)
-                      const userWordCount = getWordCount(post.content);
-                      const questionCount = getQuestionCountWithoutSource(userWordCount);
-                      if (questionCount === 0) {
-                        onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [] });
-                        toast({ title: 'Post pronto per la condivisione', description: 'Aggiungi un tuo commento' });
-                      } else {
-                        setShareAction('feed');
-                        await startComprehensionGateForPost();
-                      }
-                    }}
-                    className="flex items-center gap-1.5 text-white/70 hover:text-white transition-colors"
-                  >
-                    <Quote className="w-5 h-5" />
-                    {(post.shares_count || 0) > 0 && (
-                      <span className="text-xs font-medium">{post.shares_count}</span>
-                    )}
-                  </button>
-                  <button
+
+                  {/* Bookmark */}
+                  <button 
+                    className="flex items-center justify-center h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
                     onClick={(e) => { e.stopPropagation(); handleBookmark(e); }}
-                    className="text-white/70 hover:text-white transition-colors"
                   >
                     <Bookmark 
-                      className={cn(
-                        "w-5 h-5 transition-all",
-                        post.user_reactions?.has_bookmarked && "fill-primary text-primary"
-                      )} 
+                      className={cn("w-5 h-5", post.user_reactions?.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
+                      fill={post.user_reactions?.has_bookmarked ? "currentColor" : "none"}
                     />
                   </button>
+
                 </div>
               </div>
             </div>
