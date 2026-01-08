@@ -28,7 +28,7 @@ export default function PrivacyPolicy() {
             <div className="text-center border-b border-border pb-6">
               <h2 className="text-2xl font-bold mb-2">PRIVACY POLICY</h2>
               <p className="text-muted-foreground">NoParrot</p>
-              <p className="text-sm text-muted-foreground mt-2">Versione 2.0 — 6 gennaio 2026</p>
+              <p className="text-sm text-muted-foreground mt-2">Versione 2.0 — 8 gennaio 2026</p>
             </div>
 
             {/* 1. Titolare */}
@@ -132,15 +132,14 @@ export default function PrivacyPolicy() {
               <h3 className="text-lg font-semibold">6. Profilazione (Cognitive Density)</h3>
               <p className="text-muted-foreground">
                 NoParrot può creare una mappa di interessi basata su interazioni 
-                (es. letture, commenti, reazioni) per personalizzare alcune sezioni ("Per Te").
+                (es. letture, commenti, reazioni) per funzionalità future.
               </p>
               <p className="text-muted-foreground mt-3">
-                Puoi disattivare in qualsiasi momento il feed personalizzato 
+                Puoi disattivare in qualsiasi momento il tracciamento cognitivo 
                 dalle <strong>Impostazioni → Privacy</strong>.
               </p>
               <p className="text-muted-foreground mt-3">
-                <strong>Se lo disattivi:</strong> il feed non è personalizzato 
-                e non aggiorniamo più la mappa di interessi.
+                <strong>Se lo disattivi:</strong> non aggiorniamo più la mappa di interessi.
               </p>
               <div className="mt-4 p-3 bg-muted/30 rounded-lg border border-border">
                 <p className="text-sm font-medium text-foreground mb-2">Art. 22 GDPR</p>
@@ -276,7 +275,7 @@ export default function PrivacyPolicy() {
             {/* Footer */}
             <div className="pt-6 border-t border-border text-center text-xs text-muted-foreground">
               <p>NoParrot — Versione 2.0</p>
-              <p>Ultimo aggiornamento: 6 gennaio 2026</p>
+              <p>Ultimo aggiornamento: 8 gennaio 2026</p>
             </div>
           </CardContent>
         </Card>

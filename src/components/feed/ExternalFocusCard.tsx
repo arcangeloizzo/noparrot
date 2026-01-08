@@ -21,7 +21,7 @@ interface Source {
 
 interface ExternalFocusCardProps {
   focusId: string;
-  type: 'daily' | 'interest';
+  type?: 'daily';
   category?: string;
   title: string;
   summary: string;
@@ -40,7 +40,7 @@ interface ExternalFocusCardProps {
 
 export const ExternalFocusCard = ({
   focusId,
-  type,
+  type = 'daily',
   category,
   title,
   summary,
@@ -55,11 +55,6 @@ export const ExternalFocusCard = ({
   const { user } = useAuth();
   const { data: reactionsData } = useFocusReactions(focusId, type);
   const toggleReaction = useToggleFocusReaction();
-  const isDailyFocus = type === 'daily';
-  
-  const badgeBg = isDailyFocus ? 'bg-[#0A7AFF]' : 'bg-[#A98FF8]/20';
-  const badgeText = isDailyFocus ? 'text-white' : 'text-[#A98FF8]';
-  const borderColor = isDailyFocus ? 'border-[#0A7AFF]' : 'border-[#A98FF8]';
   
   const trustColors = {
     'Alto': 'text-green-400',
@@ -72,44 +67,42 @@ export const ExternalFocusCard = ({
       className={cn(
         "bg-[#0E141A] rounded-xl overflow-hidden border border-white/5 cursor-pointer",
         "transition-all hover:border-white/10",
-        `border-l-4 ${borderColor}`
+        "border-l-4 border-[#0A7AFF]"
       )}
       onClick={onClick}
     >
       {/* Header */}
       <div className="p-4 pb-3 pt-5">
         <div className="flex items-center gap-2">
-          <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0 font-mono")}>
-            {isDailyFocus ? '◉ IL PUNTO' : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`}
+          <Badge className="bg-[#0A7AFF] text-white font-semibold px-3 py-1 border-0 font-mono">
+            ◉ IL PUNTO
           </Badge>
-          {isDailyFocus && (
-            <Dialog>
-              <DialogTrigger asChild>
-                <button
-                  onClick={(e) => e.stopPropagation()}
-                  className="p-1 rounded-full hover:bg-white/10 transition-colors"
-                >
-                  <Info className="w-4 h-4 text-gray-400" />
-                </button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Cos'è Il Punto</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-3 text-sm text-muted-foreground">
-                  <p>
-                    Questo contenuto è una sintesi automatica generata da NoParrot usando fonti pubbliche.
-                  </p>
-                  <p>
-                    Serve per offrire un contesto comune da cui partire per la discussione.
-                  </p>
-                  <p className="font-medium text-foreground">
-                    Non rappresenta una posizione ufficiale né una verifica dei fatti.
-                  </p>
-                </div>
-              </DialogContent>
-            </Dialog>
-          )}
+          <Dialog>
+            <DialogTrigger asChild>
+              <button
+                onClick={(e) => e.stopPropagation()}
+                className="p-1 rounded-full hover:bg-white/10 transition-colors"
+              >
+                <Info className="w-4 h-4 text-gray-400" />
+              </button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Cos'è Il Punto</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>
+                  Questo contenuto è una sintesi automatica generata da NoParrot usando fonti pubbliche.
+                </p>
+                <p>
+                  Serve per offrire un contesto comune da cui partire per la discussione.
+                </p>
+                <p className="font-medium text-foreground">
+                  Non rappresenta una posizione ufficiale né una verifica dei fatti.
+                </p>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -127,7 +120,6 @@ export const ExternalFocusCard = ({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              // This could open SourcesDrawer if needed
             }}
             className="inline-flex items-center px-2.5 py-1 bg-primary/10 hover:bg-primary/20 rounded-md text-xs text-primary font-medium cursor-pointer transition-colors border border-primary/20"
           >

@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ImmersiveFeedContainer, ImmersiveFeedContainerRef } from "@/components/feed/ImmersiveFeedContainer";
 import { ImmersivePostCard } from "@/components/feed/ImmersivePostCard";
-import { ImmersiveFocusCard } from "@/components/feed/ImmersiveFocusCard";
 import { ImmersiveEditorialCarousel } from "@/components/feed/ImmersiveEditorialCarousel";
 import { FocusDetailSheet } from "@/components/feed/FocusDetailSheet";
 import { CommentsDrawer } from "@/components/feed/CommentsDrawer";
@@ -17,7 +16,6 @@ import { usePosts, Post } from "@/hooks/usePosts";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { useDailyFocus, DailyFocus } from "@/hooks/useDailyFocus";
-import { useInterestFocus } from "@/hooks/useInterestFocus";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { haptics } from "@/lib/haptics";
@@ -39,44 +37,6 @@ export const Feed = () => {
   const dailyFocusItems = dailyFocusData?.items || [];
   const dailyFocusTotalCount = dailyFocusData?.totalCount || dailyFocusItems.length;
   
-  // Get user's profile to extract cognitive density and tracking preference
-  const [userCategories, setUserCategories] = useState<string[]>([]);
-  const [cognitiveTrackingEnabled, setCognitiveTrackingEnabled] = useState(true);
-  
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (!user?.id) return;
-      
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('cognitive_density, cognitive_tracking_enabled')
-        .eq('id', user.id)
-        .single();
-      
-      // Set tracking preference (default true if null)
-      setCognitiveTrackingEnabled(profile?.cognitive_tracking_enabled ?? true);
-      
-      if (profile?.cognitive_density) {
-        // Estrai top 2 categorie
-        const categories = Object.entries(profile.cognitive_density as Record<string, number>)
-          .sort(([, a], [, b]) => (b as number) - (a as number))
-          .slice(0, 2)
-          .map(([cat]) => cat);
-        
-        setUserCategories(categories);
-      }
-    };
-    
-    fetchUserProfile();
-  }, [user?.id]);
-  
-  // Fetch real Interest Focus based on user categories with refreshNonce
-  // Pass cognitiveTrackingEnabled to control personalization
-  const { data: interestFocus = [], isLoading: loadingInterest } = useInterestFocus(
-    userCategories, 
-    cognitiveTrackingEnabled,
-    refreshNonce
-  );
   const [showComposer, setShowComposer] = useState(false);
 
   // Handler per salvare l'indice attivo durante lo scroll
@@ -113,7 +73,6 @@ export const Feed = () => {
     // Invalida le query per refreshare i dati
     queryClient.invalidateQueries({ queryKey: ['posts'] });
     queryClient.invalidateQueries({ queryKey: ['daily-focus'] });
-    queryClient.invalidateQueries({ queryKey: ['interest-focus'] });
     
     // Haptic feedback + visual confirmation
     haptics.light();
@@ -128,9 +87,9 @@ export const Feed = () => {
   const [focusCommentsOpen, setFocusCommentsOpen] = useState(false);
   const [selectedFocusForComments, setSelectedFocusForComments] = useState<any>(null);
 
-  // Build mixed feed: Daily Focus Carousel + User Posts + Interest Focus every 6 posts
+  // Build mixed feed: Daily Focus Carousel + User Posts
   const mixedFeed = useMemo(() => {
-    const items: Array<{ type: 'daily-carousel' | 'interest' | 'post'; data: any; id: string }> = [];
+    const items: Array<{ type: 'daily-carousel' | 'post'; data: any; id: string }> = [];
     
     // 1. Daily Focus Carousel always at top (array of items)
     if (dailyFocusItems.length > 0) {
@@ -141,24 +100,13 @@ export const Feed = () => {
       });
     }
     
-    // 2. Intercalate user posts with Interest Focus every 6
-    let interestIndex = 0;
-    dbPosts.forEach((post, index) => {
+    // 2. User posts
+    dbPosts.forEach((post) => {
       items.push({ type: 'post', data: post, id: post.id });
-      
-      // Insert Interest Focus after every 6 posts (REAL DATA)
-      if ((index + 1) % 6 === 0 && interestFocus[interestIndex]) {
-        items.push({ 
-          type: 'interest', 
-          data: interestFocus[interestIndex],
-          id: interestFocus[interestIndex].id
-        });
-        interestIndex++;
-      }
     });
     
     return items;
-  }, [dailyFocusItems, dbPosts, interestFocus]);
+  }, [dailyFocusItems, dbPosts]);
 
   // Ripristina posizione scroll (indice) quando Feed si monta e i dati sono caricati
   useEffect(() => {
@@ -337,36 +285,6 @@ export const Feed = () => {
                 }}
               />
             );
-          } else if (item.type === 'interest') {
-            // Interest Focus (Per Te) - still uses ImmersiveFocusCard
-            return (
-              <ImmersiveFocusCard
-                key={item.id}
-                focusId={item.data.id}
-                type="interest"
-                category={item.data.category}
-                title={item.data.title}
-                summary={item.data.summary}
-                sources={item.data.sources}
-                trustScore={item.data.trust_score}
-                imageUrl={item.data.image_url}
-                reactions={item.data.reactions || { likes: 0, comments: 0, shares: 0 }}
-                onClick={() => {
-                  setSelectedFocus(item);
-                  setFocusDetailOpen(true);
-                }}
-                onComment={() => {
-                  setSelectedFocusForComments(item);
-                  setFocusCommentsOpen(true);
-                }}
-                onShare={() => {
-                  toast({
-                    title: "Condividi",
-                    description: "Conta rilanci nel feed (da implementare)"
-                  });
-                }}
-              />
-            );
           } else {
             return (
               <ImmersivePostCard
@@ -419,7 +337,7 @@ export const Feed = () => {
           <FocusDetailSheet
             open={focusDetailOpen}
             onOpenChange={setFocusDetailOpen}
-            type={selectedFocus.type === 'daily' ? 'daily' : 'interest'}
+            type="daily"
             category={selectedFocus.data.category}
             title={selectedFocus.data.title}
             deepContent={selectedFocus.data.deep_content}
@@ -454,36 +372,38 @@ export const Feed = () => {
             created_at: selectedFocusForComments.data.created_at || new Date().toISOString(),
             author: {
               id: 'system',
-              username: selectedFocusForComments.type === 'daily' ? 'Il Punto' : 'Per Te',
-              full_name: selectedFocusForComments.type === 'daily' ? 'Il Punto' : `Per Te: ${selectedFocusForComments.data.category}`,
+              username: 'Il Punto',
+              full_name: 'Il Punto',
               avatar_url: null
             },
             topic_tag: null,
             shared_title: selectedFocusForComments.data.title,
             shared_url: 'focus://internal',
-            preview_img: selectedFocusForComments.data.image_url,
+            preview_img: null,
             full_article: null,
-            article_content: selectedFocusForComments.data.deep_content,
+            article_content: null,
             trust_level: null,
             stance: null,
-            sources: selectedFocusForComments.data.sources?.map((s: any) => s.url).filter(Boolean) || [],
+            sources: null,
             quoted_post_id: null,
             category: selectedFocusForComments.data.category || null,
             reactions: selectedFocusForComments.data.reactions || { likes: 0, comments: 0, shares: 0 }
           } as unknown as Post}
           isOpen={focusCommentsOpen}
-          onClose={() => setFocusCommentsOpen(false)}
-          mode="view"
+          onClose={() => {
+            setFocusCommentsOpen(false);
+            setSelectedFocusForComments(null);
+          }}
         />
       )}
     </>
   );
 };
 
-const FeedWithGate = () => (
-  <CGProvider policy={{ minReadSeconds: 10, minScrollRatio: 0.8 }}>
+const FeedWithProvider = () => (
+  <CGProvider>
     <Feed />
   </CGProvider>
 );
 
-export default FeedWithGate;
+export default FeedWithProvider;

@@ -1,5 +1,5 @@
 import React from "react";
-import { Heart, MessageCircle, Bookmark, Info, ShieldCheck, Quote, HelpCircle } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, Info, ShieldCheck, Quote } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFocusReactions, useToggleFocusReaction } from "@/hooks/useFocusReactions";
 import { useAuth } from "@/contexts/AuthContext";
@@ -14,7 +14,6 @@ import {
   DialogDescription,
   DialogClose,
 } from "@/components/ui/dialog";
-import { WhyAmISeeingThis } from "./WhyAmISeeingThis";
 
 interface Source {
   icon: string;
@@ -24,7 +23,7 @@ interface Source {
 
 interface ImmersiveFocusCardProps {
   focusId: string;
-  type: 'daily' | 'interest';
+  type?: 'daily';
   category?: string;
   title: string;
   summary: string;
@@ -43,7 +42,7 @@ interface ImmersiveFocusCardProps {
 
 export const ImmersiveFocusCard = ({
   focusId,
-  type,
+  type = 'daily',
   category,
   title,
   summary,
@@ -58,12 +57,10 @@ export const ImmersiveFocusCard = ({
   const { user } = useAuth();
   const { data: reactionsData } = useFocusReactions(focusId, type);
   const toggleReaction = useToggleFocusReaction();
-  const isDailyFocus = type === 'daily';
 
   // Track which dialogs are open to prevent card click while any dialog is open
   const [infoDialogOpen, setInfoDialogOpen] = React.useState(false);
   const [trustDialogOpen, setTrustDialogOpen] = React.useState(false);
-  const [whyDialogOpen, setWhyDialogOpen] = React.useState(false);
   
   // Suppress card click for a brief moment after dialog closes
   const suppressUntilRef = React.useRef(0);
@@ -77,7 +74,7 @@ export const ImmersiveFocusCard = ({
 
   const handleCardClick = () => {
     // Don't trigger if any dialog is open
-    if (infoDialogOpen || trustDialogOpen || whyDialogOpen) return;
+    if (infoDialogOpen || trustDialogOpen) return;
     // Don't trigger if we're in suppress window
     if (Date.now() < suppressUntilRef.current) return;
     onClick?.();
@@ -121,37 +118,22 @@ export const ImmersiveFocusCard = ({
               <DialogTrigger asChild>
                 <button
                   onClick={(e) => e.stopPropagation()}
-                  className={cn(
-                    "h-8 inline-flex items-center gap-2 px-3 rounded-full backdrop-blur-xl border cursor-pointer hover:opacity-80 transition-opacity whitespace-nowrap",
-                    isDailyFocus 
-                      ? "bg-[#0A7AFF]/20 border-[#0A7AFF]/30 text-[#0A7AFF]"
-                      : "bg-[#A98FF8]/20 border-[#A98FF8]/30 text-[#A98FF8]"
-                  )}
+                  className="h-8 inline-flex items-center gap-2 px-3 rounded-full backdrop-blur-xl border cursor-pointer hover:opacity-80 transition-opacity whitespace-nowrap bg-[#0A7AFF]/20 border-[#0A7AFF]/30 text-[#0A7AFF]"
                 >
                   <span className="text-xs font-bold tracking-wide font-mono">
-                    {isDailyFocus ? '◉ IL PUNTO' : '🧠 PER TE'}
+                    ◉ IL PUNTO
                   </span>
                   <Info className="w-3.5 h-3.5" />
                 </button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                  <DialogTitle>{isDailyFocus ? "Cos'è Il Punto" : "Cos'è Per Te"}</DialogTitle>
+                  <DialogTitle>Cos'è Il Punto</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-3 text-sm text-muted-foreground">
-                  {isDailyFocus ? (
-                    <>
-                      <p>Questo contenuto è una sintesi automatica generata da NoParrot usando fonti pubbliche.</p>
-                      <p>Serve per offrire un contesto comune da cui partire per la discussione.</p>
-                      <p className="font-medium text-foreground">Non rappresenta una posizione ufficiale né una verifica dei fatti.</p>
-                    </>
-                  ) : (
-                    <>
-                      <p>Questo contenuto è selezionato per te in base ai tuoi interessi e alla categoria <strong className="text-foreground">{category || 'Generale'}</strong>.</p>
-                      <p>NoParrot analizza i tuoi pattern di lettura e interazione per proporti approfondimenti rilevanti.</p>
-                      <p className="font-medium text-foreground">I contenuti "Per Te" sono generati aggregando fonti autorevoli sul tema che ti interessa.</p>
-                    </>
-                  )}
+                  <p>Questo contenuto è una sintesi automatica generata da NoParrot usando fonti pubbliche.</p>
+                  <p>Serve per offrire un contesto comune da cui partire per la discussione.</p>
+                  <p className="font-medium text-foreground">Non rappresenta una posizione ufficiale né una verifica dei fatti.</p>
                 </div>
                 <DialogClose asChild>
                   <button className="w-full mt-4 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg text-sm font-medium transition-colors">
@@ -186,17 +168,14 @@ export const ImmersiveFocusCard = ({
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
-                    <DialogTitle>Trust Score - {isDailyFocus ? 'Il Punto' : 'Per Te'}</DialogTitle>
+                    <DialogTitle>Trust Score - Il Punto</DialogTitle>
                     <DialogDescription>
                       Informazioni sull'affidabilità delle fonti
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 text-sm text-muted-foreground">
                     <p>
-                      {isDailyFocus 
-                        ? <>Questo contenuto è generato aggregando <strong className="text-foreground">fonti giornalistiche verificate</strong> e autorevoli.</>
-                        : <>Questo approfondimento personalizzato è generato aggregando <strong className="text-foreground">fonti selezionate</strong> in base alla categoria <strong className="text-foreground">{category || 'Generale'}</strong>.</>
-                      }
+                      Questo contenuto è generato aggregando <strong className="text-foreground">fonti giornalistiche verificate</strong> e autorevoli.
                     </p>
                     <p>
                       Il Trust Score "{trustScore.toUpperCase()}" indica che le fonti utilizzate hanno un buon track record di affidabilità editoriale.
@@ -231,38 +210,7 @@ export const ImmersiveFocusCard = ({
               </Dialog>
             )}
           </div>
-
-          {/* Row 2: Categoria + DSA "Perché vedo questo?" (solo per Per Te) */}
-          {!isDailyFocus && (
-            <div className="flex items-center gap-2">
-              {category && (
-                <div className="inline-flex px-3 py-1 bg-white/10 backdrop-blur-md rounded-lg text-xs text-white/70 font-medium truncate max-w-[200px]">
-                  {category}
-                </div>
-              )}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setWhyDialogOpen(true);
-                }}
-                className="inline-flex items-center gap-1 px-2 py-1 bg-white/5 hover:bg-white/10 backdrop-blur-md rounded-lg text-xs text-white/50 hover:text-white/70 transition-colors"
-              >
-                <HelpCircle className="w-3 h-3" />
-                <span>Perché vedo questo?</span>
-              </button>
-            </div>
-          )}
         </div>
-        
-        {/* DSA WhyAmISeeingThis Dialog */}
-        <WhyAmISeeingThis 
-          open={whyDialogOpen} 
-          onOpenChange={(open) => {
-            setWhyDialogOpen(open);
-            handleDialogChange(open);
-          }}
-          category={category || 'Generale'}
-        />
 
         {/* Center Content */}
         <div className="flex-1 flex flex-col justify-center px-2">
