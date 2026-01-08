@@ -985,10 +985,59 @@ serve(async (req) => {
     if (socialPlatform) {
       console.log(`[fetch-article-preview] Detected ${socialPlatform} link`);
       
-      const jinaResult = await fetchSocialWithJina(url, socialPlatform);
+      let jinaResult = await fetchSocialWithJina(url, socialPlatform);
+      let contentSource = 'jina';
+      
+      // LinkedIn often requires authentication - try Firecrawl as fallback
+      if (socialPlatform === 'linkedin' && (!jinaResult?.content || jinaResult.content.length < 100)) {
+        console.log(`[LinkedIn] ⚠️ Jina returned insufficient content (${jinaResult?.content?.length || 0} chars), trying Firecrawl...`);
+        
+        const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
+        if (FIRECRAWL_API_KEY) {
+          try {
+            const fcResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${FIRECRAWL_API_KEY}`
+              },
+              body: JSON.stringify({
+                url,
+                formats: ['markdown'],
+                onlyMainContent: true,
+                timeout: 15000
+              })
+            });
+            
+            if (fcResponse.ok) {
+              const fcData = await fcResponse.json();
+              if (fcData.success && fcData.data?.markdown && fcData.data.markdown.length > 100) {
+                console.log(`[LinkedIn] ✅ Firecrawl success: ${fcData.data.markdown.length} chars`);
+                contentSource = 'firecrawl';
+                jinaResult = {
+                  title: fcData.data.metadata?.title || jinaResult?.title || 'Post LinkedIn',
+                  content: cleanReaderText(fcData.data.markdown),
+                  summary: fcData.data.metadata?.description || '',
+                  image: fcData.data.metadata?.ogImage || jinaResult?.image || '',
+                  previewImg: fcData.data.metadata?.ogImage || jinaResult?.image || '',
+                  platform: 'linkedin',
+                  type: 'social',
+                  author: fcData.data.metadata?.author || '',
+                  hostname: 'linkedin.com',
+                  contentQuality: 'complete'
+                };
+              } else {
+                console.log('[LinkedIn] ⚠️ Firecrawl returned insufficient content');
+              }
+            }
+          } catch (fcError) {
+            console.error('[LinkedIn] Firecrawl error:', fcError);
+          }
+        }
+      }
       
       // Cache content server-side
-      if (jinaResult?.content && supabase) {
+      if (jinaResult?.content && jinaResult.content.length > 50 && supabase) {
         await cacheContentServerSide(
           supabase,
           url,
@@ -996,6 +1045,7 @@ serve(async (req) => {
           jinaResult.content,
           jinaResult.title
         );
+        console.log(`[${socialPlatform}] ✅ Cached ${jinaResult.content.length} chars via ${contentSource}`);
       }
       
       const hasContent = jinaResult?.content && jinaResult.content.length > 50;
@@ -1013,6 +1063,7 @@ serve(async (req) => {
         author: jinaResult?.author || '',
         hostname: new URL(url).hostname,
         contentQuality: hasContent ? 'complete' : (jinaResult ? 'partial' : 'blocked'),
+        contentSource, // Track extraction method
         // Gate config
         gateConfig: {
           mode: 'timer',
