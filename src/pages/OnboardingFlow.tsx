@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { SplashScreen } from "@/components/onboarding/SplashScreen";
 import { OnboardingSlides } from "@/components/onboarding/OnboardingSlides";
-import { MissionPage } from "@/components/onboarding/MissionPage";
+import { ReadyScreen } from "@/components/onboarding/ReadyScreen";
 import { AuthPage } from "@/components/auth/AuthPage";
 import ConsentScreen from "@/pages/ConsentScreen";
 import { isConsentCompleted } from "@/hooks/useUserConsents";
@@ -10,40 +10,29 @@ interface OnboardingFlowProps {
   onComplete: () => void;
 }
 
+type OnboardingStep = "splash" | "slides" | "ready" | "consent" | "auth";
+
 export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
-  const [currentStep, setCurrentStep] = useState<"splash" | "slides" | "mission" | "consent" | "auth">("splash");
-  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  const [currentStep, setCurrentStep] = useState<OnboardingStep>("splash");
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('signup');
 
   const handleSplashComplete = () => {
     setCurrentStep("slides");
   };
 
   const handleSlidesComplete = () => {
-    setCurrentStep("mission");
+    setCurrentStep("ready");
   };
 
   const handleSlidesSkip = () => {
-    setCurrentStep("mission");
+    setCurrentStep("ready");
   };
 
-  const handleCreateAccount = () => {
+  const handleEnter = () => {
     // Check if consent is already completed
     if (isConsentCompleted()) {
-      setAuthMode('signup');
       setCurrentStep("auth");
     } else {
-      setAuthMode('signup');
-      setCurrentStep("consent");
-    }
-  };
-
-  const handleLogin = () => {
-    // Check if consent is already completed
-    if (isConsentCompleted()) {
-      setAuthMode('login');
-      setCurrentStep("auth");
-    } else {
-      setAuthMode('login');
       setCurrentStep("consent");
     }
   };
@@ -52,35 +41,28 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
     setCurrentStep("auth");
   };
 
-  if (currentStep === "splash") {
-    return <SplashScreen onComplete={handleSplashComplete} />;
+  switch (currentStep) {
+    case "splash":
+      return <SplashScreen onComplete={handleSplashComplete} />;
+    
+    case "slides":
+      return (
+        <OnboardingSlides 
+          onComplete={handleSlidesComplete}
+          onSkip={handleSlidesSkip}
+        />
+      );
+    
+    case "ready":
+      return <ReadyScreen onEnter={handleEnter} />;
+    
+    case "consent":
+      return <ConsentScreen onComplete={handleConsentComplete} />;
+    
+    case "auth":
+      return <AuthPage initialMode={authMode} />;
+    
+    default:
+      return null;
   }
-
-  if (currentStep === "slides") {
-    return (
-      <OnboardingSlides 
-        onComplete={handleSlidesComplete}
-        onSkip={handleSlidesSkip}
-      />
-    );
-  }
-
-  if (currentStep === "mission") {
-    return (
-      <MissionPage 
-        onCreateAccount={handleCreateAccount}
-        onLogin={handleLogin}
-      />
-    );
-  }
-
-  if (currentStep === "consent") {
-    return <ConsentScreen onComplete={handleConsentComplete} />;
-  }
-
-  if (currentStep === "auth") {
-    return <AuthPage initialMode={authMode} />;
-  }
-
-  return null;
 };
