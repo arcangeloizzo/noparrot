@@ -124,14 +124,10 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
         Vuoi condividere un link? L'AI ti farà 3 domande. Se non hai letto o non hai capito, non passa. Nessuna eccezione.
       </p>
       
-      {/* Swipe hint - frecce animate */}
-      <div className="mt-12 flex flex-col items-center gap-3">
-        <div className="flex items-center gap-1">
-          <ChevronLeft className="w-6 h-6 text-white/50 animate-[pulse_1s_ease-in-out_infinite]" />
-          <ChevronLeft className="w-6 h-6 text-white/40 animate-[pulse_1s_ease-in-out_infinite_0.2s]" />
-          <ChevronLeft className="w-6 h-6 text-white/30 animate-[pulse_1s_ease-in-out_infinite_0.4s]" />
-        </div>
-        <span className="text-xs text-white/40">Scorri</span>
+      {/* Swipe hint - stile testuale, più grande */}
+      <div className="mt-12 flex items-center gap-3">
+        <span className="text-white/60 text-lg">←</span>
+        <span className="text-base text-white/60 font-medium">Scorri per continuare</span>
       </div>
     </div>
   );
