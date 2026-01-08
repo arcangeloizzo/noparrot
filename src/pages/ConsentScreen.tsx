@@ -1,15 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Logo } from "@/components/ui/logo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUpsertConsents, setConsentCompleted, savePendingConsent } from "@/hooks/useUserConsents";
 import { supabase } from "@/integrations/supabase/client";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Network } from "lucide-react";
 
 interface ConsentScreenProps {
   onComplete?: () => void;
@@ -77,139 +75,114 @@ export default function ConsentScreen({ onComplete }: ConsentScreenProps) {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
-        {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <Logo size="lg" />
+    <div className="min-h-screen bg-black flex flex-col items-center justify-center px-6 py-12">
+      <div className="w-full max-w-md space-y-8">
+        {/* Icon */}
+        <div className="flex justify-center">
+          <Network className="w-20 h-20 text-primary stroke-[1.5]" />
         </div>
 
-        <Card className="bg-card border-border rounded-2xl overflow-hidden">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-xl font-bold text-center">
-              Prima di iniziare
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Main explanation */}
-            <div className="text-sm text-muted-foreground space-y-4">
-              <p>
-                Usiamo una <strong className="text-foreground">mappa di interessi</strong> per personalizzare il feed.
-                Puoi disattivarla in qualsiasi momento dalle Impostazioni → Privacy.
-              </p>
-              
-              <div>
-                <p className="font-medium text-foreground mb-2">Usiamo questi dati per:</p>
-                <ul className="space-y-1 ml-4">
-                  <li>• personalizzare il feed</li>
-                  <li>• migliorare la qualità delle conversazioni</li>
-                  <li>• rendere più chiari contesti e fonti</li>
-                </ul>
-              </div>
-              
-              <p>
-                Puoi scegliere se ricevere annunci più pertinenti in base ai tuoi interessi.
-                Se non dai il consenso, vedrai comunque annunci legati al tema del contenuto.
-              </p>
-            </div>
+        {/* Title */}
+        <div className="text-center space-y-4">
+          <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight">
+            I dati servono a te.
+          </h1>
+          <p className="text-base text-white/60 leading-relaxed">
+            Non vendiamo la tua identità a terzi. La tua mappa cognitiva serve a te, non al mercato. La pubblicità? Ci sarà, ma alle tue condizioni: trasparente, etica e sotto il tuo controllo. Niente sorveglianza.
+          </p>
+        </div>
 
-            {/* Mandatory checkbox */}
-            <div className="space-y-3 pt-4 border-t border-border">
-              <div className="flex items-start space-x-3">
-                <Checkbox
-                  id="terms-privacy"
-                  checked={termsAccepted}
-                  onCheckedChange={(checked) => setTermsAccepted(checked === true)}
-                  className="mt-0.5"
-                />
-                <div className="space-y-1">
-                  <Label 
-                    htmlFor="terms-privacy" 
-                    className="text-sm font-medium cursor-pointer"
+        {/* Consent options */}
+        <div className="space-y-4 pt-4">
+          {/* Mandatory checkbox */}
+          <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+            <div className="flex items-start space-x-3">
+              <Checkbox
+                id="terms-privacy"
+                checked={termsAccepted}
+                onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                className="mt-0.5 border-white/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+              />
+              <div className="space-y-2">
+                <Label 
+                  htmlFor="terms-privacy" 
+                  className="text-sm font-medium text-white cursor-pointer"
+                >
+                  Accetto Termini e Privacy *
+                </Label>
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <a 
+                    href="/privacy" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline inline-flex items-center gap-1"
                   >
-                    Accetto Termini e Privacy *
-                  </Label>
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    <a 
-                      href="/privacy" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline inline-flex items-center gap-1"
-                    >
-                      Privacy Policy <ExternalLink className="w-3 h-3" />
-                    </a>
-                    <span className="text-muted-foreground">•</span>
-                    <a 
-                      href="/terms" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline inline-flex items-center gap-1"
-                    >
-                      Termini di Servizio <ExternalLink className="w-3 h-3" />
-                    </a>
-                    <span className="text-muted-foreground">•</span>
-                    <a 
-                      href="/legal/ads" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline inline-flex items-center gap-1"
-                    >
-                      Come funzionano gli annunci <ExternalLink className="w-3 h-3" />
-                    </a>
-                  </div>
+                    Privacy Policy <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <span className="text-white/30">•</span>
+                  <a 
+                    href="/terms" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    Termini di Servizio <ExternalLink className="w-3 h-3" />
+                  </a>
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Cognitive tracking toggle */}
-            <div className="space-y-3 pt-4 border-t border-border">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label htmlFor="cognitive-tracking" className="text-sm font-medium">
-                    Consento la creazione della mia mappa cognitiva
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Traccia i tuoi interessi per personalizzare il feed. Puoi disattivarlo in qualsiasi momento.
-                  </p>
-                </div>
-                <Switch
-                  id="cognitive-tracking"
-                  checked={cognitiveOptIn}
-                  onCheckedChange={setCognitiveOptIn}
-                />
+          {/* Cognitive tracking toggle */}
+          <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1 flex-1 mr-4">
+                <Label htmlFor="cognitive-tracking" className="text-sm font-medium text-white">
+                  Mappa Cognitiva
+                </Label>
+                <p className="text-xs text-white/50">
+                  Traccia i tuoi interessi per personalizzare il feed
+                </p>
               </div>
+              <Switch
+                id="cognitive-tracking"
+                checked={cognitiveOptIn}
+                onCheckedChange={setCognitiveOptIn}
+                className="data-[state=checked]:bg-primary"
+              />
             </div>
+          </div>
 
-            {/* Optional ads toggle */}
-            <div className="space-y-3 pt-4 border-t border-border">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <Label htmlFor="ads-personalization" className="text-sm font-medium">
-                    Consento annunci basati sui miei interessi
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Se disattivato, vedrai solo annunci basati sul contesto del contenuto.
-                  </p>
-                </div>
-                <Switch
-                  id="ads-personalization"
-                  checked={adsOptIn}
-                  onCheckedChange={setAdsOptIn}
-                />
+          {/* Optional ads toggle */}
+          <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1 flex-1 mr-4">
+                <Label htmlFor="ads-personalization" className="text-sm font-medium text-white">
+                  Annunci personalizzati
+                </Label>
+                <p className="text-xs text-white/50">
+                  Se disattivato, vedrai solo annunci contestuali
+                </p>
               </div>
+              <Switch
+                id="ads-personalization"
+                checked={adsOptIn}
+                onCheckedChange={setAdsOptIn}
+                className="data-[state=checked]:bg-primary"
+              />
             </div>
+          </div>
+        </div>
 
-            {/* Continue button */}
-            <Button
-              onClick={handleContinue}
-              disabled={!termsAccepted || isSubmitting}
-              className="w-full mt-6"
-              size="lg"
-            >
-              {isSubmitting ? "Salvataggio..." : "Continua"}
-            </Button>
-          </CardContent>
-        </Card>
+        {/* Continue button */}
+        <Button
+          onClick={handleContinue}
+          disabled={!termsAccepted || isSubmitting}
+          className="w-full h-14 mt-8 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-full text-base"
+          size="lg"
+        >
+          {isSubmitting ? "Salvataggio..." : "Crea il tuo account"}
+        </Button>
       </div>
     </div>
   );
