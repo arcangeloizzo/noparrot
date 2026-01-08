@@ -1007,7 +1007,7 @@ serve(async (req) => {
       let jinaResult = await fetchSocialWithJina(url, socialPlatform);
       let contentSource = 'jina';
       
-      // LinkedIn often requires authentication - try Firecrawl as fallback
+      // LinkedIn often requires authentication - try multiple fallbacks
       if (
         socialPlatform === 'linkedin' &&
         (
@@ -1018,10 +1018,13 @@ serve(async (req) => {
         )
       ) {
         console.log(
-          `[LinkedIn] ⚠️ Jina returned insufficient/blocked content (${jinaResult?.content?.length || 0} chars), trying Firecrawl...`
+          `[LinkedIn] ⚠️ Jina returned insufficient/blocked content (${jinaResult?.content?.length || 0} chars), trying fallbacks...`
         );
         
+        // FALLBACK 1: Try Firecrawl (may not support LinkedIn but worth trying)
         const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
+        let firecrawlSuccess = false;
+        
         if (FIRECRAWL_API_KEY) {
           try {
             const fcResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
@@ -1041,40 +1044,123 @@ serve(async (req) => {
             const fcData = await fcResponse.json().catch(() => null);
 
             if (!fcResponse.ok) {
-              console.log('[LinkedIn] ❌ Firecrawl request failed:', fcResponse.status, fcData?.error);
+              console.log('[LinkedIn] ❌ Firecrawl not supported:', fcResponse.status);
             } else if (fcData?.success && (fcData.data?.markdown || fcData.markdown)) {
               const markdown = fcData.data?.markdown || fcData.markdown;
-              const title = fcData.data?.metadata?.title || fcData.metadata?.title;
-              const description = fcData.data?.metadata?.description || fcData.metadata?.description;
-              const ogImage = fcData.data?.metadata?.ogImage || fcData.metadata?.ogImage;
-              const author = fcData.data?.metadata?.author || fcData.metadata?.author;
-
               if (markdown && markdown.length > 150) {
                 console.log(`[LinkedIn] ✅ Firecrawl success: ${markdown.length} chars`);
                 contentSource = 'firecrawl';
+                firecrawlSuccess = true;
                 jinaResult = {
-                  title: title || jinaResult?.title || 'Post LinkedIn',
+                  title: fcData.data?.metadata?.title || fcData.metadata?.title || jinaResult?.title || 'Post LinkedIn',
                   content: extractTextFromHtml(markdown),
-                  summary: description || '',
-                  image: ogImage || jinaResult?.image || '',
-                  previewImg: ogImage || jinaResult?.image || '',
+                  summary: fcData.data?.metadata?.description || fcData.metadata?.description || '',
+                  image: fcData.data?.metadata?.ogImage || fcData.metadata?.ogImage || jinaResult?.image || '',
+                  previewImg: fcData.data?.metadata?.ogImage || fcData.metadata?.ogImage || jinaResult?.image || '',
                   platform: 'linkedin',
                   type: 'social',
-                  author: author || '',
+                  author: fcData.data?.metadata?.author || fcData.metadata?.author || '',
                   hostname: 'linkedin.com',
                   contentQuality: 'complete'
                 };
-              } else {
-                console.log('[LinkedIn] ⚠️ Firecrawl returned insufficient content');
               }
-            } else {
-              console.log('[LinkedIn] ⚠️ Firecrawl response missing markdown');
             }
           } catch (fcError) {
             console.error('[LinkedIn] Firecrawl error:', fcError);
           }
-        } else {
-          console.log('[LinkedIn] ⚠️ FIRECRAWL_API_KEY not configured');
+        }
+        
+        // FALLBACK 2: Direct OpenGraph fetch (LinkedIn always exposes OG tags publicly)
+        if (!firecrawlSuccess) {
+          console.log('[LinkedIn] Trying direct OpenGraph extraction...');
+          try {
+            const ogResponse = await fetch(url, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+                'Accept': 'text/html,application/xhtml+xml',
+                'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7'
+              },
+              redirect: 'follow'
+            });
+            
+            if (ogResponse.ok) {
+              const html = await ogResponse.text();
+              
+              // Extract OG data
+              const getOg = (prop: string): string => {
+                const m = html.match(new RegExp(`<meta[^>]+property=["']og:${prop}["'][^>]+content=["']([^"']+)["']`, 'i')) ||
+                          html.match(new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:${prop}["']`, 'i'));
+                return m ? m[1].replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'") : '';
+              };
+              
+              const ogTitle = getOg('title');
+              const ogDescription = getOg('description');
+              const ogImage = getOg('image');
+              
+              // Try to extract post text from the page - LinkedIn sometimes includes it in JSON-LD or hidden elements
+              let postText = ogDescription || '';
+              
+              // Look for JSON-LD with the actual post content
+              const jsonLdMatch = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+              if (jsonLdMatch) {
+                for (const match of jsonLdMatch) {
+                  try {
+                    const jsonContent = match.replace(/<script[^>]*>/i, '').replace(/<\/script>/i, '');
+                    const parsed = JSON.parse(jsonContent);
+                    const items = Array.isArray(parsed) ? parsed : [parsed];
+                    for (const item of items) {
+                      if (item.articleBody && item.articleBody.length > postText.length) {
+                        postText = item.articleBody;
+                        console.log('[LinkedIn] Found articleBody in JSON-LD:', postText.length, 'chars');
+                      }
+                      if (item.text && item.text.length > postText.length) {
+                        postText = item.text;
+                      }
+                    }
+                  } catch (e) {
+                    // JSON parse error, continue
+                  }
+                }
+              }
+              
+              // Attempt to extract author name from title format "Post di [Name] | LinkedIn"
+              let authorName = '';
+              const authorMatch = ogTitle.match(/(?:Post di|Post by)\s+([^|]+)/i);
+              if (authorMatch) {
+                authorName = authorMatch[1].trim();
+              }
+              
+              if (ogTitle || ogDescription) {
+                console.log(`[LinkedIn] ✅ OpenGraph extraction:`, {
+                  title: ogTitle?.slice(0, 50),
+                  description: ogDescription?.slice(0, 100),
+                  hasImage: !!ogImage,
+                  postTextLen: postText.length,
+                  author: authorName
+                });
+                
+                contentSource = 'opengraph';
+                jinaResult = {
+                  title: ogTitle || 'Post LinkedIn',
+                  content: postText || ogDescription || '',
+                  summary: ogDescription || '',
+                  image: ogImage || '',
+                  previewImg: ogImage || '',
+                  platform: 'linkedin',
+                  type: 'social',
+                  author: authorName,
+                  hostname: 'linkedin.com',
+                  contentQuality: postText.length > 200 ? 'complete' : (postText.length > 50 ? 'partial' : 'minimal')
+                };
+              } else {
+                console.log('[LinkedIn] ⚠️ No OG tags found in page');
+              }
+            } else {
+              console.log('[LinkedIn] ⚠️ OpenGraph fetch failed:', ogResponse.status);
+            }
+          } catch (ogError) {
+            console.error('[LinkedIn] OpenGraph extraction error:', ogError);
+          }
         }
       }
 
