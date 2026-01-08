@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { SlideToUnlock } from "./SlideToUnlock";
@@ -29,6 +29,16 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
     }
   };
 
+  // Auto-trigger Lock → Check animation on Slide 2
+  useEffect(() => {
+    if (currentSlide === 1) {
+      const timer = setTimeout(() => setShowCheck(true), 1000);
+      return () => clearTimeout(timer);
+    } else {
+      setShowCheck(false);
+    }
+  }, [currentSlide]);
+
   // Touch handlers for swipe
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartRef.current = e.targetTouches[0].clientX;
@@ -45,9 +55,13 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
     const isLeftSwipe = distance > 50;
     const isRightSwipe = distance < -50;
     
-    if (isLeftSwipe && currentSlide < 3) {
+    // Forward swipe: only on Slide 2 (index 1)
+    if (isLeftSwipe && currentSlide === 1) {
       nextSlide();
-    } else if (isRightSwipe && currentSlide > 0) {
+    }
+    
+    // Back swipe: always allowed
+    if (isRightSwipe && currentSlide > 0) {
       prevSlide();
     }
     
@@ -55,7 +69,7 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
     touchEndRef.current = null;
   };
 
-  // Slide 1: Il Nemico
+  // Slide 1: Il Nemico - Button navigation
   const SlideNemico = () => (
     <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
       {/* Logo grande - aspect ratio preserved */}
@@ -71,22 +85,21 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
         I social sono echi infiniti. Qui si condivide solo ciò che si è compreso. Spezza la catena.
       </p>
       
-      {/* Hint swipe */}
-      <p className="mt-12 text-xs text-white/30 animate-pulse">
-        Scorri o tocca per continuare →
-      </p>
+      {/* Button Continua */}
+      <Button
+        onClick={(e) => { e.stopPropagation(); nextSlide(); }}
+        className="mt-12 px-8 bg-primary hover:bg-primary/90"
+      >
+        Continua
+      </Button>
     </div>
   );
 
-  // Slide 2: La Difesa
+  // Slide 2: La Difesa - Swipe navigation
   const SlideDifesa = () => (
     <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
-      {/* Icona animata Lock -> Check */}
-      <div 
-        className="relative w-24 h-24 mb-12 flex items-center justify-center"
-        onMouseEnter={() => setShowCheck(true)}
-        onMouseLeave={() => setShowCheck(false)}
-      >
+      {/* Icona animata Lock -> Check (auto-trigger) */}
+      <div className="relative w-24 h-24 mb-12 flex items-center justify-center">
         <div className={cn(
           "absolute inset-0 flex items-center justify-center transition-all duration-500",
           showCheck ? "opacity-0 scale-75" : "opacity-100 scale-100"
@@ -111,23 +124,27 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
         Vuoi condividere un link? L'AI ti farà 3 domande. Se non hai letto o non hai capito, non passa. Nessuna eccezione.
       </p>
       
-      {/* Button */}
-      <Button
-        onClick={(e) => { e.stopPropagation(); nextSlide(); }}
-        className="mt-12 px-8 bg-primary hover:bg-primary/90"
-      >
-        Continua
-      </Button>
+      {/* Swipe hint */}
+      <p className="mt-12 text-xs text-white/30 animate-pulse">
+        ← Scorri per continuare
+      </p>
     </div>
   );
 
-  // Slide 3: L'Autore
+  // Slide 3: L'Autore - Tap icon navigation
   const SlideAutore = () => (
     <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
-      {/* Icona penna + nebulosa stilizzata */}
-      <div className="relative w-24 h-24 mb-12 flex items-center justify-center">
-        <Sparkles className="absolute w-28 h-28 text-primary/20 stroke-[0.5]" />
+      {/* Icona penna + nebulosa stilizzata - TAPPABILE */}
+      <div 
+        className="relative w-24 h-24 mb-12 flex items-center justify-center cursor-pointer 
+                   hover:scale-110 active:scale-95 transition-transform duration-200
+                   animate-pulse"
+        onClick={(e) => { e.stopPropagation(); nextSlide(); }}
+      >
+        <Sparkles className="absolute w-28 h-28 text-primary/30 stroke-[0.5]" />
         <PenLine className="w-16 h-16 text-primary stroke-[1.5]" />
+        {/* Ring di feedback */}
+        <div className="absolute inset-0 rounded-full border-2 border-primary/20 animate-ping" />
       </div>
       
       {/* Titolo */}
@@ -140,17 +157,14 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
         Niente post usa e getta. Il tuo profilo è un blog personale dove ciò che scrivi e ciò che comprendi costruisce la tua identità. Lascia un segno, non solo rumore.
       </p>
       
-      {/* Button */}
-      <Button
-        onClick={(e) => { e.stopPropagation(); nextSlide(); }}
-        className="mt-12 px-8 bg-primary hover:bg-primary/90"
-      >
-        Continua
-      </Button>
+      {/* Tap hint */}
+      <p className="mt-12 text-xs text-white/30">
+        Tocca l'icona per continuare
+      </p>
     </div>
   );
 
-  // Slide 4: Il Patto
+  // Slide 4: Il Patto - SlideToUnlock navigation
   const SlidePatto = () => (
     <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
       {/* Titolo */}
@@ -173,19 +187,9 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
   const slides = [SlideNemico, SlideDifesa, SlideAutore, SlidePatto];
   const CurrentSlideComponent = slides[currentSlide];
 
-  // Handle tap for first slide only
-  const handleTap = (e: React.MouseEvent) => {
-    // Prevent double-triggering from buttons
-    if ((e.target as HTMLElement).closest('button')) return;
-    if (currentSlide === 0) {
-      nextSlide();
-    }
-  };
-
   return (
     <div 
       className="min-h-screen bg-[#0E141A] flex flex-col relative"
-      onClick={handleTap}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
