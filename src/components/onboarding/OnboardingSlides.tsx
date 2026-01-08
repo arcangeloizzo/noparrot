@@ -1,222 +1,179 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
-import { FeedPreviewMock } from "./FeedPreviewMock";
+import { Button } from "@/components/ui/button";
+import { SlideToUnlock } from "./SlideToUnlock";
+import { Lock, Check, PenLine, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface OnboardingSlidesProps {
   onComplete: () => void;
-  onSkip: () => void;
 }
 
-export const OnboardingSlides = ({ onComplete, onSkip }: OnboardingSlidesProps) => {
+export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [showCheck, setShowCheck] = useState(false);
 
-  const totalSlides = 4;
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > 50;
-    const isRightSwipe = distance < -50;
-    
-    if (isLeftSwipe && currentSlide < totalSlides - 1) {
-      setCurrentSlide(currentSlide + 1);
-    }
-    
-    if (isRightSwipe && currentSlide > 0) {
-      setCurrentSlide(currentSlide - 1);
-    }
-    
-    setTouchStart(null);
-    setTouchEnd(null);
-  };
-
-  const handleNext = () => {
-    if (currentSlide < totalSlides - 1) {
+  const nextSlide = () => {
+    if (currentSlide < 3) {
       setCurrentSlide(currentSlide + 1);
     } else {
       onComplete();
     }
   };
 
-  // Slide 0: The Problem
-  const renderProblemSlide = () => (
-    <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
-      <div className="space-y-6 animate-fade-in">
-        <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
-          Sui social si condivide senza capire.
-        </h1>
-        <p className="text-lg text-white/60">
-          E l'informazione si degrada.
-        </p>
-      </div>
+  // Slide 1: Il Nemico
+  const SlideNemico = () => (
+    <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+      {/* Logo grande */}
+      <Logo variant="icon" size="xl" className="w-32 h-32 mb-12" />
       
-      {/* Small logo at bottom */}
-      <div className="absolute bottom-24">
-        <Logo variant="icon" size="sm" className="w-10 h-auto opacity-40" />
-      </div>
+      {/* Titolo */}
+      <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-6">
+        Non fare il pappagallo.
+      </h1>
       
-      {/* Swipe hint */}
-      <p className="absolute bottom-8 text-sm text-white/40">
-        Scorri per continuare
+      {/* Sottotitolo */}
+      <p className="text-base text-white/60 leading-relaxed max-w-sm">
+        I social sono echi infiniti. Qui si condivide solo ciò che si è compreso. Spezza la catena.
       </p>
-    </div>
-  );
-
-  // Slide 1: The Rule
-  const renderRuleSlide = () => (
-    <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
-      <div className="space-y-8 animate-fade-in">
-        <Logo variant="icon" size="lg" className="w-20 h-auto mx-auto" />
-        
-        <div className="space-y-4">
-          <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
-            NoParrot cambia la regola.
-          </h1>
-          <p className="text-lg text-white/60">
-            Prima comprendi. Poi partecipi.
-          </p>
-        </div>
-      </div>
       
-      <div className="absolute bottom-8 left-0 right-0 px-8">
-        <Button
-          onClick={handleNext}
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 rounded-full text-lg h-auto"
-        >
-          Continua
-        </Button>
-      </div>
-    </div>
-  );
-
-  // Slide 2: The Ritual
-  const renderRitualSlide = () => (
-    <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
-      <div className="space-y-8 animate-fade-in">
-        {/* Abstract minimal UI representation */}
-        <div className="flex flex-col items-center gap-3 mb-4">
-          <div className="w-48 h-2 bg-white/20 rounded-full" />
-          <div className="w-36 h-2 bg-white/10 rounded-full" />
-          <div className="flex gap-2 mt-2">
-            <div className="w-8 h-8 rounded-lg bg-primary/30 border border-primary/40" />
-            <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20" />
-            <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20" />
-          </div>
-        </div>
-        
-        <div className="space-y-4">
-          <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">
-            Per commentare o condividere,<br />
-            passi da un momento di comprensione.
-          </h1>
-          <p className="text-lg text-white/60">
-            Non per avere ragione.<br />
-            Per sapere di cosa stai parlando.
-          </p>
-        </div>
-      </div>
-      
-      <div className="absolute bottom-8 left-0 right-0 px-8">
-        <Button
-          onClick={handleNext}
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 rounded-full text-lg h-auto"
-        >
-          Continua
-        </Button>
-      </div>
-    </div>
-  );
-
-  // Slide 3: Real Product Preview
-  const renderProductSlide = () => (
-    <div className="flex flex-col items-center justify-between flex-1 pt-12 pb-8">
-      <div className="text-center px-8 space-y-2 animate-fade-in">
-        <h1 className="text-3xl md:text-4xl font-bold text-white">
-          Questo è NoParrot.
-        </h1>
-        <p className="text-lg text-white/60">
-          Notizie. ◉ Il Punto. Discussioni consapevoli.
+      {/* Hint swipe */}
+      <div className="absolute bottom-12 left-0 right-0 flex justify-center">
+        <p className="text-xs text-white/30 animate-pulse">
+          Scorri o tocca per continuare →
         </p>
       </div>
-      
-      {/* Feed Preview Mock */}
-      <div className="flex-1 w-full max-w-sm mx-auto mt-6 mb-6 px-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-        <FeedPreviewMock />
+    </div>
+  );
+
+  // Slide 2: La Difesa
+  const SlideDifesa = () => (
+    <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+      {/* Icona animata Lock -> Check */}
+      <div 
+        className="relative w-24 h-24 mb-12 flex items-center justify-center"
+        onMouseEnter={() => setShowCheck(true)}
+        onMouseLeave={() => setShowCheck(false)}
+      >
+        <div className={cn(
+          "absolute inset-0 flex items-center justify-center transition-all duration-500",
+          showCheck ? "opacity-0 scale-75" : "opacity-100 scale-100"
+        )}>
+          <Lock className="w-20 h-20 text-primary stroke-[1.5]" />
+        </div>
+        <div className={cn(
+          "absolute inset-0 flex items-center justify-center transition-all duration-500",
+          showCheck ? "opacity-100 scale-100" : "opacity-0 scale-75"
+        )}>
+          <Check className="w-20 h-20 text-green-500 stroke-[1.5]" />
+        </div>
       </div>
       
-      <div className="w-full px-8">
-        <Button
-          onClick={handleNext}
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 rounded-full text-lg h-auto"
-        >
-          Continua
-        </Button>
+      {/* Titolo */}
+      <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-6">
+        Prima capisci. Poi posti.
+      </h1>
+      
+      {/* Sottotitolo */}
+      <p className="text-base text-white/60 leading-relaxed max-w-sm">
+        Vuoi condividere un link? L'AI ti farà 3 domande. Se non hai letto o non hai capito, non passa. Nessuna eccezione.
+      </p>
+      
+      {/* Button */}
+      <Button
+        onClick={nextSlide}
+        className="mt-12 px-8 bg-primary hover:bg-primary/90"
+      >
+        Continua
+      </Button>
+    </div>
+  );
+
+  // Slide 3: L'Autore
+  const SlideAutore = () => (
+    <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+      {/* Icona penna + nebulosa stilizzata */}
+      <div className="relative w-24 h-24 mb-12 flex items-center justify-center">
+        <Sparkles className="absolute w-28 h-28 text-primary/20 stroke-[0.5]" />
+        <PenLine className="w-16 h-16 text-primary stroke-[1.5]" />
+      </div>
+      
+      {/* Titolo */}
+      <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-6">
+        Il tuo Diario Cognitivo.
+      </h1>
+      
+      {/* Sottotitolo */}
+      <p className="text-base text-white/60 leading-relaxed max-w-sm">
+        Niente post usa e getta. Il tuo profilo è un blog personale dove ciò che scrivi e ciò che comprendi costruisce la tua identità. Lascia un segno, non solo rumore.
+      </p>
+      
+      {/* Button */}
+      <Button
+        onClick={nextSlide}
+        className="mt-12 px-8 bg-primary hover:bg-primary/90"
+      >
+        Continua
+      </Button>
+    </div>
+  );
+
+  // Slide 4: Il Patto
+  const SlidePatto = () => (
+    <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+      {/* Titolo */}
+      <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-6">
+        NoParrot richiede tempo.
+      </h1>
+      
+      {/* Sottotitolo */}
+      <p className="text-base text-white/60 leading-relaxed max-w-sm mb-16">
+        Stai scegliendo l'attrito al posto della comodità. Sei sicuro?
+      </p>
+      
+      {/* Slider */}
+      <div className="w-full max-w-sm">
+        <SlideToUnlock onUnlock={onComplete} />
       </div>
     </div>
   );
 
-  const renderCurrentSlide = () => {
-    switch (currentSlide) {
-      case 0:
-        return renderProblemSlide();
-      case 1:
-        return renderRuleSlide();
-      case 2:
-        return renderRitualSlide();
-      case 3:
-        return renderProductSlide();
-      default:
-        return null;
+  const slides = [SlideNemico, SlideDifesa, SlideAutore, SlidePatto];
+  const CurrentSlideComponent = slides[currentSlide];
+
+  // Handle tap/swipe for first slide
+  const handleTap = () => {
+    if (currentSlide === 0) {
+      nextSlide();
     }
   };
 
   return (
     <div 
-      className="min-h-screen bg-[#0E141A] flex flex-col relative overflow-hidden"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      className="min-h-screen bg-black flex flex-col relative"
+      onClick={handleTap}
     >
-      {/* Skip button */}
-      <button
-        onClick={onSkip}
-        className="absolute top-6 right-6 text-white/40 hover:text-white/70 text-sm font-medium transition-colors z-10"
-      >
-        Salta
-      </button>
-
-      {/* Content */}
-      <div className="flex-1 flex flex-col relative">
-        {renderCurrentSlide()}
+      {/* Dots indicator */}
+      <div className="absolute top-8 left-0 right-0 flex justify-center gap-2 z-10">
+        {slides.map((_, index) => (
+          <div
+            key={index}
+            className={cn(
+              "w-2 h-2 rounded-full transition-all duration-300",
+              index === currentSlide 
+                ? "bg-primary w-6" 
+                : index < currentSlide 
+                  ? "bg-primary/50" 
+                  : "bg-white/20"
+            )}
+          />
+        ))}
       </div>
 
-      {/* Dots indicator - only for swipeable slides */}
-      {currentSlide === 0 && (
-        <div className="absolute bottom-16 left-0 right-0 flex justify-center gap-2">
-          {Array.from({ length: totalSlides }).map((_, index) => (
-            <div
-              key={index}
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                index === currentSlide 
-                  ? 'w-6 bg-primary' 
-                  : 'w-1.5 bg-white/20'
-              }`}
-            />
-          ))}
-        </div>
-      )}
+      {/* Current slide */}
+      <div className="flex-1 flex flex-col">
+        <CurrentSlideComponent />
+      </div>
     </div>
   );
 };
