@@ -400,15 +400,18 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
             </div>
           )}
 
-          {/* Comments List - Scrollable area */}
-          <div className="flex-1 overflow-y-auto px-3 py-4">
+          {/* Comments List - Scrollable area with urban texture */}
+          <div className="flex-1 overflow-y-auto px-3 py-4 relative">
+            {/* Urban texture overlay */}
+            <div className="absolute inset-0 urban-texture opacity-[0.04] pointer-events-none" />
+            
             {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <div className="flex flex-col items-center justify-center py-12 gap-3 relative z-10">
                 <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
                 <span className="text-sm text-muted-foreground">Caricamento commenti...</span>
               </div>
             ) : comments.length === 0 ? (
-              <div className="text-center py-16 px-6">
+              <div className="text-center py-16 px-6 relative z-10">
                 <div className="w-16 h-16 rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
                   <MessageCircle className="w-7 h-7 text-muted-foreground/50" />
                 </div>
@@ -418,7 +421,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                 </p>
               </div>
             ) : (
-              <div className="space-y-1">
+              <div className="space-y-1 relative z-10">
                 {comments.map((comment: any) => (
                   <CommentItem
                     key={comment.id}
@@ -881,12 +884,9 @@ const CommentItem = ({ comment, currentUserId, onReply, onLike, onDelete, onMedi
     <div 
       id={`comment-${comment.id}`}
       className={cn(
-        "cognitive-comment-item transition-all duration-300",
-        comment.level > 0 && "border-l-2 border-l-muted"
+        "py-3 px-1",
+        comment.level > 0 && "ml-6 pl-3 border-l-2 border-gradient-to-b from-primary/40 to-primary/10"
       )}
-      style={{ 
-        marginLeft: comment.level > 0 ? `${comment.level * 24}px` : '0'
-      }}
     >
       <div className="flex gap-3">
         <div className="flex-shrink-0">
