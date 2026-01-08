@@ -1,6 +1,6 @@
 # NoParrot - Scopo dell'App e Key Focus
 
-**Versione:** 2.0  
+**Versione:** 2.1  
 **Data:** 8 gennaio 2026  
 **Documento per:** Onboarding AI Esterni
 
@@ -39,37 +39,47 @@ Un ecosistema informativo dove:
 ### 🧠 Pillar 1: Comprehension Gate
 **"Prima capisci, poi condividi"**
 
-- Prima di condividere o commentare "consapevolmente" un contenuto, l'utente deve superare un breve quiz (3 domande) generato dall'AI
-- Il quiz verifica la comprensione del contenuto, non la memorizzazione
-- Meccanismo progressivo: lettura guidata → quiz → azione sbloccata
-- Nessun bypass: la validazione avviene esclusivamente server-side
+Prima di condividere o commentare "consapevolmente" un contenuto, l'utente deve superare un breve quiz (3 domande) generato dall'AI.
+
+**Meccanismo:**
+- Quiz con 3 domande a risposta multipla
+- Validazione esclusivamente server-side (`submit-qa` edge function)
+- **Block-on-wrong:** dopo 2 errori totali, il quiz è fallito
+- Nessuna esposizione delle risposte corrette al client
+
+**Modalità di test (basate sulla lunghezza del testo utente):**
+- `≤30 parole`: `SOURCE_ONLY` (3 domande sulla fonte)
+- `31-120 parole`: `MIXED` (1 su testo utente, 2 su fonte)
+- `>120 parole`: `USER_ONLY` (3 domande sul testo utente)
 
 **Configurazione tecnica:**
 - Modalità: `guardrail` (attrito soft, non blocco hard)
-- Unlock threshold: 80% blocchi letti
-- Rate limiting: max 10 tentativi ogni 5 minuti
+- Architettura: `post_qa_questions` (domande) + `post_qa_answers` (risposte, RLS service_role only)
+- Rate limiting: gestito a livello edge function con `qa_submit_attempts`
 
 ### ⚖️ Pillar 2: Trust Score
 **"Valuta la fonte, non solo il contenuto"**
 
 - Score automatico sull'affidabilità della FONTE (non del contenuto)
 - Basato su: reputazione dominio, trasparenza editoriale, storico verificabilità
-- Visualizzazione: badge colorato (Basso/Medio/Alto) con tooltip esplicativo
+- Visualizzazione: badge colorato con prefisso "Fonte:" (Basso/Medio/Alto) e tooltip esplicativo
 - Disclaimer chiaro: "Non è fact-checking"
 
 **Livelli:**
-- 🔴 BASSO: Fonte con storico problematico o non trasparente
-- 🟡 MEDIO: Fonte generalmente affidabile ma con limitazioni
-- 🟢 ALTO: Fonte con alta reputazione e trasparenza editoriale
+- 🔴 Fonte: Basso — Fonte con storico problematico o non trasparente
+- 🟡 Fonte: Medio — Fonte generalmente affidabile ma con limitazioni
+- 🟢 Fonte: Alto — Fonte con alta reputazione e trasparenza editoriale
 
 ### ◉ Pillar 3: Il Punto (Daily Focus)
 **"Sintesi editoriale AI per un contesto comune"**
 
-- Sintesi giornaliere delle notizie principali generate da AI
+- Sintesi giornaliere generate da AI con contenuto editoriale (1500-2000 caratteri)
 - Identità editoriale distinta: "◉ IL PUNTO" con @ilpunto
 - Fonti multiple aggregate con link alle fonti originali
 - Deduplicazione intelligente per evitare ripetizioni
 - Deep content per approfondimenti
+
+**Nota importante:** Non facciamo reporting giornalistico. Generiamo sintesi e contestualizzazione AI da fonti terze, chiaramente etichettate.
 
 **Caratteristiche:**
 - Carosello immersivo nel feed
@@ -83,7 +93,8 @@ Un ecosistema informativo dove:
 - Mappa visiva degli interessi dell'utente
 - Costruita solo da interazioni consapevoli (post-gate)
 - Categorie: Società, Economia, Tecnologia, Cultura, Politica, Scienza
-- Opt-out disponibile: l'utente può disattivare il tracciamento cognitivo
+- **Consenso esplicito richiesto:** toggle opt-in in ConsentScreen
+- Opt-out disponibile in qualsiasi momento nelle Impostazioni
 - I dati non vengono mai venduti né condivisi con terzi
 
 ---
@@ -92,7 +103,7 @@ Un ecosistema informativo dove:
 
 | NON siamo | Perché |
 |-----------|--------|
-| Un giornale | Non produciamo contenuti originali, sintetizziamo |
+| Un giornale | Non facciamo reporting. Generiamo sintesi AI da fonti terze |
 | Fact-checker | Il Trust Score valuta fonti, non verifica fatti |
 | Social tradizionale | Niente like-addiction, niente feed infinito manipolato |
 | Piattaforma educativa | Non insegniamo, verifichiamo comprensione |
@@ -149,11 +160,11 @@ NoParrot è l'unico social network che:
 
 ## 9. Roadmap Sintetica
 
-### ✅ Beta Attuale (v2.0)
+### ✅ Beta Attuale (v2.1)
 - Comprehension Gate funzionante
 - Il Punto giornaliero
 - Trust Score automatico
-- Cognitive Density tracking
+- Cognitive Density tracking (con consenso esplicito)
 - Messaggistica privata
 - GDPR/DSA compliance
 
@@ -169,12 +180,11 @@ NoParrot è l'unico social network che:
 
 | Termine | Definizione |
 |---------|-------------|
-| **Comprehension Gate** | Quiz AI che verifica comprensione prima di azioni |
-| **Trust Score** | Valutazione automatica affidabilità fonte |
-| **Il Punto** | Sintesi editoriale giornaliera AI |
-| **Cognitive Density** | Mappa interessi costruita da interazioni consapevoli |
+| **Comprehension Gate** | Quiz AI (3 domande) che verifica comprensione prima di azioni. Block-on-wrong dopo 2 errori. |
+| **Trust Score** | Valutazione automatica affidabilità fonte (non fact-checking) |
+| **Il Punto** | Sintesi editoriale giornaliera AI da fonti terze |
+| **Cognitive Density** | Mappa interessi costruita da interazioni consapevoli (richiede consenso) |
 | **Nebulosa** | Visualizzazione grafica della Cognitive Density |
-| **Reader Gate** | Sistema progressivo di lettura guidata |
 | **qaId** | Identificatore univoco sessione quiz |
 
 ---

@@ -90,13 +90,27 @@ serve(async (req) => {
       console.log(`Deleted ${results.trust_scores} expired records from trust_scores`);
     }
 
-    const totalDeleted = results.content_cache + results.youtube_transcripts_cache + results.trust_scores;
+    // Cleanup post_gate_attempts (expires_at < now) - GDPR data retention
+    const { data: pgaData, error: pgaError } = await supabase
+      .from('post_gate_attempts')
+      .delete()
+      .lt('expires_at', now)
+      .select('id');
+    
+    if (pgaError) {
+      console.error('Error cleaning post_gate_attempts:', pgaError);
+    } else {
+      (results as any).post_gate_attempts = pgaData?.length || 0;
+      console.log(`Deleted ${(results as any).post_gate_attempts} expired records from post_gate_attempts`);
+    }
+
+    const totalDeleted = results.content_cache + results.youtube_transcripts_cache + results.trust_scores + ((results as any).post_gate_attempts || 0);
     console.log(`Cleanup complete. Total deleted: ${totalDeleted}`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        deleted: results,
+        deleted: { ...results, post_gate_attempts: (results as any).post_gate_attempts || 0 },
         total: totalDeleted,
         timestamp: now
       }),

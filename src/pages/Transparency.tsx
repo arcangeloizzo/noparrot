@@ -55,6 +55,9 @@ export default function Transparency() {
             {/* Come funziona l'AI */}
             <section className="space-y-4">
               <h3 className="text-lg font-semibold">Come funziona l'AI</h3>
+              <p className="text-muted-foreground">
+                Non facciamo reporting giornalistico. Generiamo sintesi e contestualizzazione AI da fonti terze, chiaramente etichettate.
+              </p>
               <p className="text-muted-foreground">L'AI:</p>
               <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-2">
                 <li><strong>non decide</strong> cosa è vero</li>

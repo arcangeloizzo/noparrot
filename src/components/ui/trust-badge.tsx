@@ -26,9 +26,9 @@ const BAND_COLORS = {
 } as const;
 
 const BAND_LABELS = {
-  BASSO: "Basso",
-  MEDIO: "Medio", 
-  ALTO: "Alto",
+  BASSO: "Fonte: Basso",
+  MEDIO: "Fonte: Medio", 
+  ALTO: "Fonte: Alto",
 } as const;
 
 const SIZE_CONFIG = {
