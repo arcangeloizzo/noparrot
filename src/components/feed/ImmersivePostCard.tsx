@@ -181,14 +181,18 @@ const isTextSimilarToArticleContent = (userText: string, articlePreview: any): b
     if (sharedKeywords.length / titleKeywords.length >= 0.6) return true;
   }
   
-  // NEW: Headline pattern detection - text ending with "..." that shares keywords
-  const looksLikeHeadline = /\.\.\.$/.test(userText.trim()) || 
+  // Headline pattern detection - text ending with "..." is strongly indicative of auto-fill
+  const endsWithEllipsis = /\.{3}$|…$/.test(userText.trim());
+  const looksLikeHeadline = endsWithEllipsis || 
     (/^[A-ZÀÈÉÌÒÙ]/.test(userText) && userText.split(/[.!?]/).filter(Boolean).length <= 2);
   
-  if (looksLikeHeadline && userKeywords.length >= 3) {
+  if (looksLikeHeadline && userKeywords.length >= 2) {
     const titleKeywordSet = new Set(titleKeywords);
     const sharedKeywords = userKeywords.filter(k => titleKeywordSet.has(k));
-    if (sharedKeywords.length >= 3) return true;
+    // For truncated headlines (ending with ...), 2 shared keywords is enough
+    // For other headline patterns, require 3
+    const threshold = endsWithEllipsis ? 2 : 3;
+    if (sharedKeywords.length >= threshold) return true;
   }
   
   return false;
