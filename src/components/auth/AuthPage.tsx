@@ -97,8 +97,20 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
     e.preventDefault();
     setIsLoading(true);
 
-    if (!fullName || !email || !password || !dayOfBirth || !monthOfBirth || !yearOfBirth || !username) {
+    if (!fullName || !email || !password || !confirmPassword || !dayOfBirth || !monthOfBirth || !yearOfBirth || !username) {
       toast.error("Compila tutti i campi");
+      setIsLoading(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast.error("Le password non corrispondono");
+      setIsLoading(false);
+      return;
+    }
+
+    if (password.length < 6) {
+      toast.error("La password deve essere almeno 6 caratteri");
       setIsLoading(false);
       return;
     }
@@ -249,7 +261,7 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
         <Card className="w-full max-w-md p-6 rounded-2xl overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
           <div className="text-center mb-6">
-            <Logo />
+            <Logo className="w-auto h-12 mx-auto" />
             <h1 className="text-2xl font-bold mt-4">Imposta Nuova Password</h1>
             <p className="text-sm text-muted-foreground mt-2">
               Scegli una nuova password per il tuo account
@@ -295,7 +307,7 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
         <div className="min-h-screen flex items-center justify-center p-6 bg-background">
           <Card className="w-full max-w-md p-6 rounded-2xl overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
             <div className="text-center mb-6">
-              <Logo />
+              <Logo className="w-auto h-12 mx-auto" />
               <h1 className="text-2xl font-bold mt-4">Recupera Password</h1>
               <p className="text-sm text-muted-foreground mt-2">
                 Inserisci la tua email per ricevere il link di recupero
@@ -336,7 +348,7 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
         <Card className="w-full max-w-md p-6 rounded-2xl overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
           <div className="text-center mb-6">
-            <Logo />
+            <Logo className="w-auto h-12 mx-auto" />
             <h1 className="text-2xl font-bold mt-4">Accedi a NoParrot</h1>
           </div>
 
@@ -395,7 +407,7 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
       <div className="min-h-screen flex items-center justify-center p-6 bg-background">
         <Card className="w-full max-w-md p-6 rounded-2xl overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
           <div className="text-center mb-6">
-            <Logo />
+            <Logo className="w-auto h-12 mx-auto" />
             <h1 className="text-2xl font-bold mt-4">Crea il tuo account</h1>
           </div>
 
@@ -466,6 +478,7 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
             </div>
 
             <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+            <Input type="password" placeholder="Conferma password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} />
 
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Caricamento..." : "Avanti"}
