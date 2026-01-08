@@ -40,16 +40,27 @@ const CATEGORY_SHORT_NAMES: Record<string, string> = {
   'Media & Comunicazione': 'Media',
 };
 
+// Radar-style angles for 8 categories (distributed around center)
 const CATEGORY_ANGLES: Record<string, number> = {
-  'Società & Politica': 0,
-  'Economia & Business': Math.PI * 0.25,
-  'Scienza & Tecnologia': Math.PI * 0.5,
-  'Cultura & Arte': Math.PI * 0.75,
-  'Pianeta & Ambiente': Math.PI,
-  'Sport & Lifestyle': Math.PI * 1.25,
-  'Salute & Benessere': Math.PI * 1.5,
-  'Media & Comunicazione': Math.PI * 1.75,
+  'Società & Politica': 0,                    // Right
+  'Economia & Business': Math.PI * 0.25,      // Bottom-right
+  'Scienza & Tecnologia': Math.PI * 0.5,      // Bottom
+  'Cultura & Arte': Math.PI * 0.75,           // Bottom-left
+  'Pianeta & Ambiente': Math.PI,              // Left
+  'Sport & Lifestyle': Math.PI * 1.25,        // Top-left
+  'Salute & Benessere': Math.PI * 1.5,        // Top
+  'Media & Comunicazione': Math.PI * 1.75,    // Top-right
 };
+
+// Label positions for compact view (radar style around center)
+const LABEL_POSITIONS: { name: string; left: string; top: string; textAlign: 'left' | 'right' | 'center' }[] = [
+  { name: 'Società & Politica', left: '2%', top: '38%', textAlign: 'left' },
+  { name: 'Sport & Lifestyle', left: '5%', top: '58%', textAlign: 'left' },
+  { name: 'Economia & Business', left: '8%', top: '78%', textAlign: 'left' },
+  { name: 'Cultura & Arte', left: '78%', top: '38%', textAlign: 'right' },
+  { name: 'Scienza & Tecnologia', left: '75%', top: '58%', textAlign: 'right' },
+  { name: 'Media & Comunicazione', left: '78%', top: '78%', textAlign: 'right' },
+];
 
 const hexToRgb = (hex: string) => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -80,8 +91,8 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
 
   const initializeParticles = useCallback((weights: Record<string, number>) => {
     const particles: Particle[] = [];
-    const baseCount = 12;
-    const extraCount = 40;
+    const baseCount = 10;
+    const extraCount = 35;
     const angleSpread = Math.PI / 6;
 
     CATEGORIES.forEach(category => {
@@ -123,7 +134,7 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
     const height = canvas.height / dpr;
     const centerX = width / 2;
     const centerY = height / 2;
-    const maxRadius = Math.min(width, height) * 0.38;
+    const maxRadius = Math.min(width, height) * 0.35;
     
     timeRef.current += 0.006;
     const time = timeRef.current;
@@ -208,15 +219,15 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
     };
   }, [data, handleResize, initializeParticles, animate]);
 
-  // Get top categories for organized labels - fixed positions
-  const topCategories = CATEGORIES
+  // Get categories that have data for showing labels
+  const activeCategories = CATEGORIES
     .map(cat => ({ name: cat, value: data[cat] || 0 }))
-    .sort((a, b) => b.value - a.value)
     .filter(c => c.value > 0);
 
-  // Split into left and right columns (max 3 each)
-  const leftLabels = topCategories.filter((_, i) => i % 2 === 0).slice(0, 3);
-  const rightLabels = topCategories.filter((_, i) => i % 2 === 1).slice(0, 3);
+  // Get labels to show (max 6, positioned around)
+  const labelsToShow = LABEL_POSITIONS.filter(pos => 
+    activeCategories.some(cat => cat.name === pos.name)
+  );
 
   return (
     <button
@@ -241,47 +252,40 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
         <ChevronDown className="w-5 h-5 text-muted-foreground" />
       </div>
 
-      {/* Main nebula area with organized labels */}
-      <div className="relative h-[160px] z-10 flex items-center">
-        {/* Left column labels */}
-        <div className="flex flex-col justify-center gap-6 w-20 flex-shrink-0">
-          {leftLabels.map((cat) => (
-            <span
-              key={cat.name}
-              className="text-sm font-medium"
-              style={{ color: CATEGORY_COLORS[cat.name] }}
-            >
-              {CATEGORY_SHORT_NAMES[cat.name]}
-            </span>
-          ))}
-        </div>
+      {/* Main nebula area with radar-style labels */}
+      <div className="relative h-[160px] z-10">
+        {/* Radar-style labels positioned around the nebula */}
+        {labelsToShow.map((pos) => (
+          <span
+            key={pos.name}
+            className="absolute text-sm font-medium whitespace-nowrap"
+            style={{ 
+              color: CATEGORY_COLORS[pos.name],
+              left: pos.left,
+              top: pos.top,
+              textAlign: pos.textAlign,
+              transform: pos.textAlign === 'right' ? 'translateX(0)' : 'translateX(0)',
+            }}
+          >
+            {CATEGORY_SHORT_NAMES[pos.name]}
+          </span>
+        ))}
 
         {/* Center canvas for particle nebula */}
-        <div className="flex-1 h-full relative">
-          <canvas
-            ref={canvasRef}
-            className="w-full h-full"
-            style={{ background: 'transparent' }}
-          />
-        </div>
-
-        {/* Right column labels */}
-        <div className="flex flex-col justify-center gap-6 w-20 flex-shrink-0 text-right">
-          {rightLabels.map((cat) => (
-            <span
-              key={cat.name}
-              className="text-sm font-medium"
-              style={{ color: CATEGORY_COLORS[cat.name] }}
-            >
-              {CATEGORY_SHORT_NAMES[cat.name]}
-            </span>
-          ))}
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-[55%] h-full">
+            <canvas
+              ref={canvasRef}
+              className="w-full h-full"
+              style={{ background: 'transparent' }}
+            />
+          </div>
         </div>
       </div>
 
       {/* Empty state */}
-      {topCategories.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center z-20 bg-[#0A0F14]/80">
+      {activeCategories.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center z-20 bg-[#0A0F14]/80 rounded-2xl">
           <p className="text-sm text-muted-foreground text-center px-8">
             Esplora contenuti per attivare la tua nebulosa cognitiva
           </p>
