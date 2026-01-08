@@ -18,6 +18,12 @@ export interface DailyFocus {
   };
   created_at: string;
   expires_at: string;
+  // Anti-duplication metadata
+  raw_title?: string;
+  topic_cluster?: string;
+  angle_tag?: string;
+  event_fingerprint?: string;
+  skip_reason?: string;
 }
 
 export const useDailyFocus = (refreshNonce: number = 0) => {

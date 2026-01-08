@@ -185,45 +185,60 @@ export type Database = {
       }
       daily_focus: {
         Row: {
+          angle_tag: string | null
           category: string | null
           created_at: string | null
           deep_content: string | null
           edition_time: string | null
+          event_fingerprint: string | null
           expires_at: string | null
           id: string
           image_url: string | null
+          raw_title: string | null
           reactions: Json | null
+          skip_reason: string | null
           sources: Json
           summary: string
           title: string
+          topic_cluster: string | null
           trust_score: string | null
         }
         Insert: {
+          angle_tag?: string | null
           category?: string | null
           created_at?: string | null
           deep_content?: string | null
           edition_time?: string | null
+          event_fingerprint?: string | null
           expires_at?: string | null
           id?: string
           image_url?: string | null
+          raw_title?: string | null
           reactions?: Json | null
+          skip_reason?: string | null
           sources: Json
           summary: string
           title: string
+          topic_cluster?: string | null
           trust_score?: string | null
         }
         Update: {
+          angle_tag?: string | null
           category?: string | null
           created_at?: string | null
           deep_content?: string | null
           edition_time?: string | null
+          event_fingerprint?: string | null
           expires_at?: string | null
           id?: string
           image_url?: string | null
+          raw_title?: string | null
           reactions?: Json | null
+          skip_reason?: string | null
           sources?: Json
           summary?: string
           title?: string
+          topic_cluster?: string | null
           trust_score?: string | null
         }
         Relationships: []
