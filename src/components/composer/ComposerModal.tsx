@@ -543,15 +543,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
       const allowEmptyCommentary = !!quotedPost || mediaIdsSnapshot.length > 0;
 
-      // Fallback content: keep legacy behavior for link-only posts, but NEVER auto-fill text for reshares.
-      const cleanContent = allowEmptyCommentary
-        ? strippedText
-        : (
-            strippedText ||
-            snapshotPreview?.title ||
-            (snapshotDetectedUrl ? `Link: ${new URL(snapshotDetectedUrl).hostname}` : '') ||
-            ''
-          );
+      // NEVER auto-fill with title/excerpt - only use actual user-written text
+      // This prevents duplicated text appearing in post cards
+      const cleanContent = strippedText;
 
       // TEMP: Disable classification during publish to prevent crash/reload
       addBreadcrumb('publish_classify_skipped_by_client');
