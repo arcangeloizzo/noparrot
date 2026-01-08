@@ -309,12 +309,12 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
         <img
           src={avatarUrl}
           alt={displayName}
-          className="w-9 h-9 rounded-full object-cover ring-2 ring-white/10"
+          className="w-8 h-8 rounded-full object-cover"
         />
       );
     }
     return (
-      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/80 to-primary/40 flex items-center justify-center text-xs font-semibold text-primary-foreground ring-2 ring-white/10">
+      <div className="w-8 h-8 rounded-full bg-primary/60 flex items-center justify-center text-xs font-semibold text-primary-foreground">
         {getInitials(displayName)}
       </div>
     );
@@ -335,42 +335,36 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
               Commenti
             </DrawerTitle>
             
-            {/* Post Preview - Glassmorphism card */}
-            <div className="mx-2 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.06]">
-              <div className="flex gap-3">
+            {/* Post Preview - Compact card */}
+            <div className="mx-2 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+              <div className="flex gap-2.5">
                 <div className="flex-shrink-0">
                   {getUserAvatar(post.author.avatar_url, post.author.full_name || post.author.username)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm text-foreground">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-foreground">
                       {post.author.full_name || getDisplayUsername(post.author.username)}
-                    </span>
-                    <span className="text-xs text-muted-foreground/60">
-                      @{getDisplayUsername(post.author.username)}
                     </span>
                   </div>
                   
-                  <p className="text-sm text-foreground/80 line-clamp-2 mt-1 leading-relaxed">
-                    <MentionText content={post.content} />
-                  </p>
-                  
                   {post.preview_img && (
-                    <img 
-                      src={post.preview_img}
-                      className="w-16 h-16 object-cover rounded-xl mt-2 ring-1 ring-white/10"
-                      alt=""
-                    />
-                  )}
-
-                  {post.trust_level && (
-                    <div className="mt-2">
-                      <TrustBadge 
-                        band={post.trust_level}
-                        score={post.trust_level === 'ALTO' ? 85 : post.trust_level === 'MEDIO' ? 60 : 35}
-                        size="sm"
+                    <div className="flex gap-2 mt-1.5">
+                      <img 
+                        src={post.preview_img}
+                        className="w-14 h-14 object-cover rounded-lg"
+                        alt=""
                       />
+                      <p className="text-xs text-foreground/70 line-clamp-3 leading-relaxed flex-1">
+                        <MentionText content={post.content} />
+                      </p>
                     </div>
+                  )}
+                  
+                  {!post.preview_img && (
+                    <p className="text-xs text-foreground/70 line-clamp-2 mt-0.5 leading-relaxed">
+                      <MentionText content={post.content} />
+                    </p>
                   )}
                 </div>
               </div>
@@ -456,14 +450,14 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
             )}
           </div>
 
-          {/* Fixed Bottom Composer - Glassmorphism */}
-          <div className="sticky bottom-0 bg-[#0A0F14]/95 backdrop-blur-xl border-t border-white/[0.08] z-30">
-            <div className="px-4 py-3">
+          {/* Fixed Bottom Composer - Compact inline style */}
+          <div className="sticky bottom-0 bg-[#0D1318] border-t border-white/[0.06] z-30">
+            <div className="px-3 py-2.5">
               {/* Reply indicator */}
               {replyingTo && (
-                <div className="mb-3 px-3 py-2 bg-primary/10 rounded-xl border border-primary/20 flex items-center justify-between">
-                  <span className="text-sm text-foreground/80">
-                    In risposta a <span className="text-primary font-medium">@{getDisplayUsername(comments.find(c => c.id === replyingTo)?.author.username || '')}</span>
+                <div className="mb-2 px-3 py-1.5 bg-primary/10 rounded-lg border border-primary/20 flex items-center justify-between">
+                  <span className="text-xs text-foreground/80">
+                    In risposta a <span className="text-primary font-medium">{comments.find(c => c.id === replyingTo)?.author.full_name || ''}</span>
                   </span>
                   <button
                     onClick={() => setReplyingTo(null)}
@@ -474,10 +468,10 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                 </div>
               )}
               
-              {/* Composer card */}
-              <div className="flex gap-3 items-start relative" ref={composerContainerRef}>
+              {/* Compact composer row */}
+              <div className="flex gap-2 items-center" ref={composerContainerRef}>
                 {/* Current user avatar */}
-                <div className="flex-shrink-0 pt-0.5">
+                <div className="flex-shrink-0">
                   {currentUserProfile && getUserAvatar(
                     currentUserProfile.avatar_url, 
                     currentUserProfile.full_name,
@@ -485,140 +479,117 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                   )}
                 </div>
                 
-                <div className="flex-1 min-w-0">
-                  {/* Input container with glass effect */}
-                  <div className={cn(
-                    "rounded-2xl border transition-all duration-200",
-                    "bg-white/[0.03] border-white/[0.08]",
-                    "focus-within:border-primary/30 focus-within:bg-white/[0.05]"
-                  )}>
-                    <textarea
-                      ref={textareaRef}
-                      value={newComment}
-                      onChange={handleTextChange}
-                      onFocus={() => {
-                        // Se il post ha source E non abbiamo ancora scelto, mostra la scelta
-                        if (postHasSource && selectedCommentType === null && !showCommentTypeChoice) {
-                          setShowCommentTypeChoice(true);
-                          textareaRef.current?.blur();
-                        }
-                      }}
-                      onKeyDown={(e) => {
-                        if (!showMentions || mentionUsers.length === 0) {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSubmit();
-                          }
-                          return;
-                        }
-                        
-                        if (e.key === 'ArrowDown') {
-                          e.preventDefault();
-                          setSelectedMentionIndex((prev) => 
-                            (prev + 1) % mentionUsers.length
-                          );
-                        } else if (e.key === 'ArrowUp') {
-                          e.preventDefault();
-                          setSelectedMentionIndex((prev) => 
-                            (prev - 1 + mentionUsers.length) % mentionUsers.length
-                          );
-                        } else if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSelectMention(mentionUsers[selectedMentionIndex]);
-                        } else if (e.key === 'Escape') {
-                          setShowMentions(false);
-                        }
-                      }}
-                      placeholder={
-                        selectedCommentType === null && postHasSource
-                          ? "Scegli come vuoi entrare nella conversazione…"
-                          : replyingTo 
-                          ? "Scrivi una risposta…" 
-                          : "Scrivi un commento…"
+                {/* Input with inline media icon */}
+                <div className={cn(
+                  "flex-1 flex items-center gap-2 rounded-full border transition-all duration-200",
+                  "bg-[#1A2328] border-white/[0.08]",
+                  "focus-within:border-primary/30"
+                )}>
+                  <textarea
+                    ref={textareaRef}
+                    value={newComment}
+                    onChange={handleTextChange}
+                    onFocus={() => {
+                      if (postHasSource && selectedCommentType === null && !showCommentTypeChoice) {
+                        setShowCommentTypeChoice(true);
+                        textareaRef.current?.blur();
                       }
-                      className={cn(
-                        "w-full bg-transparent border-none focus:outline-none focus:ring-0 resize-none",
-                        "text-[15px] leading-relaxed text-foreground placeholder:text-muted-foreground/50",
-                        "min-h-[44px] max-h-[120px] px-4 py-3",
-                        postHasSource && selectedCommentType === null && "opacity-50 cursor-not-allowed"
-                      )}
-                      maxLength={500}
-                      rows={1}
-                      style={{ 
-                        height: 'auto',
-                        overflowY: newComment.split('\n').length > 5 ? 'scroll' : 'hidden'
-                      }}
-                      onInput={(e) => {
-                        const target = e.target as HTMLTextAreaElement;
-                        target.style.height = 'auto';
-                        target.style.height = Math.min(target.scrollHeight, 120) + 'px';
-                      }}
-                    />
-                    
-                    {/* Media preview inside composer */}
-                    {uploadedMedia.length > 0 && (
-                      <div className="px-3 pb-2">
-                        <MediaPreviewTray
-                          media={uploadedMedia}
-                          onRemove={removeMedia}
-                        />
-                      </div>
-                    )}
-                    
-                    {/* Actions row inside composer */}
-                    <div className="flex items-center justify-between px-3 pb-2">
-                      <div className="flex gap-1">
-                        <MediaUploadButton
-                          type="image"
-                          onFilesSelected={(files) => uploadMedia(files, 'image')}
-                          maxFiles={4}
-                          disabled={isUploading}
-                        />
-                        <MediaUploadButton
-                          type="video"
-                          onFilesSelected={(files) => uploadMedia(files, 'video')}
-                          maxFiles={1}
-                          disabled={isUploading}
-                        />
-                      </div>
+                    }}
+                    onKeyDown={(e) => {
+                      if (!showMentions || mentionUsers.length === 0) {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSubmit();
+                        }
+                        return;
+                      }
                       
-                      <Button
-                        onClick={handleSubmit}
-                        disabled={!newComment.trim() || addComment.isPending}
-                        size="sm"
-                        className={cn(
-                          "rounded-full px-5 font-semibold",
-                          "bg-primary hover:bg-primary/90",
-                          "disabled:opacity-40 disabled:bg-primary/50"
-                        )}
-                      >
-                        {addComment.isPending ? (
-                          <div className="flex items-center gap-2">
-                            <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                            Invio...
-                          </div>
-                        ) : (
-                          replyingTo ? 'Rispondi' : 'Invia'
-                        )}
-                      </Button>
-                    </div>
-                  </div>
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setSelectedMentionIndex((prev) => 
+                          (prev + 1) % mentionUsers.length
+                        );
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setSelectedMentionIndex((prev) => 
+                          (prev - 1 + mentionUsers.length) % mentionUsers.length
+                        );
+                      } else if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSelectMention(mentionUsers[selectedMentionIndex]);
+                      } else if (e.key === 'Escape') {
+                        setShowMentions(false);
+                      }
+                    }}
+                    placeholder={
+                      selectedCommentType === null && postHasSource
+                        ? "Scegli come entrare..."
+                        : "Scrivi un commento..."
+                    }
+                    className={cn(
+                      "flex-1 bg-transparent border-none focus:outline-none focus:ring-0 resize-none",
+                      "text-sm text-foreground placeholder:text-muted-foreground/50",
+                      "h-[38px] py-2.5 pl-4 pr-2",
+                      postHasSource && selectedCommentType === null && "opacity-50 cursor-not-allowed"
+                    )}
+                    maxLength={500}
+                    rows={1}
+                    style={{ overflow: 'hidden' }}
+                  />
                   
-                  {/* Mention dropdown */}
-                  {showMentions && (
-                    <div className="relative mt-2">
-                      <MentionDropdown
-                        users={mentionUsers}
-                        selectedIndex={selectedMentionIndex}
-                        onSelect={handleSelectMention}
-                        isLoading={isSearching}
-                        position="below"
-                        containerRef={composerContainerRef}
-                      />
-                    </div>
-                  )}
+                  {/* Media button inline */}
+                  <div className="flex-shrink-0 pr-1">
+                    <MediaUploadButton
+                      type="image"
+                      onFilesSelected={(files) => uploadMedia(files, 'image')}
+                      maxFiles={4}
+                      disabled={isUploading}
+                    />
+                  </div>
                 </div>
+                
+                {/* Send button */}
+                <Button
+                  onClick={handleSubmit}
+                  disabled={!newComment.trim() || addComment.isPending}
+                  size="sm"
+                  className={cn(
+                    "rounded-full px-4 h-[38px] font-semibold text-sm",
+                    "bg-primary/90 hover:bg-primary",
+                    "disabled:opacity-40 disabled:bg-primary/40"
+                  )}
+                >
+                  {addComment.isPending ? (
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    'Invia'
+                  )}
+                </Button>
               </div>
+              
+              {/* Media preview */}
+              {uploadedMedia.length > 0 && (
+                <div className="mt-2 pl-11">
+                  <MediaPreviewTray
+                    media={uploadedMedia}
+                    onRemove={removeMedia}
+                  />
+                </div>
+              )}
+              
+              {/* Mention dropdown */}
+              {showMentions && (
+                <div className="relative mt-2 pl-11">
+                  <MentionDropdown
+                    users={mentionUsers}
+                    selectedIndex={selectedMentionIndex}
+                    onSelect={handleSelectMention}
+                    isLoading={isSearching}
+                    position="below"
+                    containerRef={composerContainerRef}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </DrawerContent>

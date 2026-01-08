@@ -92,7 +92,7 @@ export const CommentItem = ({
         <img
           src={EDITORIAL.AVATAR_IMAGE}
           alt={EDITORIAL.NAME}
-          className="w-10 h-10 rounded-full object-cover ring-2 ring-white/10"
+          className="w-8 h-8 rounded-full object-cover"
         />
       );
     }
@@ -103,12 +103,12 @@ export const CommentItem = ({
         <img
           src={comment.author.avatar_url}
           alt={name}
-          className="w-10 h-10 rounded-full object-cover ring-2 ring-white/10"
+          className="w-8 h-8 rounded-full object-cover"
         />
       );
     }
     return (
-      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/80 to-primary/40 flex items-center justify-center text-sm font-semibold text-primary-foreground ring-2 ring-white/10">
+      <div className="w-8 h-8 rounded-full bg-primary/60 flex items-center justify-center text-xs font-semibold text-primary-foreground">
         {getInitials(name)}
       </div>
     );
@@ -134,12 +134,12 @@ export const CommentItem = ({
       onMouseUp={handleLongPressEnd}
       onMouseLeave={handleLongPressEnd}
     >
-      {/* Floating comment card */}
+      {/* Compact comment card */}
       <div className={cn(
-        "relative p-4 rounded-2xl mb-2 transition-all duration-200",
-        "bg-white/[0.03] backdrop-blur-sm",
-        "border border-white/[0.06]",
-        "hover:bg-white/[0.05] hover:border-white/[0.1]",
+        "relative py-2.5 px-3 rounded-xl mb-1 transition-all duration-200",
+        "bg-white/[0.02]",
+        "border border-white/[0.04]",
+        "hover:bg-white/[0.04]",
         isNested && "ml-2"
       )}>
         {/* Thread connector line for nested comments */}
@@ -156,16 +156,16 @@ export const CommentItem = ({
           />
         )}
 
-        {/* Header: Avatar + Name + Username + Timestamp */}
+        {/* Header: Avatar + Name + Timestamp */}
         <div className="flex gap-3">
           <div className="flex-shrink-0">
             {getAvatar()}
           </div>
           
           <div className="flex-1 min-w-0">
-            {/* Name row */}
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className="font-semibold text-[15px] text-foreground">
+            {/* Name row - compact */}
+            <div className="flex items-center gap-2 flex-wrap mb-0.5">
+              <span className="font-bold text-sm text-foreground">
                 {comment.author.full_name || getDisplayUsername(comment.author.username)}
               </span>
               
@@ -189,16 +189,8 @@ export const CommentItem = ({
                 </TooltipProvider>
               )}
               
-              <span className="text-muted-foreground/70 text-sm">
-                @{getDisplayUsername(comment.author.username)}
-              </span>
-              
-              <span className="text-muted-foreground/40 text-xs">
-                ·
-              </span>
-              
               <span className="text-muted-foreground/50 text-xs">
-                {formatDistanceToNow(new Date(comment.created_at), {
+                · {formatDistanceToNow(new Date(comment.created_at), {
                   addSuffix: false,
                   locale: it
                 })}
@@ -206,7 +198,7 @@ export const CommentItem = ({
             </div>
 
             {/* Body: Comment text */}
-            <div className="text-[15px] leading-[1.6] text-foreground/90 mb-3">
+            <div className="text-sm leading-relaxed text-foreground/90 mb-2">
               <MentionText content={comment.content} />
             </div>
 
