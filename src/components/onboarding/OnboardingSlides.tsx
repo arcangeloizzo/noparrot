@@ -124,27 +124,28 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
         Vuoi condividere un link? L'AI ti farà 3 domande. Se non hai letto o non hai capito, non passa. Nessuna eccezione.
       </p>
       
-      {/* Swipe hint */}
-      <p className="mt-12 text-xs text-white/30 animate-pulse">
-        ← Scorri per continuare
-      </p>
+      {/* Swipe hint - più visibile */}
+      <div className="mt-12 flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-white/10 border border-white/20 animate-pulse">
+        <span className="text-sm text-white/70 font-medium">Scorri per continuare</span>
+        <span className="text-white/70">→</span>
+      </div>
     </div>
   );
 
   // Slide 3: L'Autore - Tap icon navigation
   const SlideAutore = () => (
     <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
-      {/* Icona penna + nebulosa stilizzata - TAPPABILE */}
+      {/* Icona penna + nebulosa stilizzata - TAPPABILE con bordo visibile */}
       <div 
-        className="relative w-24 h-24 mb-12 flex items-center justify-center cursor-pointer 
+        className="relative w-28 h-28 mb-12 flex items-center justify-center cursor-pointer 
                    hover:scale-110 active:scale-95 transition-transform duration-200
-                   animate-pulse"
+                   rounded-full bg-primary/10 border-2 border-primary/40"
         onClick={(e) => { e.stopPropagation(); nextSlide(); }}
       >
-        <Sparkles className="absolute w-28 h-28 text-primary/30 stroke-[0.5]" />
-        <PenLine className="w-16 h-16 text-primary stroke-[1.5]" />
-        {/* Ring di feedback */}
-        <div className="absolute inset-0 rounded-full border-2 border-primary/20 animate-ping" />
+        <Sparkles className="absolute w-32 h-32 text-primary/30 stroke-[0.5] animate-pulse" />
+        <PenLine className="w-14 h-14 text-primary stroke-[1.5]" />
+        {/* Ring di feedback pulsante */}
+        <div className="absolute inset-0 rounded-full border-2 border-primary/30 animate-ping" />
       </div>
       
       {/* Titolo */}
@@ -157,10 +158,10 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
         Niente post usa e getta. Il tuo profilo è un blog personale dove ciò che scrivi e ciò che comprendi costruisce la tua identità. Lascia un segno, non solo rumore.
       </p>
       
-      {/* Tap hint */}
-      <p className="mt-12 text-xs text-white/30">
-        Tocca l'icona per continuare
-      </p>
+      {/* Tap hint - più visibile */}
+      <div className="mt-12 flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-white/10 border border-white/20">
+        <span className="text-sm text-white/70 font-medium">Tocca l'icona per continuare</span>
+      </div>
     </div>
   );
 
