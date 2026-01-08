@@ -1089,7 +1089,17 @@ export const ImmersivePostCard = ({
                         />
                       ) : (
                         <span className="text-white/70 text-xl font-bold">
-                          {(articlePreview?.author || articlePreview?.title || 'L').charAt(0).toUpperCase()}
+                          {(() => {
+                            // Get first letter of author name
+                            const author = articlePreview?.author || 
+                              (articlePreview?.title || '')
+                                .replace(/\s*[|\-–]\s*LinkedIn.*$/i, '')
+                                .replace(/^Post di\s+/i, '')
+                                .replace(/^Post by\s+/i, '')
+                                .split(/\s*[|\-–]\s*/)[0]
+                                .trim();
+                            return (author || 'L').charAt(0).toUpperCase();
+                          })()}
                         </span>
                       )}
                     </div>
@@ -1105,10 +1115,6 @@ export const ImmersivePostCard = ({
                           'LinkedIn User'}
                       </p>
                       <p className="text-white/50 text-sm">su LinkedIn</p>
-                    </div>
-                    {/* LinkedIn Logo */}
-                    <div className="w-7 h-7 rounded-md bg-white flex items-center justify-center flex-shrink-0">
-                      <span className="text-[#0A66C2] font-bold text-sm">in</span>
                     </div>
                   </div>
                   
