@@ -37,7 +37,6 @@ export default function SettingsPrivacy() {
     if (!user) return;
 
     try {
-      // Delete user profile and related data (cascading deletes should handle posts, comments, etc.)
       const { error } = await supabase
         .from("profiles")
         .delete()
@@ -45,7 +44,6 @@ export default function SettingsPrivacy() {
 
       if (error) throw error;
 
-      // Sign out and redirect
       await signOut();
       toast.success("Account cancellato con successo");
       navigate("/");
@@ -89,11 +87,11 @@ export default function SettingsPrivacy() {
         </div>
 
         <div className="space-y-4">
-          {/* Feed personalizzato (Cognitive Tracking) */}
+          {/* Tracciamento cognitivo */}
           <Card className="p-4">
             <div className="flex items-center gap-3 mb-3">
               <Brain className="w-5 h-5 text-purple-400" />
-              <h2 className="text-lg font-semibold">Feed personalizzato</h2>
+              <h2 className="text-lg font-semibold">Profilo cognitivo</h2>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
               NoParrot costruisce una mappa dei tuoi interessi in base alle tue interazioni 
@@ -102,10 +100,10 @@ export default function SettingsPrivacy() {
             <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border mb-3">
               <div className="space-y-1 flex-1 mr-4">
                 <Label htmlFor="cognitive-tracking" className="text-sm font-medium cursor-pointer">
-                  Usa feed personalizzato (profilo cognitivo)
+                  Tracciamento profilo cognitivo
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Se disattivato, vedrai solo Daily Focus e post cronologici.
+                  Se disattivato, non aggiorneremo la mappa dei tuoi interessi.
                 </p>
               </div>
               <Switch
@@ -170,7 +168,7 @@ export default function SettingsPrivacy() {
                 </Label>
                 <p className="text-xs text-muted-foreground">
                   {profile?.cognitive_tracking_enabled === false 
-                    ? "Per attivare gli annunci personalizzati, devi prima attivare il feed personalizzato."
+                    ? "Per attivare gli annunci personalizzati, devi prima attivare il profilo cognitivo."
                     : "Se disattivato, vedrai solo annunci legati al tema della conversazione."
                   }
                 </p>

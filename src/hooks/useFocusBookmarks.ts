@@ -7,12 +7,12 @@ interface FocusBookmark {
   id: string;
   user_id: string;
   focus_id: string;
-  focus_type: 'daily' | 'interest';
+  focus_type: 'daily';
   created_at: string;
 }
 
 // Check if a specific focus item is bookmarked
-export const useFocusBookmark = (focusId: string, focusType: 'daily' | 'interest') => {
+export const useFocusBookmark = (focusId: string, focusType: 'daily' = 'daily') => {
   const { user } = useAuth();
 
   return useQuery({
@@ -46,7 +46,7 @@ export const useToggleFocusBookmark = () => {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ focusId, focusType }: { focusId: string; focusType: 'daily' | 'interest' }) => {
+    mutationFn: async ({ focusId, focusType = 'daily' }: { focusId: string; focusType?: 'daily' }) => {
       if (!user) throw new Error('User not authenticated');
 
       // Check if already bookmarked

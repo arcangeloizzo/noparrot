@@ -28,53 +28,27 @@ export default function Transparency() {
             <section className="space-y-4">
               <h3 className="text-lg font-semibold">Come funziona il feed</h3>
               <p className="text-muted-foreground">
-                NoParrot mostra tre tipi di contenuti:
+                NoParrot mostra due tipi di contenuti:
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border">
                       <th className="text-left py-2 font-medium">Tipo</th>
-                      <th className="text-left py-2 font-medium">Personalizzato</th>
+                      <th className="text-left py-2 font-medium">Descrizione</th>
                     </tr>
                   </thead>
                   <tbody className="text-muted-foreground">
                     <tr className="border-b border-border/50">
                       <td className="py-2">Daily Focus (Il Punto)</td>
-                      <td className="py-2">No</td>
-                    </tr>
-                    <tr className="border-b border-border/50">
-                      <td className="py-2">Interest Focus (Per Te)</td>
-                      <td className="py-2">Sì</td>
+                      <td className="py-2">Sintesi editoriale delle notizie del giorno</td>
                     </tr>
                     <tr>
                       <td className="py-2">Post utenti</td>
-                      <td className="py-2">No</td>
+                      <td className="py-2">Contenuti creati dagli utenti</td>
                     </tr>
                   </tbody>
                 </table>
-              </div>
-              <p className="text-muted-foreground">
-                Il feed personalizzato usa:
-              </p>
-              <ul className="list-disc list-inside text-muted-foreground space-y-1 ml-2">
-                <li>categorie di interesse</li>
-                <li>attività consapevoli (letture, commenti)</li>
-              </ul>
-              <p className="text-muted-foreground font-medium">
-                Puoi disattivarlo in ogni momento dalle Impostazioni → Privacy.
-              </p>
-              <div className="mt-4 p-3 bg-muted/30 rounded-lg border border-border">
-                <p className="text-sm font-medium text-foreground mb-2">DSA: "Perché vedo questo?"</p>
-                <p className="text-sm text-muted-foreground">
-                  Per ogni contenuto personalizzato puoi vedere perché ti viene mostrato, 
-                  cliccando su "Perché vedo questo?". Questo spiega quali segnali hanno 
-                  contribuito alla selezione.
-                </p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Puoi modificare o disattivare in qualsiasi momento i criteri che influenzano 
-                  il feed personalizzato dalle Impostazioni → Privacy.
-                </p>
               </div>
             </section>
 
@@ -113,7 +87,7 @@ export default function Transparency() {
             {/* Footer */}
             <div className="pt-6 border-t border-border text-center text-xs text-muted-foreground">
               <p>NoParrot — Versione 2.0</p>
-              <p>Ultimo aggiornamento: 6 gennaio 2026</p>
+              <p>Ultimo aggiornamento: 8 gennaio 2026</p>
             </div>
           </CardContent>
         </Card>

@@ -1,5 +1,4 @@
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { createPortal } from "react-dom";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,7 +18,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { toast as sonnerToast } from "sonner";
-import { LOGO_BASE, EDITORIAL } from "@/config/brand";
+import { LOGO_BASE } from "@/config/brand";
 import { haptics } from "@/lib/haptics";
 import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "@/components/ui/logo";
@@ -33,14 +32,14 @@ interface Source {
 interface FocusDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  type: 'daily' | 'interest';
+  type?: 'daily';
   category?: string;
   title: string;
   deepContent?: string;
   sources: Source[];
   imageUrl?: string;
   focusId: string;
-  editorialNumber?: number; // For "IL PUNTO - #N" display
+  editorialNumber?: number;
   reactions: { likes: number; comments: number; shares: number };
   userReactions?: { hasLiked: boolean };
   onLike?: () => void;
@@ -50,7 +49,7 @@ interface FocusDetailSheetProps {
 export const FocusDetailSheet = ({
   open,
   onOpenChange,
-  type,
+  type = 'daily',
   category,
   title,
   deepContent,
@@ -63,9 +62,6 @@ export const FocusDetailSheet = ({
   onLike,
   onShare,
 }: FocusDetailSheetProps) => {
-  const isDailyFocus = type === 'daily';
-  const badgeBg = isDailyFocus ? 'bg-[#0A7AFF]' : 'bg-[#A98FF8]/20';
-  const badgeText = isDailyFocus ? 'text-white' : 'text-[#A98FF8]';
   const { user } = useAuth();
   const [commentText, setCommentText] = useState('');
   const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null);
@@ -94,7 +90,7 @@ export const FocusDetailSheet = ({
   // Skip reader - genera quiz direttamente dal drawer (utente ha già letto)
   const handleShareFromDrawer = async () => {
     if (!deepContent) {
-      onShare?.(); // Fallback se non c'è contenuto
+      onShare?.();
       return;
     }
     
@@ -107,7 +103,6 @@ export const FocusDetailSheet = ({
     sonnerToast.info('Generando il quiz di comprensione...');
     
     try {
-      // Generate quiz directly (skip reader - user already read in drawer)
       const { data, error } = await supabase.functions.invoke('generate-qa', {
         body: {
           title: title,
@@ -125,12 +120,11 @@ export const FocusDetailSheet = ({
         return;
       }
 
-      // SECURITY HARDENED: Save qaId from server for submit-qa validation
       setQuizData({
-        qaId: data.qaId, // Server-generated qaId for secure validation
+        qaId: data.qaId,
         questions: data.questions,
         sourceUrl: `editorial://${focusId}`,
-        forShare: true, // Flag to trigger onShare after quiz passed
+        forShare: true,
       });
       setShowQuiz(true);
       setIsProcessing(false);
@@ -144,13 +138,11 @@ export const FocusDetailSheet = ({
 
   // Parse deep_content and render with SourceTag components
   const parseContentWithSources = (content: string) => {
-    // Step 0: Add fallback [SOURCE:0] to paragraphs without sources
     const paragraphs = content.split('\n\n');
     const contentWithFallback = paragraphs
       .map(p => {
         const trimmed = p.trim();
         if (!trimmed) return '';
-        // Check if paragraph ends with [SOURCE:N]
         if (!/\[SOURCE:\d+\]$/.test(trimmed)) {
           return `${trimmed} [SOURCE:0]`;
         }
@@ -158,24 +150,20 @@ export const FocusDetailSheet = ({
       })
       .join('\n\n');
     
-    // Step 1: Aggregate consecutive [SOURCE:N] markers into [SOURCE:N,M,...]
     const aggregatedContent = contentWithFallback.replace(
       /(\[SOURCE:\d+\](?:\s*\[SOURCE:\d+\])+)/g,
       (match) => {
-        // Extract all indices from consecutive markers
         const indices = [...match.matchAll(/\[SOURCE:(\d+)\]/g)]
           .map(m => parseInt(m[1]));
         return `[SOURCE:${indices.join(',')}]`;
       }
     );
     
-    // Step 2: Split by [SOURCE:...] markers - accepts both [SOURCE:0] and [SOURCE:0,3,4]
     const parts = aggregatedContent.split(/(\[SOURCE:[\d,\s]+\])/g);
     
     return parts.map((part, idx) => {
       const sourceMatch = part.match(/\[SOURCE:([\d,\s]+)\]/);
       if (sourceMatch) {
-        // Extract indices from comma-separated format
         const indices = sourceMatch[1]
           .replace(/SOURCE:/g, '')
           .split(',')
@@ -205,7 +193,6 @@ export const FocusDetailSheet = ({
     sonnerToast.info('Generando il quiz di comprensione...');
     
     try {
-      // Generate quiz questions for the focus content
       const { data: qaData, error: qaError } = await supabase.functions.invoke('generate-qa', {
         body: {
           contentId: focusId,
@@ -231,11 +218,8 @@ export const FocusDetailSheet = ({
         return;
       }
 
-      console.log('[FocusDetailSheet] Quiz questions generated:', qaData.questions.length);
-      
-      // SECURITY HARDENED: Save qaId from server for submit-qa validation
       setQuizData({
-        qaId: qaData.qaId, // Server-generated qaId
+        qaId: qaData.qaId,
         questions: qaData.questions,
         sourceUrl: 'focus://internal'
       });
@@ -308,11 +292,8 @@ export const FocusDetailSheet = ({
           {/* Header fisso con badge e X allineati orizzontalmente */}
           <div className="shrink-0 bg-[#0E141A] pt-4 pb-3 border-b border-white/10">
             <div className="flex items-center justify-between">
-              <Badge className={cn(badgeBg, badgeText, "font-semibold px-3 py-1 border-0 font-mono")}>
-                {isDailyFocus 
-                  ? (editorialNumber ? `◉ IL PUNTO · #${editorialNumber}` : '◉ IL PUNTO')
-                  : `🧠 PER TE: ${category?.toUpperCase() || 'GENERALE'}`
-                }
+              <Badge className="bg-[#0A7AFF] text-white font-semibold px-3 py-1 border-0 font-mono">
+                {editorialNumber ? `◉ IL PUNTO · #${editorialNumber}` : '◉ IL PUNTO'}
               </Badge>
               
               {/* X custom più grande e cliccabile */}
@@ -326,10 +307,8 @@ export const FocusDetailSheet = ({
             </div>
           </div>
 
-          {/* Contenuto scrollabile - mostra scrollbar per UX migliorata */}
-          <div 
-            className="flex-1 min-h-0 overflow-y-auto pb-20 force-scrollbar"
-          >
+          {/* Contenuto scrollabile */}
+          <div className="flex-1 min-h-0 overflow-y-auto pb-20 force-scrollbar">
             <h2 className="text-white text-2xl font-bold text-left leading-tight mt-4 pb-4 border-b border-white/10">
               {title}
             </h2>
@@ -343,9 +322,9 @@ export const FocusDetailSheet = ({
               </p>
             </div>
             
-            {/* Action Bar - Stile ImmersiveCard */}
+            {/* Action Bar */}
             <div className="py-4 flex items-center justify-between gap-3 border-y border-white/10">
-              {/* Primary Share Button - Pulsante bianco con logo */}
+              {/* Primary Share Button */}
               <button 
                 onClick={handleShareFromDrawer}
                 disabled={isProcessing}
@@ -357,7 +336,7 @@ export const FocusDetailSheet = ({
                 </span>
               </button>
 
-              {/* Reactions Bar - Glassmorphism */}
+              {/* Reactions Bar */}
               <div className="flex items-center gap-1 bg-white/5 backdrop-blur-xl h-10 px-3 rounded-2xl border border-white/10">
                 {/* Like */}
                 <button 
@@ -382,7 +361,7 @@ export const FocusDetailSheet = ({
                   </span>
                 </button>
 
-                {/* Comments - Toggle inline expansion */}
+                {/* Comments */}
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
@@ -460,44 +439,28 @@ export const FocusDetailSheet = ({
                       {user?.email?.[0]?.toUpperCase() || '?'}
                     </div>
                     <div className="flex-1 space-y-2">
-                      {replyTo && (
-                        <div className="flex items-center gap-2 text-xs text-gray-400">
-                          <span>Rispondendo a @{replyTo.username}</span>
-                          <button 
-                            onClick={() => setReplyTo(null)}
-                            className="text-red-400 hover:text-red-300"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      )}
                       <Textarea
+                        placeholder={replyTo ? `Rispondi a @${replyTo.username}...` : "Scrivi un commento..."}
                         value={commentText}
                         onChange={(e) => setCommentText(e.target.value)}
-                        placeholder={replyTo ? `Rispondi a @${replyTo.username}...` : "Scrivi un commento..."}
                         className="min-h-[80px] bg-white/5 border-white/10 text-white placeholder:text-gray-500 resize-none"
                       />
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-xs text-gray-400">
-                          {commentMode === 'read' && (
-                            <>
-                              <img
-                                src={LOGO_BASE}
-                                alt=""
-                                className="w-3.5 h-3.5"
-                                aria-hidden="true"
-                              />
-                              <span>Commento verificato</span>
-                            </>
-                          )}
-                        </div>
-                        <Button 
+                      <div className="flex justify-between items-center">
+                        {replyTo && (
+                          <button 
+                            onClick={() => setReplyTo(null)}
+                            className="text-xs text-gray-500 hover:text-gray-300"
+                          >
+                            Annulla risposta
+                          </button>
+                        )}
+                        <Button
+                          size="sm"
                           onClick={handleSubmitComment}
                           disabled={!commentText.trim() || addComment.isPending}
-                          size="sm"
-                          className="bg-primary hover:bg-primary/90"
+                          className="ml-auto"
                         >
-                          {addComment.isPending ? 'Invio...' : 'Invia'}
+                          {addComment.isPending ? 'Invio...' : 'Pubblica'}
                         </Button>
                       </div>
                     </div>
@@ -505,54 +468,32 @@ export const FocusDetailSheet = ({
                 )}
 
                 {/* Comments List */}
-                <div className="space-y-4 pt-2">
-                  <h4 className="text-gray-400 text-sm font-semibold">
-                    Commenti ({comments.length})
-                  </h4>
-                  
-                  {commentTree.length > 0 ? (
-                    commentTree.map((comment) => (
-                      <div key={comment.id}>
-                        <CommentItem 
-                          comment={comment}
-                          onReply={(id, username) => {
-                            setReplyTo({ id, username });
-                            setShowCommentForm(true);
-                          }}
-                          onDelete={handleDeleteComment}
-                          currentUserId={user?.id}
-                        />
-                        {repliesMap.has(comment.id) && (
-                          <div className="ml-6 mt-2 space-y-2 border-l-2 border-white/10 pl-4">
-                            {repliesMap.get(comment.id)!.map((reply) => (
-                              <CommentItem
-                                key={reply.id}
-                                comment={reply}
-                                onReply={(id, username) => {
-                                  setReplyTo({ id, username });
-                                  setShowCommentForm(true);
-                                }}
-                                onDelete={handleDeleteComment}
-                                currentUserId={user?.id}
-                                isReply
-                              />
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-center text-gray-500 py-6 text-sm">
-                      Nessun commento. Sii il primo a commentare!
+                <div className="space-y-4">
+                  {commentTree.length === 0 ? (
+                    <p className="text-center text-gray-500 text-sm py-4">
+                      Nessun commento ancora. Sii il primo!
                     </p>
+                  ) : (
+                    commentTree.map(comment => (
+                      <CommentItem 
+                        key={comment.id}
+                        comment={comment}
+                        replies={repliesMap.get(comment.id) || []}
+                        onReply={(c) => {
+                          setReplyTo({ id: c.id, username: c.author?.full_name || 'Utente' });
+                          setShowCommentForm(true);
+                        }}
+                        onDelete={handleDeleteComment}
+                        currentUserId={user?.id}
+                        focusId={focusId}
+                        focusType={type}
+                      />
+                    ))
                   )}
                 </div>
               </div>
             )}
-
-            {/* Bottom padding */}
-            <div className="pb-6" />
-          </div>
+            </div>
           </div>
         </SheetContent>
       </Sheet>
@@ -564,218 +505,131 @@ export const FocusDetailSheet = ({
         sources={sources}
         highlightIndex={highlightedSourceIndex}
       />
-      
-      {/* Quiz Modal for Focus Gate - use createPortal to escape Sheet context */}
-      {showQuiz && quizData && !quizData.error && quizData.questions && (() => {
-        // Capture questions in a stable reference for the onSubmit callback
-        const questionsSnapshot = [...quizData.questions];
-        const isForShare = quizData.forShare === true;
-        
-        return createPortal(
-          <QuizModal
-            questions={questionsSnapshot}
-            qaId={quizData.qaId}
-            onSubmit={async (answers: Record<string, string>) => {
-              try {
-                // SECURITY HARDENED: All validation via submit-qa edge function with qaId
-                const qaId = quizData.qaId;
-                const sourceUrl = quizData.sourceUrl || `focus://${type}/${focusId}`;
-                
-                console.log('[FocusDetailSheet] Validating with server qaId:', { 
-                  qaId,
-                  questionsCount: questionsSnapshot.length, 
-                  answersCount: Object.keys(answers).length,
-                  isForShare,
-                  sourceUrl
-                });
-                
-                const { data, error } = await supabase.functions.invoke('submit-qa', {
-                  body: {
-                    qaId, // Use server-generated qaId for secure lookup
-                    postId: null,
-                    sourceUrl: sourceUrl,
-                    answers,
-                    gateType: isForShare ? 'share' : 'comment'
-                  }
-                });
 
-                if (error) {
-                  console.error('[FocusDetailSheet] Validation error:', error);
-                  sonnerToast.error("Errore durante la validazione");
-                  setShowQuiz(false);
-                  setQuizData(null);
-                  return { passed: false, wrongIndexes: [] };
-                }
-
-                const total = questionsSnapshot.length;
-                const passed = data?.passed || false;
-                const wrongIndexes = data?.wrongIndexes || [];
-                const score = data?.score || 0;
-                
-                console.log('[FocusDetailSheet] Server validation result:', { score, total, passed, wrongIndexes });
-                
-                if (!passed) {
-                  sonnerToast.error('Non ancora chiaro. Riprova più tardi.');
-                  setShowQuiz(false);
-                  setQuizData(null);
-                  return { passed: false, score, total, wrongIndexes };
-                }
-
-                haptics.success();
-                
-                // Se il quiz era per share, apri il composer
-                if (isForShare) {
-                  sonnerToast.success('Hai superato il test!');
-                  setShowQuiz(false);
-                  setQuizData(null);
-                  onShare?.(); // Trigger share callback (opens composer)
-                } else {
-                  // Quiz per commento verificato
-                  sonnerToast.success('Hai fatto chiarezza. Il tuo commento sarà verificato.');
-                  setUserPassedGate(true);
-                  setCommentMode('read');
-                  setShowCommentForm(true);
-                  setShowQuiz(false);
-                  setQuizData(null);
-                }
-                
-                return { passed: true, score, total, wrongIndexes };
-              } catch (err) {
-                console.error('[FocusDetailSheet] Unexpected error:', err);
-                sonnerToast.error("Errore durante la validazione");
-                setShowQuiz(false);
-                setQuizData(null);
-                return { passed: false, wrongIndexes: [] };
-              }
-            }}
-          onCancel={() => {
-            sonnerToast.info("Quiz annullato.");
+      {/* Quiz Modal */}
+      {showQuiz && quizData && (
+        <QuizModal
+          isOpen={showQuiz}
+          onClose={() => {
             setShowQuiz(false);
             setQuizData(null);
           }}
-          provider="gemini"
-          />,
-          document.body
-        );
-      })()}
-      
-      {/* Error state for quiz loading failure */}
-      {showQuiz && quizData?.error && createPortal(
-        <div className="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center p-4 pointer-events-auto" style={{ pointerEvents: 'auto' }}>
-          <div className="bg-card rounded-2xl w-full max-w-md p-8 text-center shadow-2xl border border-border pointer-events-auto" onClick={(e) => e.stopPropagation()} style={{ pointerEvents: 'auto' }}>
-            <h2 className="text-xl font-bold mb-4 text-foreground">Errore</h2>
-            <p className="text-muted-foreground mb-6">{quizData.errorMessage || 'Impossibile caricare il quiz'}</p>
-            <Button 
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowQuiz(false);
-                setQuizData(null);
-              }} 
-              variant="outline" 
-              className="w-full pointer-events-auto"
-              style={{ pointerEvents: 'auto' }}
-            >
-              Chiudi
-            </Button>
-          </div>
-        </div>,
-        document.body
+          questions={quizData.questions}
+          qaId={quizData.qaId}
+          sourceUrl={quizData.sourceUrl}
+          onPass={() => {
+            setUserPassedGate(true);
+            setShowQuiz(false);
+            
+            if (quizData.forShare) {
+              onShare?.();
+            } else {
+              setCommentMode('read');
+              setShowCommentForm(true);
+            }
+            
+            setQuizData(null);
+          }}
+          onFail={() => {
+            sonnerToast.error('Quiz non superato. Riprova dopo aver riletto.');
+            setShowQuiz(false);
+            setQuizData(null);
+          }}
+        />
       )}
     </>
   );
 };
 
+// CommentItem component
 interface CommentItemProps {
   comment: any;
-  onReply: (id: string, username: string) => void;
-  onDelete: (id: string) => void;
+  replies: any[];
+  onReply: (comment: any) => void;
+  onDelete: (commentId: string) => void;
   currentUserId?: string;
-  isReply?: boolean;
+  focusId: string;
+  focusType: 'daily';
 }
 
-const CommentItem = ({ comment, onReply, onDelete, currentUserId, isReply }: CommentItemProps) => {
-  const { data: reactionsData } = useFocusCommentReactions(comment.id);
+const CommentItem = ({ comment, replies, onReply, onDelete, currentUserId, focusId, focusType }: CommentItemProps) => {
+  const { data: reactionData } = useFocusCommentReactions(comment.id);
   const toggleReaction = useToggleFocusCommentReaction();
-  
-  const likesCount = reactionsData?.likesCount || 0;
-  const likedByMe = reactionsData?.likedByMe || false;
-  
-  const handleLike = () => {
-    haptics.light();
-    toggleReaction.mutate({ focusCommentId: comment.id, isLiked: likedByMe });
-  };
-  
+  const { user } = useAuth();
+
+  const isOwner = currentUserId === comment.author_id;
+  const timeAgo = formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: it });
+
   return (
-    <div className="space-y-2">
-      <div className="flex items-start gap-3">
-        {comment.author_id === EDITORIAL.SYSTEM_ID || comment.author.username === 'ilpunto' ? (
-          <img 
-            src={EDITORIAL.AVATAR_IMAGE}
-            alt={EDITORIAL.NAME}
-            className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-          />
-        ) : (
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary/50 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
-            {comment.author.username[0].toUpperCase()}
-          </div>
-        )}
+    <div className="space-y-3">
+      <div className="flex gap-3">
+        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-600 to-gray-700 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">
+          {comment.author?.full_name?.[0]?.toUpperCase() || '?'}
+        </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-semibold text-white text-sm">
-              @{comment.author.username}
+              {comment.author?.full_name || 'Utente'}
             </span>
             {comment.is_verified && (
-              <img
-                src={LOGO_BASE}
-                alt=""
-                className="w-3.5 h-3.5"
-                aria-hidden="true"
-              />
+              <img src={LOGO_BASE} alt="Verificato" className="w-3.5 h-3.5" />
             )}
-            <span className="text-xs text-gray-500">
-              {formatDistanceToNow(new Date(comment.created_at), { 
-                addSuffix: true,
-                locale: it 
-              })}
-            </span>
+            <span className="text-xs text-gray-500">{timeAgo}</span>
           </div>
-          <p className="text-gray-200 text-sm mt-1">{comment.content}</p>
-          <div className="flex items-center gap-3 mt-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLike}
-              className={cn(
-                "h-6 text-xs",
-                likedByMe ? "text-red-500 hover:text-red-400" : "text-gray-400 hover:text-white"
-              )}
+          <p className="text-gray-300 text-sm mt-1 break-words">{comment.content}</p>
+          
+          {/* Comment Actions */}
+          <div className="flex items-center gap-4 mt-2">
+            <button
+              onClick={() => {
+                if (!user) {
+                  sonnerToast.error('Devi effettuare il login');
+                  return;
+                }
+                toggleReaction.mutate({ focusCommentId: comment.id, focusId, focusType });
+              }}
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-red-400 transition-colors"
             >
-              <Heart className={cn("w-3 h-3 mr-1", likedByMe && "fill-current")} />
-              {likesCount > 0 && likesCount}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onReply(comment.id, comment.author.username)}
-              className="h-6 text-xs text-gray-400 hover:text-white"
+              <Heart 
+                className={cn("w-3.5 h-3.5", reactionData?.likedByMe && "fill-red-400 text-red-400")} 
+              />
+              <span>{reactionData?.likes || 0}</span>
+            </button>
+            <button
+              onClick={() => onReply(comment)}
+              className="text-xs text-gray-500 hover:text-primary transition-colors"
             >
-              <MessageCircle className="w-3 h-3 mr-1" />
               Rispondi
-            </Button>
-            {currentUserId === comment.author_id && (
-              <Button
-                variant="ghost"
-                size="sm"
+            </button>
+            {isOwner && (
+              <button
                 onClick={() => onDelete(comment.id)}
-                className="h-6 text-xs text-red-400 hover:text-red-300"
+                className="text-xs text-gray-500 hover:text-red-400 transition-colors"
               >
-                <Trash2 className="w-3 h-3 mr-1" />
-                Elimina
-              </Button>
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
             )}
           </div>
         </div>
       </div>
+
+      {/* Replies */}
+      {replies.length > 0 && (
+        <div className="ml-11 space-y-3 border-l-2 border-white/10 pl-4">
+          {replies.map(reply => (
+            <CommentItem
+              key={reply.id}
+              comment={reply}
+              replies={[]}
+              onReply={onReply}
+              onDelete={onDelete}
+              currentUserId={currentUserId}
+              focusId={focusId}
+              focusType={focusType}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };
