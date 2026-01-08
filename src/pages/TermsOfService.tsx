@@ -21,7 +21,7 @@ export default function TermsOfService() {
             Indietro
           </Button>
           <div className="flex items-center justify-center mb-6">
-            <Logo />
+            <Logo className="w-auto h-12" />
           </div>
         </div>
 
