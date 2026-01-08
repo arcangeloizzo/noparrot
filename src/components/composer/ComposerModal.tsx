@@ -23,7 +23,7 @@ import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { cn } from "@/lib/utils";
 import { addBreadcrumb, generateIdempotencyKey, setPendingPublish, clearPendingPublish, getPendingPublish } from "@/lib/crashBreadcrumbs";
 import { forceUnlockBodyScroll } from "@/lib/bodyScrollLock";
-import { Lock, Unlock, Check } from "lucide-react";
+
 
 // iOS detection for stability tweaks (includes iPadOS reporting as Mac)
 const isIOS =
@@ -110,22 +110,22 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const gateStatus = (() => {
     // Gate attivo se c'è un URL
     if (detectedUrl) {
-      return { icon: Lock, label: 'Gate attivo', color: 'text-amber-400' };
+      return { label: 'Gate attivo', requiresGate: true };
     }
     
     // Gate sui caratteri SOLO per ricondivisioni (quotedPost presente)
     if (quotedPost) {
       const wordCount = getWordCount(content);
       if (wordCount > 150) {
-        return { icon: Lock, label: 'Gate completo', color: 'text-amber-400' };
+        return { label: 'Gate completo', requiresGate: true };
       }
       if (wordCount > 50) {
-        return { icon: Unlock, label: 'Gate light', color: 'text-amber-300/70' };
+        return { label: 'Gate light', requiresGate: true };
       }
     }
     
     // Nessun gate per testo libero senza URL
-    return { icon: Check, label: 'Nessun gate', color: 'text-white/40' };
+    return { label: 'Nessun gate', requiresGate: false };
   })();
 
   // Reset all state for clean composer on reopen
@@ -983,35 +983,29 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                       setShowMentions(false);
                     }
                   }}
-                  placeholder="Cosa vuoi condividere? Usa @ per menzionare..."
+                  placeholder="Scrivi cosa ne pensi o aggiungi un contesto..."
                   className={cn(
-                    "min-h-[140px] resize-none text-[16px] leading-relaxed",
+                    "min-h-[120px] resize-none text-[16px] leading-relaxed pb-8",
                     "bg-white/5 border-white/10 rounded-2xl",
                     "focus:border-primary/50 focus:ring-2 focus:ring-primary/20",
                     "placeholder:text-muted-foreground/60",
                     "transition-all duration-200"
                   )}
-                  rows={5}
+                  rows={4}
                 />
-                {/* Character counter + Gate indicator */}
-                <div className="absolute bottom-2 right-3 flex items-center gap-3">
-                  {/* Gate indicator */}
-                  <div className={cn(
-                    "flex items-center gap-1.5 text-xs",
-                    gateStatus.color
-                  )}>
-                    <gateStatus.icon className="w-3 h-3" />
-                    <span className="font-medium">{gateStatus.label}</span>
-                  </div>
-                  
-                  {/* Character counter */}
-                  <div className={cn(
-                    "text-xs",
-                    content.length > 2500 ? "text-amber-400" : "text-muted-foreground/50",
-                    content.length >= 3000 && "text-red-400"
-                  )}>
-                    {content.length}/3000
-                  </div>
+                {/* Hint text inside textarea area - bottom left */}
+                <div className="absolute bottom-3 left-3 flex items-center gap-1.5 text-xs text-muted-foreground/50 pointer-events-none">
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+                  <span>Le fonti e i link attivano il percorso di comprensione</span>
+                </div>
+                
+                {/* Character counter - bottom right inside textarea */}
+                <div className={cn(
+                  "absolute bottom-3 right-3 text-xs pointer-events-none",
+                  content.length > 2500 ? "text-amber-400" : "text-muted-foreground/50",
+                  content.length >= 3000 && "text-red-400"
+                )}>
+                  {content.length}/3000
                 </div>
                 
                 {showMentions && (
@@ -1022,6 +1016,24 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                     isLoading={isSearching}
                     position="below"
                   />
+                )}
+              </div>
+              
+              {/* Gate status indicator - outside textarea, aligned with action bar */}
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground/60">Aggiungi prove o contesto visivo</span>
+                {(detectedUrl || quotedPost) && (
+                  <div className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 rounded-full",
+                    gateStatus.label === 'Nessun gate' 
+                      ? "bg-muted/20 text-muted-foreground/60"
+                      : "bg-emerald-500/15 text-emerald-400"
+                  )}>
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-current" />
+                    <span className="font-medium">
+                      {gateStatus.label === 'Nessun gate' ? 'Nessun gate' : 'Comprensione richiesta'}
+                    </span>
+                  </div>
                 )}
               </div>
 
