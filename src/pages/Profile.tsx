@@ -4,19 +4,23 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
-import { CognitiveMap } from "@/components/profile/CognitiveMap";
 import { DiaryEntry, DiaryEntryData, DiaryEntryType } from "@/components/profile/DiaryEntry";
 import { DiaryFilters, DiaryFilterType } from "@/components/profile/DiaryFilters";
-import { ProfileActions } from "@/components/profile/ProfileActions";
+import { ProfileSettingsSheet } from "@/components/profile/ProfileSettingsSheet";
+import { CompactNebula } from "@/components/profile/CompactNebula";
+import { NebulaExpandedSheet } from "@/components/profile/NebulaExpandedSheet";
 import { getDisplayUsername } from "@/lib/utils";
 import { recalculateCognitiveDensityFromPosts } from "@/lib/cognitiveDensity";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Settings } from "lucide-react";
 
 export const Profile = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [diaryFilter, setDiaryFilter] = useState<DiaryFilterType>('all');
+  const [showSettings, setShowSettings] = useState(false);
+  const [showNebulaExpanded, setShowNebulaExpanded] = useState(false);
 
   const { data: profile, isLoading, error } = useQuery({
     queryKey: ["profile", user?.id],
@@ -214,70 +218,84 @@ export const Profile = () => {
   return (
     <div className="min-h-screen bg-background pb-24 urban-texture">
       <div className="max-w-[600px] mx-auto">
-        {/* Header - Avatar, Name, Bio */}
-        <div className="px-6 pt-12 pb-8 text-center">
-          {/* Large Avatar with cognitive glow */}
-          <div className="flex justify-center mb-4">
-            {profile?.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt="Avatar"
-                className="w-24 h-24 rounded-full object-cover shadow-[0_0_30px_rgba(10,122,255,0.2)] ring-2 ring-white/10"
-              />
-            ) : (
-              <div className="w-24 h-24 rounded-full bg-primary flex items-center justify-center text-3xl font-semibold text-primary-foreground shadow-[0_0_30px_rgba(10,122,255,0.2)] ring-2 ring-white/10">
-                {getInitials(getDisplayUsername(profile?.username || "U"))}
-              </div>
-            )}
+        {/* Header - Avatar, Name, Bio, Settings */}
+        <div className="px-6 pt-10 pb-4">
+          <div className="flex items-start gap-4">
+            {/* Avatar */}
+            <div className="flex-shrink-0">
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt="Avatar"
+                  className="w-20 h-20 rounded-full object-cover shadow-[0_0_20px_rgba(10,122,255,0.15)] ring-2 ring-white/10"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-2xl font-semibold text-primary-foreground shadow-[0_0_20px_rgba(10,122,255,0.15)] ring-2 ring-white/10">
+                  {getInitials(getDisplayUsername(profile?.username || "U"))}
+                </div>
+              )}
+            </div>
+
+            {/* Name & Bio */}
+            <div className="flex-1 min-w-0 pt-1">
+              <h1 className="text-xl font-bold truncate">
+                {profile?.full_name?.trim() && !profile.full_name.includes('@') && profile.full_name.includes(' ')
+                  ? profile.full_name 
+                  : getDisplayUsername(profile?.username || '')}
+              </h1>
+              {profile?.bio && (
+                <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
+                  {profile.bio}
+                </p>
+              )}
+            </div>
+
+            {/* Settings Icon */}
+            <button
+              onClick={() => setShowSettings(true)}
+              className="flex-shrink-0 p-2.5 rounded-full bg-[#141A1E] border border-white/10 hover:border-white/20 transition-colors"
+              aria-label="Impostazioni"
+            >
+              <Settings className="w-5 h-5 text-muted-foreground" />
+            </button>
           </div>
 
-          {/* Name */}
-          <h1 className="text-2xl font-bold mb-1">
-            {profile?.full_name?.trim() && !profile.full_name.includes('@') && profile.full_name.includes(' ')
-              ? profile.full_name 
-              : getDisplayUsername(profile?.username || '')}
-          </h1>
-
-          {/* Micro-tagline (bio) */}
-          {profile?.bio && (
-            <p className="text-sm text-muted-foreground max-w-xs mx-auto mb-4">
-              {profile.bio}
-            </p>
-          )}
-
           {/* Metrics Pills */}
-          <div className="flex justify-center gap-3 flex-wrap">
-            <div className="px-4 py-1.5 bg-[#141A1E] rounded-full text-sm">
+          <div className="flex gap-2 mt-4 flex-wrap">
+            <div className="px-3 py-1 bg-[#141A1E] rounded-full text-xs">
               <span className="font-bold text-foreground">{Math.round(totalPaths)}</span>
               <span className="text-muted-foreground ml-1">percorsi</span>
             </div>
-            <div className="px-4 py-1.5 bg-[#141A1E] rounded-full text-sm">
+            <div className="px-3 py-1 bg-[#141A1E] rounded-full text-xs">
               <span className="font-bold text-foreground">{activeTopics}</span>
               <span className="text-muted-foreground ml-1">ambiti</span>
             </div>
-            <div className="px-4 py-1.5 bg-[#141A1E] rounded-full text-sm">
+            <div className="px-3 py-1 bg-[#141A1E] rounded-full text-xs">
               <span className="font-bold text-foreground">{stats?.following || 0}</span>
               <span className="text-muted-foreground ml-1">conn.</span>
             </div>
           </div>
         </div>
 
-        {/* Cognitive Nebula */}
-        <div className="px-6 py-6 mx-4 mb-6 rounded-2xl bg-[#0E1419]/80 backdrop-blur-xl border border-white/5">
-          <CognitiveMap cognitiveDensity={cognitiveDensity} />
+        {/* Compact Cognitive Nebula (expandable) */}
+        <div className="px-4 mb-4">
+          <CompactNebula 
+            data={cognitiveDensity} 
+            onClick={() => setShowNebulaExpanded(true)} 
+          />
         </div>
 
         {/* Cognitive Diary */}
         <div className="px-4 pb-6">
-          <div className="mb-4">
-            <h3 className="text-lg font-semibold mb-1">Diario Cognitivo</h3>
-            <p className="text-sm text-muted-foreground">
+          <div className="mb-3">
+            <h3 className="text-base font-semibold">Diario Cognitivo</h3>
+            <p className="text-xs text-muted-foreground">
               Tutto ciò che hai compreso, condiviso e creato.
             </p>
           </div>
 
           {/* Filters */}
-          <div className="mb-4">
+          <div className="mb-3">
             <DiaryFilters activeFilter={diaryFilter} onFilterChange={setDiaryFilter} />
           </div>
 
@@ -310,12 +328,20 @@ export const Profile = () => {
             </div>
           )}
         </div>
-
-        {/* Profile Actions */}
-        <div className="px-4 py-6 border-t border-border/20">
-          <ProfileActions />
-        </div>
       </div>
+
+      {/* Settings Bottom Sheet */}
+      <ProfileSettingsSheet 
+        open={showSettings} 
+        onOpenChange={setShowSettings} 
+      />
+
+      {/* Nebula Expanded Sheet */}
+      <NebulaExpandedSheet
+        open={showNebulaExpanded}
+        onOpenChange={setShowNebulaExpanded}
+        cognitiveDensity={cognitiveDensity}
+      />
 
       <BottomNavigation 
         activeTab="profile" 
