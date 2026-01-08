@@ -1,9 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { SplashScreen } from "@/components/onboarding/SplashScreen";
 import { OnboardingSlides } from "@/components/onboarding/OnboardingSlides";
 import { AuthPage } from "@/components/auth/AuthPage";
 import ConsentScreen from "@/pages/ConsentScreen";
-import { isConsentCompleted } from "@/hooks/useUserConsents";
 
 interface OnboardingFlowProps {
   onComplete: () => void;
@@ -11,20 +10,26 @@ interface OnboardingFlowProps {
 
 type OnboardingStep = "splash" | "slides" | "consent" | "auth";
 
+// Reset consent flag to ensure ConsentScreen is always shown during onboarding
+const resetConsentFlag = () => {
+  localStorage.removeItem("noparrot-consent-completed");
+};
+
 export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   const [currentStep, setCurrentStep] = useState<OnboardingStep>("splash");
+
+  // Reset consent flag when onboarding starts
+  useEffect(() => {
+    resetConsentFlag();
+  }, []);
 
   const handleSplashComplete = () => {
     setCurrentStep("slides");
   };
 
   const handleSlidesComplete = () => {
-    // Check if consent is already completed
-    if (isConsentCompleted()) {
-      setCurrentStep("auth");
-    } else {
-      setCurrentStep("consent");
-    }
+    // Always show consent screen during onboarding
+    setCurrentStep("consent");
   };
 
   const handleConsentComplete = () => {
