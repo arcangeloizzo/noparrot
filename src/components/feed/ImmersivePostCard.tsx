@@ -445,6 +445,50 @@ export const ImmersivePostCard = ({
     setShowReader(true);
   };
 
+  // Direct gate for text-only posts when already read (bypasses reader)
+  const goDirectlyToGateForPost = async () => {
+    if (!user) return;
+    
+    const userText = post.content;
+    const userWordCount = getWordCount(userText);
+    const questionCount = getQuestionCountWithoutSource(userWordCount);
+    
+    // If no questions needed, go straight to composer
+    if (questionCount === 0) {
+      onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [] });
+      toast({ title: 'Post pronto per la condivisione', description: 'Aggiungi un tuo commento' });
+      return;
+    }
+    
+    toast({ title: 'Stiamo mettendo a fuoco ciò che conta…' });
+    
+    try {
+      const result = await generateQA({
+        contentId: post.id,
+        title: post.author.full_name || post.author.username,
+        summary: userText,
+        userText: userText || '',
+        questionCount,
+      });
+
+      if (result.insufficient_context) {
+        toast({ title: 'Contenuto troppo breve', description: 'Puoi comunque condividere questo post' });
+        onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [] });
+        return;
+      }
+
+      if (!result || result.error || !result.questions?.length) {
+        toast({ title: 'Errore', description: result?.error || 'Quiz non valido', variant: 'destructive' });
+        return;
+      }
+
+      setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}` });
+      setShowQuiz(true);
+    } catch (error) {
+      toast({ title: 'Errore', description: 'Si è verificato un errore. Riprova.', variant: 'destructive' });
+    }
+  };
+
   const startComprehensionGate = async () => {
     // Use finalSourceUrl to include sources from quoted posts and deep chains
     if (!finalSourceUrl || !user) return;
@@ -1703,24 +1747,9 @@ export const ImmersivePostCard = ({
                     onClick={async (e) => {
                       e.stopPropagation();
                       setShowFullText(false);
-                      if (!user) return;
-                      // From expanded view = already read, go directly to gate (bypass reader)
                       setShareAction('feed');
-                      // Set up readerSource for handleReaderComplete but don't show reader
-                      const sourceForGate = {
-                        id: post.id,
-                        state: 'reading' as const,
-                        url: `post://${post.id}`,
-                        title: post.author.full_name || post.author.username,
-                        content: post.content,
-                        isOriginalPost: true,
-                        author: post.author.username,
-                        authorFullName: post.author.full_name,
-                        authorAvatar: post.author.avatar_url,
-                      };
-                      setReaderSource(sourceForGate);
-                      // Go directly to handleReaderComplete (gate) without showing reader
-                      setTimeout(() => handleReaderComplete(), 50);
+                      // Go directly to gate - user already read the content
+                      await goDirectlyToGateForPost();
                     }}
                     className="h-10 px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                   >
