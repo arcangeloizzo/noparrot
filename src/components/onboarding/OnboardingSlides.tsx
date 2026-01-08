@@ -23,7 +23,7 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
 
   // Slide 1: Il Nemico
   const SlideNemico = () => (
-    <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+    <div className="flex flex-col items-center justify-center flex-1 px-8 pt-16 pb-20 text-center">
       {/* Logo grande */}
       <Logo variant="icon" size="xl" className="w-32 h-32 mb-12" />
       
@@ -38,17 +38,15 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
       </p>
       
       {/* Hint swipe */}
-      <div className="absolute bottom-12 left-0 right-0 flex justify-center">
-        <p className="text-xs text-white/30 animate-pulse">
-          Scorri o tocca per continuare →
-        </p>
-      </div>
+      <p className="mt-auto text-xs text-white/30 animate-pulse">
+        Scorri o tocca per continuare →
+      </p>
     </div>
   );
 
   // Slide 2: La Difesa
   const SlideDifesa = () => (
-    <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+    <div className="flex flex-col items-center justify-center flex-1 px-8 pt-16 pb-20 text-center">
       {/* Icona animata Lock -> Check */}
       <div 
         className="relative w-24 h-24 mb-12 flex items-center justify-center"
@@ -91,7 +89,7 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
 
   // Slide 3: L'Autore
   const SlideAutore = () => (
-    <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+    <div className="flex flex-col items-center justify-center flex-1 px-8 pt-16 pb-20 text-center">
       {/* Icona penna + nebulosa stilizzata */}
       <div className="relative w-24 h-24 mb-12 flex items-center justify-center">
         <Sparkles className="absolute w-28 h-28 text-primary/20 stroke-[0.5]" />
@@ -120,7 +118,7 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
 
   // Slide 4: Il Patto
   const SlidePatto = () => (
-    <div className="flex flex-col items-center justify-center h-full px-8 text-center">
+    <div className="flex flex-col items-center justify-center flex-1 px-8 pt-16 pb-20 text-center">
       {/* Titolo */}
       <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-6">
         NoParrot richiede tempo.
