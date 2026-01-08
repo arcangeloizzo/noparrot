@@ -133,10 +133,15 @@ const isTextSimilarToTitle = (userText: string, title: string): boolean => {
 const isTextSimilarToArticleContent = (userText: string, articlePreview: any): boolean => {
   if (!userText || !articlePreview) return false;
   
-  const normalize = (s: string) => s?.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim() || '';
+  const normalize = (s: string) => s?.toLowerCase().replace(/[^\w\sàèéìòù]/g, '').replace(/\s+/g, ' ').trim() || '';
   const normalizedUser = normalize(userText);
   
   if (normalizedUser.length < 10) return false; // Very short text is likely user-written
+  
+  // Extract meaningful keywords (filter out stop words and short words)
+  const stopWords = new Set(['il', 'la', 'i', 'le', 'un', 'una', 'di', 'da', 'a', 'in', 'con', 'su', 'per', 'che', 'non', 'è', 'uso', 'della', 'del', 'the', 'a', 'an', 'and', 'or', 'but', 'to', 'of', 'for', 'on', 'at', 'by', 'from', 'as', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'dare', 'ought', 'used', 'this', 'that', 'these', 'those', 'what', 'which', 'who', 'whom', 'whose', 'when', 'where', 'why', 'how', 'all', 'each', 'every', 'both', 'few', 'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so', 'than', 'too', 'very']);
+  const extractKeywords = (text: string) => 
+    normalize(text).split(' ').filter(w => w.length > 3 && !stopWords.has(w));
   
   // Check against all possible extracted fields
   const fieldsToCheck = [
@@ -164,6 +169,26 @@ const isTextSimilarToArticleContent = (userText: string, articlePreview: any): b
       const overlapRatio = overlap / Math.min(userWords.size, fieldWords.size);
       if (overlapRatio > 0.8) return true;
     }
+  }
+  
+  // NEW: Keyword thematic matching - detect if text shares ≥60% of keywords with title
+  const userKeywords = extractKeywords(userText);
+  const titleKeywords = extractKeywords(articlePreview?.title || '');
+  
+  if (userKeywords.length > 3 && titleKeywords.length > 3) {
+    const userKeywordSet = new Set(userKeywords);
+    const sharedKeywords = titleKeywords.filter(k => userKeywordSet.has(k));
+    if (sharedKeywords.length / titleKeywords.length >= 0.6) return true;
+  }
+  
+  // NEW: Headline pattern detection - text ending with "..." that shares keywords
+  const looksLikeHeadline = /\.\.\.$/.test(userText.trim()) || 
+    (/^[A-ZÀÈÉÌÒÙ]/.test(userText) && userText.split(/[.!?]/).filter(Boolean).length <= 2);
+  
+  if (looksLikeHeadline && userKeywords.length >= 3) {
+    const titleKeywordSet = new Set(titleKeywords);
+    const sharedKeywords = userKeywords.filter(k => titleKeywordSet.has(k));
+    if (sharedKeywords.length >= 3) return true;
   }
   
   return false;
