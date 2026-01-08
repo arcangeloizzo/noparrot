@@ -900,6 +900,7 @@ export type Database = {
           answers: Json
           completion_time_ms: number | null
           created_at: string | null
+          expires_at: string | null
           gate_type: string
           id: string
           passed: boolean
@@ -913,6 +914,7 @@ export type Database = {
           answers: Json
           completion_time_ms?: number | null
           created_at?: string | null
+          expires_at?: string | null
           gate_type: string
           id?: string
           passed: boolean
@@ -926,6 +928,7 @@ export type Database = {
           answers?: Json
           completion_time_ms?: number | null
           created_at?: string | null
+          expires_at?: string | null
           gate_type?: string
           id?: string
           passed?: boolean

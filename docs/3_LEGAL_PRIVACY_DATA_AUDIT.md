@@ -1,6 +1,6 @@
 # NoParrot - Audit Legale, Privacy e Dati
 
-**Versione:** 2.0  
+**Versione:** 2.1  
 **Data:** 8 gennaio 2026  
 **Documento per:** Review AI Esterni / Compliance Check
 
@@ -25,8 +25,10 @@ NoParrot è un social network con focus sulla comprensione consapevole. Questo a
 | Requisito | Implementazione | Status |
 |-----------|-----------------|--------|
 | Età minima 16 anni | Campo `date_of_birth` NOT NULL in `profiles` | ✅ |
-| Verifica età | Check lato client + database constraint | ✅ |
+| Dichiarazione età | Auto-dichiarazione in fase di registrazione | ✅ |
 | Blocco registrazione | Utenti <16 anni non possono creare account | ✅ |
+
+**Nota importante:** L'età è auto-dichiarata dall'utente. Il copy in `AuthPage.tsx` specifica "Per iscriverti devi avere almeno 16 anni" senza implicare verifica attiva.
 
 **Codice rilevante:** `src/contexts/AuthContext.tsx`
 ```typescript
@@ -45,14 +47,15 @@ if (age < minAge) {
 |-------------|----------------|----------------|
 | Account & servizio | Esecuzione contratto (6.1.b) | ✅ Terms of Service |
 | Sicurezza & anti-spam | Interesse legittimo (6.1.f) | ✅ Privacy Policy §2 |
-| Cognitive Density | Consenso esplicito (6.1.a) | ✅ Opt-in toggle |
-| Ads personalizzati | Consenso esplicito (6.1.a) | ✅ Opt-in toggle |
+| Cognitive Density | Consenso esplicito (6.1.a) | ✅ Toggle opt-in in ConsentScreen |
+| Ads personalizzati | Consenso esplicito (6.1.a) | ✅ Toggle opt-in |
 
 ### 2.3 Consenso (Art. 7 GDPR)
 
 **Implementazione:**
 - Schermata `ConsentScreen` pre-autenticazione
 - Checkbox obbligatori per Terms + Privacy
+- Toggle opzionale per Cognitive Tracking (default OFF)
 - Toggle opzionale per Ads personalizzati (default OFF)
 - Versionamento consensi: `consent_version = '2.0'`
 
@@ -67,9 +70,14 @@ privacy_accepted_at         TIMESTAMPTZ
 ads_opt_in_at               TIMESTAMPTZ
 ```
 
+**Tabella `profiles` (campo cognitive tracking):**
+```sql
+cognitive_tracking_enabled  BOOLEAN DEFAULT true  -- Impostato da ConsentScreen opt-in
+```
+
 **Flusso:**
-1. Pre-auth: consensi salvati in localStorage
-2. Post-auth: sync automatico in `user_consents` table
+1. Pre-auth: consensi salvati in localStorage (incluso cognitive opt-in)
+2. Post-auth: sync automatico in `user_consents` e `profiles` tables
 3. Revoca: disponibile in Impostazioni → Privacy
 
 ### 2.4 Diritti dell'Interessato (Artt. 15-22 GDPR)
@@ -88,6 +96,7 @@ ads_opt_in_at               TIMESTAMPTZ
 
 **Cognitive Density:**
 - Mappa di interessi costruita da interazioni consapevoli
+- **Richiede consenso esplicito** via toggle in ConsentScreen
 - NON produce effetti giuridici né decisioni automatizzate significative
 - Usata SOLO per suggerire contenuti, non per escludere da servizi
 - Opt-out disponibile: `cognitive_tracking_enabled` in `profiles`
@@ -145,7 +154,7 @@ ads_opt_in_at               TIMESTAMPTZ
 | Attività | post, commenti, reazioni, salvataggi | Fino a cancellazione account |
 | Cognitivi | cognitive_density (mappa interessi) | Fino a cancellazione o opt-out |
 | Tecnici | IP (in auth logs), sessioni, push tokens | Supabase default (auth logs) |
-| Gate | risposte quiz, punteggi, tempi | Indefinito (analytics) |
+| Gate | risposte quiz, punteggi, tempi | **365 giorni** (GDPR compliant) |
 | Cache | trascrizioni, trust scores, contenuti | 7-30 giorni (auto-expire) |
 
 ### 4.2 Tabelle con Dati Personali
@@ -158,16 +167,16 @@ ads_opt_in_at               TIMESTAMPTZ
 | messages | content (private) | ✅ Thread participant only |
 | user_consents | consensi, timestamps | ✅ Own only |
 | notifications | activity references | ✅ Own only |
-| post_gate_attempts | risposte quiz, scores | ✅ Own only |
+| post_gate_attempts | risposte quiz, scores | ✅ Own only, expires_at 365 days |
 
 ### 4.3 Tabelle NON Personali (Cache/System)
 
 | Tabella | Contenuto | RLS | Note |
 |---------|-----------|-----|------|
 | daily_focus | Sintesi editoriali | No (public) | Contenuto AI-generated |
-| trust_scores | Score per URL | ✅ Auth read | No dati utente |
-| content_cache | Articoli estratti | ❌ Disabled | Service role only |
-| youtube_transcripts_cache | Trascrizioni | ✅ Insert only | Service role only |
+| trust_scores | Score per URL | ✅ Auth read, service_role write | No dati utente |
+| content_cache | Articoli estratti | ✅ RLS enabled, service_role only | Blocked for anon/auth |
+| youtube_transcripts_cache | Trascrizioni | ✅ RLS enabled, service_role only | Blocked for anon/auth |
 
 ---
 
@@ -191,6 +200,10 @@ CREATE POLICY "Thread participants can view messages"
 ON messages FOR SELECT 
 USING (user_is_thread_participant(thread_id, auth.uid()));
 
+-- content_cache, youtube_transcripts_cache: RLS ENABLED
+-- Policy: NESSUNA policy = solo service_role può accedere
+-- (Non "RLS disabled", ma "RLS enabled con 0 policies permissive")
+
 -- post_qa_answers: NESSUNA policy = service role only
 -- (Tabella con risposte corrette mai accessibile da client)
 ```
@@ -199,13 +212,13 @@ USING (user_is_thread_participant(thread_id, auth.uid()));
 
 **Architettura hardened:**
 1. `post_qa_questions` - Domande visibili, NO correctId
-2. `post_qa_answers` - Risposte corrette, 0 policies RLS
-3. `qa_submit_attempts` - Rate limiting, 0 policies RLS
+2. `post_qa_answers` - Risposte corrette, RLS enabled con 0 policies (service_role only)
+3. `qa_submit_attempts` - Rate limiting, RLS enabled (own only)
 
 **Validazione SOLO server-side:**
 - Edge function `submit-qa` è l'unica fonte di verità
 - Client NON riceve mai risposte corrette
-- Rate limit: 10 tentativi / 5 minuti
+- Block-on-wrong: 2 errori totali = quiz fallito
 
 ### 5.3 Messaggi Privati
 
@@ -252,6 +265,7 @@ USING (user_is_thread_participant(thread_id, auth.uid()));
 | sb-*-auth-token | Tecnico | Autenticazione Supabase | Sessione |
 | noparrot-consent-completed | Tecnico | Flag consenso | Permanente |
 | noparrot-pending-consent | Tecnico | Consenso pre-auth | Temporaneo |
+| noparrot-pending-cognitive-opt-in | Tecnico | Cognitive opt-in pre-auth | Temporaneo |
 
 ### 7.2 Tracking di Terze Parti
 
@@ -293,8 +307,9 @@ USING (user_is_thread_participant(thread_id, auth.uid()));
 ## 9. Checklist Compliance
 
 ### GDPR
-- [x] Age gate 16+ con verifica
+- [x] Age gate 16+ con auto-dichiarazione
 - [x] Consenso esplicito pre-registrazione
+- [x] Consenso esplicito per cognitive tracking (toggle in ConsentScreen)
 - [x] Versionamento consensi
 - [x] Opt-out profilazione (cognitive tracking)
 - [x] Data export funzionante
@@ -303,6 +318,7 @@ USING (user_is_thread_participant(thread_id, auth.uid()));
 - [x] Privacy Policy completa
 - [x] Contatto DPO/titolare
 - [x] Documentazione trasferimenti extra-UE
+- [x] Retention definita per gate data (365 giorni)
 
 ### DSA
 - [x] Pagina trasparenza algoritmi
@@ -312,6 +328,7 @@ USING (user_is_thread_participant(thread_id, auth.uid()));
 
 ### Security
 - [x] RLS su tutte le tabelle con dati personali
+- [x] RLS enabled su cache tables (service_role only via 0 policies)
 - [x] Separazione questions/answers quiz
 - [x] Rate limiting validazione quiz
 - [x] Service role only per tabelle sensibili
@@ -328,8 +345,8 @@ USING (user_is_thread_participant(thread_id, auth.uid()));
 
 ### Media Priorità
 4. **DPO formale** - Considerare nomina per scale-up
-5. **DPIA** - Valutazione impatto per profilazione cognitiva
-6. **Retention policy automatica** - Cleanup schedulato dati scaduti
+5. **DPIA** - Valutazione impatto per profilazione cognitiva (vedere `DPIA_LIGHT.md`)
+6. **Retention policy automatica** - Cleanup schedulato dati scaduti ✅ Implementato
 
 ### Bassa Priorità
 7. **Certificazioni** - ISO 27001 per enterprise
@@ -351,8 +368,8 @@ USING (user_is_thread_participant(thread_id, auth.uid()));
 | Commenti | ✅ | Contratto | Account life | Delete singolo |
 | Reazioni | ✅ | Contratto | Account life | Remove singolo |
 | Messaggi | ✅ | Contratto | Account life | Soft delete |
-| Cognitive Density | ✅ | Consenso | Account life | ✅ Toggle |
-| Risposte quiz | ✅ | Interesse legittimo | Indefinito | ❌ |
+| Cognitive Density | ✅ | Consenso esplicito | Account life | ✅ Toggle (ConsentScreen + Settings) |
+| Risposte quiz | ✅ | Interesse legittimo | **365 giorni** | ❌ |
 | Trust scores | ✅ | Interesse legittimo | 7 giorni | ❌ |
 | Trascrizioni | ✅ | Interesse legittimo | 30 giorni | ❌ |
 

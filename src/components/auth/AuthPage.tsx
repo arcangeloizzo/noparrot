@@ -462,7 +462,7 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
                   </SelectContent>
                 </Select>
               </div>
-              <p className="text-xs text-muted-foreground">Devi avere almeno 13 anni per iscriverti</p>
+              <p className="text-xs text-muted-foreground">Per iscriverti devi avere almeno 16 anni</p>
             </div>
 
             <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />

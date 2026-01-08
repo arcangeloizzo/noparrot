@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Logo } from "@/components/ui/logo";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUpsertConsents, setConsentCompleted, savePendingConsent } from "@/hooks/useUserConsents";
+import { supabase } from "@/integrations/supabase/client";
 import { ExternalLink } from "lucide-react";
 
 interface ConsentScreenProps {
@@ -21,6 +22,7 @@ export default function ConsentScreen({ onComplete }: ConsentScreenProps) {
   
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [adsOptIn, setAdsOptIn] = useState(false);
+  const [cognitiveOptIn, setCognitiveOptIn] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleContinue = async () => {
@@ -29,13 +31,19 @@ export default function ConsentScreen({ onComplete }: ConsentScreenProps) {
     setIsSubmitting(true);
     try {
       if (user) {
-        // User is authenticated, save to database
+        // User is authenticated, save consents to database
         await upsertConsents.mutateAsync({
           accepted_terms: true,
           accepted_privacy: true,
           ads_personalization_opt_in: adsOptIn,
           consent_version: "2.0",
         });
+        
+        // Update cognitive tracking preference in profile
+        await supabase
+          .from('profiles')
+          .update({ cognitive_tracking_enabled: cognitiveOptIn })
+          .eq('id', user.id);
       } else {
         // User not authenticated, save to localStorage
         savePendingConsent({
@@ -44,6 +52,8 @@ export default function ConsentScreen({ onComplete }: ConsentScreenProps) {
           ads_personalization_opt_in: adsOptIn,
           consent_version: "2.0",
         });
+        // Store cognitive preference for sync after auth
+        localStorage.setItem('noparrot-pending-cognitive-opt-in', JSON.stringify(cognitiveOptIn));
       }
       
       setConsentCompleted();
@@ -148,6 +158,25 @@ export default function ConsentScreen({ onComplete }: ConsentScreenProps) {
                     </a>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Cognitive tracking toggle */}
+            <div className="space-y-3 pt-4 border-t border-border">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="cognitive-tracking" className="text-sm font-medium">
+                    Consento la creazione della mia mappa cognitiva
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Traccia i tuoi interessi per personalizzare il feed. Puoi disattivarlo in qualsiasi momento.
+                  </p>
+                </div>
+                <Switch
+                  id="cognitive-tracking"
+                  checked={cognitiveOptIn}
+                  onCheckedChange={setCognitiveOptIn}
+                />
               </div>
             </div>
 
