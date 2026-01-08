@@ -1677,8 +1677,8 @@ export const ImmersivePostCard = ({
               </div>
             </div>
             
-            {/* Scrollable content area */}
-            <div className="relative z-10 px-6 py-5 max-h-[45vh] overflow-y-auto no-scrollbar">
+            {/* Scrollable content area - action bar at the end (inline, not fixed) */}
+            <div className="relative z-10 px-6 py-5 max-h-[55vh] overflow-y-auto no-scrollbar">
               {/* Render content with visual paragraph breaks - uniform styling */}
               {(() => {
                 const paragraphs = post.content.split(/\n\n+/);
@@ -1694,83 +1694,76 @@ export const ImmersivePostCard = ({
                   </div>
                 ));
               })()}
-            </div>
-            
-            {/* Action Bar - Stile ImmersiveCard standard */}
-            <div className="relative z-10 px-6 py-4 border-t border-white/[0.06]">
-              <div className="flex items-center justify-between gap-3">
-                {/* Primary Share Button - h-10 px-4 */}
-                <button 
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    setShowFullText(false);
-                    // Text-only posts: check if gate needed
-                    const userWordCount = getWordCount(post.content);
-                    const questionCount = getQuestionCountWithoutSource(userWordCount);
-                    if (questionCount === 0) {
-                      onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [] });
-                      toast({ title: 'Post pronto per la condivisione', description: 'Aggiungi un tuo commento' });
-                    } else {
+              
+              {/* Action Bar - Inside scroll area, visible after reading */}
+              <div className="mt-8 pt-6 border-t border-white/[0.08]">
+                <div className="flex items-center justify-between gap-3">
+                  {/* Primary Share Button - goes directly to gate (already read) */}
+                  <button 
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      setShowFullText(false);
+                      // From expanded view = already read, go directly to gate
                       setShareAction('feed');
                       await startComprehensionGateForPost();
-                    }
-                  }}
-                  className="h-10 px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                >
-                  <Logo variant="icon" size="sm" className="h-4 w-4" />
-                  <span className="text-sm font-semibold leading-none">Condividi</span>
-                  {(post.shares_count ?? 0) > 0 && (
-                    <span className="text-xs opacity-70">({post.shares_count})</span>
-                  )}
-                </button>
-
-                {/* Reactions - Horizontal layout h-10 matching share button */}
-                <div className="flex items-center gap-1 bg-black/20 backdrop-blur-xl h-10 px-3 rounded-2xl border border-white/5">
-                  
-                  {/* Like */}
-                  <button 
-                    className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
-                    onClick={(e) => { e.stopPropagation(); handleHeart(e); }}
+                    }}
+                    className="h-10 px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                   >
-                    <Heart 
-                      className={cn("w-5 h-5", post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
-                      fill={post.user_reactions?.has_hearted ? "currentColor" : "none"}
-                    />
-                    <span className="text-xs font-bold text-white">{post.reactions?.hearts || 0}</span>
+                    <Logo variant="icon" size="sm" className="h-4 w-4" />
+                    <span className="text-sm font-semibold leading-none">Condividi</span>
+                    {(post.shares_count ?? 0) > 0 && (
+                      <span className="text-xs opacity-70">({post.shares_count})</span>
+                    )}
                   </button>
 
-                  {/* Comments */}
-                  <button 
-                    className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
-                    onClick={(e) => { e.stopPropagation(); setShowFullText(false); setTimeout(() => setShowComments(true), 100); }}
-                  >
-                    <MessageCircle className="w-5 h-5 text-white" />
-                    <span className="text-xs font-bold text-white">{post.reactions?.comments || 0}</span>
-                  </button>
+                  {/* Reactions - Horizontal layout h-10 matching share button */}
+                  <div className="flex items-center gap-1 bg-black/20 backdrop-blur-xl h-10 px-3 rounded-2xl border border-white/5">
+                    
+                    {/* Like */}
+                    <button 
+                      className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                      onClick={(e) => { e.stopPropagation(); handleHeart(e); }}
+                    >
+                      <Heart 
+                        className={cn("w-5 h-5", post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
+                        fill={post.user_reactions?.has_hearted ? "currentColor" : "none"}
+                      />
+                      <span className="text-xs font-bold text-white">{post.reactions?.hearts || 0}</span>
+                    </button>
 
-                  {/* Bookmark */}
-                  <button 
-                    className="flex items-center justify-center h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
-                    onClick={(e) => { e.stopPropagation(); handleBookmark(e); }}
-                  >
-                    <Bookmark 
-                      className={cn("w-5 h-5", post.user_reactions?.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
-                      fill={post.user_reactions?.has_bookmarked ? "currentColor" : "none"}
-                    />
-                  </button>
+                    {/* Comments */}
+                    <button 
+                      className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                      onClick={(e) => { e.stopPropagation(); setShowFullText(false); setTimeout(() => setShowComments(true), 100); }}
+                    >
+                      <MessageCircle className="w-5 h-5 text-white" />
+                      <span className="text-xs font-bold text-white">{post.reactions?.comments || 0}</span>
+                    </button>
 
+                    {/* Bookmark */}
+                    <button 
+                      className="flex items-center justify-center h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                      onClick={(e) => { e.stopPropagation(); handleBookmark(e); }}
+                    >
+                      <Bookmark 
+                        className={cn("w-5 h-5", post.user_reactions?.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
+                        fill={post.user_reactions?.has_bookmarked ? "currentColor" : "none"}
+                      />
+                    </button>
+
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            {/* Footer with immersive CTA */}
-            <div className="relative z-10 px-6 py-4 border-t border-white/[0.06] bg-black/20">
-              <button
-                onClick={() => setShowFullText(false)}
-                className="w-full py-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/10 text-white/90 font-medium text-sm transition-all active:scale-[0.98]"
-              >
-                Torna al feed
-              </button>
+              
+              {/* Footer CTA - also inside scroll */}
+              <div className="mt-6">
+                <button
+                  onClick={() => setShowFullText(false)}
+                  className="w-full py-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/10 text-white/90 font-medium text-sm transition-all active:scale-[0.98]"
+                >
+                  Torna al feed
+                </button>
+              </div>
             </div>
           </div>
         </DialogContent>
