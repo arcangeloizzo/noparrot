@@ -19,7 +19,7 @@ export default function PrivacyPolicy() {
 
       <main className="p-4 pb-24 max-w-2xl mx-auto space-y-6">
         <div className="flex justify-center py-4">
-          <Logo size="lg" />
+          <Logo size="lg" className="w-auto h-12" />
         </div>
 
         <Card>

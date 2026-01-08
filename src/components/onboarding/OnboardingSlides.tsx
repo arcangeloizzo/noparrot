@@ -29,16 +29,6 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
     }
   };
 
-  // Auto-trigger Lock → Check animation on Slide 2
-  useEffect(() => {
-    if (currentSlide === 1) {
-      const timer = setTimeout(() => setShowCheck(true), 1000);
-      return () => clearTimeout(timer);
-    } else {
-      setShowCheck(false);
-    }
-  }, [currentSlide]);
-
   // Touch handlers for swipe
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartRef.current = e.targetTouches[0].clientX;
@@ -46,6 +36,17 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
 
   const handleTouchMove = (e: React.TouchEvent) => {
     touchEndRef.current = e.targetTouches[0].clientX;
+    
+    // Sync Lock→Check animation with swipe progress on Slide 2
+    if (currentSlide === 1 && touchStartRef.current && touchEndRef.current) {
+      const distance = touchStartRef.current - touchEndRef.current;
+      // Trigger check animation when swiping left more than 30px
+      if (distance > 30) {
+        setShowCheck(true);
+      } else {
+        setShowCheck(false);
+      }
+    }
   };
 
   const handleTouchEnd = () => {
@@ -63,6 +64,11 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
     // Back swipe: always allowed
     if (isRightSwipe && currentSlide > 0) {
       prevSlide();
+    }
+    
+    // Reset check animation if swipe was cancelled
+    if (!isLeftSwipe && currentSlide === 1) {
+      setShowCheck(false);
     }
     
     touchStartRef.current = null;
