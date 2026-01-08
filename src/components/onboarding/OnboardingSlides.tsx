@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Brain, Scale, Megaphone } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
+import { FeedPreviewMock } from "./FeedPreviewMock";
 
 interface OnboardingSlidesProps {
   onComplete: () => void;
@@ -12,27 +13,7 @@ export const OnboardingSlides = ({ onComplete, onSkip }: OnboardingSlidesProps) 
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
-  const slides = [
-    {
-      icon: Brain,
-      title: "Leggi.",
-      description: "Ogni contenuto va compreso, non solo letto.",
-      color: "#0A7AFF"
-    },
-    {
-      icon: Scale,
-      title: "Comprendi.",
-      description: "Prima di condividere, rispondi a 3 domande.",
-      color: "#0A7AFF"
-    },
-    {
-      icon: Megaphone,
-      title: "Condividi.",
-      description: "Condividi solo ciò che hai capito davvero.",
-      color: "#0A7AFF",
-      blink: true
-    }
-  ];
+  const totalSlides = 4;
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStart(e.targetTouches[0].clientX);
@@ -49,7 +30,7 @@ export const OnboardingSlides = ({ onComplete, onSkip }: OnboardingSlidesProps) 
     const isLeftSwipe = distance > 50;
     const isRightSwipe = distance < -50;
     
-    if (isLeftSwipe && currentSlide < slides.length - 1) {
+    if (isLeftSwipe && currentSlide < totalSlides - 1) {
       setCurrentSlide(currentSlide + 1);
     }
     
@@ -62,94 +43,180 @@ export const OnboardingSlides = ({ onComplete, onSkip }: OnboardingSlidesProps) 
   };
 
   const handleNext = () => {
-    if (currentSlide < slides.length - 1) {
+    if (currentSlide < totalSlides - 1) {
       setCurrentSlide(currentSlide + 1);
     } else {
       onComplete();
     }
   };
 
-  const CurrentIcon = slides[currentSlide].icon;
+  // Slide 0: The Problem
+  const renderProblemSlide = () => (
+    <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
+      <div className="space-y-6 animate-fade-in">
+        <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
+          Sui social si condivide senza capire.
+        </h1>
+        <p className="text-lg text-white/60">
+          E l'informazione si degrada.
+        </p>
+      </div>
+      
+      {/* Small logo at bottom */}
+      <div className="absolute bottom-24">
+        <Logo variant="icon" size="sm" className="w-10 h-auto opacity-40" />
+      </div>
+      
+      {/* Swipe hint */}
+      <p className="absolute bottom-8 text-sm text-white/40">
+        Scorri per continuare
+      </p>
+    </div>
+  );
+
+  // Slide 1: The Rule
+  const renderRuleSlide = () => (
+    <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
+      <div className="space-y-8 animate-fade-in">
+        <Logo variant="icon" size="lg" className="w-20 h-auto mx-auto" />
+        
+        <div className="space-y-4">
+          <h1 className="text-3xl md:text-4xl font-bold text-white leading-tight">
+            NoParrot cambia la regola.
+          </h1>
+          <p className="text-lg text-white/60">
+            Prima comprendi. Poi partecipi.
+          </p>
+        </div>
+      </div>
+      
+      <div className="absolute bottom-8 left-0 right-0 px-8">
+        <Button
+          onClick={handleNext}
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 rounded-full text-lg h-auto"
+        >
+          Continua
+        </Button>
+      </div>
+    </div>
+  );
+
+  // Slide 2: The Ritual
+  const renderRitualSlide = () => (
+    <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
+      <div className="space-y-8 animate-fade-in">
+        {/* Abstract minimal UI representation */}
+        <div className="flex flex-col items-center gap-3 mb-4">
+          <div className="w-48 h-2 bg-white/20 rounded-full" />
+          <div className="w-36 h-2 bg-white/10 rounded-full" />
+          <div className="flex gap-2 mt-2">
+            <div className="w-8 h-8 rounded-lg bg-primary/30 border border-primary/40" />
+            <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20" />
+            <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20" />
+          </div>
+        </div>
+        
+        <div className="space-y-4">
+          <h1 className="text-2xl md:text-3xl font-bold text-white leading-tight">
+            Per commentare o condividere,<br />
+            passi da un momento di comprensione.
+          </h1>
+          <p className="text-lg text-white/60">
+            Non per avere ragione.<br />
+            Per sapere di cosa stai parlando.
+          </p>
+        </div>
+      </div>
+      
+      <div className="absolute bottom-8 left-0 right-0 px-8">
+        <Button
+          onClick={handleNext}
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 rounded-full text-lg h-auto"
+        >
+          Continua
+        </Button>
+      </div>
+    </div>
+  );
+
+  // Slide 3: Real Product Preview
+  const renderProductSlide = () => (
+    <div className="flex flex-col items-center justify-between flex-1 pt-12 pb-8">
+      <div className="text-center px-8 space-y-2 animate-fade-in">
+        <h1 className="text-3xl md:text-4xl font-bold text-white">
+          Questo è NoParrot.
+        </h1>
+        <p className="text-lg text-white/60">
+          Notizie. ◉ Il Punto. Discussioni consapevoli.
+        </p>
+      </div>
+      
+      {/* Feed Preview Mock */}
+      <div className="flex-1 w-full max-w-sm mx-auto mt-6 mb-6 px-4 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+        <FeedPreviewMock />
+      </div>
+      
+      <div className="w-full px-8">
+        <Button
+          onClick={handleNext}
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold py-6 rounded-full text-lg h-auto"
+        >
+          Continua
+        </Button>
+      </div>
+    </div>
+  );
+
+  const renderCurrentSlide = () => {
+    switch (currentSlide) {
+      case 0:
+        return renderProblemSlide();
+      case 1:
+        return renderRuleSlide();
+      case 2:
+        return renderRitualSlide();
+      case 3:
+        return renderProductSlide();
+      default:
+        return null;
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0E141A] to-[#1F3347] flex flex-col items-center justify-center px-6 relative overflow-hidden">
-      {/* Animated background particles */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-primary/20 rounded-full animate-pulse" />
-        <div className="absolute top-1/3 right-1/3 w-1 h-1 bg-accent/30 rounded-full animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute bottom-1/3 left-1/3 w-3 h-3 bg-primary/10 rounded-full animate-pulse" style={{ animationDelay: '2s' }} />
-      </div>
-
+    <div 
+      className="min-h-screen bg-[#0E141A] flex flex-col relative overflow-hidden"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Skip button */}
       <button
         onClick={onSkip}
-        className="absolute top-6 right-6 text-white/60 hover:text-white text-sm font-medium transition-colors z-10"
+        className="absolute top-6 right-6 text-white/40 hover:text-white/70 text-sm font-medium transition-colors z-10"
       >
         Salta
       </button>
 
       {/* Content */}
-      <div 
-        className="w-full max-w-md space-y-12 relative z-10"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        {/* Icon */}
-        <div className="flex justify-center">
-          <div className={`w-32 h-32 rounded-full bg-primary/10 flex items-center justify-center backdrop-blur-sm border border-primary/20 transition-all duration-300 ${slides[currentSlide].blink ? 'animate-[blink-parrot_0.3s_ease-in-out_infinite]' : ''}`}>
-            <CurrentIcon className="w-16 h-16 text-primary" />
-          </div>
-        </div>
+      <div className="flex-1 flex flex-col relative">
+        {renderCurrentSlide()}
+      </div>
 
-        {/* Text content with slide animation */}
-        <div 
-          key={currentSlide}
-          className="text-center space-y-4 animate-fade-in"
-        >
-          <h2 className="text-4xl font-bold text-white">
-            {slides[currentSlide].title}
-          </h2>
-          <p className="text-xl text-white/80 leading-relaxed">
-            {slides[currentSlide].description}
-          </p>
-        </div>
-
-        {/* Dots indicator */}
-        <div className="flex justify-center gap-2">
-          {slides.map((_, index) => (
-            <button
+      {/* Dots indicator - only for swipeable slides */}
+      {currentSlide === 0 && (
+        <div className="absolute bottom-16 left-0 right-0 flex justify-center gap-2">
+          {Array.from({ length: totalSlides }).map((_, index) => (
+            <div
               key={index}
-              onClick={() => setCurrentSlide(index)}
-              className={`h-2 rounded-full transition-all duration-300 ${
+              className={`h-1.5 rounded-full transition-all duration-300 ${
                 index === currentSlide 
-                  ? 'w-8 bg-primary' 
-                  : 'w-2 bg-white/30 hover:bg-white/50'
+                  ? 'w-6 bg-primary' 
+                  : 'w-1.5 bg-white/20'
               }`}
-              aria-label={`Vai alla slide ${index + 1}`}
             />
           ))}
         </div>
-
-        {/* CTA Button */}
-        <div className="space-y-4">
-          {currentSlide === slides.length - 1 ? (
-            <Button
-              onClick={onComplete}
-              className="w-full bg-gradient-to-r from-primary to-primary-blue hover:scale-105 text-white font-semibold py-6 rounded-full text-lg h-auto shadow-[0_0_40px_rgba(10,122,255,0.3)] transition-all duration-300"
-            >
-              Inizia il tuo viaggio
-            </Button>
-          ) : (
-            <Button
-              onClick={handleNext}
-              className="w-full bg-primary/20 backdrop-blur-sm border border-primary/30 hover:bg-primary/30 text-white font-semibold py-6 rounded-full text-lg h-auto transition-all duration-300"
-            >
-              Avanti
-            </Button>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   );
 };
