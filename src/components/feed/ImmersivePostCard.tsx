@@ -923,6 +923,27 @@ export const ImmersivePostCard = ({
               )
             )}
 
+            {/* Pure Text-Only Posts - no link, no media, no quoted post */}
+            {isTextOnly && post.content && (
+              post.content.length > 400 ? (
+                <div className="mb-6">
+                  <h2 className="text-xl font-medium text-white leading-relaxed tracking-wide drop-shadow-lg whitespace-pre-wrap">
+                    <MentionText content={post.content.slice(0, 400) + '...'} />
+                  </h2>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                    className="mt-3 text-sm text-primary font-semibold hover:underline"
+                  >
+                    Mostra tutto
+                  </button>
+                </div>
+              ) : (
+                <h2 className="text-xl font-medium text-white leading-relaxed tracking-wide drop-shadow-lg whitespace-pre-wrap mb-6">
+                  <MentionText content={post.content} />
+                </h2>
+              )
+            )}
+
             {/* User Text for media-only posts - ABOVE the media */}
             {isMediaOnlyPost && post.content && (
               <h2 className="text-xl font-medium text-white leading-snug tracking-wide drop-shadow-lg mb-6">
