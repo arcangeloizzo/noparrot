@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { SlideToUnlock } from "./SlideToUnlock";
-import { Lock, Check, PenLine, Sparkles } from "lucide-react";
+import { Lock, Check, PenLine, Sparkles, ChevronLeft, Hand } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface OnboardingSlidesProps {
@@ -124,10 +124,14 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
         Vuoi condividere un link? L'AI ti farà 3 domande. Se non hai letto o non hai capito, non passa. Nessuna eccezione.
       </p>
       
-      {/* Swipe hint - più visibile */}
-      <div className="mt-12 flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-white/10 border border-white/20 animate-pulse">
-        <span className="text-sm text-white/70 font-medium">Scorri per continuare</span>
-        <span className="text-white/70">→</span>
+      {/* Swipe hint - frecce animate */}
+      <div className="mt-12 flex flex-col items-center gap-3">
+        <div className="flex items-center gap-1">
+          <ChevronLeft className="w-6 h-6 text-white/50 animate-[pulse_1s_ease-in-out_infinite]" />
+          <ChevronLeft className="w-6 h-6 text-white/40 animate-[pulse_1s_ease-in-out_infinite_0.2s]" />
+          <ChevronLeft className="w-6 h-6 text-white/30 animate-[pulse_1s_ease-in-out_infinite_0.4s]" />
+        </div>
+        <span className="text-xs text-white/40">Scorri</span>
       </div>
     </div>
   );
@@ -135,17 +139,21 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
   // Slide 3: L'Autore - Tap icon navigation
   const SlideAutore = () => (
     <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
-      {/* Icona penna + nebulosa stilizzata - TAPPABILE con bordo visibile */}
-      <div 
-        className="relative w-28 h-28 mb-12 flex items-center justify-center cursor-pointer 
-                   hover:scale-110 active:scale-95 transition-transform duration-200
-                   rounded-full bg-primary/10 border-2 border-primary/40"
-        onClick={(e) => { e.stopPropagation(); nextSlide(); }}
-      >
-        <Sparkles className="absolute w-32 h-32 text-primary/30 stroke-[0.5] animate-pulse" />
-        <PenLine className="w-14 h-14 text-primary stroke-[1.5]" />
-        {/* Ring di feedback pulsante */}
-        <div className="absolute inset-0 rounded-full border-2 border-primary/30 animate-ping" />
+      {/* Icona penna + nebulosa stilizzata - TAPPABILE */}
+      <div className="relative mb-12">
+        {/* Ring pulsante esterno */}
+        <div className="absolute -inset-4 rounded-full border border-primary/20 animate-ping" />
+        <div className="absolute -inset-2 rounded-full border border-primary/30 animate-pulse" />
+        
+        <div 
+          className="relative w-24 h-24 flex items-center justify-center cursor-pointer 
+                     hover:scale-110 active:scale-95 transition-transform duration-200
+                     rounded-full bg-primary/10"
+          onClick={(e) => { e.stopPropagation(); nextSlide(); }}
+        >
+          <Sparkles className="absolute w-28 h-28 text-primary/30 stroke-[0.5]" />
+          <PenLine className="w-14 h-14 text-primary stroke-[1.5]" />
+        </div>
       </div>
       
       {/* Titolo */}
@@ -158,9 +166,10 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
         Niente post usa e getta. Il tuo profilo è un blog personale dove ciò che scrivi e ciò che comprendi costruisce la tua identità. Lascia un segno, non solo rumore.
       </p>
       
-      {/* Tap hint - più visibile */}
-      <div className="mt-12 flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-white/10 border border-white/20">
-        <span className="text-sm text-white/70 font-medium">Tocca l'icona per continuare</span>
+      {/* Tap hint - icona mano che punta verso l'alto */}
+      <div className="mt-12 flex flex-col items-center gap-2">
+        <Hand className="w-5 h-5 text-white/40 animate-bounce" />
+        <span className="text-xs text-white/40">Tocca</span>
       </div>
     </div>
   );
