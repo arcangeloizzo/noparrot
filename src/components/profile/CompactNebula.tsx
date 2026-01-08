@@ -80,8 +80,8 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
 
   const initializeParticles = useCallback((weights: Record<string, number>) => {
     const particles: Particle[] = [];
-    const baseCount = 10;
-    const extraCount = 35;
+    const baseCount = 12;
+    const extraCount = 40;
     const angleSpread = Math.PI / 6;
 
     CATEGORIES.forEach(category => {
@@ -121,9 +121,9 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
     const dpr = window.devicePixelRatio || 1;
     const width = canvas.width / dpr;
     const height = canvas.height / dpr;
-    const centerX = width * 0.6; // Offset to the right
+    const centerX = width / 2;
     const centerY = height / 2;
-    const maxRadius = Math.min(width, height) * 0.35;
+    const maxRadius = Math.min(width, height) * 0.38;
     
     timeRef.current += 0.006;
     const time = timeRef.current;
@@ -152,7 +152,7 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
 
     // Core glow
     const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, maxRadius * 0.15);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
     gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
@@ -208,75 +208,80 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
     };
   }, [data, handleResize, initializeParticles, animate]);
 
-  // Get top categories with values for labels
+  // Get top categories for organized labels - fixed positions
   const topCategories = CATEGORIES
     .map(cat => ({ name: cat, value: data[cat] || 0 }))
     .sort((a, b) => b.value - a.value)
-    .slice(0, 5)
     .filter(c => c.value > 0);
+
+  // Split into left and right columns (max 3 each)
+  const leftLabels = topCategories.filter((_, i) => i % 2 === 0).slice(0, 3);
+  const rightLabels = topCategories.filter((_, i) => i % 2 === 1).slice(0, 3);
 
   return (
     <button
       onClick={onClick}
-      className="w-full rounded-2xl bg-[#0E1419]/90 backdrop-blur-xl border border-white/[0.06] p-4 transition-all hover:border-white/10 active:scale-[0.99] relative overflow-hidden"
+      className="w-full rounded-2xl bg-[#0A0F14] border border-white/[0.08] p-4 transition-all hover:border-white/15 active:scale-[0.99] relative overflow-hidden"
     >
-      {/* Urban texture overlay */}
-      <div className="absolute inset-0 urban-texture opacity-[0.03] pointer-events-none" />
+      {/* Strong urban texture background */}
+      <div 
+        className="absolute inset-0 pointer-events-none opacity-[0.08]"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          backgroundSize: '150px 150px',
+        }}
+      />
+      
+      {/* Subtle gradient overlay for depth */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-black/20 pointer-events-none" />
       
       {/* Header with title and expand icon */}
-      <div className="flex items-center justify-between mb-3 relative z-10">
+      <div className="flex items-center justify-between mb-2 relative z-10">
         <h4 className="text-base font-semibold text-foreground">Nebulosa Cognitiva</h4>
         <ChevronDown className="w-5 h-5 text-muted-foreground" />
       </div>
 
-      {/* Main nebula area with labels */}
-      <div className="relative h-[180px] z-10">
-        {/* Category labels positioned around the nebula */}
-        <div className="absolute inset-0 pointer-events-none">
-          {/* Left side labels */}
-          {topCategories.slice(0, 3).map((cat, index) => (
+      {/* Main nebula area with organized labels */}
+      <div className="relative h-[160px] z-10 flex items-center">
+        {/* Left column labels */}
+        <div className="flex flex-col justify-center gap-6 w-20 flex-shrink-0">
+          {leftLabels.map((cat) => (
             <span
               key={cat.name}
-              className="absolute text-xs font-medium"
-              style={{ 
-                color: CATEGORY_COLORS[cat.name],
-                left: '8px',
-                top: `${30 + index * 45}px`,
-              }}
-            >
-              {CATEGORY_SHORT_NAMES[cat.name]}
-            </span>
-          ))}
-          
-          {/* Right side labels */}
-          {topCategories.slice(3, 5).map((cat, index) => (
-            <span
-              key={cat.name}
-              className="absolute text-xs font-medium text-right"
-              style={{ 
-                color: CATEGORY_COLORS[cat.name],
-                right: '8px',
-                top: `${45 + index * 50}px`,
-              }}
+              className="text-sm font-medium"
+              style={{ color: CATEGORY_COLORS[cat.name] }}
             >
               {CATEGORY_SHORT_NAMES[cat.name]}
             </span>
           ))}
         </div>
 
-        {/* Canvas for particle nebula */}
-        <div className="absolute inset-0">
+        {/* Center canvas for particle nebula */}
+        <div className="flex-1 h-full relative">
           <canvas
             ref={canvasRef}
             className="w-full h-full"
             style={{ background: 'transparent' }}
           />
         </div>
+
+        {/* Right column labels */}
+        <div className="flex flex-col justify-center gap-6 w-20 flex-shrink-0 text-right">
+          {rightLabels.map((cat) => (
+            <span
+              key={cat.name}
+              className="text-sm font-medium"
+              style={{ color: CATEGORY_COLORS[cat.name] }}
+            >
+              {CATEGORY_SHORT_NAMES[cat.name]}
+            </span>
+          ))}
+        </div>
       </div>
 
       {/* Empty state */}
       {topCategories.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center z-20">
+        <div className="absolute inset-0 flex items-center justify-center z-20 bg-[#0A0F14]/80">
           <p className="text-sm text-muted-foreground text-center px-8">
             Esplora contenuti per attivare la tua nebulosa cognitiva
           </p>
