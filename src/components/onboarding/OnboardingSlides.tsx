@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Logo } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { SlideToUnlock } from "./SlideToUnlock";
-import { Lock, Check, PenLine, Sparkles, ChevronLeft, Hand } from "lucide-react";
+import { Lock, Check, PenLine, Sparkles, Hand } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface OnboardingSlidesProps {
@@ -12,8 +12,11 @@ interface OnboardingSlidesProps {
 export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showCheck, setShowCheck] = useState(false);
-  const touchStartRef = useRef<number | null>(null);
-  const touchEndRef = useRef<number | null>(null);
+
+  // Use Pointer Events (more reliable on mobile than Touch events)
+  const pointerDownRef = useRef(false);
+  const startXRef = useRef<number | null>(null);
+  const lastXRef = useRef<number | null>(null);
 
   const nextSlide = () => {
     if (currentSlide < 3) {
@@ -29,57 +32,65 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
     }
   };
 
-  // Touch handlers for swipe
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartRef.current = e.targetTouches[0].clientX;
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // only primary pointer
+    if (e.button !== 0) return;
+
+    pointerDownRef.current = true;
+    startXRef.current = e.clientX;
+    lastXRef.current = e.clientX;
+
+    // keep receiving move/up events even if finger leaves the element
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    touchEndRef.current = e.targetTouches[0].clientX;
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!pointerDownRef.current) return;
+    if (startXRef.current === null) return;
+
+    lastXRef.current = e.clientX;
 
     // Sync Lock→Check animation with swipe progress on Slide 2
-    if (
-      currentSlide === 1 &&
-      touchStartRef.current !== null &&
-      touchEndRef.current !== null
-    ) {
-      const distance = touchStartRef.current - touchEndRef.current;
-      // Trigger check animation when swiping left more than 30px
+    if (currentSlide === 1) {
+      const distance = startXRef.current - e.clientX;
       setShowCheck(distance > 30);
     }
   };
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    // Capture final position from changedTouches (more reliable)
-    if (e.changedTouches && e.changedTouches.length > 0) {
-      touchEndRef.current = e.changedTouches[0].clientX;
-    }
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!pointerDownRef.current) return;
 
-    if (touchStartRef.current === null || touchEndRef.current === null) return;
+    pointerDownRef.current = false;
 
-    const distance = touchStartRef.current - touchEndRef.current;
+    const startX = startXRef.current;
+    const endX = lastXRef.current ?? e.clientX;
+    if (startX === null) return;
 
-    // Slide 2: advance as soon as we reached the same threshold that flips Lock→Check
-    const isLeftSwipe = distance > 30;
-    const isRightSwipe = distance < -50;
+    const distance = startX - endX;
 
-    // Forward swipe: Slide 2 (index 1) only
-    if (isLeftSwipe && currentSlide === 1) {
+    // Slide 2: advance when the swipe is decisively left
+    // (use a bigger threshold than the icon flip, so one swipe is enough but not accidental)
+    const shouldAdvance = distance > 70;
+    const shouldGoBack = distance < -70;
+
+    if (currentSlide === 1 && shouldAdvance) {
       nextSlide();
     }
 
-    // Back swipe: always allowed
-    if (isRightSwipe && currentSlide > 0) {
+    if (shouldGoBack && currentSlide > 0) {
       prevSlide();
     }
 
-    // Reset check animation if swipe was cancelled
-    if (!isLeftSwipe && currentSlide === 1) {
+    if (currentSlide === 1 && !shouldAdvance) {
       setShowCheck(false);
     }
 
-    touchStartRef.current = null;
-    touchEndRef.current = null;
+    startXRef.current = null;
+    lastXRef.current = null;
   };
 
   // Slide 1: Il Nemico - Button navigation
@@ -203,10 +214,11 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
 
   return (
     <div 
-      className="min-h-screen bg-[#0E141A] flex flex-col relative"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
+      className="min-h-screen bg-[#0E141A] flex flex-col relative touch-pan-y select-none"
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
     >
       {/* Dots indicator */}
       <div className="absolute top-8 left-0 right-0 flex justify-center gap-2 z-10 pt-safe">
