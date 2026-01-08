@@ -434,9 +434,13 @@ export const ImmersivePostCard = ({
       id: post.id,
       state: 'reading' as const,
       url: `post://${post.id}`,
-      title: `Post di @${post.author.username}`,
+      title: post.author.full_name || post.author.username,
       content: post.content,
       isOriginalPost: true,
+      // Pass author info for display in reader
+      author: post.author.username,
+      authorFullName: post.author.full_name,
+      authorAvatar: post.author.avatar_url,
     });
     setShowReader(true);
   };
@@ -1645,10 +1649,6 @@ export const ImmersivePostCard = ({
                 backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
               }}
             />
-            
-            {/* Decorative quote marks */}
-            <div className="absolute top-6 left-6 text-white/[0.05] text-[100px] font-serif leading-none pointer-events-none select-none">"</div>
-            <div className="absolute bottom-16 right-6 text-white/[0.05] text-[100px] font-serif leading-none pointer-events-none select-none rotate-180">"</div>
             
             {/* Header with author info */}
             <div className="relative z-10 px-6 pt-6 pb-4 border-b border-white/[0.06]">
