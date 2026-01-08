@@ -451,8 +451,8 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
           </div>
 
           {/* Fixed Bottom Composer - Compact inline style */}
-          <div className="sticky bottom-0 bg-[#0D1318] border-t border-white/[0.06] z-30">
-            <div className="px-3 py-2.5">
+          <div className="sticky bottom-0 bg-[#0D1318] border-t border-white/[0.06] z-30 pb-[env(safe-area-inset-bottom)]">
+            <div className="px-3 py-3">
               {/* Reply indicator */}
               {replyingTo && (
                 <div className="mb-2 px-3 py-1.5 bg-primary/10 rounded-lg border border-primary/20 flex items-center justify-between">
@@ -529,7 +529,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                     className={cn(
                       "flex-1 bg-transparent border-none focus:outline-none focus:ring-0 resize-none",
                       "text-sm text-foreground placeholder:text-muted-foreground/50",
-                      "h-[38px] py-2.5 pl-4 pr-2",
+                      "min-h-[42px] py-3 pl-4 pr-2",
                       postHasSource && selectedCommentType === null && "opacity-50 cursor-not-allowed"
                     )}
                     maxLength={500}
@@ -554,7 +554,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                   disabled={!newComment.trim() || addComment.isPending}
                   size="sm"
                   className={cn(
-                    "rounded-full px-4 h-[38px] font-semibold text-sm",
+                    "rounded-full px-5 h-[42px] font-semibold text-sm",
                     "bg-primary/90 hover:bg-primary",
                     "disabled:opacity-40 disabled:bg-primary/40"
                   )}
@@ -893,17 +893,13 @@ const CommentItem = ({ comment, currentUserId, onReply, onLike, onDelete, onMedi
           {getUserAvatar(comment.author.avatar_url, comment.author.full_name, comment.author.username)}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold text-sm cognitive-text-primary">
+          <div className="flex items-center gap-2 mb-0.5">
+            <span className="font-bold text-sm text-foreground">
               {comment.author.full_name || getDisplayUsername(comment.author.username)}
             </span>
-            <span className="cognitive-text-secondary text-xs">
-              @{getDisplayUsername(comment.author.username)}
-            </span>
-            <span className="cognitive-text-secondary text-xs">·</span>
-            <span className="cognitive-text-secondary text-xs">
-              {formatDistanceToNow(new Date(comment.created_at), {
-                addSuffix: true,
+            <span className="text-muted-foreground/50 text-xs">
+              · {formatDistanceToNow(new Date(comment.created_at), {
+                addSuffix: false,
                 locale: it
               })}
             </span>
@@ -911,12 +907,12 @@ const CommentItem = ({ comment, currentUserId, onReply, onLike, onDelete, onMedi
               <img 
                 src={LOGO_BASE}
                 alt="Consapevole"
-                className="w-5 h-5 ml-1"
+                className="w-4 h-4"
               />
             )}
           </div>
 
-          <div className="text-sm cognitive-text-primary mb-2">
+          <div className="text-sm text-foreground/90 mb-2 leading-relaxed">
             <MentionText content={comment.content} />
           </div>
 
