@@ -1703,9 +1703,24 @@ export const ImmersivePostCard = ({
                     onClick={async (e) => {
                       e.stopPropagation();
                       setShowFullText(false);
-                      // From expanded view = already read, go directly to gate
+                      if (!user) return;
+                      // From expanded view = already read, go directly to gate (bypass reader)
                       setShareAction('feed');
-                      await startComprehensionGateForPost();
+                      // Set up readerSource for handleReaderComplete but don't show reader
+                      const sourceForGate = {
+                        id: post.id,
+                        state: 'reading' as const,
+                        url: `post://${post.id}`,
+                        title: post.author.full_name || post.author.username,
+                        content: post.content,
+                        isOriginalPost: true,
+                        author: post.author.username,
+                        authorFullName: post.author.full_name,
+                        authorAvatar: post.author.avatar_url,
+                      };
+                      setReaderSource(sourceForGate);
+                      // Go directly to handleReaderComplete (gate) without showing reader
+                      setTimeout(() => handleReaderComplete(), 50);
                     }}
                     className="h-10 px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                   >
