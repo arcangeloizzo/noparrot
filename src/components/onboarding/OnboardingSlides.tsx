@@ -215,10 +215,11 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
   return (
     <div 
       className="min-h-screen bg-[#0E141A] flex flex-col relative touch-pan-y select-none"
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
+      // Enable pointer-swipe ONLY on Slide 2 to avoid interfering with SlideToUnlock
+      onPointerDown={currentSlide === 1 ? handlePointerDown : undefined}
+      onPointerMove={currentSlide === 1 ? handlePointerMove : undefined}
+      onPointerUp={currentSlide === 1 ? handlePointerUp : undefined}
+      onPointerCancel={currentSlide === 1 ? handlePointerUp : undefined}
     >
       {/* Dots indicator */}
       <div className="absolute top-8 left-0 right-0 flex justify-center gap-2 z-10 pt-safe">
