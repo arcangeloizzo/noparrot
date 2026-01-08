@@ -325,16 +325,30 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     // Original post content - full text display (for text-only post shares)
     if (source.url?.startsWith('post://') && (source as any).isOriginalPost) {
       const postContent = (source as any).content || '';
+      const authorFullName = (source as any).authorFullName;
+      const authorUsername = (source as any).author;
+      const authorAvatar = (source as any).authorAvatar;
+      
       return (
         <div className="max-w-2xl mx-auto space-y-4">
-          {/* Post Header */}
+          {/* Post Header - with actual author info */}
           <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-lg">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/40 to-primary/20 flex items-center justify-center border border-white/20">
-              <FileText className="w-5 h-5 text-foreground" />
-            </div>
+            {authorAvatar ? (
+              <img 
+                src={authorAvatar} 
+                alt="" 
+                className="w-10 h-10 rounded-full object-cover border border-white/20"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/40 to-primary/20 flex items-center justify-center border border-white/20">
+                <span className="text-foreground font-semibold text-sm">
+                  {(authorFullName || authorUsername)?.[0]?.toUpperCase()}
+                </span>
+              </div>
+            )}
             <div>
-              <p className="font-semibold text-foreground">{source.title || 'Post'}</p>
-              <p className="text-sm text-muted-foreground">Contenuto testuale originale</p>
+              <p className="font-semibold text-foreground">{authorFullName || authorUsername}</p>
+              <p className="text-sm text-muted-foreground">@{authorUsername}</p>
             </div>
           </div>
 
