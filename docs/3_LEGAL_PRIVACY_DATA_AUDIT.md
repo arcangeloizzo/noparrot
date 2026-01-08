@@ -1,389 +1,318 @@
-# NoParrot - Audit Legale, Privacy e Dati
+# NoParrot v2.0 — Audit Legale, Privacy e Dati
 
-**Versione:** 2.1  
+**Versione:** 2.0  
 **Data:** 8 gennaio 2026  
-**Documento per:** Review AI Esterni / Compliance Check
+**Stato:** Audit completo post-implementazione
 
 ---
 
-## 1. Executive Summary
+## 1. Sommario Compliance
 
-NoParrot è un social network con focus sulla comprensione consapevole. Questo audit copre:
-- Conformità GDPR (Regolamento UE 2016/679)
-- Conformità DSA (Digital Services Act)
-- Gestione dati e sicurezza
-- Trasparenza AI
-
-**Status complessivo:** ✅ BETA COMPLIANT (con raccomandazioni)
+| Area | Status | Note |
+|------|--------|------|
+| GDPR Art. 5 (Principi) | ✅ Conforme | Minimizzazione, retention definita |
+| GDPR Art. 6 (Base giuridica) | ✅ Conforme | Contratto + Consenso dove necessario |
+| GDPR Art. 7 (Consenso) | ✅ Conforme | Toggle espliciti, revocabili |
+| GDPR Art. 13 (Informativa) | ✅ Conforme | Privacy Policy completa |
+| GDPR Art. 15-22 (Diritti) | ✅ Conforme | Export, cancellazione, opposizione |
+| GDPR Art. 25 (Privacy by Design) | ✅ Conforme | RLS, zero-knowledge gate |
+| GDPR Art. 32 (Sicurezza) | ✅ Conforme | RLS, JWT, service_role isolation |
+| DSA Art. 27 (Trasparenza) | ✅ Conforme | Pagina trasparenza AI |
+| Età minima (16+) | ✅ Conforme | DOB required, blocco UI |
 
 ---
 
-## 2. Conformità GDPR
+## 2. Raccolta Dati
 
-### 2.1 Age Gate (Art. 8 GDPR)
+### 2.1 Dati Raccolti
 
-| Requisito | Implementazione | Status |
-|-----------|-----------------|--------|
-| Età minima 16 anni | Campo `date_of_birth` NOT NULL in `profiles` | ✅ |
-| Dichiarazione età | Auto-dichiarazione in fase di registrazione | ✅ |
-| Blocco registrazione | Utenti <16 anni non possono creare account | ✅ |
+| Categoria | Dati | Base Giuridica | Retention |
+|-----------|------|----------------|-----------|
+| Account | email, username, DOB, avatar | Contratto | Vita account |
+| Attività | post, commenti, reazioni | Contratto | Vita account |
+| Cognitivi | cognitive_density | **Consenso** | Vita account (revocabile) |
+| Gate | risposte, tempi, score | Legittimo interesse | **365 giorni** |
+| Tecnici | IP (logs), sessioni | Legittimo interesse | 30 giorni (logs) |
+| Cache | trascrizioni, articoli | Legittimo interesse | 7-30 giorni |
 
-**Nota importante:** L'età è auto-dichiarata dall'utente. Il copy in `AuthPage.tsx` specifica "Per iscriverti devi avere almeno 16 anni" senza implicare verifica attiva.
+### 2.2 Minimizzazione
 
-**Codice rilevante:** `src/contexts/AuthContext.tsx`
+- **PII escluse da view pubbliche**: `public_profiles` esclude `username` (contiene email), `date_of_birth`
+- **Messaggi privati**: non inviati a AI, soft-delete disponibile
+- **Gate data**: solo metriche aggregate, risposte raw scadono in 365 giorni
+
+---
+
+## 3. Consenso e Opt-In/Opt-Out
+
+### 3.1 ConsentScreen Flow
+
+Prima dell'uso dell'app, l'utente deve:
+
+1. **Accettare Terms + Privacy** (obbligatorio, checkbox)
+2. **Toggle Cognitive Tracking** (opzionale, default OFF)
+   - Label: "Consento la creazione della mia mappa cognitiva"
+3. **Toggle Ads Personalization** (opzionale, default OFF)
+   - Label: "Consento annunci basati sui miei interessi"
+
+### 3.2 Storage Consenso
+
+**Utenti autenticati:**
+```sql
+user_consents (
+  accepted_terms, accepted_privacy, 
+  ads_personalization_opt_in, consent_version,
+  terms_accepted_at, privacy_accepted_at
+)
+profiles.cognitive_tracking_enabled
+```
+
+**Utenti pre-auth:**
+- `localStorage: noparrot-pending-consent`
+- `localStorage: noparrot-pending-cognitive-opt-in`
+- Sincronizzato a DB post-login
+
+### 3.3 Coerenza GDPR
+
+Se `cognitive_tracking_enabled = false`:
+- `ads_personalization_opt_in` forzato a `false`
+- Nessun aggiornamento `cognitive_density`
+
+### 3.4 Revoca
+
+Disponibile in **Impostazioni → Privacy**:
+- Toggle "Tracciamento profilo cognitivo"
+- Toggle "Annunci basati sui miei interessi"
+- Button "Cancella il mio account"
+- Button "Scarica i miei dati"
+
+---
+
+## 4. Age Gate
+
+### 4.1 Implementazione
+
 ```typescript
-// Age validation during signup
-const minAge = 16;
-const birthDate = new Date(dateOfBirth);
-const age = calculateAge(birthDate);
-if (age < minAge) {
-  throw new Error("Devi avere almeno 16 anni per registrarti");
+// src/components/auth/AuthPage.tsx
+// Riga 465
+<p className="text-xs text-muted-foreground">
+  Per iscriverti devi avere almeno 16 anni
+</p>
+```
+
+**Validazione:**
+```typescript
+// Riga 110-115
+const age = new Date().getFullYear() - parseInt(yearOfBirth);
+if (age < 16) {
+  toast.error("Devi avere almeno 16 anni per iscriverti");
+  return;
 }
 ```
 
-### 2.2 Base Giuridica (Art. 6 GDPR)
+### 4.2 Linguaggio Corretto
 
-| Trattamento | Base Giuridica | Documentazione |
-|-------------|----------------|----------------|
-| Account & servizio | Esecuzione contratto (6.1.b) | ✅ Terms of Service |
-| Sicurezza & anti-spam | Interesse legittimo (6.1.f) | ✅ Privacy Policy §2 |
-| Cognitive Density | Consenso esplicito (6.1.a) | ✅ Toggle opt-in in ConsentScreen |
-| Ads personalizzati | Consenso esplicito (6.1.a) | ✅ Toggle opt-in |
+✅ **Diciamo:** "Per iscriverti devi avere almeno 16 anni"  
+✅ **Diciamo:** "Richiediamo la data di nascita per rispettare il limite di età"  
+❌ **NON diciamo:** "Verifichiamo la tua età"  
+❌ **NON diciamo:** "Verifichiamo la tua identità"
 
-### 2.3 Consenso (Art. 7 GDPR)
+### 4.3 Enforcement
 
-**Implementazione:**
-- Schermata `ConsentScreen` pre-autenticazione
-- Checkbox obbligatori per Terms + Privacy
-- Toggle opzionale per Cognitive Tracking (default OFF)
-- Toggle opzionale per Ads personalizzati (default OFF)
-- Versionamento consensi: `consent_version = '2.0'`
-
-**Tabella `user_consents`:**
-```sql
-accepted_terms              BOOLEAN     -- Obbligatorio
-accepted_privacy            BOOLEAN     -- Obbligatorio  
-ads_personalization_opt_in  BOOLEAN     -- Opzionale, default false
-consent_version             TEXT        -- '2.0'
-terms_accepted_at           TIMESTAMPTZ -- Timestamp accettazione
-privacy_accepted_at         TIMESTAMPTZ
-ads_opt_in_at               TIMESTAMPTZ
-```
-
-**Tabella `profiles` (campo cognitive tracking):**
-```sql
-cognitive_tracking_enabled  BOOLEAN DEFAULT true  -- Impostato da ConsentScreen opt-in
-```
-
-**Flusso:**
-1. Pre-auth: consensi salvati in localStorage (incluso cognitive opt-in)
-2. Post-auth: sync automatico in `user_consents` e `profiles` tables
-3. Revoca: disponibile in Impostazioni → Privacy
-
-### 2.4 Diritti dell'Interessato (Artt. 15-22 GDPR)
-
-| Diritto | Implementazione | Location |
-|---------|-----------------|----------|
-| Accesso (Art. 15) | Data export JSON | Impostazioni → Privacy |
-| Rettifica (Art. 16) | Edit profilo | Profilo → Modifica |
-| Cancellazione (Art. 17) | Delete account | Impostazioni → Privacy |
-| Portabilità (Art. 20) | Export edge function | `export-user-data` |
-| Opposizione (Art. 21) | Toggle cognitive tracking | Impostazioni → Privacy |
-
-**Rate limiting export:** 60 secondi tra richieste (tabella `export_requests`)
-
-### 2.5 Profilazione (Art. 22 GDPR)
-
-**Cognitive Density:**
-- Mappa di interessi costruita da interazioni consapevoli
-- **Richiede consenso esplicito** via toggle in ConsentScreen
-- NON produce effetti giuridici né decisioni automatizzate significative
-- Usata SOLO per suggerire contenuti, non per escludere da servizi
-- Opt-out disponibile: `cognitive_tracking_enabled` in `profiles`
-
-**Disclaimer in Privacy Policy:**
-> "Questa profilazione non produce effetti giuridici né effetti equivalenti o significativamente rilevanti sull'utente"
-
-### 2.6 Trasferimenti Extra-UE (Artt. 44-49 GDPR)
-
-| Provider | Localizzazione | Meccanismo Legale |
-|----------|----------------|-------------------|
-| Supabase | AWS us-east-1 (USA) | SCCs + DPF |
-| Google (Gemini) | USA | DPF |
-| Lovable | EU/USA | DPF |
-| Firecrawl | USA | SCCs |
-
-**Documentazione:** Privacy Policy §3
+- DOB salvato in `profiles.date_of_birth` (NOT NULL)
+- Calcolo età client-side al momento della registrazione
+- Blocco creazione account se età < 16
 
 ---
 
-## 3. Conformità DSA (Digital Services Act)
+## 5. Comprehension Gate — Privacy
 
-### 3.1 Trasparenza Algoritmica (Art. 27 DSA)
+### 5.1 Architettura Zero-Knowledge
 
-**Implementazione:**
-- Pagina `/legal/transparency` con spiegazione algoritmi
-- Info dialog su Trust Score (cosa significa, come calcolato)
-- Info dialog su Il Punto (sintesi AI, disclaimer)
+Il sistema è progettato per non esporre mai le risposte corrette al client:
 
-**Contenuti trasparenza:**
-1. Come funziona il feed (cronologico + Il Punto)
-2. Come funziona Trust Score (reputazione fonte, non fact-check)
-3. Come funziona Comprehension Gate (quiz AI pre-condivisione)
+1. **post_qa_questions** — Contiene solo domande (no `correctId`)
+   - RLS: `owner_id = auth.uid()` per SELECT
+   - No INSERT/UPDATE/DELETE da client
 
-### 3.2 Moderazione Contenuti (Art. 14 DSA)
+2. **post_qa_answers** — Contiene risposte corrette
+   - RLS: **NESSUNA policy per authenticated** = service_role only
+   - Solo Edge Functions possono accedere
 
-- Terms of Service chiari su contenuti vietati
-- Meccanismo di rimozione contenuti offensivi/illegali
-- Nessun sistema automatico di moderazione (manuale)
+3. **submit-qa** — Validazione step-by-step
+   - Input: `{ qaId, questionId, choiceId }`
+   - Output: `{ isCorrect: boolean }` — MAI la risposta corretta
 
-### 3.3 Punti di Contatto (Art. 12 DSA)
-
-**Email ufficiale:** noparrot.info@gmail.com
-**Documentato in:** Privacy Policy, Terms of Service
-
----
-
-## 4. Dati Raccolti e Conservazione
-
-### 4.1 Categorie Dati
-
-| Categoria | Dati Specifici | Retention |
-|-----------|----------------|-----------|
-| Account | email, username, DOB, avatar | Fino a cancellazione account |
-| Attività | post, commenti, reazioni, salvataggi | Fino a cancellazione account |
-| Cognitivi | cognitive_density (mappa interessi) | Fino a cancellazione o opt-out |
-| Tecnici | IP (in auth logs), sessioni, push tokens | Supabase default (auth logs) |
-| Gate | risposte quiz, punteggi, tempi | **365 giorni** (GDPR compliant) |
-| Cache | trascrizioni, trust scores, contenuti | 7-30 giorni (auto-expire) |
-
-### 4.2 Tabelle con Dati Personali
-
-| Tabella | Dati Personali | RLS |
-|---------|----------------|-----|
-| profiles | username, full_name, bio, avatar, DOB | ✅ Own read/write |
-| posts | content (UGC) | ✅ Public read, own write |
-| comments | content (UGC) | ✅ Public read, own write |
-| messages | content (private) | ✅ Thread participant only |
-| user_consents | consensi, timestamps | ✅ Own only |
-| notifications | activity references | ✅ Own only |
-| post_gate_attempts | risposte quiz, scores | ✅ Own only, expires_at 365 days |
-
-### 4.3 Tabelle NON Personali (Cache/System)
-
-| Tabella | Contenuto | RLS | Note |
-|---------|-----------|-----|------|
-| daily_focus | Sintesi editoriali | No (public) | Contenuto AI-generated |
-| trust_scores | Score per URL | ✅ Auth read, service_role write | No dati utente |
-| content_cache | Articoli estratti | ✅ RLS enabled, service_role only | Blocked for anon/auth |
-| youtube_transcripts_cache | Trascrizioni | ✅ RLS enabled, service_role only | Blocked for anon/auth |
-
----
-
-## 5. Sicurezza Dati
-
-### 5.1 Row Level Security (RLS)
-
-**Tabelle CRITICHE con RLS attivo:**
+### 5.2 Retention Gate Data
 
 ```sql
--- profiles: solo proprietario può modificare
-CREATE POLICY "Users can view own profile" 
-ON profiles FOR SELECT USING (auth.uid() = id);
-
--- posts: lettura pubblica, scrittura proprietario
-CREATE POLICY "Users can create own posts" 
-ON posts FOR INSERT WITH CHECK (auth.uid() = author_id);
-
--- messages: solo partecipanti thread
-CREATE POLICY "Thread participants can view messages"
-ON messages FOR SELECT 
-USING (user_is_thread_participant(thread_id, auth.uid()));
-
--- content_cache, youtube_transcripts_cache: RLS ENABLED
--- Policy: NESSUNA policy = solo service_role può accedere
--- (Non "RLS disabled", ma "RLS enabled con 0 policies permissive")
-
--- post_qa_answers: NESSUNA policy = service role only
--- (Tabella con risposte corrette mai accessibile da client)
+-- post_gate_attempts
+expires_at TIMESTAMPTZ DEFAULT (now() + interval '365 days')
 ```
 
-### 5.2 Gate Security (Quiz/Answers)
+**Cleanup automatico:**
+- Edge Function `cleanup-expired-cache` elimina record scaduti
+- Invocabile con header `x-admin-token`
 
-**Architettura hardened:**
-1. `post_qa_questions` - Domande visibili, NO correctId
-2. `post_qa_answers` - Risposte corrette, RLS enabled con 0 policies (service_role only)
-3. `qa_submit_attempts` - Rate limiting, RLS enabled (own only)
+### 5.3 Rate Limiting
 
-**Validazione SOLO server-side:**
-- Edge function `submit-qa` è l'unica fonte di verità
-- Client NON riceve mai risposte corrette
-- Block-on-wrong: 2 errori totali = quiz fallito
-
-### 5.3 Messaggi Privati
-
-- Crittografia TLS in transito
-- Soft-delete via `message_deletions` table
-- NON inviati a sistemi AI
-- Policy RLS: solo partecipanti thread
+```sql
+qa_submit_attempts (
+  user_id, qa_id, attempt_count, window_start
+)
+-- Max 10 tentativi per 5 minuti per quiz
+```
 
 ---
 
-## 6. Uso dell'AI
+## 6. Trust Score — Privacy
 
-### 6.1 Provider e Modelli
+### 6.1 Accesso Controllato
 
-| Provider | Modello | Uso | Data Retention |
-|----------|---------|-----|----------------|
-| Lovable AI Gateway | gemini-2.5-flash | Quiz, classificazione | No retention |
-| Lovable AI Gateway | gemini-2.5-pro | Il Punto sintesi | No retention |
+- **trust_scores** table: RLS `service_role` only
+- **Frontend access**: Solo via `get-trust-score` Edge Function
+- **Richiede JWT** valido
 
-### 6.2 Dati Inviati all'AI
+### 6.2 Label UI
 
-| Funzione | Dati Inviati | Dati Utente |
-|----------|--------------|-------------|
-| generate-qa | Contenuto fonte (articolo/video) | NO |
-| fetch-daily-focus | Titoli notizie pubbliche | NO |
-| classify-content | Testo post | Solo testo, no metadata |
-| evaluate-trust-score | URL pubblico | NO |
+```typescript
+// src/components/ui/trust-badge.tsx
+const BAND_LABELS = {
+  BASSO: "Fonte: Basso",
+  MEDIO: "Fonte: Medio", 
+  ALTO: "Fonte: Alto",
+};
+```
 
-### 6.3 Garanzie AI
-
-✅ Dati NON usati per training modelli terzi
-✅ Dati NON conservati da provider AI
-✅ Messaggi privati MAI inviati ad AI
-✅ Contenuti generati marcati come AI (Il Punto)
+**Importante:** Prefisso "Fonte:" per chiarire che valutiamo la fonte, non il contenuto.
 
 ---
 
-## 7. Cookie e Tracking
+## 7. Cache e Retention
 
-### 7.1 Cookie Utilizzati
+### 7.1 Tabelle Cache
 
-| Cookie | Tipo | Scopo | Durata |
-|--------|------|-------|--------|
-| sb-*-auth-token | Tecnico | Autenticazione Supabase | Sessione |
-| noparrot-consent-completed | Tecnico | Flag consenso | Permanente |
-| noparrot-pending-consent | Tecnico | Consenso pre-auth | Temporaneo |
-| noparrot-pending-cognitive-opt-in | Tecnico | Cognitive opt-in pre-auth | Temporaneo |
+| Tabella | TTL | Contenuto | RLS |
+|---------|-----|-----------|-----|
+| `content_cache` | 7 giorni | Testo articoli estratti | service_role only |
+| `youtube_transcripts_cache` | 30 giorni | Trascrizioni video | service_role only |
+| `trust_scores` | 7 giorni | Cache valutazioni fonte | service_role only |
+| `post_gate_attempts` | 365 giorni | Tentativi quiz | service_role only |
 
-### 7.2 Tracking di Terze Parti
+### 7.2 Cleanup
 
-❌ **Nessun tracking di terze parti implementato**
-❌ Nessun Google Analytics
-❌ Nessun Facebook Pixel
-❌ Nessun advertising SDK
-
----
-
-## 8. Documenti Legali
-
-### 8.1 Privacy Policy (`/privacy`)
-- Versione: 2.0 (8 gennaio 2026)
-- Titolare: Arcangelo Izzo
-- Contatto: noparrot.info@gmail.com
-- Sezioni: 11 (titolare, base, trasferimenti, età, raccolta, profilazione, messaggi, conservazione, AI, terze parti, diritti)
-
-### 8.2 Terms of Service (`/terms`)
-- Versione: 2.0 (6 gennaio 2026)
-- Età minima: 16 anni
-- Sezioni: 7 (scopo, età, contenuti, IP, limitazioni, cancellazione, modifiche)
-
-### 8.3 Cookie Policy (`/cookie`)
-- Solo cookie tecnici dichiarati
-- Nessun banner cookie (non necessario per cookie tecnici)
-
-### 8.4 Ads Policy (`/legal/ads`)
-- Approccio: Contextual first, Persona second, Cognitivo solo con consenso
-- NoParrot NON vende dati personali
-
-### 8.5 Transparency (`/legal/transparency`)
-- Spiegazione algoritmi feed
-- Spiegazione Trust Score
-- Spiegazione Comprehension Gate
+```typescript
+// supabase/functions/cleanup-expired-cache/index.ts
+// Elimina record dove expires_at < now()
+```
 
 ---
 
-## 9. Checklist Compliance
+## 8. Messaggi Privati
 
-### GDPR
-- [x] Age gate 16+ con auto-dichiarazione
-- [x] Consenso esplicito pre-registrazione
-- [x] Consenso esplicito per cognitive tracking (toggle in ConsentScreen)
-- [x] Versionamento consensi
-- [x] Opt-out profilazione (cognitive tracking)
-- [x] Data export funzionante
-- [x] Rate limiting export (60s)
-- [x] Cancellazione account disponibile
-- [x] Privacy Policy completa
-- [x] Contatto DPO/titolare
-- [x] Documentazione trasferimenti extra-UE
-- [x] Retention definita per gate data (365 giorni)
+### 8.1 Privacy
 
-### DSA
-- [x] Pagina trasparenza algoritmi
-- [x] Terms of Service chiari
-- [x] Punto di contatto indicato
-- [x] Info dialog su contenuti AI
+- **Non inviati a AI** per analisi
+- **TLS** per trasmissione
+- **Soft-delete** disponibile (`message_deletions` table)
 
-### Security
-- [x] RLS su tutte le tabelle con dati personali
-- [x] RLS enabled su cache tables (service_role only via 0 policies)
-- [x] Separazione questions/answers quiz
-- [x] Rate limiting validazione quiz
-- [x] Service role only per tabelle sensibili
-- [x] TLS per messaggi privati
+### 8.2 RLS
+
+```sql
+-- messages: solo partecipanti al thread
+USING (user_is_thread_participant(thread_id, auth.uid()))
+
+-- message_deletions: solo owner
+USING (user_id = auth.uid())
+```
 
 ---
 
-## 10. Raccomandazioni
+## 9. AI e Dati
 
-### Alta Priorità
-1. **Implementare DSAR automatizzato** - Attualmente export manuale via edge function
-2. **Audit log accessi** - Tracciare chi accede a cosa per accountability
-3. **Backup encryption** - Verificare encryption at rest su Supabase
+### 9.1 Uso AI
 
-### Media Priorità
-4. **DPO formale** - Considerare nomina per scale-up
-5. **DPIA** - Valutazione impatto per profilazione cognitiva (vedere `DPIA_LIGHT.md`)
-6. **Retention policy automatica** - Cleanup schedulato dati scaduti ✅ Implementato
+| Funzione | Modello | Dati Inviati |
+|----------|---------|--------------|
+| Quiz generation | Gemini 2.5 Flash | Contenuto fonte (no PII) |
+| Trust Score | Gemini 2.5 Flash | URL + metadata fonte |
+| Il Punto | Gemini 2.5 Flash | Articoli pubblici aggregati |
+| Classificazione | Gemini 2.5 Flash Lite | Titoli news |
 
-### Bassa Priorità
-7. **Certificazioni** - ISO 27001 per enterprise
-8. **Cookie banner** - Se aggiunti analytics in futuro
-9. **Multi-language** - Privacy Policy in inglese per users internazionali
+### 9.2 Garanzie
 
----
-
-## 11. Tabella Riassuntiva Dati
-
-| Dato | Raccolto | Base Giuridica | Retention | Opt-out |
-|------|----------|----------------|-----------|---------|
-| Email | ✅ | Contratto | Account life | ❌ |
-| Username | ✅ | Contratto | Account life | ❌ |
-| Data nascita | ✅ | Contratto (age gate) | Account life | ❌ |
-| Avatar | ✅ | Contratto | Account life | ❌ |
-| Bio | ✅ | Contratto | Account life | ❌ |
-| Post | ✅ | Contratto | Account life | Delete singolo |
-| Commenti | ✅ | Contratto | Account life | Delete singolo |
-| Reazioni | ✅ | Contratto | Account life | Remove singolo |
-| Messaggi | ✅ | Contratto | Account life | Soft delete |
-| Cognitive Density | ✅ | Consenso esplicito | Account life | ✅ Toggle (ConsentScreen + Settings) |
-| Risposte quiz | ✅ | Interesse legittimo | **365 giorni** | ❌ |
-| Trust scores | ✅ | Interesse legittimo | 7 giorni | ❌ |
-| Trascrizioni | ✅ | Interesse legittimo | 30 giorni | ❌ |
+- **No training** su dati utente (Lovable AI Gateway policy)
+- **No retention** da parte provider AI
+- **Zero PII** inviato per quiz (solo contenuto fonte)
 
 ---
 
-## 12. Contatti per Audit
+## 10. Trasferimenti Internazionali
 
-**Titolare del trattamento:**
-Arcangelo Izzo
-Email: noparrot.info@gmail.com
+### 10.1 Provider e Localizzazione
 
-**Supporto tecnico:**
-Via email al titolare
+| Provider | Ruolo | Localizzazione |
+|----------|-------|----------------|
+| Supabase (AWS) | Database, Auth | us-east-1 (USA) |
+| Lovable | App hosting, AI Gateway | EU/USA |
+| Google (Gemini) | AI | USA |
+| Firecrawl | Estrazione articoli | USA |
+| Jina | Estrazione articoli | Germania |
+
+### 10.2 Meccanismi Legali
+
+- EU-US Data Privacy Framework (dove applicabile)
+- Standard Contractual Clauses (SCCs)
+- Informativa in Privacy Policy
 
 ---
 
-*Documento generato per supportare review di AI esterni e compliance check. Per domande specifiche contattare il titolare.*
+## 11. Diritti Utente (GDPR Art. 15-22)
+
+### 11.1 Implementati
+
+| Diritto | Implementazione |
+|---------|-----------------|
+| Accesso | Impostazioni → Privacy → Esporta dati |
+| Rettifica | Modifica profilo |
+| Cancellazione | Impostazioni → Privacy → Cancella account |
+| Portabilità | Export JSON completo |
+| Opposizione profilazione | Toggle cognitive tracking OFF |
+
+### 11.2 Export Dati
+
+```typescript
+// supabase/functions/export-user-data/index.ts
+// Rate limit: 1 export ogni 60 secondi
+// Output: JSON con profilo, post, commenti, preferenze
+```
+
+---
+
+## 12. Documenti Legali Pubblici
+
+| Documento | Route | Aggiornamento |
+|-----------|-------|---------------|
+| Privacy Policy | `/privacy` | v2.0, 8 gen 2026 |
+| Terms of Service | `/terms` | v2.0, 8 gen 2026 |
+| Trasparenza AI | `/legal/transparency` | v2.0, 8 gen 2026 |
+| Cookie Policy | `/cookies` | v2.0, 8 gen 2026 |
+| Ads Policy | `/legal/ads` | v2.0, 8 gen 2026 |
+
+---
+
+## 13. Checklist Finale
+
+- [x] Età minima 16 anni con blocco UI
+- [x] DOB obbligatorio, non nullable
+- [x] Cognitive tracking opt-in (default OFF)
+- [x] Ads opt-in (default OFF)
+- [x] Coerenza: tracking OFF → ads OFF
+- [x] Gate data retention 365 giorni
+- [x] Cache tables service_role only
+- [x] Zero-knowledge quiz validation
+- [x] Export dati funzionante
+- [x] Cancellazione account funzionante
+- [x] Trust Score label "Fonte:"
+- [x] Privacy Policy aggiornata
+- [x] Trasparenza AI documentata

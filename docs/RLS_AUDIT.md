@@ -1,278 +1,354 @@
-# RLS (Row Level Security) Audit Report
-## Security-Sensitive Tables - Comprehensive Review
+# NoParrot v2.0 — RLS Audit
 
-**Generated:** 2026-01-06  
-**Version:** 2.0 - Post-hardening
-
----
-
-## Summary
-
-| Table | RLS Status | Policy Count | Risk Level |
-|-------|------------|--------------|------------|
-| `post_qa_questions` | ✅ Enabled | 1 | 🟢 LOW |
-| `post_qa_answers` | ✅ Enabled | 0 (service_role only) | 🟢 SECURE |
-| `qa_submit_attempts` | ✅ Enabled | 0 (service_role only) | 🟢 SECURE |
-| `post_qa` (legacy) | ✅ Enabled | 1 (blocked) | 🟢 MITIGATED |
-| `content_cache` | ⚠️ Disabled | 0 | 🟡 MEDIUM |
-| `youtube_transcripts_cache` | ✅ Enabled | 1 | 🟢 LOW |
-| `trust_scores` | ✅ Enabled | 2 | 🟢 SECURE |
-| `message_deletions` | ✅ Enabled | 3 | 🟢 LOW |
+**Versione:** 2.0  
+**Data:** 8 gennaio 2026  
+**Scope:** Audit completo Row Level Security
 
 ---
 
-## Attack Surface: MITIGATED ✅
+## 1. Sommario Sicurezza
 
-### Comprehension Gate Security
-
-**Before hardening:**
-- ❌ `correct_answers` exposed via SELECT policy on `post_qa`
-- ❌ Users could see answers before completing the gate
-- ❌ No rate limiting on validation attempts
-
-**After hardening:**
-- ✅ Questions and answers split into separate tables
-- ✅ `post_qa_answers` has NO client policies (service_role only)
-- ✅ `post_qa_questions` restricted to owner_id = auth.uid()
-- ✅ Rate limiting: max 10 attempts per 5 minutes per Q&A
-- ✅ All validation happens server-side via `submit-qa` edge function
-- ✅ `get-qa` edge function strips `correctId` before returning questions
-- ✅ Expired Q&A rejected with 410 Gone
+| Categoria | Tabelle | Status |
+|-----------|---------|--------|
+| Cache Sensibili | content_cache, youtube_transcripts_cache, trust_scores | ✅ service_role only |
+| Quiz Risposte | post_qa_answers | ✅ service_role only |
+| Gate Attempts | post_gate_attempts, qa_submit_attempts | ✅ service_role only |
+| Profili | profiles | ✅ Authenticated + public view |
+| Contenuti | posts, comments, reactions | ✅ Public read, auth write |
+| Messaggi | messages, message_threads | ✅ Partecipanti only |
+| Consensi | user_consents | ✅ Owner only |
 
 ---
 
-## Detailed Table Audits
+## 2. Tabelle Critiche — Service Role Only
 
-### 1. post_qa_questions (NEW - Secure)
+### 2.1 content_cache
 
-**Status:** 🟢 SECURE
+**Contenuto:** Testo estratto da articoli esterni  
+**Rischio se esposta:** Scraping massivo, costi AI
 
-| Policy | Command | USING | WITH CHECK |
-|--------|---------|-------|------------|
-| Users can read own Q&A | SELECT | `owner_id = auth.uid()` | - |
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| ALL | Service role manages | TO service_role, USING (true) |
 
-**Security notes:**
-- No INSERT/UPDATE/DELETE policies - all writes via edge functions
-- Owner-based access control
-- `correctId` stripped by edge function before returning to client
-- Expires automatically (30 days default)
+**Nessuna policy per anon/authenticated** = accesso bloccato per client.
 
----
-
-### 2. post_qa_answers (NEW - Secure)
-
-**Status:** 🟢 FULLY SECURE
-
-| Policy | Command | USING | WITH CHECK |
-|--------|---------|-------|------------|
-| (none) | - | - | - |
-
-**Security notes:**
-- RLS enabled with ZERO policies = no client access whatsoever
-- Only service_role (edge functions) can read/write
-- Contains ONLY `correct_answers` - never exposed to client
-- Foreign key cascade delete with `post_qa_questions`
+```sql
+ALTER TABLE content_cache ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Service role manages content cache"
+  ON content_cache FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+```
 
 ---
 
-### 3. qa_submit_attempts (NEW - Rate Limiting)
+### 2.2 youtube_transcripts_cache
 
-**Status:** 🟢 SECURE
+**Contenuto:** Trascrizioni video YouTube  
+**Rischio se esposta:** Scraping contenuti, violazione ToS YouTube
 
-| Policy | Command | USING | WITH CHECK |
-|--------|---------|-------|------------|
-| (none) | - | - | - |
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| ALL | Service role manages | TO service_role, USING (true) |
 
-**Security notes:**
-- RLS enabled with ZERO policies = service_role only
-- Tracks rate limiting: user_id + qa_id + attempt_count
-- Window-based rate limiting (5 minutes, max 10 attempts)
-
----
-
-### 4. post_qa (LEGACY - Blocked)
-
-**Status:** 🟢 MITIGATED
-
-| Policy | Command | USING | WITH CHECK |
-|--------|---------|-------|------------|
-| No client access to legacy post_qa | SELECT | `false` | - |
-
-**Security notes:**
-- All previous permissive policies DROPPED
-- New policy returns `false` = no client can read
-- Table kept for backward compatibility / data migration
-- New code uses `post_qa_questions` + `post_qa_answers`
+```sql
+ALTER TABLE youtube_transcripts_cache ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Service role manages transcripts"
+  ON youtube_transcripts_cache FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+```
 
 ---
 
-### 5. content_cache
+### 2.3 trust_scores
 
-**Status:** ⚠️ RLS DISABLED
+**Contenuto:** Cache valutazioni reputazione fonti  
+**Rischio se esposta:** Manipolazione percezione affidabilità
 
-| Policy | Command | USING | WITH CHECK |
-|--------|---------|-------|------------|
-| (none - RLS disabled) | - | - | - |
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| ALL | Service role manages | TO service_role, USING (true) |
 
-**Risk assessment:**
-- Contains cached article content (public URLs)
-- No user-specific data
-- Used by edge functions with service_role
-- **Recommendation:** Enable RLS with service_role-only access if caching sensitive content
+**Accesso frontend:** Solo via `get-trust-score` Edge Function (JWT required)
 
----
-
-### 6. youtube_transcripts_cache
-
-**Status:** 🟢 SECURE
-
-| Policy | Command | USING | WITH CHECK |
-|--------|---------|-------|------------|
-| Service role can insert transcripts | INSERT | - | `true` |
-
-**Security notes:**
-- No SELECT policy = no client reads
-- INSERT only for service_role (edge functions)
-- Contains public YouTube transcripts
+```sql
+ALTER TABLE trust_scores ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Service role manages trust scores"
+  ON trust_scores FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+```
 
 ---
 
-### 7. trust_scores
+### 2.4 post_qa_answers
 
-**Status:** 🟢 SECURE
+**Contenuto:** Risposte corrette ai quiz  
+**Rischio se esposta:** Bypass completo Comprehension Gate
 
-| Policy | Command | USING | WITH CHECK |
-|--------|---------|-------|------------|
-| Service role can insert trust scores | INSERT | - | `true` |
-| Service role can update trust scores | UPDATE | `true` | - |
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| ALL | Service role manages | TO service_role, USING (true) |
+| SELECT | (None for authenticated) | - |
 
-**Security notes:**
-- No SELECT policy for anon/authenticated
-- Access only via `get-trust-score` edge function
-- Edge function requires valid JWT
+**Zero-Knowledge Architecture:** Client non può mai accedere alle risposte.
 
----
-
-### 8. message_deletions
-
-**Status:** 🟢 LOW RISK
-
-| Policy | Command | USING | WITH CHECK |
-|--------|---------|-------|------------|
-| Users can delete own message deletions | DELETE | `auth.uid() = user_id` | - |
-| Users can insert own message deletions | INSERT | - | `auth.uid() = user_id` |
-| Users can view own message deletions | SELECT | `auth.uid() = user_id` | - |
-
-**Security notes:**
-- Properly scoped to `auth.uid() = user_id`
-- Users can only see/manage their own deletions
+```sql
+ALTER TABLE post_qa_answers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Service role manages answers"
+  ON post_qa_answers FOR ALL TO service_role
+  USING (true) WITH CHECK (true);
+-- NO policy per authenticated = nessun accesso client
+```
 
 ---
 
-## Edge Functions Security
+### 2.5 post_gate_attempts
 
-### get-qa
-- ✅ Requires valid JWT
-- ✅ Returns ONLY questions (no correctId)
-- ✅ Validates ownership or public post access
-- ✅ Rejects expired Q&A (410 Gone)
+**Contenuto:** Log tentativi quiz con risposte utente  
+**Rischio se esposta:** Leak comportamentale, reverse engineering risposte
 
-### submit-qa
-- ✅ Requires valid JWT
-- ✅ Rate limiting (10 attempts / 5 min)
-- ✅ Server-side validation only
-- ✅ Never returns correct answers
-- ✅ Logs attempts to `post_gate_attempts`
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| ALL | Service role manages | TO service_role, USING (true) |
 
-### generate-qa
-- ✅ Extracts owner_id from JWT
-- ✅ Saves questions to `post_qa_questions`
-- ✅ Saves answers to `post_qa_answers` (separate table)
-- ✅ Returns questions with correctId stripped
+**Retention:** 365 giorni (colonna `expires_at`)
 
 ---
 
-## Recommendations
+### 2.6 qa_submit_attempts
 
-### Immediate (Already Done)
-- [x] Split post_qa into questions/answers tables
-- [x] Remove all client SELECT on correct_answers
-- [x] Implement rate limiting for submissions
-- [x] Add expiration handling
+**Contenuto:** Rate limiting quiz submissions  
+**Rischio se esposta:** Bypass rate limiting
 
-### Future Considerations
-1. Enable RLS on `content_cache` with service_role-only policies
-2. Add IP-based rate limiting for additional protection
-3. Consider adding CAPTCHA for repeat failures
-4. Monitor `post_gate_attempts` for abuse patterns
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| ALL | Service role only | (implicit, no policies) |
 
 ---
 
-## Gate Hardening Checklist (Definition of Done)
+## 3. Tabelle Quiz — Owner Access
 
-### A) UX Invariata
-- [x] Nessuna risposta corretta mostrata all'utente
-- [x] Feedback "riprova" basato su `wrongIndexes` (server-side)
-- [x] Stesso flow step/modal/copy
+### 3.1 post_qa_questions
 
-### B) Sicurezza
-- [x] Nessun `correctId`/`correct_answers` in network responses
-- [x] Validazione solo via `submit-qa` edge function
-- [x] Rate limiting attivo (10 tentativi / 5 min)
+**Contenuto:** Domande quiz (senza risposte corrette)  
+**Accesso:** Solo owner può vedere le proprie domande
 
-### C) No Bypass
-- [x] `apiSubmitAnswers` in comprehension-gate.tsx → throws Error (deprecated)
-- [x] `apiCreateOrGetQuiz` in comprehension-gate.tsx → throws Error (deprecated)
-- [x] `validate-answers` edge function → returns 410 Gone
-- [x] Nessun "mock passed" o "assume correct" nel codebase
-- [x] `ComprehensionTest.tsx` → hard-fail senza fallback mock (v2.2)
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| SELECT | Users can read own Q&A | owner_id = auth.uid() |
+| INSERT/UPDATE/DELETE | (None) | Solo via Edge Functions |
 
-### D) Focus/Il Punto
-- [x] `qaId` generato server-side via `generate-qa`
-- [x] `FocusDetailSheet` passa `qaId` a `submit-qa`
-- [x] `ImmersiveEditorialCarousel` passa `qaId` a `submit-qa`
+```sql
+ALTER TABLE post_qa_questions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can read own Q&A"
+  ON post_qa_questions FOR SELECT
+  USING (owner_id = auth.uid());
+```
 
 ---
 
-## Changelog
+## 4. Tabelle Utente
 
-- **2026-01-06 v2.4**: CRITICAL - End-to-end qaId propagation & server-only validation
-  - **ROOT CAUSE**: Multiple critical bugs causing "every answer correct":
-    1. `generate-qa` never returned `qaId` (only `{ questions }`)
-    2. `FeedCardAdapt` didn't save `qaId`, used `actualPassed` client-side override
-    3. `submit-qa` didn't fail-fast on empty `correct_answers`
-    4. `NewMessageSheet` + `MessageComposer` had hardcoded `passed: true` bypasses
-    5. `runGateBeforeAction` didn't save `qaId` in quizData
-  - **FIXES APPLIED**:
-    - `generate-qa`: NOW returns `{ qaId, questions }` for BOTH cache-hit and fresh generation
-    - `generate-qa`: Verifies `post_qa_answers` exists before returning cache hit
-    - `submit-qa`: FAIL-FAST with 500 if `correct_answers` is empty/invalid (never `passed=true`)
-    - `FeedCardAdapt`: Saves `qaId` from server, passes to `submit-qa`, removed `actualPassed` override
-    - `NewMessageSheet`: Replaced `passed: true` bypass with real `submit-qa` call
-    - `MessageComposer`: Same fix - real server validation
-    - `runGateBeforeAction`: Saves `qaId` from `generate-qa` response
-    - `QAGenerationResult` type: Added `qaId?: string` field
-  - **MATHEMATICAL CLOSURE**: Server is now the ONLY source of truth for pass/fail
+### 4.1 profiles
 
-- **2026-01-06 v2.3**: Critical bug fix - "every answer correct" bug
+**Contenuto:** Dati profilo utente  
+**PII:** username (può essere email), date_of_birth
 
-- **2026-01-06 v2.2**: Complete audit and mock removal
-  - Removed fallback mock questions from `ComprehensionTest.tsx`
-  - Hard-fail if no server-side questions provided
-  - Full grep audit completed - zero leaks confirmed
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| SELECT | Authenticated users view profiles | TO authenticated, USING (true) |
+| UPDATE | Users can update own profile | auth.uid() = id |
+| INSERT | (Trigger on auth.users) | Automatic |
 
-- **2026-01-06 v2.1**: Final hardening - single source of truth
-  - Deprecated `apiSubmitAnswers` and `apiCreateOrGetQuiz` in comprehension-gate.tsx
-  - Added `qaId` propagation from `generate-qa` to `submit-qa` in Focus/Il Punto components
-  - Added Definition of Done checklist
+**View pubblica:** `public_profiles` esclude PII
 
-- **2026-01-06 v2.0**: Major security hardening
-  - Created `post_qa_questions` and `post_qa_answers` tables
-  - Created `qa_submit_attempts` for rate limiting
-  - New edge functions: `get-qa`, `submit-qa`
-  - Updated `generate-qa` to use split tables
-  - Blocked legacy `post_qa` table access
+```sql
+CREATE VIEW public_profiles AS
+SELECT id, full_name, avatar_url, bio, created_at
+FROM profiles;
+-- Esclusi: username, date_of_birth
+```
 
-- **2026-01-06 v1.0**: Initial audit
-  - Identified `correct_answers` exposure vulnerability
-  - Documented `trust_scores` hardening
+---
+
+### 4.2 user_consents
+
+**Contenuto:** Preferenze consenso GDPR
+
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| SELECT | Own consents | user_id = auth.uid() |
+| INSERT | Own consents | user_id = auth.uid() |
+| UPDATE | Own consents | user_id = auth.uid() |
+
+---
+
+## 5. Tabelle Contenuti
+
+### 5.1 posts
+
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| SELECT | Public read | USING (true) |
+| INSERT | Authenticated create | auth.uid() = author_id |
+| UPDATE | Own posts | auth.uid() = author_id |
+| DELETE | Own posts | auth.uid() = author_id |
+
+---
+
+### 5.2 comments
+
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| SELECT | Comments viewable by everyone | USING (true) |
+| INSERT | Users can insert own comments | auth.uid() = author_id |
+| UPDATE | Own comments | auth.uid() = author_id |
+| DELETE | Own comments | auth.uid() = author_id |
+
+---
+
+### 5.3 reactions / comment_reactions
+
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| SELECT | Public read | USING (true) |
+| INSERT | Authenticated | auth.uid() = user_id |
+| DELETE | Own reactions | auth.uid() = user_id |
+
+---
+
+## 6. Tabelle Messaggi
+
+### 6.1 message_threads
+
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| SELECT | Participants only | user_is_thread_participant(thread_id, auth.uid()) |
+
+---
+
+### 6.2 messages
+
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| SELECT | Thread participants | user_is_thread_participant(thread_id, auth.uid()) |
+| INSERT | Sender in thread | sender_id = auth.uid() AND user_is_thread_participant(...) |
+
+---
+
+### 6.3 thread_participants
+
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| SELECT | Own threads | user_is_thread_participant(thread_id, auth.uid()) |
+
+**Security Definer Function:**
+```sql
+CREATE FUNCTION user_is_thread_participant(check_thread_id uuid, check_user_id uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM thread_participants 
+    WHERE thread_id = check_thread_id AND user_id = check_user_id
+  );
+$$;
+```
+
+---
+
+### 6.4 message_deletions
+
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| SELECT | Own deletions | user_id = auth.uid() |
+| INSERT | Own deletions | user_id = auth.uid() |
+
+---
+
+## 7. Tabelle Focus/Editorial
+
+### 7.1 daily_focus / interest_focus
+
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| SELECT | Public read | USING (true) |
+| INSERT/UPDATE/DELETE | Service role only | TO service_role |
+
+---
+
+### 7.2 focus_comments / focus_reactions
+
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| SELECT | Public read | USING (true) |
+| INSERT | Authenticated | auth.uid() = author_id/user_id |
+| DELETE | Own | auth.uid() = author_id/user_id |
+
+---
+
+## 8. Storage Buckets
+
+### 8.1 avatars
+
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| SELECT | Public | USING (true) |
+| INSERT | Own folder | auth.uid()::text = (storage.foldername(name))[1] |
+| UPDATE | Own folder | auth.uid()::text = (storage.foldername(name))[1] |
+| DELETE | Own folder | auth.uid()::text = (storage.foldername(name))[1] |
+
+### 8.2 news-images
+
+| Operation | Policy | Condition |
+|-----------|--------|-----------|
+| SELECT | Public | USING (true) |
+| INSERT | Service role | TO service_role |
+
+---
+
+## 9. Funzioni Database Critiche
+
+### 9.1 Security Definer Functions
+
+| Function | Purpose | search_path |
+|----------|---------|-------------|
+| `user_is_thread_participant` | Check partecipazione thread | public |
+| `handle_new_user` | Crea profilo su signup | public |
+| `create_or_get_thread` | Crea/trova thread messaggi | public |
+| `increment_post_shares` | Incrementa contatore shares | public |
+
+Tutte usano `SET search_path TO 'public'` per prevenire SQL injection.
+
+---
+
+## 10. Warning Linter
+
+### 10.1 Permissive RLS Policy
+
+**Status:** WARN  
+**Causa:** Alcune policy usano `WITH CHECK (true)` per service_role  
+**Mitigazione:** Accettabile per service_role, che è già privilegiato
+
+### 10.2 Leaked Password Protection
+
+**Status:** WARN  
+**Azione:** Abilitare in Supabase Auth Settings
+
+---
+
+## 11. Raccomandazioni
+
+### Immediate
+
+1. ✅ Cache tables: solo service_role (implementato)
+2. ✅ Quiz answers: zero-knowledge (implementato)
+3. ✅ Messaggi: partecipanti only (implementato)
+4. ⚠️ Abilitare leaked password protection
+
+### Future
+
+1. Audit periodico policy dopo ogni migrazione
+2. Monitoraggio query patterns anomali
+3. Review policy su nuove tabelle
