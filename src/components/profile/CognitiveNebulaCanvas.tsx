@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 
 interface CognitiveNebulaCanvasProps {
   data: Record<string, number>;
+  showCounts?: boolean;
 }
 
 const CATEGORIES = [
@@ -60,7 +61,7 @@ interface Particle {
   color: { r: number; g: number; b: number };
 }
 
-export const CognitiveNebulaCanvas = ({ data }: CognitiveNebulaCanvasProps) => {
+export const CognitiveNebulaCanvas = ({ data, showCounts = false }: CognitiveNebulaCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
   const timeRef = useRef(0);
@@ -163,18 +164,21 @@ export const CognitiveNebulaCanvas = ({ data }: CognitiveNebulaCanvasProps) => {
 
     // Draw category labels at the edges
     const labelRadius = maxRadius + 24;
-    ctx.font = '600 11px system-ui, -apple-system, sans-serif';
     ctx.textBaseline = 'middle';
     
     CATEGORIES.forEach(category => {
       const angle = CATEGORY_ANGLES[category];
       const color = CATEGORY_COLORS[category];
+      const categoryValue = data[category] || 0;
       
       const x = centerX + Math.cos(angle) * labelRadius;
       const y = centerY + Math.sin(angle) * labelRadius;
       
-      // Short label (first word only)
+      // Short label (first word only) with optional count
       const shortLabel = category.split(' ')[0];
+      const displayLabel = showCounts && categoryValue > 0 
+        ? `${shortLabel} (${Math.round(categoryValue)})`
+        : shortLabel;
       
       // Align text based on angular position
       const normalizedAngle = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
@@ -191,15 +195,17 @@ export const CognitiveNebulaCanvas = ({ data }: CognitiveNebulaCanvasProps) => {
         ctx.textAlign = 'center';
       }
       
+      ctx.font = '600 11px system-ui, -apple-system, sans-serif';
+      
       // Draw text shadow for better contrast
       ctx.globalAlpha = 0.4;
       ctx.fillStyle = 'rgba(0, 0, 0, 1)';
-      ctx.fillText(shortLabel, x + 1, y + 1);
+      ctx.fillText(displayLabel, x + 1, y + 1);
       
       // Draw main text
       ctx.globalAlpha = 1;
       ctx.fillStyle = color;
-      ctx.fillText(shortLabel, x, y);
+      ctx.fillText(displayLabel, x, y);
     });
 
     animationRef.current = requestAnimationFrame(animate);
