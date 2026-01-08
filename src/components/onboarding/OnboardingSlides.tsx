@@ -36,16 +36,16 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
 
   const handleTouchMove = (e: React.TouchEvent) => {
     touchEndRef.current = e.targetTouches[0].clientX;
-    
+
     // Sync Lock→Check animation with swipe progress on Slide 2
-    if (currentSlide === 1 && touchStartRef.current && touchEndRef.current) {
+    if (
+      currentSlide === 1 &&
+      touchStartRef.current !== null &&
+      touchEndRef.current !== null
+    ) {
       const distance = touchStartRef.current - touchEndRef.current;
       // Trigger check animation when swiping left more than 30px
-      if (distance > 30) {
-        setShowCheck(true);
-      } else {
-        setShowCheck(false);
-      }
+      setShowCheck(distance > 30);
     }
   };
 
@@ -54,28 +54,30 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
     if (e.changedTouches && e.changedTouches.length > 0) {
       touchEndRef.current = e.changedTouches[0].clientX;
     }
-    
-    if (!touchStartRef.current || !touchEndRef.current) return;
-    
+
+    if (touchStartRef.current === null || touchEndRef.current === null) return;
+
     const distance = touchStartRef.current - touchEndRef.current;
-    const isLeftSwipe = distance > 50;
+
+    // Slide 2: advance as soon as we reached the same threshold that flips Lock→Check
+    const isLeftSwipe = distance > 30;
     const isRightSwipe = distance < -50;
-    
-    // Forward swipe: allowed on Slide 2 (index 1) only
+
+    // Forward swipe: Slide 2 (index 1) only
     if (isLeftSwipe && currentSlide === 1) {
       nextSlide();
     }
-    
+
     // Back swipe: always allowed
     if (isRightSwipe && currentSlide > 0) {
       prevSlide();
     }
-    
+
     // Reset check animation if swipe was cancelled
     if (!isLeftSwipe && currentSlide === 1) {
       setShowCheck(false);
     }
-    
+
     touchStartRef.current = null;
     touchEndRef.current = null;
   };
