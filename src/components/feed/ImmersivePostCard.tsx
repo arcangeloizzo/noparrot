@@ -635,6 +635,7 @@ export const ImmersivePostCard = ({
   const hasLink = !!post.shared_url;
   const isSpotify = articlePreview?.platform === 'spotify';
   const isTwitter = articlePreview?.platform === 'twitter' || detectPlatformFromUrl(post.shared_url || '') === 'twitter';
+  const isLinkedIn = articlePreview?.platform === 'linkedin' || detectPlatformFromUrl(post.shared_url || '') === 'linkedin';
   const isYoutube = articlePreview?.platform === 'youtube' || 
     (post.shared_url?.includes('youtube.com') || post.shared_url?.includes('youtu.be'));
   const isMediaOnlyPost = hasMedia && !hasLink && !quotedPost;
@@ -720,6 +721,10 @@ export const ImmersivePostCard = ({
         ) : isTwitter ? (
           <div className="absolute inset-0 bg-gradient-to-b from-[#15202B] via-[#192734] to-[#0d1117]">
             <div className="absolute inset-0 bg-gradient-to-br from-[#1DA1F2]/10 to-transparent" />
+          </div>
+        ) : isLinkedIn ? (
+          <div className="absolute inset-0 bg-gradient-to-b from-[#0A66C2]/20 via-[#1a1a2e] to-[#0d1117]">
+            <div className="absolute inset-0 bg-gradient-to-br from-[#0A66C2]/15 to-transparent" />
           </div>
         ) : (
           <>
@@ -1055,6 +1060,95 @@ export const ImmersivePostCard = ({
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span className="text-xs uppercase tracking-wider">Apri su X</span>
+                </button>
+              </div>
+            ) : hasLink && isLinkedIn && !isReshareWithShortComment ? (
+              /* LinkedIn Card - Professional styling */
+              <div className="w-full max-w-md mx-auto mt-6">
+                {/* Unified LinkedIn Card */}
+                <div 
+                  className="bg-gradient-to-br from-[#0A66C2]/20 to-[#1a1a2e]/95 backdrop-blur-xl rounded-3xl p-5 border border-white/15 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_16px_rgba(10,102,194,0.15)] cursor-pointer active:scale-[0.98] transition-transform"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (post.shared_url) {
+                      window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
+                >
+                  {/* Author Row */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full border border-white/20 overflow-hidden bg-[#0A66C2]/20 flex-shrink-0 flex items-center justify-center">
+                      {articlePreview?.author_avatar ? (
+                        <img 
+                          src={articlePreview.author_avatar}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <span className="text-white/70 text-xl font-bold">
+                          {(articlePreview?.author || articlePreview?.title || 'L').charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white font-semibold truncate">
+                        {articlePreview?.author || 
+                          (articlePreview?.title || '')
+                            .replace(/\s*[|\-–]\s*LinkedIn.*$/i, '')
+                            .replace(/^Post di\s+/i, '')
+                            .replace(/^Post by\s+/i, '')
+                            .split(/\s*[|\-–]\s*/)[0]
+                            .trim() || 
+                          'LinkedIn User'}
+                      </p>
+                      <p className="text-white/50 text-sm">su LinkedIn</p>
+                    </div>
+                    {/* LinkedIn Logo */}
+                    <div className="w-7 h-7 rounded-md bg-white flex items-center justify-center flex-shrink-0">
+                      <span className="text-[#0A66C2] font-bold text-sm">in</span>
+                    </div>
+                  </div>
+                  
+                  {/* Post Text - cleaned and clamped */}
+                  <p className="text-white text-base leading-relaxed mb-4 line-clamp-4">
+                    {(articlePreview?.content || articlePreview?.description || articlePreview?.summary || '')
+                      .replace(/https?:\/\/[^\s]+/g, '')
+                      .replace(/\s{2,}/g, ' ')
+                      .trim() || 
+                      (articlePreview?.title || '')
+                        .replace(/\s*[|\-–]\s*LinkedIn.*$/i, '')
+                        .replace(/^Post di\s+/i, '')
+                        .replace(/^Post by\s+/i, '')
+                        .trim()}
+                  </p>
+                  
+                  {/* Post Image (if any) */}
+                  {(articlePreview?.image || post.preview_img) && (
+                    <div className="rounded-xl overflow-hidden">
+                      <img 
+                        src={articlePreview?.image || post.preview_img} 
+                        alt="" 
+                        className="w-full h-40 object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+                
+                {/* Open on LinkedIn CTA - Below the card */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (post.shared_url) {
+                      window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
+                  className="mt-3 mx-auto flex items-center gap-2 text-white/50 hover:text-white transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span className="text-xs uppercase tracking-wider">Apri su LinkedIn</span>
                 </button>
               </div>
             ) : hasLink && isYoutube && !isReshareWithShortComment ? (
