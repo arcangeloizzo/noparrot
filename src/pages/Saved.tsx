@@ -14,7 +14,7 @@ import type { DailyFocus } from "@/hooks/useDailyFocus";
 const SavedPostThumbnail = ({ post }: { post: Post }) => {
   const navigate = useNavigate();
 
-  // Determine background image
+  // Determine background image - prioritize content images, fallback to author avatar
   const getBackgroundImage = (): string | null => {
     // First check media
     if (post.media && post.media.length > 0) {
@@ -24,6 +24,10 @@ const SavedPostThumbnail = ({ post }: { post: Post }) => {
     // Then check preview image (for links)
     if (post.preview_img) {
       return post.preview_img;
+    }
+    // Fallback to author avatar if available (better than initials)
+    if (post.author?.avatar_url) {
+      return post.author.avatar_url;
     }
     return null;
   };
