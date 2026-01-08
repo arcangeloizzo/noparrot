@@ -25,7 +25,7 @@ export const SplashScreen = ({ onComplete }: SplashScreenProps) => {
   }, [onComplete]);
 
   return (
-    <div className="min-h-screen bg-[#0E141A] flex items-center justify-center px-6">
+    <div className={`min-h-screen bg-[#0E141A] flex items-center justify-center px-6 transition-opacity duration-500 ${phase >= 2 ? 'opacity-0' : 'opacity-100'}`}>
       <div className="flex flex-col items-center justify-center">
         {/* Logo Container */}
         <div 
