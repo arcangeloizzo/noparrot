@@ -28,6 +28,18 @@ const CATEGORY_COLORS: Record<string, string> = {
   'Media & Comunicazione': '#9AA3AB',
 };
 
+// Short display names for the labels
+const CATEGORY_SHORT_NAMES: Record<string, string> = {
+  'Società & Politica': 'Società',
+  'Economia & Business': 'Economia',
+  'Scienza & Tecnologia': 'Scienza',
+  'Cultura & Arte': 'Cultura',
+  'Pianeta & Ambiente': 'Pianeta',
+  'Sport & Lifestyle': 'Sport',
+  'Salute & Benessere': 'Salute',
+  'Media & Comunicazione': 'Media',
+};
+
 const CATEGORY_ANGLES: Record<string, number> = {
   'Società & Politica': 0,
   'Economia & Business': Math.PI * 0.25,
@@ -68,27 +80,27 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
 
   const initializeParticles = useCallback((weights: Record<string, number>) => {
     const particles: Particle[] = [];
-    const baseCount = 6; // Fewer particles for compact view
-    const extraCount = 24;
-    const angleSpread = Math.PI / 8;
+    const baseCount = 10;
+    const extraCount = 35;
+    const angleSpread = Math.PI / 6;
 
     CATEGORIES.forEach(category => {
       const weight = weights[category] || 0;
-      const normalizedWeight = Math.max(0.08, weight);
+      const normalizedWeight = Math.max(0.1, weight);
       const particleCount = Math.floor(baseCount + normalizedWeight * extraCount);
       const baseAngle = CATEGORY_ANGLES[category];
       const color = hexToRgb(CATEGORY_COLORS[category]);
 
       for (let i = 0; i < particleCount; i++) {
         const angleOffset = (Math.random() - 0.5) * 2 * angleSpread;
-        const distanceRatio = Math.pow(Math.random(), 0.6) * normalizedWeight;
+        const distanceRatio = Math.pow(Math.random(), 0.5) * normalizedWeight;
         
         particles.push({
           category,
           baseAngle,
           angleOffset,
           distanceRatio,
-          size: 1 + Math.random() * 1.5,
+          size: 1.5 + Math.random() * 2.5,
           driftPhase: Math.random() * Math.PI * 2,
           twinklePhase: Math.random() * Math.PI * 2,
           color
@@ -109,9 +121,9 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
     const dpr = window.devicePixelRatio || 1;
     const width = canvas.width / dpr;
     const height = canvas.height / dpr;
-    const centerX = width / 2;
+    const centerX = width * 0.6; // Offset to the right
     const centerY = height / 2;
-    const maxRadius = Math.min(width, height) * 0.38;
+    const maxRadius = Math.min(width, height) * 0.35;
     
     timeRef.current += 0.006;
     const time = timeRef.current;
@@ -119,8 +131,8 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
     particlesRef.current.forEach(particle => {
-      const driftX = Math.sin(time * 0.4 + particle.driftPhase) * 1.5;
-      const driftY = Math.cos(time * 0.35 + particle.driftPhase * 1.2) * 1.5;
+      const driftX = Math.sin(time * 0.4 + particle.driftPhase) * 2;
+      const driftY = Math.cos(time * 0.35 + particle.driftPhase * 1.2) * 2;
       const twinkle = 0.5 + 0.5 * Math.sin(time * 0.7 + particle.twinklePhase);
       
       const angle = particle.baseAngle + particle.angleOffset;
@@ -129,8 +141,8 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
       const x = centerX + Math.cos(angle) * distance + driftX;
       const y = centerY + Math.sin(angle) * distance + driftY;
 
-      const distanceAlpha = 1 - (particle.distanceRatio * 0.5);
-      const alpha = distanceAlpha * (0.55 + 0.45 * twinkle);
+      const distanceAlpha = 1 - (particle.distanceRatio * 0.4);
+      const alpha = distanceAlpha * (0.6 + 0.4 * twinkle);
 
       ctx.beginPath();
       ctx.arc(x, y, particle.size, 0, Math.PI * 2);
@@ -138,8 +150,9 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
       ctx.fill();
     });
 
-    const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, maxRadius * 0.12);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.06)');
+    // Core glow
+    const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, maxRadius * 0.15);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.08)');
     gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
@@ -195,56 +208,80 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
     };
   }, [data, handleResize, initializeParticles, animate]);
 
-  // Get top 3 categories for summary labels
+  // Get top categories with values for labels
   const topCategories = CATEGORIES
     .map(cat => ({ name: cat, value: data[cat] || 0 }))
     .sort((a, b) => b.value - a.value)
-    .slice(0, 3)
+    .slice(0, 5)
     .filter(c => c.value > 0);
 
   return (
     <button
       onClick={onClick}
-      className="w-full rounded-2xl bg-[#0E1419]/80 backdrop-blur-xl border border-white/5 p-3 transition-all hover:border-white/10 active:scale-[0.99]"
+      className="w-full rounded-2xl bg-[#0E1419]/90 backdrop-blur-xl border border-white/[0.06] p-4 transition-all hover:border-white/10 active:scale-[0.99] relative overflow-hidden"
     >
-      <div className="flex items-center gap-3">
-        {/* Compact canvas */}
-        <div className="w-20 h-20 flex-shrink-0 relative">
+      {/* Urban texture overlay */}
+      <div className="absolute inset-0 urban-texture opacity-[0.03] pointer-events-none" />
+      
+      {/* Header with title and expand icon */}
+      <div className="flex items-center justify-between mb-3 relative z-10">
+        <h4 className="text-base font-semibold text-foreground">Nebulosa Cognitiva</h4>
+        <ChevronDown className="w-5 h-5 text-muted-foreground" />
+      </div>
+
+      {/* Main nebula area with labels */}
+      <div className="relative h-[180px] z-10">
+        {/* Category labels positioned around the nebula */}
+        <div className="absolute inset-0 pointer-events-none">
+          {/* Left side labels */}
+          {topCategories.slice(0, 3).map((cat, index) => (
+            <span
+              key={cat.name}
+              className="absolute text-xs font-medium"
+              style={{ 
+                color: CATEGORY_COLORS[cat.name],
+                left: '8px',
+                top: `${30 + index * 45}px`,
+              }}
+            >
+              {CATEGORY_SHORT_NAMES[cat.name]}
+            </span>
+          ))}
+          
+          {/* Right side labels */}
+          {topCategories.slice(3, 5).map((cat, index) => (
+            <span
+              key={cat.name}
+              className="absolute text-xs font-medium text-right"
+              style={{ 
+                color: CATEGORY_COLORS[cat.name],
+                right: '8px',
+                top: `${45 + index * 50}px`,
+              }}
+            >
+              {CATEGORY_SHORT_NAMES[cat.name]}
+            </span>
+          ))}
+        </div>
+
+        {/* Canvas for particle nebula */}
+        <div className="absolute inset-0">
           <canvas
             ref={canvasRef}
             className="w-full h-full"
             style={{ background: 'transparent' }}
           />
         </div>
-
-        {/* Summary info */}
-        <div className="flex-1 text-left">
-          <h4 className="text-sm font-semibold text-foreground mb-1">Nebulosa Cognitiva</h4>
-          {topCategories.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {topCategories.map(cat => (
-                <span
-                  key={cat.name}
-                  className="text-xs px-2 py-0.5 rounded-full"
-                  style={{ 
-                    backgroundColor: `${CATEGORY_COLORS[cat.name]}20`,
-                    color: CATEGORY_COLORS[cat.name]
-                  }}
-                >
-                  {cat.name.split(' ')[0]}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              Esplora contenuti per attivare la nebulosa
-            </p>
-          )}
-        </div>
-
-        {/* Expand indicator */}
-        <ChevronDown className="w-5 h-5 text-muted-foreground flex-shrink-0" />
       </div>
+
+      {/* Empty state */}
+      {topCategories.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center z-20">
+          <p className="text-sm text-muted-foreground text-center px-8">
+            Esplora contenuti per attivare la tua nebulosa cognitiva
+          </p>
+        </div>
+      )}
     </button>
   );
 };
