@@ -7,6 +7,90 @@ const corsHeaders = {
 };
 
 // ============================================================================
+// URL NORMALIZATION
+// ============================================================================
+const TRACKING_PARAMS = new Set([
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+  'fbclid', 'gclid', 'ref', 'source', 'mc_cid', 'mc_eid', 'mkt_tok'
+]);
+
+function safeNormalizeUrl(rawUrl: string): string {
+  try {
+    const url = new URL(rawUrl.trim());
+    url.protocol = 'https:';
+    url.hostname = url.hostname.replace(/^www\./, '').toLowerCase();
+    url.hash = '';
+    url.pathname = url.pathname.replace(/\/+$/, '') || '/';
+    
+    const cleanParams = new URLSearchParams();
+    const entries = Array.from(url.searchParams.entries())
+      .filter(([key]) => !TRACKING_PARAMS.has(key.toLowerCase()))
+      .sort(([a], [b]) => a.localeCompare(b));
+    
+    for (const [key, value] of entries) {
+      cleanParams.set(key, value);
+    }
+    url.search = cleanParams.toString();
+    
+    return url.toString();
+  } catch {
+    return rawUrl.trim().toLowerCase();
+  }
+}
+
+// ============================================================================
+// HMAC TELEMETRY HELPERS
+// ============================================================================
+async function hashUserId(userId: string, secret: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(userId));
+  return Array.from(new Uint8Array(signature))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+    .substring(0, 16);
+}
+
+async function logAiUsage(
+  supabase: any,
+  params: {
+    functionName: string;
+    model: string;
+    inputChars: number;
+    outputChars: number;
+    cacheHit: boolean;
+    latencyMs: number;
+    providerLatencyMs?: number;
+    success: boolean;
+    errorCode?: string;
+    userHash?: string;
+  }
+) {
+  try {
+    await supabase.from('ai_usage_logs').insert({
+      function_name: params.functionName,
+      model: params.model,
+      input_chars: params.inputChars,
+      output_chars: params.outputChars,
+      cache_hit: params.cacheHit,
+      latency_ms: params.latencyMs,
+      provider_latency_ms: params.providerLatencyMs || null,
+      success: params.success,
+      error_code: params.errorCode || null,
+      user_hash: params.userHash || null
+    });
+  } catch (e) {
+    console.error('[Telemetry] Failed to log:', e);
+  }
+}
+
+// ============================================================================
 // SOURCE-FIRST Q/A GENERATION - SECURITY HARDENED
 // ============================================================================
 // This edge function:
@@ -21,10 +105,13 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
+    const hmacSecret = Deno.env.get('AI_TELEMETRY_HMAC_SECRET') || 'default-secret';
     
     const supabase = createClient(supabaseUrl, supabaseKey);
 
