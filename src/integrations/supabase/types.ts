@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage_logs: {
+        Row: {
+          cache_hit: boolean
+          created_at: string
+          error_code: string | null
+          function_name: string
+          id: string
+          input_chars: number
+          latency_ms: number
+          model: string
+          output_chars: number
+          provider_latency_ms: number | null
+          source_domain: string | null
+          success: boolean
+          user_hash: string | null
+        }
+        Insert: {
+          cache_hit?: boolean
+          created_at?: string
+          error_code?: string | null
+          function_name: string
+          id?: string
+          input_chars: number
+          latency_ms: number
+          model: string
+          output_chars: number
+          provider_latency_ms?: number | null
+          source_domain?: string | null
+          success?: boolean
+          user_hash?: string | null
+        }
+        Update: {
+          cache_hit?: boolean
+          created_at?: string
+          error_code?: string | null
+          function_name?: string
+          id?: string
+          input_chars?: number
+          latency_ms?: number
+          model?: string
+          output_chars?: number
+          provider_latency_ms?: number | null
+          source_domain?: string | null
+          success?: boolean
+          user_hash?: string | null
+        }
+        Relationships: []
+      }
       comment_media: {
         Row: {
           comment_id: string

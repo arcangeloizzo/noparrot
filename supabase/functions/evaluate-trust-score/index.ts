@@ -8,11 +8,153 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// ============================================================================
+// TRUSTED DOMAINS WHITELIST - Skip AI for these known sources
+// ============================================================================
+const TRUSTED_DOMAINS: Record<string, { band: 'ALTO' | 'MEDIO'; score: number; reasons: string[] }> = {
+  // Italian news
+  'repubblica.it': { band: 'ALTO', score: 90, reasons: ['Testata giornalistica nazionale', 'Fonte verificata'] },
+  'corriere.it': { band: 'ALTO', score: 90, reasons: ['Testata giornalistica nazionale', 'Fonte verificata'] },
+  'ilsole24ore.com': { band: 'ALTO', score: 92, reasons: ['Quotidiano economico primario', 'Fonte autorevole'] },
+  'lastampa.it': { band: 'ALTO', score: 88, reasons: ['Testata giornalistica nazionale', 'Fonte verificata'] },
+  'ansa.it': { band: 'ALTO', score: 95, reasons: ['Agenzia di stampa nazionale', 'Fonte primaria'] },
+  'ilfattoquotidiano.it': { band: 'ALTO', score: 85, reasons: ['Testata giornalistica', 'Fonte verificata'] },
+  'open.online': { band: 'ALTO', score: 85, reasons: ['Testata giornalistica', 'Fact-checking attivo'] },
+  'fanpage.it': { band: 'MEDIO', score: 75, reasons: ['Testata digitale', 'Contenuti misti'] },
+  
+  // International news
+  'bbc.com': { band: 'ALTO', score: 95, reasons: ['BBC News', 'Fonte internazionale verificata'] },
+  'bbc.co.uk': { band: 'ALTO', score: 95, reasons: ['BBC News', 'Fonte internazionale verificata'] },
+  'nytimes.com': { band: 'ALTO', score: 93, reasons: ['New York Times', 'Testata internazionale'] },
+  'theguardian.com': { band: 'ALTO', score: 90, reasons: ['The Guardian', 'Testata internazionale'] },
+  'reuters.com': { band: 'ALTO', score: 96, reasons: ['Agenzia Reuters', 'Fonte primaria globale'] },
+  'apnews.com': { band: 'ALTO', score: 96, reasons: ['Associated Press', 'Agenzia di stampa'] },
+  'washingtonpost.com': { band: 'ALTO', score: 90, reasons: ['Washington Post', 'Testata USA'] },
+  
+  // Institutional
+  'gov.it': { band: 'ALTO', score: 95, reasons: ['Fonte governativa italiana', 'Fonte istituzionale'] },
+  'europa.eu': { band: 'ALTO', score: 95, reasons: ['Unione Europea', 'Fonte istituzionale'] },
+  'who.int': { band: 'ALTO', score: 97, reasons: ['OMS', 'Organizzazione internazionale'] },
+  'un.org': { band: 'ALTO', score: 96, reasons: ['Nazioni Unite', 'Fonte istituzionale'] },
+  
+  // Academic/Scientific
+  'nature.com': { band: 'ALTO', score: 98, reasons: ['Rivista scientifica peer-reviewed', 'Fonte accademica'] },
+  'science.org': { band: 'ALTO', score: 98, reasons: ['Rivista Science', 'Fonte accademica'] },
+  'pubmed.ncbi.nlm.nih.gov': { band: 'ALTO', score: 97, reasons: ['Database medico NIH', 'Fonte scientifica'] },
+  'arxiv.org': { band: 'ALTO', score: 85, reasons: ['Pre-print accademici', 'Fonte scientifica'] },
+  
+  // Video platforms (neutral/medium)
+  'youtube.com': { band: 'MEDIO', score: 60, reasons: ['Piattaforma video', 'Contenuti misti'] },
+  'youtu.be': { band: 'MEDIO', score: 60, reasons: ['YouTube short link', 'Contenuti misti'] },
+  'vimeo.com': { band: 'MEDIO', score: 65, reasons: ['Piattaforma video professionale', 'Contenuti misti'] },
+  
+  // Social (lower trust)
+  'twitter.com': { band: 'MEDIO', score: 55, reasons: ['Social media', 'Verifica manuale richiesta'] },
+  'x.com': { band: 'MEDIO', score: 55, reasons: ['Social media', 'Verifica manuale richiesta'] },
+};
+
+// ============================================================================
+// URL NORMALIZATION
+// ============================================================================
+const TRACKING_PARAMS = new Set([
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+  'fbclid', 'gclid', 'ref', 'source', 'mc_cid', 'mc_eid', 'mkt_tok'
+]);
+
+function safeNormalizeUrl(rawUrl: string): string {
+  try {
+    const url = new URL(rawUrl.trim());
+    url.protocol = 'https:';
+    url.hostname = url.hostname.replace(/^www\./, '').toLowerCase();
+    url.hash = '';
+    url.pathname = url.pathname.replace(/\/+$/, '') || '/';
+    
+    const cleanParams = new URLSearchParams();
+    const entries = Array.from(url.searchParams.entries())
+      .filter(([key]) => !TRACKING_PARAMS.has(key.toLowerCase()))
+      .sort(([a], [b]) => a.localeCompare(b));
+    
+    for (const [key, value] of entries) {
+      cleanParams.set(key, value);
+    }
+    url.search = cleanParams.toString();
+    
+    return url.toString();
+  } catch {
+    return rawUrl.trim().toLowerCase();
+  }
+}
+
+function extractDomain(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname.replace(/^www\./, '').toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+// ============================================================================
+// HMAC TELEMETRY HELPERS
+// ============================================================================
+async function hashUserId(userId: string, secret: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(userId));
+  return Array.from(new Uint8Array(signature))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+    .substring(0, 16);
+}
+
+async function logAiUsage(
+  supabase: any,
+  params: {
+    functionName: string;
+    model: string;
+    inputChars: number;
+    outputChars: number;
+    cacheHit: boolean;
+    latencyMs: number;
+    providerLatencyMs?: number;
+    success: boolean;
+    errorCode?: string;
+    userHash?: string;
+    sourceDomain?: string;
+  }
+) {
+  try {
+    await supabase.from('ai_usage_logs').insert({
+      function_name: params.functionName,
+      model: params.model,
+      input_chars: params.inputChars,
+      output_chars: params.outputChars,
+      cache_hit: params.cacheHit,
+      latency_ms: params.latencyMs,
+      provider_latency_ms: params.providerLatencyMs || null,
+      success: params.success,
+      error_code: params.errorCode || null,
+      user_hash: params.userHash || null,
+      source_domain: params.sourceDomain || null
+    });
+  } catch (e) {
+    console.error('[Telemetry] Failed to log:', e);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+  
   try {
     const { sourceUrl, postText, authorUsername, isVerified } = await req.json();
     
@@ -20,6 +162,9 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+    
+    // HMAC secret for user hashing
+    const hmacSecret = Deno.env.get('AI_TELEMETRY_HMAC_SECRET') || 'default-secret';
 
     console.log('[TrustScore Edge] Request received:', {
       sourceUrl,
@@ -41,23 +186,36 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Normalize YouTube URLs before evaluation
-    function normalizeYouTubeUrl(inputUrl: string): string {
-      try {
-        const parsed = new URL(inputUrl);
-        if (parsed.hostname === 'youtu.be' || parsed.hostname === 'www.youtu.be') {
-          const videoId = parsed.pathname.slice(1).split('?')[0];
-          return `https://www.youtube.com/watch?v=${videoId}`;
-        }
-        return inputUrl;
-      } catch {
-        return inputUrl;
-      }
+    // STEP 1: Normalize URL
+    const normalizedSourceUrl = safeNormalizeUrl(sourceUrl);
+    const domain = extractDomain(normalizedSourceUrl);
+    
+    console.log('[TrustScore Edge] Normalized URL:', normalizedSourceUrl, 'Domain:', domain);
+
+    // STEP 2: Check trusted domains whitelist (skip AI entirely)
+    if (TRUSTED_DOMAINS[domain]) {
+      const whitelistResult = TRUSTED_DOMAINS[domain];
+      console.log('[TrustScore Edge] Whitelist HIT:', domain);
+      
+      // Log as cache hit (no AI call)
+      await logAiUsage(supabase, {
+        functionName: 'evaluate-trust-score',
+        model: 'whitelist',
+        inputChars: sourceUrl.length,
+        outputChars: 0,
+        cacheHit: true,
+        latencyMs: Date.now() - startTime,
+        success: true,
+        sourceDomain: domain
+      });
+      
+      return new Response(
+        JSON.stringify(whitelistResult),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    const normalizedSourceUrl = normalizeYouTubeUrl(sourceUrl);
-
-    // Check cache first
+    // STEP 3: Check cache
     const { data: cachedScore } = await supabase
       .from('trust_scores')
       .select('*')
@@ -72,9 +230,20 @@ serve(async (req) => {
       
       if (isVerifiedNow && cachedWasLow) {
         console.log('[TrustScore Edge] Cache invalidated: verified account with low score, recalculating');
-        // Don't return cached score, proceed to recalculate
       } else {
         console.log('[TrustScore Edge] Cache hit:', normalizedSourceUrl);
+        
+        await logAiUsage(supabase, {
+          functionName: 'evaluate-trust-score',
+          model: 'cache',
+          inputChars: sourceUrl.length,
+          outputChars: 0,
+          cacheHit: true,
+          latencyMs: Date.now() - startTime,
+          success: true,
+          sourceDomain: domain
+        });
+        
         return new Response(
           JSON.stringify({
             band: cachedScore.band,
@@ -143,6 +312,9 @@ REGOLE:
 
 IMPORTANTE: Sii conservativo. In caso di dubbio, preferisci MEDIO.`;
 
+    const promptChars = prompt.length;
+    const aiStartTime = Date.now();
+    
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -162,9 +334,24 @@ IMPORTANTE: Sii conservativo. In caso di dubbio, preferisci MEDIO.`;
       }),
     });
 
+    const providerLatencyMs = Date.now() - aiStartTime;
+
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
       console.error('AI API error:', errorText);
+      
+      await logAiUsage(supabase, {
+        functionName: 'evaluate-trust-score',
+        model: 'google/gemini-2.5-flash-lite',
+        inputChars: promptChars,
+        outputChars: 0,
+        cacheHit: false,
+        latencyMs: Date.now() - startTime,
+        providerLatencyMs,
+        success: false,
+        errorCode: `HTTP_${aiResponse.status}`,
+        sourceDomain: domain
+      });
       
       // Fallback a risposta neutra
       return new Response(
@@ -179,23 +366,33 @@ IMPORTANTE: Sii conservativo. In caso di dubbio, preferisci MEDIO.`;
 
     const aiData = await aiResponse.json();
     let content = aiData.choices[0].message.content;
+    const outputChars = content?.length || 0;
     
     // Parse JSON from AI response
     let parsedContent;
     try {
-      // --- MODIFICA 2: Logica di parsing più robusta ---
-      const jsonMatch = content.match(/{[\s\S]*}/); // Cerca il primo { e l'ultimo }
+      const jsonMatch = content.match(/{[\s\S]*}/);
       if (!jsonMatch) {
         throw new Error('No valid JSON object found in AI response');
       }
       content = jsonMatch[0];
-      // --- Fine Modifica 2 ---
-      
       parsedContent = JSON.parse(content);
     } catch (e) {
       console.error('Failed to parse AI response:', content);
       
-      // Fallback
+      await logAiUsage(supabase, {
+        functionName: 'evaluate-trust-score',
+        model: 'google/gemini-2.5-flash-lite',
+        inputChars: promptChars,
+        outputChars,
+        cacheHit: false,
+        latencyMs: Date.now() - startTime,
+        providerLatencyMs,
+        success: false,
+        errorCode: 'PARSE_ERROR',
+        sourceDomain: domain
+      });
+      
       return new Response(
         JSON.stringify({
           band: 'MEDIO',
@@ -235,6 +432,19 @@ IMPORTANTE: Sii conservativo. In caso di dubbio, preferisci MEDIO.`;
       }, {
         onConflict: 'source_url'
       });
+
+    // Log successful AI call
+    await logAiUsage(supabase, {
+      functionName: 'evaluate-trust-score',
+      model: 'google/gemini-2.5-flash-lite',
+      inputChars: promptChars,
+      outputChars,
+      cacheHit: false,
+      latencyMs: Date.now() - startTime,
+      providerLatencyMs,
+      success: true,
+      sourceDomain: domain
+    });
 
     console.log('[TrustScore Edge] Cached and returning:', {
       band: parsedContent.band,
