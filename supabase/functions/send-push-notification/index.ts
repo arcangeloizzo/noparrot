@@ -161,15 +161,20 @@ serve(async (req) => {
       };
       
     } else if (body.type === 'editorial') {
-      // Editorial notification - broadcast to all users with push subscriptions
-      const { data: allSubscriptions } = await supabase
+      // Editorial notification - broadcast only to users who have it enabled
+      // Join with profiles to filter by editorial_notifications_enabled
+      const { data: eligibleSubscriptions } = await supabase
         .from('push_subscriptions')
-        .select('user_id');
+        .select(`
+          user_id,
+          profiles!inner(editorial_notifications_enabled)
+        `)
+        .eq('profiles.editorial_notifications_enabled', true);
       
       // Deduplicate user IDs
-      targetUserIds = [...new Set(allSubscriptions?.map(s => s.user_id) || [])];
+      targetUserIds = [...new Set(eligibleSubscriptions?.map(s => s.user_id) || [])];
       
-      console.log(`[Push] Editorial broadcast to ${targetUserIds.length} unique users`);
+      console.log(`[Push] Editorial broadcast to ${targetUserIds.length} users (filtered by preference)`);
       
       notificationPayload = {
         title: '◉ Il Punto',
