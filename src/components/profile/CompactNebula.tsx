@@ -275,7 +275,7 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
 
   // Container dimensions for label positioning
   const containerWidth = 320;
-  const containerHeight = 180;
+  const containerHeight = 135;
 
   return (
     <button
@@ -301,7 +301,7 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
       </div>
 
       {/* Main nebula area with circular radar-style labels */}
-      <div className="relative h-[180px] z-10" style={{ width: `${containerWidth}px`, margin: '0 auto' }}>
+      <div className="relative h-[135px] z-10" style={{ width: `${containerWidth}px`, margin: '0 auto' }}>
         {/* Circular labels positioned around the nebula */}
         {labelsToShow.map((pos) => {
           const style = getLabelStyle(pos.angle, containerWidth, containerHeight);
