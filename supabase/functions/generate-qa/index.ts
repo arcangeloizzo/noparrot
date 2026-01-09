@@ -9,9 +9,10 @@ const corsHeaders = {
 // ============================================================================
 // URL NORMALIZATION
 // ============================================================================
+// Only tracking params we agreed to remove
 const TRACKING_PARAMS = new Set([
   'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
-  'fbclid', 'gclid', 'ref', 'source', 'mc_cid', 'mc_eid', 'mkt_tok'
+  'fbclid', 'gclid', 'dclid', 'msclkid', 'igshid', 'twclid', 'ttclid'
 ]);
 
 function safeNormalizeUrl(rawUrl: string): string {
@@ -24,7 +25,11 @@ function safeNormalizeUrl(rawUrl: string): string {
     
     const cleanParams = new URLSearchParams();
     const entries = Array.from(url.searchParams.entries())
-      .filter(([key]) => !TRACKING_PARAMS.has(key.toLowerCase()))
+      .filter(([key]) => {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.startsWith('utm_')) return false;
+        return !TRACKING_PARAMS.has(lowerKey);
+      })
       .sort(([a], [b]) => a.localeCompare(b));
     
     for (const [key, value] of entries) {
@@ -34,7 +39,8 @@ function safeNormalizeUrl(rawUrl: string): string {
     
     return url.toString();
   } catch {
-    return rawUrl.trim().toLowerCase();
+    // NO toLowerCase on full URL
+    return rawUrl.trim();
   }
 }
 
@@ -111,7 +117,8 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
-    const hmacSecret = Deno.env.get('AI_TELEMETRY_HMAC_SECRET') || 'default-secret';
+    // NO fallback - if missing, userHash stays undefined
+    const hmacSecret = Deno.env.get('AI_TELEMETRY_HMAC_SECRET');
     
     const supabase = createClient(supabaseUrl, supabaseKey);
 

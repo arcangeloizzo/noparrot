@@ -21,9 +21,18 @@ export function normalizeUrl(u?: string): string {
  * - Removes ONLY known tracking params
  * - Sorts remaining query params alphabetically
  */
+// Only tracking params we agreed to remove:
+// - All utm_* variants
+// - Platform click IDs (7 total)
 const TRACKING_PARAMS = new Set([
   'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
-  'fbclid', 'gclid', 'ref', 'source', 'mc_cid', 'mc_eid', 'mkt_tok'
+  'fbclid',    // Facebook
+  'gclid',     // Google Ads
+  'dclid',     // DoubleClick
+  'msclkid',   // Microsoft Ads
+  'igshid',    // Instagram
+  'twclid',    // Twitter
+  'ttclid'     // TikTok
 ]);
 
 export function safeNormalizeUrl(rawUrl: string): string {
@@ -45,7 +54,13 @@ export function safeNormalizeUrl(rawUrl: string): string {
     // Filter out tracking params, keep functional ones
     const cleanParams = new URLSearchParams();
     const entries = Array.from(url.searchParams.entries())
-      .filter(([key]) => !TRACKING_PARAMS.has(key.toLowerCase()))
+      .filter(([key]) => {
+        const lowerKey = key.toLowerCase();
+        // Remove any utm_* param (covers all variants)
+        if (lowerKey.startsWith('utm_')) return false;
+        // Remove known click IDs
+        return !TRACKING_PARAMS.has(lowerKey);
+      })
       .sort(([a], [b]) => a.localeCompare(b));
     
     for (const [key, value] of entries) {
@@ -56,8 +71,8 @@ export function safeNormalizeUrl(rawUrl: string): string {
     
     return url.toString();
   } catch {
-    // If URL parsing fails, return trimmed lowercase
-    return rawUrl.trim().toLowerCase();
+    // If URL parsing fails, return trimmed only (NO toLowerCase on full URL)
+    return rawUrl.trim();
   }
 }
 
