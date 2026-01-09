@@ -1,4 +1,4 @@
-import { ArrowLeft, FileText, Scale, Trash2, Shield, Brain, Megaphone, Sparkles, Download, Cookie } from "lucide-react";
+import { ArrowLeft, FileText, Scale, Trash2, Shield, Brain, Megaphone, Sparkles, Download, Cookie, Bell } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -23,7 +23,7 @@ import { useUserConsents, useToggleAdsPersonalization } from "@/hooks/useUserCon
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useCognitiveTracking } from "@/hooks/useCognitiveTracking";
 import { useExportUserData } from "@/hooks/useExportUserData";
-
+import { useToggleEditorialNotifications } from "@/hooks/useToggleEditorialNotifications";
 export default function SettingsPrivacy() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -32,6 +32,7 @@ export default function SettingsPrivacy() {
   const toggleAds = useToggleAdsPersonalization();
   const { toggleTracking } = useCognitiveTracking();
   const { exportData, isExporting } = useExportUserData();
+  const toggleEditorial = useToggleEditorialNotifications();
 
   const handleDeleteAccount = async () => {
     if (!user) return;
@@ -120,6 +121,33 @@ export default function SettingsPrivacy() {
             >
               Visualizza la mia mappa
             </Button>
+          </Card>
+
+          {/* Notifiche */}
+          <Card className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <Bell className="w-5 h-5 text-amber-400" />
+              <h2 className="text-lg font-semibold">Notifiche</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Gestisci le notifiche push che ricevi dall'app.
+            </p>
+            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
+              <div className="space-y-1 flex-1 mr-4">
+                <Label htmlFor="editorial-notifications" className="text-sm font-medium cursor-pointer">
+                  Notifiche Il Punto
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Ricevi una notifica quando viene pubblicato un nuovo editoriale (08:30, 14:30, 20:30)
+                </p>
+              </div>
+              <Switch
+                id="editorial-notifications"
+                checked={profile?.editorial_notifications_enabled ?? true}
+                onCheckedChange={(checked) => toggleEditorial.mutate(checked)}
+                disabled={profileLoading || toggleEditorial.isPending}
+              />
+            </div>
           </Card>
 
           {/* Esporta i tuoi dati */}

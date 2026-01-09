@@ -1209,6 +1209,7 @@ export type Database = {
           cognitive_tracking_enabled: boolean | null
           created_at: string | null
           date_of_birth: string
+          editorial_notifications_enabled: boolean | null
           full_name: string | null
           id: string
           last_seen_at: string | null
@@ -1221,6 +1222,7 @@ export type Database = {
           cognitive_tracking_enabled?: boolean | null
           created_at?: string | null
           date_of_birth: string
+          editorial_notifications_enabled?: boolean | null
           full_name?: string | null
           id: string
           last_seen_at?: string | null
@@ -1233,6 +1235,7 @@ export type Database = {
           cognitive_tracking_enabled?: boolean | null
           created_at?: string | null
           date_of_birth?: string
+          editorial_notifications_enabled?: boolean | null
           full_name?: string | null
           id?: string
           last_seen_at?: string | null
