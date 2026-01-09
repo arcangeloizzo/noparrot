@@ -12,53 +12,62 @@ const corsHeaders = {
 // TRUSTED DOMAINS WHITELIST - Skip AI for these known sources
 // ============================================================================
 const TRUSTED_DOMAINS: Record<string, { band: 'ALTO' | 'MEDIO'; score: number; reasons: string[] }> = {
-  // Italian news
-  'repubblica.it': { band: 'ALTO', score: 90, reasons: ['Testata giornalistica nazionale', 'Fonte verificata'] },
-  'corriere.it': { band: 'ALTO', score: 90, reasons: ['Testata giornalistica nazionale', 'Fonte verificata'] },
-  'ilsole24ore.com': { band: 'ALTO', score: 92, reasons: ['Quotidiano economico primario', 'Fonte autorevole'] },
-  'lastampa.it': { band: 'ALTO', score: 88, reasons: ['Testata giornalistica nazionale', 'Fonte verificata'] },
+  // Testate giornalistiche nazionali italiane
+  'repubblica.it': { band: 'ALTO', score: 90, reasons: ['Testata giornalistica nazionale', 'Iscrizione ROC'] },
+  'corriere.it': { band: 'ALTO', score: 90, reasons: ['Testata giornalistica nazionale', 'Iscrizione ROC'] },
+  'ilsole24ore.com': { band: 'ALTO', score: 92, reasons: ['Quotidiano economico', 'Iscrizione ROC'] },
+  'lastampa.it': { band: 'ALTO', score: 88, reasons: ['Testata giornalistica nazionale', 'Iscrizione ROC'] },
+  'ilfattoquotidiano.it': { band: 'ALTO', score: 85, reasons: ['Testata giornalistica', 'Iscrizione ROC'] },
+  'open.online': { band: 'ALTO', score: 85, reasons: ['Testata giornalistica digitale', 'Iscrizione ROC'] },
+  'fanpage.it': { band: 'MEDIO', score: 75, reasons: ['Testata digitale', 'Contenuti eterogenei'] },
+  
+  // Agenzie di stampa
   'ansa.it': { band: 'ALTO', score: 95, reasons: ['Agenzia di stampa nazionale', 'Fonte primaria'] },
-  'ilfattoquotidiano.it': { band: 'ALTO', score: 85, reasons: ['Testata giornalistica', 'Fonte verificata'] },
-  'open.online': { band: 'ALTO', score: 85, reasons: ['Testata giornalistica', 'Fact-checking attivo'] },
-  'fanpage.it': { band: 'MEDIO', score: 75, reasons: ['Testata digitale', 'Contenuti misti'] },
+  'reuters.com': { band: 'ALTO', score: 96, reasons: ['Agenzia di stampa internazionale', 'Fonte primaria'] },
+  'apnews.com': { band: 'ALTO', score: 96, reasons: ['Agenzia di stampa', 'Associated Press'] },
   
-  // International news
-  'bbc.com': { band: 'ALTO', score: 95, reasons: ['BBC News', 'Fonte internazionale verificata'] },
-  'bbc.co.uk': { band: 'ALTO', score: 95, reasons: ['BBC News', 'Fonte internazionale verificata'] },
-  'nytimes.com': { band: 'ALTO', score: 93, reasons: ['New York Times', 'Testata internazionale'] },
-  'theguardian.com': { band: 'ALTO', score: 90, reasons: ['The Guardian', 'Testata internazionale'] },
-  'reuters.com': { band: 'ALTO', score: 96, reasons: ['Agenzia Reuters', 'Fonte primaria globale'] },
-  'apnews.com': { band: 'ALTO', score: 96, reasons: ['Associated Press', 'Agenzia di stampa'] },
-  'washingtonpost.com': { band: 'ALTO', score: 90, reasons: ['Washington Post', 'Testata USA'] },
+  // Broadcaster pubblici
+  'bbc.com': { band: 'ALTO', score: 95, reasons: ['Broadcaster pubblico', 'BBC'] },
+  'bbc.co.uk': { band: 'ALTO', score: 95, reasons: ['Broadcaster pubblico', 'BBC'] },
   
-  // Institutional
-  'gov.it': { band: 'ALTO', score: 95, reasons: ['Fonte governativa italiana', 'Fonte istituzionale'] },
-  'europa.eu': { band: 'ALTO', score: 95, reasons: ['Unione Europea', 'Fonte istituzionale'] },
-  'who.int': { band: 'ALTO', score: 97, reasons: ['OMS', 'Organizzazione internazionale'] },
-  'un.org': { band: 'ALTO', score: 96, reasons: ['Nazioni Unite', 'Fonte istituzionale'] },
+  // Testate internazionali
+  'nytimes.com': { band: 'ALTO', score: 93, reasons: ['Quotidiano internazionale', 'New York Times'] },
+  'theguardian.com': { band: 'ALTO', score: 90, reasons: ['Quotidiano internazionale', 'The Guardian'] },
+  'washingtonpost.com': { band: 'ALTO', score: 90, reasons: ['Quotidiano internazionale', 'Washington Post'] },
   
-  // Academic/Scientific
-  'nature.com': { band: 'ALTO', score: 98, reasons: ['Rivista scientifica peer-reviewed', 'Fonte accademica'] },
-  'science.org': { band: 'ALTO', score: 98, reasons: ['Rivista Science', 'Fonte accademica'] },
-  'pubmed.ncbi.nlm.nih.gov': { band: 'ALTO', score: 97, reasons: ['Database medico NIH', 'Fonte scientifica'] },
-  'arxiv.org': { band: 'ALTO', score: 85, reasons: ['Pre-print accademici', 'Fonte scientifica'] },
+  // Fonti istituzionali italiane
+  'governo.it': { band: 'ALTO', score: 95, reasons: ['Fonte istituzionale', 'Governo italiano'] },
+  'camera.it': { band: 'ALTO', score: 95, reasons: ['Fonte istituzionale', 'Camera dei Deputati'] },
+  'senato.it': { band: 'ALTO', score: 95, reasons: ['Fonte istituzionale', 'Senato della Repubblica'] },
   
-  // Video platforms (neutral/medium)
-  'youtube.com': { band: 'MEDIO', score: 60, reasons: ['Piattaforma video', 'Contenuti misti'] },
-  'youtu.be': { band: 'MEDIO', score: 60, reasons: ['YouTube short link', 'Contenuti misti'] },
-  'vimeo.com': { band: 'MEDIO', score: 65, reasons: ['Piattaforma video professionale', 'Contenuti misti'] },
+  // Organizzazioni internazionali
+  'europa.eu': { band: 'ALTO', score: 95, reasons: ['Fonte istituzionale', 'Unione Europea'] },
+  'who.int': { band: 'ALTO', score: 97, reasons: ['Organizzazione internazionale', 'OMS'] },
+  'un.org': { band: 'ALTO', score: 96, reasons: ['Organizzazione internazionale', 'Nazioni Unite'] },
   
-  // Social (lower trust)
-  'twitter.com': { band: 'MEDIO', score: 55, reasons: ['Social media', 'Verifica manuale richiesta'] },
-  'x.com': { band: 'MEDIO', score: 55, reasons: ['Social media', 'Verifica manuale richiesta'] },
+  // Riviste scientifiche peer-reviewed
+  'nature.com': { band: 'ALTO', score: 98, reasons: ['Rivista peer-reviewed', 'Nature'] },
+  'science.org': { band: 'ALTO', score: 98, reasons: ['Rivista peer-reviewed', 'Science'] },
+  'pubmed.ncbi.nlm.nih.gov': { band: 'ALTO', score: 97, reasons: ['Database medico', 'NIH'] },
+  'arxiv.org': { band: 'ALTO', score: 85, reasons: ['Repository pre-print', 'Fonte accademica'] },
+  
+  // Piattaforme video (neutrali)
+  'youtube.com': { band: 'MEDIO', score: 60, reasons: ['Piattaforma video', 'Contenuti eterogenei'] },
+  'youtu.be': { band: 'MEDIO', score: 60, reasons: ['Piattaforma video', 'YouTube'] },
+  'vimeo.com': { band: 'MEDIO', score: 65, reasons: ['Piattaforma video', 'Contenuti professionali'] },
+  
+  // Social media (neutrali)
+  'twitter.com': { band: 'MEDIO', score: 55, reasons: ['Social media', 'Contenuti eterogenei'] },
+  'x.com': { band: 'MEDIO', score: 55, reasons: ['Social media', 'Contenuti eterogenei'] },
 };
 
 // ============================================================================
 // URL NORMALIZATION
 // ============================================================================
+// Only tracking params we agreed to remove
 const TRACKING_PARAMS = new Set([
   'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
-  'fbclid', 'gclid', 'ref', 'source', 'mc_cid', 'mc_eid', 'mkt_tok'
+  'fbclid', 'gclid', 'dclid', 'msclkid', 'igshid', 'twclid', 'ttclid'
 ]);
 
 function safeNormalizeUrl(rawUrl: string): string {
@@ -71,7 +80,11 @@ function safeNormalizeUrl(rawUrl: string): string {
     
     const cleanParams = new URLSearchParams();
     const entries = Array.from(url.searchParams.entries())
-      .filter(([key]) => !TRACKING_PARAMS.has(key.toLowerCase()))
+      .filter(([key]) => {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.startsWith('utm_')) return false;
+        return !TRACKING_PARAMS.has(lowerKey);
+      })
       .sort(([a], [b]) => a.localeCompare(b));
     
     for (const [key, value] of entries) {
@@ -81,7 +94,8 @@ function safeNormalizeUrl(rawUrl: string): string {
     
     return url.toString();
   } catch {
-    return rawUrl.trim().toLowerCase();
+    // NO toLowerCase on full URL
+    return rawUrl.trim();
   }
 }
 
@@ -164,7 +178,8 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
     
     // HMAC secret for user hashing
-    const hmacSecret = Deno.env.get('AI_TELEMETRY_HMAC_SECRET') || 'default-secret';
+    // NO fallback - if missing, userHash stays undefined
+    const hmacSecret = Deno.env.get('AI_TELEMETRY_HMAC_SECRET');
 
     console.log('[TrustScore Edge] Request received:', {
       sourceUrl,
