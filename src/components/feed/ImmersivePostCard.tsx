@@ -954,10 +954,6 @@ export const ImmersivePostCard = ({
                   </div>
                 </DialogContent>
               </Dialog>
-            ) : post.category ? (
-              <div className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
-                <span className="text-[#0A7AFF] text-xs font-bold tracking-wide uppercase">{post.category}</span>
-              </div>
             ) : null}
 
             {/* Menu */}
