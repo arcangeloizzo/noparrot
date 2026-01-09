@@ -43,6 +43,25 @@ export const useTrendingTopics = () => {
         .sort((a, b) => b[1].count - a[1].count)
         .slice(0, 8);
 
+      // Fallback if no categories found
+      if (topCategories.length === 0) {
+        const { data: recentPosts } = await supabase
+          .from('posts')
+          .select('id, content, shared_title')
+          .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (recentPosts && recentPosts.length > 0) {
+          return [{
+            category: 'In Evidenza',
+            postCount: recentPosts.length,
+            summary: 'Scopri i post più recenti della community e partecipa alle discussioni.'
+          }];
+        }
+        return [];
+      }
+
       // Generate AI summaries for each category
       const trending: TrendingTopic[] = await Promise.all(
         topCategories.map(async ([category, data]) => {

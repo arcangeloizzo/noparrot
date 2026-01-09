@@ -8,6 +8,78 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const CATEGORIES = [
+  'Politica', 'Economia', 'Tecnologia', 'Sport', 'Cultura',
+  'Scienza', 'Ambiente', 'Società', 'Esteri', 'Salute'
+];
+
+async function classifyAndUpdatePost(
+  supabase: ReturnType<typeof createClient>,
+  postId: string,
+  content: string,
+  reqId: string
+) {
+  try {
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      console.warn(`[publish-post:${reqId}] stage=classify no API key`);
+      return;
+    }
+
+    const prompt = `Classifica il seguente contenuto in UNA di queste categorie: ${CATEGORIES.join(', ')}.
+
+Contenuto:
+"""
+${content.substring(0, 2000)}
+"""
+
+Rispondi con UNA SOLA PAROLA: la categoria più appropriata.`;
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash-lite',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 20,
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn(`[publish-post:${reqId}] stage=classify API error ${response.status}`);
+      return;
+    }
+
+    const data = await response.json();
+    const rawCategory = data.choices?.[0]?.message?.content?.trim();
+    
+    // Match to valid category
+    const category = CATEGORIES.find(c => 
+      c.toLowerCase() === rawCategory?.toLowerCase()
+    );
+
+    if (category) {
+      const { error } = await supabase
+        .from('posts')
+        .update({ category })
+        .eq('id', postId);
+
+      if (error) {
+        console.warn(`[publish-post:${reqId}] stage=classify update error`, error.message);
+      } else {
+        console.log(`[publish-post:${reqId}] stage=classify done category=${category}`);
+      }
+    } else {
+      console.log(`[publish-post:${reqId}] stage=classify no match raw="${rawCategory}"`);
+    }
+  } catch (err) {
+    console.warn(`[publish-post:${reqId}] stage=classify error`, err);
+  }
+}
+
 type PublishPostBody = {
   content: string
   sharedUrl?: string | null
@@ -259,6 +331,18 @@ Deno.serve(async (req) => {
       } else {
         console.log(`[publish-post:${reqId}] stage=increment_shares_ok quotedPostId=${body.quotedPostId}`);
       }
+    }
+
+    // Background classification (non-blocking)
+    const contentToClassify = [
+      insertPayload.content,
+      insertPayload.shared_title,
+      insertPayload.article_content
+    ].filter(Boolean).join('\n\n');
+
+    if (contentToClassify.length > 20) {
+      // Fire and forget - don't await
+      classifyAndUpdatePost(supabase, inserted.id, contentToClassify, reqId);
     }
 
     console.log(`[publish-post:${reqId}] stage=done postId=${inserted.id}`)
