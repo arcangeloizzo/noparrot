@@ -162,19 +162,31 @@ serve(async (req) => {
       
     } else if (body.type === 'editorial') {
       // Editorial notification - broadcast only to users who have it enabled
-      // Join with profiles to filter by editorial_notifications_enabled
-      const { data: eligibleSubscriptions } = await supabase
+      // Step 1: Get users with editorial notifications enabled
+      const { data: enabledProfiles } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('editorial_notifications_enabled', true);
+      
+      const enabledUserIds = enabledProfiles?.map(p => p.id) || [];
+      
+      if (enabledUserIds.length === 0) {
+        console.log('[Push] No users have editorial notifications enabled');
+        return new Response(JSON.stringify({ success: true, sent: 0 }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      // Step 2: Get subscriptions for these users
+      const { data: userSubscriptions } = await supabase
         .from('push_subscriptions')
-        .select(`
-          user_id,
-          profiles!inner(editorial_notifications_enabled)
-        `)
-        .eq('profiles.editorial_notifications_enabled', true);
+        .select('user_id')
+        .in('user_id', enabledUserIds);
       
       // Deduplicate user IDs
-      targetUserIds = [...new Set(eligibleSubscriptions?.map(s => s.user_id) || [])];
+      targetUserIds = [...new Set(userSubscriptions?.map(s => s.user_id) || [])];
       
-      console.log(`[Push] Editorial broadcast to ${targetUserIds.length} users (filtered by preference)`);
+      console.log(`[Push] Editorial broadcast to ${targetUserIds.length} users (${enabledUserIds.length} enabled, ${userSubscriptions?.length || 0} subscriptions)`);
       
       notificationPayload = {
         title: '◉ Il Punto',
