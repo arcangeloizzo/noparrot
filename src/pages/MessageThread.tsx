@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 export default function MessageThread() {
   const { threadId } = useParams<{ threadId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -181,6 +181,11 @@ export default function MessageThread() {
 
   if (!threadId) {
     navigate('/messages');
+    return null;
+  }
+
+  if (!loading && !user) {
+    navigate('/');
     return null;
   }
 

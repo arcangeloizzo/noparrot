@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
+import { toast } from 'sonner';
 
 export interface ReactionUser {
   id: string;
@@ -25,6 +26,9 @@ export const useMessageReactions = (messageId: string) => {
   const query = useQuery({
     queryKey,
     queryFn: async () => {
+      // Reactions are private to thread participants (RLS). Without auth, this will never work.
+      if (!user) return [] as MessageReaction[];
+
       const { data: reactions, error: reactionsError } = await supabase
         .from('message_reactions')
         .select('id, user_id, reaction_type')
@@ -50,12 +54,12 @@ export const useMessageReactions = (messageId: string) => {
         user: profileMap.get(r.user_id) as ReactionUser | undefined,
       }));
     },
-    enabled: !!messageId,
+    enabled: !!messageId && !!user,
   });
 
   // Realtime subscription
   useEffect(() => {
-    if (!messageId) return;
+    if (!messageId || !user) return;
 
     const channel = supabase
       .channel(`message-reactions-${messageId}`)
@@ -76,11 +80,14 @@ export const useMessageReactions = (messageId: string) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [messageId, queryClient]);
+  }, [messageId, queryClient, user]);
 
   const toggleLike = useMutation({
     mutationFn: async () => {
-      if (!user) throw new Error('Not authenticated');
+      if (!user) {
+        toast.error('Accedi per mettere like ai messaggi');
+        return { action: 'noop' as const };
+      }
 
       const existingLike = (queryClient.getQueryData<MessageReaction[]>(queryKey) || []).find(
         r => r.user_id === user.id && r.reaction_type === 'like'
@@ -145,6 +152,7 @@ export const useMessageReactions = (messageId: string) => {
     onError: (error, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(queryKey, ctx.prev);
       console.error('[useMessageReactions] toggleLike failed', error);
+      toast.error('Impossibile salvare il like');
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey });
@@ -154,7 +162,9 @@ export const useMessageReactions = (messageId: string) => {
   const reactions = query.data || [];
   const likes = reactions.filter(r => r.reaction_type === 'like').length;
   const isLiked = reactions.some(r => r.user_id === user?.id && r.reaction_type === 'like');
-  const likeUsers = reactions.filter(r => r.reaction_type === 'like' && r.user).map(r => r.user as ReactionUser);
+  const likeUsers = reactions
+    .filter(r => r.reaction_type === 'like' && r.user)
+    .map(r => r.user as ReactionUser);
 
   return {
     likes,
