@@ -168,54 +168,60 @@ export const usePushNotifications = () => {
       
       console.log('[Push] Service Worker registered:', registration);
 
-      // ALWAYS remove old subscription first to force a fresh one
-      const existingSubscription = await registration.pushManager.getSubscription();
-      if (existingSubscription) {
-        console.log('[Push] Unsubscribing from old subscription:', existingSubscription.endpoint);
-        await existingSubscription.unsubscribe();
-        
-        // Also delete from database if present
-        await supabase
-          .from('push_subscriptions')
-          .delete()
-          .eq('user_id', user.id);
-        
-        console.log('[Push] Old subscription removed');
-      }
+    // ALWAYS remove old subscription first to force a fresh one
+    const existingSubscription = await registration.pushManager.getSubscription();
+    if (existingSubscription) {
+      console.log('[Push] Unsubscribing from old subscription:', existingSubscription.endpoint);
+      await existingSubscription.unsubscribe();
+      console.log('[Push] Old browser subscription removed');
+    }
 
-      // Create ALWAYS a new subscription
-      const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: applicationServerKey.buffer as ArrayBuffer
-      });
-      console.log('[Push] Created NEW push subscription:', subscription.endpoint);
+    // SINGLE-DEVICE POLICY: Delete ALL subscriptions for this user from DB
+    // This ensures only ONE active subscription per user (prevents duplicate push)
+    const { error: deleteError } = await supabase
+      .from('push_subscriptions')
+      .delete()
+      .eq('user_id', user.id);
+    
+    if (deleteError) {
+      console.warn('[Push] Error deleting old subscriptions:', deleteError);
+    } else {
+      console.log('[Push] All old DB subscriptions removed');
+    }
 
-      // Extract subscription details
-      const subscriptionJson = subscription.toJSON();
-      const endpoint = subscription.endpoint;
-      const p256dh = subscriptionJson.keys?.p256dh || '';
-      const auth = subscriptionJson.keys?.auth || '';
+    // Create ALWAYS a new subscription
+    const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: applicationServerKey.buffer as ArrayBuffer
+    });
+    console.log('[Push] Created NEW push subscription:', subscription.endpoint);
 
-      if (!p256dh || !auth) {
-        console.error('[Push] Missing subscription keys');
-        return false;
-      }
+    // Extract subscription details
+    const subscriptionJson = subscription.toJSON();
+    const endpoint = subscription.endpoint;
+    const p256dh = subscriptionJson.keys?.p256dh || '';
+    const auth = subscriptionJson.keys?.auth || '';
 
-      // Save subscription to database
-      const { error } = await supabase
-        .from('push_subscriptions')
-        .insert({
-          user_id: user.id,
-          endpoint,
-          p256dh,
-          auth,
-        });
+    if (!p256dh || !auth) {
+      console.error('[Push] Missing subscription keys');
+      return false;
+    }
 
-      if (error) {
-        console.error('[Push] Error saving subscription:', error);
-        return false;
-      }
+    // Save subscription to database (UPSERT to handle unique constraint)
+    const { error } = await supabase
+      .from('push_subscriptions')
+      .upsert({
+        user_id: user.id,
+        endpoint,
+        p256dh,
+        auth,
+      }, { onConflict: 'user_id' });
+
+    if (error) {
+      console.error('[Push] Error saving subscription:', error);
+      return false;
+    }
 
       setIsSubscribed(true);
       console.log('[Push] Push subscription saved successfully');
