@@ -1693,6 +1693,10 @@ export type Database = {
       }
       is_valid_username: { Args: { username: string }; Returns: boolean }
       update_last_seen: { Args: never; Returns: undefined }
+      user_can_react_to_message: {
+        Args: { _message_id: string; _user_id: string }
+        Returns: boolean
+      }
       user_is_thread_participant: {
         Args: { check_thread_id: string; check_user_id: string }
         Returns: boolean

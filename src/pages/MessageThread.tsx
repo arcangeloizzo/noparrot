@@ -99,6 +99,7 @@ export default function MessageThread() {
     return groups;
   }, [messages]);
 
+  // Scroll with retry for robustness
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
     // 1) Most robust within nested scroll containers
     messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
@@ -108,14 +109,34 @@ export default function MessageThread() {
     }
   }, []);
 
+  // Retry scroll with exponential backoff
+  const scrollWithRetry = useCallback((attempts = 3, delay = 100) => {
+    scrollToBottom('auto');
+    
+    if (attempts > 0 && containerRef.current) {
+      setTimeout(() => {
+        const container = containerRef.current;
+        if (!container) return;
+        
+        // Check if we're at bottom (within 50px tolerance)
+        const isAtBottom = Math.abs(
+          container.scrollHeight - container.scrollTop - container.clientHeight
+        ) < 50;
+        
+        if (!isAtBottom) {
+          scrollWithRetry(attempts - 1, delay * 1.5);
+        }
+      }, delay);
+    }
+  }, [scrollToBottom]);
 
-  // Robust initial scroll: keep auto-scrolling while media loads for a short window
+  // Robust initial scroll: keep auto-scrolling while media loads for a longer window
   useLayoutEffect(() => {
     if (isLoading || !messages || messages.length === 0) return;
     if (isReady) return;
 
     // 1) Immediate + a few RAFs (iOS/webview friendly)
-    scrollToBottom('auto');
+    scrollWithRetry(4, 50);
     requestAnimationFrame(() => {
       scrollToBottom('auto');
       requestAnimationFrame(() => scrollToBottom('auto'));
@@ -126,20 +147,33 @@ export default function MessageThread() {
     if (!el) return;
 
     let settleTimer: number | undefined;
-    const MAX_WINDOW_MS = 3500;
+    let lastResizeTime = Date.now();
+    const MAX_WINDOW_MS = 6000; // Extended from 3500
+    const MIN_STABLE_MS = 500; // Time without resize to consider stable
     const startedAt = Date.now();
 
     const settle = () => {
       window.clearTimeout(settleTimer);
       settleTimer = window.setTimeout(() => {
-        setIsReady(true);
-        prevMessageCountRef.current = messages.length;
-      }, 250);
+        const timeSinceLastResize = Date.now() - lastResizeTime;
+        // Only settle if stable for MIN_STABLE_MS
+        if (timeSinceLastResize >= MIN_STABLE_MS) {
+          setIsReady(true);
+          prevMessageCountRef.current = messages.length;
+        } else {
+          // Keep waiting
+          settle();
+        }
+      }, MIN_STABLE_MS);
     };
 
     const observer = new ResizeObserver(() => {
-      // Only auto-scroll during the initial window
-      if (Date.now() - startedAt < MAX_WINDOW_MS) {
+      const now = Date.now();
+      const elapsed = now - startedAt;
+      lastResizeTime = now;
+      
+      // Auto-scroll during the observation window
+      if (elapsed < MAX_WINDOW_MS) {
         scrollToBottom('auto');
         settle();
       }
@@ -148,9 +182,11 @@ export default function MessageThread() {
     observer.observe(el);
     settle();
 
+    // Hard stop after max window
     const hardStop = window.setTimeout(() => {
       setIsReady(true);
       prevMessageCountRef.current = messages.length;
+      scrollWithRetry(2, 100); // Final retry after hardstop
     }, MAX_WINDOW_MS);
 
     return () => {
@@ -158,7 +194,7 @@ export default function MessageThread() {
       window.clearTimeout(settleTimer);
       observer.disconnect();
     };
-  }, [isLoading, messages, isReady, scrollToBottom]);
+  }, [isLoading, messages, isReady, scrollToBottom, scrollWithRetry]);
 
   // Scroll for new messages
   useEffect(() => {
@@ -166,10 +202,10 @@ export default function MessageThread() {
     if (!messages) return;
 
     if (messages.length > prevMessageCountRef.current) {
-      scrollToBottom('auto');
+      scrollWithRetry(2, 50);
       prevMessageCountRef.current = messages.length;
     }
-  }, [messages?.length, isReady, scrollToBottom]);
+  }, [messages?.length, isReady, scrollWithRetry]);
 
 
   // Mark as read when opening thread
