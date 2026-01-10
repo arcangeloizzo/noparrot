@@ -156,8 +156,13 @@ serve(async (req) => {
         body: messagePreview || '',
         icon: sender?.avatar_url || '/lovable-uploads/feed-logo.png',
         badge: '/lovable-uploads/feed-logo.png',
-        tag: `message-${body.thread_id}`,
-        data: { url: `/messages/${body.thread_id}`, type: 'message' },
+        // Tag univoco con message_id per evitare collapsing di messaggi diversi
+        tag: `message-${body.thread_id}-${body.message_id}`,
+        data: { 
+          url: `/messages/${body.thread_id}`, 
+          type: 'message',
+          messageId: body.message_id 
+        },
       };
       
     } else if (body.type === 'editorial') {

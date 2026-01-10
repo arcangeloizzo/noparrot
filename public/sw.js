@@ -73,32 +73,35 @@ self.addEventListener('push', function(event) {
   );
 });
 
-// Notification click handler - iOS compatible
-self.addEventListener('notificationclick', function(event) {
-  console.log('[SW] Notification clicked:', event.action);
+// Notification click handler - iOS compatible with improved deep linking
+self.addEventListener('notificationclick', async function(event) {
+  console.log('[SW] Notification clicked:', event.notification.tag);
   
   event.notification.close();
   
-  const urlToOpen = event.notification.data?.url || '/';
+  const data = event.notification.data || {};
+  const urlToOpen = data.url || '/';
   const fullUrl = new URL(urlToOpen, self.location.origin).href;
   
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clientList) => {
-        // Cerca un client già aperto
+      .then(async (clientList) => {
+        // Try to find an existing window and focus it
         for (const client of clientList) {
-          if (client.url.startsWith(self.location.origin)) {
-            // Prova a fare focus sul client esistente
-            if ('focus' in client) {
-              client.focus();
-            }
-            // Invia messaggio al client per navigare via JavaScript
-            // Questo funziona meglio su iOS rispetto a client.navigate()
-            client.postMessage({ type: 'NAVIGATE', url: urlToOpen });
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            await client.focus();
+            // Send navigation message to the client
+            client.postMessage({
+              type: 'NAVIGATE',
+              url: urlToOpen
+            });
+            console.log('[SW] Navigating existing client to:', urlToOpen);
             return;
           }
         }
-        // Nessun client aperto, apri nuova finestra
+        
+        // If no existing window, open a new one with the full URL
+        console.log('[SW] Opening new window:', fullUrl);
         if (clients.openWindow) {
           return clients.openWindow(fullUrl);
         }
