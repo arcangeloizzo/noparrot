@@ -20,19 +20,19 @@ export const useMessageReactions = (messageId: string) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
+  const queryKey = ['message-reactions', messageId] as const;
+
   const query = useQuery({
-    queryKey: ['message-reactions', messageId],
+    queryKey,
     queryFn: async () => {
-      // First get reactions
       const { data: reactions, error: reactionsError } = await supabase
         .from('message_reactions')
         .select('id, user_id, reaction_type')
         .eq('message_id', messageId);
 
       if (reactionsError) throw reactionsError;
-      if (!reactions || reactions.length === 0) return [];
+      if (!reactions || reactions.length === 0) return [] as MessageReaction[];
 
-      // Then get user profiles for those who reacted
       const userIds = [...new Set(reactions.map(r => r.user_id))];
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
@@ -41,18 +41,16 @@ export const useMessageReactions = (messageId: string) => {
 
       if (profilesError) {
         console.error('[useMessageReactions] Error fetching profiles:', profilesError);
-        // Return reactions without user info
         return reactions.map(r => ({ ...r, user: undefined }));
       }
 
-      // Merge profiles into reactions
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
       return reactions.map(r => ({
         ...r,
-        user: profileMap.get(r.user_id) as ReactionUser | undefined
+        user: profileMap.get(r.user_id) as ReactionUser | undefined,
       }));
     },
-    enabled: !!messageId
+    enabled: !!messageId,
   });
 
   // Realtime subscription
@@ -67,10 +65,10 @@ export const useMessageReactions = (messageId: string) => {
           event: '*',
           schema: 'public',
           table: 'message_reactions',
-          filter: `message_id=eq.${messageId}`
+          filter: `message_id=eq.${messageId}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ['message-reactions', messageId] });
+          queryClient.invalidateQueries({ queryKey });
         }
       )
       .subscribe();
@@ -84,7 +82,7 @@ export const useMessageReactions = (messageId: string) => {
     mutationFn: async () => {
       if (!user) throw new Error('Not authenticated');
 
-      const existingLike = query.data?.find(
+      const existingLike = (queryClient.getQueryData<MessageReaction[]>(queryKey) || []).find(
         r => r.user_id === user.id && r.reaction_type === 'like'
       );
 
@@ -94,23 +92,47 @@ export const useMessageReactions = (messageId: string) => {
           .delete()
           .eq('id', existingLike.id);
         if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('message_reactions')
-          .insert({
-            message_id: messageId,
-            user_id: user.id,
-            reaction_type: 'like'
-          });
-        if (error) throw error;
+        return { action: 'removed' as const };
       }
+
+      const { error } = await supabase.from('message_reactions').insert({
+        message_id: messageId,
+        user_id: user.id,
+        reaction_type: 'like',
+      });
+      if (error) throw error;
+      return { action: 'added' as const };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['message-reactions', messageId] });
+    onMutate: async () => {
+      if (!user) return;
+
+      await queryClient.cancelQueries({ queryKey });
+
+      const prev = queryClient.getQueryData<MessageReaction[]>(queryKey) || [];
+      const hasLike = prev.some(r => r.user_id === user.id && r.reaction_type === 'like');
+
+      const optimistic: MessageReaction[] = hasLike
+        ? prev.filter(r => !(r.user_id === user.id && r.reaction_type === 'like'))
+        : [
+            ...prev,
+            {
+              id: `optimistic-${messageId}-${user.id}`,
+              user_id: user.id,
+              reaction_type: 'like',
+              user: undefined,
+            },
+          ];
+
+      queryClient.setQueryData(queryKey, optimistic);
+      return { prev };
     },
-    onError: (error) => {
+    onError: (error, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(queryKey, ctx.prev);
       console.error('[useMessageReactions] Toggle like error:', error);
-    }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey });
+    },
   });
 
   const reactions = query.data || [];
@@ -125,6 +147,8 @@ export const useMessageReactions = (messageId: string) => {
     isLiked,
     likeUsers,
     toggleLike: toggleLike.mutate,
-    isLoading: query.isLoading || toggleLike.isPending
+    isMutating: toggleLike.isPending,
+    isLoading: query.isLoading,
   };
 };
+

@@ -119,13 +119,10 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
 
   return (
     <>
-      <div className="border-t border-white/5 bg-background/95 backdrop-blur-sm px-3 py-2.5">
+      <div className="border-t border-border bg-background/95 backdrop-blur-sm px-3 py-2.5">
         {uploadedMedia.length > 0 && (
           <div className="mb-2.5">
-            <MediaPreviewTray
-              media={uploadedMedia}
-              onRemove={removeMedia}
-            />
+            <MediaPreviewTray media={uploadedMedia} onRemove={removeMedia} />
           </div>
         )}
 
@@ -138,25 +135,27 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
             }}
             disabled={isUploading || isProcessing}
             className={cn(
-              "flex-shrink-0 w-11 h-11 rounded-full",
-              "bg-primary hover:bg-primary/90",
-              "flex items-center justify-center",
-              "transition-all duration-200 active:scale-95",
-              "disabled:opacity-50 shadow-lg shadow-primary/20"
+              'flex-shrink-0 w-11 h-11 rounded-full',
+              'bg-primary hover:bg-primary/90',
+              'flex items-center justify-center',
+              'transition-all duration-200 active:scale-95',
+              'disabled:opacity-50 shadow-lg shadow-primary/20'
             )}
           >
             <Camera className="h-[22px] w-[22px] text-primary-foreground" />
           </button>
 
-          {/* Input Field - Dark pill (IG style) */}
-          <div className={cn(
-            "flex-1 flex items-center",
-            "bg-zinc-800/90 rounded-full",
-            "border border-white/[0.08]",
-            "px-4 py-2.5",
-            "transition-all duration-200",
-            "focus-within:border-white/20"
-          )}>
+          {/* Input Field - pill */}
+          <div
+            className={cn(
+              'flex-1 flex items-center',
+              'bg-secondary rounded-full',
+              'border border-border',
+              'px-4 py-2.5',
+              'transition-all duration-200',
+              'focus-within:border-border/60'
+            )}
+          >
             <textarea
               ref={textareaRef}
               value={content}
@@ -164,10 +163,10 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
               onKeyPress={handleKeyPress}
               placeholder="Messaggio..."
               className={cn(
-                "flex-1 bg-transparent text-[15px] leading-[1.4]",
-                "resize-none outline-none",
-                "placeholder:text-white/35",
-                "min-h-[22px] max-h-[100px]"
+                'flex-1 bg-transparent text-[15px] leading-[1.4] text-foreground',
+                'resize-none outline-none',
+                'placeholder:text-muted-foreground',
+                'min-h-[22px] max-h-[100px]'
               )}
               rows={1}
               disabled={isProcessing || isUploading}
@@ -175,7 +174,6 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
 
             {/* Icons inside the pill on the right */}
             <div className="flex items-center gap-1 ml-2">
-              {/* Media Gallery Button */}
               <button
                 onClick={() => {
                   haptics.light();
@@ -183,12 +181,12 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
                 }}
                 disabled={isUploading || isProcessing}
                 className={cn(
-                  "p-1.5 rounded-full",
-                  "hover:bg-white/10 transition-colors active:scale-95",
-                  "disabled:opacity-50"
+                  'p-1.5 rounded-full',
+                  'hover:bg-accent transition-colors active:scale-95',
+                  'disabled:opacity-50'
                 )}
               >
-                <ImageIcon className="h-[22px] w-[22px] text-white/60" />
+                <ImageIcon className="h-[22px] w-[22px] text-muted-foreground" />
               </button>
             </div>
           </div>
@@ -198,11 +196,9 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
             onClick={handleSend}
             disabled={!canSend}
             className={cn(
-              "flex-shrink-0 p-2 rounded-full",
-              "transition-all duration-200 active:scale-95",
-              canSend 
-                ? "text-primary" 
-                : "text-white/25"
+              'flex-shrink-0 p-2 rounded-full',
+              'transition-all duration-200 active:scale-95',
+              canSend ? 'text-primary' : 'text-muted-foreground/50'
             )}
           >
             <Send className="h-6 w-6" />
