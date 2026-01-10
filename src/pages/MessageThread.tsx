@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useLayoutEffect, useState } from "react";
+import { useEffect, useRef, useMemo, useLayoutEffect, useState, useCallback } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ export default function MessageThread() {
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
   const prevMessageCountRef = useRef(0);
 
@@ -98,28 +99,56 @@ export default function MessageThread() {
     return groups;
   }, [messages]);
 
-  // FIX: Scroll immediato al primo caricamento con useLayoutEffect
+  // Scroll to bottom helper
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'instant') => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
+  }, []);
+
+  // FIX: Robust scroll with ResizeObserver for media loading
   useLayoutEffect(() => {
     if (!isLoading && messages && messages.length > 0 && !isReady) {
-      // Scroll istantaneo senza animazione al primo caricamento
-      messagesEndRef.current?.scrollIntoView({ behavior: 'instant', block: 'end' });
-      // Piccolo delay per assicurarsi che le immagini siano caricate
-      const timer = setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'instant', block: 'end' });
-        setIsReady(true);
-        prevMessageCountRef.current = messages.length;
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isLoading, messages, isReady]);
+      // Immediate scroll
+      scrollToBottom('instant');
 
-  // Scroll smooth per nuovi messaggi (dopo il primo caricamento)
+      // ResizeObserver to handle async image/media loading
+      if (contentRef.current) {
+        const observer = new ResizeObserver(() => {
+          scrollToBottom('instant');
+        });
+        observer.observe(contentRef.current);
+
+        // Mark ready after brief delay, then disconnect observer
+        const timer = setTimeout(() => {
+          setIsReady(true);
+          prevMessageCountRef.current = messages.length;
+          observer.disconnect();
+        }, 500);
+
+        return () => {
+          clearTimeout(timer);
+          observer.disconnect();
+        };
+      } else {
+        // Fallback without observer
+        const timer = setTimeout(() => {
+          scrollToBottom('instant');
+          setIsReady(true);
+          prevMessageCountRef.current = messages.length;
+        }, 300);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isLoading, messages, isReady, scrollToBottom]);
+
+  // Scroll smooth for new messages (after initial load)
   useEffect(() => {
     if (isReady && messages && messages.length > prevMessageCountRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      scrollToBottom('instant');
       prevMessageCountRef.current = messages.length;
     }
-  }, [messages?.length, isReady]);
+  }, [messages?.length, isReady, scrollToBottom]);
 
   // Mark as read when opening thread
   useEffect(() => {
@@ -204,7 +233,7 @@ export default function MessageThread() {
             <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
           </div>
         ) : groupedMessages.length > 0 ? (
-          <>
+          <div ref={contentRef}>
             {groupedMessages.map((group, groupIndex) => (
               <div key={groupIndex}>
                 {/* Date separator */}
@@ -220,7 +249,7 @@ export default function MessageThread() {
               </div>
             ))}
             <div ref={messagesEndRef} className="h-1" />
-          </>
+          </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
             <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-3">
