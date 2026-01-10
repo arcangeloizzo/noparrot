@@ -344,6 +344,7 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
             </div>
 
             {/* Instagram-style like indicator - pill below bubble corner */}
+            {/* Rendering basato su likes > 0, non su likeUsers.length */}
             {likes > 0 && (
               <div
                 className={cn(
@@ -354,19 +355,24 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
                 )}
               >
                 <Heart className="w-4 h-4 text-destructive fill-destructive" />
-                {likeUsers && likeUsers.length > 0 && (
-                  <div className="flex -space-x-1.5 ml-1">
-                    {likeUsers.slice(0, 2).map((likeUser) => (
-                      <Avatar key={likeUser.id} className="w-5 h-5 border-2 border-secondary">
-                        <AvatarImage src={likeUser.avatar_url || undefined} />
-                        <AvatarFallback className="text-[8px] bg-muted text-muted-foreground">
-                          {likeUser.username?.[0]?.toUpperCase() || '?'}
-                        </AvatarFallback>
-                      </Avatar>
-                    ))}
-                  </div>
+                {likeUsers && likeUsers.length > 0 ? (
+                  <>
+                    <div className="flex -space-x-1.5 ml-1">
+                      {likeUsers.slice(0, 2).map((likeUser) => (
+                        <Avatar key={likeUser.id} className="w-5 h-5 border-2 border-secondary">
+                          <AvatarImage src={likeUser.avatar_url || undefined} />
+                          <AvatarFallback className="text-[8px] bg-muted text-muted-foreground">
+                            {likeUser.username?.[0]?.toUpperCase() || '?'}
+                          </AvatarFallback>
+                        </Avatar>
+                      ))}
+                    </div>
+                    {likes > 2 && <span className="text-[10px] text-muted-foreground ml-1">+{likes - 2}</span>}
+                  </>
+                ) : (
+                  // Fallback: mostra solo count quando likeUsers non disponibili
+                  likes > 1 && <span className="text-[10px] text-muted-foreground ml-1">{likes}</span>
                 )}
-                {likes > 2 && <span className="text-[10px] text-muted-foreground ml-1">+{likes - 2}</span>}
               </div>
             )}
           </div>

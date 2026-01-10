@@ -21,6 +21,8 @@ export default function MessageThread() {
   const contentRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
   const prevMessageCountRef = useRef(0);
+  const prevScrollHeightRef = useRef(0);
+  const [isPinnedToBottom, setIsPinnedToBottom] = useState(true);
 
   const { data: messages, isLoading } = useMessages(threadId);
 
@@ -28,6 +30,8 @@ export default function MessageThread() {
   useEffect(() => {
     setIsReady(false);
     prevMessageCountRef.current = 0;
+    prevScrollHeightRef.current = 0;
+    setIsPinnedToBottom(true);
   }, [threadId]);
   const { data: threads } = useMessageThreads();
   const markAsRead = useMarkThreadAsRead();
@@ -136,6 +140,15 @@ export default function MessageThread() {
     }
   }, [scrollToBottom]);
 
+  // Handle scroll event to track pinned state
+  const handleScroll = useCallback(() => {
+    if (!containerRef.current) return;
+    const { scrollHeight, scrollTop, clientHeight } = containerRef.current;
+    const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+    // Soglia 100px per mobile (più generosa)
+    setIsPinnedToBottom(distanceFromBottom < 100);
+  }, []);
+
   // Robust initial scroll: keep auto-scrolling while media loads for a longer window
   useLayoutEffect(() => {
     if (isLoading || !messages || messages.length === 0) return;
@@ -166,6 +179,10 @@ export default function MessageThread() {
         if (timeSinceLastResize >= MIN_STABLE_MS) {
           setIsReady(true);
           prevMessageCountRef.current = messages.length;
+          // Initialize prevScrollHeightRef after initial load
+          if (containerRef.current) {
+            prevScrollHeightRef.current = containerRef.current.scrollHeight;
+          }
         } else {
           // Keep waiting
           settle();
@@ -192,6 +209,9 @@ export default function MessageThread() {
     const hardStop = window.setTimeout(() => {
       setIsReady(true);
       prevMessageCountRef.current = messages.length;
+      if (containerRef.current) {
+        prevScrollHeightRef.current = containerRef.current.scrollHeight;
+      }
       scrollWithRetry(2, 100); // Final retry after hardstop
     }, MAX_WINDOW_MS);
 
@@ -202,16 +222,72 @@ export default function MessageThread() {
     };
   }, [isLoading, messages, isReady, scrollToBottom, scrollWithRetry]);
 
+  // ResizeObserver for ongoing content changes (after initial load)
+  useEffect(() => {
+    if (!isReady) return;
+    if (!contentRef.current || !containerRef.current) return;
+
+    const observer = new ResizeObserver(() => {
+      if (!containerRef.current) return;
+      const currentScrollHeight = containerRef.current.scrollHeight;
+      
+      // Guardia: scrolla SOLO se scrollHeight è aumentato
+      if (currentScrollHeight <= prevScrollHeightRef.current) return;
+      prevScrollHeightRef.current = currentScrollHeight;
+      
+      if (isPinnedToBottom) {
+        requestAnimationFrame(() => scrollToBottom('auto'));
+      }
+    });
+
+    observer.observe(contentRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [isReady, isPinnedToBottom, scrollToBottom]);
+
+  // Media load listeners with event delegation
+  useEffect(() => {
+    if (!isReady) return;
+    const container = contentRef.current;
+    if (!container) return;
+
+    const handleMediaLoad = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'IMG' || target.tagName === 'VIDEO') {
+        if (isPinnedToBottom && containerRef.current) {
+          const currentScrollHeight = containerRef.current.scrollHeight;
+          if (currentScrollHeight > prevScrollHeightRef.current) {
+            prevScrollHeightRef.current = currentScrollHeight;
+            requestAnimationFrame(() => scrollToBottom('auto'));
+          }
+        }
+      }
+    };
+
+    // Event delegation: singolo listener sul container (capture phase)
+    container.addEventListener('load', handleMediaLoad, true);
+    container.addEventListener('loadedmetadata', handleMediaLoad, true);
+
+    return () => {
+      container.removeEventListener('load', handleMediaLoad, true);
+      container.removeEventListener('loadedmetadata', handleMediaLoad, true);
+    };
+  }, [isReady, isPinnedToBottom, scrollToBottom]);
+
   // Scroll for new messages
   useEffect(() => {
     if (!isReady) return;
     if (!messages) return;
 
     if (messages.length > prevMessageCountRef.current) {
-      scrollWithRetry(2, 50);
+      if (isPinnedToBottom) {
+        scrollWithRetry(2, 50);
+      }
       prevMessageCountRef.current = messages.length;
     }
-  }, [messages?.length, isReady, scrollWithRetry]);
+  }, [messages?.length, isReady, isPinnedToBottom, scrollWithRetry]);
 
 
   // Mark as read when opening thread
@@ -291,6 +367,7 @@ export default function MessageThread() {
       {/* Messages - con will-change per performance */}
       <div 
         ref={containerRef} 
+        onScroll={handleScroll}
         className={cn(
           "flex-1 overflow-y-auto px-4 py-4 bg-muted/30",
           "will-change-scroll overscroll-y-contain"
