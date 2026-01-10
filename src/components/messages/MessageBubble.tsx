@@ -105,6 +105,11 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
 
   const handleLike = (e?: React.MouseEvent, kind: 'medium' | 'success' = 'medium') => {
     e?.stopPropagation();
+    if (!user) {
+      // useMessageReactions will also toast, but we avoid haptics/animations when logged out
+      toggleLike();
+      return;
+    }
     if (isLikeMutating) return;
     doHaptic(kind);
     toggleLike();
