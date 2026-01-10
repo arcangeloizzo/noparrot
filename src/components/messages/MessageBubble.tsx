@@ -6,7 +6,7 @@ import { useDeleteMessage } from "@/hooks/useDeleteMessage";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { ExternalLink, Heart, Trash2, EyeOff } from "lucide-react";
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { fetchArticlePreview } from "@/lib/ai-helpers";
 import { useMessageReactions } from "@/hooks/useMessageReactions";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
@@ -35,7 +35,17 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
   const isSent = message.sender_id === user?.id;
   const [articlePreview, setArticlePreview] = useState<any>(null);
   const [showActions, setShowActions] = useState(false);
-  const { likes, isLiked, likeUsers, toggleLike, isLoading: isLikeLoading } = useMessageReactions(message.id);
+
+  const bubbleRef = (useRef<HTMLDivElement>(null));
+
+  const {
+    likes,
+    isLiked,
+    likeUsers,
+    toggleLike,
+    isMutating: isLikeMutating,
+  } = useMessageReactions(message.id);
+
   const deleteMessageForMe = useDeleteMessageForMe();
   const deleteMessage = useDeleteMessage();
 
@@ -58,7 +68,7 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
         setArticlePreview(null);
         return;
       }
-      
+
       try {
         const preview = await fetchArticlePreview(message.link_url);
         if (preview) {
@@ -68,26 +78,45 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
         console.error('Error fetching message link preview:', error);
       }
     };
-    
+
     loadPreview();
   }, [message.link_url]);
 
-  const handleLike = (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    if (!isLikeLoading) {
-      haptics.medium(); // Haptic feedback on like
-      toggleLike();
+  const pulseFallback = () => {
+    if (bubbleRef.current) {
+      // visual fallback for iOS Safari (no Vibration API)
+      bubbleRef.current.animate(
+        [{ transform: 'scale(1)' }, { transform: 'scale(0.985)' }, { transform: 'scale(1)' }],
+        { duration: 140, easing: 'ease-out' }
+      );
     }
+  };
+
+  const doHaptic = (kind: 'medium' | 'success') => {
+    // Many iOS browsers don't support navigator.vibrate.
+    const canVibrate = typeof navigator !== 'undefined' && 'vibrate' in navigator;
+    if (canVibrate) {
+      if (kind === 'success') haptics.success();
+      else haptics.medium();
+    } else {
+      pulseFallback();
+    }
+  };
+
+  const handleLike = (e?: React.MouseEvent, kind: 'medium' | 'success' = 'medium') => {
+    e?.stopPropagation();
+    if (isLikeMutating) return;
+    doHaptic(kind);
+    toggleLike();
   };
 
   // Double tap to like
   const { handleTap } = useDoubleTap({
     onDoubleTap: () => {
       if (!isLiked) {
-        haptics.success(); // Stronger haptic for double-tap like
-        handleLike();
+        handleLike(undefined, 'success');
       }
-    }
+    },
   });
 
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
@@ -101,7 +130,7 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
   };
 
   return (
-    <div className={cn("flex gap-2 mb-4", isSent ? "flex-row-reverse" : "flex-row")}>
+    <div className={cn('flex gap-2 mb-4', isSent ? 'flex-row-reverse' : 'flex-row')}>
       {/* Avatar solo per messaggi ricevuti */}
       {!isSent && (
         <Avatar className="h-7 w-7 flex-shrink-0 mt-1">
@@ -112,14 +141,14 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
         </Avatar>
       )}
 
-      <div className={cn("flex flex-col max-w-[75%] group", isSent ? "items-end" : "items-start")}>
+      <div className={cn('flex flex-col max-w-[75%] group', isSent ? 'items-end' : 'items-start')}>
         <div className="flex items-center gap-1.5">
           {/* Action popover - posizionato a sinistra per i miei messaggi, a destra per gli altri */}
           {isSent && (
             <Popover open={showActions} onOpenChange={setShowActions}>
               <PopoverTrigger asChild>
-                <button 
-                  className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-white/10 rounded-full transition-all"
+                <button
+                  className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-accent rounded-full transition-all"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex gap-0.5">
@@ -129,29 +158,29 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
                   </div>
                 </button>
               </PopoverTrigger>
-              <PopoverContent 
-                side="left" 
+              <PopoverContent
+                side="left"
                 align="center"
-                className="w-auto p-1.5 bg-zinc-900/95 backdrop-blur-xl border-white/10"
+                className="w-auto p-1.5 bg-popover/95 backdrop-blur-xl border-border"
               >
                 <div className="flex gap-1">
-                  <button 
-                    onClick={handleLike}
+                  <button
+                    onClick={(e) => handleLike(e, 'medium')}
                     className={cn(
-                      "p-2 hover:bg-white/10 rounded-lg transition-colors",
-                      isLiked && "text-red-500"
+                      'p-2 hover:bg-accent rounded-lg transition-colors',
+                      isLiked && 'text-destructive'
                     )}
                   >
-                    <Heart className={cn("w-4 h-4", isLiked && "fill-current")} />
+                    <Heart className={cn('w-4 h-4', isLiked && 'fill-current')} />
                   </button>
-                  <button 
+                  <button
                     onClick={handleDeleteForMe}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors text-muted-foreground"
+                    className="p-2 hover:bg-accent rounded-lg transition-colors text-muted-foreground"
                     title="Nascondi per me"
                   >
                     <EyeOff className="w-4 h-4" />
                   </button>
-                  <button 
+                  <button
                     onClick={handleDeleteForEveryone}
                     className="p-2 hover:bg-destructive/20 rounded-lg transition-colors text-destructive"
                     title="Elimina per tutti"
@@ -165,27 +194,29 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
 
           <div className="relative">
             <div
+              ref={bubbleRef}
               onClick={handleDoubleTap}
               className={cn(
-                "rounded-2xl px-4 py-2.5 cursor-pointer select-none",
+                'rounded-2xl px-4 py-2.5 cursor-pointer select-none',
                 isSent
-                  ? "bg-primary text-primary-foreground rounded-br-sm"
-                  : "bg-zinc-800/80 text-foreground rounded-bl-sm"
+                  ? 'bg-primary text-primary-foreground rounded-br-sm'
+                  : 'bg-secondary text-secondary-foreground rounded-bl-sm'
               )}
             >
               {/* Heart animation on double tap */}
               {showHeartAnimation && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-                  <Heart className="w-12 h-12 text-red-500 fill-red-500 animate-scale-in" />
+                  <Heart className="w-12 h-12 text-destructive fill-destructive animate-scale-in" />
                 </div>
               )}
+
               <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
 
               {message.link_url && articlePreview && (
-                <div 
+                <div
                   className={cn(
-                    "mt-2 rounded-xl overflow-hidden cursor-pointer group/link",
-                    isSent ? "bg-primary-foreground/10" : "bg-muted border border-border/30"
+                    'mt-2 rounded-xl overflow-hidden cursor-pointer group/link',
+                    isSent ? 'bg-primary-foreground/10' : 'bg-muted border border-border/30'
                   )}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -195,14 +226,15 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
                   {/* Image preview */}
                   {(articlePreview.image || articlePreview.previewImg) && (
                     <div className="aspect-video w-full overflow-hidden bg-muted">
-                      <img 
+                      <img
                         src={articlePreview.image || articlePreview.previewImg}
                         alt={articlePreview.title || ''}
+                        loading="lazy"
                         className="w-full h-full object-cover group-hover/link:scale-105 transition-transform duration-200"
                       />
                     </div>
                   )}
-                  
+
                   <div className="p-2.5">
                     {/* Twitter author info */}
                     {articlePreview.platform === 'twitter' && articlePreview.author_username && (
@@ -216,34 +248,38 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
                           <span className="text-xs font-semibold">
                             {articlePreview.author_name || articlePreview.author_username}
                           </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            @{articlePreview.author_username}
-                          </span>
+                          <span className="text-[10px] text-muted-foreground">@{articlePreview.author_username}</span>
                         </div>
                       </div>
                     )}
-                    
-                    <div className={cn(
-                      "flex items-center gap-1.5 text-[10px] mb-1",
-                      isSent ? "text-primary-foreground/60" : "text-muted-foreground"
-                    )}>
+
+                    <div
+                      className={cn(
+                        'flex items-center gap-1.5 text-[10px] mb-1',
+                        isSent ? 'text-primary-foreground/60' : 'text-muted-foreground'
+                      )}
+                    >
                       <span>{getHostnameFromUrl(message.link_url)}</span>
                       <ExternalLink className="w-2.5 h-2.5 opacity-0 group-hover/link:opacity-100 transition-opacity" />
                     </div>
-                    
+
                     {/* Show full tweet content or article title */}
                     {articlePreview.content && articlePreview.platform === 'twitter' ? (
-                      <p className={cn(
-                        "text-xs whitespace-pre-wrap leading-relaxed",
-                        isSent ? "text-primary-foreground/80" : "text-foreground/80"
-                      )}>
+                      <p
+                        className={cn(
+                          'text-xs whitespace-pre-wrap leading-relaxed',
+                          isSent ? 'text-primary-foreground/80' : 'text-foreground/80'
+                        )}
+                      >
                         {articlePreview.content}
                       </p>
                     ) : (
-                      <div className={cn(
-                        "font-medium text-xs line-clamp-2",
-                        isSent ? "text-primary-foreground/90" : "text-foreground/90"
-                      )}>
+                      <div
+                        className={cn(
+                          'font-medium text-xs line-clamp-2',
+                          isSent ? 'text-primary-foreground/90' : 'text-foreground/90'
+                        )}
+                      >
                         {articlePreview.title || 'Articolo condiviso'}
                       </div>
                     )}
@@ -257,8 +293,10 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(
-                    "flex items-center gap-1 mt-2 text-xs underline",
-                    isSent ? "text-primary-foreground/80 hover:text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                    'flex items-center gap-1 mt-2 text-xs underline',
+                    isSent
+                      ? 'text-primary-foreground/80 hover:text-primary-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
                   )}
                 >
                   <ExternalLink className="h-3 w-3" />
@@ -270,21 +308,21 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
                 <div className="mt-2 space-y-2">
                   {message.media.map((media) => (
                     <div key={media.id} className="rounded-lg overflow-hidden">
-                       {media.type === 'image' ? (
+                      {media.type === 'image' ? (
                         <img
                           src={media.url}
                           alt=""
                           loading="lazy"
                           className="max-w-full h-auto rounded-lg"
                         />
-                       ) : (
+                      ) : (
                         <video
                           src={media.url}
                           controls
                           preload="metadata"
                           className="max-w-full h-auto rounded-lg"
                         />
-                       )}
+                      )}
                     </div>
                   ))}
                 </div>
@@ -293,28 +331,28 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
 
             {/* Instagram-style like indicator - pill below bubble corner */}
             {likes > 0 && (
-              <div className={cn(
-                "absolute -bottom-3 flex items-center",
-                "bg-zinc-800/95 rounded-full shadow-xl",
-                "px-2 py-1 min-w-[28px] justify-center",
-                isSent ? "right-2" : "left-2"
-              )}>
-                <Heart className="w-4 h-4 text-red-500 fill-red-500" />
+              <div
+                className={cn(
+                  'absolute -bottom-3 flex items-center',
+                  'bg-secondary/95 rounded-full shadow-xl',
+                  'px-2 py-1 min-w-[28px] justify-center',
+                  isSent ? 'right-2' : 'left-2'
+                )}
+              >
+                <Heart className="w-4 h-4 text-destructive fill-destructive" />
                 {likeUsers && likeUsers.length > 0 && (
                   <div className="flex -space-x-1.5 ml-1">
-                    {likeUsers.slice(0, 2).map(likeUser => (
-                      <Avatar key={likeUser.id} className="w-5 h-5 border-2 border-zinc-800">
+                    {likeUsers.slice(0, 2).map((likeUser) => (
+                      <Avatar key={likeUser.id} className="w-5 h-5 border-2 border-secondary">
                         <AvatarImage src={likeUser.avatar_url || undefined} />
-                        <AvatarFallback className="text-[8px] bg-zinc-600">
+                        <AvatarFallback className="text-[8px] bg-muted text-muted-foreground">
                           {likeUser.username?.[0]?.toUpperCase() || '?'}
                         </AvatarFallback>
                       </Avatar>
                     ))}
                   </div>
                 )}
-                {likes > 2 && (
-                  <span className="text-[10px] text-white/60 ml-1">+{likes - 2}</span>
-                )}
+                {likes > 2 && <span className="text-[10px] text-muted-foreground ml-1">+{likes - 2}</span>}
               </div>
             )}
           </div>
@@ -323,8 +361,8 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
           {!isSent && (
             <Popover open={showActions} onOpenChange={setShowActions}>
               <PopoverTrigger asChild>
-                <button 
-                  className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-white/10 rounded-full transition-all"
+                <button
+                  className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-accent rounded-full transition-all"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex gap-0.5">
@@ -334,25 +372,25 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
                   </div>
                 </button>
               </PopoverTrigger>
-              <PopoverContent 
-                side="right" 
+              <PopoverContent
+                side="right"
                 align="center"
-                className="w-auto p-1.5 bg-zinc-900/95 backdrop-blur-xl border-white/10"
+                className="w-auto p-1.5 bg-popover/95 backdrop-blur-xl border-border"
               >
                 <div className="flex gap-1">
-                  <button 
-                    onClick={handleLike}
+                  <button
+                    onClick={(e) => handleLike(e, 'medium')}
                     className={cn(
-                      "p-2 hover:bg-white/10 rounded-lg transition-colors",
-                      isLiked && "text-red-500"
+                      'p-2 hover:bg-accent rounded-lg transition-colors',
+                      isLiked && 'text-destructive'
                     )}
                   >
-                    <Heart className={cn("w-4 h-4", isLiked && "fill-current")} />
+                    <Heart className={cn('w-4 h-4', isLiked && 'fill-current')} />
                   </button>
                   {/* Solo "Nascondi per me" per messaggi ricevuti - NO elimina per tutti */}
-                  <button 
+                  <button
                     onClick={handleDeleteForMe}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors text-muted-foreground"
+                    className="p-2 hover:bg-accent rounded-lg transition-colors text-muted-foreground"
                     title="Nascondi per me"
                   >
                     <EyeOff className="w-4 h-4" />
@@ -364,12 +402,13 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
         </div>
 
         {/* Timestamp row - with extra margin when likes present */}
-        <div className={cn(
-          "flex items-center gap-2 px-1",
-          isSent ? "flex-row-reverse" : "flex-row",
-          likes > 0 ? "mt-3" : "mt-1"
-        )}>
-          {/* Timestamp */}
+        <div
+          className={cn(
+            'flex items-center gap-2 px-1',
+            isSent ? 'flex-row-reverse' : 'flex-row',
+            likes > 0 ? 'mt-3' : 'mt-1'
+          )}
+        >
           <span className="text-[10px] text-muted-foreground">
             {format(new Date(message.created_at), 'HH:mm', { locale: it })}
           </span>
@@ -378,3 +417,4 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
     </div>
   );
 });
+

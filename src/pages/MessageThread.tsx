@@ -37,14 +37,14 @@ export default function MessageThread() {
   // Header intelligente per gruppi
   const getGroupDisplayName = useMemo(() => {
     if (!isGroupChat) return null;
-    
+
     const names = otherParticipants
       .slice(0, 2)
       .map((p: any) => p.profile?.full_name || p.profile?.username)
       .filter(Boolean);
-    
+
     const remaining = otherParticipants.length - 2;
-    
+
     if (remaining > 0) {
       return `${names.join(', ')} e altri ${remaining}`;
     }
@@ -62,7 +62,7 @@ export default function MessageThread() {
 
   const lastSeenText = useMemo(() => {
     if (!displayProfile?.last_seen_at) return null;
-    if (isOnline) return "Attivo/a ora";
+    if (isOnline) return 'Attivo/a ora';
     const lastSeen = new Date(displayProfile.last_seen_at);
     const diffMinutes = Math.floor((new Date().getTime() - lastSeen.getTime()) / 1000 / 60);
     if (diffMinutes < 60) return `Attivo/a ${diffMinutes} min fa`;
@@ -72,14 +72,14 @@ export default function MessageThread() {
   // Group messages by date
   const groupedMessages = useMemo(() => {
     if (!messages) return [];
-    
+
     const groups: { date: string; messages: typeof messages }[] = [];
     let currentDate = '';
-    
+
     messages.forEach(msg => {
       const msgDate = new Date(msg.created_at);
       let dateLabel = '';
-      
+
       if (isToday(msgDate)) {
         dateLabel = 'Oggi';
       } else if (isYesterday(msgDate)) {
@@ -87,7 +87,7 @@ export default function MessageThread() {
       } else {
         dateLabel = format(msgDate, 'd MMMM yyyy', { locale: it });
       }
-      
+
       if (dateLabel !== currentDate) {
         currentDate = dateLabel;
         groups.push({ date: dateLabel, messages: [msg] });
@@ -95,60 +95,78 @@ export default function MessageThread() {
         groups[groups.length - 1].messages.push(msg);
       }
     });
-    
+
     return groups;
   }, [messages]);
 
-  // Scroll to bottom helper
-  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'instant') => {
-    if (containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
-    }
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
+    // Prefer endRef scrollIntoView (handles async height changes better than scrollTop)
+    messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
   }, []);
 
-  // FIX: Robust scroll with ResizeObserver for media loading
+
+  // Robust initial scroll: keep auto-scrolling while media loads for a short window
   useLayoutEffect(() => {
-    if (!isLoading && messages && messages.length > 0 && !isReady) {
-      // Immediate scroll
-      scrollToBottom('instant');
+    if (isLoading || !messages || messages.length === 0) return;
+    if (isReady) return;
 
-      // ResizeObserver to handle async image/media loading
-      if (contentRef.current) {
-        const observer = new ResizeObserver(() => {
-          scrollToBottom('instant');
-        });
-        observer.observe(contentRef.current);
+    // 1) Immediate + a few RAFs (iOS/webview friendly)
+    scrollToBottom('auto');
+    requestAnimationFrame(() => {
+      scrollToBottom('auto');
+      requestAnimationFrame(() => scrollToBottom('auto'));
+    });
 
-        // Mark ready after brief delay, then disconnect observer
-        const timer = setTimeout(() => {
-          setIsReady(true);
-          prevMessageCountRef.current = messages.length;
-          observer.disconnect();
-        }, 500);
+    // 2) ResizeObserver window (handles images/videos expanding)
+    const el = contentRef.current;
+    if (!el) return;
 
-        return () => {
-          clearTimeout(timer);
-          observer.disconnect();
-        };
-      } else {
-        // Fallback without observer
-        const timer = setTimeout(() => {
-          scrollToBottom('instant');
-          setIsReady(true);
-          prevMessageCountRef.current = messages.length;
-        }, 300);
-        return () => clearTimeout(timer);
+    let settleTimer: number | undefined;
+    const MAX_WINDOW_MS = 3500;
+    const startedAt = Date.now();
+
+    const settle = () => {
+      window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(() => {
+        setIsReady(true);
+        prevMessageCountRef.current = messages.length;
+      }, 250);
+    };
+
+    const observer = new ResizeObserver(() => {
+      // Only auto-scroll during the initial window
+      if (Date.now() - startedAt < MAX_WINDOW_MS) {
+        scrollToBottom('auto');
+        settle();
       }
-    }
+    });
+
+    observer.observe(el);
+    settle();
+
+    const hardStop = window.setTimeout(() => {
+      setIsReady(true);
+      prevMessageCountRef.current = messages.length;
+    }, MAX_WINDOW_MS);
+
+    return () => {
+      window.clearTimeout(hardStop);
+      window.clearTimeout(settleTimer);
+      observer.disconnect();
+    };
   }, [isLoading, messages, isReady, scrollToBottom]);
 
-  // Scroll smooth for new messages (after initial load)
+  // Scroll for new messages
   useEffect(() => {
-    if (isReady && messages && messages.length > prevMessageCountRef.current) {
-      scrollToBottom('instant');
+    if (!isReady) return;
+    if (!messages) return;
+
+    if (messages.length > prevMessageCountRef.current) {
+      scrollToBottom('auto');
       prevMessageCountRef.current = messages.length;
     }
   }, [messages?.length, isReady, scrollToBottom]);
+
 
   // Mark as read when opening thread
   useEffect(() => {
