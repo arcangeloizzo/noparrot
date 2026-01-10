@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useLayoutEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,13 +10,16 @@ import { useMessageThreads, useMarkThreadAsRead } from "@/hooks/useMessageThread
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow, isToday, isYesterday, format } from "date-fns";
 import { it } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 export default function MessageThread() {
   const { threadId } = useParams<{ threadId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const isFirstLoad = useRef(true);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isReady, setIsReady] = useState(false);
+  const prevMessageCountRef = useRef(0);
 
   const { data: messages, isLoading } = useMessages(threadId);
   const { data: threads } = useMessageThreads();
@@ -29,6 +32,23 @@ export default function MessageThread() {
   ) || [];
   const isGroupChat = otherParticipants.length > 1;
   const displayProfile = otherParticipants[0]?.profile;
+
+  // Header intelligente per gruppi
+  const getGroupDisplayName = useMemo(() => {
+    if (!isGroupChat) return null;
+    
+    const names = otherParticipants
+      .slice(0, 2)
+      .map((p: any) => p.profile?.full_name || p.profile?.username)
+      .filter(Boolean);
+    
+    const remaining = otherParticipants.length - 2;
+    
+    if (remaining > 0) {
+      return `${names.join(', ')} e altri ${remaining}`;
+    }
+    return names.join(', ');
+  }, [otherParticipants, isGroupChat]);
 
   // Calcola online status
   const isOnline = useMemo(() => {
@@ -78,41 +98,28 @@ export default function MessageThread() {
     return groups;
   }, [messages]);
 
-  // Scroll to bottom - using ResizeObserver for reliable scroll after content loads
-  const containerRef = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    if (!messages || messages.length === 0) return;
-
-    const scrollToBottom = (behavior: ScrollBehavior = 'instant') => {
-      messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
-    };
-
-    // Initial scroll
-    scrollToBottom(isFirstLoad.current ? 'instant' : 'smooth');
-
-    // Use ResizeObserver to scroll when content changes size (images loading)
-    if (containerRef.current) {
-      const resizeObserver = new ResizeObserver(() => {
-        scrollToBottom(isFirstLoad.current ? 'instant' : 'smooth');
-      });
-      
-      resizeObserver.observe(containerRef.current);
-      
-      // Also retry a few times for safety
-      const timer1 = setTimeout(() => scrollToBottom(isFirstLoad.current ? 'instant' : 'smooth'), 200);
-      const timer2 = setTimeout(() => {
-        scrollToBottom(isFirstLoad.current ? 'instant' : 'smooth');
-        isFirstLoad.current = false;
-      }, 800);
-
-      return () => {
-        resizeObserver.disconnect();
-        clearTimeout(timer1);
-        clearTimeout(timer2);
-      };
+  // FIX: Scroll immediato al primo caricamento con useLayoutEffect
+  useLayoutEffect(() => {
+    if (!isLoading && messages && messages.length > 0 && !isReady) {
+      // Scroll istantaneo senza animazione al primo caricamento
+      messagesEndRef.current?.scrollIntoView({ behavior: 'instant', block: 'end' });
+      // Piccolo delay per assicurarsi che le immagini siano caricate
+      const timer = setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'instant', block: 'end' });
+        setIsReady(true);
+        prevMessageCountRef.current = messages.length;
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [messages]);
+  }, [isLoading, messages, isReady]);
+
+  // Scroll smooth per nuovi messaggi (dopo il primo caricamento)
+  useEffect(() => {
+    if (isReady && messages && messages.length > prevMessageCountRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      prevMessageCountRef.current = messages.length;
+    }
+  }, [messages?.length, isReady]);
 
   // Mark as read when opening thread
   useEffect(() => {
@@ -128,7 +135,7 @@ export default function MessageThread() {
 
   return (
     <div className="flex flex-col h-screen bg-background">
-      {/* Header Instagram-style */}
+      {/* Header */}
       <div className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="flex items-center gap-3 px-4 h-16">
           <Button
@@ -157,7 +164,7 @@ export default function MessageThread() {
               {isGroupChat ? (
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold truncate text-sm">
-                    {otherParticipants.map(p => p.profile?.full_name || p.profile?.username).join(', ')}
+                    {getGroupDisplayName}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {otherParticipants.length} partecipanti
@@ -183,8 +190,15 @@ export default function MessageThread() {
         </div>
       </div>
 
-      {/* Messages */}
-      <div ref={containerRef} className="flex-1 overflow-y-auto px-4 py-4 bg-muted/30">
+      {/* Messages - con will-change per performance */}
+      <div 
+        ref={containerRef} 
+        className={cn(
+          "flex-1 overflow-y-auto px-4 py-4 bg-muted/30",
+          "will-change-scroll overscroll-y-contain"
+        )}
+        style={{ willChange: 'scroll-position' }}
+      >
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
@@ -205,7 +219,7 @@ export default function MessageThread() {
                 ))}
               </div>
             ))}
-            <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} className="h-1" />
           </>
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground">

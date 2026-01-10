@@ -167,25 +167,25 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
                   onClick={() => handleMediaUpload('image')}
                   className={cn(
                     "flex items-center gap-2 px-3 py-2 rounded-xl",
-                    "bg-gradient-to-r from-purple-500/20 to-pink-400/20",
-                    "hover:scale-105 active:scale-95 transition-transform",
+                    "bg-white/5 hover:bg-white/10",
+                    "transition-colors",
                     "border border-white/10"
                   )}
                 >
-                  <ImageIcon className="w-4 h-4 text-purple-400" />
-                  <span className="text-sm font-medium">Foto</span>
+                  <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm">Foto</span>
                 </button>
                 <button
                   onClick={() => handleMediaUpload('video')}
                   className={cn(
                     "flex items-center gap-2 px-3 py-2 rounded-xl",
-                    "bg-gradient-to-r from-rose-500/20 to-orange-400/20",
-                    "hover:scale-105 active:scale-95 transition-transform",
+                    "bg-white/5 hover:bg-white/10",
+                    "transition-colors",
                     "border border-white/10"
                   )}
                 >
-                  <Video className="w-4 h-4 text-rose-400" />
-                  <span className="text-sm font-medium">Video</span>
+                  <Video className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm">Video</span>
                 </button>
               </div>
             )}
