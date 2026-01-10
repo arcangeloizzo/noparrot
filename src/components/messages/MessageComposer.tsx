@@ -119,9 +119,9 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
 
   return (
     <>
-      <div className="border-t border-white/10 bg-background p-3">
+      <div className="border-t border-white/5 bg-background/95 backdrop-blur-sm px-3 py-2.5">
         {uploadedMedia.length > 0 && (
-          <div className="mb-3">
+          <div className="mb-2.5">
             <MediaPreviewTray
               media={uploadedMedia}
               onRemove={removeMedia}
@@ -129,8 +129,8 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
           </div>
         )}
 
-        <div className="flex items-center gap-2">
-          {/* Camera Button - Blue circle for direct capture */}
+        <div className="flex items-center gap-3">
+          {/* Camera Button - Blue filled circle (IG style) */}
           <button
             onClick={() => {
               haptics.light();
@@ -138,23 +138,24 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
             }}
             disabled={isUploading || isProcessing}
             className={cn(
-              "flex-shrink-0 w-10 h-10 rounded-full",
+              "flex-shrink-0 w-11 h-11 rounded-full",
               "bg-primary hover:bg-primary/90",
               "flex items-center justify-center",
-              "transition-all duration-200",
-              "disabled:opacity-50"
+              "transition-all duration-200 active:scale-95",
+              "disabled:opacity-50 shadow-lg shadow-primary/20"
             )}
           >
-            <Camera className="h-5 w-5 text-primary-foreground" />
+            <Camera className="h-[22px] w-[22px] text-primary-foreground" />
           </button>
 
-          {/* Input Field - Pill with gallery icon inside */}
+          {/* Input Field - Dark pill (IG style) */}
           <div className={cn(
-            "flex-1 flex items-center gap-2",
-            "bg-zinc-800/80 rounded-3xl",
-            "border border-white/10 focus-within:border-primary/40",
-            "px-4 py-2",
-            "transition-all duration-200"
+            "flex-1 flex items-center",
+            "bg-zinc-800/90 rounded-full",
+            "border border-white/[0.08]",
+            "px-4 py-2.5",
+            "transition-all duration-200",
+            "focus-within:border-white/20"
           )}>
             <textarea
               ref={textareaRef}
@@ -163,45 +164,48 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
               onKeyPress={handleKeyPress}
               placeholder="Messaggio..."
               className={cn(
-                "flex-1 bg-transparent text-[15px]",
+                "flex-1 bg-transparent text-[15px] leading-[1.4]",
                 "resize-none outline-none",
-                "placeholder:text-white/40",
-                "min-h-[24px] max-h-[100px]"
+                "placeholder:text-white/35",
+                "min-h-[22px] max-h-[100px]"
               )}
               rows={1}
               disabled={isProcessing || isUploading}
             />
+
+            {/* Icons inside the pill on the right */}
+            <div className="flex items-center gap-1 ml-2">
+              {/* Media Gallery Button */}
+              <button
+                onClick={() => {
+                  haptics.light();
+                  handleMediaUpload('image');
+                }}
+                disabled={isUploading || isProcessing}
+                className={cn(
+                  "p-1.5 rounded-full",
+                  "hover:bg-white/10 transition-colors active:scale-95",
+                  "disabled:opacity-50"
+                )}
+              >
+                <ImageIcon className="h-[22px] w-[22px] text-white/60" />
+              </button>
+            </div>
           </div>
 
-          {/* Media Gallery Button */}
-          <button
-            onClick={() => {
-              haptics.light();
-              handleMediaUpload('image');
-            }}
-            disabled={isUploading || isProcessing}
-            className={cn(
-              "flex-shrink-0 p-2.5 rounded-full",
-              "hover:bg-white/10 transition-colors",
-              "disabled:opacity-50"
-            )}
-          >
-            <ImageIcon className="h-5 w-5 text-white/70" />
-          </button>
-
-          {/* Send Button */}
+          {/* Send Button - outside pill */}
           <button
             onClick={handleSend}
             disabled={!canSend}
             className={cn(
-              "flex-shrink-0 p-2.5 rounded-full",
-              "transition-all duration-200",
+              "flex-shrink-0 p-2 rounded-full",
+              "transition-all duration-200 active:scale-95",
               canSend 
-                ? "text-primary hover:bg-primary/10" 
-                : "text-white/30"
+                ? "text-primary" 
+                : "text-white/25"
             )}
           >
-            <Send className="h-5 w-5" />
+            <Send className="h-6 w-6" />
           </button>
         </div>
       </div>

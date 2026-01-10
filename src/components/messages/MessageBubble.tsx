@@ -10,6 +10,7 @@ import { memo, useEffect, useState } from "react";
 import { fetchArticlePreview } from "@/lib/ai-helpers";
 import { useMessageReactions } from "@/hooks/useMessageReactions";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
+import { haptics } from "@/lib/haptics";
 import {
   Popover,
   PopoverContent,
@@ -74,6 +75,7 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
   const handleLike = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!isLikeLoading) {
+      haptics.medium(); // Haptic feedback on like
       toggleLike();
     }
   };
@@ -82,6 +84,7 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
   const { handleTap } = useDoubleTap({
     onDoubleTap: () => {
       if (!isLiked) {
+        haptics.success(); // Stronger haptic for double-tap like
         handleLike();
       }
     }
@@ -288,21 +291,21 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
               )}
             </div>
 
-            {/* Instagram-style like indicator - positioned below bubble */}
+            {/* Instagram-style like indicator - pill below bubble corner */}
             {likes > 0 && (
               <div className={cn(
-                "absolute -bottom-2.5 flex items-center gap-0.5",
-                "bg-zinc-900 border border-white/10 rounded-full px-1.5 py-0.5",
-                "shadow-lg",
-                isSent ? "right-1" : "left-1"
+                "absolute -bottom-3 flex items-center",
+                "bg-zinc-800/95 rounded-full shadow-xl",
+                "px-2 py-1 min-w-[28px] justify-center",
+                isSent ? "right-2" : "left-2"
               )}>
-                <Heart className="w-3 h-3 text-red-500 fill-red-500" />
-                {likeUsers && likeUsers.length > 0 && likeUsers.length <= 3 && (
-                  <div className="flex -space-x-1.5 ml-0.5">
+                <Heart className="w-4 h-4 text-red-500 fill-red-500" />
+                {likeUsers && likeUsers.length > 0 && (
+                  <div className="flex -space-x-1.5 ml-1">
                     {likeUsers.slice(0, 2).map(likeUser => (
-                      <Avatar key={likeUser.id} className="w-3.5 h-3.5 border border-zinc-900">
+                      <Avatar key={likeUser.id} className="w-5 h-5 border-2 border-zinc-800">
                         <AvatarImage src={likeUser.avatar_url || undefined} />
-                        <AvatarFallback className="text-[6px] bg-zinc-700">
+                        <AvatarFallback className="text-[8px] bg-zinc-600">
                           {likeUser.username?.[0]?.toUpperCase() || '?'}
                         </AvatarFallback>
                       </Avatar>
@@ -310,7 +313,7 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
                   </div>
                 )}
                 {likes > 2 && (
-                  <span className="text-[9px] text-white/70 ml-0.5">+{likes - 2}</span>
+                  <span className="text-[10px] text-white/60 ml-1">+{likes - 2}</span>
                 )}
               </div>
             )}
