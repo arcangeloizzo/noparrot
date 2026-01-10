@@ -64,8 +64,7 @@ const ThreadItem = memo(({
   return (
     <Link
       to={`/messages/${thread.id}`}
-      className="flex items-center gap-4 p-4 hover:bg-accent/30 active:bg-accent/50 transition-all duration-200 animate-fade-in"
-      style={{ animationDelay: `${index * 50}ms` }}
+      className="flex items-center gap-4 p-4 hover:bg-accent/30 active:bg-accent/50 transition-colors duration-200"
     >
       {/* Avatar with online indicator */}
       <div className="relative flex-shrink-0">

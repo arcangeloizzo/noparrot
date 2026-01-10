@@ -3,6 +3,19 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect } from 'react';
 
+export interface ReactionUser {
+  id: string;
+  username: string | null;
+  avatar_url: string | null;
+}
+
+export interface MessageReaction {
+  id: string;
+  user_id: string;
+  reaction_type: string;
+  user?: ReactionUser;
+}
+
 export const useMessageReactions = (messageId: string) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -10,13 +23,34 @@ export const useMessageReactions = (messageId: string) => {
   const query = useQuery({
     queryKey: ['message-reactions', messageId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First get reactions
+      const { data: reactions, error: reactionsError } = await supabase
         .from('message_reactions')
         .select('id, user_id, reaction_type')
         .eq('message_id', messageId);
 
-      if (error) throw error;
-      return data || [];
+      if (reactionsError) throw reactionsError;
+      if (!reactions || reactions.length === 0) return [];
+
+      // Then get user profiles for those who reacted
+      const userIds = [...new Set(reactions.map(r => r.user_id))];
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .in('id', userIds);
+
+      if (profilesError) {
+        console.error('[useMessageReactions] Error fetching profiles:', profilesError);
+        // Return reactions without user info
+        return reactions.map(r => ({ ...r, user: undefined }));
+      }
+
+      // Merge profiles into reactions
+      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+      return reactions.map(r => ({
+        ...r,
+        user: profileMap.get(r.user_id) as ReactionUser | undefined
+      }));
     },
     enabled: !!messageId
   });
@@ -73,15 +107,23 @@ export const useMessageReactions = (messageId: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['message-reactions', messageId] });
+    },
+    onError: (error) => {
+      console.error('[useMessageReactions] Toggle like error:', error);
     }
   });
 
-  const likes = query.data?.filter(r => r.reaction_type === 'like').length || 0;
-  const isLiked = query.data?.some(r => r.user_id === user?.id && r.reaction_type === 'like') || false;
+  const reactions = query.data || [];
+  const likes = reactions.filter(r => r.reaction_type === 'like').length;
+  const isLiked = reactions.some(r => r.user_id === user?.id && r.reaction_type === 'like');
+  const likeUsers = reactions
+    .filter(r => r.reaction_type === 'like' && r.user)
+    .map(r => r.user as ReactionUser);
 
   return {
     likes,
     isLiked,
+    likeUsers,
     toggleLike: toggleLike.mutate,
     isLoading: query.isLoading || toggleLike.isPending
   };
