@@ -23,6 +23,15 @@ interface ToggleLikeCallbacks {
   onErrorCallback?: () => void;
 }
 
+interface ToggleLikeVariables {
+  mode: 'add' | 'remove';
+}
+
+// Helper to check if string is valid UUID
+const isValidUuid = (str: string): boolean => {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(str);
+};
+
 export const useMessageReactions = (messageId: string) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -33,7 +42,6 @@ export const useMessageReactions = (messageId: string) => {
   const query = useQuery({
     queryKey,
     queryFn: async () => {
-      // Reactions are private to thread participants (RLS). Without auth, this will never work.
       if (!user) return [] as MessageReaction[];
 
       const { data: reactions, error: reactionsError } = await supabase
@@ -98,17 +106,28 @@ export const useMessageReactions = (messageId: string) => {
   }, [messageId, queryClient, user]);
 
   const toggleLikeMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (variables: ToggleLikeVariables) => {
       if (!user) {
         toast.error('Accedi per mettere like ai messaggi');
         return { action: 'noop' as const };
       }
 
-      const existingLike = (queryClient.getQueryData<MessageReaction[]>(queryKey) || []).find(
-        r => r.user_id === user.id && r.reaction_type === 'like'
-      );
+      const { mode } = variables;
 
-      if (existingLike) {
+      if (mode === 'remove') {
+        // Find the real UUID from context (set by onMutate) or query data
+        // We need to find the ID BEFORE the optimistic update
+        const cachedReactions = queryClient.getQueryData<MessageReaction[]>(queryKey) || [];
+        const existingLike = cachedReactions.find(
+          r => r.user_id === user.id && r.reaction_type === 'like' && isValidUuid(r.id)
+        );
+
+        if (!existingLike) {
+          // Already removed or no valid ID - just invalidate
+          console.warn('[useMessageReactions] No valid like ID found for removal, invalidating');
+          return { action: 'removed' as const };
+        }
+
         const res = await supabase
           .from('message_reactions')
           .delete()
@@ -122,6 +141,7 @@ export const useMessageReactions = (messageId: string) => {
             code: res.error.code,
             messageId,
             userId: user.id,
+            likeId: existingLike.id,
           });
           throw res.error;
         }
@@ -129,6 +149,7 @@ export const useMessageReactions = (messageId: string) => {
         return { action: 'removed' as const };
       }
 
+      // mode === 'add'
       const res = await supabase
         .from('message_reactions')
         .insert({
@@ -150,17 +171,22 @@ export const useMessageReactions = (messageId: string) => {
         throw res.error;
       }
 
-      return { action: 'added' as const };
+      return { action: 'added' as const, newId: res.data?.id };
     },
-    onMutate: async () => {
+    onMutate: async (variables) => {
       if (!user) return;
 
       await queryClient.cancelQueries({ queryKey });
 
+      // Save previous state BEFORE any mutation
       const prev = queryClient.getQueryData<MessageReaction[]>(queryKey) || [];
-      const hasLike = prev.some(r => r.user_id === user.id && r.reaction_type === 'like');
+      
+      // Store the real like ID if we're removing (for mutationFn to use)
+      const existingLikeId = variables.mode === 'remove'
+        ? prev.find(r => r.user_id === user.id && r.reaction_type === 'like')?.id
+        : undefined;
 
-      const optimistic: MessageReaction[] = hasLike
+      const optimistic: MessageReaction[] = variables.mode === 'remove'
         ? prev.filter(r => !(r.user_id === user.id && r.reaction_type === 'like'))
         : [
             ...prev,
@@ -173,14 +199,23 @@ export const useMessageReactions = (messageId: string) => {
           ];
 
       queryClient.setQueryData(queryKey, optimistic);
-      return { prev };
+      return { prev, existingLikeId };
     },
-    onSuccess: (result) => {
+    onSuccess: (result, variables) => {
+      if (result.action === 'added' && result.newId) {
+        // Replace optimistic ID with real ID in cache
+        queryClient.setQueryData<MessageReaction[]>(queryKey, (old) => {
+          if (!old) return old;
+          return old.map(r => 
+            r.id.startsWith('optimistic-') && r.user_id === user?.id
+              ? { ...r, id: result.newId! }
+              : r
+          );
+        });
+        haptics.success();
+      }
+      
       if (result.action === 'added' || result.action === 'removed') {
-        // Trigger haptic feedback ONLY on success
-        if (result.action === 'added') {
-          haptics.success();
-        }
         callbacksRef.current?.onSuccessCallback?.(result.action);
       }
     },
@@ -196,11 +231,9 @@ export const useMessageReactions = (messageId: string) => {
         userId: user?.id,
       });
 
-      // User-friendly error message
       const errorMsg = supaError?.message || 'Errore sconosciuto';
       toast.error(`Like non salvato: ${errorMsg.substring(0, 60)}`);
 
-      // Trigger error callback for visual feedback (shake animation)
       callbacksRef.current?.onErrorCallback?.();
     },
     onSettled: () => {
@@ -216,10 +249,10 @@ export const useMessageReactions = (messageId: string) => {
     .filter(r => r.reaction_type === 'like' && r.user)
     .map(r => r.user as ReactionUser);
 
-  // Wrapper that accepts callbacks
-  const toggleLike = (callbacks?: ToggleLikeCallbacks) => {
+  // Wrapper that accepts mode and callbacks
+  const toggleLike = (mode: 'add' | 'remove', callbacks?: ToggleLikeCallbacks) => {
     callbacksRef.current = callbacks || null;
-    toggleLikeMutation.mutate();
+    toggleLikeMutation.mutate({ mode });
   };
 
   return {
