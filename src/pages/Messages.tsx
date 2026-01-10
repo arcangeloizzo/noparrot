@@ -10,11 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useOnlinePresence } from "@/hooks/useOnlinePresence";
+import { useAuth } from "@/contexts/AuthContext";
+import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { getDisplayUsername } from "@/lib/utils";
 import { toast } from "sonner";
 
 export default function Messages() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: threads = [], isLoading } = useMessageThreads();
   const { data: currentProfile } = useCurrentProfile();
   const { onlineUsers } = useOnlinePresence();
@@ -23,33 +26,65 @@ export default function Messages() {
   const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Fix: Routing intelligente - verifica thread esistente prima di aprire NewMessageSheet
   const handleStartConversation = async (selectedUserIds: string[]) => {
-    if (selectedUserIds.length === 0) return;
+    if (selectedUserIds.length === 0 || !user) return;
     
-    const { data: profiles, error } = await supabase
-      .from('profiles')
-      .select('id, username, full_name, avatar_url')
-      .in('id', selectedUserIds);
+    try {
+      // 1. Prova a creare/ottenere thread (la funzione DB restituisce sempre l'ID)
+      const allParticipants = [user.id, ...selectedUserIds];
+      const { data: threadId, error: threadError } = await supabase.rpc('create_or_get_thread', {
+        participant_ids: allParticipants
+      });
+      
+      if (threadError) {
+        console.error('Error creating/getting thread:', threadError);
+        toast.error('Impossibile avviare la conversazione');
+        return;
+      }
 
-    if (error) {
-      console.error('Error fetching user profiles:', error);
-      toast.error('Impossibile recuperare i profili utente');
-      return;
+      // 2. Verifica se il thread ha già messaggi
+      const { count } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('thread_id', threadId);
+      
+      if (count && count > 0) {
+        // Thread esistente con messaggi → Naviga direttamente
+        navigate(`/messages/${threadId}`);
+        setShowPeoplePicker(false);
+        return;
+      }
+      
+      // 3. Thread nuovo o vuoto → Mostra NewMessageSheet
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('id, username, full_name, avatar_url')
+        .in('id', selectedUserIds);
+
+      if (error) {
+        console.error('Error fetching user profiles:', error);
+        toast.error('Impossibile recuperare i profili utente');
+        return;
+      }
+
+      if (!profiles || profiles.length === 0) {
+        toast.error('Nessun utente trovato');
+        return;
+      }
+
+      const usersData = profiles.map(user => ({
+        ...user,
+        username: getDisplayUsername(user.username)
+      }));
+      
+      setSelectedUsers(usersData);
+      setShowPeoplePicker(false);
+      setShowNewMessage(true);
+    } catch (err) {
+      console.error('Error in handleStartConversation:', err);
+      toast.error('Si è verificato un errore');
     }
-
-    if (!profiles || profiles.length === 0) {
-      toast.error('Nessun utente trovato');
-      return;
-    }
-
-    const usersData = profiles.map(user => ({
-      ...user,
-      username: getDisplayUsername(user.username)
-    }));
-    
-    setSelectedUsers(usersData);
-    setShowPeoplePicker(false);
-    setShowNewMessage(true);
   };
 
   // Filter threads based on search query
@@ -67,7 +102,7 @@ export default function Messages() {
   });
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50">
         <div className="flex items-center justify-between px-4 h-14">
@@ -79,7 +114,7 @@ export default function Messages() {
               <ArrowLeft className="h-5 w-5" />
             </button>
             <span className="font-semibold text-lg">
-              @{getDisplayUsername(currentProfile?.username)}
+              Messaggi
             </span>
           </div>
           <button
@@ -105,7 +140,7 @@ export default function Messages() {
       </header>
 
       {/* Content */}
-      <div className="pb-20">
+      <div>
         {isLoading ? (
           <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
@@ -138,6 +173,19 @@ export default function Messages() {
           />
         )}
       </div>
+
+      {/* Bottom Navigation */}
+      <BottomNavigation 
+        activeTab="messages"
+        onTabChange={(tab) => {
+          if (tab === 'home') navigate('/');
+          else if (tab === 'search') navigate('/search');
+          else if (tab === 'saved') navigate('/saved');
+          else if (tab === 'messages') { /* already here */ }
+        }}
+        onProfileClick={() => navigate('/profile')}
+        onHomeRefresh={() => {}}
+      />
 
       {/* People Picker */}
       <PeoplePicker
