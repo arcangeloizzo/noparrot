@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Send, Plus, ImageIcon, Video, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Send, Camera, ImageIcon } from "lucide-react";
 import { useSendMessage } from "@/hooks/useMessages";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { MediaPreviewTray } from "@/components/media/MediaPreviewTray";
@@ -23,7 +22,6 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizData, setQuizData] = useState<any>(null);
   const [debouncedContent, setDebouncedContent] = useState("");
-  const [showMediaMenu, setShowMediaMenu] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const sendMessage = useSendMessage();
@@ -40,11 +38,14 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
   // Estrai URL solo da contenuto debounced
   const linkUrl = useMemo(() => extractFirstUrl(debouncedContent), [debouncedContent]);
 
-  const handleMediaUpload = useCallback(async (type: 'image' | 'video') => {
+  const handleMediaUpload = useCallback(async (type: 'image' | 'video', capture = false) => {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = type === 'image' ? 'image/*' : 'video/*';
-    input.multiple = true;
+    if (capture) {
+      input.capture = 'environment';
+    }
+    input.multiple = !capture;
     input.onchange = async (e: any) => {
       const files = Array.from(e.target.files || []) as File[];
       if (files.length > 0) {
@@ -52,14 +53,13 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
       }
     };
     input.click();
-    setShowMediaMenu(false);
   }, [uploadMedia]);
 
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 100)}px`;
     }
   }, [content]);
 
@@ -119,7 +119,7 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
 
   return (
     <>
-      <div className="border-t border-white/10 bg-gradient-to-t from-background to-background/95 p-3">
+      <div className="border-t border-white/10 bg-background p-3">
         {uploadedMedia.length > 0 && (
           <div className="mb-3">
             <MediaPreviewTray
@@ -129,72 +129,31 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
           </div>
         )}
 
-        <div className="flex items-end gap-2">
-          {/* Media Menu Button */}
-          <div className="relative">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "flex-shrink-0 rounded-full w-10 h-10",
-                "bg-white/5 hover:bg-white/10 border border-white/10",
-                "transition-all duration-200",
-                showMediaMenu && "bg-primary/20 border-primary/30"
-              )}
-              onClick={() => {
-                haptics.light();
-                setShowMediaMenu(!showMediaMenu);
-              }}
-              disabled={isUploading || isProcessing}
-            >
-              {showMediaMenu ? (
-                <X className="h-5 w-5 text-primary" />
-              ) : (
-                <Plus className="h-5 w-5" />
-              )}
-            </Button>
-
-            {/* Media Options Popup */}
-            {showMediaMenu && (
-              <div className={cn(
-                "absolute bottom-12 left-0 flex gap-2 p-2",
-                "bg-card/95 backdrop-blur-xl rounded-2xl",
-                "border border-white/10 shadow-xl",
-                "animate-scale-in"
-              )}>
-                <button
-                  onClick={() => handleMediaUpload('image')}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-xl",
-                    "bg-white/5 hover:bg-white/10",
-                    "transition-colors",
-                    "border border-white/10"
-                  )}
-                >
-                  <ImageIcon className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm">Foto</span>
-                </button>
-                <button
-                  onClick={() => handleMediaUpload('video')}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-xl",
-                    "bg-white/5 hover:bg-white/10",
-                    "transition-colors",
-                    "border border-white/10"
-                  )}
-                >
-                  <Video className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm">Video</span>
-                </button>
-              </div>
+        <div className="flex items-center gap-2">
+          {/* Camera Button - Blue circle for direct capture */}
+          <button
+            onClick={() => {
+              haptics.light();
+              handleMediaUpload('image', true);
+            }}
+            disabled={isUploading || isProcessing}
+            className={cn(
+              "flex-shrink-0 w-10 h-10 rounded-full",
+              "bg-primary hover:bg-primary/90",
+              "flex items-center justify-center",
+              "transition-all duration-200",
+              "disabled:opacity-50"
             )}
-          </div>
+          >
+            <Camera className="h-5 w-5 text-primary-foreground" />
+          </button>
 
-          {/* Input Field - Pill Shape */}
+          {/* Input Field - Pill with gallery icon inside */}
           <div className={cn(
-            "flex-1 relative bg-white/5 rounded-3xl",
+            "flex-1 flex items-center gap-2",
+            "bg-zinc-800/80 rounded-3xl",
             "border border-white/10 focus-within:border-primary/40",
+            "px-4 py-2",
             "transition-all duration-200"
           )}>
             <textarea
@@ -202,33 +161,48 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Scrivi un messaggio..."
+              placeholder="Messaggio..."
               className={cn(
-                "w-full bg-transparent px-4 py-2.5 text-[15px]",
+                "flex-1 bg-transparent text-[15px]",
                 "resize-none outline-none",
-                "placeholder:text-muted-foreground/60",
-                "min-h-[40px] max-h-[120px]"
+                "placeholder:text-white/40",
+                "min-h-[24px] max-h-[100px]"
               )}
               rows={1}
               disabled={isProcessing || isUploading}
             />
           </div>
 
-          {/* Send Button */}
-          <Button
-            onClick={handleSend}
-            size="icon"
-            disabled={!canSend}
+          {/* Media Gallery Button */}
+          <button
+            onClick={() => {
+              haptics.light();
+              handleMediaUpload('image');
+            }}
+            disabled={isUploading || isProcessing}
             className={cn(
-              "flex-shrink-0 rounded-full w-10 h-10",
-              "bg-gradient-to-r from-primary to-primary/80",
-              "hover:shadow-lg hover:shadow-primary/30 hover:scale-110",
-              "active:scale-90 transition-all duration-200",
-              "disabled:opacity-40 disabled:hover:scale-100 disabled:hover:shadow-none"
+              "flex-shrink-0 p-2.5 rounded-full",
+              "hover:bg-white/10 transition-colors",
+              "disabled:opacity-50"
             )}
           >
-            <Send className="h-4 w-4" />
-          </Button>
+            <ImageIcon className="h-5 w-5 text-white/70" />
+          </button>
+
+          {/* Send Button */}
+          <button
+            onClick={handleSend}
+            disabled={!canSend}
+            className={cn(
+              "flex-shrink-0 p-2.5 rounded-full",
+              "transition-all duration-200",
+              canSend 
+                ? "text-primary hover:bg-primary/10" 
+                : "text-white/30"
+            )}
+          >
+            <Send className="h-5 w-5" />
+          </button>
         </div>
       </div>
 
@@ -284,16 +258,16 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
           <div className="bg-card border border-white/10 rounded-2xl p-6 max-w-sm mx-4 shadow-2xl">
             <p className="text-foreground font-semibold mb-2">Errore</p>
             <p className="text-muted-foreground text-sm mb-4">{quizData.errorMessage}</p>
-            <Button 
+            <button 
               onClick={() => {
                 quizData.onCancel();
                 setShowQuiz(false);
                 setQuizData(null);
               }}
-              className="w-full rounded-xl"
+              className="w-full py-2.5 bg-primary text-primary-foreground rounded-xl font-medium"
             >
               Chiudi
-            </Button>
+            </button>
           </div>
         </div>
       )}
