@@ -57,3 +57,5 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       return null;
   }
 };
+
+export default OnboardingFlow;
