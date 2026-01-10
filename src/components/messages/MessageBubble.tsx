@@ -10,7 +10,6 @@ import { memo, useEffect, useRef, useState } from "react";
 import { fetchArticlePreview } from "@/lib/ai-helpers";
 import { useMessageReactions } from "@/hooks/useMessageReactions";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
-import { haptics } from "@/lib/haptics";
 import {
   Popover,
   PopoverContent,
@@ -36,7 +35,7 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
   const [articlePreview, setArticlePreview] = useState<any>(null);
   const [showActions, setShowActions] = useState(false);
 
-  const bubbleRef = (useRef<HTMLDivElement>(null));
+  const bubbleRef = useRef<HTMLDivElement>(null);
 
   const {
     likes,
@@ -82,44 +81,42 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
     loadPreview();
   }, [message.link_url]);
 
-  const pulseFallback = () => {
+  // Shake animation for error feedback
+  const shakeAnimation = () => {
     if (bubbleRef.current) {
-      // visual fallback for iOS Safari (no Vibration API)
       bubbleRef.current.animate(
-        [{ transform: 'scale(1)' }, { transform: 'scale(0.985)' }, { transform: 'scale(1)' }],
-        { duration: 140, easing: 'ease-out' }
+        [
+          { transform: 'translateX(0)' },
+          { transform: 'translateX(-4px)' },
+          { transform: 'translateX(4px)' },
+          { transform: 'translateX(-4px)' },
+          { transform: 'translateX(0)' },
+        ],
+        { duration: 250, easing: 'ease-in-out' }
       );
     }
   };
 
-  const doHaptic = (kind: 'medium' | 'success') => {
-    // Many iOS browsers don't support navigator.vibrate.
-    const canVibrate = typeof navigator !== 'undefined' && 'vibrate' in navigator;
-    if (canVibrate) {
-      if (kind === 'success') haptics.success();
-      else haptics.medium();
-    } else {
-      pulseFallback();
-    }
-  };
-
-  const handleLike = (e?: React.MouseEvent, kind: 'medium' | 'success' = 'medium') => {
+  const handleLike = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!user) {
-      // useMessageReactions will also toast, but we avoid haptics/animations when logged out
+      // useMessageReactions will toast, we just call it
       toggleLike();
       return;
     }
     if (isLikeMutating) return;
-    doHaptic(kind);
-    toggleLike();
+
+    // Don't trigger haptic here - it's handled in onSuccess callback within the hook
+    toggleLike({
+      onErrorCallback: shakeAnimation,
+    });
   };
 
   // Double tap to like
   const { handleTap } = useDoubleTap({
     onDoubleTap: () => {
       if (!isLiked) {
-        handleLike(undefined, 'success');
+        handleLike();
       }
     },
   });
@@ -128,7 +125,8 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
 
   const handleDoubleTap = () => {
     handleTap();
-    if (!isLiked) {
+    if (!isLiked && user) {
+      // Visual feedback immediately (haptic comes from mutation success)
       setShowHeartAnimation(true);
       setTimeout(() => setShowHeartAnimation(false), 800);
     }
@@ -170,7 +168,7 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
               >
                 <div className="flex gap-1">
                   <button
-                    onClick={(e) => handleLike(e, 'medium')}
+                    onClick={(e) => handleLike(e)}
                     className={cn(
                       'p-2 hover:bg-accent rounded-lg transition-colors',
                       isLiked && 'text-destructive'
@@ -387,7 +385,7 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
               >
                 <div className="flex gap-1">
                   <button
-                    onClick={(e) => handleLike(e, 'medium')}
+                    onClick={(e) => handleLike(e)}
                     className={cn(
                       'p-2 hover:bg-accent rounded-lg transition-colors',
                       isLiked && 'text-destructive'
@@ -425,4 +423,3 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
     </div>
   );
 });
-

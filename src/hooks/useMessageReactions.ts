@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
+import { haptics } from '@/lib/haptics';
 
 export interface ReactionUser {
   id: string;
@@ -17,9 +18,15 @@ export interface MessageReaction {
   user?: ReactionUser;
 }
 
+interface ToggleLikeCallbacks {
+  onSuccessCallback?: (action: 'added' | 'removed') => void;
+  onErrorCallback?: () => void;
+}
+
 export const useMessageReactions = (messageId: string) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const callbacksRef = useRef<ToggleLikeCallbacks | null>(null);
 
   const queryKey = ['message-reactions', messageId] as const;
 
@@ -34,7 +41,15 @@ export const useMessageReactions = (messageId: string) => {
         .select('id, user_id, reaction_type')
         .eq('message_id', messageId);
 
-      if (reactionsError) throw reactionsError;
+      if (reactionsError) {
+        console.error('[useMessageReactions] fetch error', {
+          error: reactionsError,
+          code: reactionsError.code,
+          messageId,
+          userId: user.id,
+        });
+        throw reactionsError;
+      }
       if (!reactions || reactions.length === 0) return [] as MessageReaction[];
 
       const userIds = [...new Set(reactions.map(r => r.user_id))];
@@ -82,7 +97,7 @@ export const useMessageReactions = (messageId: string) => {
     };
   }, [messageId, queryClient, user]);
 
-  const toggleLike = useMutation({
+  const toggleLikeMutation = useMutation({
     mutationFn: async () => {
       if (!user) {
         toast.error('Accedi per mettere like ai messaggi');
@@ -102,7 +117,12 @@ export const useMessageReactions = (messageId: string) => {
           .maybeSingle();
 
         if (res.error) {
-          console.error('[useMessageReactions] delete error', res.error);
+          console.error('[useMessageReactions] delete error', {
+            error: res.error,
+            code: res.error.code,
+            messageId,
+            userId: user.id,
+          });
           throw res.error;
         }
 
@@ -120,7 +140,13 @@ export const useMessageReactions = (messageId: string) => {
         .maybeSingle();
 
       if (res.error) {
-        console.error('[useMessageReactions] insert error', res.error);
+        console.error('[useMessageReactions] insert error', {
+          error: res.error,
+          code: res.error.code,
+          message: res.error.message,
+          messageId,
+          userId: user.id,
+        });
         throw res.error;
       }
 
@@ -149,13 +175,37 @@ export const useMessageReactions = (messageId: string) => {
       queryClient.setQueryData(queryKey, optimistic);
       return { prev };
     },
+    onSuccess: (result) => {
+      if (result.action === 'added' || result.action === 'removed') {
+        // Trigger haptic feedback ONLY on success
+        if (result.action === 'added') {
+          haptics.success();
+        }
+        callbacksRef.current?.onSuccessCallback?.(result.action);
+      }
+    },
     onError: (error, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(queryKey, ctx.prev);
-      console.error('[useMessageReactions] toggleLike failed', error);
-      toast.error('Impossibile salvare il like');
+
+      const supaError = error as { code?: string; message?: string };
+      console.error('[useMessageReactions] toggleLike failed', {
+        error,
+        code: supaError?.code,
+        message: supaError?.message,
+        messageId,
+        userId: user?.id,
+      });
+
+      // User-friendly error message
+      const errorMsg = supaError?.message || 'Errore sconosciuto';
+      toast.error(`Like non salvato: ${errorMsg.substring(0, 60)}`);
+
+      // Trigger error callback for visual feedback (shake animation)
+      callbacksRef.current?.onErrorCallback?.();
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey });
+      callbacksRef.current = null;
     },
   });
 
@@ -166,13 +216,18 @@ export const useMessageReactions = (messageId: string) => {
     .filter(r => r.reaction_type === 'like' && r.user)
     .map(r => r.user as ReactionUser);
 
+  // Wrapper that accepts callbacks
+  const toggleLike = (callbacks?: ToggleLikeCallbacks) => {
+    callbacksRef.current = callbacks || null;
+    toggleLikeMutation.mutate();
+  };
+
   return {
     likes,
     isLiked,
     likeUsers,
-    toggleLike: toggleLike.mutate,
-    isMutating: toggleLike.isPending,
+    toggleLike,
+    isMutating: toggleLikeMutation.isPending,
     isLoading: query.isLoading,
   };
 };
-
