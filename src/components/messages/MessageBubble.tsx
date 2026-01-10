@@ -97,39 +97,47 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
     }
   };
 
+  // Determine mode BEFORE any optimistic update
   const handleLike = (e?: React.MouseEvent) => {
     e?.stopPropagation();
     if (!user) {
-      // useMessageReactions will toast, we just call it
-      toggleLike();
+      // useMessageReactions will toast
+      toggleLike('add');
       return;
     }
     if (isLikeMutating) return;
 
-    // Don't trigger haptic here - it's handled in onSuccess callback within the hook
-    toggleLike({
+    // Mode is determined by current isLiked state BEFORE mutation
+    const mode = isLiked ? 'remove' : 'add';
+    toggleLike(mode, {
       onErrorCallback: shakeAnimation,
     });
   };
 
-  // Double tap to like
+  const [showHeartAnimation, setShowHeartAnimation] = useState(false);
+
+  // Double tap toggles like (add or remove)
   const { handleTap } = useDoubleTap({
     onDoubleTap: () => {
-      if (!isLiked) {
-        handleLike();
+      if (!user) return;
+      if (isLikeMutating) return;
+
+      const mode = isLiked ? 'remove' : 'add';
+      
+      // Show heart animation only when adding
+      if (mode === 'add') {
+        setShowHeartAnimation(true);
+        setTimeout(() => setShowHeartAnimation(false), 800);
       }
+      
+      toggleLike(mode, {
+        onErrorCallback: shakeAnimation,
+      });
     },
   });
 
-  const [showHeartAnimation, setShowHeartAnimation] = useState(false);
-
   const handleDoubleTap = () => {
     handleTap();
-    if (!isLiked && user) {
-      // Visual feedback immediately (haptic comes from mutation success)
-      setShowHeartAnimation(true);
-      setTimeout(() => setShowHeartAnimation(false), 800);
-    }
   };
 
   return (

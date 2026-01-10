@@ -23,6 +23,12 @@ export default function MessageThread() {
   const prevMessageCountRef = useRef(0);
 
   const { data: messages, isLoading } = useMessages(threadId);
+
+  // Reset scroll state when threadId changes (entering a new conversation)
+  useEffect(() => {
+    setIsReady(false);
+    prevMessageCountRef.current = 0;
+  }, [threadId]);
   const { data: threads } = useMessageThreads();
   const markAsRead = useMarkThreadAsRead();
 
