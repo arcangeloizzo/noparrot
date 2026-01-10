@@ -195,9 +195,12 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
           <div className="relative">
             <div
               ref={bubbleRef}
-              onClick={handleDoubleTap}
+              onPointerUp={(e) => {
+                e.preventDefault();
+                handleDoubleTap();
+              }}
               className={cn(
-                'rounded-2xl px-4 py-2.5 cursor-pointer select-none',
+                'rounded-2xl px-4 py-2.5 cursor-pointer select-none touch-manipulation',
                 isSent
                   ? 'bg-primary text-primary-foreground rounded-br-sm'
                   : 'bg-secondary text-secondary-foreground rounded-bl-sm'

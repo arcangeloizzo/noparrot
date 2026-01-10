@@ -40,7 +40,7 @@ export const useMessageReactions = (messageId: string) => {
         .in('id', userIds);
 
       if (profilesError) {
-        console.error('[useMessageReactions] Error fetching profiles:', profilesError);
+        console.error('[useMessageReactions] profiles error', profilesError);
         return reactions.map(r => ({ ...r, user: undefined }));
       }
 
@@ -87,20 +87,36 @@ export const useMessageReactions = (messageId: string) => {
       );
 
       if (existingLike) {
-        const { error } = await supabase
+        const res = await supabase
           .from('message_reactions')
           .delete()
-          .eq('id', existingLike.id);
-        if (error) throw error;
+          .eq('id', existingLike.id)
+          .select('id')
+          .maybeSingle();
+
+        if (res.error) {
+          console.error('[useMessageReactions] delete error', res.error);
+          throw res.error;
+        }
+
         return { action: 'removed' as const };
       }
 
-      const { error } = await supabase.from('message_reactions').insert({
-        message_id: messageId,
-        user_id: user.id,
-        reaction_type: 'like',
-      });
-      if (error) throw error;
+      const res = await supabase
+        .from('message_reactions')
+        .insert({
+          message_id: messageId,
+          user_id: user.id,
+          reaction_type: 'like',
+        })
+        .select('id')
+        .maybeSingle();
+
+      if (res.error) {
+        console.error('[useMessageReactions] insert error', res.error);
+        throw res.error;
+      }
+
       return { action: 'added' as const };
     },
     onMutate: async () => {
@@ -128,7 +144,7 @@ export const useMessageReactions = (messageId: string) => {
     },
     onError: (error, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(queryKey, ctx.prev);
-      console.error('[useMessageReactions] Toggle like error:', error);
+      console.error('[useMessageReactions] toggleLike failed', error);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey });
@@ -138,9 +154,7 @@ export const useMessageReactions = (messageId: string) => {
   const reactions = query.data || [];
   const likes = reactions.filter(r => r.reaction_type === 'like').length;
   const isLiked = reactions.some(r => r.user_id === user?.id && r.reaction_type === 'like');
-  const likeUsers = reactions
-    .filter(r => r.reaction_type === 'like' && r.user)
-    .map(r => r.user as ReactionUser);
+  const likeUsers = reactions.filter(r => r.reaction_type === 'like' && r.user).map(r => r.user as ReactionUser);
 
   return {
     likes,

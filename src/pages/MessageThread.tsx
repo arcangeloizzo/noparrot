@@ -100,8 +100,12 @@ export default function MessageThread() {
   }, [messages]);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'auto') => {
-    // Prefer endRef scrollIntoView (handles async height changes better than scrollTop)
+    // 1) Most robust within nested scroll containers
     messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
+    // 2) Fallback for iOS/webviews where scrollIntoView can be flaky
+    if (containerRef.current) {
+      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+    }
   }, []);
 
 
