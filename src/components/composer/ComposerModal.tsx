@@ -116,10 +116,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     // Gate sui caratteri SOLO per ricondivisioni (quotedPost presente)
     if (quotedPost) {
       const wordCount = getWordCount(content);
-      if (wordCount > 150) {
+      if (wordCount > 120) {
         return { label: 'Gate completo', requiresGate: true };
       }
-      if (wordCount > 50) {
+      if (wordCount > 30) {
         return { label: 'Gate light', requiresGate: true };
       }
     }
