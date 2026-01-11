@@ -34,9 +34,9 @@ export function getTestModeWithSource(userWordCount: number): TestMode {
  * (contenuti originali lunghi)
  */
 export function getQuestionCountWithoutSource(userWordCount: number): 0 | 1 | 3 {
-  if (userWordCount <= 50) {
+  if (userWordCount <= 30) {
     return 0;  // Nessun gate
-  } else if (userWordCount <= 150) {
+  } else if (userWordCount <= 120) {
     return 1;  // Gate light: 1 domanda
   } else {
     return 3;  // Gate completo: 3 domande
