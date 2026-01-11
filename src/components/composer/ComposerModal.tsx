@@ -103,9 +103,12 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
 
-  // Intent gate: require 30+ words when in intent mode
+  // Intent gate: require 30+ words when in intent mode (excluding URL from count)
   const wordCount = getWordCount(content);
-  const intentWordsMet = !intentMode || wordCount >= 30;
+  // For intent mode, exclude the URL from word count so it doesn't count toward 30 words
+  const textWithoutUrl = detectedUrl ? content.replace(detectedUrl, '').trim() : content;
+  const intentWordCount = getWordCount(textWithoutUrl);
+  const intentWordsMet = !intentMode || intentWordCount >= 30;
   const canPublish = (content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!quotedPost) && intentWordsMet;
   const isLoading = isPublishing || isGeneratingQuiz || isFinalizingPublish;
 
@@ -221,26 +224,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       const host = new URL(url).hostname.toLowerCase();
       console.log('[Composer] URL hostname:', host);
       
-      // Force Intent Mode for known unsupported platforms (Instagram, Facebook, TikTok)
-      if (
-        host.includes('instagram.com') ||
-        host.includes('facebook.com') ||
-        host.includes('m.facebook.com') ||
-        host.includes('fb.com') ||
-        host.includes('fb.watch')
-      ) {
-        console.log('[Composer] Intent mode activated for unsupported platform:', host);
-        setIntentMode(true);
-        setUrlPreview({ 
-          url, 
-          platform: 'intent', 
-          contentQuality: 'blocked',
-          title: 'Contenuto non analizzabile',
-          hostname: host 
-        });
-        setIsPreviewLoading(false);
-        return;
-      }
+      // For blocked platforms, we now fetch from edge function to get OpenGraph metadata
+      // The edge function will return success=false but with metadata for the preview card
 
       // Fetch preview - main operation
       const preview = await fetchArticlePreview(url);
@@ -252,11 +237,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         setIntentMode(true);
         setUrlPreview({ 
           url, 
-          platform: 'intent', 
+          platform: preview.platform || 'intent', 
           contentQuality: preview.contentQuality || 'blocked',
+          // Use metadata from OpenGraph if available, fallback to generic title
           title: preview.title || 'Contenuto non analizzabile',
           hostname: host,
-          image: preview.image // Keep image if available
+          image: preview.image, // Image from OpenGraph
+          author: preview.author, // Author from OpenGraph
+          description: preview.description, // Description from OpenGraph
         });
         setIsPreviewLoading(false);
         return;
@@ -308,7 +296,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
       // Intent Mode: Skip reader/quiz, publish directly with user text as source
       if (intentMode) {
-        if (wordCount < 30) {
+        if (intentWordCount < 30) {
           toast.error('Aggiungi almeno 30 parole per pubblicare questo contenuto.');
           return;
         }
@@ -1061,11 +1049,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                   <div className="flex items-center gap-2">
                     <span className={cn(
                       "text-sm font-medium tabular-nums",
-                      wordCount >= 30 ? "text-[hsl(var(--success))]" : "text-muted-foreground"
+                      intentWordCount >= 30 ? "text-[hsl(var(--success))]" : "text-muted-foreground"
                     )}>
-                      {wordCount}/30 parole
+                      {intentWordCount}/30 parole
                     </span>
-                    {wordCount >= 30 && (
+                    {intentWordCount >= 30 && (
                       <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--success))] text-white text-xs">✓</span>
                     )}
                   </div>
