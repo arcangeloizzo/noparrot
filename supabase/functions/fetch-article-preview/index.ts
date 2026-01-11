@@ -677,7 +677,7 @@ serve(async (req) => {
       supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     }
 
-    // Unsupported platforms
+    // Unsupported platforms - still try to get OpenGraph metadata for preview cards
     if (
       hostname.includes('instagram.com') ||
       hostname.includes('facebook.com') ||
@@ -685,16 +685,36 @@ serve(async (req) => {
       hostname.includes('fb.com') ||
       hostname.includes('fb.watch')
     ) {
-      console.log('[Preview] ⛔ Unsupported platform URL:', { originalUrl: url, hostname });
+      console.log('[Preview] ⛔ Unsupported platform - attempting OpenGraph fetch:', { originalUrl: url, hostname });
+      
+      // Try to fetch OpenGraph metadata for preview card display
+      let ogData: any = null;
+      try {
+        ogData = await fetchOpenGraphData(url);
+        console.log('[Preview] OpenGraph result for blocked platform:', ogData ? { title: ogData.title, hasImage: !!ogData.image } : 'null');
+      } catch (err) {
+        console.log('[Preview] OpenGraph fetch failed for blocked platform:', err);
+      }
+      
+      // Determine platform type for UI
+      const platform = hostname.includes('instagram') ? 'instagram' : 'facebook';
+      
       return new Response(
         JSON.stringify({
           success: false,
           error: 'UNSUPPORTED_PLATFORM',
+          contentQuality: 'blocked',
           message: `Questa piattaforma (${hostname}) non è supportata in app.`,
           hostname,
           originalUrl: url,
+          platform,
+          // Include any OpenGraph metadata we could retrieve
+          title: ogData?.title || null,
+          image: ogData?.image || null,
+          description: ogData?.description || null,
+          author: ogData?.author || (hostname.includes('instagram') ? 'Instagram' : 'Facebook'),
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
