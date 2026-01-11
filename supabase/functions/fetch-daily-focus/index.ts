@@ -661,15 +661,20 @@ function validateAndFixSources(deepContent: string, maxSourceIndex: number): str
 
 function cleanTitle(title: string, sources: Array<{ source: string }>): string {
   let cleaned = title;
-  cleaned = cleaned.replace(/\s*[-–—]\s*[^-–—]{3,50}$/i, '').trim();
   
+  // Pattern più sicuro: richiede SPAZIO prima E dopo il trattino
+  // Questo preserva parole composte come "anti-Assad", "euro-scettico", "filo-occidentale"
+  cleaned = cleaned.replace(/\s+[-–—]\s+[^-–—]{3,50}$/i, '').trim();
+  
+  // Rimuovi nomi di fonte espliciti alla fine
   const sourceNames = sources.map(s => s.source.toLowerCase());
   for (const name of sourceNames) {
-    const regex = new RegExp(`\\s*[-–—]?\\s*${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'gi');
+    const regex = new RegExp(`\\s+[-–—]?\\s*${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`, 'gi');
     cleaned = cleaned.replace(regex, '').trim();
   }
   
-  cleaned = cleaned.replace(/\s*[-–—]\s*(secondo|riporta|fonte|via)\s+.+$/i, '').trim();
+  // Pattern tipo "secondo [fonte]" ecc.
+  cleaned = cleaned.replace(/\s+[-–—]\s+(secondo|riporta|fonte|via)\s+.+$/i, '').trim();
   
   return cleaned || title;
 }
