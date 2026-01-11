@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getWordCount, getQuestionCountForIntentReshare } from "@/lib/gate-utils";
 
 interface GateOptions {
   linkUrl: string;
@@ -7,6 +8,8 @@ interface GateOptions {
   setIsProcessing?: (processing: boolean) => void;
   setQuizData?: (data: any) => void;
   setShowQuiz?: (show: boolean) => void;
+  // Intent post reshare: use original text as source
+  intentPostContent?: string;
 }
 
 /**
@@ -19,12 +22,70 @@ export async function runGateBeforeAction({
   onCancel,
   setIsProcessing,
   setQuizData,
-  setShowQuiz
+  setShowQuiz,
+  intentPostContent
 }: GateOptions): Promise<void> {
   try {
     if (setIsProcessing) setIsProcessing(true);
 
-    console.log('[runGateBeforeAction] Starting gate for URL:', linkUrl);
+    console.log('[runGateBeforeAction] Starting gate for URL:', linkUrl, 'isIntentReshare:', !!intentPostContent);
+
+    // INTENT POST RESHARE: Generate questions from original text, not from link
+    if (intentPostContent) {
+      console.log('[runGateBeforeAction] Intent reshare - using original text as source');
+      
+      const originalWordCount = getWordCount(intentPostContent);
+      const questionCount = getQuestionCountForIntentReshare(originalWordCount);
+      
+      console.log('[runGateBeforeAction] Intent reshare:', { originalWordCount, questionCount });
+      
+      // Generate QA from the original post text (the "cognitive source")
+      const { data: qaData, error: qaError } = await supabase.functions.invoke(
+        'generate-qa',
+        { 
+          body: { 
+            title: 'Contenuto condiviso',
+            summary: intentPostContent,
+            excerpt: '',
+            type: 'article',
+            isPrePublish: true,
+            testMode: 'USER_ONLY', // All questions from user text
+            questionCount: questionCount
+          } 
+        }
+      );
+
+      console.log('[runGateBeforeAction] Intent QA response:', { qaData, qaError });
+
+      if (qaError) {
+        console.error('[runGateBeforeAction] Intent QA generation error:', qaError);
+        throw new Error(qaError.message || 'Failed to generate questions');
+      }
+
+      if (!qaData?.questions || !Array.isArray(qaData.questions)) {
+        console.error('[runGateBeforeAction] Invalid Intent questions format:', qaData);
+        throw new Error('Formato domande non valido');
+      }
+
+      console.log('[runGateBeforeAction] Intent - Successfully generated', qaData.questions.length, 'questions');
+
+      // Show quiz modal
+      if (setQuizData && setShowQuiz) {
+        setQuizData({
+          qaId: qaData.qaId,
+          questions: qaData.questions,
+          sourceUrl: linkUrl,
+          onSuccess,
+          onCancel
+        });
+        setShowQuiz(true);
+      } else {
+        onSuccess();
+      }
+      return;
+    }
+
+    // STANDARD FLOW: Fetch article preview and generate questions from source
 
     // 1. Fetch article preview
     const { data: previewData, error: previewError } = await supabase.functions.invoke(

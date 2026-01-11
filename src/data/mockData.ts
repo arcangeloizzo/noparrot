@@ -16,6 +16,7 @@ export interface MockPost {
   trust: "BASSO" | "MEDIO" | "ALTO" | null;
   stance: "Condiviso" | "Confutato" | null;
   category?: string;
+  is_intent?: boolean;
   reactions: {
     heart: number;
     comments: number;

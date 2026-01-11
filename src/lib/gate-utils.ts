@@ -42,3 +42,19 @@ export function getQuestionCountWithoutSource(userWordCount: number): 0 | 1 | 3 
     return 3;  // Gate completo: 3 domande
   }
 }
+
+/**
+ * Determina il numero di domande per reshare di post Intent
+ * Il testo originale del post è la "fonte cognitiva"
+ * @param originalWordCount - parole del testo originale del post Intent
+ */
+export function getQuestionCountForIntentReshare(originalWordCount: number): 1 | 3 {
+  // Per Intent reshare, il gate è sempre attivo (min 30 parole garantite)
+  // 30-120 parole: 1 domanda sul testo originale
+  // >120 parole: 3 domande sul testo originale
+  if (originalWordCount <= 120) {
+    return 1;
+  } else {
+    return 3;
+  }
+}

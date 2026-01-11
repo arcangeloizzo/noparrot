@@ -1171,6 +1171,7 @@ export type Database = {
           embed_html: string | null
           full_article: string | null
           id: string
+          is_intent: boolean
           preview_img: string | null
           quoted_post_id: string | null
           shared_title: string | null
@@ -1192,6 +1193,7 @@ export type Database = {
           embed_html?: string | null
           full_article?: string | null
           id?: string
+          is_intent?: boolean
           preview_img?: string | null
           quoted_post_id?: string | null
           shared_title?: string | null
@@ -1213,6 +1215,7 @@ export type Database = {
           embed_html?: string | null
           full_article?: string | null
           id?: string
+          is_intent?: boolean
           preview_img?: string | null
           quoted_post_id?: string | null
           shared_title?: string | null
