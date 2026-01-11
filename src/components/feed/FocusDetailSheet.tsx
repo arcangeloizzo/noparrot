@@ -512,12 +512,11 @@ export const FocusDetailSheet = ({
           questions={quizData.questions}
           qaId={quizData.qaId}
           onSubmit={async (answers) => {
-            const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-qa`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ qaId: quizData.qaId, answers })
+            const { data, error } = await supabase.functions.invoke('submit-qa', {
+              body: { qaId: quizData.qaId, answers }
             });
-            return res.json();
+            if (error) throw error;
+            return data;
           }}
           onCancel={() => {
             setShowQuiz(false);
