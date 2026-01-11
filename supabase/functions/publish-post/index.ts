@@ -89,6 +89,7 @@ type PublishPostBody = {
   quotedPostId?: string | null
   mediaIds?: string[]
   idempotencyKey?: string | null
+  isIntent?: boolean
 }
 
 Deno.serve(async (req) => {
@@ -258,6 +259,7 @@ Deno.serve(async (req) => {
       article_content: body.articleContent ? String(body.articleContent).substring(0, 10000) : null,
       quoted_post_id: body.quotedPostId ?? null,
       category: null as string | null,
+      is_intent: body.isIntent || false,
     }
 
     console.log(`[publish-post:${reqId}] stage=insert_start contentLen=${insertPayload.content.length}`)

@@ -170,7 +170,24 @@ export const FeedCard = ({
       return;
     }
 
-    // Ha un link: Gate necessario
+    // Intent post: use original text as cognitive source for gate
+    if (post.is_intent) {
+      await runGateBeforeAction({
+        linkUrl: post.url,
+        intentPostContent: post.userComment, // Original text is the source
+        onSuccess: () => {
+          setShowComposer(true);
+          setQuotedPostId(post.id);
+        },
+        onCancel: () => {},
+        setIsProcessing,
+        setQuizData,
+        setShowQuiz
+      });
+      return;
+    }
+
+    // Standard post with link: Gate from URL content
     await runGateBeforeAction({
       linkUrl: post.url,
       onSuccess: () => {
@@ -367,8 +384,16 @@ export const FeedCard = ({
             </DropdownMenu>
           </div>
 
-          {/* Comment */}
-          <div className="cognitive-text-primary text-[15px] leading-5 mb-3 whitespace-pre-wrap">
+          {/* Comment - Quote Block for Intent posts */}
+          <div className={cn(
+            "text-[15px] leading-5 mb-3 whitespace-pre-wrap",
+            post.is_intent && [
+              "border-l-4 border-primary/60",
+              "bg-muted/20 dark:bg-white/5",
+              "p-3 rounded-r-lg",
+              "italic"
+            ]
+          )}>
             {post.userComment.length > 300 && !isExpanded ? (
               <>
                 {post.userComment.slice(0, 300)}...
@@ -377,7 +402,7 @@ export const FeedCard = ({
                     e.stopPropagation();
                     setIsExpanded(true);
                   }}
-                  className="text-primary hover:underline ml-1 font-medium"
+                  className="text-primary hover:underline ml-1 font-medium not-italic"
                 >
                   mostra di più
                 </button>

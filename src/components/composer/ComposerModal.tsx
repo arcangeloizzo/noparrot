@@ -97,12 +97,16 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
   const [showMentions, setShowMentions] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const [intentMode, setIntentMode] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
 
-  const canPublish = content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!quotedPost;
+  // Intent gate: require 30+ words when in intent mode
+  const wordCount = getWordCount(content);
+  const intentWordsMet = !intentMode || wordCount >= 30;
+  const canPublish = (content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!quotedPost) && intentWordsMet;
   const isLoading = isPublishing || isGeneratingQuiz || isFinalizingPublish;
 
   // Gate status indicator (real-time feedback)
@@ -144,6 +148,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     setShowMentions(false);
     setCursorPosition(0);
     setSelectedMentionIndex(0);
+    setIntentMode(false);
     clearMedia();
   };
 
@@ -210,12 +215,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     console.log('[Composer] loadPreview called for:', url);
     setIsPreviewLoading(true);
     setUrlPreview(null);
+    setIntentMode(false); // Reset intent mode on new URL
     
     try {
-      // Block unsupported platforms (Instagram, Facebook) before calling API
       const host = new URL(url).hostname.toLowerCase();
       console.log('[Composer] URL hostname:', host);
       
+      // Force Intent Mode for known unsupported platforms (Instagram, Facebook, TikTok)
       if (
         host.includes('instagram.com') ||
         host.includes('facebook.com') ||
@@ -223,21 +229,36 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         host.includes('fb.com') ||
         host.includes('fb.watch')
       ) {
-        console.log('[Composer] Blocked unsupported platform:', host);
-        toast.error('Instagram e Facebook non sono supportati. Apri il link nel browser.');
-        setDetectedUrl(null);
+        console.log('[Composer] Intent mode activated for unsupported platform:', host);
+        setIntentMode(true);
+        setUrlPreview({ 
+          url, 
+          platform: 'intent', 
+          contentQuality: 'blocked',
+          title: 'Contenuto non analizzabile',
+          hostname: host 
+        });
+        setIsPreviewLoading(false);
         return;
       }
 
       // Fetch preview - main operation
       const preview = await fetchArticlePreview(url);
-      console.log('[Composer] fetchArticlePreview result:', { success: preview?.success, error: preview?.error });
+      console.log('[Composer] fetchArticlePreview result:', { success: preview?.success, error: preview?.error, contentQuality: preview?.contentQuality });
       
-      // Check for errors (now always structured)
-      if (!preview.success) {
-        console.log('[Composer] Preview failed:', preview.error, preview.message);
-        toast.error(preview.message || 'Impossibile caricare l\'anteprima.');
-        setDetectedUrl(null);
+      // Check if content is blocked or minimal - activate Intent Mode
+      if (!preview.success || preview.contentQuality === 'blocked' || preview.contentQuality === 'minimal') {
+        console.log('[Composer] Intent mode activated - content not analyzable:', preview.error || preview.contentQuality);
+        setIntentMode(true);
+        setUrlPreview({ 
+          url, 
+          platform: 'intent', 
+          contentQuality: preview.contentQuality || 'blocked',
+          title: preview.title || 'Contenuto non analizzabile',
+          hostname: host,
+          image: preview.image // Keep image if available
+        });
+        setIsPreviewLoading(false);
         return;
       }
       
@@ -282,6 +303,18 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       // Wait for preview to finish loading
       if (isPreviewLoading) {
         toast.info('Sto caricando l\'anteprima...');
+        return;
+      }
+
+      // Intent Mode: Skip reader/quiz, publish directly with user text as source
+      if (intentMode) {
+        if (wordCount < 30) {
+          toast.error('Aggiungi almeno 30 parole per pubblicare questo contenuto.');
+          return;
+        }
+        console.log('[Composer] Intent mode publish - skipping reader/quiz');
+        addBreadcrumb('intent_mode_publish');
+        await publishPost(true); // Pass isIntent flag
         return;
       }
 
@@ -514,7 +547,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
     }
   };
 
-  const publishPost = async () => {
+  const publishPost = async (isIntentPost = false) => {
     if (!user) return;
 
     setIsPublishing(true);
@@ -605,6 +638,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
             quotedPostId: isQuotingEditorial ? null : (quotedPost?.id || null),
             mediaIds: mediaIdsSnapshot,
             idempotencyKey,
+            isIntent: isIntentPost, // Intent Gate flag
           },
         });
 
@@ -1018,8 +1052,28 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
                 )}
               </div>
               
+              {/* Intent Mode Indicator - word counter */}
+              {intentMode && (
+                <div className="bg-muted/30 border border-border rounded-xl p-3">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Questo contenuto non è leggibile dal sistema. Per condividerlo, aggiungi il tuo punto di vista.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "text-sm font-medium tabular-nums",
+                      wordCount >= 30 ? "text-[hsl(var(--success))]" : "text-muted-foreground"
+                    )}>
+                      {wordCount}/30 parole
+                    </span>
+                    {wordCount >= 30 && (
+                      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--success))] text-white text-xs">✓</span>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               {/* Gate status indicator - outside textarea (no extra helper text) */}
-              {(detectedUrl || quotedPost) && (
+              {(detectedUrl || quotedPost) && !intentMode && (
                 <div className="flex items-center justify-end text-xs">
                   <div className={cn(
                     "flex items-center gap-1.5 px-2 py-1 rounded-full",
