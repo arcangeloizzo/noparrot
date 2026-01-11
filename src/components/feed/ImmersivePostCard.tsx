@@ -986,11 +986,19 @@ export const ImmersivePostCard = ({
           {/* Center Content */}
           <div className="flex-1 flex flex-col justify-center px-2 pt-4 sm:pt-2">
             
-            {/* Stack Layout: User comment first (normal text, not bold) - hide if same as shared_title */}
+            {/* Stack Layout: User comment first - Quote Block style for Intent posts */}
             {useStackLayout && post.content && post.content !== post.shared_title && (
-              <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-4">
+              <div className={cn(
+                "text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-4",
+                post.is_intent && [
+                  "border-l-4 border-primary/60",
+                  "bg-white/5 backdrop-blur-sm",
+                  "px-4 py-3 rounded-r-lg",
+                  "italic"
+                ]
+              )}>
                 <MentionText content={post.content} />
-              </h2>
+              </div>
             )}
 
             {/* Stack Layout: show context stack (reshare chain) for ALL reshares */}

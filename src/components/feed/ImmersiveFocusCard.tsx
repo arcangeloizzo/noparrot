@@ -222,12 +222,14 @@ export const ImmersiveFocusCard = ({
             {summary.replace(/\[SOURCE:[\d,\s]+\]/g, '')}
           </p>
           
-          {/* Sources Tag */}
+          {/* Sources Tag - sorted by name length (shortest first) */}
           {sources.length > 0 && (
             <div className="flex items-center gap-2">
-              <button className="inline-flex items-center px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full text-xs text-white/80 font-medium border border-white/10">
-                {sources[0]?.name?.toLowerCase() || 'fonti'}
-                {sources.length > 1 && ` +${sources.length - 1}`}
+              <button className="inline-flex items-center px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full text-xs text-white/80 font-medium border border-white/10 max-w-[180px]">
+                <span className="truncate">
+                  {[...sources].sort((a, b) => (a.name?.length || 0) - (b.name?.length || 0))[0]?.name?.toLowerCase() || 'fonti'}
+                </span>
+                {sources.length > 1 && <span className="flex-shrink-0 ml-1">+{sources.length - 1}</span>}
               </button>
             </div>
           )}
