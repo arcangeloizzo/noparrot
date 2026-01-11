@@ -67,10 +67,10 @@ export function useBlockTracking({
       }
     }
 
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = processedHtml;
-
-    const elements = tempDiv.querySelectorAll('p, h1, h2, h3, h4, h5, h6, blockquote, pre, ul, ol');
+    // Use DOMParser instead of innerHTML to prevent XSS attacks
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(processedHtml, 'text/html');
+    const elements = doc.querySelectorAll('p, h1, h2, h3, h4, h5, h6, blockquote, pre, ul, ol');
     const newBlocks: ContentBlock[] = [];
 
     elements.forEach((el, index) => {
