@@ -174,15 +174,38 @@ export default function ConsentScreen({ onComplete }: ConsentScreenProps) {
           </div>
         </div>
 
-        {/* Continue button */}
-        <Button
-          onClick={handleContinue}
-          disabled={!termsAccepted || isSubmitting}
-          className="w-full h-14 mt-8 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-full text-base"
-          size="lg"
-        >
-          {isSubmitting ? "Salvataggio..." : "Crea il tuo account"}
-        </Button>
+        {/* Continue buttons - dual options */}
+        <div className="mt-8 space-y-3">
+          <Button
+            onClick={handleContinue}
+            disabled={!termsAccepted || isSubmitting}
+            className="w-full h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-full text-base"
+            size="lg"
+          >
+            {isSubmitting ? "Salvataggio..." : "Crea il tuo account"}
+          </Button>
+          
+          <button
+            onClick={() => {
+              // Save pending consents before navigating to login
+              if (termsAccepted) {
+                savePendingConsent({
+                  accepted_terms: true,
+                  accepted_privacy: true,
+                  ads_personalization_opt_in: adsOptIn,
+                  consent_version: "2.0",
+                });
+                localStorage.setItem('noparrot-pending-cognitive-opt-in', JSON.stringify(cognitiveOptIn));
+                setConsentCompleted();
+              }
+              navigate("/auth?mode=login", { replace: true });
+            }}
+            disabled={!termsAccepted}
+            className="w-full text-center text-primary hover:underline text-sm font-medium py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Hai già un account? Accedi
+          </button>
+        </div>
       </div>
     </div>
   );

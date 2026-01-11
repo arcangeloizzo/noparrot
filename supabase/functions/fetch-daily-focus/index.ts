@@ -574,15 +574,10 @@ async function findValidNewsItem(
       const imageUrl = extractImage(itemXml);
       const relatedArticles = await searchRelatedArticles(mainTitle);
       
-      if (relatedArticles.length === 0) {
-        const mainLink = extractText(itemXml, 'link') || '';
-        const mainSource = extractSourceName(itemXml, mainTitle);
-        return {
-          mainTitle,
-          articles: [{ title: mainTitle, source: mainSource, link: mainLink }],
-          imageUrl,
-          classification: { topic_cluster, angle_tag, fingerprint }
-        };
+      // MINIMUM 2 SOURCES ENFORCEMENT
+      if (relatedArticles.length < 2) {
+        console.log(`[Dedup] SKIP (only ${relatedArticles.length} source, need ≥2): ${mainTitle.substring(0, 50)}...`);
+        continue; // Skip to next RSS item
       }
       
       return {
@@ -600,15 +595,10 @@ async function findValidNewsItem(
     const imageUrl = extractImage(itemXml);
     const relatedArticles = await searchRelatedArticles(mainTitle);
     
-    if (relatedArticles.length === 0) {
-      const mainLink = extractText(itemXml, 'link') || '';
-      const mainSource = extractSourceName(itemXml, mainTitle);
-      return {
-        mainTitle,
-        articles: [{ title: mainTitle, source: mainSource, link: mainLink }],
-        imageUrl,
-        classification: { topic_cluster, angle_tag, fingerprint }
-      };
+    // MINIMUM 2 SOURCES ENFORCEMENT
+    if (relatedArticles.length < 2) {
+      console.log(`[Dedup] SKIP (only ${relatedArticles.length} source, need ≥2): ${mainTitle.substring(0, 50)}...`);
+      continue; // Skip to next RSS item
     }
     
     return {

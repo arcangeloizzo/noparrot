@@ -363,6 +363,11 @@
     @apply border-border;
   }
 
+  html, body {
+    overscroll-behavior: none;
+    background-color: #000;
+  }
+
   body {
     /* Deep Space Background con sottili rifrazioni blu */
     background: 

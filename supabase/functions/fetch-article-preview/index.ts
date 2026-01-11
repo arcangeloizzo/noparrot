@@ -677,7 +677,7 @@ serve(async (req) => {
       supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     }
 
-    // Unsupported platforms - still try to get OpenGraph metadata for preview cards
+    // Unsupported platforms - try Jina first for better metadata, fallback to OpenGraph
     if (
       hostname.includes('instagram.com') ||
       hostname.includes('facebook.com') ||
@@ -685,19 +685,32 @@ serve(async (req) => {
       hostname.includes('fb.com') ||
       hostname.includes('fb.watch')
     ) {
-      console.log('[Preview] ⛔ Unsupported platform - attempting OpenGraph fetch:', { originalUrl: url, hostname });
+      console.log('[Preview] ⛔ Unsupported platform - attempting metadata fetch:', { originalUrl: url, hostname });
       
-      // Try to fetch OpenGraph metadata for preview card display
-      let ogData: any = null;
+      const platform = hostname.includes('instagram') ? 'instagram' : 'facebook';
+      
+      // Try Jina AI first for better Instagram/Facebook metadata
+      let jinaData: any = null;
       try {
-        ogData = await fetchOpenGraphData(url);
-        console.log('[Preview] OpenGraph result for blocked platform:', ogData ? { title: ogData.title, hasImage: !!ogData.image } : 'null');
+        jinaData = await fetchSocialWithJina(url, platform);
+        console.log('[Preview] Jina result for blocked platform:', jinaData ? { title: jinaData.title, hasImage: !!jinaData.image } : 'null');
       } catch (err) {
-        console.log('[Preview] OpenGraph fetch failed for blocked platform:', err);
+        console.log('[Preview] Jina fetch failed for blocked platform:', err);
       }
       
-      // Determine platform type for UI
-      const platform = hostname.includes('instagram') ? 'instagram' : 'facebook';
+      // Fallback to OpenGraph if Jina failed
+      let ogData: any = null;
+      if (!jinaData || !jinaData.title) {
+        try {
+          ogData = await fetchOpenGraphData(url);
+          console.log('[Preview] OpenGraph result for blocked platform:', ogData ? { title: ogData.title, hasImage: !!ogData.image } : 'null');
+        } catch (err) {
+          console.log('[Preview] OpenGraph fetch failed for blocked platform:', err);
+        }
+      }
+      
+      // Merge best available metadata
+      const mergedData = jinaData || ogData || {};
       
       return new Response(
         JSON.stringify({
@@ -708,11 +721,11 @@ serve(async (req) => {
           hostname,
           originalUrl: url,
           platform,
-          // Include any OpenGraph metadata we could retrieve
-          title: ogData?.title || null,
-          image: ogData?.image || null,
-          description: ogData?.description || null,
-          author: ogData?.author || (hostname.includes('instagram') ? 'Instagram' : 'Facebook'),
+          // Include best available metadata
+          title: mergedData.title || null,
+          image: mergedData.image || mergedData.previewImg || null,
+          description: mergedData.description || mergedData.summary || null,
+          author: mergedData.author || (platform === 'instagram' ? 'Instagram' : 'Facebook'),
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

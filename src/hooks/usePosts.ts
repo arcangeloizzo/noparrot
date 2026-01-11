@@ -63,6 +63,7 @@ export interface Post {
     correct_index: number;
   }>;
   shares_count?: number;
+  is_intent?: boolean;
 }
 
 export const usePosts = () => {
@@ -137,6 +138,7 @@ export const usePosts = () => {
         category: post.category || null,
         quoted_post: post.quoted_post || null,
         shares_count: post.shares_count ?? 0,
+        is_intent: post.is_intent ?? false,
         media: (post.post_media || [])
           .sort((a: any, b: any) => a.order_idx - b.order_idx)
           .map((pm: any) => pm.media)
