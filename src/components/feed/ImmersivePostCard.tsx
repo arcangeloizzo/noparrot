@@ -849,11 +849,15 @@ export const ImmersivePostCard = ({
           </div>
         ) : (
           <>
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/90 z-0" />
+            {/* Base background - deep blue for posts without images, gradient overlay for posts with images */}
+            <div className={cn(
+              "absolute inset-0",
+              backgroundImage ? "bg-gradient-to-b from-black/50 via-black/30 to-black/80" : "bg-[#1F3347]"
+            )} />
             {backgroundImage && (
               <img 
                 src={backgroundImage} 
-                className="absolute inset-0 w-full h-full object-cover opacity-60 blur-2xl scale-110 z-[-1]" 
+                className="absolute inset-0 w-full h-full object-cover opacity-50 blur-2xl scale-110 -z-10" 
                 alt=""
               />
             )}
@@ -998,6 +1002,15 @@ export const ImmersivePostCard = ({
                 ]
               )}>
                 <MentionText content={post.content} />
+              </div>
+            )}
+            
+            {/* Intent Post (non-stack): Quote Block style for posts with is_intent flag */}
+            {!useStackLayout && post.is_intent && post.content && (
+              <div className="border-l-4 border-primary/60 bg-white/5 backdrop-blur-sm px-4 py-3 rounded-r-lg mb-4">
+                <p className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md italic">
+                  <MentionText content={post.content} />
+                </p>
               </div>
             )}
 
