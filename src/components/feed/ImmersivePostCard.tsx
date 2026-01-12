@@ -849,18 +849,19 @@ export const ImmersivePostCard = ({
           </div>
         ) : (
           <>
-            {/* Base background - deep blue for posts without images, gradient overlay for posts with images */}
-            <div className={cn(
-              "absolute inset-0",
-              backgroundImage ? "bg-gradient-to-b from-black/50 via-black/30 to-black/80" : "bg-[#1F3347]"
-            )} />
+            {/* Blurred background image - behind everything */}
             {backgroundImage && (
               <img 
                 src={backgroundImage} 
-                className="absolute inset-0 w-full h-full object-cover opacity-50 blur-2xl scale-110 -z-10" 
+                className="absolute inset-0 w-full h-full object-cover opacity-60 blur-2xl scale-110" 
                 alt=""
               />
             )}
+            {/* Gradient overlay on top of image, or solid color if no image */}
+            <div className={cn(
+              "absolute inset-0",
+              backgroundImage ? "bg-gradient-to-b from-black/40 via-black/20 to-black/80" : "bg-[#1F3347]"
+            )} />
           </>
         )}
 
@@ -997,8 +998,7 @@ export const ImmersivePostCard = ({
                 post.is_intent && [
                   "border-l-4 border-primary/60",
                   "bg-white/5 backdrop-blur-sm",
-                  "px-4 py-3 rounded-r-lg",
-                  "italic"
+                  "px-4 py-3 rounded-r-lg"
                 ]
               )}>
                 <MentionText content={post.content} />
@@ -1007,8 +1007,8 @@ export const ImmersivePostCard = ({
             
             {/* Intent Post (non-stack): Quote Block style for posts with is_intent flag */}
             {!useStackLayout && post.is_intent && post.content && (
-              <div className="border-l-4 border-primary/60 bg-white/5 backdrop-blur-sm px-4 py-3 rounded-r-lg mb-4">
-                <p className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md italic">
+              <div className="border-l-4 border-primary/60 bg-white/5 backdrop-blur-sm px-4 py-3 rounded-r-lg mb-6">
+                <p className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md">
                   <MentionText content={post.content} />
                 </p>
               </div>
@@ -1020,7 +1020,8 @@ export const ImmersivePostCard = ({
             )}
 
             {/* User Text Content - Show for link posts (if different from article title) - NON stack layout */}
-            {!useStackLayout && shouldShowUserText && (
+            {/* User Text - Skip for intent posts (already rendered above) */}
+            {!useStackLayout && shouldShowUserText && !post.is_intent && (
               post.content.length > 400 ? (
                 <div className="mb-6">
                   <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md">
