@@ -21,17 +21,13 @@ webpush.setVapidDetails(
 
 // Validate that request comes from internal source (DB trigger or service role)
 function isInternalRequest(req: Request): boolean {
-  // Check for service role key in authorization header
   const authHeader = req.headers.get('authorization') || '';
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
   
-  // DB triggers use service role, so we verify the key matches
   if (authHeader.includes(supabaseServiceKey) && supabaseServiceKey.length > 20) {
     return true;
   }
   
-  // Also allow if it's a POST from the same origin (internal function call)
-  // This handles cases where net.http_post is used from DB triggers
   const origin = req.headers.get('origin') || '';
   const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
   if (origin && supabaseUrl && origin.includes(new URL(supabaseUrl).hostname)) {
@@ -52,6 +48,16 @@ function validateUUID(id: string | undefined | null): boolean {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return uuidRegex.test(id);
 }
+
+// Map notification type to profile preference field
+const notificationTypeToField: Record<string, string> = {
+  'like': 'notifications_likes_enabled',
+  'comment': 'notifications_comments_enabled',
+  'mention': 'notifications_mentions_enabled',
+  'follow': 'notifications_follows_enabled',
+  'reshare': 'notifications_reshares_enabled',
+  'message_like': 'notifications_likes_enabled',
+};
 
 async function sendPushNotification(
   subscription: { endpoint: string; p256dh: string; auth: string },
@@ -102,8 +108,6 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Security: Validate request comes from internal source
-    // This endpoint is called by DB triggers, not directly by users
-    // We don't block but log warning for monitoring
     if (!isInternalRequest(req)) {
       console.warn('[Push] ⚠️ Request from non-internal source - proceeding with caution');
     }
@@ -147,7 +151,27 @@ serve(async (req) => {
     let notificationPayload: object;
 
     if (body.type === 'notification') {
-      // Standard notification (like, comment, mention, follow)
+      // Check user notification preferences BEFORE sending
+      const notificationType = body.notification_type;
+      const preferenceField = notificationTypeToField[notificationType];
+      
+      if (preferenceField) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select(preferenceField)
+          .eq('id', body.user_id)
+          .single();
+        
+        if (profileError) {
+          console.error('[Push] Error fetching user preferences:', profileError);
+        } else if (profile && profile[preferenceField] === false) {
+          console.log(`[Push] User ${body.user_id} has disabled ${notificationType} notifications - skipping`);
+          return new Response(JSON.stringify({ success: true, sent: 0, reason: 'disabled_by_user' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+      
       targetUserIds = [body.user_id];
       
       // Get actor info
@@ -164,7 +188,6 @@ serve(async (req) => {
       
       switch (body.notification_type) {
         case 'like':
-          // Distingui tra like al post e like al commento
           if (body.comment_id) {
             title = `${actorName} ha messo like al tuo commento`;
           } else {
@@ -177,7 +200,6 @@ serve(async (req) => {
           url = body.post_id ? `/post/${body.post_id}` : '/notifications';
           break;
         case 'mention':
-          // Distingui tra menzione in post e menzione in commento
           if (body.comment_id) {
             title = `${actorName} ti ha taggato in un commento`;
           } else {
@@ -188,6 +210,10 @@ serve(async (req) => {
         case 'follow':
           title = `${actorName} ha iniziato a seguirti`;
           url = `/user/${body.actor_id}`;
+          break;
+        case 'reshare':
+          title = `${actorName} ha condiviso il tuo post`;
+          url = body.post_id ? `/post/${body.post_id}` : '/notifications';
           break;
         default:
           title = `${actorName} ha interagito con te`;
@@ -203,14 +229,33 @@ serve(async (req) => {
       };
       
     } else if (body.type === 'message') {
-      // DM notification
+      // DM notification - check user preference first
       const { data: participants } = await supabase
         .from('thread_participants')
         .select('user_id')
         .eq('thread_id', body.thread_id)
         .neq('user_id', body.sender_id);
       
-      targetUserIds = participants?.map(p => p.user_id) || [];
+      const potentialUserIds = participants?.map(p => p.user_id) || [];
+      
+      // Check message notification preferences for each user
+      if (potentialUserIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, notifications_messages_enabled')
+          .in('id', potentialUserIds);
+        
+        // Filter to only users who have messages enabled (or default true)
+        targetUserIds = potentialUserIds.filter(userId => {
+          const profile = profiles?.find(p => p.id === userId);
+          return profile?.notifications_messages_enabled !== false;
+        });
+        
+        const skipped = potentialUserIds.length - targetUserIds.length;
+        if (skipped > 0) {
+          console.log(`[Push] Skipping ${skipped} users who disabled message notifications`);
+        }
+      }
       
       // Get sender info
       const { data: sender } = await supabase
@@ -229,7 +274,6 @@ serve(async (req) => {
         body: messagePreview || '',
         icon: sender?.avatar_url || '/lovable-uploads/feed-logo.png',
         badge: '/lovable-uploads/feed-logo.png',
-        // Tag univoco con message_id per evitare collapsing di messaggi diversi
         tag: `message-${body.thread_id}-${body.message_id}`,
         data: { 
           url: `/messages/${body.thread_id}`, 
@@ -240,7 +284,6 @@ serve(async (req) => {
       
     } else if (body.type === 'editorial') {
       // Editorial notification - broadcast only to users who have it enabled
-      // Step 1: Get users with editorial notifications enabled
       const { data: enabledProfiles } = await supabase
         .from('profiles')
         .select('id')
@@ -255,13 +298,11 @@ serve(async (req) => {
         });
       }
       
-      // Step 2: Get subscriptions for these users
       const { data: userSubscriptions } = await supabase
         .from('push_subscriptions')
         .select('user_id')
         .in('user_id', enabledUserIds);
       
-      // Deduplicate user IDs
       targetUserIds = [...new Set(userSubscriptions?.map(s => s.user_id) || [])];
       
       console.log(`[Push] Editorial broadcast to ${targetUserIds.length} users (${enabledUserIds.length} enabled, ${userSubscriptions?.length || 0} subscriptions)`);
@@ -306,7 +347,8 @@ serve(async (req) => {
     console.log(`[Push] Found ${subscriptions?.length || 0} subscriptions for ${targetUserIds.length} users`);
 
     if (!subscriptions || subscriptions.length === 0) {
-      return new Response(JSON.stringify({ success: true, sent: 0 }), {
+      console.log('[Push] No subscriptions found for target users');
+      return new Response(JSON.stringify({ success: true, sent: 0, reason: 'no_subscriptions' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }

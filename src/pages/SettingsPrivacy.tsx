@@ -1,4 +1,4 @@
-import { ArrowLeft, FileText, Scale, Trash2, Shield, Brain, Megaphone, Sparkles, Download, Cookie, Bell } from "lucide-react";
+import { ArrowLeft, FileText, Scale, Trash2, Shield, Brain, Megaphone, Sparkles, Download, Cookie, Bell, RefreshCw, Heart, MessageCircle, AtSign, UserPlus, Mail, Repeat2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -23,7 +23,9 @@ import { useUserConsents, useToggleAdsPersonalization } from "@/hooks/useUserCon
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useCognitiveTracking } from "@/hooks/useCognitiveTracking";
 import { useExportUserData } from "@/hooks/useExportUserData";
-import { useToggleEditorialNotifications } from "@/hooks/useToggleEditorialNotifications";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useNotificationPreferences, NotificationPreferenceField } from "@/hooks/useNotificationPreferences";
+
 export default function SettingsPrivacy() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -32,7 +34,16 @@ export default function SettingsPrivacy() {
   const toggleAds = useToggleAdsPersonalization();
   const { toggleTracking } = useCognitiveTracking();
   const { exportData, isExporting } = useExportUserData();
-  const toggleEditorial = useToggleEditorialNotifications();
+  const { toggle: toggleNotification } = useNotificationPreferences();
+  const { 
+    permission, 
+    isSupported, 
+    isSubscribed, 
+    requestPermission, 
+    forceSync,
+    isIOS,
+    isPWA 
+  } = usePushNotifications();
 
   const handleDeleteAccount = async () => {
     if (!user) return;
@@ -70,6 +81,53 @@ export default function SettingsPrivacy() {
       // Error already handled in hook
     }
   };
+
+  const handleNotificationToggle = (field: NotificationPreferenceField) => (checked: boolean) => {
+    toggleNotification.mutate({ field, enabled: checked });
+  };
+
+  const handleForceSync = async () => {
+    toast.info("Sincronizzazione in corso...");
+    const success = await forceSync();
+    if (success) {
+      toast.success("Notifiche push sincronizzate!");
+    } else {
+      toast.error("Errore durante la sincronizzazione");
+    }
+  };
+
+  // Push status indicator
+  const getPushStatus = () => {
+    if (!isSupported) {
+      if (isIOS && !isPWA) {
+        return { status: 'ios-browser', label: 'Installa l\'app per ricevere notifiche', color: 'text-amber-500' };
+      }
+      return { status: 'unsupported', label: 'Non supportato', color: 'text-muted-foreground' };
+    }
+    if (permission === 'denied') {
+      return { status: 'denied', label: 'Bloccate dal browser', color: 'text-destructive' };
+    }
+    if (permission === 'default') {
+      return { status: 'not-requested', label: 'Non attivate', color: 'text-amber-500' };
+    }
+    if (isSubscribed) {
+      return { status: 'active', label: 'Attive ✓', color: 'text-green-500' };
+    }
+    return { status: 'permission-granted', label: 'Sincronizzazione richiesta', color: 'text-amber-500' };
+  };
+
+  const pushStatus = getPushStatus();
+
+  // Notification preference items
+  const notificationPrefs = [
+    { field: 'editorial_notifications_enabled' as NotificationPreferenceField, label: 'Il Punto (editoriali)', description: 'Nuovi editoriali alle 08:30, 14:30, 20:30', icon: Bell, value: profile?.editorial_notifications_enabled ?? true },
+    { field: 'notifications_likes_enabled' as NotificationPreferenceField, label: 'Like', description: 'Quando qualcuno mette like ai tuoi contenuti', icon: Heart, value: (profile as any)?.notifications_likes_enabled ?? true },
+    { field: 'notifications_comments_enabled' as NotificationPreferenceField, label: 'Commenti', description: 'Quando qualcuno commenta i tuoi post', icon: MessageCircle, value: (profile as any)?.notifications_comments_enabled ?? true },
+    { field: 'notifications_mentions_enabled' as NotificationPreferenceField, label: 'Menzioni', description: 'Quando qualcuno ti tagga', icon: AtSign, value: (profile as any)?.notifications_mentions_enabled ?? true },
+    { field: 'notifications_follows_enabled' as NotificationPreferenceField, label: 'Nuovi follower', description: 'Quando qualcuno inizia a seguirti', icon: UserPlus, value: (profile as any)?.notifications_follows_enabled ?? true },
+    { field: 'notifications_messages_enabled' as NotificationPreferenceField, label: 'Messaggi', description: 'Quando ricevi un messaggio privato', icon: Mail, value: (profile as any)?.notifications_messages_enabled ?? true },
+    { field: 'notifications_reshares_enabled' as NotificationPreferenceField, label: 'Condivisioni', description: 'Quando qualcuno condivide il tuo post', icon: Repeat2, value: (profile as any)?.notifications_reshares_enabled ?? true },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -129,24 +187,67 @@ export default function SettingsPrivacy() {
               <Bell className="w-5 h-5 text-amber-400" />
               <h2 className="text-lg font-semibold">Notifiche</h2>
             </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Gestisci le notifiche push che ricevi dall'app.
-            </p>
-            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border">
+            
+            {/* Push Status */}
+            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border mb-4">
               <div className="space-y-1 flex-1 mr-4">
-                <Label htmlFor="editorial-notifications" className="text-sm font-medium cursor-pointer">
-                  Notifiche Il Punto
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Ricevi una notifica quando viene pubblicato un nuovo editoriale (08:30, 14:30, 20:30)
-                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">Stato notifiche push:</span>
+                  <span className={`text-sm font-medium ${pushStatus.color}`}>
+                    {pushStatus.label}
+                  </span>
+                </div>
+                {pushStatus.status === 'denied' && (
+                  <p className="text-xs text-muted-foreground">
+                    Abilita le notifiche nelle impostazioni del browser
+                  </p>
+                )}
               </div>
-              <Switch
-                id="editorial-notifications"
-                checked={profile?.editorial_notifications_enabled ?? true}
-                onCheckedChange={(checked) => toggleEditorial.mutate(checked)}
-                disabled={profileLoading || toggleEditorial.isPending}
-              />
+              {pushStatus.status === 'not-requested' && (
+                <Button size="sm" onClick={requestPermission}>
+                  Attiva
+                </Button>
+              )}
+              {(pushStatus.status === 'active' || pushStatus.status === 'permission-granted') && (
+                <Button size="sm" variant="outline" onClick={handleForceSync}>
+                  <RefreshCw className="w-4 h-4 mr-1" />
+                  Sincronizza
+                </Button>
+              )}
+            </div>
+
+            <p className="text-sm text-muted-foreground mb-4">
+              Scegli quali notifiche push vuoi ricevere.
+            </p>
+
+            <div className="space-y-2">
+              {notificationPrefs.map((pref) => {
+                const Icon = pref.icon;
+                return (
+                  <div 
+                    key={pref.field}
+                    className="flex items-center justify-between p-3 bg-muted/20 rounded-lg border border-border/50"
+                  >
+                    <div className="flex items-center gap-3 flex-1 mr-4">
+                      <Icon className="w-4 h-4 text-muted-foreground" />
+                      <div className="space-y-0.5">
+                        <Label htmlFor={pref.field} className="text-sm font-medium cursor-pointer">
+                          {pref.label}
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          {pref.description}
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      id={pref.field}
+                      checked={pref.value}
+                      onCheckedChange={handleNotificationToggle(pref.field)}
+                      disabled={profileLoading || toggleNotification.isPending}
+                    />
+                  </div>
+                );
+              })}
             </div>
           </Card>
 
