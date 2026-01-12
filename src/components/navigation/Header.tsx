@@ -32,10 +32,8 @@ export const Header = ({ variant = "default" }: HeaderProps) => {
         : "cognitive-header liquid-glass-navbar border-b-0"
     )}>
       <div className="container flex h-14 max-w-screen-xl items-center justify-center px-4 relative">
-        {/* Logo centrale con container Milky Glass premium */}
-        <div className="logo-container flex items-center justify-center px-5 py-2 rounded-full bg-gradient-to-b from-white/15 to-white/5 backdrop-blur-xl border border-white/20 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1),_0_4px_20px_rgba(0,0,0,0.3)]">
-          <Logo variant="white-extended" size="md" className="h-7" />
-        </div>
+        {/* Logo centrale */}
+        <Logo variant="extended" size="md" className="h-7" />
 
         {/* Icona notifiche a destra (posizione assoluta) */}
         <div className="absolute right-4 top-1/2 -translate-y-1/2">

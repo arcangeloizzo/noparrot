@@ -4,6 +4,7 @@ import { UnanalyzableBadge } from "@/components/ui/unanalyzable-badge";
 
 interface SourceImageWithFallbackProps {
   src: string | undefined | null;
+  sharedUrl?: string;
   isIntent?: boolean;
   trustScore?: {
     band: "ALTO" | "MEDIO" | "BASSO";
@@ -14,19 +15,30 @@ interface SourceImageWithFallbackProps {
 
 export function SourceImageWithFallback({ 
   src, 
+  sharedUrl,
   isIntent, 
   trustScore 
 }: SourceImageWithFallbackProps) {
   const [imageStatus, setImageStatus] = useState<'loading' | 'valid' | 'error'>('loading');
+
+  // Check if the shared URL is from Instagram - never show images for Instagram posts
+  const isInstagramPost = sharedUrl?.includes('instagram.com') || sharedUrl?.includes('instagram');
 
   // Check if URL is from Instagram/Meta CDN (these always expire)
   const isMetaCdnUrl = (url: string) => 
     url.includes('cdninstagram.com') || 
     url.includes('scontent') ||
     url.includes('fbcdn.net') ||
-    url.includes('instagram.com');
+    url.includes('instagram.com') ||
+    url.includes('instagram');
 
   useEffect(() => {
+    // Never show images for Instagram posts
+    if (isInstagramPost) {
+      setImageStatus('error');
+      return;
+    }
+
     if (!src) {
       setImageStatus('error');
       return;
@@ -75,10 +87,10 @@ export function SourceImageWithFallback({
       img.onload = null;
       img.onerror = null;
     };
-  }, [src]);
+  }, [src, isInstagramPost]);
 
-  // Don't render if no src or image failed validation
-  if (!src || imageStatus === 'error') {
+  // Don't render if no src, image failed, or it's an Instagram post
+  if (!src || imageStatus === 'error' || isInstagramPost) {
     return null;
   }
   

@@ -1590,6 +1590,7 @@ export const ImmersivePostCard = ({
                   {/* Source Image - with error handling for broken images */}
                   <SourceImageWithFallback
                     src={articlePreview?.image || finalSourceImage}
+                    sharedUrl={finalSourceUrl}
                     isIntent={post.is_intent}
                     trustScore={displayTrustScore}
                   />
