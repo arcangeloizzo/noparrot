@@ -712,19 +712,22 @@ serve(async (req) => {
       // Merge best available metadata
       const mergedData = jinaData || ogData || {};
       
+      // Return success: true with gateBlocked flag and extracted metadata
+      // This allows the client to display the metadata (title, image, author)
+      // while blocking the comprehension gate (user must use Intent Gate instead)
       return new Response(
         JSON.stringify({
-          success: false,
-          error: 'UNSUPPORTED_PLATFORM',
+          success: true, // Allow metadata to be displayed
+          gateBlocked: true, // Signal that comprehension gate cannot be applied
           contentQuality: 'blocked',
-          message: `Questa piattaforma (${hostname}) non è supportata in app.`,
+          message: `Questa piattaforma (${hostname}) non supporta il gate di comprensione.`,
           hostname,
           originalUrl: url,
           platform,
           // Include best available metadata
           title: mergedData.title || null,
-          image: mergedData.image || mergedData.previewImg || null,
-          description: mergedData.description || mergedData.summary || null,
+          previewImg: mergedData.image || mergedData.previewImg || null,
+          summary: mergedData.description || mergedData.summary || null,
           author: mergedData.author || (platform === 'instagram' ? 'Instagram' : 'Facebook'),
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

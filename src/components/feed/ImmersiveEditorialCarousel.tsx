@@ -581,19 +581,25 @@ const EditorialSlide = ({
 
             {/* Sources + Trust Badge Row - Sigilli discreti */}
             <div className="flex items-center justify-between mb-6">
-              {/* Sources Tag */}
-              {item.sources?.length > 0 && (
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenSources?.();
-                  }}
-                  className="inline-flex items-center px-3 py-1.5 bg-white/5 backdrop-blur-md rounded-full text-xs text-white/60 font-medium border border-white/5 hover:bg-white/10 transition-colors"
-                >
-                  {item.sources[0]?.name?.toLowerCase() || "fonti"}
-                  {item.sources.length > 1 && ` +${item.sources.length - 1}`}
-                </button>
-              )}
+            {/* Sources Tag - sorted by name length (shortest first) */}
+              {item.sources?.length > 0 && (() => {
+                const sortedSources = [...item.sources].sort((a: any, b: any) => 
+                  (a.name || '').length - (b.name || '').length
+                );
+                const shortestSource = sortedSources[0];
+                return (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpenSources?.();
+                    }}
+                    className="inline-flex items-center px-3 py-1.5 bg-white/5 backdrop-blur-md rounded-full text-xs text-white/60 font-medium border border-white/5 hover:bg-white/10 transition-colors"
+                  >
+                    {shortestSource?.name?.toLowerCase() || "fonti"}
+                    {item.sources.length > 1 && ` +${item.sources.length - 1}`}
+                  </button>
+                );
+              })()}
 
               {/* Trust Badge - Sigillo piccolo, non prominente */}
               {trustScore && (
