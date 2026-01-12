@@ -1544,19 +1544,16 @@ export const ImmersivePostCard = ({
                 {(() => {
                   const displayTitle = articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url);
                   const isCaptionLong = displayTitle && displayTitle.length > CAPTION_TRUNCATE_LENGTH;
-                  const truncatedCaption = isCaptionLong && !showFullCaption 
+                  const truncatedCaption = isCaptionLong 
                     ? displayTitle.slice(0, CAPTION_TRUNCATE_LENGTH).trim() + '...' 
                     : displayTitle;
                   
                   return (
                     <div className="mb-3" onClick={(e) => e.stopPropagation()}>
-                      <p className={cn(
-                        "text-lg font-medium text-white/90 leading-relaxed drop-shadow-lg",
-                        !showFullCaption && isCaptionLong && "line-clamp-3"
-                      )}>
-                        {showFullCaption ? displayTitle : truncatedCaption}
+                      <p className="text-lg font-medium text-white/90 leading-relaxed drop-shadow-lg line-clamp-3">
+                        {truncatedCaption}
                       </p>
-                      {isCaptionLong && !showFullCaption && (
+                      {isCaptionLong && (
                         <button
                           onClick={(e) => { 
                             e.stopPropagation(); 
@@ -1950,6 +1947,122 @@ export const ImmersivePostCard = ({
               <div className="mt-6">
                 <button
                   onClick={() => setShowFullText(false)}
+                  className="w-full py-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/10 text-white/90 font-medium text-sm transition-all active:scale-[0.98]"
+                >
+                  Torna al feed
+                </button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Full Caption Modal for long social media captions (Instagram, etc.) */}
+      <Dialog open={showFullCaption} onOpenChange={setShowFullCaption}>
+        <DialogContent className="max-h-[85vh] max-w-lg p-0 bg-transparent border-0 shadow-none overflow-hidden">
+          {/* Immersive glass card container */}
+          <div className="relative bg-gradient-to-br from-[#1F3347]/95 to-[#0f1a24]/98 backdrop-blur-md rounded-3xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.7),_0_0_40px_rgba(31,51,71,0.4)] overflow-hidden">
+            
+            {/* Urban texture overlay */}
+            <div 
+              className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+              }}
+            />
+            
+            {/* Header with source info */}
+            <div className="relative z-10 px-6 pt-6 pb-4 border-b border-white/[0.06]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500/40 via-purple-500/40 to-orange-500/40 flex items-center justify-center border border-white/20">
+                  <ExternalLink className="w-4 h-4 text-white/80" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-semibold text-white/95 text-sm">
+                    {getHostnameFromUrl(post.shared_url)}
+                  </span>
+                  <span className="text-xs text-white/50">
+                    Contenuto esterno
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Scrollable content area */}
+            <div className="relative z-10 px-6 py-5 max-h-[55vh] overflow-y-auto no-scrollbar">
+              <p className="text-[16px] sm:text-[17px] font-normal text-white/90 leading-[1.7] tracking-[0.01em] whitespace-pre-wrap">
+                {articlePreview?.title || post.shared_title || ''}
+              </p>
+              
+              {/* Open external link button */}
+              <div className="mt-6 pt-4 border-t border-white/[0.08]">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (post.shared_url) {
+                      window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                    }
+                  }}
+                  className="w-full py-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/10 text-white/90 font-medium text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Apri su {getHostnameFromUrl(post.shared_url)}
+                </button>
+              </div>
+              
+              {/* Action Bar */}
+              <div className="mt-4 pt-4 border-t border-white/[0.08]">
+                <div className="flex items-center justify-between gap-3">
+                  {/* Primary Share Button */}
+                  <button 
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      setShowFullCaption(false);
+                      setShareAction('feed');
+                      handleShareClick(e);
+                    }}
+                    className="h-10 px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                  >
+                    <Logo variant="icon" size="sm" className="h-4 w-4" />
+                    <span className="text-sm font-semibold leading-none">Condividi</span>
+                  </button>
+
+                  {/* Reactions */}
+                  <div className="flex items-center gap-1 bg-black/20 backdrop-blur-xl h-10 px-3 rounded-2xl border border-white/5">
+                    <button 
+                      className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                      onClick={(e) => { e.stopPropagation(); handleHeart(e); }}
+                    >
+                      <Heart 
+                        className={cn("w-5 h-5", post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
+                        fill={post.user_reactions?.has_hearted ? "currentColor" : "none"}
+                      />
+                      <span className="text-xs font-bold text-white">{post.reactions?.hearts || 0}</span>
+                    </button>
+                    <button 
+                      className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                      onClick={(e) => { e.stopPropagation(); setShowFullCaption(false); setTimeout(() => setShowComments(true), 100); }}
+                    >
+                      <MessageCircle className="w-5 h-5 text-white" />
+                      <span className="text-xs font-bold text-white">{post.reactions?.comments || 0}</span>
+                    </button>
+                    <button 
+                      className="flex items-center justify-center h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                      onClick={(e) => { e.stopPropagation(); handleBookmark(e); }}
+                    >
+                      <Bookmark 
+                        className={cn("w-5 h-5", post.user_reactions?.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
+                        fill={post.user_reactions?.has_bookmarked ? "currentColor" : "none"}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Footer CTA */}
+              <div className="mt-6">
+                <button
+                  onClick={() => setShowFullCaption(false)}
                   className="w-full py-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/10 text-white/90 font-medium text-sm transition-all active:scale-[0.98]"
                 >
                   Torna al feed
