@@ -44,8 +44,8 @@ export const getPendingConsent = (): PendingConsent | null => {
     if (stored) {
       return JSON.parse(stored);
     }
-  } catch (e) {
-    console.error("Error reading pending consent:", e);
+  } catch {
+    // Silently fail - localStorage parsing errors are non-critical
   }
   return null;
 };
@@ -91,8 +91,8 @@ export const useUserConsents = () => {
         .maybeSingle();
 
       if (error) {
-        console.error("Error fetching user consents:", error);
-        throw error;
+        if (import.meta.env.DEV) console.error("Error fetching user consents:", error);
+        throw new Error("Failed to fetch user consents");
       }
 
       return data;
@@ -139,8 +139,8 @@ export const useUpsertConsents = () => {
         .single();
 
       if (error) {
-        console.error("Error upserting consents:", error);
-        throw error;
+        if (import.meta.env.DEV) console.error("Error upserting consents:", error);
+        throw new Error("Failed to save consent preferences");
       }
 
       setConsentCompleted();
@@ -184,8 +184,8 @@ export const useToggleAdsPersonalization = () => {
         .single();
 
       if (error) {
-        console.error("Error toggling ads personalization:", error);
-        throw error;
+        if (import.meta.env.DEV) console.error("Error toggling ads personalization:", error);
+        throw new Error("Failed to update ads preferences");
       }
 
       return data;
@@ -224,7 +224,7 @@ export const syncPendingConsents = async (userId: string): Promise<void> => {
     .upsert(payload, { onConflict: "user_id" });
 
   if (error) {
-    console.error("Error syncing pending consents:", error);
+    if (import.meta.env.DEV) console.error("Error syncing pending consents:", error);
   } else {
     clearPendingConsent();
   }
