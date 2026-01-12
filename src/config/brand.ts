@@ -1,6 +1,7 @@
 import LOGO_ICON from '../assets/Logo.png';
 import LOGO_WHITE_ASSET from '../assets/Logo.png';
 import LOGO_EXTENDED_ASSET from '../assets/LogoOrizzontale.png';
+import LOGO_WHITE_EXTENDED_ASSET from '../assets/LogoBianco.png';
 import IL_PUNTO_AVATAR from '../assets/il-punto-avatar.png';
 
 // NOPARROT Brand Configuration
@@ -40,6 +41,7 @@ export const LOGO_BASE_DARK = LOGO_ICON;
 export const LOGO_EXTENDED = LOGO_EXTENDED_ASSET;
 export const LOGO_EXTENDED_DARK = LOGO_EXTENDED_ASSET;
 export const LOGO_WHITE = LOGO_WHITE_ASSET;
+export const LOGO_WHITE_EXTENDED = LOGO_WHITE_EXTENDED_ASSET;
 
 // Navigation Feature Flags
 export const NAV_PROFILE_AS_HOME = false; // Changed: keep Home icon, replace Profile icon with avatar

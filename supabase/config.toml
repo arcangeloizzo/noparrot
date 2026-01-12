@@ -53,3 +53,18 @@ verify_jwt = false
 
 [functions.get-trust-score]
 verify_jwt = false
+
+[functions.publish-post]
+verify_jwt = false
+
+[functions.export-user-data]
+verify_jwt = false
+
+[functions.seed-data]
+verify_jwt = false
+
+[functions.assign-post-topic]
+verify_jwt = false
+
+[functions.get-trending-topics]
+verify_jwt = false
