@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { Header } from "@/components/navigation/Header";
 import { SearchBar } from "@/components/search/SearchBar";
 import { SearchTabs, SearchTab } from "@/components/search/SearchTabs";
@@ -125,37 +125,16 @@ export const Search = () => {
                     onClick={() => handleTopicClick(topic.topic_id, topic.title)}
                   />
                 ))
-              ) : trendingData?.mode === 'RECENT_POSTS' && trendingData.recentPosts && trendingData.recentPosts.length > 0 ? (
-                // Recent Posts fallback mode
-                <div className="space-y-4">
-                  <div className="text-center py-4 px-6 bg-primary/5 rounded-xl border border-primary/10">
-                    <Sparkles className="w-6 h-6 text-primary mx-auto mb-2" />
-                    <p className="text-sm text-muted-foreground">
-                      La community sta iniziando a muoversi
-                    </p>
-                    <p className="text-xs text-muted-foreground/70 mt-1">
-                      Esplora gli ultimi post e inizia una discussione
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <h3 className="text-sm font-medium text-muted-foreground">Post recenti</h3>
-                    {trendingData.recentPosts.map((post) => (
-                      <Link
-                        key={post.id}
-                        to={`/post/${post.id}`}
-                        className="block p-3 bg-[#151F2B] rounded-lg border border-white/5 hover:border-white/10 transition-colors"
-                      >
-                        <p className="text-sm text-white line-clamp-2">
-                          {post.shared_title || post.content}
-                        </p>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
               ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>Nessuna discussione attiva al momento</p>
+                // Empty state - no trending topics
+                <div className="text-center py-8 px-6 bg-primary/5 rounded-xl border border-primary/10">
+                  <Sparkles className="w-6 h-6 text-primary mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    La community sta iniziando a muoversi
+                  </p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">
+                    Torna più tardi per scoprire le discussioni più attive
+                  </p>
                 </div>
               )}
             </div>
