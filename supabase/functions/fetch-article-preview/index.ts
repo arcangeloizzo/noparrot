@@ -677,7 +677,45 @@ serve(async (req) => {
       supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     }
 
-    // Unsupported platforms - try Jina first, then Firecrawl, fallback to OpenGraph
+    // Helper to detect generic/useless social titles
+    const isGenericSocialTitle = (t?: string | null) => {
+      const x = (t || '').toLowerCase();
+      return !t || x.includes('post da instagram') || x.includes('post da facebook') || 
+             x === 'instagram' || x === 'facebook' || x.includes('instagram photo') ||
+             x.includes('instagram video') || x.length < 10;
+    };
+
+    // Instagram oEmbed API - official endpoint that works for public posts
+    async function fetchInstagramOEmbed(igUrl: string) {
+      try {
+        const oembedUrl = `https://www.instagram.com/api/v1/oembed/?url=${encodeURIComponent(igUrl)}`;
+        console.log('[Preview] Trying Instagram oEmbed:', oembedUrl);
+        const response = await fetch(oembedUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          }
+        });
+        
+        if (!response.ok) {
+          console.log('[Preview] Instagram oEmbed failed with status:', response.status);
+          return null;
+        }
+        
+        const data = await response.json();
+        console.log('[Preview] Instagram oEmbed success:', { title: data.title, author: data.author_name, hasThumb: !!data.thumbnail_url });
+        return {
+          title: data.title || null,
+          author: data.author_name || null,
+          image: data.thumbnail_url || null,
+          description: data.title || null
+        };
+      } catch (err) {
+        console.log('[Preview] Instagram oEmbed error:', err);
+        return null;
+      }
+    }
+
+    // Unsupported platforms - try oEmbed first (for IG), then Jina, Firecrawl, OpenGraph
     if (
       hostname.includes('instagram.com') ||
       hostname.includes('facebook.com') ||
@@ -698,7 +736,34 @@ serve(async (req) => {
         }
       } catch {}
       
-      // 1. Try Jina AI first for Instagram/Facebook metadata
+      // 0. TRY INSTAGRAM oEmbed FIRST (official API, most reliable)
+      let oembedData: any = null;
+      if (platform === 'instagram') {
+        oembedData = await fetchInstagramOEmbed(canonicalUrl);
+        
+        // If oEmbed returned good data, return immediately
+        if (oembedData?.title && !isGenericSocialTitle(oembedData.title)) {
+          console.log('[Preview] ✅ Using Instagram oEmbed data');
+          return new Response(
+            JSON.stringify({
+              success: true,
+              gateBlocked: true,
+              contentQuality: 'blocked',
+              message: `Questa piattaforma (${hostname}) non supporta il gate di comprensione.`,
+              hostname,
+              originalUrl: url,
+              platform,
+              title: oembedData.title,
+              image: oembedData.image,
+              summary: oembedData.description,
+              author: oembedData.author || 'Instagram',
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+      
+      // 1. Try Jina AI for Instagram/Facebook metadata
       let jinaData: any = null;
       try {
         jinaData = await fetchSocialWithJina(canonicalUrl, platform);
@@ -706,12 +771,6 @@ serve(async (req) => {
       } catch (err) {
         console.log('[Preview] Jina fetch failed for blocked platform:', err);
       }
-      
-      // Check if Jina returned useful data
-      const isGenericSocialTitle = (t?: string | null) => {
-        const x = (t || '').toLowerCase();
-        return !t || x.includes('post da instagram') || x.includes('post da facebook') || x === 'instagram' || x === 'facebook';
-      };
 
       const hasGoodJinaData = jinaData?.title && !isGenericSocialTitle(jinaData.title) && jinaData.title.length > 20;
       
@@ -730,9 +789,7 @@ serve(async (req) => {
               },
               body: JSON.stringify({
                 url: canonicalUrl,
-                // Ask for HTML too: on some pages metadata is only reliable there
                 formats: ['markdown', 'html'],
-                // For metadata, main-content filtering can remove head parsing in some setups
                 onlyMainContent: false,
                 waitFor: 2500
               })
@@ -747,7 +804,6 @@ serve(async (req) => {
               if (!md) return { title: null, description: null };
               const lines = md.split('\n').map(l => l.trim()).filter(Boolean);
               const first = lines[0] || '';
-              // Firecrawl sometimes returns "username on Instagram: ..." in first line
               const title = first.length >= 12 ? first.slice(0, 140) : null;
               const description = (lines[1] && lines[1].length >= 20) ? lines[1].slice(0, 220) : null;
               return { title, description };
@@ -779,7 +835,7 @@ serve(async (req) => {
         }
       }
       
-      // 3. Fallback to OpenGraph if both Jina and Firecrawl failed
+      // 3. Fallback to OpenGraph if all else failed
       let ogData: any = null;
       if (!hasGoodJinaData && !firecrawlData?.title) {
         try {
@@ -790,34 +846,33 @@ serve(async (req) => {
         }
       }
       
-      // 4. Merge best available metadata - prioritize Firecrawl for IG/FB
+      // 4. Merge best available metadata
       const mergedData = {
-        title: firecrawlData?.title || (isGenericSocialTitle(jinaData?.title) ? null : jinaData?.title) || (isGenericSocialTitle(ogData?.title) ? null : ogData?.title) || null,
-        image: firecrawlData?.image || jinaData?.image || ogData?.image || null,
-        description: firecrawlData?.description || jinaData?.summary || jinaData?.description || ogData?.description || null,
-        author: firecrawlData?.author || jinaData?.author || ogData?.author || null
+        title: firecrawlData?.title || (isGenericSocialTitle(jinaData?.title) ? null : jinaData?.title) || (isGenericSocialTitle(ogData?.title) ? null : ogData?.title) || oembedData?.title || null,
+        image: firecrawlData?.image || jinaData?.image || ogData?.image || oembedData?.image || null,
+        description: firecrawlData?.description || jinaData?.summary || jinaData?.description || ogData?.description || oembedData?.description || null,
+        author: firecrawlData?.author || jinaData?.author || ogData?.author || oembedData?.author || null
       };
       
       console.log('[Preview] Final merged metadata for blocked platform:', {
         hasTitle: !!mergedData.title,
         titleLength: mergedData.title?.length || 0,
         hasImage: !!mergedData.image,
-        source: firecrawlData?.title ? 'firecrawl' : (jinaData?.title ? 'jina' : (ogData?.title ? 'opengraph' : 'none'))
+        source: firecrawlData?.title ? 'firecrawl' : (jinaData?.title ? 'jina' : (ogData?.title ? 'opengraph' : (oembedData?.title ? 'oembed' : 'none')))
       });
       
       // Return success: true with gateBlocked flag and extracted metadata
       return new Response(
         JSON.stringify({
-          success: true, // Allow metadata to be displayed
-          gateBlocked: true, // Signal that comprehension gate cannot be applied
+          success: true,
+          gateBlocked: true,
           contentQuality: 'blocked',
           message: `Questa piattaforma (${hostname}) non supporta il gate di comprensione.`,
           hostname,
           originalUrl: url,
           platform,
-          // Include best available metadata
           title: mergedData.title,
-          previewImg: mergedData.image,
+          image: mergedData.image,
           summary: mergedData.description,
           author: mergedData.author || (platform === 'instagram' ? 'Instagram' : 'Facebook'),
         }),
