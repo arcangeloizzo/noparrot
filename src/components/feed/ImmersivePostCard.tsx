@@ -573,36 +573,35 @@ export const ImmersivePostCard = ({
       const host = new URL(finalSourceUrl).hostname.toLowerCase();
       const isBlockedPlatform = host.includes('instagram.com') || host.includes('facebook.com') || host.includes('m.facebook.com') || host.includes('fb.com') || host.includes('fb.watch');
       
-      // For Intent posts (is_intent = true), use direct gate with explicit questionCount
+      // For Intent posts (is_intent = true), show reader first to let user read content
       if (post.is_intent && isBlockedPlatform) {
         const userText = post.content || '';
         const userWordCount = getWordCount(userText);
+        
+        // If ≤30 words, no gate needed - share directly
+        if (userWordCount <= 30) {
+          onQuoteShare?.(post);
+          toast({ title: 'Post pronto per la condivisione' });
+          return;
+        }
+        
         const questionCount = getQuestionCountForIntentReshare(userWordCount);
         
-        toast({ title: 'Preparazione test...', description: 'Generazione domande sul contenuto' });
-        
-        // Call generateQA directly with explicit questionCount (1 or 3)
-        const result = await generateQA({
-          contentId: post.id,
+        // Show reader first for Intent posts with >30 words
+        setReaderSource({
+          id: post.id,
+          state: 'reading' as const,
+          url: `post://${post.id}`,
           title: post.author?.full_name || post.author?.username || 'Post utente',
-          summary: userText,
-          userText: userText,
-          questionCount, // Explicit: 1 for 30-120 words, 3 for >120
+          content: userText,
+          isOriginalPost: true,
+          isIntentPost: true,
+          questionCount,
+          author: post.author?.username,
+          authorFullName: post.author?.full_name,
+          authorAvatar: post.author?.avatar_url,
         });
-        
-        if (result.insufficient_context) {
-          toast({ title: 'Contenuto troppo breve', description: 'Post pronto per la condivisione' });
-          onQuoteShare?.(post);
-          return;
-        }
-        
-        if (!result || result.error || !result.questions?.length) {
-          toast({ title: 'Errore generazione test', variant: 'destructive' });
-          return;
-        }
-        
-        setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}` });
-        setShowQuiz(true);
+        setShowReader(true);
         return;
       }
       
@@ -658,6 +657,44 @@ export const ImmersivePostCard = ({
     setReaderLoading(true);
 
     try {
+      // Handle Intent Post completion - use saved questionCount
+      if (readerSource.isIntentPost) {
+        const userText = readerSource.content || '';
+        const questionCount = readerSource.questionCount;
+        
+        toast({ title: 'Stiamo mettendo a fuoco ciò che conta…' });
+        
+        const result = await generateQA({
+          contentId: post.id,
+          title: readerSource.title,
+          summary: userText,
+          userText: userText,
+          questionCount,
+        });
+        
+        if (result.insufficient_context) {
+          toast({ title: 'Contenuto troppo breve', description: 'Post pronto per la condivisione' });
+          await closeReaderSafely();
+          onQuoteShare?.(post);
+          return;
+        }
+        
+        if (!result || result.error || !result.questions?.length) {
+          toast({ title: 'Errore', description: result?.error || 'Quiz non valido', variant: 'destructive' });
+          setReaderLoading(false);
+          return;
+        }
+        
+        setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}` });
+        setShowQuiz(true);
+        
+        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+        setShowReader(false);
+        setReaderLoading(false);
+        setReaderSource(null);
+        return;
+      }
+      
       const isOriginalPost = readerSource.isOriginalPost;
       const userText = post.content;
       const userWordCount = getWordCount(userText);
@@ -1537,6 +1574,7 @@ export const ImmersivePostCard = ({
                   sharedUrl={post.shared_url}
                   isIntent={post.is_intent}
                   trustScore={displayTrustScore}
+                  hideOverlay={true}
                 />
                 
                 <div className="w-12 h-1 bg-white/30 rounded-full mb-4" />
