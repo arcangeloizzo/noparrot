@@ -1302,6 +1302,12 @@ export type Database = {
           full_name: string | null
           id: string
           last_seen_at: string | null
+          notifications_comments_enabled: boolean | null
+          notifications_follows_enabled: boolean | null
+          notifications_likes_enabled: boolean | null
+          notifications_mentions_enabled: boolean | null
+          notifications_messages_enabled: boolean | null
+          notifications_reshares_enabled: boolean | null
           username: string
         }
         Insert: {
@@ -1315,6 +1321,12 @@ export type Database = {
           full_name?: string | null
           id: string
           last_seen_at?: string | null
+          notifications_comments_enabled?: boolean | null
+          notifications_follows_enabled?: boolean | null
+          notifications_likes_enabled?: boolean | null
+          notifications_mentions_enabled?: boolean | null
+          notifications_messages_enabled?: boolean | null
+          notifications_reshares_enabled?: boolean | null
           username: string
         }
         Update: {
@@ -1328,6 +1340,12 @@ export type Database = {
           full_name?: string | null
           id?: string
           last_seen_at?: string | null
+          notifications_comments_enabled?: boolean | null
+          notifications_follows_enabled?: boolean | null
+          notifications_likes_enabled?: boolean | null
+          notifications_mentions_enabled?: boolean | null
+          notifications_messages_enabled?: boolean | null
+          notifications_reshares_enabled?: boolean | null
           username?: string
         }
         Relationships: []

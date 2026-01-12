@@ -76,35 +76,51 @@ export const usePushNotifications = () => {
     
     try {
       const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
+      const browserSubscription = await registration.pushManager.getSubscription();
       
-      if (subscription) {
-        // Verifica se la sottoscrizione è salvata nel database
-        const { data, error } = await supabase
-          .from('push_subscriptions')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('endpoint', subscription.endpoint)
-          .maybeSingle();
-        
-        if (error) {
-          console.error('[Push] Error checking DB subscription:', error);
-          setIsSubscribed(false);
-          return;
-        }
-        
-        if (data) {
-          console.log('[Push] Subscription found in DB');
-          setIsSubscribed(true);
-        } else {
-          // La sottoscrizione esiste nel browser ma non nel DB - ri-registrala
-          console.log('[Push] Browser subscription exists but not in DB - auto-registering...');
-          const success = await subscribeToPush();
-          console.log('[Push] Auto-registration result:', success);
-        }
-      } else {
+      // Fetch DB subscription for this user
+      const { data: dbSubscription, error } = await supabase
+        .from('push_subscriptions')
+        .select('id, endpoint')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
+      if (error) {
+        console.error('[Push] Error checking DB subscription:', error);
         setIsSubscribed(false);
+        return;
       }
+      
+      // Case 1: No browser subscription at all
+      if (!browserSubscription) {
+        console.log('[Push] No browser subscription found');
+        setIsSubscribed(false);
+        return;
+      }
+      
+      // Case 2: Browser subscription exists but DB has different endpoint (domain change!)
+      if (dbSubscription && browserSubscription.endpoint !== dbSubscription.endpoint) {
+        console.log('[Push] ⚠️ Domain change detected! Browser endpoint differs from DB');
+        console.log('[Push] Browser:', browserSubscription.endpoint.slice(0, 60));
+        console.log('[Push] DB:', dbSubscription.endpoint.slice(0, 60));
+        console.log('[Push] Forcing re-sync...');
+        const success = await subscribeToPush();
+        console.log('[Push] Re-sync result:', success);
+        return;
+      }
+      
+      // Case 3: Browser subscription exists but not in DB
+      if (!dbSubscription) {
+        console.log('[Push] Browser subscription exists but not in DB - auto-registering...');
+        const success = await subscribeToPush();
+        console.log('[Push] Auto-registration result:', success);
+        return;
+      }
+      
+      // Case 4: Everything matches
+      console.log('[Push] Subscription found and matches DB ✓');
+      setIsSubscribed(true);
+      
     } catch (error) {
       console.error('[Push] Error checking subscription:', error);
       setIsSubscribed(false);
