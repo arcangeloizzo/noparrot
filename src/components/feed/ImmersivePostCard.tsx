@@ -574,12 +574,15 @@ export const ImmersivePostCard = ({
       const isBlockedPlatform = host.includes('instagram.com') || host.includes('facebook.com') || host.includes('m.facebook.com') || host.includes('fb.com') || host.includes('fb.watch');
       
       // For Intent posts (is_intent = true), show reader first to let user read content
+      // Intent posts are created with minimum 30 words, so gate is always required
       if (post.is_intent && isBlockedPlatform) {
         const userText = post.content || '';
         const userWordCount = getWordCount(userText);
         
-        // If ≤30 words, no gate needed - share directly
-        if (userWordCount <= 30) {
+        // Intent posts always require gate (min 30 words guaranteed at creation)
+        // Use < 30 instead of <= 30 because 30 words is the minimum threshold
+        if (userWordCount < 30) {
+          // Fallback for edge cases - shouldn't happen for valid Intent posts
           onQuoteShare?.(post);
           toast({ title: 'Post pronto per la condivisione' });
           return;
@@ -587,7 +590,7 @@ export const ImmersivePostCard = ({
         
         const questionCount = getQuestionCountForIntentReshare(userWordCount);
         
-        // Show reader first for Intent posts with >30 words
+        // Show reader first for Intent posts with >=30 words
         setReaderSource({
           id: post.id,
           state: 'reading' as const,
