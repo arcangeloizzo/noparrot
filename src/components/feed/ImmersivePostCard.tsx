@@ -575,10 +575,16 @@ export const ImmersivePostCard = ({
       const host = new URL(finalSourceUrl).hostname.toLowerCase();
       const isBlockedPlatform = host.includes('instagram.com') || host.includes('facebook.com') || host.includes('m.facebook.com') || host.includes('fb.com') || host.includes('fb.watch');
       
+      // Check if current post OR quoted post is an Intent post
+      const isCurrentPostIntent = post.is_intent;
+      const isQuotedPostIntent = quotedPost?.is_intent;
+      
       // For Intent posts (is_intent = true), show reader first to let user read content
       // Intent posts are created with minimum 30 words, so gate is always required
-      if (post.is_intent && isBlockedPlatform) {
-        const userText = post.content || '';
+      if ((isCurrentPostIntent || isQuotedPostIntent) && isBlockedPlatform) {
+        // Use the Intent post's content (either current or quoted)
+        const intentPost = isCurrentPostIntent ? post : quotedPost;
+        const userText = intentPost?.content || '';
         const userWordCount = getWordCount(userText);
         
         // Intent posts always require gate (min 30 words guaranteed at creation)
@@ -594,17 +600,17 @@ export const ImmersivePostCard = ({
         
         // Show reader first for Intent posts with >=30 words
         setReaderSource({
-          id: post.id,
+          id: intentPost?.id || post.id,
           state: 'reading' as const,
-          url: `post://${post.id}`,
-          title: post.author?.full_name || post.author?.username || 'Post utente',
+          url: `post://${intentPost?.id || post.id}`,
+          title: intentPost?.author?.full_name || intentPost?.author?.username || 'Post utente',
           content: userText,
           isOriginalPost: true,
           isIntentPost: true,
           questionCount,
-          author: post.author?.username,
-          authorFullName: post.author?.full_name,
-          authorAvatar: post.author?.avatar_url,
+          author: intentPost?.author?.username,
+          authorFullName: intentPost?.author?.full_name,
+          authorAvatar: intentPost?.author?.avatar_url,
         });
         setShowReader(true);
         return;
