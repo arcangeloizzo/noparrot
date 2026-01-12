@@ -860,7 +860,8 @@ export const ImmersivePostCard = ({
   const isReshareWithSource = !!quotedPost && !!(quotedPost.shared_url || post.shared_url);
   
   // Use stack layout for: short comments OR reshares with source (any comment length)
-  const useStackLayout = isReshareWithShortComment || isReshareWithSource;
+  // BUT NOT for Intent posts - show QuotedPostCard with text-first layout instead
+  const useStackLayout = !isQuotedIntentPost && (isReshareWithShortComment || isReshareWithSource);
   
   // Load article preview for deep chain source when available
   useEffect(() => {
@@ -1100,8 +1101,8 @@ export const ImmersivePostCard = ({
               </div>
             )}
 
-            {/* Stack Layout: show context stack (reshare chain) for ALL reshares */}
-            {quotedPost && contextStack.length > 0 && (
+            {/* Stack Layout: show context stack (reshare chain) for ALL reshares except Intent posts */}
+            {quotedPost && contextStack.length > 0 && !isQuotedIntentPost && (
               <ReshareContextStack stack={contextStack} />
             )}
 
