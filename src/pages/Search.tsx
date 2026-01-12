@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { Header } from "@/components/navigation/Header";
+import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { SearchBar } from "@/components/search/SearchBar";
 import { SearchTabs, SearchTab } from "@/components/search/SearchTabs";
 import { SearchResults } from "@/components/search/SearchResults";
@@ -12,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Sparkles } from "lucide-react";
 
 export const Search = () => {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryParam = searchParams.get("q") || "";
   const tabParam = (searchParams.get("tab") || "posts") as SearchTab;
@@ -168,6 +170,15 @@ export const Search = () => {
           </div>
         )}
       </div>
+
+      <BottomNavigation 
+        activeTab="search"
+        onTabChange={(tab) => {
+          if (tab === 'home') navigate('/');
+          else if (tab === 'saved') navigate('/saved');
+          else if (tab === 'messages') navigate('/messages');
+        }}
+      />
     </div>
   );
 };

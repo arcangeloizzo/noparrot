@@ -19,11 +19,9 @@ export function SourceImageWithFallback({
   isIntent, 
   trustScore 
 }: SourceImageWithFallbackProps) {
-  const [imageStatus, setImageStatus] = useState<'loading' | 'valid' | 'error'>('loading');
-
-  // Check if the shared URL is from Instagram - never show images for Instagram posts
+  // Check if the shared URL is from Instagram - BLOCK IMMEDIATELY
   const isInstagramPost = sharedUrl?.includes('instagram.com') || sharedUrl?.includes('instagram');
-
+  
   // Check if URL is from Instagram/Meta CDN (these always expire)
   const isMetaCdnUrl = (url: string) => 
     url.includes('cdninstagram.com') || 
@@ -32,21 +30,20 @@ export function SourceImageWithFallback({
     url.includes('instagram.com') ||
     url.includes('instagram');
 
+  // BLOCK Instagram posts immediately - no state, no render
+  if (isInstagramPost) {
+    return null;
+  }
+
+  // BLOCK Meta CDN URLs immediately
+  if (src && isMetaCdnUrl(src)) {
+    return null;
+  }
+
+  const [imageStatus, setImageStatus] = useState<'loading' | 'valid' | 'error'>(!src ? 'error' : 'loading');
+
   useEffect(() => {
-    // Never show images for Instagram posts
-    if (isInstagramPost) {
-      setImageStatus('error');
-      return;
-    }
-
     if (!src) {
-      setImageStatus('error');
-      return;
-    }
-
-    // Skip Instagram/Meta CDN images - they expire too quickly
-    if (isMetaCdnUrl(src)) {
-      console.log('[SourceImage] Skipping Meta CDN image (expires):', src.substring(0, 60));
       setImageStatus('error');
       return;
     }
@@ -87,10 +84,10 @@ export function SourceImageWithFallback({
       img.onload = null;
       img.onerror = null;
     };
-  }, [src, isInstagramPost]);
+  }, [src]);
 
-  // Don't render if no src, image failed, or it's an Instagram post
-  if (!src || imageStatus === 'error' || isInstagramPost) {
+  // Don't render if no src or image failed validation
+  if (!src || imageStatus === 'error') {
     return null;
   }
   
