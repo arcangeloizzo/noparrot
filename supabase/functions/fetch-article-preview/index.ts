@@ -7,6 +7,71 @@ const corsHeaders = {
 };
 
 // ============================================================================
+// SECURITY: URL VALIDATION TO PREVENT SSRF
+// ============================================================================
+// Block internal/private network URLs and non-HTTP protocols
+function isValidExternalUrl(url: string): { valid: boolean; reason?: string } {
+  if (!url || typeof url !== 'string') {
+    return { valid: false, reason: 'URL is required' };
+  }
+  
+  try {
+    const parsed = new URL(url.trim());
+    
+    // Only allow HTTP/HTTPS protocols
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return { valid: false, reason: `Protocol ${parsed.protocol} not allowed` };
+    }
+    
+    const hostname = parsed.hostname.toLowerCase();
+    
+    // Block localhost and loopback
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+      return { valid: false, reason: 'Localhost URLs not allowed' };
+    }
+    
+    // Block private IP ranges
+    const privateRanges = [
+      /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/,           // 10.x.x.x
+      /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/, // 172.16-31.x.x
+      /^192\.168\.\d{1,3}\.\d{1,3}$/,              // 192.168.x.x
+      /^169\.254\.\d{1,3}\.\d{1,3}$/,              // Link-local
+      /^0\.0\.0\.0$/,                              // 0.0.0.0
+    ];
+    
+    for (const range of privateRanges) {
+      if (range.test(hostname)) {
+        return { valid: false, reason: 'Private IP addresses not allowed' };
+      }
+    }
+    
+    // Block internal hostnames
+    const blockedPatterns = [
+      /^.*\.local$/,
+      /^.*\.internal$/,
+      /^.*\.localhost$/,
+      /^metadata\.google\.internal$/,
+      /^169\.254\.169\.254$/,  // AWS/GCP metadata
+    ];
+    
+    for (const pattern of blockedPatterns) {
+      if (pattern.test(hostname)) {
+        return { valid: false, reason: 'Internal hostnames not allowed' };
+      }
+    }
+    
+    // URL length limit
+    if (url.length > 2048) {
+      return { valid: false, reason: 'URL too long' };
+    }
+    
+    return { valid: true };
+  } catch {
+    return { valid: false, reason: 'Invalid URL format' };
+  }
+}
+
+// ============================================================================
 // SOURCE-FIRST READER REFACTORING
 // ============================================================================
 // This edge function now:
@@ -664,6 +729,19 @@ serve(async (req) => {
   try {
     const body = await req.json();
     url = body.url;
+
+    // SSRF Protection: Validate URL before processing
+    const urlValidation = isValidExternalUrl(url);
+    if (!urlValidation.valid) {
+      console.warn(`[Security] SSRF blocked: ${urlValidation.reason} - URL: ${url?.substring(0, 100)}`);
+      return new Response(
+        JSON.stringify({ error: urlValidation.reason || 'Invalid URL' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
 
     const urlLower = url.toLowerCase();
     const hostname = new URL(url).hostname.toLowerCase();

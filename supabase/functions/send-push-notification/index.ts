@@ -19,6 +19,40 @@ webpush.setVapidDetails(
   VAPID_PRIVATE_KEY
 );
 
+// Validate that request comes from internal source (DB trigger or service role)
+function isInternalRequest(req: Request): boolean {
+  // Check for service role key in authorization header
+  const authHeader = req.headers.get('authorization') || '';
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  
+  // DB triggers use service role, so we verify the key matches
+  if (authHeader.includes(supabaseServiceKey) && supabaseServiceKey.length > 20) {
+    return true;
+  }
+  
+  // Also allow if it's a POST from the same origin (internal function call)
+  // This handles cases where net.http_post is used from DB triggers
+  const origin = req.headers.get('origin') || '';
+  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+  if (origin && supabaseUrl && origin.includes(new URL(supabaseUrl).hostname)) {
+    return true;
+  }
+  
+  return false;
+}
+
+// Input validation for notification types
+function validateNotificationType(type: string): boolean {
+  const validTypes = ['notification', 'message', 'editorial'];
+  return validTypes.includes(type);
+}
+
+function validateUUID(id: string | undefined | null): boolean {
+  if (!id) return false;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(id);
+}
+
 async function sendPushNotification(
   subscription: { endpoint: string; p256dh: string; auth: string },
   payload: object
@@ -67,8 +101,47 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Security: Validate request comes from internal source
+    // This endpoint is called by DB triggers, not directly by users
+    // We don't block but log warning for monitoring
+    if (!isInternalRequest(req)) {
+      console.warn('[Push] ⚠️ Request from non-internal source - proceeding with caution');
+    }
+
     const body = await req.json();
     console.log('[Push] Received request:', JSON.stringify(body));
+    
+    // Input validation
+    if (!body.type || !validateNotificationType(body.type)) {
+      console.error('[Push] Invalid notification type:', body.type);
+      return new Response(JSON.stringify({ error: 'Invalid notification type' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    
+    // Validate UUIDs based on notification type
+    if (body.type === 'notification') {
+      if (!validateUUID(body.user_id)) {
+        return new Response(JSON.stringify({ error: 'Invalid user_id' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (body.actor_id && !validateUUID(body.actor_id)) {
+        return new Response(JSON.stringify({ error: 'Invalid actor_id' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    } else if (body.type === 'message') {
+      if (!validateUUID(body.thread_id) || !validateUUID(body.sender_id)) {
+        return new Response(JSON.stringify({ error: 'Invalid thread_id or sender_id' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
     let targetUserIds: string[] = [];
     let notificationPayload: object;
