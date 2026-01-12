@@ -225,13 +225,10 @@ export const ImmersiveFocusCard = ({
           {/* Sources Tag - sorted by name length (shortest first) */}
           {sources.length > 0 && (() => {
             // Sort sources by name length ascending (shortest first)
-            const sortedByLength = [...sources].sort((a, b) => {
-              const lenA = (a.name || '').length;
-              const lenB = (b.name || '').length;
-              return lenA - lenB;
-            });
+            const sortedByLength = [...sources].sort((a, b) => 
+              (a.name || '').length - (b.name || '').length
+            );
             const shortestSource = sortedByLength[0];
-            console.log('[ImmersiveFocusCard] Sources sorted:', sortedByLength.map(s => `${s.name} (${s.name?.length})`));
             return (
               <div className="flex items-center gap-2">
                 <button className="inline-flex items-center px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full text-xs text-white/80 font-medium border border-white/10 max-w-[180px]">

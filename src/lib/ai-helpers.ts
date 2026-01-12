@@ -154,18 +154,8 @@ export async function fetchArticlePreview(url: string): Promise<{
   try {
     console.log('[fetchArticlePreview] Fetching:', url);
     
-    // Pre-check for unsupported platforms to avoid unnecessary API calls
-    const hostname = new URL(url).hostname.toLowerCase();
-    if (hostname.includes('instagram.com') || hostname.includes('facebook.com') || hostname.includes('fb.com') || hostname.includes('fb.watch')) {
-      console.log('[fetchArticlePreview] Unsupported platform detected:', hostname);
-      return { 
-        success: false, 
-        error: 'UNSUPPORTED_PLATFORM', 
-        message: 'Questa piattaforma non è supportata',
-        platform: hostname.includes('instagram') ? 'instagram' : 'facebook',
-        hostname
-      };
-    }
+    // NO frontend pre-check for IG/FB - let backend fetch metadata and return gateBlocked flag
+    // The backend will attempt Jina/OpenGraph extraction for title/image/author
     
     const { data, error } = await supabase.functions.invoke('fetch-article-preview', {
       body: { url }
