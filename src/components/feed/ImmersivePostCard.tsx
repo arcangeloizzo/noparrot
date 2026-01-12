@@ -846,6 +846,7 @@ export const ImmersivePostCard = ({
   const backgroundImage = !isMediaOnlyPost ? (articlePreview?.image || post.preview_img || (hasMedia && post.media?.[0]?.url)) : undefined;
   // Exclude quotedPost from text-only to prevent quote marks on reshares
   const isTextOnly = !hasMedia && !hasLink && !quotedPost;
+  const isIntentPost = !!post.is_intent;
   const articleTitle = articlePreview?.title || post.shared_title || '';
   // Show user text ONLY if it's genuinely different from title AND extracted content
   const shouldShowUserText = hasLink && post.content && 
@@ -918,6 +919,16 @@ export const ImmersivePostCard = ({
         ) : isTextOnly ? (
           <div className="absolute inset-0 bg-[#1F3347]">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10" />
+          </div>
+        ) : isIntentPost ? (
+          /* Intent posts: NoParrot blue background with urban texture */
+          <div className="absolute inset-0 bg-gradient-to-b from-[#1F3347] via-[#172635] to-[#0E1A24]">
+            <div 
+              className="absolute inset-0 opacity-[0.08] mix-blend-overlay"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+              }}
+            />
           </div>
         ) : isSpotify ? (
           <SpotifyGradientBackground 
