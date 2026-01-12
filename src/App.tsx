@@ -8,6 +8,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AppErrorBoundary } from "@/components/debug/AppErrorBoundary";
 import Index from "./pages/Index";
+import AuthPage from "./pages/AuthPage";
 import Profile from "./pages/Profile";
 import ProfileEdit from "./pages/ProfileEdit";
 import UserProfile from "./pages/UserProfile";
@@ -64,6 +65,7 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/auth" element={<AuthPage />} />
               <Route path="/consent" element={<ConsentScreen />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/profile/:userId" element={<UserProfile />} />
