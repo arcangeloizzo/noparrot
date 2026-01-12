@@ -1527,17 +1527,13 @@ export const ImmersivePostCard = ({
                   }
                 }}
               >
-                {/* Visible Metadata Image - Taller preview */}
-                {(articlePreview?.image || post.preview_img) && (
-                  <div className="relative mb-6 rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_20px_rgba(0,0,0,0.3)]">
-                    <img 
-                      src={articlePreview?.image || post.preview_img} 
-                      alt="" 
-                      className="w-full h-64 object-cover"
-                    />
-                    {/* Trust Score Badge Overlay - ONLY on reshares (avoid duplication with header) */}
-                  </div>
-                )}
+                {/* Visible Metadata Image - Use SourceImageWithFallback to handle broken/Instagram images */}
+                <SourceImageWithFallback
+                  src={articlePreview?.image || post.preview_img}
+                  sharedUrl={post.shared_url}
+                  isIntent={post.is_intent}
+                  trustScore={displayTrustScore}
+                />
                 
                 <div className="w-12 h-1 bg-white/30 rounded-full mb-4" />
                 <h1 className="text-2xl font-bold text-white leading-tight mb-3 drop-shadow-xl">
