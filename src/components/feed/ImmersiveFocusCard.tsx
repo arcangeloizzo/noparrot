@@ -223,16 +223,20 @@ export const ImmersiveFocusCard = ({
           </p>
           
           {/* Sources Tag - sorted by name length (shortest first) */}
-          {sources.length > 0 && (
-            <div className="flex items-center gap-2">
-              <button className="inline-flex items-center px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full text-xs text-white/80 font-medium border border-white/10 max-w-[180px]">
-                <span className="truncate">
-                  {[...sources].sort((a, b) => (a.name?.length || 0) - (b.name?.length || 0))[0]?.name?.toLowerCase() || 'fonti'}
-                </span>
-                {sources.length > 1 && <span className="flex-shrink-0 ml-1">+{sources.length - 1}</span>}
-              </button>
-            </div>
-          )}
+          {sources.length > 0 && (() => {
+            const sortedSources = [...sources].sort((a, b) => (a.name?.length || 0) - (b.name?.length || 0));
+            const shortestSource = sortedSources[0];
+            return (
+              <div className="flex items-center gap-2">
+                <button className="inline-flex items-center px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full text-xs text-white/80 font-medium border border-white/10 max-w-[180px]">
+                  <span className="truncate">
+                    {shortestSource?.name?.toLowerCase() || 'fonti'}
+                  </span>
+                  {sources.length > 1 && <span className="flex-shrink-0 ml-1">+{sources.length - 1}</span>}
+                </button>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Bottom Actions - Aligned heights h-10 */}
