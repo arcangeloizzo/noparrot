@@ -32,8 +32,8 @@ export const Header = ({ variant = "default" }: HeaderProps) => {
         : "cognitive-header liquid-glass-navbar border-b-0"
     )}>
       <div className="container flex h-14 max-w-screen-xl items-center justify-center px-4 relative">
-        {/* Logo centrale con glow */}
-        <div className="logo-container">
+        {/* Logo centrale con container Milky Glass */}
+        <div className="logo-container flex items-center justify-center px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)]">
           <Logo variant="extended" size="md" className="h-8" />
         </div>
 
