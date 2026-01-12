@@ -1,4 +1,5 @@
-import { EyeOff } from 'lucide-react';
+import { useState } from 'react';
+import { EyeOff, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -13,8 +14,10 @@ interface UnanalyzableBadgeProps {
 }
 
 export function UnanalyzableBadge({ className }: UnanalyzableBadgeProps) {
+  const [open, setOpen] = useState(false);
+  
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button
           className={cn(
@@ -22,10 +25,12 @@ export function UnanalyzableBadge({ className }: UnanalyzableBadgeProps) {
             "bg-zinc-800/80 border border-zinc-700",
             "text-muted-foreground backdrop-blur-sm",
             "hover:bg-zinc-700/80 transition-colors",
-            "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
             className
           )}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            setOpen(true);
+          }}
         >
           <EyeOff className="w-3.5 h-3.5" />
           <span className="text-[10px] font-bold tracking-wider uppercase">
@@ -33,11 +38,15 @@ export function UnanalyzableBadge({ className }: UnanalyzableBadgeProps) {
           </span>
         </button>
       </DialogTrigger>
-      <DialogContent 
-        className="sm:max-w-md"
-        onPointerDownCapture={(e) => e.stopPropagation()}
-        onClickCapture={(e) => e.stopPropagation()}
-      >
+      <DialogContent className="sm:max-w-md">
+        {/* Custom close button */}
+        <button 
+          onClick={() => setOpen(false)}
+          className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 ring-offset-background transition-opacity focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          aria-label="Chiudi"
+        >
+          <X className="h-4 w-4" />
+        </button>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <EyeOff className="w-5 h-5 text-muted-foreground" />
