@@ -325,15 +325,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Increment shares count for reshares (quoted posts)
-    if (body.quotedPostId) {
-      const { error: shareErr } = await supabase.rpc('increment_post_shares', { target_post_id: body.quotedPostId });
-      if (shareErr) {
-        console.warn(`[publish-post:${reqId}] stage=increment_shares_error`, shareErr.message);
-      } else {
-        console.log(`[publish-post:${reqId}] stage=increment_shares_ok quotedPostId=${body.quotedPostId}`);
-      }
-    }
+    // NOTE: Share count increment is handled by database trigger 'increment_shares_on_reshare'
+    // triggered automatically on INSERT when quoted_post_id is set
+    // No need to call increment_post_shares RPC here (would cause double counting)
 
     // Background classification (non-blocking)
     const contentToClassify = [
