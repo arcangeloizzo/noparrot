@@ -253,6 +253,10 @@ export const ImmersivePostCard = ({
   
   // Full text modal for long posts
   const [showFullText, setShowFullText] = useState(false);
+  
+  // Caption expansion state for long Instagram/social captions
+  const [showFullCaption, setShowFullCaption] = useState(false);
+  const CAPTION_TRUNCATE_LENGTH = 120;
 
   // Fetch article preview - check post, quoted post, and deep chain source
   // We use finalSourceUrl computed below, but since this runs before those computations,
@@ -1536,9 +1540,36 @@ export const ImmersivePostCard = ({
                 />
                 
                 <div className="w-12 h-1 bg-white/30 rounded-full mb-4" />
-                <h1 className="text-2xl font-bold text-white leading-tight mb-3 drop-shadow-xl">
-                  {articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url)}
-                </h1>
+                {/* Caption/Title with truncation for long social captions */}
+                {(() => {
+                  const displayTitle = articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url);
+                  const isCaptionLong = displayTitle && displayTitle.length > CAPTION_TRUNCATE_LENGTH;
+                  const truncatedCaption = isCaptionLong && !showFullCaption 
+                    ? displayTitle.slice(0, CAPTION_TRUNCATE_LENGTH).trim() + '...' 
+                    : displayTitle;
+                  
+                  return (
+                    <div className="mb-3" onClick={(e) => e.stopPropagation()}>
+                      <p className={cn(
+                        "text-lg font-medium text-white/90 leading-relaxed drop-shadow-lg",
+                        !showFullCaption && isCaptionLong && "line-clamp-3"
+                      )}>
+                        {showFullCaption ? displayTitle : truncatedCaption}
+                      </p>
+                      {isCaptionLong && !showFullCaption && (
+                        <button
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setShowFullCaption(true); 
+                          }}
+                          className="mt-2 text-sm text-primary font-semibold hover:underline"
+                        >
+                          Leggi tutto
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
                 <div className="flex items-center gap-2 text-white/70 mb-4">
                   <ExternalLink className="w-3 h-3" />
                   <span className="text-xs uppercase font-bold tracking-widest">
