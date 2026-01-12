@@ -1183,6 +1183,7 @@ export type Database = {
           transcript: string | null
           transcript_source: string | null
           trust_level: string | null
+          verified_by: string | null
         }
         Insert: {
           article_content?: string | null
@@ -1205,6 +1206,7 @@ export type Database = {
           transcript?: string | null
           transcript_source?: string | null
           trust_level?: string | null
+          verified_by?: string | null
         }
         Update: {
           article_content?: string | null
@@ -1227,6 +1229,7 @@ export type Database = {
           transcript?: string | null
           transcript_source?: string | null
           trust_level?: string | null
+          verified_by?: string | null
         }
         Relationships: [
           {

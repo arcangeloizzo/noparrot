@@ -6,6 +6,7 @@ import { useDominantColors } from "@/hooks/useDominantColors";
 import { useCachedTrustScore } from "@/hooks/useCachedTrustScore";
 import { PulseBadge } from "@/components/ui/pulse-badge";
 import { TrustBadgeOverlay } from "@/components/ui/trust-badge-overlay";
+import { UnanalyzableBadge } from "@/components/ui/unanalyzable-badge";
 import {
   Dialog,
   DialogContent,
@@ -567,17 +568,36 @@ export const ImmersivePostCard = ({
       const host = new URL(finalSourceUrl).hostname.toLowerCase();
       const isBlockedPlatform = host.includes('instagram.com') || host.includes('facebook.com') || host.includes('m.facebook.com') || host.includes('fb.com') || host.includes('fb.watch');
       
-      // For Intent posts (is_intent = true), use user-text-based gate instead of external link
+      // For Intent posts (is_intent = true), use direct gate with explicit questionCount
       if (post.is_intent && isBlockedPlatform) {
-        // Intent posts from blocked platforms: trigger gate based on user's text
         const userText = post.content || '';
         const userWordCount = getWordCount(userText);
         const questionCount = getQuestionCountForIntentReshare(userWordCount);
         
         toast({ title: 'Preparazione test...', description: 'Generazione domande sul contenuto' });
         
-        // Trigger the existing gate flow for Intent post reshare
-        await startComprehensionGateForPost();
+        // Call generateQA directly with explicit questionCount (1 or 3)
+        const result = await generateQA({
+          contentId: post.id,
+          title: post.author?.full_name || post.author?.username || 'Post utente',
+          summary: userText,
+          userText: userText,
+          questionCount, // Explicit: 1 for 30-120 words, 3 for >120
+        });
+        
+        if (result.insufficient_context) {
+          toast({ title: 'Contenuto troppo breve', description: 'Post pronto per la condivisione' });
+          onQuoteShare?.(post);
+          return;
+        }
+        
+        if (!result || result.error || !result.questions?.length) {
+          toast({ title: 'Errore generazione test', variant: 'destructive' });
+          return;
+        }
+        
+        setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}` });
+        setShowQuiz(true);
         return;
       }
       
@@ -1572,14 +1592,16 @@ export const ImmersivePostCard = ({
                         alt="" 
                         className="w-full h-40 sm:h-48 object-cover"
                       />
-                      {/* Trust Score Badge Overlay - shown only in stack layout (reshares) */}
-                      {displayTrustScore && (
+                      {/* Trust Score Badge Overlay - Intent posts show "NON ANALIZZABILE" */}
+                      {post.is_intent ? (
+                        <UnanalyzableBadge className="absolute bottom-3 right-3" />
+                      ) : displayTrustScore ? (
                         <TrustBadgeOverlay 
                           band={displayTrustScore.band}
                           score={displayTrustScore.score}
                           reasons={displayTrustScore.reasons}
                         />
-                      )}
+                      ) : null}
                     </div>
                   )}
                   
