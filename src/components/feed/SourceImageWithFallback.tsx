@@ -19,8 +19,22 @@ export function SourceImageWithFallback({
 }: SourceImageWithFallbackProps) {
   const [imageStatus, setImageStatus] = useState<'loading' | 'valid' | 'error'>('loading');
 
+  // Check if URL is from Instagram/Meta CDN (these always expire)
+  const isMetaCdnUrl = (url: string) => 
+    url.includes('cdninstagram.com') || 
+    url.includes('scontent') ||
+    url.includes('fbcdn.net') ||
+    url.includes('instagram.com');
+
   useEffect(() => {
     if (!src) {
+      setImageStatus('error');
+      return;
+    }
+
+    // Skip Instagram/Meta CDN images - they expire too quickly
+    if (isMetaCdnUrl(src)) {
+      console.log('[SourceImage] Skipping Meta CDN image (expires):', src.substring(0, 60));
       setImageStatus('error');
       return;
     }

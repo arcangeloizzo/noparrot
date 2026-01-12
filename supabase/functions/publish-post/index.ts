@@ -345,6 +345,21 @@ Deno.serve(async (req) => {
     if (contentToClassify.length > 20) {
       // Fire and forget - don't await
       classifyAndUpdatePost(supabase, inserted.id, contentToClassify, reqId);
+      
+      // Also assign semantic topic for trending (non-blocking)
+      fetch(`${supabaseUrl}/functions/v1/assign-post-topic`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+        },
+        body: JSON.stringify({
+          postId: inserted.id,
+          content: insertPayload.content,
+          sharedTitle: insertPayload.shared_title,
+          sharedUrl: insertPayload.shared_url,
+        }),
+      }).catch(err => console.warn(`[publish-post:${reqId}] assign-post-topic call failed:`, err));
     }
 
     console.log(`[publish-post:${reqId}] stage=done postId=${inserted.id}`)

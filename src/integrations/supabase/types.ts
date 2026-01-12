@@ -1161,6 +1161,41 @@ export type Database = {
           },
         ]
       }
+      post_topics: {
+        Row: {
+          confidence: number
+          created_at: string
+          macro_category: string | null
+          post_id: string
+          topic_id: string
+          topic_label: string
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          macro_category?: string | null
+          post_id: string
+          topic_id: string
+          topic_label: string
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          macro_category?: string | null
+          post_id?: string
+          topic_id?: string
+          topic_label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_topics_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: true
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           article_content: string | null
@@ -1509,6 +1544,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      trending_topics_cache: {
+        Row: {
+          generated_at: string
+          id: number
+          input_snapshot: Json
+          min_clusters: number
+          payload: Json
+          sample_size: number
+          valid_until: string
+          window_hours: number
+        }
+        Insert: {
+          generated_at?: string
+          id?: number
+          input_snapshot: Json
+          min_clusters?: number
+          payload: Json
+          sample_size?: number
+          valid_until: string
+          window_hours?: number
+        }
+        Update: {
+          generated_at?: string
+          id?: number
+          input_snapshot?: Json
+          min_clusters?: number
+          payload?: Json
+          sample_size?: number
+          valid_until?: string
+          window_hours?: number
+        }
+        Relationships: []
       }
       trust_scores: {
         Row: {
