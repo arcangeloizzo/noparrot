@@ -81,46 +81,60 @@ export const QuotedPostCard = ({ quotedPost, parentSources = [] }: QuotedPostCar
     ? quotedPost.content.substring(0, 280) + '...' 
     : quotedPost.content;
 
-  // INTENT POST LAYOUT: Testo protagonista, link secondario
+  // INTENT POST LAYOUT: Testo protagonista, link secondario - NoParrot blue with urban texture
   if (quotedPost.is_intent) {
     return (
-      <div className="border border-border rounded-xl p-3 mt-3 bg-muted/30">
-        {/* Header Autore */}
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-6 h-6 rounded-full overflow-hidden bg-muted flex-shrink-0">
-            {getAvatarContent()}
+      <div className="relative border border-white/10 rounded-xl p-3 mt-3 overflow-hidden">
+        {/* NoParrot blue gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#1F3347] via-[#172635] to-[#0E1A24]" />
+        
+        {/* Urban texture overlay */}
+        <div 
+          className="absolute inset-0 opacity-[0.06] mix-blend-overlay pointer-events-none"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+          }}
+        />
+        
+        {/* Content layer */}
+        <div className="relative z-10">
+          {/* Header Autore */}
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-6 h-6 rounded-full overflow-hidden bg-muted flex-shrink-0">
+              {getAvatarContent()}
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="font-semibold text-white text-sm">
+                {quotedPost.author.full_name || getDisplayUsername(quotedPost.author.username)}
+              </span>
+              <span className="text-white/50 text-xs">·</span>
+              <span className="text-white/50 text-xs">{timeAgo}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <span className="font-semibold text-foreground text-sm">
-              {quotedPost.author.full_name || getDisplayUsername(quotedPost.author.username)}
-            </span>
-            <span className="text-muted-foreground text-xs">·</span>
-            <span className="text-muted-foreground text-xs">{timeAgo}</span>
-          </div>
-        </div>
 
-        {/* PROTAGONISTA: Testo utente con Quote Block style */}
-        <div className="border-l-4 border-primary/60 bg-white/5 pl-3 py-2 rounded-r-lg mb-3">
-          <p className="text-foreground text-sm leading-relaxed line-clamp-4 whitespace-pre-wrap">
-            {quotedPost.content}
-          </p>
-        </div>
-
-        {/* SECONDARIO: Link card compatta (se presente) */}
-        {quotedPost.shared_url && (
-          <div 
-            className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted/70 transition-colors"
-            onClick={(e) => {
-              e.stopPropagation();
-              window.open(quotedPost.shared_url!, '_blank', 'noopener,noreferrer');
-            }}
-          >
-            <ExternalLink className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-            <span className="text-xs text-muted-foreground truncate">
-              {getHostnameFromUrl(quotedPost.shared_url)}
-            </span>
+          {/* PROTAGONISTA: Testo utente con Quote Block style */}
+          <div className="border-l-4 border-primary/60 bg-white/5 pl-3 py-2 rounded-r-lg mb-3">
+            <p className="text-white text-sm leading-relaxed line-clamp-4 whitespace-pre-wrap">
+              {quotedPost.content}
+            </p>
           </div>
-        )}
+
+          {/* SECONDARIO: Link card compatta (se presente) */}
+          {quotedPost.shared_url && (
+            <div 
+              className="flex items-center gap-2 p-2 bg-white/10 rounded-lg cursor-pointer hover:bg-white/15 transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(quotedPost.shared_url!, '_blank', 'noopener,noreferrer');
+              }}
+            >
+              <ExternalLink className="w-4 h-4 text-white/60 flex-shrink-0" />
+              <span className="text-xs text-white/60 truncate">
+                {getHostnameFromUrl(quotedPost.shared_url)}
+              </span>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
