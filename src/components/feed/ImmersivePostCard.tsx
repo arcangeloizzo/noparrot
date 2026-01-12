@@ -947,6 +947,8 @@ export const ImmersivePostCard = ({
                 popularity={articlePreview.popularity} 
                 size="sm" 
               />
+            ) : hasLink && (post.is_intent || (post as any).verified_by === 'user_intent') && !post.shared_url?.startsWith('focus://') ? (
+              <UnanalyzableBadge />
             ) : hasLink && displayTrustScore && !post.shared_url?.startsWith('focus://') ? (
               <Dialog>
                 <DialogTrigger asChild>

@@ -47,7 +47,7 @@ const sanitizeUrl = (rawUrl: string): string => {
   // Unwrap common tracking/redirect wrappers
   try {
     const parsed = new URL(url);
-    
+
     // Instagram/Facebook link wrappers: l.instagram.com/?u=...
     if (parsed.hostname.includes('l.instagram.com') || parsed.hostname.includes('l.facebook.com')) {
       const targetUrl = parsed.searchParams.get('u');
@@ -56,7 +56,7 @@ const sanitizeUrl = (rawUrl: string): string => {
         url = targetUrl;
       }
     }
-    
+
     // Google redirect: google.com/url?q=...
     if (parsed.hostname.includes('google.com') && parsed.pathname === '/url') {
       const targetUrl = parsed.searchParams.get('q') || parsed.searchParams.get('url');
@@ -65,14 +65,23 @@ const sanitizeUrl = (rawUrl: string): string => {
         url = targetUrl;
       }
     }
-    
+
+    // Normalize Instagram URLs: strip tracking query params (igsh, etc.)
+    try {
+      const ig = new URL(url);
+      if (ig.hostname.includes('instagram.com')) {
+        // Keep only canonical path (improves metadata extraction)
+        url = `${ig.origin}${ig.pathname}`;
+      }
+    } catch {}
+
     // t.co (Twitter shortlinks) - keep as is, backend resolves
     // bit.ly, tinyurl, etc - keep as is, backend resolves
-    
+
   } catch (e) {
     console.warn('[Composer] URL parse error during sanitization:', e);
   }
-  
+
   return url;
 };
 
