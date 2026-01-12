@@ -615,13 +615,19 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
       // Use isQuotingEditorial already defined above
 
       try {
+        // For Intent posts, pass metadata from urlPreview (extracted from OpenGraph/Firecrawl)
+        const intentMetadata = isIntentPost && snapshotPreview ? {
+          sharedTitle: snapshotPreview.title || null,
+          previewImg: snapshotPreview.image || snapshotPreview.previewImg || null,
+        } : {};
+        
         const { data, error: fnError } = await supabase.functions.invoke('publish-post', {
           body: {
             content: cleanContent,
             // For editorials: embed metadata directly, don't use quoted_post_id
             sharedUrl: isQuotingEditorial ? quotedPost.shared_url : (snapshotDetectedUrl || null),
-            sharedTitle: isQuotingEditorial ? quotedPost.shared_title : null,
-            previewImg: isQuotingEditorial ? quotedPost.preview_img : null,
+            sharedTitle: isQuotingEditorial ? quotedPost.shared_title : (intentMetadata.sharedTitle || null),
+            previewImg: isQuotingEditorial ? quotedPost.preview_img : (intentMetadata.previewImg || null),
             articleContent: isQuotingEditorial ? quotedPost.article_content : null,
             quotedPostId: isQuotingEditorial ? null : (quotedPost?.id || null),
             mediaIds: mediaIdsSnapshot,
@@ -670,15 +676,23 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         addBreadcrumb('publish_fallback_start', { originalError: String(fnErr) });
 
         try {
+          // For Intent posts, include metadata from urlPreview in fallback too
+          const intentMetadataFallback = isIntentPost && snapshotPreview ? {
+            shared_title: snapshotPreview.title || null,
+            preview_img: snapshotPreview.image || snapshotPreview.previewImg || null,
+            is_intent: true,
+          } : {};
+          
           const { data: directInsert, error: directErr } = await supabase
             .from('posts')
             .insert({
               content: cleanContent.substring(0, 5000),
               author_id: user.id,
               shared_url: isQuotingEditorial ? quotedPost.shared_url : (snapshotDetectedUrl || null),
-              shared_title: isQuotingEditorial ? quotedPost.shared_title : null,
-              preview_img: isQuotingEditorial ? quotedPost.preview_img : null,
+              shared_title: isQuotingEditorial ? quotedPost.shared_title : (intentMetadataFallback.shared_title || null),
+              preview_img: isQuotingEditorial ? quotedPost.preview_img : (intentMetadataFallback.preview_img || null),
               quoted_post_id: isQuotingEditorial ? null : (quotedPost?.id || null),
+              is_intent: intentMetadataFallback.is_intent || false,
             })
             .select('id')
             .single();
