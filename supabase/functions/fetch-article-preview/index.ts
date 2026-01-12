@@ -677,7 +677,7 @@ serve(async (req) => {
       supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     }
 
-    // Unsupported platforms - try Jina first for better metadata, fallback to OpenGraph
+    // Unsupported platforms - try Jina first, then Firecrawl, fallback to OpenGraph
     if (
       hostname.includes('instagram.com') ||
       hostname.includes('facebook.com') ||
@@ -685,11 +685,11 @@ serve(async (req) => {
       hostname.includes('fb.com') ||
       hostname.includes('fb.watch')
     ) {
-      console.log('[Preview] ⛔ Unsupported platform - attempting metadata fetch:', { originalUrl: url, hostname });
+      console.log('[Preview] ⛔ Unsupported platform - attempting enhanced metadata fetch:', { originalUrl: url, hostname });
       
       const platform = hostname.includes('instagram') ? 'instagram' : 'facebook';
       
-      // Try Jina AI first for better Instagram/Facebook metadata
+      // 1. Try Jina AI first for Instagram/Facebook metadata
       let jinaData: any = null;
       try {
         jinaData = await fetchSocialWithJina(url, platform);
@@ -698,9 +698,60 @@ serve(async (req) => {
         console.log('[Preview] Jina fetch failed for blocked platform:', err);
       }
       
-      // Fallback to OpenGraph if Jina failed
+      // Check if Jina returned useful data
+      const hasGoodJinaData = jinaData?.title && 
+        !jinaData.title.toLowerCase().includes('post da instagram') && 
+        !jinaData.title.toLowerCase().includes('post da facebook') &&
+        jinaData.title.length > 20;
+      
+      // 2. If Jina failed, try Firecrawl as aggressive fallback
+      let firecrawlData: any = null;
+      if (!hasGoodJinaData) {
+        const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
+        if (FIRECRAWL_API_KEY) {
+          try {
+            console.log('[Preview] Trying Firecrawl for blocked platform...');
+            const fcResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${FIRECRAWL_API_KEY}`
+              },
+              body: JSON.stringify({
+                url,
+                formats: ['markdown'],
+                onlyMainContent: true,
+                waitFor: 2000  // Wait longer for IG/FB anti-bot measures
+              })
+            });
+            
+            const fcData = await fcResponse.json();
+            console.log('[Preview] Firecrawl response for blocked platform:', {
+              success: fcData?.success,
+              hasMetadata: !!fcData?.data?.metadata || !!fcData?.metadata,
+              title: fcData?.data?.metadata?.title || fcData?.metadata?.title || null
+            });
+            
+            if (fcData?.success) {
+              const meta = fcData.data?.metadata || fcData.metadata || {};
+              firecrawlData = {
+                title: meta.title || meta.ogTitle || null,
+                image: meta.ogImage || meta.image || null,
+                description: meta.description || meta.ogDescription || null,
+                author: meta.author || meta.ogSiteName || null
+              };
+            }
+          } catch (fcErr) {
+            console.log('[Preview] Firecrawl failed for blocked platform:', fcErr);
+          }
+        } else {
+          console.log('[Preview] Firecrawl API key not configured, skipping');
+        }
+      }
+      
+      // 3. Fallback to OpenGraph if both Jina and Firecrawl failed
       let ogData: any = null;
-      if (!jinaData || !jinaData.title) {
+      if (!hasGoodJinaData && !firecrawlData?.title) {
         try {
           ogData = await fetchOpenGraphData(url);
           console.log('[Preview] OpenGraph result for blocked platform:', ogData ? { title: ogData.title, hasImage: !!ogData.image } : 'null');
@@ -709,12 +760,22 @@ serve(async (req) => {
         }
       }
       
-      // Merge best available metadata
-      const mergedData = jinaData || ogData || {};
+      // 4. Merge best available metadata - prioritize Firecrawl for IG/FB
+      const mergedData = {
+        title: firecrawlData?.title || jinaData?.title || ogData?.title || null,
+        image: firecrawlData?.image || jinaData?.image || ogData?.image || null,
+        description: firecrawlData?.description || jinaData?.summary || jinaData?.description || ogData?.description || null,
+        author: firecrawlData?.author || jinaData?.author || ogData?.author || null
+      };
+      
+      console.log('[Preview] Final merged metadata for blocked platform:', {
+        hasTitle: !!mergedData.title,
+        titleLength: mergedData.title?.length || 0,
+        hasImage: !!mergedData.image,
+        source: firecrawlData?.title ? 'firecrawl' : (jinaData?.title ? 'jina' : (ogData?.title ? 'opengraph' : 'none'))
+      });
       
       // Return success: true with gateBlocked flag and extracted metadata
-      // This allows the client to display the metadata (title, image, author)
-      // while blocking the comprehension gate (user must use Intent Gate instead)
       return new Response(
         JSON.stringify({
           success: true, // Allow metadata to be displayed
@@ -725,9 +786,9 @@ serve(async (req) => {
           originalUrl: url,
           platform,
           // Include best available metadata
-          title: mergedData.title || null,
-          previewImg: mergedData.image || mergedData.previewImg || null,
-          summary: mergedData.description || mergedData.summary || null,
+          title: mergedData.title,
+          previewImg: mergedData.image,
+          summary: mergedData.description,
           author: mergedData.author || (platform === 'instagram' ? 'Instagram' : 'Facebook'),
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

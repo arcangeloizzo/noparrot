@@ -59,7 +59,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { uniqueSources } from "@/lib/url";
 import { useCreateThread } from "@/hooks/useMessageThreads";
 import { useSendMessage } from "@/hooks/useMessages";
-import { getWordCount, getTestModeWithSource, getQuestionCountWithoutSource } from "@/lib/gate-utils";
+import { getWordCount, getTestModeWithSource, getQuestionCountWithoutSource, getQuestionCountForIntentReshare } from "@/lib/gate-utils";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
 import { useReshareContextStack } from "@/hooks/useReshareContextStack";
 import { useOriginalSource } from "@/hooks/useOriginalSource";
@@ -565,7 +565,24 @@ export const ImmersivePostCard = ({
 
     try {
       const host = new URL(finalSourceUrl).hostname.toLowerCase();
-      if (host.includes('instagram.com') || host.includes('facebook.com') || host.includes('m.facebook.com') || host.includes('fb.com') || host.includes('fb.watch')) {
+      const isBlockedPlatform = host.includes('instagram.com') || host.includes('facebook.com') || host.includes('m.facebook.com') || host.includes('fb.com') || host.includes('fb.watch');
+      
+      // For Intent posts (is_intent = true), use user-text-based gate instead of external link
+      if (post.is_intent && isBlockedPlatform) {
+        // Intent posts from blocked platforms: trigger gate based on user's text
+        const userText = post.content || '';
+        const userWordCount = getWordCount(userText);
+        const questionCount = getQuestionCountForIntentReshare(userWordCount);
+        
+        toast({ title: 'Preparazione test...', description: 'Generazione domande sul contenuto' });
+        
+        // Trigger the existing gate flow for Intent post reshare
+        await startComprehensionGateForPost();
+        return;
+      }
+      
+      // For non-Intent posts with blocked platform links, show toast and open externally
+      if (isBlockedPlatform) {
         toast({ title: 'Link non supportato', description: 'Instagram e Facebook non sono supportati.' });
         window.open(finalSourceUrl, '_blank', 'noopener,noreferrer');
         return;
