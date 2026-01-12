@@ -688,21 +688,32 @@ serve(async (req) => {
       console.log('[Preview] ⛔ Unsupported platform - attempting enhanced metadata fetch:', { originalUrl: url, hostname });
       
       const platform = hostname.includes('instagram') ? 'instagram' : 'facebook';
+
+      // Canonicalize IG/FB URLs (strip tracking params) to improve metadata fetch
+      let canonicalUrl = url;
+      try {
+        const u = new URL(url);
+        if (u.hostname.includes('instagram.com') || u.hostname.includes('facebook.com')) {
+          canonicalUrl = `${u.origin}${u.pathname}`;
+        }
+      } catch {}
       
       // 1. Try Jina AI first for Instagram/Facebook metadata
       let jinaData: any = null;
       try {
-        jinaData = await fetchSocialWithJina(url, platform);
+        jinaData = await fetchSocialWithJina(canonicalUrl, platform);
         console.log('[Preview] Jina result for blocked platform:', jinaData ? { title: jinaData.title, hasImage: !!jinaData.image } : 'null');
       } catch (err) {
         console.log('[Preview] Jina fetch failed for blocked platform:', err);
       }
       
       // Check if Jina returned useful data
-      const hasGoodJinaData = jinaData?.title && 
-        !jinaData.title.toLowerCase().includes('post da instagram') && 
-        !jinaData.title.toLowerCase().includes('post da facebook') &&
-        jinaData.title.length > 20;
+      const isGenericSocialTitle = (t?: string | null) => {
+        const x = (t || '').toLowerCase();
+        return !t || x.includes('post da instagram') || x.includes('post da facebook') || x === 'instagram' || x === 'facebook';
+      };
+
+      const hasGoodJinaData = jinaData?.title && !isGenericSocialTitle(jinaData.title) && jinaData.title.length > 20;
       
       // 2. If Jina failed, try Firecrawl as aggressive fallback
       let firecrawlData: any = null;
@@ -718,26 +729,45 @@ serve(async (req) => {
                 'Authorization': `Bearer ${FIRECRAWL_API_KEY}`
               },
               body: JSON.stringify({
-                url,
-                formats: ['markdown'],
-                onlyMainContent: true,
-                waitFor: 2000  // Wait longer for IG/FB anti-bot measures
+                url: canonicalUrl,
+                // Ask for HTML too: on some pages metadata is only reliable there
+                formats: ['markdown', 'html'],
+                // For metadata, main-content filtering can remove head parsing in some setups
+                onlyMainContent: false,
+                waitFor: 2500
               })
             });
             
             const fcData = await fcResponse.json();
+            const fcRoot = fcData?.data || fcData || {};
+            const meta = fcRoot?.metadata || {};
+            const markdown = fcRoot?.markdown as string | undefined;
+
+            const deriveFromMarkdown = (md?: string) => {
+              if (!md) return { title: null, description: null };
+              const lines = md.split('\n').map(l => l.trim()).filter(Boolean);
+              const first = lines[0] || '';
+              // Firecrawl sometimes returns "username on Instagram: ..." in first line
+              const title = first.length >= 12 ? first.slice(0, 140) : null;
+              const description = (lines[1] && lines[1].length >= 20) ? lines[1].slice(0, 220) : null;
+              return { title, description };
+            };
+
+            const mdDerived = deriveFromMarkdown(markdown);
+
             console.log('[Preview] Firecrawl response for blocked platform:', {
               success: fcData?.success,
-              hasMetadata: !!fcData?.data?.metadata || !!fcData?.metadata,
-              title: fcData?.data?.metadata?.title || fcData?.metadata?.title || null
+              hasMetadata: !!meta && Object.keys(meta).length > 0,
+              title: meta?.title || meta?.ogTitle || mdDerived.title || null
             });
             
             if (fcData?.success) {
-              const meta = fcData.data?.metadata || fcData.metadata || {};
+              const fcTitle = meta.title || meta.ogTitle || mdDerived.title || null;
+              const fcDesc = meta.description || meta.ogDescription || mdDerived.description || null;
               firecrawlData = {
-                title: meta.title || meta.ogTitle || null,
+                title: isGenericSocialTitle(fcTitle) ? null : fcTitle,
                 image: meta.ogImage || meta.image || null,
-                description: meta.description || meta.ogDescription || null,
+                description: fcDesc,
                 author: meta.author || meta.ogSiteName || null
               };
             }
@@ -753,7 +783,7 @@ serve(async (req) => {
       let ogData: any = null;
       if (!hasGoodJinaData && !firecrawlData?.title) {
         try {
-          ogData = await fetchOpenGraphData(url);
+          ogData = await fetchOpenGraphData(canonicalUrl);
           console.log('[Preview] OpenGraph result for blocked platform:', ogData ? { title: ogData.title, hasImage: !!ogData.image } : 'null');
         } catch (err) {
           console.log('[Preview] OpenGraph fetch failed for blocked platform:', err);
@@ -762,7 +792,7 @@ serve(async (req) => {
       
       // 4. Merge best available metadata - prioritize Firecrawl for IG/FB
       const mergedData = {
-        title: firecrawlData?.title || jinaData?.title || ogData?.title || null,
+        title: firecrawlData?.title || (isGenericSocialTitle(jinaData?.title) ? null : jinaData?.title) || (isGenericSocialTitle(ogData?.title) ? null : ogData?.title) || null,
         image: firecrawlData?.image || jinaData?.image || ogData?.image || null,
         description: firecrawlData?.description || jinaData?.summary || jinaData?.description || ogData?.description || null,
         author: firecrawlData?.author || jinaData?.author || ogData?.author || null
