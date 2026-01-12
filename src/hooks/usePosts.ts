@@ -347,6 +347,7 @@ export const useQuotedPost = (quotedPostId: string | null) => {
           shared_url,
           shared_title,
           preview_img,
+          is_intent,
           author:profiles!author_id (
             username,
             full_name,

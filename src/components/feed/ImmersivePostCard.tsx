@@ -347,7 +347,9 @@ export const ImmersivePostCard = ({
   const quotedPostWordCount = quotedPost?.content?.trim().split(/\s+/).length || 0;
   const isReshareWithShortCommentEarly = !!quotedPost && quotedPostWordCount < 30;
   const isReshareWithSourceEarly = !!quotedPost && !!(quotedPost.shared_url || post.shared_url);
-  const useStackLayoutEarly = isReshareWithShortCommentEarly || isReshareWithSourceEarly;
+  // For Intent posts, don't use stack layout - show QuotedPostCard with text-first layout instead
+  const isQuotedIntentPost = !!quotedPost?.is_intent;
+  const useStackLayoutEarly = !isQuotedIntentPost && (isReshareWithShortCommentEarly || isReshareWithSourceEarly);
   
   const { data: originalSource } = useOriginalSource(
     useStackLayoutEarly && !effectiveSharedUrl ? post.quoted_post_id : null
