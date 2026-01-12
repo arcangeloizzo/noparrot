@@ -11,13 +11,16 @@ interface SourceImageWithFallbackProps {
     score: number;
     reasons?: string[];
   } | null;
+  /** Hide overlay badge (for original posts where badge is in header) */
+  hideOverlay?: boolean;
 }
 
 export function SourceImageWithFallback({ 
   src, 
   sharedUrl,
   isIntent, 
-  trustScore 
+  trustScore,
+  hideOverlay = false,
 }: SourceImageWithFallbackProps) {
   // Check if the shared URL is from Instagram - BLOCK IMMEDIATELY
   const isInstagramPost = sharedUrl?.includes('instagram.com') || sharedUrl?.includes('instagram');
@@ -106,16 +109,18 @@ export function SourceImageWithFallback({
         className="w-full h-40 sm:h-48 object-cover"
         onError={() => setImageStatus('error')}
       />
-      {/* Trust Score Badge Overlay - Intent posts show "NON ANALIZZABILE" */}
-      {isIntent ? (
-        <UnanalyzableBadge className="absolute bottom-3 right-3" />
-      ) : trustScore ? (
-        <TrustBadgeOverlay 
-          band={trustScore.band}
-          score={trustScore.score}
-          reasons={trustScore.reasons}
-        />
-      ) : null}
+      {/* Trust Score Badge Overlay - Hidden for original posts (hideOverlay), Intent posts show "NON ANALIZZABILE" */}
+      {!hideOverlay && (
+        isIntent ? (
+          <UnanalyzableBadge className="absolute bottom-3 right-3" />
+        ) : trustScore ? (
+          <TrustBadgeOverlay 
+            band={trustScore.band}
+            score={trustScore.score}
+            reasons={trustScore.reasons}
+          />
+        ) : null
+      )}
     </div>
   );
 }
