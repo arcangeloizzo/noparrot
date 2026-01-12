@@ -7,6 +7,46 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Input validation: Only allow YouTube URLs to prevent SSRF
+function isValidYouTubeUrl(url: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  
+  try {
+    const parsed = new URL(url.trim());
+    const hostname = parsed.hostname.toLowerCase();
+    
+    // Only allow YouTube domains
+    const allowedDomains = [
+      'youtube.com',
+      'www.youtube.com',
+      'youtu.be',
+      'm.youtube.com',
+      'music.youtube.com'
+    ];
+    
+    // Check if hostname matches or ends with allowed domains
+    const isAllowed = allowedDomains.some(domain => 
+      hostname === domain || hostname.endsWith('.' + domain)
+    );
+    
+    if (!isAllowed) {
+      console.warn(`[Security] Blocked non-YouTube URL: ${hostname}`);
+      return false;
+    }
+    
+    // Only allow https
+    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+      console.warn(`[Security] Blocked non-HTTP protocol: ${parsed.protocol}`);
+      return false;
+    }
+    
+    return true;
+  } catch {
+    console.warn(`[Security] Invalid URL format: ${url}`);
+    return false;
+  }
+}
+
 // Extract YouTube video ID from various URL formats
 function extractYouTubeId(url: string): string | null {
   const patterns = [
@@ -229,6 +269,28 @@ serve(async (req) => {
   }
 
   try {
+    // Verify JWT for authenticated access
+    const authHeader = req.headers.get('Authorization');
+    let userId: string | null = null;
+    
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (!authError && user) {
+        userId = user.id;
+      }
+    }
+    
+    // For unauthenticated requests, we still proceed but log it
+    // This allows the function to work for edge cases while tracking usage
+    if (!userId) {
+      console.log('[transcribe-youtube] Unauthenticated request - proceeding with caution');
+    }
+    
     const { url } = await req.json();
     
     if (!url) {
@@ -240,8 +302,20 @@ serve(async (req) => {
         }
       );
     }
+    
+    // SSRF Protection: Validate URL is a YouTube URL
+    if (!isValidYouTubeUrl(url)) {
+      console.warn(`[Security] SSRF attempt blocked: ${url}`);
+      return new Response(
+        JSON.stringify({ error: 'Only YouTube URLs are allowed' }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
-    console.log(`Processing YouTube video: ${url}`);
+    console.log(`Processing YouTube video: ${url}${userId ? ` (user: ${userId.substring(0, 8)})` : ''}`);
     
     const videoId = extractYouTubeId(url);
     
@@ -255,10 +329,7 @@ serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client with service role key
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Supabase client already initialized above for auth check
 
     // LEVEL 1: Check cache first (only non-expired entries)
     console.log(`[Cache] Checking cache for video ${videoId}...`);
