@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play } from "lucide-react";
@@ -35,6 +35,7 @@ import { QuotedEditorialCard } from "./QuotedEditorialCard";
 import { MentionText } from "./MentionText";
 import { ReshareContextStack } from "./ReshareContextStack";
 import { SpotifyGradientBackground } from "./SpotifyGradientBackground";
+import { SourceImageWithFallback } from "./SourceImageWithFallback";
 
 // Media Components
 import { MediaGallery } from "@/components/media/MediaGallery";
@@ -1586,26 +1587,12 @@ export const ImmersivePostCard = ({
                     window.open(finalSourceUrl, '_blank', 'noopener,noreferrer');
                   }}
                 >
-                  {/* Source Image */}
-                  {(articlePreview?.image || finalSourceImage) && (
-                <div className="relative mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_20px_rgba(0,0,0,0.3)]">
-                      <img 
-                        src={articlePreview?.image || finalSourceImage} 
-                        alt="" 
-                        className="w-full h-40 sm:h-48 object-cover"
-                      />
-                      {/* Trust Score Badge Overlay - Intent posts show "NON ANALIZZABILE" */}
-                      {post.is_intent ? (
-                        <UnanalyzableBadge className="absolute bottom-3 right-3" />
-                      ) : displayTrustScore ? (
-                        <TrustBadgeOverlay 
-                          band={displayTrustScore.band}
-                          score={displayTrustScore.score}
-                          reasons={displayTrustScore.reasons}
-                        />
-                      ) : null}
-                    </div>
-                  )}
+                  {/* Source Image - with error handling for broken images */}
+                  <SourceImageWithFallback
+                    src={articlePreview?.image || finalSourceImage}
+                    isIntent={post.is_intent}
+                    trustScore={displayTrustScore}
+                  />
                   
                   {/* Source Title */}
                   <h1 className="text-lg font-semibold text-white leading-tight mb-1 drop-shadow-xl">
