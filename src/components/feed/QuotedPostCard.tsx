@@ -23,6 +23,7 @@ interface QuotedPost {
 interface QuotedPostCardProps {
   quotedPost: QuotedPost;
   parentSources?: string[];
+  onNavigate?: () => void;
 }
 
 const getHostnameFromUrl = (url: string | undefined): string => {
@@ -35,7 +36,7 @@ const getHostnameFromUrl = (url: string | undefined): string => {
   }
 };
 
-export const QuotedPostCard = ({ quotedPost, parentSources = [] }: QuotedPostCardProps) => {
+export const QuotedPostCard = ({ quotedPost, parentSources = [], onNavigate }: QuotedPostCardProps) => {
   // Deduplicare tutte le fonti del quoted post contro quelle del post principale
   const quotedSources = quotedPost.shared_url 
     ? [quotedPost.shared_url, ...(quotedPost.sources || [])]
@@ -84,7 +85,13 @@ export const QuotedPostCard = ({ quotedPost, parentSources = [] }: QuotedPostCar
   // INTENT POST LAYOUT: Testo protagonista, link secondario - NoParrot blue with urban texture
   if (quotedPost.is_intent) {
     return (
-      <div className="relative border border-white/10 rounded-xl p-3 mt-3 overflow-hidden">
+      <div 
+        className="relative border border-white/10 rounded-xl p-3 mt-3 overflow-hidden cursor-pointer active:scale-[0.98] transition-transform"
+        onClick={(e) => {
+          e.stopPropagation();
+          onNavigate?.();
+        }}
+      >
         {/* NoParrot blue gradient background */}
         <div className="absolute inset-0 bg-gradient-to-b from-[#1F3347] via-[#172635] to-[#0E1A24]" />
         
@@ -141,7 +148,13 @@ export const QuotedPostCard = ({ quotedPost, parentSources = [] }: QuotedPostCar
 
   // STANDARD POST LAYOUT (unchanged)
   return (
-    <div className="border border-border rounded-xl p-3 mt-3 bg-muted/30">
+    <div 
+      className="border border-border rounded-xl p-3 mt-3 bg-muted/30 cursor-pointer active:scale-[0.98] transition-transform"
+      onClick={(e) => {
+        e.stopPropagation();
+        onNavigate?.();
+      }}
+    >
       <div className="flex gap-2">
         {/* Avatar */}
         <div className="flex-shrink-0">

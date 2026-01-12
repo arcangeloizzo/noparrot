@@ -920,8 +920,8 @@ export const ImmersivePostCard = ({
           <div className="absolute inset-0 bg-[#1F3347]">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10" />
           </div>
-        ) : isIntentPost ? (
-          /* Intent posts: NoParrot blue background with urban texture */
+        ) : isIntentPost || isQuotedIntentPost ? (
+          /* Intent posts OR reshares of Intent posts: NoParrot blue background with urban texture */
           <div className="absolute inset-0 bg-gradient-to-b from-[#1F3347] via-[#172635] to-[#0E1A24]">
             <div 
               className="absolute inset-0 opacity-[0.08] mix-blend-overlay"
@@ -1706,7 +1706,8 @@ export const ImmersivePostCard = ({
                 ) : (
                   <QuotedPostCard 
                     quotedPost={quotedPost} 
-                    parentSources={post.shared_url ? [post.shared_url, ...(post.sources || [])] : (post.sources || [])} 
+                    parentSources={post.shared_url ? [post.shared_url, ...(post.sources || [])] : (post.sources || [])}
+                    onNavigate={() => navigate(`/post/${quotedPost.id}`)}
                   />
                 )}
               </div>
