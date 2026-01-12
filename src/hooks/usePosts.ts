@@ -32,6 +32,7 @@ export interface Post {
     shared_url?: string | null;
     shared_title?: string | null;
     preview_img?: string | null;
+    is_intent?: boolean;
     author: {
       username: string;
       full_name: string | null;
@@ -109,6 +110,7 @@ export const usePosts = () => {
             shared_url,
             shared_title,
             preview_img,
+            is_intent,
             author:profiles!author_id (
               username,
               full_name,

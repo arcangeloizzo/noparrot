@@ -12,6 +12,7 @@ interface QuotedPost {
   shared_title?: string | null;
   preview_img?: string | null;
   sources?: string[];
+  is_intent?: boolean;
   author: {
     username: string;
     full_name: string | null;
@@ -45,6 +46,7 @@ export const QuotedPostCard = ({ quotedPost, parentSources = [] }: QuotedPostCar
   );
   
   const shouldShowSource = quotedPost.shared_url && uniqueQuotedSources.includes(quotedPost.shared_url);
+  
   const getAvatarContent = () => {
     if (quotedPost.author.avatar_url) {
       return (
@@ -74,11 +76,56 @@ export const QuotedPostCard = ({ quotedPost, parentSources = [] }: QuotedPostCar
       })
     : 'poco fa';
 
-  // Truncate content to 280 characters
+  // Truncate content for standard posts
   const truncatedContent = quotedPost.content.length > 280 
     ? quotedPost.content.substring(0, 280) + '...' 
     : quotedPost.content;
 
+  // INTENT POST LAYOUT: Testo protagonista, link secondario
+  if (quotedPost.is_intent) {
+    return (
+      <div className="border border-border rounded-xl p-3 mt-3 bg-muted/30">
+        {/* Header Autore */}
+        <div className="flex items-center gap-2 mb-2">
+          <div className="w-6 h-6 rounded-full overflow-hidden bg-muted flex-shrink-0">
+            {getAvatarContent()}
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="font-semibold text-foreground text-sm">
+              {quotedPost.author.full_name || getDisplayUsername(quotedPost.author.username)}
+            </span>
+            <span className="text-muted-foreground text-xs">·</span>
+            <span className="text-muted-foreground text-xs">{timeAgo}</span>
+          </div>
+        </div>
+
+        {/* PROTAGONISTA: Testo utente con Quote Block style */}
+        <div className="border-l-4 border-primary/60 bg-white/5 pl-3 py-2 rounded-r-lg mb-3">
+          <p className="text-foreground text-sm leading-relaxed line-clamp-4 whitespace-pre-wrap">
+            {quotedPost.content}
+          </p>
+        </div>
+
+        {/* SECONDARIO: Link card compatta (se presente) */}
+        {quotedPost.shared_url && (
+          <div 
+            className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg cursor-pointer hover:bg-muted/70 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(quotedPost.shared_url!, '_blank', 'noopener,noreferrer');
+            }}
+          >
+            <ExternalLink className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+            <span className="text-xs text-muted-foreground truncate">
+              {getHostnameFromUrl(quotedPost.shared_url)}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // STANDARD POST LAYOUT (unchanged)
   return (
     <div className="border border-border rounded-xl p-3 mt-3 bg-muted/30">
       <div className="flex gap-2">
