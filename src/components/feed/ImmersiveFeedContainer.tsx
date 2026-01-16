@@ -40,6 +40,9 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   const [isRefreshing, setIsRefreshing] = useState(false);
   const lastReportedIndex = useRef<number>(-1);
   const [activeIndex, setActiveIndex] = useState(0);
+  
+  // RAF guard to prevent multiple scroll updates in same frame
+  const rafPending = useRef(false);
 
   // Calculate active index
   const calculateActiveIndex = useCallback(() => {
@@ -69,19 +72,29 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   }));
 
   // Handle scroll to track active index + prefetch next image
+  // Uses RAF guard to prevent multiple updates per frame (A3)
   const handleScroll = useCallback(() => {
-    const currentIndex = calculateActiveIndex();
-    if (currentIndex !== lastReportedIndex.current) {
-      lastReportedIndex.current = currentIndex;
-      setActiveIndex(currentIndex);
-      onActiveIndexChange?.(currentIndex);
+    // Skip if RAF already pending
+    if (rafPending.current) return;
+    
+    rafPending.current = true;
+    requestAnimationFrame(() => {
+      rafPending.current = false;
       
-      // Prefetch ONLY the next card's image (1 ahead)
-      const nextIndex = currentIndex + 1;
-      if (nextIndex < imageUrls.length && imageUrls[nextIndex]) {
-        prefetchImage(imageUrls[nextIndex], 'thumb');
+      const currentIndex = calculateActiveIndex();
+      // Only update if index actually changed
+      if (currentIndex !== lastReportedIndex.current) {
+        lastReportedIndex.current = currentIndex;
+        setActiveIndex(currentIndex);
+        onActiveIndexChange?.(currentIndex);
+        
+        // Prefetch ONLY the next card's THUMB image (1 ahead, no hero)
+        const nextIndex = currentIndex + 1;
+        if (nextIndex < imageUrls.length && imageUrls[nextIndex]) {
+          prefetchImage(imageUrls[nextIndex], 'thumb');
+        }
       }
-    }
+    });
   }, [calculateActiveIndex, onActiveIndexChange, imageUrls]);
 
   // Pull-to-refresh handlers
