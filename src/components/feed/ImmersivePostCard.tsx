@@ -962,6 +962,8 @@ const ImmersivePostCardInner = ({
             {backgroundImage && (
               <img 
                 src={backgroundImage} 
+                loading="lazy"
+                decoding="async"
                 className="absolute inset-0 w-full h-full object-cover opacity-60 blur-2xl scale-110" 
                 alt=""
               />
@@ -1461,10 +1463,12 @@ const ImmersivePostCardInner = ({
                     }}
                     className="relative w-full rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_16px_rgba(255,0,0,0.1)] active:scale-[0.98] transition-transform"
                   >
-                    {/* Video Thumbnail */}
+                    {/* Video Thumbnail - lazy loaded with fixed aspect */}
                     <img 
-                      src={articlePreview?.image || post.preview_img || `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url!)}/maxresdefault.jpg`}
+                      src={articlePreview?.image || post.preview_img || `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url!)}/sddefault.jpg`}
                       alt=""
+                      loading="lazy"
+                      decoding="async"
                       className="w-full aspect-video object-cover"
                     />
                     
