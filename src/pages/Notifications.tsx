@@ -60,6 +60,8 @@ const getNotificationIcon = (type: string) => {
       return <Repeat className={cn(baseClass, "text-violet-400/70")} />;
     case "message":
       return <Mail className={cn(baseClass, "text-sky-400/70")} />;
+    case "new_user":
+      return <UserPlus className={cn(baseClass, "text-green-500")} />;
     default:
       return <Bell className={cn(baseClass, "text-muted-foreground")} />;
   }
@@ -83,6 +85,8 @@ const getNotificationText = (notification: Notification): string => {
       return "ha condiviso il tuo post";
     case "message_like":
       return "ha messo like al tuo messaggio";
+    case "new_user":
+      return "si è registrato su NoParrot";
     default:
       return "ha interagito con te";
   }
@@ -228,7 +232,9 @@ export const Notifications = () => {
     }
 
     // Naviga al contenuto
-    if (notification.type === "follow" && notification.actor_id) {
+    if (notification.type === "new_user" && notification.actor_id) {
+      navigate(`/user/${notification.actor_id}`);
+    } else if (notification.type === "follow" && notification.actor_id) {
       navigate(`/user/${notification.actor_id}`);
     } else if (notification.type === "message_like" && notification.message_id) {
       navigate(`/messages`);

@@ -39,7 +39,7 @@ function isInternalRequest(req: Request): boolean {
 
 // Input validation for notification types
 function validateNotificationType(type: string): boolean {
-  const validTypes = ['notification', 'message', 'editorial'];
+  const validTypes = ['notification', 'message', 'editorial', 'admin'];
   return validTypes.includes(type);
 }
 
@@ -316,6 +316,50 @@ serve(async (req) => {
         data: { 
           url: `/?focus=${body.editorial_id}`, 
           type: 'editorial' 
+        },
+      };
+      
+    } else if (body.type === 'admin' && body.notification_type === 'new_user') {
+      // Admin notification for new user registration
+      console.log('[Push] Processing admin new_user notification');
+      
+      // Get all admin user IDs
+      const { data: adminRoles } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'admin');
+      
+      const adminUserIds = adminRoles?.map(r => r.user_id) || [];
+      
+      if (adminUserIds.length === 0) {
+        console.log('[Push] No admins found');
+        return new Response(JSON.stringify({ success: true, sent: 0, reason: 'no_admins' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      // Get new user info
+      const { data: actorProfile } = await supabase
+        .from('profiles')
+        .select('full_name, username')
+        .eq('id', body.actor_id)
+        .single();
+      
+      const newUserName = actorProfile?.full_name || actorProfile?.username?.replace(/@gmail\.com$/, '') || 'Nuovo utente';
+      
+      targetUserIds = adminUserIds;
+      
+      console.log(`[Push] Admin new_user notification to ${targetUserIds.length} admins for user: ${newUserName}`);
+      
+      notificationPayload = {
+        title: '👤 Nuovo Utente Registrato',
+        body: `${newUserName} si è appena iscritto a NoParrot`,
+        icon: '/lovable-uploads/feed-logo.png',
+        badge: '/lovable-uploads/feed-logo.png',
+        tag: `new-user-${body.actor_id}`,
+        data: { 
+          url: `/user/${body.actor_id}`, 
+          type: 'new_user' 
         },
       };
       

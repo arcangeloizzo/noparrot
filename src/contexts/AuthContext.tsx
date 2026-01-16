@@ -178,11 +178,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { error: null, requiresEmailVerification: true };
     }
 
-    // Valida username se modificato
+    // Valida username solo se effettivamente modificato
     if (data.username) {
-      const { data: isValid, error: validationError } = await supabase.rpc('is_valid_username', { username: data.username });
-      if (validationError || !isValid) {
-        return { error: { message: 'Username non valido o già in uso' } };
+      // Fetch current username per confronto
+      const { data: currentProfile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('id', user.id)
+        .single();
+      
+      // Valida solo se username è diverso dal corrente
+      if (data.username !== currentProfile?.username) {
+        const { data: isValid, error: validationError } = await supabase.rpc('is_valid_username', { username: data.username });
+        if (validationError || !isValid) {
+          return { error: { message: 'Username non valido o già in uso' } };
+        }
       }
     }
 
