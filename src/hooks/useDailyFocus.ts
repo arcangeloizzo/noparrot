@@ -54,32 +54,35 @@ export const useDailyFocus = (refreshNonce: number = 0) => {
       }
 
       if (cached && cached.length > 0) {
-        // Compute shares count from posts that reference this focus item
-        // This makes the UI reflect real shares even if daily_focus.reactions.shares isn't kept in sync.
-        const shareCounts = await Promise.all(
-          cached.map(async (item: any) => {
-            const sharedUrl = `focus://daily/${item.id}`;
-            const { count, error } = await supabase
-              .from('posts')
-              .select('id', { count: 'exact', head: true })
-              .eq('shared_url', sharedUrl);
+        // Use RPC to get share counts in a single aggregated query (N+1 fix)
+        const sharedUrls = cached.map((item: any) => `focus://daily/${item.id}`);
+        
+        let shareMap = new Map<string, number>();
+        
+        // Skip RPC call if no URLs to check
+        if (sharedUrls.length > 0) {
+          const { data: shareCounts, error: shareError } = await supabase
+            .rpc('get_share_counts', { shared_urls: sharedUrls });
+          
+          if (shareError) {
+            console.warn('Error fetching share counts via RPC:', shareError);
+          } else if (shareCounts && shareCounts.length > 5000) {
+            console.warn('[useDailyFocus] ⚠️ Share count rows > 5000');
+          }
+          
+          (shareCounts || []).forEach((row: { shared_url: string; count: number }) => {
+            shareMap.set(row.shared_url, row.count);
+          });
+        }
 
-            if (error) {
-              console.warn('Error fetching daily focus share count for', item.id, error);
-              return 0;
-            }
-            return count || 0;
-          })
-        );
-
-        const items = cached.map((raw: any, idx: number) => {
+        const items = cached.map((raw: any) => {
           const r = (raw.reactions || {}) as any;
           return {
             ...(raw as DailyFocus),
             reactions: {
               likes: r.likes ?? 0,
               comments: r.comments ?? 0,
-              shares: shareCounts[idx] ?? r.shares ?? 0,
+              shares: shareMap.get(`focus://daily/${raw.id}`) ?? r.shares ?? 0,
             },
           } as DailyFocus;
         });
