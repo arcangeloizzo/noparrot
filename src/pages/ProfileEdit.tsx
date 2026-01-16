@@ -58,7 +58,7 @@ export const ProfileEdit = () => {
 
     const { error, requiresEmailVerification } = await updateProfile({
       full_name: fullName,
-      username,
+      username: username !== profile?.username ? username : undefined, // Solo se modificato
       bio,
       email: email !== user?.email ? email : undefined,
     });
