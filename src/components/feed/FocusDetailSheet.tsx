@@ -21,6 +21,7 @@ import { LOGO_BASE } from "@/config/brand";
 import { haptics } from "@/lib/haptics";
 import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "@/components/ui/logo";
+import { FocusDetailSkeleton, SourcesSkeleton } from "./skeletons";
 
 interface Source {
   icon: string;
@@ -267,37 +268,45 @@ export const FocusDetailSheet = ({
             </h2>
           
             <div className="py-6 space-y-6">
-              {/* Deep Content - Holistic text without markers */}
-              <div>
-                <h4 className="text-gray-400 text-sm font-semibold mb-3">Approfondimento</h4>
-                <p className="text-gray-200 text-base leading-relaxed whitespace-pre-wrap">
-                  {deepContent ? renderCleanContent(deepContent) : 'Contenuto non disponibile.'}
-                </p>
-              </div>
+              {/* Deep Content - show skeleton if not loaded */}
+              {!deepContent ? (
+                <FocusDetailSkeleton />
+              ) : (
+                <div>
+                  <h4 className="text-gray-400 text-sm font-semibold mb-3">Approfondimento</h4>
+                  <p className="text-gray-200 text-base leading-relaxed whitespace-pre-wrap">
+                    {renderCleanContent(deepContent)}
+                  </p>
+                </div>
+              )}
               
-              {/* Sources Section - PRIMA delle action, DOPO il testo */}
-              <div className="py-4 border-t border-white/10">
-                <h4 className="text-sm font-semibold text-white/70 mb-3">
-                  Fonti consultate per questa sintesi
-                </h4>
-                <button
-                  onClick={() => setSourcesDrawerOpen(true)}
-                  className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <Layers className="w-5 h-5 text-[#0A7AFF]" />
-                    <div className="text-left">
-                      <p className="text-sm font-medium text-white">
-                        Vedi le {sources.length} fonti
-                      </p>
-                      <p className="text-xs text-white/50">
-                        L'analisi incrocia contenuti da più testate
-                      </p>
+              {/* Sources Section - show skeleton if sources not loaded */}
+              {sources.length === 0 ? (
+                <SourcesSkeleton />
+              ) : (
+                <div className="py-4 border-t border-white/10">
+                  <h4 className="text-sm font-semibold text-white/70 mb-3">
+                    Fonti consultate per questa sintesi
+                  </h4>
+                  <button
+                    onClick={() => setSourcesDrawerOpen(true)}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Layers className="w-5 h-5 text-[#0A7AFF]" />
+                      <div className="text-left">
+                        <p className="text-sm font-medium text-white">
+                          Vedi le {sources.length} fonti
+                        </p>
+                        <p className="text-xs text-white/50">
+                          L'analisi incrocia contenuti da più testate
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-white/30" />
-                </button>
-              </div>
+                    <ChevronRight className="w-5 h-5 text-white/30" />
+                  </button>
+                </div>
+              )}
             
               {/* Action Bar */}
               <div className="py-4 flex items-center justify-between gap-3 border-y border-white/10">

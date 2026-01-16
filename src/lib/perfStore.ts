@@ -1,7 +1,8 @@
 // Performance monitoring store for DEV mode
 // Provides render counting and action tracking for optimization analysis
+// NOTE: Listeners only notified on toggle/start/endAction - NOT on increments (no lag)
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 type RenderCounts = {
   postCard: number;
@@ -89,16 +90,18 @@ const createPerfStore = (): PerfStoreState & PerfStoreMethods => {
       }
     },
     
+    // INCREMENT: NO notification - silent counter update
     incrementPostCard() {
       if (!state.enabled) return;
       state.counts.postCard++;
-      notifyListeners();
+      // NO notifyListeners() here - that's what was causing lag!
     },
     
+    // INCREMENT: NO notification - silent counter update
     incrementEditorialSlide() {
       if (!state.enabled) return;
       state.counts.editorialSlide++;
-      notifyListeners();
+      // NO notifyListeners() here - that's what was causing lag!
     },
     
     startAction(action: ActionType) {
@@ -110,7 +113,7 @@ const createPerfStore = (): PerfStoreState & PerfStoreMethods => {
         timestamp: Date.now()
       };
       state.delta = null;
-      notifyListeners();
+      notifyListeners(); // OK to notify on action start
     },
     
     endAction() {
@@ -125,7 +128,7 @@ const createPerfStore = (): PerfStoreState & PerfStoreMethods => {
             postCard: state.counts.postCard - state.baseline.postCard,
             editorialSlide: state.counts.editorialSlide - state.baseline.editorialSlide
           };
-          notifyListeners();
+          notifyListeners(); // OK to notify on action end (shows delta)
         });
       });
     },
