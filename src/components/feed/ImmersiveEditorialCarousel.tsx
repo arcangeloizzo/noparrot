@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import useEmblaCarousel from "embla-carousel-react";
-import { Heart, MessageCircle, Bookmark, Info, ShieldCheck } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, Info, Sparkles, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFocusReactions, useToggleFocusReaction } from "@/hooks/useFocusReactions";
 import { useFocusBookmark, useToggleFocusBookmark } from "@/hooks/useFocusBookmarks";
@@ -12,8 +12,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-  DialogDescription,
   DialogClose,
 } from "@/components/ui/dialog";
 import { DailyFocus } from "@/hooks/useDailyFocus";
@@ -25,11 +23,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 interface ImmersiveEditorialCarouselProps {
   items: DailyFocus[];
-  totalCount: number; // Total editorials in DB for correct numbering
+  totalCount: number;
   onItemClick?: (item: DailyFocus) => void;
   onComment?: (item: DailyFocus) => void;
   onShare?: (item: DailyFocus) => void;
-  onShareComplete?: (item: DailyFocus) => void; // Called after gate passed
+  onShareComplete?: (item: DailyFocus) => void;
 }
 
 export const ImmersiveEditorialCarousel = ({
@@ -62,7 +60,6 @@ export const ImmersiveEditorialCarousel = ({
 
   // Dialog states - OUTSIDE carousel to avoid layout shifts
   const [infoDialogOpen, setInfoDialogOpen] = useState(false);
-  const [trustDialogOpen, setTrustDialogOpen] = useState(false);
   const suppressUntilRef = React.useRef(0);
 
   // Sources drawer state
@@ -100,7 +97,7 @@ export const ImmersiveEditorialCarousel = ({
   }, [emblaApi, onSelect]);
 
   const handleCardClick = (item: DailyFocus) => {
-    if (infoDialogOpen || trustDialogOpen) return;
+    if (infoDialogOpen) return;
     if (Date.now() < suppressUntilRef.current) return;
     onItemClick?.(item);
   };
@@ -130,10 +127,10 @@ export const ImmersiveEditorialCarousel = ({
       state: 'reading',
       url: `editorial://${item.id}`,
       title: item.title,
-      summary: cleanContent.substring(0, 200), // Short summary only
+      summary: cleanContent.substring(0, 200),
       platform: 'article',
       contentQuality: 'complete',
-      articleContent: cleanContent, // Full editorial text for Reader display
+      articleContent: cleanContent,
     };
 
     setReaderSource(readerSrc);
@@ -169,15 +166,13 @@ export const ImmersiveEditorialCarousel = ({
         if (error) throw error;
 
         if (data?.questions && data.questions.length > 0) {
-          // SECURITY HARDENED: Save qaId from server for submit-qa validation
           setQuizData({
-            qaId: data.qaId, // Server-generated qaId
+            qaId: data.qaId,
             questions: data.questions,
             focusId: item.id
           });
           setShowQuiz(true);
         } else {
-          // No quiz needed, proceed directly
           handleQuizPass();
         }
       } catch (err) {
@@ -211,8 +206,6 @@ export const ImmersiveEditorialCarousel = ({
   };
 
   if (!items.length) return null;
-
-  const activeTrustScore = activeItem?.trust_score;
 
   return (
     <div className="h-[100dvh] w-full snap-start relative flex flex-col overflow-hidden">
@@ -249,11 +242,9 @@ export const ImmersiveEditorialCarousel = ({
                 key={item.id}
                 item={item}
                 index={index}
-                totalCount={totalCount}
                 isActive={index === selectedIndex}
                 onClick={() => handleCardClick(item)}
                 onOpenInfoDialog={() => setInfoDialogOpen(true)}
-                onOpenTrustDialog={() => setTrustDialogOpen(true)}
                 onShare={() => handleShareWithGate(item)}
                 onOpenSources={() => handleOpenSources(item)}
                 onComment={onComment}
@@ -297,7 +288,7 @@ export const ImmersiveEditorialCarousel = ({
         )}
       </div>
 
-      {/* Info Dialog - OUTSIDE carousel to prevent layout shifts */}
+      {/* Info Dialog - Legal disclaimer */}
       <Dialog 
         open={infoDialogOpen} 
         onOpenChange={(open) => {
@@ -307,67 +298,22 @@ export const ImmersiveEditorialCarousel = ({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Cos'è Il Punto</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-purple-400" />
+              Sintesi Algoritmica
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 text-sm text-muted-foreground">
-            <p>Questo contenuto è una sintesi automatica generata da NoParrot usando fonti pubbliche.</p>
-            <p>Serve per offrire un contesto comune da cui partire per la discussione.</p>
-            <p className="font-medium text-foreground">Non rappresenta una posizione ufficiale né una verifica dei fatti.</p>
-          </div>
-          <DialogClose asChild>
-            <button className="w-full mt-4 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg text-sm font-medium transition-colors">
-              Chiudi
-            </button>
-          </DialogClose>
-        </DialogContent>
-      </Dialog>
-
-      {/* Trust Score Dialog - OUTSIDE carousel to prevent layout shifts */}
-      <Dialog 
-        open={trustDialogOpen} 
-        onOpenChange={(open) => {
-          setTrustDialogOpen(open);
-          handleDialogChange(open);
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Trust Score - Il Punto</DialogTitle>
-            <DialogDescription>
-              Informazioni sull'affidabilità delle fonti
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 text-sm text-muted-foreground">
-            <p>
-              Questo contenuto è generato aggregando <strong className="text-foreground">fonti giornalistiche verificate</strong> e autorevoli.
+            <p className="font-medium text-foreground">
+              Sintesi automatica basata su fonti pubbliche; NoParrot non è una testata giornalistica.
             </p>
             <p>
-              Il Trust Score "{activeTrustScore?.toUpperCase() || 'MEDIO'}" indica che le fonti utilizzate hanno un buon track record di affidabilità editoriale.
-            </p>
-            <div className="pt-3 border-t border-border">
-              <p className="font-medium text-foreground mb-2">Come viene calcolato:</p>
-              <ul className="space-y-1.5">
-                <li className="flex items-start gap-2">
-                  <span className="text-primary mt-0.5">•</span>
-                  <span>Analisi automatica delle fonti citate</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary mt-0.5">•</span>
-                  <span>Verifica della reputazione editoriale</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary mt-0.5">•</span>
-                  <span>Coerenza tra titolo e contenuto</span>
-                </li>
-              </ul>
-            </div>
-            <p className="text-xs pt-2 border-t border-border text-muted-foreground">
-              Nota: non è fact-checking. Valuta l'affidabilità delle fonti, non la verità assoluta.
+              Non è fact-checking; apri le fonti per verificare il contesto.
             </p>
           </div>
           <DialogClose asChild>
             <button className="w-full mt-4 py-2 bg-primary/10 hover:bg-primary/20 rounded-lg text-sm font-medium transition-colors">
-              Chiudi
+              Ho capito
             </button>
           </DialogClose>
         </DialogContent>
@@ -407,14 +353,13 @@ export const ImmersiveEditorialCarousel = ({
           questions={quizData.questions}
           qaId={quizData.qaId}
           onSubmit={async (answers) => {
-            // SECURITY HARDENED: All validation via submit-qa edge function with qaId
             const qaId = quizData.qaId;
             const sourceUrl = `focus://daily/${quizData.focusId}`;
             
             try {
               const { data, error } = await supabase.functions.invoke('submit-qa', {
                 body: {
-                  qaId, // Use server-generated qaId for secure lookup
+                  qaId,
                   postId: null,
                   sourceUrl: sourceUrl,
                   answers,
@@ -461,15 +406,25 @@ export const ImmersiveEditorialCarousel = ({
   );
 };
 
-// Individual Editorial Slide Component - Simplified, dialogs moved to parent
+// Format full timestamp: "14 GEN 2026 · 08:30"
+const formatFullTimestamp = (createdAt?: string): string => {
+  const date = new Date(createdAt || Date.now());
+  const months = ['GEN', 'FEB', 'MAR', 'APR', 'MAG', 'GIU', 'LUG', 'AGO', 'SET', 'OTT', 'NOV', 'DIC'];
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${day} ${month} ${year} · ${hours}:${minutes}`;
+};
+
+// Individual Editorial Slide Component
 interface EditorialSlideProps {
   item: DailyFocus;
   index: number;
-  totalCount: number; // Total editorials in DB for correct numbering
   isActive: boolean;
   onClick: () => void;
   onOpenInfoDialog: () => void;
-  onOpenTrustDialog: () => void;
   onShare?: () => void;
   onOpenSources?: () => void;
   onComment?: (item: DailyFocus) => void;
@@ -479,35 +434,12 @@ interface EditorialSlideProps {
   onBookmark: () => void;
 }
 
-// Format edition time: "2:30 pm | gen 04"
-const formatEditionTime = (editionTime?: string, createdAt?: string): string => {
-  if (!editionTime && !createdAt) return 'edizione di oggi';
-  
-  const date = new Date(createdAt || Date.now());
-  const months = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
-  const month = months[date.getMonth()];
-  const day = date.getDate().toString().padStart(2, '0');
-  
-  if (editionTime) {
-    return `${editionTime} | ${month} ${day}`;
-  }
-  
-  // Fallback: format from created_at
-  const hours = date.getHours();
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  const ampm = hours >= 12 ? 'pm' : 'am';
-  const hour12 = hours % 12 || 12;
-  return `${hour12}:${minutes} ${ampm} | ${month} ${day}`;
-};
-
 const EditorialSlide = ({
   item,
   index,
-  totalCount,
   isActive,
   onClick,
   onOpenInfoDialog,
-  onOpenTrustDialog,
   onShare,
   onOpenSources,
   onComment,
@@ -516,9 +448,6 @@ const EditorialSlide = ({
   onLike,
   onBookmark,
 }: EditorialSlideProps) => {
-  const trustScore = item.trust_score;
-  // Correct numbering: latest item (index 0) gets totalCount, second gets totalCount-1, etc.
-  const displayNumber = totalCount - index;
 
   return (
     <div 
@@ -528,7 +457,20 @@ const EditorialSlide = ({
       <div className="h-full flex flex-col justify-center py-4">
         
         {/* Main Content Area - Editorial Edition Layout */}
-        <div className="flex flex-col relative">
+        <div className="flex flex-col relative overflow-hidden">
+          {/* FOCUS Background Texture - Semantic element */}
+          <span 
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10rem] sm:text-[14rem] font-black text-white pointer-events-none select-none z-0"
+            style={{
+              opacity: 0.03,
+              fontFamily: "'Impact', 'Arial Black', sans-serif",
+              letterSpacing: '-0.05em',
+              WebkitTextStroke: '1px rgba(255,255,255,0.02)'
+            }}
+          >
+            FOCUS
+          </span>
+
           {/* Soft glow vignette behind headline */}
           <div className="absolute inset-0 flex items-start justify-center pointer-events-none">
             <div className="w-[80%] h-[200px] bg-[#0A7AFF]/5 rounded-full blur-3xl mt-8" />
@@ -536,42 +478,57 @@ const EditorialSlide = ({
 
           {/* Content */}
           <div className="relative z-10">
-            {/* Edition Number - Stencil-style, urban typography */}
-            <span 
-              className="text-7xl sm:text-8xl font-black text-white/10 tracking-tighter mb-3 block"
-              style={{
-                fontFamily: "'Impact', 'Arial Black', sans-serif",
-                letterSpacing: '-0.05em',
-                textShadow: '2px 2px 0 rgba(0,0,0,0.3)'
-              }}
-            >
-              #{displayNumber}
-            </span>
-
-            {/* Headline - Elemento più leggibile, max 2 righe */}
-            <h1 className="text-xl sm:text-3xl font-bold text-white leading-tight mb-3 drop-shadow-xl line-clamp-2">
-              {item.title}
-            </h1>
-
-            {/* Editorial Byline - sotto il titolo, stile testata */}
-            <div className="flex items-center gap-2 text-white/60 mb-4">
-              <span className="text-sm font-medium tracking-wide font-mono">
-                ◉ IL PUNTO
+            {/* Header Tecnico - AI Synthesis + Timestamp */}
+            <div className="flex items-center gap-3 mb-4">
+              {/* Badge AI Synthesis */}
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm">
+                <Sparkles className="w-3 h-3 text-purple-400" />
+                <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-white/70">
+                  AI SYNTHESIS
+                </span>
+              </div>
+              
+              {/* Timestamp Completo */}
+              <span className="text-xs font-mono text-zinc-400 tracking-wide">
+                {formatFullTimestamp(item.created_at)}
               </span>
-              <span className="text-white/30">·</span>
-              <span className="text-xs font-medium tracking-wider text-white/50">
-                {formatEditionTime(item.edition_time, item.created_at)}
-              </span>
+              
+              {/* Info Button */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onOpenInfoDialog();
                 }}
-                className="ml-1 hover:text-white/80 transition-colors"
+                className="hover:text-white/80 transition-colors"
               >
-                <Info className="w-3.5 h-3.5" />
+                <Info className="w-3.5 h-3.5 text-white/40" />
               </button>
             </div>
+
+            {/* Source Attribution - Sopra il titolo */}
+            {item.sources?.length > 0 && (
+              <div className="flex items-center gap-1.5 mb-2">
+                <span className="text-xs text-[#0A7AFF] font-medium">
+                  Analisi basata su:
+                </span>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); onOpenSources?.(); }}
+                  className="text-xs text-white/80 font-semibold hover:text-white transition-colors"
+                >
+                  <span className="underline decoration-white/30 underline-offset-2">
+                    {(item.sources[0] as any)?.name || 'Fonti'}
+                  </span>
+                  {item.sources.length > 1 && (
+                    <span className="text-white/50 ml-1">+ {item.sources.length - 1} fonti</span>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* Headline - Elemento più leggibile, max 2 righe */}
+            <h1 className="text-xl sm:text-3xl font-bold text-white leading-tight mb-3 drop-shadow-xl line-clamp-2">
+              {item.title}
+            </h1>
 
             {/* Abstract/Lead - Preview della notizia con "Leggi tutto" inline */}
             <p className="text-base sm:text-lg text-white/70 leading-relaxed mb-5">
@@ -579,47 +536,19 @@ const EditorialSlide = ({
               <span className="text-white font-bold"> …Leggi tutto</span>
             </p>
 
-            {/* Sources + Trust Badge Row - Sigilli discreti */}
-            <div className="flex items-center justify-between mb-6">
-            {/* Sources Tag - sorted by name length (shortest first) */}
-              {item.sources?.length > 0 && (() => {
-                const sortedSources = [...item.sources].sort((a: any, b: any) => 
-                  (a.name || '').length - (b.name || '').length
-                );
-                const shortestSource = sortedSources[0];
-                return (
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenSources?.();
-                    }}
-                    className="inline-flex items-center px-3 py-1.5 bg-white/5 backdrop-blur-md rounded-full text-xs text-white/60 font-medium border border-white/5 hover:bg-white/10 transition-colors"
-                  >
-                    {shortestSource?.name?.toLowerCase() || "fonti"}
-                    {item.sources.length > 1 && ` +${item.sources.length - 1}`}
-                  </button>
-                );
-              })()}
-
-              {/* Trust Badge - Sigillo piccolo, non prominente */}
-              {trustScore && (
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenTrustDialog();
-                  }}
-                  className={cn(
-                    "h-6 flex items-center gap-1 px-2 rounded-full text-[9px] uppercase tracking-wider font-bold border",
-                    trustScore.toLowerCase() === "alto" && "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-                    trustScore.toLowerCase() === "medio" && "bg-amber-500/10 text-amber-400 border-amber-500/20",
-                    trustScore.toLowerCase() === "basso" && "bg-red-500/10 text-red-400 border-red-500/20"
-                  )}
-                >
-                  <ShieldCheck className="w-3 h-3" />
-                  <span>TRUST {trustScore.toUpperCase()}</span>
-                </button>
-              )}
-            </div>
+            {/* CTA Gateway - Apre SourcesDrawer */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenSources?.();
+              }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm hover:bg-white/10 transition-all mb-5"
+            >
+              <Layers className="w-4 h-4 text-white/70" />
+              <span className="text-sm font-medium text-white">
+                Vedi le <strong>{item.sources?.length || 0}</strong> fonti consultate
+              </span>
+            </button>
 
             {/* Action Bar */}
             <div className="flex items-center justify-between gap-3">
