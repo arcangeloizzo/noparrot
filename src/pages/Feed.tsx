@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { ImmersiveFeedContainer, ImmersiveFeedContainerRef } from "@/components/feed/ImmersiveFeedContainer";
 import { ImmersivePostCard } from "@/components/feed/ImmersivePostCard";
@@ -11,6 +11,7 @@ import { FloatingActionButton } from "@/components/fab/FloatingActionButton";
 import { ComposerModal } from "@/components/composer/ComposerModal";
 import { SimilarContentOverlay } from "@/components/feed/SimilarContentOverlay";
 import { Header } from "@/components/navigation/Header";
+import { PerfOverlay } from "@/components/debug/PerfOverlay";
 import { CGProvider } from "@/lib/comprehension-gate";
 import { usePosts, Post } from "@/hooks/usePosts";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +21,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { haptics } from "@/lib/haptics";
 import { toast as sonnerToast } from "sonner";
+import { perfStore, isEmailAllowed } from "@/lib/perfStore";
+import { PostCardSkeleton, EditorialSlideSkeleton } from "@/components/feed/skeletons";
 
 export const Feed = () => {
   const { user } = useAuth();
@@ -39,10 +42,17 @@ export const Feed = () => {
   
   const [showComposer, setShowComposer] = useState(false);
 
-  // Handler per salvare l'indice attivo durante lo scroll
-  const handleActiveIndexChange = (index: number) => {
+  // Handler per salvare l'indice attivo durante lo scroll - stabilized with useCallback
+  const handleActiveIndexChange = useCallback((index: number) => {
     sessionStorage.setItem('feed-active-index', index.toString());
-  };
+    // Trigger perf tracking for scroll action
+    perfStore.startAction('scroll');
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        perfStore.endAction();
+      });
+    });
+  }, []);
 
   // Ref per evitare restore multipli
   const hasRestoredScrollRef = useRef(false);
@@ -221,18 +231,45 @@ export const Feed = () => {
     // Post removed via database
   };
 
+  // Long-press on header to toggle perf overlay (for allowed users)
+  const longPressRef = useRef<NodeJS.Timeout | null>(null);
+  const handleHeaderPressStart = useCallback(() => {
+    if (!isEmailAllowed(user?.email)) return;
+    longPressRef.current = setTimeout(() => {
+      perfStore.toggle();
+      haptics.medium();
+      sonnerToast.info(perfStore.getState().enabled ? 'Perf overlay ON' : 'Perf overlay OFF');
+    }, 2000);
+  }, [user?.email]);
+  
+  const handleHeaderPressEnd = useCallback(() => {
+    if (longPressRef.current) clearTimeout(longPressRef.current);
+  }, []);
+
   if (isLoading || loadingDaily) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-lg text-muted-foreground">Caricamento feed...</div>
+      <div className="min-h-screen bg-background">
+        <Header variant="immersive" />
+        <EditorialSlideSkeleton />
       </div>
     );
   }
 
   return (
     <>
-      {/* Immersive transparent header with notifications */}
-      <Header variant="immersive" />
+      {/* Perf Overlay - only visible when enabled */}
+      <PerfOverlay />
+      
+      {/* Immersive transparent header with notifications + long-press for perf toggle */}
+      <div 
+        onTouchStart={handleHeaderPressStart}
+        onTouchEnd={handleHeaderPressEnd}
+        onMouseDown={handleHeaderPressStart}
+        onMouseUp={handleHeaderPressEnd}
+        onMouseLeave={handleHeaderPressEnd}
+      >
+        <Header variant="immersive" />
+      </div>
       
       <ImmersiveFeedContainer ref={feedContainerRef} onRefresh={async () => { await refetch(); }} onActiveIndexChange={handleActiveIndexChange}>
         {/* Immersive Feed Items */}

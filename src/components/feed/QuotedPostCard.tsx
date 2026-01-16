@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { ExternalLink } from "lucide-react";
 import { cn, getDisplayUsername } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -36,7 +37,7 @@ const getHostnameFromUrl = (url: string | undefined): string => {
   }
 };
 
-export const QuotedPostCard = ({ quotedPost, parentSources = [], onNavigate }: QuotedPostCardProps) => {
+const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate }: QuotedPostCardProps) => {
   // Deduplicare tutte le fonti del quoted post contro quelle del post principale
   const quotedSources = quotedPost.shared_url 
     ? [quotedPost.shared_url, ...(quotedPost.sources || [])]
@@ -218,3 +219,7 @@ export const QuotedPostCard = ({ quotedPost, parentSources = [], onNavigate }: Q
     </div>
   );
 };
+
+// Memoize to avoid unnecessary rerenders in feed list
+export const QuotedPostCard = memo(QuotedPostCardInner);
+QuotedPostCard.displayName = 'QuotedPostCard';
