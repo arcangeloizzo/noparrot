@@ -449,10 +449,12 @@ const EditorialSlideInner = ({
   onLike,
   onBookmark,
 }: EditorialSlideProps) => {
-  // Track renders for perf monitoring
-  useEffect(() => {
+  // Track renders via ref increment (no useEffect deps issue)
+  const renderCountRef = useRef(0);
+  renderCountRef.current++;
+  if (perfStore.getState().enabled) {
     perfStore.incrementEditorialSlide();
-  });
+  }
 
   return (
     <div 

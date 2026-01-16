@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, memo, useCallback } from "react";
+import { useState, useEffect, useRef, useMemo, memo } from "react";
 import { perfStore } from "@/lib/perfStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -208,10 +208,12 @@ const ImmersivePostCardInner = ({
   initialOpenComments = false,
   scrollToCommentId
 }: ImmersivePostCardProps) => {
-  // Track renders for perf monitoring
-  useEffect(() => {
+  // Track renders via ref increment (no useEffect deps issue)
+  const renderCountRef = useRef(0);
+  renderCountRef.current++;
+  if (perfStore.getState().enabled) {
     perfStore.incrementPostCard();
-  });
+  }
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
