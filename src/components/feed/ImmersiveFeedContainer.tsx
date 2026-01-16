@@ -1,10 +1,13 @@
-import React, { useRef, useState, forwardRef, useImperativeHandle, useCallback } from "react";
+import React, { useRef, useState, forwardRef, useImperativeHandle, useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { prefetchImage } from "@/lib/imageCache";
 
 interface ImmersiveFeedContainerProps {
   children: React.ReactNode;
   onRefresh?: () => Promise<void>;
   onActiveIndexChange?: (index: number) => void;
+  /** URLs for prefetching next card's image */
+  imageUrls?: (string | undefined | null)[];
 }
 
 export interface ImmersiveFeedContainerRef {
@@ -18,7 +21,8 @@ export interface ImmersiveFeedContainerRef {
 export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, ImmersiveFeedContainerProps>(({ 
   children, 
   onRefresh,
-  onActiveIndexChange
+  onActiveIndexChange,
+  imageUrls = []
 }, ref) => {
   const queryClient = useQueryClient();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -54,14 +58,20 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     }
   }));
 
-  // Handle scroll to track active index
+  // Handle scroll to track active index + prefetch next image
   const handleScroll = useCallback(() => {
     const currentIndex = calculateActiveIndex();
     if (currentIndex !== lastReportedIndex.current) {
       lastReportedIndex.current = currentIndex;
       onActiveIndexChange?.(currentIndex);
+      
+      // Prefetch ONLY the next card's image (1 ahead)
+      const nextIndex = currentIndex + 1;
+      if (nextIndex < imageUrls.length && imageUrls[nextIndex]) {
+        prefetchImage(imageUrls[nextIndex], 'thumb');
+      }
     }
-  }, [calculateActiveIndex, onActiveIndexChange]);
+  }, [calculateActiveIndex, onActiveIndexChange, imageUrls]);
 
   // Pull-to-refresh handlers
   const handleTouchStart = (e: React.TouchEvent) => {
