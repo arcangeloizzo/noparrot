@@ -37,6 +37,7 @@ import { MentionText } from "./MentionText";
 import { ReshareContextStack } from "./ReshareContextStack";
 import { SpotifyGradientBackground } from "./SpotifyGradientBackground";
 import { SourceImageWithFallback } from "./SourceImageWithFallback";
+import { ProgressiveImage } from "./ProgressiveImage";
 
 // Media Components
 import { MediaGallery } from "@/components/media/MediaGallery";
@@ -66,6 +67,7 @@ import { getWordCount, getTestModeWithSource, getQuestionCountWithoutSource, get
 import { useDoubleTap } from "@/hooks/useDoubleTap";
 import { useReshareContextStack } from "@/hooks/useReshareContextStack";
 import { useOriginalSource } from "@/hooks/useOriginalSource";
+import { useFeedContext } from "./ImmersiveFeedContainer";
 
 interface ImmersivePostCardProps {
   post: Post;
@@ -75,6 +77,8 @@ interface ImmersivePostCardProps {
   initialOpenComments?: boolean;
   /** Scroll to specific comment when opening drawer */
   scrollToCommentId?: string;
+  /** Index in feed for shouldLoad optimization */
+  feedIndex?: number;
 }
 
 const getHostnameFromUrl = (url: string | undefined): string => {
@@ -206,7 +210,8 @@ const ImmersivePostCardInner = ({
   onRemove,
   onQuoteShare,
   initialOpenComments = false,
-  scrollToCommentId
+  scrollToCommentId,
+  feedIndex = 0
 }: ImmersivePostCardProps) => {
   // Track renders via ref increment (no useEffect deps issue)
   const renderCountRef = useRef(0);
@@ -214,6 +219,12 @@ const ImmersivePostCardInner = ({
   if (perfStore.getState().enabled) {
     perfStore.incrementPostCard();
   }
+  
+  // Image loading optimization: only load images for active card +/- 1
+  const { activeIndex } = useFeedContext();
+  const shouldLoadImages = Math.abs(feedIndex - activeIndex) <= 1;
+  const isActiveCard = feedIndex === activeIndex;
+  
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -958,14 +969,14 @@ const ImmersivePostCardInner = ({
           </div>
         ) : (
           <>
-            {/* Blurred background image - behind everything */}
+            {/* Blurred background image - behind everything. Only load for nearby cards. */}
             {backgroundImage && (
-              <img 
-                src={backgroundImage} 
-                loading="lazy"
-                decoding="async"
-                className="absolute inset-0 w-full h-full object-cover opacity-60 blur-2xl scale-110" 
-                alt=""
+              <ProgressiveImage
+                src={backgroundImage}
+                shouldLoad={shouldLoadImages}
+                isActive={isActiveCard}
+                asBackground
+                aspectRatio="auto"
               />
             )}
             {/* Gradient overlay on top of image, or solid color if no image */}

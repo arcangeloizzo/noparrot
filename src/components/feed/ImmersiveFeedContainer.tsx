@@ -1,6 +1,15 @@
-import React, { useRef, useState, forwardRef, useImperativeHandle, useCallback, useEffect } from "react";
+import React, { useRef, useState, forwardRef, useImperativeHandle, useCallback, createContext, useContext } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { prefetchImage } from "@/lib/imageCache";
+
+// Context for sharing activeIndex with children
+interface FeedContextValue {
+  activeIndex: number;
+}
+
+const FeedContext = createContext<FeedContextValue>({ activeIndex: 0 });
+
+export const useFeedContext = () => useContext(FeedContext);
 
 interface ImmersiveFeedContainerProps {
   children: React.ReactNode;
@@ -30,6 +39,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   const pullDistance = useRef<number>(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const lastReportedIndex = useRef<number>(-1);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   // Calculate active index
   const calculateActiveIndex = useCallback(() => {
@@ -63,6 +73,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     const currentIndex = calculateActiveIndex();
     if (currentIndex !== lastReportedIndex.current) {
       lastReportedIndex.current = currentIndex;
+      setActiveIndex(currentIndex);
       onActiveIndexChange?.(currentIndex);
       
       // Prefetch ONLY the next card's image (1 ahead)
@@ -101,26 +112,28 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   };
 
   return (
-    <div 
-      ref={containerRef}
-      className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth no-scrollbar overscroll-none"
-      style={{ background: '#000' }}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onScroll={handleScroll}
-    >
-      {/* Pull to refresh indicator */}
-      {isRefreshing && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-        </div>
-      )}
-      
-      {children}
-      
-      {/* Bottom gradient fade for navbar */}
-      <div className="fixed bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-black to-transparent z-40 pointer-events-none" />
-    </div>
+    <FeedContext.Provider value={{ activeIndex }}>
+      <div 
+        ref={containerRef}
+        className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth no-scrollbar overscroll-none"
+        style={{ background: '#000' }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onScroll={handleScroll}
+      >
+        {/* Pull to refresh indicator */}
+        {isRefreshing && (
+          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+          </div>
+        )}
+        
+        {children}
+        
+        {/* Bottom gradient fade for navbar */}
+        <div className="fixed bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-black to-transparent z-40 pointer-events-none" />
+      </div>
+    </FeedContext.Provider>
   );
 });
