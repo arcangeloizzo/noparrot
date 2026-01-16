@@ -154,6 +154,17 @@ export async function fetchArticlePreview(url: string): Promise<{
   try {
     console.log('[fetchArticlePreview] Fetching:', url);
     
+    // Skip internal protocol URLs (focus://, post://) - these are internal app links
+    if (url.startsWith('focus://') || url.startsWith('post://')) {
+      console.log('[fetchArticlePreview] Skipping internal URL:', url);
+      return { 
+        success: false, 
+        error: 'Internal URL', 
+        message: 'Internal app links do not require external preview',
+        isInternal: true 
+      };
+    }
+    
     // NO frontend pre-check for IG/FB - let backend fetch metadata and return gateBlocked flag
     // The backend will attempt Jina/OpenGraph extraction for title/image/author
     
