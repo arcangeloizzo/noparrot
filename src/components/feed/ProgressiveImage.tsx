@@ -185,7 +185,7 @@ const ProgressiveImageInner = ({
     loadState === 'placeholder' && 'opacity-0',
     loadState === 'thumb' && 'opacity-90',
     loadState === 'hero' && 'opacity-100',
-    shouldBlur && 'blur-2xl scale-110',
+    shouldBlur && 'blur-lg scale-105',
     imageClassName
   );
 
