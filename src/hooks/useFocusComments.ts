@@ -55,20 +55,19 @@ export const useFocusComments = (focusId: string, focusType: 'daily' | 'interest
         author: comment.author
       }));
 
-      const commentsWithReactions = await Promise.all(
-        comments.map(async (c: any) => {
-          const { data: repliesData } = await supabase
-            .from('focus_comments')
-            .select('id')
-            .eq('parent_id', c.id);
-          
-          return { 
-            ...c, 
-            likesCount: 0, // Future implementation
-            repliesCount: repliesData?.length || 0
-          };
-        })
-      );
+      // Calculate replies count in-memory (N+1 fix - O(n) without extra queries)
+      const repliesCountMap = new Map<string, number>();
+      comments.forEach((c: any) => {
+        if (c.parent_id) {
+          repliesCountMap.set(c.parent_id, (repliesCountMap.get(c.parent_id) || 0) + 1);
+        }
+      });
+
+      const commentsWithReactions = comments.map((c: any) => ({
+        ...c,
+        likesCount: 0, // Future implementation
+        repliesCount: repliesCountMap.get(c.id) || 0
+      }));
 
       return commentsWithReactions;
     },

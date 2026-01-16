@@ -1772,6 +1772,13 @@ export type Database = {
           username: string
         }[]
       }
+      get_share_counts: {
+        Args: { shared_urls: string[] }
+        Returns: {
+          count: number
+          shared_url: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
