@@ -1,6 +1,7 @@
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, { useState, useCallback, useEffect, useRef, memo } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { Heart, MessageCircle, Bookmark, Info, Sparkles, Layers } from "lucide-react";
+import { perfStore } from "@/lib/perfStore";
 import { cn } from "@/lib/utils";
 import { useFocusReactions, useToggleFocusReaction } from "@/hooks/useFocusReactions";
 import { useFocusBookmark, useToggleFocusBookmark } from "@/hooks/useFocusBookmarks";
@@ -434,7 +435,7 @@ interface EditorialSlideProps {
   onBookmark: () => void;
 }
 
-const EditorialSlide = ({
+const EditorialSlideInner = ({
   item,
   index,
   isActive,
@@ -448,6 +449,10 @@ const EditorialSlide = ({
   onLike,
   onBookmark,
 }: EditorialSlideProps) => {
+  // Track renders for perf monitoring
+  useEffect(() => {
+    perfStore.incrementEditorialSlide();
+  });
 
   return (
     <div 
@@ -627,3 +632,7 @@ const EditorialSlide = ({
     </div>
   );
 };
+
+// Memoize slide component for rerender optimization
+const EditorialSlide = memo(EditorialSlideInner);
+EditorialSlide.displayName = 'EditorialSlide';

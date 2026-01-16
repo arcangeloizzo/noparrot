@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, memo, useCallback } from "react";
+import { perfStore } from "@/lib/perfStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play } from "lucide-react";
@@ -200,13 +201,17 @@ const isTextSimilarToArticleContent = (userText: string, articlePreview: any): b
   return false;
 };
 
-export const ImmersivePostCard = ({ 
+const ImmersivePostCardInner = ({ 
   post, 
   onRemove,
   onQuoteShare,
   initialOpenComments = false,
   scrollToCommentId
 }: ImmersivePostCardProps) => {
+  // Track renders for perf monitoring
+  useEffect(() => {
+    perfStore.incrementPostCard();
+  });
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -2148,3 +2153,7 @@ export const ImmersivePostCard = ({
     </>
   );
 };
+
+// Export memoized component for rerender optimization
+export const ImmersivePostCard = memo(ImmersivePostCardInner);
+ImmersivePostCard.displayName = 'ImmersivePostCard';
