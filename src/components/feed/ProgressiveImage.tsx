@@ -5,9 +5,9 @@
  * - Fixed aspect-ratio container (no layout shift)
  * - shouldLoad prop gates ALL network requests
  * - Loads thumbnail first (480px) only when shouldLoad=true
- * - Upgrades to hero (1080px) only when isActive=true
+ * - NO hero upgrade for backgrounds (avoids flash)
+ * - NO blur on backgrounds (avoids iOS GPU jank) - uses gradient overlay instead
  * - loading="lazy" and decoding="async"
- * - Blur applied ONLY when active and loaded
  */
 
 import { useState, useEffect, useRef, memo } from 'react';
@@ -34,7 +34,7 @@ interface ProgressiveImageProps {
   imageClassName?: string;
   /** Aspect ratio (default: 16/9 for video-like content) */
   aspectRatio?: 'video' | 'square' | 'portrait' | 'auto';
-  /** Whether to use as background (cover, optional blur) */
+  /** Whether to use as background (cover, NO blur, NO hero upgrade) */
   asBackground?: boolean;
   /** Callback when image loads */
   onLoad?: () => void;
@@ -67,6 +67,10 @@ const ProgressiveImageInner = ({
   onLoad,
   onError,
 }: ProgressiveImageProps) => {
+  // Use ref to track previous shouldLoad to avoid thrashing
+  const prevShouldLoadRef = useRef(shouldLoad);
+  const hasLoadedOnceRef = useRef(false);
+  
   const [loadState, setLoadState] = useState<'placeholder' | 'thumb' | 'hero' | 'error'>('placeholder');
   const [currentSrc, setCurrentSrc] = useState<string | null>(null);
   const mountedRef = useRef(true);
@@ -76,12 +80,22 @@ const ProgressiveImageInner = ({
   const thumbUrl = getThumbUrl(src);
   const heroUrl = getHeroUrl(src);
 
+  // Once loaded, don't reset - avoid thrashing during scroll
+  useEffect(() => {
+    if (shouldLoad && !prevShouldLoadRef.current) {
+      prevShouldLoadRef.current = true;
+    }
+  }, [shouldLoad]);
+
+  // Effective shouldLoad: once loaded, stay loaded
+  const effectiveShouldLoad = shouldLoad || hasLoadedOnceRef.current;
+
   // Load thumbnail ONLY when shouldLoad is true
   useEffect(() => {
     mountedRef.current = true;
     
-    // If shouldLoad is false, stay in placeholder state - NO network request
-    if (!shouldLoad) {
+    // If shouldLoad is false and never loaded before, stay in placeholder - NO network request
+    if (!effectiveShouldLoad) {
       return;
     }
     
@@ -91,10 +105,14 @@ const ProgressiveImageInner = ({
       return;
     }
 
+    // Mark that we've loaded once
+    hasLoadedOnceRef.current = true;
+
     // Check cache first
     if (isImageCached(src, 'thumb')) {
       setCurrentSrc(thumbUrl);
       setLoadState('thumb');
+      onLoad?.();
       return;
     }
 
@@ -107,6 +125,7 @@ const ProgressiveImageInner = ({
       markImageLoaded(src, 'thumb');
       setCurrentSrc(thumbUrl);
       setLoadState('thumb');
+      onLoad?.();
     };
     
     img.onerror = () => {
@@ -121,16 +140,18 @@ const ProgressiveImageInner = ({
     return () => {
       mountedRef.current = false;
     };
-  }, [src, thumbUrl, shouldLoad, onError]);
+  }, [src, thumbUrl, effectiveShouldLoad, onError, onLoad]);
 
-  // Upgrade to hero when active AND thumb is loaded
+  // Upgrade to hero ONLY when active AND thumb is loaded AND NOT background
+  // Background images stay at thumb to avoid flash and GPU pressure
   useEffect(() => {
+    // Skip hero upgrade for backgrounds entirely
+    if (asBackground) return;
     if (!isActive || loadState !== 'thumb' || !src || !heroUrl) return;
     
     // Skip if hero is same as thumb
     if (heroUrl === thumbUrl) {
       setLoadState('hero');
-      onLoad?.();
       return;
     }
 
@@ -138,7 +159,6 @@ const ProgressiveImageInner = ({
     if (isImageCached(src, 'hero')) {
       setCurrentSrc(heroUrl);
       setLoadState('hero');
-      onLoad?.();
       return;
     }
 
@@ -151,22 +171,19 @@ const ProgressiveImageInner = ({
       markImageLoaded(src, 'hero');
       setCurrentSrc(heroUrl);
       setLoadState('hero');
-      onLoad?.();
     };
     
     img.onerror = () => {
       // Keep thumb if hero fails
       if (!mountedRef.current) return;
       markImageError(src, 'hero');
-      // Still call onLoad since thumb is working
-      onLoad?.();
     };
     
     img.src = heroUrl;
-  }, [isActive, loadState, src, heroUrl, thumbUrl, onLoad]);
+  }, [isActive, loadState, src, heroUrl, thumbUrl, asBackground]);
 
   // Render
-  if (loadState === 'error' && shouldLoad) {
+  if (loadState === 'error' && effectiveShouldLoad) {
     return null;
   }
 
@@ -177,19 +194,19 @@ const ProgressiveImageInner = ({
     className
   );
 
-  // Apply blur ONLY when active AND loaded (not during placeholder/loading)
-  const shouldBlur = asBackground && isActive && loadState !== 'placeholder';
-
+  // NO blur for backgrounds - use gradient overlay instead (set by parent)
+  // This eliminates iOS GPU jank from blur-lg/blur-2xl
   const imgClasses = cn(
     'w-full h-full object-cover transition-opacity duration-300',
     loadState === 'placeholder' && 'opacity-0',
-    loadState === 'thumb' && 'opacity-90',
-    loadState === 'hero' && 'opacity-100',
-    shouldBlur && 'blur-lg scale-105',
+    // Fade in to 100% - no intermediate states to avoid flash
+    (loadState === 'thumb' || loadState === 'hero') && 'opacity-100',
+    // Only scale for background, no blur
+    asBackground && 'scale-105',
     imageClassName
   );
 
-  // DEV badge - show image load state
+  // DEV badge - show image load state and feed index info
   const showDevBadge = isDevEmail(user?.email);
 
   return (
@@ -199,8 +216,8 @@ const ProgressiveImageInner = ({
         <div className="absolute inset-0 bg-white/5" />
       )}
       
-      {/* Image - only render if we have a src and should load */}
-      {currentSrc && shouldLoad && (
+      {/* Image - only render if we have a src and should load (or have loaded once) */}
+      {currentSrc && effectiveShouldLoad && (
         <img
           src={currentSrc}
           alt={alt}
@@ -213,7 +230,7 @@ const ProgressiveImageInner = ({
       {/* DEV Badge - top-right, shows state */}
       {showDevBadge && (
         <div className="absolute top-2 right-2 z-50 px-1.5 py-0.5 rounded text-[9px] font-mono bg-black/70 text-white/80 pointer-events-none">
-          {loadState}/{shouldLoad ? 'load' : 'skip'}
+          {loadState}/{effectiveShouldLoad ? 'load' : 'skip'}
         </div>
       )}
     </div>

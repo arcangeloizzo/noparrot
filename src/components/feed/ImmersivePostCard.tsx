@@ -969,7 +969,7 @@ const ImmersivePostCardInner = ({
           </div>
         ) : (
           <>
-            {/* Blurred background image - behind everything. Only load for nearby cards. */}
+            {/* Background image - NO blur (causes iOS GPU jank). Only load for nearby cards. */}
             {backgroundImage && (
               <ProgressiveImage
                 src={backgroundImage}
@@ -979,10 +979,12 @@ const ImmersivePostCardInner = ({
                 aspectRatio="auto"
               />
             )}
-            {/* Gradient overlay on top of image, or solid color if no image */}
+            {/* Gradient overlay provides depth without GPU-heavy blur */}
             <div className={cn(
               "absolute inset-0",
-              backgroundImage ? "bg-gradient-to-b from-black/40 via-black/20 to-black/80" : "bg-[#1F3347]"
+              backgroundImage 
+                ? "bg-gradient-to-b from-black/50 via-black/30 to-black/85" 
+                : "bg-[#1F3347]"
             )} />
           </>
         )}
@@ -999,6 +1001,13 @@ const ImmersivePostCardInner = ({
         {showHeartAnimation && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
             <Heart className="w-24 h-24 text-red-500 fill-red-500 animate-scale-in drop-shadow-lg" />
+          </div>
+        )}
+
+        {/* DEV Badge - shows feedIndex, activeIndex, shouldLoadImages */}
+        {(user?.email?.startsWith('ark@') || user?.email?.startsWith('test@') || user?.email?.startsWith('dev@')) && (
+          <div className="absolute top-16 left-2 z-50 px-2 py-1 rounded bg-black/80 text-[10px] font-mono text-white/90 pointer-events-none">
+            idx:{feedIndex} act:{activeIndex} load:{shouldLoadImages ? '✓' : '✗'}
           </div>
         )}
 
