@@ -118,17 +118,6 @@ export const Feed = () => {
     return items;
   }, [dailyFocusItems, dbPosts]);
 
-  // Extract image URLs for prefetching (1 ahead only)
-  const feedImageUrls = useMemo(() => {
-    return mixedFeed.map(item => {
-      if (item.type === 'daily-carousel') {
-        return (item.data as DailyFocus[])[0]?.image_url;
-      }
-      const post = item.data as Post;
-      return post.preview_img || post.media?.[0]?.url;
-    });
-  }, [mixedFeed]);
-
   // Ripristina posizione scroll (indice) quando Feed si monta e i dati sono caricati
   useEffect(() => {
     // Attendi che i dati siano caricati
@@ -282,9 +271,9 @@ export const Feed = () => {
         <Header variant="immersive" />
       </div>
       
-      <ImmersiveFeedContainer ref={feedContainerRef} onRefresh={async () => { await refetch(); }} onActiveIndexChange={handleActiveIndexChange} imageUrls={feedImageUrls}>
+      <ImmersiveFeedContainer ref={feedContainerRef} onRefresh={async () => { await refetch(); }} onActiveIndexChange={handleActiveIndexChange}>
         {/* Immersive Feed Items */}
-        {mixedFeed.map((item, idx) => {
+        {mixedFeed.map((item) => {
           if (item.type === 'daily-carousel') {
             // Editorial Carousel for Il Punto
             return (
@@ -338,7 +327,6 @@ export const Feed = () => {
               <ImmersivePostCard
                 key={item.id}
                 post={item.data}
-                feedIndex={idx}
                 onRemove={() => handleRemovePost(item.data.id)}
                 onQuoteShare={handleQuoteShare}
               />

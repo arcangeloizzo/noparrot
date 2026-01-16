@@ -1,8 +1,6 @@
-import { useState, memo } from "react";
+import { useState, useEffect } from "react";
 import { TrustBadgeOverlay } from "@/components/ui/trust-badge-overlay";
 import { UnanalyzableBadge } from "@/components/ui/unanalyzable-badge";
-import { getThumbUrl } from "@/lib/imageCache";
-import { cn } from "@/lib/utils";
 
 interface SourceImageWithFallbackProps {
   src: string | undefined | null;
@@ -17,13 +15,13 @@ interface SourceImageWithFallbackProps {
   hideOverlay?: boolean;
 }
 
-const SourceImageWithFallbackInner = ({ 
+export function SourceImageWithFallback({ 
   src, 
   sharedUrl,
   isIntent, 
   trustScore,
   hideOverlay = false,
-}: SourceImageWithFallbackProps) => {
+}: SourceImageWithFallbackProps) {
   // Check if the shared URL is from Instagram - BLOCK IMMEDIATELY
   const isInstagramPost = sharedUrl?.includes('instagram.com') || sharedUrl?.includes('instagram');
   
@@ -45,45 +43,74 @@ const SourceImageWithFallbackInner = ({
     return null;
   }
 
-  // Single img with skeleton overlay - no double-download
-  const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
+  const [imageStatus, setImageStatus] = useState<'loading' | 'valid' | 'error'>(!src ? 'error' : 'loading');
 
-  // Don't render if no src
-  if (!src) {
+  useEffect(() => {
+    if (!src) {
+      setImageStatus('error');
+      return;
+    }
+
+    // Reset status when src changes
+    setImageStatus('loading');
+
+    // Validate image by preloading
+    const img = new Image();
+    
+    // Timeout for slow/hanging requests (5 seconds)
+    const timeout = setTimeout(() => {
+      console.log('[SourceImage] Timeout reached for:', src);
+      setImageStatus('error');
+    }, 5000);
+    
+    img.onload = () => {
+      clearTimeout(timeout);
+      // Check for tiny placeholder images (Instagram sometimes returns 1x1 transparent)
+      if (img.naturalWidth <= 10 || img.naturalHeight <= 10) {
+        console.log('[SourceImage] Tiny placeholder detected:', src, img.naturalWidth, img.naturalHeight);
+        setImageStatus('error');
+      } else {
+        setImageStatus('valid');
+      }
+    };
+    
+    img.onerror = () => {
+      clearTimeout(timeout);
+      console.log('[SourceImage] Load error for:', src);
+      setImageStatus('error');
+    };
+    
+    img.src = src;
+    
+    return () => {
+      clearTimeout(timeout);
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [src]);
+
+  // Don't render if no src or image failed validation
+  if (!src || imageStatus === 'error') {
     return null;
   }
-
-  // Get thumbnail URL for faster loading
-  const thumbUrl = getThumbUrl(src) || src;
-
-  // Don't render if error
-  if (status === 'error') {
-    return null;
+  
+  // Show skeleton while validating
+  if (imageStatus === 'loading') {
+    return (
+      <div className="relative mb-3 rounded-2xl overflow-hidden border border-white/10 bg-white/5 animate-pulse h-40 sm:h-48" />
+    );
   }
 
   return (
     <div className="relative mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_20px_rgba(0,0,0,0.3)]">
-      {/* Skeleton overlay while loading */}
-      {status === 'loading' && (
-        <div className="absolute inset-0 bg-white/5 animate-pulse z-10" />
-      )}
-      
-      {/* Single image element - always present */}
       <img 
-        src={thumbUrl} 
+        src={src} 
         alt="" 
-        loading="lazy"
-        decoding="async"
-        className={cn(
-          "w-full h-40 sm:h-48 object-cover transition-opacity duration-200",
-          status === 'loading' ? 'opacity-0' : 'opacity-100'
-        )}
-        onLoad={() => setStatus('loaded')}
-        onError={() => setStatus('error')}
+        className="w-full h-40 sm:h-48 object-cover"
+        onError={() => setImageStatus('error')}
       />
-      
       {/* Trust Score Badge Overlay - Hidden for original posts (hideOverlay), Intent posts show "NON ANALIZZABILE" */}
-      {!hideOverlay && status === 'loaded' && (
+      {!hideOverlay && (
         isIntent ? (
           <UnanalyzableBadge className="absolute bottom-3 right-3" />
         ) : trustScore ? (
@@ -96,6 +123,4 @@ const SourceImageWithFallbackInner = ({
       )}
     </div>
   );
-};
-
-export const SourceImageWithFallback = memo(SourceImageWithFallbackInner);
+}

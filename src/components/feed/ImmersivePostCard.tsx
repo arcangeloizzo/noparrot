@@ -37,7 +37,6 @@ import { MentionText } from "./MentionText";
 import { ReshareContextStack } from "./ReshareContextStack";
 import { SpotifyGradientBackground } from "./SpotifyGradientBackground";
 import { SourceImageWithFallback } from "./SourceImageWithFallback";
-import { ProgressiveImage } from "./ProgressiveImage";
 
 // Media Components
 import { MediaGallery } from "@/components/media/MediaGallery";
@@ -67,7 +66,6 @@ import { getWordCount, getTestModeWithSource, getQuestionCountWithoutSource, get
 import { useDoubleTap } from "@/hooks/useDoubleTap";
 import { useReshareContextStack } from "@/hooks/useReshareContextStack";
 import { useOriginalSource } from "@/hooks/useOriginalSource";
-import { useFeedContext } from "./ImmersiveFeedContainer";
 
 interface ImmersivePostCardProps {
   post: Post;
@@ -77,8 +75,6 @@ interface ImmersivePostCardProps {
   initialOpenComments?: boolean;
   /** Scroll to specific comment when opening drawer */
   scrollToCommentId?: string;
-  /** Index in feed for shouldLoad optimization */
-  feedIndex?: number;
 }
 
 const getHostnameFromUrl = (url: string | undefined): string => {
@@ -210,8 +206,7 @@ const ImmersivePostCardInner = ({
   onRemove,
   onQuoteShare,
   initialOpenComments = false,
-  scrollToCommentId,
-  feedIndex = 0
+  scrollToCommentId
 }: ImmersivePostCardProps) => {
   // Track renders via ref increment (no useEffect deps issue)
   const renderCountRef = useRef(0);
@@ -219,12 +214,6 @@ const ImmersivePostCardInner = ({
   if (perfStore.getState().enabled) {
     perfStore.incrementPostCard();
   }
-  
-  // Image loading optimization: only load images for active card +/- 1
-  const { activeIndex } = useFeedContext();
-  const shouldLoadImages = Math.abs(feedIndex - activeIndex) <= 1;
-  const isActiveCard = feedIndex === activeIndex;
-  
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -969,22 +958,18 @@ const ImmersivePostCardInner = ({
           </div>
         ) : (
           <>
-            {/* Background image - NO blur (causes iOS GPU jank). Only load for nearby cards. */}
+            {/* Blurred background image - behind everything */}
             {backgroundImage && (
-              <ProgressiveImage
-                src={backgroundImage}
-                shouldLoad={shouldLoadImages}
-                isActive={isActiveCard}
-                asBackground
-                aspectRatio="auto"
+              <img 
+                src={backgroundImage} 
+                className="absolute inset-0 w-full h-full object-cover opacity-60 blur-2xl scale-110" 
+                alt=""
               />
             )}
-            {/* Gradient overlay provides depth without GPU-heavy blur */}
+            {/* Gradient overlay on top of image, or solid color if no image */}
             <div className={cn(
               "absolute inset-0",
-              backgroundImage 
-                ? "bg-gradient-to-b from-black/50 via-black/30 to-black/85" 
-                : "bg-[#1F3347]"
+              backgroundImage ? "bg-gradient-to-b from-black/40 via-black/20 to-black/80" : "bg-[#1F3347]"
             )} />
           </>
         )}
@@ -1001,13 +986,6 @@ const ImmersivePostCardInner = ({
         {showHeartAnimation && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
             <Heart className="w-24 h-24 text-red-500 fill-red-500 animate-scale-in drop-shadow-lg" />
-          </div>
-        )}
-
-        {/* DEV Badge - shows feedIndex, activeIndex, shouldLoadImages */}
-        {(user?.email?.startsWith('ark@') || user?.email?.startsWith('test@') || user?.email?.startsWith('dev@')) && (
-          <div className="absolute top-16 left-2 z-50 px-2 py-1 rounded bg-black/80 text-[10px] font-mono text-white/90 pointer-events-none">
-            idx:{feedIndex} act:{activeIndex} load:{shouldLoadImages ? '✓' : '✗'}
           </div>
         )}
 
@@ -1483,12 +1461,10 @@ const ImmersivePostCardInner = ({
                     }}
                     className="relative w-full rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_16px_rgba(255,0,0,0.1)] active:scale-[0.98] transition-transform"
                   >
-                    {/* Video Thumbnail - lazy loaded with fixed aspect */}
+                    {/* Video Thumbnail */}
                     <img 
-                      src={articlePreview?.image || post.preview_img || `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url!)}/sddefault.jpg`}
+                      src={articlePreview?.image || post.preview_img || `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url!)}/maxresdefault.jpg`}
                       alt=""
-                      loading="lazy"
-                      decoding="async"
                       className="w-full aspect-video object-cover"
                     />
                     

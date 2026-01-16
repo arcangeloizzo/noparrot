@@ -1,22 +1,10 @@
-import React, { useRef, useState, forwardRef, useImperativeHandle, useCallback, createContext, useContext } from "react";
+import React, { useRef, useState, forwardRef, useImperativeHandle, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { prefetchImage } from "@/lib/imageCache";
-
-// Context for sharing activeIndex with children
-interface FeedContextValue {
-  activeIndex: number;
-}
-
-const FeedContext = createContext<FeedContextValue>({ activeIndex: 0 });
-
-export const useFeedContext = () => useContext(FeedContext);
 
 interface ImmersiveFeedContainerProps {
   children: React.ReactNode;
   onRefresh?: () => Promise<void>;
   onActiveIndexChange?: (index: number) => void;
-  /** URLs for prefetching next card's image */
-  imageUrls?: (string | undefined | null)[];
 }
 
 export interface ImmersiveFeedContainerRef {
@@ -30,8 +18,7 @@ export interface ImmersiveFeedContainerRef {
 export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, ImmersiveFeedContainerProps>(({ 
   children, 
   onRefresh,
-  onActiveIndexChange,
-  imageUrls = []
+  onActiveIndexChange
 }, ref) => {
   const queryClient = useQueryClient();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -39,10 +26,6 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   const pullDistance = useRef<number>(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const lastReportedIndex = useRef<number>(-1);
-  const [activeIndex, setActiveIndex] = useState(0);
-  
-  // RAF guard to prevent multiple scroll updates in same frame
-  const rafPending = useRef(false);
 
   // Calculate active index
   const calculateActiveIndex = useCallback(() => {
@@ -71,31 +54,14 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     }
   }));
 
-  // Handle scroll to track active index + prefetch next image
-  // Uses RAF guard to prevent multiple updates per frame (A3)
+  // Handle scroll to track active index
   const handleScroll = useCallback(() => {
-    // Skip if RAF already pending
-    if (rafPending.current) return;
-    
-    rafPending.current = true;
-    requestAnimationFrame(() => {
-      rafPending.current = false;
-      
-      const currentIndex = calculateActiveIndex();
-      // Only update if index actually changed
-      if (currentIndex !== lastReportedIndex.current) {
-        lastReportedIndex.current = currentIndex;
-        setActiveIndex(currentIndex);
-        onActiveIndexChange?.(currentIndex);
-        
-        // Prefetch ONLY the next card's THUMB image (1 ahead, no hero)
-        const nextIndex = currentIndex + 1;
-        if (nextIndex < imageUrls.length && imageUrls[nextIndex]) {
-          prefetchImage(imageUrls[nextIndex], 'thumb');
-        }
-      }
-    });
-  }, [calculateActiveIndex, onActiveIndexChange, imageUrls]);
+    const currentIndex = calculateActiveIndex();
+    if (currentIndex !== lastReportedIndex.current) {
+      lastReportedIndex.current = currentIndex;
+      onActiveIndexChange?.(currentIndex);
+    }
+  }, [calculateActiveIndex, onActiveIndexChange]);
 
   // Pull-to-refresh handlers
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -125,28 +91,26 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   };
 
   return (
-    <FeedContext.Provider value={{ activeIndex }}>
-      <div 
-        ref={containerRef}
-        className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth no-scrollbar overscroll-none"
-        style={{ background: '#000' }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onScroll={handleScroll}
-      >
-        {/* Pull to refresh indicator */}
-        {isRefreshing && (
-          <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-          </div>
-        )}
-        
-        {children}
-        
-        {/* Bottom gradient fade for navbar */}
-        <div className="fixed bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-black to-transparent z-40 pointer-events-none" />
-      </div>
-    </FeedContext.Provider>
+    <div 
+      ref={containerRef}
+      className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth no-scrollbar overscroll-none"
+      style={{ background: '#000' }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onScroll={handleScroll}
+    >
+      {/* Pull to refresh indicator */}
+      {isRefreshing && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+        </div>
+      )}
+      
+      {children}
+      
+      {/* Bottom gradient fade for navbar */}
+      <div className="fixed bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-black to-transparent z-40 pointer-events-none" />
+    </div>
   );
 });
