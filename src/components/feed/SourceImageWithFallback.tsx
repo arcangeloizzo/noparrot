@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { TrustBadgeOverlay } from "@/components/ui/trust-badge-overlay";
 import { UnanalyzableBadge } from "@/components/ui/unanalyzable-badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface SourceImageWithFallbackProps {
   src: string | undefined | null;
@@ -15,6 +17,12 @@ interface SourceImageWithFallbackProps {
   hideOverlay?: boolean;
 }
 
+/**
+ * Optimized image component that:
+ * 1. Blocks Instagram/Meta CDN URLs immediately (they expire)
+ * 2. Uses single <img> with skeleton overlay (no double-download)
+ * 3. Fades in when loaded for smooth appearance
+ */
 export function SourceImageWithFallback({ 
   src, 
   sharedUrl,
@@ -34,83 +42,46 @@ export function SourceImageWithFallback({
     url.includes('instagram');
 
   // BLOCK Instagram posts immediately - no state, no render
-  if (isInstagramPost) {
+  if (isInstagramPost || !src) {
     return null;
   }
 
   // BLOCK Meta CDN URLs immediately
-  if (src && isMetaCdnUrl(src)) {
+  if (isMetaCdnUrl(src)) {
     return null;
   }
 
-  const [imageStatus, setImageStatus] = useState<'loading' | 'valid' | 'error'>(!src ? 'error' : 'loading');
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    if (!src) {
-      setImageStatus('error');
-      return;
-    }
-
-    // Reset status when src changes
-    setImageStatus('loading');
-
-    // Validate image by preloading
-    const img = new Image();
-    
-    // Timeout for slow/hanging requests (5 seconds)
-    const timeout = setTimeout(() => {
-      console.log('[SourceImage] Timeout reached for:', src);
-      setImageStatus('error');
-    }, 5000);
-    
-    img.onload = () => {
-      clearTimeout(timeout);
-      // Check for tiny placeholder images (Instagram sometimes returns 1x1 transparent)
-      if (img.naturalWidth <= 10 || img.naturalHeight <= 10) {
-        console.log('[SourceImage] Tiny placeholder detected:', src, img.naturalWidth, img.naturalHeight);
-        setImageStatus('error');
-      } else {
-        setImageStatus('valid');
-      }
-    };
-    
-    img.onerror = () => {
-      clearTimeout(timeout);
-      console.log('[SourceImage] Load error for:', src);
-      setImageStatus('error');
-    };
-    
-    img.src = src;
-    
-    return () => {
-      clearTimeout(timeout);
-      img.onload = null;
-      img.onerror = null;
-    };
-  }, [src]);
-
-  // Don't render if no src or image failed validation
-  if (!src || imageStatus === 'error') {
+  // Don't render if image failed to load
+  if (error) {
     return null;
-  }
-  
-  // Show skeleton while validating
-  if (imageStatus === 'loading') {
-    return (
-      <div className="relative mb-3 rounded-2xl overflow-hidden border border-white/10 bg-white/5 animate-pulse h-40 sm:h-48" />
-    );
   }
 
   return (
-    <div className="relative mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_20px_rgba(0,0,0,0.3)]">
+    <div className="relative mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_20px_rgba(0,0,0,0.3)] h-40 sm:h-48">
+      {/* Skeleton overlay while loading */}
+      {!loaded && (
+        <Skeleton className="absolute inset-0 bg-white/5" />
+      )}
+      
+      {/* Single image element - no double download */}
       <img 
         src={src} 
         alt="" 
-        className="w-full h-40 sm:h-48 object-cover"
-        onError={() => setImageStatus('error')}
+        loading="lazy"
+        decoding="async"
+        className={cn(
+          "w-full h-full object-cover transition-opacity duration-300",
+          loaded ? "opacity-100" : "opacity-0"
+        )}
+        onLoad={() => setLoaded(true)}
+        onError={() => setError(true)}
       />
-      {/* Trust Score Badge Overlay - Hidden for original posts (hideOverlay), Intent posts show "NON ANALIZZABILE" */}
-      {!hideOverlay && (
+      
+      {/* Trust Score Badge Overlay - only show after image loads */}
+      {loaded && !hideOverlay && (
         isIntent ? (
           <UnanalyzableBadge className="absolute bottom-3 right-3" />
         ) : trustScore ? (

@@ -5,6 +5,8 @@ import { useNavigate } from "react-router-dom";
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play } from "lucide-react";
 import { useDominantColors } from "@/hooks/useDominantColors";
 import { useCachedTrustScore } from "@/hooks/useCachedTrustScore";
+import { useArticlePreview } from "@/hooks/useArticlePreview";
+import { useTrustScore } from "@/hooks/useTrustScore";
 import { PulseBadge } from "@/components/ui/pulse-badge";
 import { TrustBadgeOverlay } from "@/components/ui/trust-badge-overlay";
 import { UnanalyzableBadge } from "@/components/ui/unanalyzable-badge";
@@ -225,8 +227,24 @@ const ImmersivePostCardInner = ({
   const sendMessage = useSendMessage();
   const isOwnPost = user?.id === post.author.id;
   
-  // Article preview state
-  const [articlePreview, setArticlePreview] = useState<any>(null);
+  // Article preview via React Query hook (cached, prefetched)
+  const urlToPreview = post.shared_url || quotedPost?.shared_url;
+  const { data: articlePreviewData } = useArticlePreview(urlToPreview);
+  
+  // Build article preview with fallbacks - use 'any' for compatibility with existing code
+  const articlePreview: any = useMemo(() => {
+    if (articlePreviewData) {
+      return articlePreviewData;
+    }
+    if (!urlToPreview) return null;
+    // Fallback to basic info if hook hasn't resolved yet
+    return {
+      platform: detectPlatformFromUrl(urlToPreview),
+      title: post.shared_title || quotedPost?.shared_title || getHostnameFromUrl(urlToPreview),
+      description: '',
+      image: post.preview_img || quotedPost?.preview_img || '',
+    };
+  }, [articlePreviewData, urlToPreview, post.shared_title, post.preview_img, quotedPost?.shared_title, quotedPost?.preview_img]);
   
   // Gate states
   const [showReader, setShowReader] = useState(false);
@@ -248,13 +266,6 @@ const ImmersivePostCardInner = ({
   const [showPeoplePicker, setShowPeoplePicker] = useState(false);
   const [shareAction, setShareAction] = useState<'feed' | 'friend' | null>(null);
   
-  // Trust Score state
-  const [trustScore, setTrustScore] = useState<{
-    band: 'BASSO' | 'MEDIO' | 'ALTO';
-    score: number;
-    reasons?: string[];
-  } | null>(null);
-  
   // Editorial summary fallback (for legacy posts without article_content)
   const [editorialSummary, setEditorialSummary] = useState<string | null>(null);
   
@@ -264,38 +275,6 @@ const ImmersivePostCardInner = ({
   // Caption expansion state for long Instagram/social captions
   const [showFullCaption, setShowFullCaption] = useState(false);
   const CAPTION_TRUNCATE_LENGTH = 120;
-
-  // Fetch article preview - check post, quoted post, and deep chain source
-  // We use finalSourceUrl computed below, but since this runs before those computations,
-  // we check direct URLs first, then the hook handles deep chain
-  const urlToPreview = post.shared_url || quotedPost?.shared_url;
-  
-  useEffect(() => {
-    const loadArticlePreview = async () => {
-      if (!urlToPreview) {
-        setArticlePreview(null);
-        return;
-      }
-      try {
-        const preview = await fetchArticlePreview(urlToPreview);
-        const platform = (preview as any)?.platform || detectPlatformFromUrl(urlToPreview);
-        setArticlePreview(preview ? { ...(preview as any), platform } : {
-          platform,
-          title: post.shared_title || quotedPost?.shared_title || getHostnameFromUrl(urlToPreview),
-          description: '',
-          image: post.preview_img || quotedPost?.preview_img || '',
-        });
-      } catch {
-        setArticlePreview({
-          platform: detectPlatformFromUrl(urlToPreview),
-          title: post.shared_title || quotedPost?.shared_title || getHostnameFromUrl(urlToPreview),
-          description: '',
-          image: post.preview_img || quotedPost?.preview_img || '',
-        });
-      }
-    };
-    loadArticlePreview();
-  }, [urlToPreview, quotedPost]);
 
   // Fetch editorial summary for legacy posts (without article_content stored)
   useEffect(() => {
@@ -371,50 +350,18 @@ const ImmersivePostCardInner = ({
   // Use finalSourceUrl which includes deep chain sources
   const { data: cachedTrustScore } = useCachedTrustScore(finalSourceUrl);
 
-  // Fetch trust score - only for posts with DIRECT links (not reshares)
-  // For Twitter/X links, wait for articlePreview to load first to get verified status
-  useEffect(() => {
-    const loadTrustScore = async () => {
-      // Skip if no direct shared_url (reshares use cached score)
-      if (!post.shared_url) {
-        setTrustScore(null);
-        return;
-      }
-      
-      // Skip if we already have a cached score
-      if (cachedTrustScore) {
-        return;
-      }
-      
-      // For Twitter/X: wait until articlePreview is loaded to get verified status
-      const isTwitterUrl = post.shared_url.includes('x.com') || post.shared_url.includes('twitter.com');
-      if (isTwitterUrl && !articlePreview) {
-        // Don't fetch yet, wait for articlePreview to load first
-        return;
-      }
-      
-      try {
-        const result = await fetchTrustScore({
-          postText: post.content,
-          sources: [post.shared_url],
-          // Pass author info from article preview for better trust evaluation
-          authorUsername: articlePreview?.author_username,
-          isVerified: articlePreview?.is_verified
-        });
-        if (result) {
-          setTrustScore({
-            band: result.band,
-            score: result.score,
-            reasons: result.reasons
-          });
-        }
-      } catch {}
-    };
-    loadTrustScore();
-  }, [post.shared_url, post.content, articlePreview, cachedTrustScore]);
+  // Trust score via React Query hook (cached, with AI fallback)
+  const isTwitterUrl = post.shared_url?.includes('x.com') || post.shared_url?.includes('twitter.com');
+  const { data: calculatedTrustScore } = useTrustScore(post.shared_url, {
+    postText: post.content,
+    authorUsername: articlePreview?.author_username,
+    isVerified: articlePreview?.is_verified,
+    // Skip if reshare (use cached) or Twitter URL without preview yet
+    skip: !!cachedTrustScore || (isTwitterUrl && !articlePreview)
+  });
 
   // Use cached trust score for reshares, or calculated for original posts
-  const displayTrustScore = cachedTrustScore || trustScore;
+  const displayTrustScore = cachedTrustScore || calculatedTrustScore;
 
   const handleHeart = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -877,32 +824,7 @@ const ImmersivePostCardInner = ({
   // BUT NOT for Intent posts - show QuotedPostCard with text-first layout instead
   const useStackLayout = !isQuotedIntentPost && (isReshareWithShortComment || isReshareWithSource);
   
-  // Load article preview for deep chain source when available
-  useEffect(() => {
-    const loadDeepSourcePreview = async () => {
-      // Only fetch if we have a deep source and don't have a direct URL preview
-      if (!originalSource?.url || urlToPreview) return;
-      
-      try {
-        const preview = await fetchArticlePreview(originalSource.url);
-        const platform = (preview as any)?.platform || detectPlatformFromUrl(originalSource.url);
-        setArticlePreview(preview ? { ...(preview as any), platform } : {
-          platform,
-          title: originalSource.title || getHostnameFromUrl(originalSource.url),
-          description: '',
-          image: originalSource.image || '',
-        });
-      } catch {
-        setArticlePreview({
-          platform: detectPlatformFromUrl(originalSource.url),
-          title: originalSource.title || getHostnameFromUrl(originalSource.url),
-          description: '',
-          image: originalSource.image || '',
-        });
-      }
-    };
-    loadDeepSourcePreview();
-  }, [originalSource, urlToPreview]);
+  // Deep chain source preview is now handled by useArticlePreview hook via urlToPreview
   
   // Fetch context stack for ALL reshares (show chain for any reshare)
   const { data: contextStack = [] } = useReshareContextStack(post.quoted_post_id);
