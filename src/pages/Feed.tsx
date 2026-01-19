@@ -23,6 +23,7 @@ import { haptics } from "@/lib/haptics";
 import { toast as sonnerToast } from "sonner";
 import { perfStore, isEmailAllowed } from "@/lib/perfStore";
 import { PostCardSkeleton, EditorialSlideSkeleton } from "@/components/feed/skeletons";
+import { prefetchArticlePreviews } from "@/hooks/useArticlePreview";
 
 export const Feed = () => {
   const { user } = useAuth();
@@ -42,9 +43,37 @@ export const Feed = () => {
   
   const [showComposer, setShowComposer] = useState(false);
 
+  // Prefetch article previews for first 5 posts on mount
+  const hasPrefetchedRef = useRef(false);
+  useEffect(() => {
+    if (hasPrefetchedRef.current || dbPosts.length === 0) return;
+    hasPrefetchedRef.current = true;
+    
+    const urlsToPrefetch = dbPosts
+      .slice(0, 5)
+      .map(p => p.shared_url)
+      .filter(Boolean);
+    
+    if (urlsToPrefetch.length > 0) {
+      prefetchArticlePreviews(queryClient, urlsToPrefetch);
+    }
+  }, [dbPosts, queryClient]);
+
+  // Store mixedFeed in ref for stable callback access
+  const mixedFeedRef = useRef<Array<{ type: 'daily-carousel' | 'post'; data: any; id: string }>>([]);
+
   // Handler per salvare l'indice attivo durante lo scroll - stabilized with useCallback
+  // Also prefetches next card's image for smoother experience
   const handleActiveIndexChange = useCallback((index: number) => {
     sessionStorage.setItem('feed-active-index', index.toString());
+    
+    // Prefetch next card's image using ref
+    const nextItem = mixedFeedRef.current[index + 1];
+    if (nextItem?.type === 'post' && nextItem.data.preview_img) {
+      const img = new Image();
+      img.src = nextItem.data.preview_img;
+    }
+    
     // Trigger perf tracking for scroll action
     perfStore.startAction('scroll');
     requestAnimationFrame(() => {
@@ -117,6 +146,9 @@ export const Feed = () => {
     
     return items;
   }, [dailyFocusItems, dbPosts]);
+
+  // Keep ref in sync for stable callback access
+  mixedFeedRef.current = mixedFeed;
 
   // Ripristina posizione scroll (indice) quando Feed si monta e i dati sono caricati
   useEffect(() => {
