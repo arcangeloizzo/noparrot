@@ -7,6 +7,7 @@ import { useDominantColors } from "@/hooks/useDominantColors";
 import { useCachedTrustScore } from "@/hooks/useCachedTrustScore";
 import { useArticlePreview } from "@/hooks/useArticlePreview";
 import { useTrustScore } from "@/hooks/useTrustScore";
+import { useFeedContext } from "@/components/feed/ImmersiveFeedContainer";
 import { PulseBadge } from "@/components/ui/pulse-badge";
 import { TrustBadgeOverlay } from "@/components/ui/trust-badge-overlay";
 import { UnanalyzableBadge } from "@/components/ui/unanalyzable-badge";
@@ -77,6 +78,8 @@ interface ImmersivePostCardProps {
   initialOpenComments?: boolean;
   /** Scroll to specific comment when opening drawer */
   scrollToCommentId?: string;
+  /** Index of this card in the feed */
+  index?: number;
 }
 
 const getHostnameFromUrl = (url: string | undefined): string => {
@@ -208,7 +211,8 @@ const ImmersivePostCardInner = ({
   onRemove,
   onQuoteShare,
   initialOpenComments = false,
-  scrollToCommentId
+  scrollToCommentId,
+  index = 0
 }: ImmersivePostCardProps) => {
   // Track renders via ref increment (no useEffect deps issue)
   const renderCountRef = useRef(0);
@@ -226,6 +230,11 @@ const ImmersivePostCardInner = ({
   const createThread = useCreateThread();
   const sendMessage = useSendMessage();
   const isOwnPost = user?.id === post.author.id;
+  
+  // Image gating: only load images for cards near the active index
+  const { activeIndex } = useFeedContext();
+  const isNearActive = Math.abs(index - activeIndex) <= 1;
+  const shouldLoadImages = isNearActive;
   
   // Article preview via React Query hook (cached, prefetched)
   const urlToPreview = post.shared_url || quotedPost?.shared_url;
@@ -829,8 +838,8 @@ const ImmersivePostCardInner = ({
   // Fetch context stack for ALL reshares (show chain for any reshare)
   const { data: contextStack = [] } = useReshareContextStack(post.quoted_post_id);
   
-  // Extract dominant colors from media
-  const { primary: dominantPrimary, secondary: dominantSecondary } = useDominantColors(isMediaOnlyPost ? mediaUrl : undefined);
+  // Extract dominant colors from media - skip for cards not near active index
+  const { primary: dominantPrimary, secondary: dominantSecondary } = useDominantColors(isMediaOnlyPost ? mediaUrl : undefined, { skip: !isNearActive });
 
   return (
     <>
@@ -880,18 +889,19 @@ const ImmersivePostCardInner = ({
           </div>
         ) : (
           <>
-            {/* Blurred background image - behind everything */}
-            {backgroundImage && (
+            {/* Background image - scale only, NO blur for performance */}
+            {backgroundImage && shouldLoadImages && (
               <img 
                 src={backgroundImage} 
-                className="absolute inset-0 w-full h-full object-cover opacity-60 blur-2xl scale-110" 
+                className="absolute inset-0 w-full h-full object-cover opacity-60 scale-105" 
                 alt=""
+                loading="lazy"
               />
             )}
             {/* Gradient overlay on top of image, or solid color if no image */}
             <div className={cn(
               "absolute inset-0",
-              backgroundImage ? "bg-gradient-to-b from-black/40 via-black/20 to-black/80" : "bg-[#1F3347]"
+              backgroundImage ? "bg-gradient-to-b from-black/60 via-black/40 to-black/80" : "bg-[#1F3347]"
             )} />
           </>
         )}

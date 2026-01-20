@@ -9,14 +9,39 @@ export interface DominantColors {
   error: Error | undefined;
 }
 
-export const useDominantColors = (imageUrl: string | undefined): DominantColors => {
-  const { data, loading, error } = usePalette(imageUrl || '');
+interface UseDominantColorsOptions {
+  /** Skip fetching - useful for cards not near the active index */
+  skip?: boolean;
+}
+
+const DEFAULT_COLORS: DominantColors = {
+  primary: '#1F3347',
+  secondary: '#0d1117',
+  accent: '#ffffff',
+  loading: false,
+  error: undefined
+};
+
+export const useDominantColors = (
+  imageUrl: string | undefined, 
+  options: UseDominantColorsOptions = {}
+): DominantColors => {
+  const { skip = false } = options;
   
-  return useMemo(() => ({
-    primary: data?.darkVibrant || data?.vibrant || '#1F3347',
-    secondary: data?.darkMuted || data?.muted || '#0d1117',
-    accent: data?.lightVibrant || '#ffffff',
-    loading,
-    error
-  }), [data, loading, error]);
+  // Pass empty string when skipped to prevent network request
+  const urlToFetch = skip ? '' : (imageUrl || '');
+  const { data, loading, error } = usePalette(urlToFetch);
+  
+  return useMemo(() => {
+    // Return defaults immediately if skipped
+    if (skip) return DEFAULT_COLORS;
+    
+    return {
+      primary: data?.darkVibrant || data?.vibrant || '#1F3347',
+      secondary: data?.darkMuted || data?.muted || '#0d1117',
+      accent: data?.lightVibrant || '#ffffff',
+      loading,
+      error
+    };
+  }, [data, loading, error, skip]);
 };

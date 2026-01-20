@@ -81,5 +81,8 @@ export function useTrustScore(
     staleTime: 1000 * 60 * 60, // 1 hour cache
     gcTime: 1000 * 60 * 60 * 2, // 2 hours in memory
     retry: 1,
+    // Prevent refetching on window focus to reduce network requests
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }

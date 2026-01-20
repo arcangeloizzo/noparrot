@@ -305,7 +305,7 @@ export const Feed = () => {
       
       <ImmersiveFeedContainer ref={feedContainerRef} onRefresh={async () => { await refetch(); }} onActiveIndexChange={handleActiveIndexChange}>
         {/* Immersive Feed Items */}
-        {mixedFeed.map((item) => {
+        {mixedFeed.map((item, feedIndex) => {
           if (item.type === 'daily-carousel') {
             // Editorial Carousel for Il Punto
             return (
@@ -359,6 +359,7 @@ export const Feed = () => {
               <ImmersivePostCard
                 key={item.id}
                 post={item.data}
+                index={feedIndex}
                 onRemove={() => handleRemovePost(item.data.id)}
                 onQuoteShare={handleQuoteShare}
               />
