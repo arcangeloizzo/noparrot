@@ -889,11 +889,11 @@ const ImmersivePostCardInner = ({
           </div>
         ) : (
           <>
-            {/* Background image - scale only, NO blur for performance */}
+            {/* Blurred background image - behind everything */}
             {backgroundImage && shouldLoadImages && (
               <img 
                 src={backgroundImage} 
-                className="absolute inset-0 w-full h-full object-cover opacity-60 scale-105" 
+                className="absolute inset-0 w-full h-full object-cover opacity-60 blur-2xl scale-110" 
                 alt=""
                 loading="lazy"
               />
@@ -901,7 +901,7 @@ const ImmersivePostCardInner = ({
             {/* Gradient overlay on top of image, or solid color if no image */}
             <div className={cn(
               "absolute inset-0",
-              backgroundImage ? "bg-gradient-to-b from-black/60 via-black/40 to-black/80" : "bg-[#1F3347]"
+              backgroundImage ? "bg-gradient-to-b from-black/40 via-black/20 to-black/80" : "bg-[#1F3347]"
             )} />
           </>
         )}
