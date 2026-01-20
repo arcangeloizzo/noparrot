@@ -966,15 +966,35 @@ serve(async (req) => {
       console.log('[fetch-article-preview] Detected YouTube video:', youtubeId);
       
       try {
-        const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
-        const oembedResponse = await fetch(oembedUrl);
+        // Try oEmbed first, with fallback to thumbnail-based response
+        let oembedData: { title?: string; thumbnail_url?: string; html?: string; author_name?: string; author_url?: string } | null = null;
         
-        if (!oembedResponse.ok) {
-          throw new Error('Failed to fetch YouTube oEmbed data');
+        const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${youtubeId}&format=json`;
+        console.log('[YouTube] 📡 Fetching oEmbed from:', oembedUrl);
+        
+        try {
+          const oembedResponse = await fetch(oembedUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; NoParrot/1.0)',
+              'Accept': 'application/json'
+            }
+          });
+          
+          if (oembedResponse.ok) {
+            oembedData = await oembedResponse.json();
+            console.log('[YouTube] ✅ oEmbed fetched:', oembedData?.title);
+          } else {
+            console.warn(`[YouTube] ⚠️ oEmbed returned ${oembedResponse.status}, using fallback`);
+          }
+        } catch (oembedError) {
+          console.warn('[YouTube] ⚠️ oEmbed fetch failed, using fallback:', oembedError);
         }
         
-        const oembedData = await oembedResponse.json();
-        console.log('[YouTube] ✅ oEmbed fetched:', oembedData.title);
+        // Fallback: use YouTube thumbnail directly if oEmbed failed
+        const title = oembedData?.title || `YouTube Video (${youtubeId})`;
+        const thumbnail = oembedData?.thumbnail_url || `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`;
+        const author = oembedData?.author_name || '';
+        const authorUrl = oembedData?.author_url || '';
         
         // Check transcript cache (but don't return transcript to client)
         let transcriptStatus: 'cached' | 'pending' | 'unavailable' = 'pending';
@@ -1002,18 +1022,18 @@ serve(async (req) => {
         // SOURCE-FIRST: Return metadata only, NO transcript to client
         return new Response(JSON.stringify({
           success: true,
-          title: oembedData.title,
+          title,
           // NO content/transcript to client - only short summary
-          summary: oembedData.title,
-          image: oembedData.thumbnail_url,
+          summary: title,
+          image: thumbnail,
           platform: 'youtube',
           type: 'video',
-          embedHtml: oembedData.html,
+          embedHtml: oembedData?.html || null,
           youtubeId,
           // NO transcript field - removed for copyright compliance
           transcriptStatus, // Just status for UI badge
-          author: oembedData.author_name,
-          authorUrl: oembedData.author_url,
+          author,
+          authorUrl,
           contentQuality: transcriptStatus === 'cached' ? 'complete' : 'partial',
           // Gate config for client (15s timer, iOS-compatible)
           gateConfig: {
@@ -1030,8 +1050,20 @@ serve(async (req) => {
         });
       } catch (error) {
         console.error('[fetch-article-preview] Error fetching YouTube data:', error);
-        return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
-          status: 500,
+        // Return graceful fallback instead of 500
+        return new Response(JSON.stringify({
+          success: true,
+          title: `YouTube Video (${youtubeId})`,
+          summary: `YouTube Video`,
+          image: `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`,
+          platform: 'youtube',
+          type: 'video',
+          youtubeId,
+          transcriptStatus: 'unavailable',
+          contentQuality: 'partial',
+          gateConfig: { mode: 'timer', minSeconds: 15 },
+          qaSourceRef: { kind: 'youtubeId', id: youtubeId }
+        }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
