@@ -16,13 +16,20 @@ export function getWordCount(text: string): number {
 export type TestMode = 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY';
 
 /**
- * Determina il test mode basato sul numero di parole dell'utente
- * quando è presente una fonte esterna
+ * Determina il test mode basato sul numero di parole del commento
+ * dell'AUTORE ORIGINALE del post quando è presente una fonte esterna.
+ * 
+ * IMPORTANTE: Questa funzione va usata SOLO in caso di RESHARE.
+ * Per share originali (utente condivide fonte per la prima volta),
+ * usare sempre SOURCE_ONLY perché non ha senso testare l'utente
+ * su contenuto che ha appena scritto lui stesso.
+ * 
+ * @param originalAuthorWordCount - parole del commento dell'autore originale
  */
-export function getTestModeWithSource(userWordCount: number): TestMode {
-  if (userWordCount <= 30) {
+export function getTestModeWithSource(originalAuthorWordCount: number): TestMode {
+  if (originalAuthorWordCount <= 30) {
     return 'SOURCE_ONLY';   // 3 domande sulla fonte
-  } else if (userWordCount <= 120) {
+  } else if (originalAuthorWordCount <= 120) {
     return 'MIXED';          // 1 domanda su userText, 2 sulla fonte
   } else {
     return 'USER_ONLY';      // 3 domande solo su userText

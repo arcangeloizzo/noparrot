@@ -350,8 +350,18 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
         return;
       }
       
-      const userWordCount = getWordCount(content);
-      const testMode = getTestModeWithSource(userWordCount);
+      // Share originale (nessun quotedPost) → sempre SOURCE_ONLY
+      // Il commento dell'utente è suo, non ha senso testarlo su ciò che ha scritto lui
+      // Reshare (quotedPost presente) → valuta il commento dell'autore ORIGINALE
+      const isReshare = !!quotedPost;
+      let testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY';
+      
+      if (isReshare && quotedPost.content) {
+        const originalAuthorWordCount = getWordCount(quotedPost.content);
+        testMode = getTestModeWithSource(originalAuthorWordCount);
+      } else {
+        testMode = 'SOURCE_ONLY';
+      }
       
       toast.loading('Stiamo mettendo a fuoco ciò che conta…');
       
@@ -441,8 +451,18 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
       setIsGeneratingQuiz(true);
 
-      const userWordCount = getWordCount(content);
-      const testMode = getTestModeWithSource(userWordCount);
+      // Share originale (nessun quotedPost) → sempre SOURCE_ONLY
+      // Il commento dell'utente è suo, non ha senso testarlo su ciò che ha scritto lui
+      // Reshare (quotedPost presente) → valuta il commento dell'autore ORIGINALE
+      const isReshare = !!quotedPost;
+      let testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY';
+      
+      if (isReshare && quotedPost.content) {
+        const originalAuthorWordCount = getWordCount(quotedPost.content);
+        testMode = getTestModeWithSource(originalAuthorWordCount);
+      } else {
+        testMode = 'SOURCE_ONLY';
+      }
 
       toast.loading('Stiamo mettendo a fuoco ciò che conta…');
 

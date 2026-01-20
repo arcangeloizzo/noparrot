@@ -76,12 +76,12 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
         throw new Error('Riferimento contenuto mancante');
       }
       
-      // 2. Calcola testMode se c'è testo utente
-      const userText = (source as any).userText || '';
-      const userWordCount = getWordCount(userText);
-      const testMode = userText ? getTestModeWithSource(userWordCount) : 'SOURCE_ONLY';
+      // 2. Calcola testMode
+      // Per SourceMCQTest, usato tipicamente nel flow originale (non reshare),
+      // forziamo SOURCE_ONLY perché non ha senso testare l'utente su ciò che scrive lui
+      const testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY' = 'SOURCE_ONLY';
 
-      console.log('[SourceMCQTest] Test mode:', testMode, 'userWordCount:', userWordCount);
+      console.log('[SourceMCQTest] Test mode:', testMode);
       
       // 3. Generate AI questions using qaSourceRef (source-first)
       const result = await generateQA({
@@ -90,7 +90,7 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
         title: preview.title || source.title || '',
         qaSourceRef: preview.qaSourceRef,
         sourceUrl: source.url,
-        userText: userText,
+        userText: '', // No userText for original shares
         testMode: testMode,
       });
       
