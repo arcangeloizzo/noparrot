@@ -36,6 +36,13 @@ export const Feed = () => {
   // State for force refresh - passed to hooks
   const [refreshNonce, setRefreshNonce] = useState(0);
   
+  // Sliding Window: track active index for virtualization
+  // Initialize from sessionStorage to avoid white screen on refresh
+  const [activeIndex, setActiveIndex] = useState(() => {
+    const saved = sessionStorage.getItem('feed-active-index');
+    return saved ? parseInt(saved, 10) : 0;
+  });
+  
   // Fetch real Daily Focus items (now returns { items, totalCount }) with refreshNonce
   const { data: dailyFocusData, isLoading: loadingDaily } = useDailyFocus(refreshNonce);
   const dailyFocusItems = dailyFocusData?.items || [];
@@ -65,6 +72,8 @@ export const Feed = () => {
   // Handler per salvare l'indice attivo durante lo scroll - stabilized with useCallback
   // Also prefetches next card's image for smoother experience
   const handleActiveIndexChange = useCallback((index: number) => {
+    // Sync local state for virtualization window
+    setActiveIndex(index);
     sessionStorage.setItem('feed-active-index', index.toString());
     
     // Prefetch next card's image using ref
@@ -304,67 +313,78 @@ export const Feed = () => {
       </div>
       
       <ImmersiveFeedContainer ref={feedContainerRef} onRefresh={async () => { await refetch(); }} onActiveIndexChange={handleActiveIndexChange}>
-        {/* Immersive Feed Items */}
+        {/* Sliding Window Virtualization: only mount heavy components in window */}
         {mixedFeed.map((item, feedIndex) => {
-          if (item.type === 'daily-carousel') {
-            // Editorial Carousel for Il Punto
-            return (
-              <ImmersiveEditorialCarousel
-                key={item.id}
-                items={item.data as DailyFocus[]}
-                totalCount={dailyFocusTotalCount}
-                onItemClick={(focusItem) => {
-                  // Find index of clicked item to pass editorialNumber
-                  const clickedIndex = dailyFocusItems.findIndex(d => d.id === focusItem.id);
-                  const editorialNumber = dailyFocusTotalCount - clickedIndex;
-                  setSelectedFocus({ type: 'daily', data: focusItem, editorialNumber });
-                  setFocusDetailOpen(true);
-                }}
-                onComment={(focusItem) => {
-                  setSelectedFocusForComments({ type: 'daily', data: focusItem });
-                  setFocusCommentsOpen(true);
-                }}
-                onShareComplete={(focusItem) => {
-                  // After gate passed, open composer with editorial as quoted content
-                  setQuotedPost({
-                    id: focusItem.id,
-                    content: focusItem.summary,
-                    author_id: 'system',
-                    created_at: focusItem.created_at || new Date().toISOString(),
-                    author: {
-                      id: 'system',
-                      username: 'Il Punto',
-                      full_name: 'Il Punto',
-                      avatar_url: null
-                    },
-                    topic_tag: null,
-                    shared_title: focusItem.title,
-                    shared_url: `focus://daily/${focusItem.id}`,
-                    preview_img: focusItem.image_url,
-                    full_article: null,
-                    article_content: focusItem.deep_content,
-                    trust_level: focusItem.trust_score,
-                    stance: null,
-                    sources: focusItem.sources?.map((s: any) => s.url).filter(Boolean) || [],
-                    quoted_post_id: null,
-                    category: focusItem.category || null,
-                    reactions: focusItem.reactions || { likes: 0, comments: 0, shares: 0 }
-                  } as unknown as Post);
-                  setShowComposer(true);
-                }}
-              />
-            );
-          } else {
-            return (
-              <ImmersivePostCard
-                key={item.id}
-                post={item.data}
-                index={feedIndex}
-                onRemove={() => handleRemovePost(item.data.id)}
-                onQuoteShare={handleQuoteShare}
-              />
-            );
-          }
+          // Virtualization window: activeIndex -1 to +2 (4 items max)
+          const isVisible =
+            feedIndex >= activeIndex - 1 &&
+            feedIndex <= activeIndex + 2;
+
+          // Wrapper ALWAYS stays mounted (preserves scroll height + snap points)
+          return (
+            <div
+              key={item.type === 'post' ? `post-${item.data.id}` : `daily-carousel-${item.id}`}
+              className="w-full h-[100dvh] snap-start shrink-0 overflow-hidden"
+            >
+              {isVisible ? (
+                item.type === 'daily-carousel' ? (
+                  <ImmersiveEditorialCarousel
+                    key={item.id}
+                    items={item.data as DailyFocus[]}
+                    totalCount={dailyFocusTotalCount}
+                    onItemClick={(focusItem) => {
+                      const clickedIndex = dailyFocusItems.findIndex(d => d.id === focusItem.id);
+                      const editorialNumber = dailyFocusTotalCount - clickedIndex;
+                      setSelectedFocus({ type: 'daily', data: focusItem, editorialNumber });
+                      setFocusDetailOpen(true);
+                    }}
+                    onComment={(focusItem) => {
+                      setSelectedFocusForComments({ type: 'daily', data: focusItem });
+                      setFocusCommentsOpen(true);
+                    }}
+                    onShareComplete={(focusItem) => {
+                      setQuotedPost({
+                        id: focusItem.id,
+                        content: focusItem.summary,
+                        author_id: 'system',
+                        created_at: focusItem.created_at || new Date().toISOString(),
+                        author: {
+                          id: 'system',
+                          username: 'Il Punto',
+                          full_name: 'Il Punto',
+                          avatar_url: null
+                        },
+                        topic_tag: null,
+                        shared_title: focusItem.title,
+                        shared_url: `focus://daily/${focusItem.id}`,
+                        preview_img: focusItem.image_url,
+                        full_article: null,
+                        article_content: focusItem.deep_content,
+                        trust_level: focusItem.trust_score,
+                        stance: null,
+                        sources: focusItem.sources?.map((s: any) => s.url).filter(Boolean) || [],
+                        quoted_post_id: null,
+                        category: focusItem.category || null,
+                        reactions: focusItem.reactions || { likes: 0, comments: 0, shares: 0 }
+                      } as unknown as Post);
+                      setShowComposer(true);
+                    }}
+                  />
+                ) : (
+                  <ImmersivePostCard
+                    key={item.id}
+                    post={item.data}
+                    index={feedIndex}
+                    onRemove={() => handleRemovePost(item.data.id)}
+                    onQuoteShare={handleQuoteShare}
+                  />
+                )
+              ) : (
+                // Lightweight placeholder for off-window items
+                <div className="w-full h-full bg-[#0E1A24]" />
+              )}
+            </div>
+          );
         })}
         
         {/* Empty state */}
