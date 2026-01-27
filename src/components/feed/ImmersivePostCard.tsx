@@ -69,6 +69,7 @@ import { getWordCount, getTestModeWithSource, getQuestionCountWithoutSource, get
 import { useDoubleTap } from "@/hooks/useDoubleTap";
 import { useReshareContextStack } from "@/hooks/useReshareContextStack";
 import { useOriginalSource } from "@/hooks/useOriginalSource";
+import { haptics } from "@/lib/haptics";
 
 interface ImmersivePostCardProps {
   post: Post;
@@ -377,6 +378,7 @@ const ImmersivePostCardInner = ({
 
   const handleHeart = (e?: React.MouseEvent) => {
     e?.stopPropagation();
+    haptics.light();
     toggleReaction.mutate({ postId: post.id, reactionType: 'heart' });
   };
 
@@ -394,6 +396,7 @@ const ImmersivePostCardInner = ({
 
   const handleBookmark = (e: React.MouseEvent) => {
     e.stopPropagation();
+    haptics.light();
     toggleReaction.mutate({ postId: post.id, reactionType: 'bookmark' });
   };
 
@@ -1692,6 +1695,7 @@ const ImmersivePostCardInner = ({
             <button 
               onClick={(e) => {
                 e.stopPropagation();
+                haptics.light();
                 handleShareClick(e);
               }}
               className="h-10 px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
@@ -1721,7 +1725,7 @@ const ImmersivePostCardInner = ({
               {/* Comments */}
               <button 
                 className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
-                onClick={(e) => { e.stopPropagation(); setShowComments(true); }}
+                onClick={(e) => { e.stopPropagation(); haptics.light(); setShowComments(true); }}
               >
                 <MessageCircle className="w-5 h-5 text-white" />
                 <span className="text-xs font-bold text-white">{post.reactions.comments}</span>

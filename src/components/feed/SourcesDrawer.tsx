@@ -2,6 +2,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { ExternalLink, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SourcesDrawerSkeleton } from "./skeletons";
+import { haptics } from "@/lib/haptics";
 
 interface Source {
   icon: string;
@@ -32,7 +33,10 @@ export const SourcesDrawer = ({ open, onOpenChange, sources, highlightIndex }: S
               {sources.length} {sources.length === 1 ? 'Fonte' : 'Fonti'}
             </h3>
             <button
-              onClick={() => onOpenChange(false)}
+              onClick={() => {
+                haptics.light();
+                onOpenChange(false);
+              }}
               className="p-2 hover:bg-white/5 rounded-full transition-colors"
             >
               <X className="w-5 h-5 text-gray-400" />
@@ -52,6 +56,7 @@ export const SourcesDrawer = ({ open, onOpenChange, sources, highlightIndex }: S
                   href={source.url}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => haptics.light()}
                   className={cn(
                     "block p-4 rounded-2xl bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-200 border border-white/5",
                     highlightIndex === idx && "ring-2 ring-primary border-primary/50 bg-primary/5"

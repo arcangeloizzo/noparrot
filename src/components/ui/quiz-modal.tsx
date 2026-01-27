@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { lockBodyScroll, unlockBodyScroll, getCurrentLockOwner } from "@/lib/bodyScrollLock";
 import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
 import { toast } from "sonner";
+import { haptics } from "@/lib/haptics";
 
 interface QuizModalProps {
   questions: QuizQuestion[];
@@ -146,6 +147,9 @@ export function QuizModal({ questions, qaId, onSubmit, onCancel, onComplete, pos
   const handleAnswer = async (questionId: string, choiceId: string) => {
     if (showFeedback || isSubmitting) return;
     
+    // Haptic on selection
+    haptics.selection();
+    
     setSelectedChoice(choiceId);
     setIsSubmitting(true);
     
@@ -167,7 +171,8 @@ export function QuizModal({ questions, qaId, onSubmit, onCancel, onComplete, pos
     setShowFeedback(true);
     
     if (!stepResult.isCorrect) {
-      // WRONG ANSWER
+      // WRONG ANSWER - haptic warning
+      haptics.warning();
       const newTotalErrors = totalErrors + 1;
       setTotalErrors(newTotalErrors);
       
@@ -236,6 +241,13 @@ export function QuizModal({ questions, qaId, onSubmit, onCancel, onComplete, pos
       
       setResult(validationResult);
       addBreadcrumb('quiz_submit_result', { passed: validationResult.passed });
+      
+      // Haptic feedback on completion
+      if (validationResult.passed) {
+        haptics.success();
+      } else {
+        haptics.warning();
+      }
       
       // Update cognitive density if passed
       if (validationResult.passed && user && postCategory) {

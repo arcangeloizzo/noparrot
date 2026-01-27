@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X, Share, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Post } from "@/hooks/usePosts";
+import { haptics } from "@/lib/haptics";
 
 interface ArticleReaderProps {
   post: Post;
@@ -72,7 +73,10 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleRea
           <Button
             variant="ghost"
             size="sm"
-            onClick={onClose}
+            onClick={() => {
+              haptics.light();
+              onClose();
+            }}
             className="h-8 w-8 p-0 text-gray-400 hover:text-white"
           >
             <X className="h-4 w-4" />
@@ -140,7 +144,10 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleRea
           {canProceed ? (
             <div className="grid grid-cols-2 gap-3">
               <Button
-                onClick={() => onStartQuiz("Condividi")}
+                onClick={() => {
+                  haptics.light();
+                  onStartQuiz("Condividi");
+                }}
                 className="flex items-center gap-2 bg-primary hover:bg-primary/90"
               >
                 <Share className="h-4 w-4" />
@@ -148,7 +155,10 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleRea
               </Button>
               
               <Button
-                onClick={() => onStartQuiz("Invia ad un amico")}
+                onClick={() => {
+                  haptics.light();
+                  onStartQuiz("Invia ad un amico");
+                }}
                 variant="outline"
                 className="flex items-center gap-2"
               >

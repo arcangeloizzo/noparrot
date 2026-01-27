@@ -21,6 +21,7 @@ import { SourceWithGate } from "@/lib/comprehension-gate-extended";
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { SourcesDrawer } from "@/components/feed/SourcesDrawer";
 import { supabase } from "@/integrations/supabase/client";
+import { haptics } from "@/lib/haptics";
 
 interface ImmersiveEditorialCarouselProps {
   items: DailyFocus[];
@@ -582,6 +583,7 @@ const EditorialSlideInner = ({
                   className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
                   onClick={(e) => {
                     e.stopPropagation();
+                    haptics.light();
                     onLike();
                   }}
                 >
@@ -602,6 +604,7 @@ const EditorialSlideInner = ({
                   className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
                   onClick={(e) => {
                     e.stopPropagation();
+                    haptics.light();
                     onComment?.(item);
                   }}
                 >
@@ -616,6 +619,7 @@ const EditorialSlideInner = ({
                   className="flex items-center justify-center h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
                   onClick={(e) => {
                     e.stopPropagation();
+                    haptics.light();
                     onBookmark();
                   }}
                 >

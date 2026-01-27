@@ -12,6 +12,7 @@ import { SourceWithGate } from '@/lib/comprehension-gate-extended';
 import { fetchArticlePreview, generateQA, validateAnswers, type QuizQuestion } from '@/lib/ai-helpers';
 import { getWordCount, getTestModeWithSource } from '@/lib/gate-utils';
 import { supabase } from '@/integrations/supabase/client';
+import { haptics } from '@/lib/haptics';
 
 interface SourceMCQTestProps {
   source: SourceWithGate;
@@ -134,6 +135,9 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
   const handleAnswer = async (questionId: string, choiceId: string) => {
     if (isSubmitting) return;
     
+    // Haptic on selection
+    haptics.selection();
+    
     // Store the answer
     const newAnswers = { ...answers, [questionId]: choiceId };
     setAnswers(newAnswers);
@@ -153,6 +157,7 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
         
         // SECURITY: Only show feedback AFTER server responds
         if (result.passed) {
+          haptics.success();
           setShowResult('correct');
           setTimeout(() => {
             setShowResult(null);
@@ -160,6 +165,7 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
           }, 1500);
         } else {
           // Mark wrong questions based on server response
+          haptics.warning();
           setWrongQuestions(new Set(result.wrongIndexes));
           setShowResult('wrong');
           
@@ -182,6 +188,7 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
       } catch (error) {
         console.error('[SourceMCQTest] Validation error:', error);
         // SECURITY: On error, show failure - never assume correct
+        haptics.warning();
         setShowResult('wrong');
         setTimeout(() => setShowResult(null), 1500);
       } finally {
@@ -230,7 +237,10 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
           <h2 className="text-xl font-semibold mb-2 text-foreground">Errore</h2>
           <p className="text-muted-foreground mb-4">{questionError}</p>
           <div className="space-y-2">
-            <Button onClick={() => loadQuestionsForSource()} className="w-full">
+            <Button onClick={() => {
+              haptics.light();
+              loadQuestionsForSource();
+            }} className="w-full">
               Riprova
             </Button>
             <Button onClick={onClose} variant="outline" className="w-full">
@@ -262,7 +272,10 @@ export const SourceMCQTest: React.FC<SourceMCQTestProps> = ({
           
           <div className="space-y-3">
             <Button 
-              onClick={() => onComplete(true)} 
+              onClick={() => {
+                haptics.success();
+                onComplete(true);
+              }} 
               className="w-full bg-[hsl(var(--cognitive-correct))] hover:bg-[hsl(var(--cognitive-correct))]/90 text-white"
             >
               Continua
