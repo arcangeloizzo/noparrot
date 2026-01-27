@@ -238,7 +238,10 @@ const ImmersivePostCardInner = ({
   
   // Article preview via React Query hook (cached, prefetched)
   const urlToPreview = post.shared_url || quotedPost?.shared_url;
-  const { data: articlePreviewData } = useArticlePreview(urlToPreview);
+  const { data: articlePreviewData, isLoading: isPreviewLoading } = useArticlePreview(urlToPreview);
+  
+  // ===== HARDENING 2: Detect if we're waiting for preview data =====
+  const isWaitingForPreview = isPreviewLoading && !!urlToPreview;
   
   // Build article preview with fallbacks - use 'any' for compatibility with existing code
   const articlePreview: any = useMemo(() => {
@@ -1520,59 +1523,78 @@ const ImmersivePostCardInner = ({
                 trustScore={{ band: 'ALTO', score: 90 }}
               />
             ) : hasLink && !isReshareWithShortComment && (
-              /* Generic Link Preview - Clickable to open external link */
-              <div 
-                className="cursor-pointer active:scale-[0.98] transition-transform"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (post.shared_url) {
-                    window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                  }
-                }}
-              >
-                {/* Visible Metadata Image - Use SourceImageWithFallback to handle broken/Instagram images */}
-                <SourceImageWithFallback
-                  src={articlePreview?.image || post.preview_img}
-                  sharedUrl={post.shared_url}
-                  isIntent={post.is_intent}
-                  trustScore={displayTrustScore}
-                  hideOverlay={true}
-                />
-                
-                <div className="w-12 h-1 bg-white/30 rounded-full mb-4" />
-                {/* Caption/Title with truncation for long social captions */}
-                {(() => {
-                  const displayTitle = articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url);
-                  const isCaptionLong = displayTitle && displayTitle.length > CAPTION_TRUNCATE_LENGTH;
-                  const truncatedCaption = isCaptionLong 
-                    ? displayTitle.slice(0, CAPTION_TRUNCATE_LENGTH).trim() + '...' 
-                    : displayTitle;
-                  
-                  return (
-                    <div className="mb-3" onClick={(e) => e.stopPropagation()}>
-                      <p className="text-lg font-medium text-white/90 leading-relaxed drop-shadow-lg line-clamp-3">
-                        {truncatedCaption}
-                      </p>
-                      {isCaptionLong && (
-                        <button
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            setShowFullCaption(true); 
-                          }}
-                          className="mt-2 text-sm text-primary font-semibold hover:underline"
-                        >
-                          Leggi tutto
-                        </button>
-                      )}
+              /* ===== HARDENING 2: Fixed-height container + skeleton for link preview ===== */
+              <div className="min-h-[280px]">
+                {isWaitingForPreview && !post.shared_title && !post.preview_img ? (
+                  /* Skeleton while loading preview data */
+                  <div className="space-y-4 animate-pulse">
+                    <div className="w-full aspect-video bg-white/10 rounded-xl" />
+                    <div className="w-12 h-1 bg-white/20 rounded-full" />
+                    <div className="space-y-2">
+                      <div className="h-5 bg-white/10 rounded-lg w-3/4" />
+                      <div className="h-5 bg-white/10 rounded-lg w-1/2" />
                     </div>
-                  );
-                })()}
-                <div className="flex items-center gap-2 text-white/70 mb-4">
-                  <ExternalLink className="w-3 h-3" />
-                  <span className="text-xs uppercase font-bold tracking-widest">
-                    {getHostnameFromUrl(post.shared_url)}
-                  </span>
-                </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 bg-white/10 rounded" />
+                      <div className="h-3 bg-white/10 rounded w-24" />
+                    </div>
+                  </div>
+                ) : (
+                  /* Generic Link Preview - Clickable to open external link */
+                  <div 
+                    className="cursor-pointer active:scale-[0.98] transition-transform"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (post.shared_url) {
+                        window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                      }
+                    }}
+                  >
+                    {/* Visible Metadata Image - Use SourceImageWithFallback to handle broken/Instagram images */}
+                    <SourceImageWithFallback
+                      src={articlePreview?.image || post.preview_img}
+                      sharedUrl={post.shared_url}
+                      isIntent={post.is_intent}
+                      trustScore={displayTrustScore}
+                      hideOverlay={true}
+                    />
+                    
+                    <div className="w-12 h-1 bg-white/30 rounded-full mb-4" />
+                    {/* Caption/Title with truncation for long social captions */}
+                    {(() => {
+                      const displayTitle = articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url);
+                      const isCaptionLong = displayTitle && displayTitle.length > CAPTION_TRUNCATE_LENGTH;
+                      const truncatedCaption = isCaptionLong 
+                        ? displayTitle.slice(0, CAPTION_TRUNCATE_LENGTH).trim() + '...' 
+                        : displayTitle;
+                      
+                      return (
+                        <div className="mb-3" onClick={(e) => e.stopPropagation()}>
+                          <p className="text-lg font-medium text-white/90 leading-relaxed drop-shadow-lg line-clamp-3">
+                            {truncatedCaption}
+                          </p>
+                          {isCaptionLong && (
+                            <button
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                setShowFullCaption(true); 
+                              }}
+                              className="mt-2 text-sm text-primary font-semibold hover:underline"
+                            >
+                              Leggi tutto
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    <div className="flex items-center gap-2 text-white/70 mb-4">
+                      <ExternalLink className="w-3 h-3" />
+                      <span className="text-xs uppercase font-bold tracking-widest">
+                        {getHostnameFromUrl(post.shared_url)}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

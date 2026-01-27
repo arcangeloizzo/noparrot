@@ -43,6 +43,15 @@ export const Feed = () => {
     return saved ? parseInt(saved, 10) : 0;
   });
   
+  // ===== HARDENING 3: Post-publish scroll state =====
+  const [pendingScrollToPostId, setPendingScrollToPostId] = useState<string | null>(null);
+  
+  // Handler for publish success - schedules scroll to new post
+  const handlePublishSuccess = useCallback((newPostId: string) => {
+    console.log('[Feed] Post published, scheduling scroll to:', newPostId);
+    setPendingScrollToPostId(newPostId);
+  }, []);
+  
   // Fetch real Daily Focus items (now returns { items, totalCount }) with refreshNonce
   const { data: dailyFocusData, isLoading: loadingDaily } = useDailyFocus(refreshNonce);
   const dailyFocusItems = dailyFocusData?.items || [];
@@ -66,15 +75,22 @@ export const Feed = () => {
     }
   }, [dbPosts, queryClient]);
 
+
   // Store mixedFeed in ref for stable callback access
   const mixedFeedRef = useRef<Array<{ type: 'daily-carousel' | 'post'; data: any; id: string }>>([]);
+
+  // ===== HARDENING 1: Atomic state sync utility =====
+  // Lightweight state sync ONLY (no side effects) - ensures activeIndex and sessionStorage are always in sync
+  const syncActiveIndex = useCallback((index: number) => {
+    setActiveIndex(index);
+    sessionStorage.setItem('feed-active-index', index.toString());
+  }, []);
 
   // Handler per salvare l'indice attivo durante lo scroll - stabilized with useCallback
   // Also prefetches next card's image for smoother experience
   const handleActiveIndexChange = useCallback((index: number) => {
-    // Sync local state for virtualization window
-    setActiveIndex(index);
-    sessionStorage.setItem('feed-active-index', index.toString());
+    // Use atomic sync utility
+    syncActiveIndex(index);
     
     // Prefetch next card's image using ref
     const nextItem = mixedFeedRef.current[index + 1];
@@ -90,7 +106,7 @@ export const Feed = () => {
         perfStore.endAction();
       });
     });
-  }, []);
+  }, [syncActiveIndex]);
 
   // Ref per evitare restore multipli
   const hasRestoredScrollRef = useRef(false);
@@ -103,22 +119,21 @@ export const Feed = () => {
     else if (tab === 'notifications') navigate('/notifications');
   };
 
-  // Handler per refresh quando già nel feed
+  // ===== HARDENING 1: Robust Home Refresh =====
+  // Handler per refresh quando già nel feed - uses syncActiveIndex for deterministic state
   const handleHomeRefresh = () => {
-    // Pulisci la posizione salvata per forzare scroll top
-    sessionStorage.removeItem('feed-active-index');
+    // 1) Hard sync activeIndex a 0 PRIMA dello scroll (atomic state update)
+    syncActiveIndex(0);
     
-    // Scroll container to top (for snap scroll)
+    // 2) Scroll SOLO il container (NO window.scrollTo - rispetta virtualization)
     if (feedContainerRef.current) {
-      feedContainerRef.current.scrollToTop();
+      feedContainerRef.current.scrollToIndex(0);
     }
-    // Fallback for window scroll
-    window.scrollTo({ top: 0, behavior: 'smooth' });
     
-    // Incrementa nonce per forzare refresh delle query
+    // 3) Incrementa nonce per forzare refresh delle query
     setRefreshNonce(prev => prev + 1);
     
-    // Invalida le query per refreshare i dati
+    // 4) Invalida le query per refreshare i dati
     queryClient.invalidateQueries({ queryKey: ['posts'] });
     queryClient.invalidateQueries({ queryKey: ['daily-focus'] });
     
@@ -159,6 +174,21 @@ export const Feed = () => {
   // Keep ref in sync for stable callback access
   mixedFeedRef.current = mixedFeed;
 
+  // ===== HARDENING 2: Dynamic prefetch for upcoming items =====
+  useEffect(() => {
+    if (mixedFeed.length === 0) return;
+    
+    const candidates = [activeIndex + 1, activeIndex + 2, activeIndex + 3]
+      .map(i => mixedFeedRef.current[i])
+      .filter(item => item?.type === 'post')
+      .map(item => item.data.shared_url)
+      .filter((url): url is string => !!url);
+
+    if (candidates.length > 0) {
+      prefetchArticlePreviews(queryClient, candidates);
+    }
+  }, [activeIndex, queryClient, mixedFeed.length]);
+
   // Ripristina posizione scroll (indice) quando Feed si monta e i dati sono caricati
   useEffect(() => {
     // Attendi che i dati siano caricati
@@ -182,6 +212,47 @@ export const Feed = () => {
       });
     }
   }, [isLoading, loadingDaily, mixedFeed.length]);
+
+  // ===== HARDENING 3: Bounded retry loop for post-publish scroll =====
+  useEffect(() => {
+    if (!pendingScrollToPostId) return;
+    
+    let attempts = 0;
+    const maxAttempts = 10; // ~2s total (10 * 200ms)
+    const intervalMs = 200;
+    let timeoutId: ReturnType<typeof setTimeout>;
+    
+    const tryScroll = () => {
+      attempts++;
+      
+      const idx = mixedFeed.findIndex(
+        item => item.type === 'post' && item.data.id === pendingScrollToPostId
+      );
+      
+      if (idx !== -1) {
+        console.log(`[Feed] Found post at index ${idx}, scrolling...`);
+        syncActiveIndex(idx);
+        requestAnimationFrame(() => {
+          feedContainerRef.current?.scrollToIndex(idx);
+        });
+        setPendingScrollToPostId(null);
+        return;
+      }
+      
+      if (attempts < maxAttempts) {
+        timeoutId = setTimeout(tryScroll, intervalMs);
+      } else {
+        console.warn('[Feed] Could not find new post after', maxAttempts, 'attempts');
+        setPendingScrollToPostId(null);
+      }
+    };
+    
+    tryScroll();
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [pendingScrollToPostId, mixedFeed, syncActiveIndex]);
 
   // Handle ?focus= URL parameter (from Saved page navigation)
   useEffect(() => {
@@ -412,6 +483,7 @@ export const Feed = () => {
           setQuotedPost(null);
         }}
         quotedPost={quotedPost}
+        onPublishSuccess={handlePublishSuccess}
       />
 
       {selectedPost && (
