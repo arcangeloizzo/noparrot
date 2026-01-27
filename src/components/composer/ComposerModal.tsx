@@ -35,6 +35,8 @@ interface ComposerModalProps {
   isOpen: boolean;
   onClose: () => void;
   quotedPost?: any;
+  /** Callback fired with new post ID after successful publish (for scroll-to-post) */
+  onPublishSuccess?: (newPostId: string) => void;
 }
 
 const URL_REGEX = /(https?:\/\/[^\s]+)/g;
@@ -85,7 +87,7 @@ const sanitizeUrl = (rawUrl: string): string => {
   return url;
 };
 
-export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProps) {
+export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }: ComposerModalProps) {
   const { user } = useAuth();
   const { data: profile } = useCurrentProfile();
   const queryClient = useQueryClient();
@@ -849,6 +851,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost }: ComposerModalProp
 
           queryClient.setQueriesData({ queryKey: ['posts'] }, bump);
           queryClient.setQueryData(['posts', user.id], bump);
+        }
+        
+        // ===== HARDENING 3: Notify parent about new post for scroll-to =====
+        if (postId) {
+          onPublishSuccess?.(postId);
         }
       }
 
