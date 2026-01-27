@@ -1,6 +1,7 @@
 import { Share2, Users } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { haptics } from "@/lib/haptics";
 
 interface ShareSheetProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export const ShareSheet = ({
             variant="outline"
             className="w-full justify-start gap-3 h-14"
             onClick={() => {
+              haptics.light();
               onShareToFeed();
               onClose();
             }}
@@ -44,6 +46,7 @@ export const ShareSheet = ({
             variant="outline"
             className="w-full justify-start gap-3 h-14"
             onClick={() => {
+              haptics.light();
               onShareToFriend();
               onClose();
             }}

@@ -23,6 +23,15 @@ export const haptics = {
   },
   
   /**
+   * Selection vibration (15ms) - for selecting an option
+   */
+  selection: () => {
+    if ('vibrate' in navigator) {
+      navigator.vibrate(15);
+    }
+  },
+  
+  /**
    * Success pattern - for positive completion
    */
   success: () => {
@@ -37,6 +46,15 @@ export const haptics = {
   error: () => {
     if ('vibrate' in navigator) {
       navigator.vibrate([50, 100, 50]);
+    }
+  },
+  
+  /**
+   * Warning pattern - for wrong answer / retry
+   */
+  warning: () => {
+    if ('vibrate' in navigator) {
+      navigator.vibrate([40, 80, 40]);
     }
   }
 };

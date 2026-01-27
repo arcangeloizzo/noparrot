@@ -1,6 +1,7 @@
 import { X, Share, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Post } from "@/hooks/usePosts";
+import { haptics } from "@/lib/haptics";
 
 interface PostTestActionsModalProps {
   post: Post;
@@ -13,11 +14,13 @@ export const PostTestActionsModal = ({ post, isOpen, onClose, onShare }: PostTes
   if (!isOpen) return null;
 
   const handleShare = () => {
+    haptics.light();
     onShare();
     onClose();
   };
 
   const handleSendToFriend = () => {
+    haptics.light();
     console.log('Send to friend for post:', post.id);
     // TODO: Implement send to friend functionality
     onClose();
@@ -32,7 +35,10 @@ export const PostTestActionsModal = ({ post, isOpen, onClose, onShare }: PostTes
           <Button
             variant="ghost"
             size="sm"
-            onClick={onClose}
+            onClick={() => {
+              haptics.light();
+              onClose();
+            }}
             className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
           >
             <X className="h-4 w-4" />

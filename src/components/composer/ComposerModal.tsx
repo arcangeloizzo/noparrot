@@ -23,8 +23,7 @@ import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { cn } from "@/lib/utils";
 import { addBreadcrumb, generateIdempotencyKey, setPendingPublish, clearPendingPublish, getPendingPublish } from "@/lib/crashBreadcrumbs";
 import { forceUnlockBodyScroll } from "@/lib/bodyScrollLock";
-
-
+import { haptics } from "@/lib/haptics";
 // iOS detection for stability tweaks (includes iPadOS reporting as Mac)
 const isIOS =
   typeof navigator !== 'undefined' &&
@@ -780,6 +779,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       localStorage.setItem('publish_flow_step', 'publish_success');
       localStorage.setItem('publish_flow_at', String(Date.now()));
       
+      haptics.success();
       toast.success(wasIdempotent ? 'Post già pubblicato.' : 'Condiviso.');
 
       if (postId) {
