@@ -1,164 +1,287 @@
-# Piano: Redesign Onboarding "Direct Impact" NoParrot v2.0
 
-## Obiettivo
-Trasformare l'onboarding in un'esperienza "militare/cruda", diretta, con sfida esplicita e impegno psicologico dell'utente. Target: 30-45 anni, urban, informed.
+# Implementazione Hardening Plan per Feed.tsx
+
+## Panoramica
+Implementeremo 3 hardening per eliminare race conditions e rendere la UX deterministica:
+
+1. **Robust Home Refresh** - Sync deterministico di `activeIndex` prima dello scroll
+2. **Immediate Link Fallback** - Container a altezza fissa + skeleton per link preview
+3. **Resilient Post-Publish Scroll** - Retry loop bounded per trovare il nuovo post
 
 ---
 
-## Nuovo Flusso (6 step)
+## HARDENING 1: Robust Home Refresh
 
+### File: `src/pages/Feed.tsx`
+
+**Problema attuale (linee 107-128):**
+```typescript
+const handleHomeRefresh = () => {
+  sessionStorage.removeItem('feed-active-index'); // ❌ Rimuove invece di settare a 0
+  feedContainerRef.current?.scrollToTop();
+  window.scrollTo({ top: 0, behavior: 'smooth' }); // ❌ VIOLA constraint - usa window scroll
+  // ...
+};
 ```
-Splash (logo reveal) -> Slide 1-4 -> Consent/Privacy -> AuthPage
+
+**Soluzione:**
+
+1. Creare funzione `syncActiveIndex` (nuova, linea ~74):
+```typescript
+// Lightweight state sync ONLY (no side effects)
+const syncActiveIndex = useCallback((index: number) => {
+  setActiveIndex(index);
+  sessionStorage.setItem('feed-active-index', index.toString());
+}, []);
 ```
 
-### Step 0: Splash Screen (invariato ma ottimizzato)
-- Logo parrot + wordmark reveal
-- Auto-fade dopo 3s verso Slide 1
+2. Modificare `handleActiveIndexChange` per usare `syncActiveIndex`:
+```typescript
+const handleActiveIndexChange = useCallback((index: number) => {
+  syncActiveIndex(index);
+  
+  // Prefetch next card's image
+  const nextItem = mixedFeedRef.current[index + 1];
+  if (nextItem?.type === 'post' && nextItem.data.preview_img) {
+    const img = new Image();
+    img.src = nextItem.data.preview_img;
+  }
+  
+  // Perf tracking
+  perfStore.startAction('scroll');
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      perfStore.endAction();
+    });
+  });
+}, [syncActiveIndex]);
+```
 
-### Step 1: Il Nemico (Slide 1)
-- **Visual**: Logo NoParrot (solo pappagallo) grande, centrato, blu accent
-- **Titolo**: "Non fare il pappagallo."
-- **Sottotitolo**: "I social sono echi infiniti. Qui si condivide solo cio che si e compreso. Spezza la catena."
-- **Interazione**: Swipe o tap
-
-### Step 2: La Difesa (Slide 2)
-- **Visual**: Icona lucchetto che si trasforma in spunta (Check) - animata
-- **Titolo**: "Prima capisci. Poi posti."
-- **Sottotitolo**: "Vuoi condividere un link? L'AI ti fara 3 domande. Se non hai letto o non hai capito, non passa. Nessuna eccezione."
-- **Interazione**: Button "Continua"
-
-### Step 3: L'Autore (Slide 3)
-- **Visual**: Icona penna stilografica + nebulosa stilizzata (composizione)
-- **Titolo**: "Il tuo Diario Cognitivo."
-- **Sottotitolo**: "Niente post usa e getta. Il tuo profilo e un blog personale dove cio che scrivi e cio che comprendi costruisce la tua identita. Lascia un segno, non solo rumore."
-- **Interazione**: Button "Continua"
-
-### Step 4: Il Patto (Slide 4)
-- **Visual**: Schermo nero, focus totale sullo slider in basso
-- **Titolo**: "NoParrot richiede tempo."
-- **Sottotitolo**: "Stai scegliendo l'attrito al posto della comodita. Sei sicuro?"
-- **Interazione**: Slider "Slide to Unlock" con icona lucchetto
-  - Testo: "SCORRI PER ACCETTARE LA SFIDA ->"
-  - Feedback: vibrazione (haptics.success) al completamento
-  - Animazione: lucchetto diventa spunta
-
-### Step 5: Il Rispetto (Slide 5 / Consent)
-- **Visual**: Icona rete/nodi connessi o scudo privacy stilizzato
-- **Titolo**: "I dati servono a te."
-- **Sottotitolo**: "Non vendiamo la tua identita a terzi. La tua mappa cognitiva serve a te, non al mercato. La pubblicita? Ci sara, ma alle tue condizioni: trasparente, etica e sotto il tuo controllo. Niente sorveglianza."
-- **Contenuto GDPR**: Checkboxes Terms/Privacy + Toggle cognitive tracking
-- **Azione**: Button "Crea il tuo account" -> AuthPage
-
----
-
-## File da Modificare/Creare
-
-### 1. `src/components/onboarding/SplashScreen.tsx`
-- Nessuna modifica sostanziale, gia ottimizzato
-
-### 2. `src/components/onboarding/OnboardingSlides.tsx` - RISCRIVERE COMPLETAMENTE
-- 4 nuove slide (Il Nemico, La Difesa, L'Autore, Il Patto)
-- Rimuovere FeedPreviewMock
-- Aggiungere icone vettoriali custom (Lucide icons)
-- Implementare SlideToUnlock component per Slide 4
-
-### 3. `src/components/onboarding/SlideToUnlock.tsx` - NUOVO
-- Componente slider draggable
-- Icona lucchetto che diventa spunta
-- Haptic feedback al completamento
-- Callback onUnlock
-
-### 4. `src/pages/ConsentScreen.tsx` - REDESIGN VISIVO
-- Integrare come "Slide 5" nel flow
-- Aggiungere icona rete/scudo in alto
-- Aggiungere titolo "I dati servono a te."
-- Aggiungere sottotitolo trasparenza
-- Mantenere logica GDPR esistente
-- Cambiare button da "Continua" a "Crea il tuo account"
-
-### 5. `src/pages/OnboardingFlow.tsx` - SEMPLIFICARE
-- Rimuovere step "ready" (ReadyScreen eliminato)
-- Flow: splash -> slides (4) -> consent -> auth
-
-### 6. `src/components/onboarding/ReadyScreen.tsx` - ELIMINARE
-- Non piu necessario, sostituito da slider in Slide 4
-
-### 7. `src/components/onboarding/FeedPreviewMock.tsx` - ELIMINARE
-- Non piu usato nel nuovo flow
+3. Riscrivere `handleHomeRefresh` (linee 107-128):
+```typescript
+const handleHomeRefresh = () => {
+  // 1) Hard sync activeIndex a 0 PRIMA dello scroll
+  syncActiveIndex(0);
+  
+  // 2) Scroll SOLO il container (NO window.scrollTo)
+  if (feedContainerRef.current) {
+    feedContainerRef.current.scrollToIndex(0);
+  }
+  
+  // 3) Refresh data
+  setRefreshNonce(prev => prev + 1);
+  queryClient.invalidateQueries({ queryKey: ['posts'] });
+  queryClient.invalidateQueries({ queryKey: ['daily-focus'] });
+  
+  haptics.light();
+  sonnerToast.success('Feed aggiornato');
+};
+```
 
 ---
 
-## Stile Visivo (da immagine di riferimento)
+## HARDENING 2: Immediate Link Fallback
 
-| Elemento | Specifica |
-|----------|-----------|
-| Background | `#000000` o `#0A0A0A` (nero puro/profondo) |
-| Accent | `#3B82F6` (Blu NoParrot / primary) |
-| Font Titoli | `text-3xl md:text-4xl font-bold`, tracking stretto |
-| Font Sottotitoli | `text-base text-white/70`, line-height rilassato |
-| Icone | Lucide icons, size 80-120px, `stroke-[1.5]`, colore primary |
-| Layout | Centrato verticalmente, padding laterale 32px |
-| Animazioni | Solo fade-in, slide-up. Nessun glow, nessuna particella |
+### File: `src/pages/Feed.tsx`
 
----
+Aggiungere useEffect per prefetch dinamico (dopo linea 67):
+```typescript
+// Dynamic prefetch: when activeIndex changes, prefetch for upcoming items
+useEffect(() => {
+  if (mixedFeed.length === 0) return;
+  
+  const candidates = [activeIndex + 1, activeIndex + 2, activeIndex + 3]
+    .map(i => mixedFeedRef.current[i])
+    .filter(item => item?.type === 'post')
+    .map(item => item.data.shared_url)
+    .filter((url): url is string => !!url);
 
-## Icone da Usare (Lucide)
+  if (candidates.length > 0) {
+    prefetchArticlePreviews(queryClient, candidates);
+  }
+}, [activeIndex, queryClient, mixedFeed.length]);
+```
 
-| Slide | Icona Lucide |
-|-------|--------------|
-| Slide 1 | Logo NoParrot custom (gia esistente) |
-| Slide 2 | `Lock` + `Check` (animazione morph) |
-| Slide 3 | `PenLine` + custom nebula SVG |
-| Slide 4 | Slider custom con `Lock` -> `Check` |
-| Slide 5 | `Network` o `Shield` |
+### File: `src/components/feed/ImmersivePostCard.tsx`
 
----
+Aggiungere rilevamento stato loading (dopo linea 256):
+```typescript
+// Detect if we're waiting for preview data
+const isPreviewLoading = !articlePreviewData && !!urlToPreview;
+```
 
-## Implementazione SlideToUnlock
-
+Modificare il Generic Link Preview (linee 1522-1577) per usare container a altezza fissa:
 ```tsx
-// Pseudo-codice
-<SlideToUnlock onUnlock={() => nextSlide()}>
-  <div className="slider-track">
-    <div className="slider-thumb">
-      <Lock /> // diventa <Check /> al 100%
+{hasLink && !isReshareWithShortComment && (
+  <div className="min-h-[300px]"> {/* Fixed height container */}
+    <div 
+      className="cursor-pointer active:scale-[0.98] transition-transform"
+      onClick={(e) => {
+        e.stopPropagation();
+        if (post.shared_url) {
+          window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+        }
+      }}
+    >
+      <SourceImageWithFallback
+        src={articlePreview?.image || post.preview_img}
+        sharedUrl={post.shared_url}
+        isIntent={post.is_intent}
+        trustScore={displayTrustScore}
+        hideOverlay={true}
+      />
+      
+      <div className="w-12 h-1 bg-white/30 rounded-full mb-4" />
+      
+      {/* Title with loading skeleton */}
+      {isPreviewLoading && !post.shared_title ? (
+        <div className="mb-3 space-y-2">
+          <div className="h-6 bg-white/10 rounded-lg w-3/4 animate-pulse" />
+          <div className="h-6 bg-white/10 rounded-lg w-1/2 animate-pulse" />
+        </div>
+      ) : (
+        // Existing title rendering logic
+      )}
+      
+      <div className="flex items-center gap-2 text-white/70 mb-4">
+        <ExternalLink className="w-3 h-3" />
+        <span className="text-xs uppercase font-bold tracking-widest">
+          {getHostnameFromUrl(post.shared_url)}
+        </span>
+      </div>
     </div>
-    <span>SCORRI PER ACCETTARE LA SFIDA</span>
   </div>
-</SlideToUnlock>
+)}
 ```
 
-- Usa `onPointerDown/Move/Up` per drag
-- Threshold: 90% della track = unlock
-- Al rilascio sotto 90%: spring back
-- Al 100%: haptics.success() + callback
+---
+
+## HARDENING 3: Resilient Post-Publish Scroll
+
+### File: `src/components/composer/ComposerModal.tsx`
+
+1. Aggiungere prop all'interface (linea 34):
+```typescript
+interface ComposerModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  quotedPost?: any;
+  onPublishSuccess?: (newPostId: string) => void; // NUOVO
+}
+```
+
+2. Destructurare nel componente (linea 88):
+```typescript
+export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }: ComposerModalProps) {
+```
+
+3. Chiamare callback dopo cache update (dopo linea 836):
+```typescript
+// Update BOTH query keys to ensure immediate visibility
+queryClient.setQueriesData({ queryKey: ['posts'] }, (old: any) => {
+  // ... existing logic
+});
+
+// Notify parent about new post
+if (postId) {
+  onPublishSuccess?.(postId);
+}
+```
+
+### File: `src/pages/Feed.tsx`
+
+1. Aggiungere stato e handler (dopo linea 44):
+```typescript
+// State for pending scroll after publish
+const [pendingScrollToPostId, setPendingScrollToPostId] = useState<string | null>(null);
+
+// Handler for publish success
+const handlePublishSuccess = useCallback((newPostId: string) => {
+  console.log('[Feed] Post published, scheduling scroll to:', newPostId);
+  setPendingScrollToPostId(newPostId);
+}, []);
+```
+
+2. Aggiungere bounded retry loop (dopo linea 184):
+```typescript
+// Bounded retry loop for post-publish scroll
+useEffect(() => {
+  if (!pendingScrollToPostId) return;
+  
+  let attempts = 0;
+  const maxAttempts = 10; // ~2s total (10 * 200ms)
+  const intervalMs = 200;
+  let timeoutId: NodeJS.Timeout;
+  
+  const tryScroll = () => {
+    attempts++;
+    
+    const idx = mixedFeed.findIndex(
+      item => item.type === 'post' && item.data.id === pendingScrollToPostId
+    );
+    
+    if (idx !== -1) {
+      console.log(`[Feed] Found post at index ${idx}, scrolling...`);
+      syncActiveIndex(idx);
+      requestAnimationFrame(() => {
+        feedContainerRef.current?.scrollToIndex(idx);
+      });
+      setPendingScrollToPostId(null);
+      return;
+    }
+    
+    if (attempts < maxAttempts) {
+      timeoutId = setTimeout(tryScroll, intervalMs);
+    } else {
+      console.warn('[Feed] Could not find new post after', maxAttempts, 'attempts');
+      setPendingScrollToPostId(null);
+    }
+  };
+  
+  tryScroll();
+  
+  return () => {
+    if (timeoutId) clearTimeout(timeoutId);
+  };
+}, [pendingScrollToPostId, mixedFeed, syncActiveIndex]);
+```
+
+3. Passare callback a ComposerModal (linee 408-415):
+```tsx
+<ComposerModal
+  isOpen={showComposer}
+  onClose={() => {
+    setShowComposer(false);
+    setQuotedPost(null);
+  }}
+  quotedPost={quotedPost}
+  onPublishSuccess={handlePublishSuccess}
+/>
+```
 
 ---
 
-## Ordine di Implementazione
+## Riepilogo Modifiche
 
-1. Creare `SlideToUnlock.tsx` (componente riutilizzabile)
-2. Riscrivere `OnboardingSlides.tsx` con 4 nuove slide
-3. Redesign visivo `ConsentScreen.tsx` (Slide 5)
-4. Aggiornare `OnboardingFlow.tsx` (rimuovere ready step)
-5. Eliminare `ReadyScreen.tsx` e `FeedPreviewMock.tsx`
-
----
-
-## Note Critiche
-
-- **GDPR**: La logica consent rimane invariata (checkboxes + toggles)
-- **AuthPage**: Rimane separata, riceve utente dopo consent
-- **Haptics**: Gia implementato in `src/lib/haptics.ts`
-- **No breaking changes**: Solo onboarding, nessun impatto su feed/auth esistenti
-- **Target**: 30-45 anni, tono serio/sfidante, no playful
+| File | Modifica |
+|------|----------|
+| `src/pages/Feed.tsx` | Nuova funzione `syncActiveIndex` |
+| `src/pages/Feed.tsx` | `handleActiveIndexChange` usa `syncActiveIndex` |
+| `src/pages/Feed.tsx` | `handleHomeRefresh` usa `syncActiveIndex(0)` + rimuove `window.scrollTo` |
+| `src/pages/Feed.tsx` | Nuovo `useEffect` per prefetch dinamico |
+| `src/pages/Feed.tsx` | Stato `pendingScrollToPostId` + handler + retry loop |
+| `src/pages/Feed.tsx` | Passare `onPublishSuccess` a `ComposerModal` |
+| `src/components/composer/ComposerModal.tsx` | Aggiungere prop `onPublishSuccess` |
+| `src/components/composer/ComposerModal.tsx` | Chiamare `onPublishSuccess(postId)` dopo cache |
+| `src/components/feed/ImmersivePostCard.tsx` | Aggiungere `isPreviewLoading` detection |
+| `src/components/feed/ImmersivePostCard.tsx` | Container `min-h-[300px]` + skeleton per link preview |
 
 ---
 
-## Critical Files for Implementation
+## Vincoli Rispettati
 
-- `src/components/onboarding/OnboardingSlides.tsx` - Core slides logic to rewrite
-- `src/pages/ConsentScreen.tsx` - Consent UI to redesign visually
-- `src/pages/OnboardingFlow.tsx` - Flow controller to simplify
-- `src/lib/haptics.ts` - Haptic feedback utilities (already exists)
-- `src/components/ui/logo.tsx` - Logo component reference
+- Sliding Window Virtualization intatta (wrapper sempre montato)
+- Snap scroll invariato (`h-[100dvh]`)
+- Nessun `window.scrollTo` per navigazione feed
+- Keys stabili (`post-${id}`, `daily-carousel-${id}`)
+- Retry loop bounded (max 2s, no loop infiniti)
