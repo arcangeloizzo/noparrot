@@ -446,7 +446,7 @@ export const Feed = () => {
                     key={item.id}
                     post={item.data}
                     index={feedIndex}
-                    onRemove={() => handleRemovePost(item.data.id)}
+                    onRemove={handleRemovePost}
                     onQuoteShare={handleQuoteShare}
                   />
                 )

@@ -31,13 +31,8 @@ export const QuotedEditorialCard = ({
         onClick?.();
       }}
     >
-      {/* Urban texture overlay */}
-      <div 
-        className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-        }}
-      />
+      {/* Urban texture overlay - GPU optimized */}
+      <div className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay urban-noise-overlay" />
       
       {/* Header - Stile profilo utente */}
       <div className="flex items-center gap-4 mb-4 relative z-10">

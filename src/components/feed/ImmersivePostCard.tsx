@@ -73,7 +73,7 @@ import { haptics } from "@/lib/haptics";
 
 interface ImmersivePostCardProps {
   post: Post;
-  onRemove?: () => void;
+  onRemove?: (postId: string) => void;  // Accepts postId for stable callback reference
   onQuoteShare?: (post: Post) => void;
   /** Open comments drawer automatically when navigating from notifications */
   initialOpenComments?: boolean;
@@ -873,12 +873,7 @@ const ImmersivePostCardInner = ({
         ) : isIntentPost || isQuotedIntentPost ? (
           /* Intent posts OR reshares of Intent posts: NoParrot blue background with urban texture */
           <div className="absolute inset-0 bg-gradient-to-b from-[#1F3347] via-[#172635] to-[#0E1A24]">
-            <div 
-              className="absolute inset-0 opacity-[0.08] mix-blend-overlay"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-              }}
-            />
+            <div className="absolute inset-0 opacity-[0.08] mix-blend-overlay urban-noise-overlay" />
           </div>
         ) : isSpotify ? (
           <SpotifyGradientBackground 
@@ -912,13 +907,8 @@ const ImmersivePostCardInner = ({
           </>
         )}
 
-        {/* Urban texture overlay - applied to all backgrounds */}
-        <div 
-          className="absolute inset-0 z-[1] opacity-[0.025] pointer-events-none mix-blend-overlay"
-          style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-          }}
-        />
+        {/* Urban texture overlay - applied to all backgrounds (GPU-friendly static PNG) */}
+        <div className="absolute inset-0 z-[1] opacity-[0.025] pointer-events-none mix-blend-overlay urban-noise-overlay" />
 
         {/* Heart animation */}
         {showHeartAnimation && (
@@ -940,7 +930,7 @@ const ImmersivePostCardInner = ({
                 navigate(`/profile/${post.author.id}`);
               }}
             >
-              <div className="w-10 h-10 rounded-full border border-white/20 bg-white/10 backdrop-blur-md overflow-hidden shadow-lg">
+              <div className="w-10 h-10 rounded-full border border-white/20 bg-white/10 overflow-hidden shadow-lg">
                 {getAvatarContent()}
               </div>
               <div className="flex flex-col">
@@ -965,7 +955,7 @@ const ImmersivePostCardInner = ({
                   <button 
                     onClick={(e) => e.stopPropagation()}
                     className={cn(
-                      "flex items-center gap-1.5 bg-black/30 backdrop-blur-xl border border-white/10 px-3 py-1.5 rounded-full cursor-pointer hover:bg-black/40 transition-colors shadow-xl",
+                      "flex items-center gap-1.5 bg-black/30 border border-white/10 px-3 py-1.5 rounded-full cursor-pointer hover:bg-black/40 transition-colors shadow-xl",
                       displayTrustScore.band === 'ALTO' && "text-emerald-400",
                       displayTrustScore.band === 'MEDIO' && "text-amber-400",
                       displayTrustScore.band === 'BASSO' && "text-red-400"
@@ -1014,7 +1004,7 @@ const ImmersivePostCardInner = ({
             {isOwnPost && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <button className="p-2 rounded-full bg-black/20 backdrop-blur-md hover:bg-white/10 transition-colors">
+                  <button className="p-2 rounded-full bg-black/20 hover:bg-white/10 transition-colors">
                     <MoreHorizontal className="w-4 h-4 text-white" />
                   </button>
                 </DropdownMenuTrigger>
@@ -1023,7 +1013,7 @@ const ImmersivePostCardInner = ({
                     onClick={(e) => { 
                       e.stopPropagation(); 
                       deletePost.mutate(post.id, {
-                        onSuccess: () => { toast({ title: 'Post eliminato' }); onRemove?.(); },
+                        onSuccess: () => { toast({ title: 'Post eliminato' }); onRemove?.(post.id); },
                         onError: () => { toast({ title: 'Errore', variant: 'destructive' }); }
                       });
                     }}
@@ -1046,7 +1036,7 @@ const ImmersivePostCardInner = ({
                 "text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-4",
                 post.is_intent && [
                   "border-l-4 border-primary/60",
-                  "bg-white/5 backdrop-blur-sm",
+                  "bg-white/5",
                   "px-4 py-3 rounded-r-lg"
                 ]
               )}>
@@ -1056,7 +1046,7 @@ const ImmersivePostCardInner = ({
             
             {/* Intent Post (non-stack): Quote Block style for posts with is_intent flag */}
             {!useStackLayout && post.is_intent && post.content && (
-              <div className="border-l-4 border-primary/60 bg-white/5 backdrop-blur-sm px-4 py-3 rounded-r-lg mb-6">
+              <div className="border-l-4 border-primary/60 bg-white/5 px-4 py-3 rounded-r-lg mb-6">
                 <p className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md">
                   <MentionText content={post.content} />
                 </p>
@@ -1114,16 +1104,11 @@ const ImmersivePostCardInner = ({
             {/* Pure Text-Only Posts - Immersive editorial-style card */}
             {isTextOnly && post.content && (
               <div className="relative w-full max-w-lg mx-auto">
-                {/* Card container with glassmorphism and urban texture */}
-                <div className="relative bg-gradient-to-br from-white/[0.08] to-white/[0.02] backdrop-blur-xl rounded-3xl p-6 sm:p-8 border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.5),_0_0_24px_rgba(31,51,71,0.3)] overflow-hidden">
+                {/* Card container with glassmorphism and urban texture - GPU optimized */}
+                <div className="relative bg-gradient-to-br from-white/[0.08] to-white/[0.02] rounded-3xl p-6 sm:p-8 border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.5),_0_0_24px_rgba(31,51,71,0.3)] overflow-hidden">
                   
-                  {/* Urban texture overlay */}
-                  <div 
-                    className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay rounded-3xl"
-                    style={{
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-                    }}
-                  />
+                  {/* Urban texture overlay - static PNG */}
+                  <div className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay rounded-3xl urban-noise-overlay" />
                   
                   {/* Decorative quote mark */}
                   <div className="absolute top-4 left-5 text-white/[0.06] text-[80px] font-serif leading-none pointer-events-none select-none">"</div>
@@ -1855,15 +1840,10 @@ const ImmersivePostCardInner = ({
       <Dialog open={showFullText} onOpenChange={setShowFullText}>
         <DialogContent className="max-h-[85vh] max-w-lg p-0 bg-transparent border-0 shadow-none overflow-hidden">
           {/* Immersive glass card container */}
-          <div className="relative bg-gradient-to-br from-[#1F3347]/95 to-[#0f1a24]/98 backdrop-blur-md rounded-3xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.7),_0_0_40px_rgba(31,51,71,0.4)] overflow-hidden">
+          <div className="relative bg-gradient-to-br from-[#1F3347]/95 to-[#0f1a24]/98 rounded-3xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.7),_0_0_40px_rgba(31,51,71,0.4)] overflow-hidden">
             
-            {/* Urban texture overlay */}
-            <div 
-              className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-              }}
-            />
+            {/* Urban texture overlay - GPU optimized */}
+            <div className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay urban-noise-overlay" />
             
             {/* Header with author info */}
             <div className="relative z-10 px-6 pt-6 pb-4 border-b border-white/[0.06]">
@@ -1932,7 +1912,7 @@ const ImmersivePostCardInner = ({
                   </button>
 
                   {/* Reactions - Horizontal layout h-10 matching share button */}
-                  <div className="flex items-center gap-1 bg-black/20 backdrop-blur-xl h-10 px-3 rounded-2xl border border-white/5">
+                  <div className="flex items-center gap-1 bg-black/20 h-10 px-3 rounded-2xl border border-white/5">
                     
                     {/* Like */}
                     <button 
@@ -1988,15 +1968,10 @@ const ImmersivePostCardInner = ({
       <Dialog open={showFullCaption} onOpenChange={setShowFullCaption}>
         <DialogContent className="max-h-[85vh] max-w-lg p-0 bg-transparent border-0 shadow-none overflow-hidden">
           {/* Immersive glass card container */}
-          <div className="relative bg-gradient-to-br from-[#1F3347]/95 to-[#0f1a24]/98 backdrop-blur-md rounded-3xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.7),_0_0_40px_rgba(31,51,71,0.4)] overflow-hidden">
+          <div className="relative bg-gradient-to-br from-[#1F3347]/95 to-[#0f1a24]/98 rounded-3xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.7),_0_0_40px_rgba(31,51,71,0.4)] overflow-hidden">
             
-            {/* Urban texture overlay */}
-            <div 
-              className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-              }}
-            />
+            {/* Urban texture overlay - GPU optimized */}
+            <div className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay urban-noise-overlay" />
             
             {/* Header with source info */}
             <div className="relative z-10 px-6 pt-6 pb-4 border-b border-white/[0.06]">
@@ -2055,7 +2030,7 @@ const ImmersivePostCardInner = ({
                   </button>
 
                   {/* Reactions */}
-                  <div className="flex items-center gap-1 bg-black/20 backdrop-blur-xl h-10 px-3 rounded-2xl border border-white/5">
+                  <div className="flex items-center gap-1 bg-black/20 h-10 px-3 rounded-2xl border border-white/5">
                     <button 
                       className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
                       onClick={(e) => { e.stopPropagation(); handleHeart(e); }}

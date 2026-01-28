@@ -214,13 +214,8 @@ export const ImmersiveEditorialCarousel = ({
       {/* Editorial Background - Deep urban gradient */}
       <div className="absolute inset-0 bg-gradient-to-b from-[#0A0F14] via-[#121A23] to-[#0A0F14] z-0" />
       
-      {/* Urban concrete texture - more visible, raw aesthetic */}
-      <div 
-        className="absolute inset-0 z-[1] opacity-[0.06] pointer-events-none mix-blend-overlay"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-        }}
-      />
+      {/* Urban concrete texture - GPU-friendly static PNG */}
+      <div className="absolute inset-0 z-[1] opacity-[0.06] pointer-events-none mix-blend-overlay urban-noise-overlay" />
       
       {/* Vignette effect on edges */}
       <div 
@@ -489,7 +484,7 @@ const EditorialSlideInner = ({
             {/* Header Tecnico - AI Synthesis + Timestamp */}
             <div className="flex items-center gap-3 mb-4">
               {/* Badge AI Synthesis */}
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
                 <Sparkles className="w-3 h-3 text-purple-400" />
                 <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-white/70">
                   AI SYNTHESIS
@@ -550,7 +545,7 @@ const EditorialSlideInner = ({
                 e.stopPropagation();
                 onOpenSources?.();
               }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm hover:bg-white/10 transition-all mb-5"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all mb-5"
             >
               <Layers className="w-4 h-4 text-white/70" />
               <span className="text-sm font-medium text-white">
@@ -576,7 +571,7 @@ const EditorialSlideInner = ({
               </button>
 
               {/* Reactions */}
-              <div className="flex items-center gap-1 bg-black/20 backdrop-blur-xl h-10 px-3 rounded-2xl border border-white/5">
+              <div className="flex items-center gap-1 bg-black/20 h-10 px-3 rounded-2xl border border-white/5">
                 
                 {/* Like */}
                 <button 

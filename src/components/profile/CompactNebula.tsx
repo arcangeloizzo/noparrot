@@ -282,14 +282,8 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
       onClick={onClick}
       className="w-full rounded-2xl bg-[#0A0F14] border border-white/[0.08] p-4 transition-all hover:border-white/15 active:scale-[0.99] relative overflow-hidden"
     >
-      {/* Strong urban texture background */}
-      <div 
-        className="absolute inset-0 pointer-events-none opacity-[0.08]"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
-          backgroundSize: '150px 150px',
-        }}
-      />
+      {/* Strong urban texture background - GPU optimized */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.08] urban-noise-overlay" />
       
       {/* Subtle gradient overlay for depth */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-black/20 pointer-events-none" />
