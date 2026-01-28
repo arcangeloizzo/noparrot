@@ -217,7 +217,79 @@ export const useToggleReaction = () => {
         }
       }
     },
-    onSuccess: () => {
+    
+    // ===== OPTIMISTIC UI: Instant feedback, rollback on error =====
+    onMutate: async ({ postId, reactionType }) => {
+      if (!user) return;
+      
+      // 1. Cancel in-flight queries to avoid race conditions
+      await queryClient.cancelQueries({ queryKey: ['posts'] });
+      await queryClient.cancelQueries({ queryKey: ['saved-posts'] });
+      
+      // 2. Snapshot previous state for rollback
+      const previousPosts = queryClient.getQueryData(['posts', user.id]);
+      const previousSaved = queryClient.getQueryData(['saved-posts', user.id]);
+      
+      // 3. Optimistically update cache immediately
+      queryClient.setQueryData(['posts', user.id], (old: Post[] | undefined) => {
+        if (!old) return old;
+        return old.map(post => {
+          if (post.id !== postId) return post;
+          
+          const wasActive = reactionType === 'heart' 
+            ? post.user_reactions.has_hearted 
+            : post.user_reactions.has_bookmarked;
+          
+          return {
+            ...post,
+            reactions: {
+              ...post.reactions,
+              hearts: reactionType === 'heart' 
+                ? post.reactions.hearts + (wasActive ? -1 : 1)
+                : post.reactions.hearts
+            },
+            user_reactions: {
+              ...post.user_reactions,
+              has_hearted: reactionType === 'heart' ? !wasActive : post.user_reactions.has_hearted,
+              has_bookmarked: reactionType === 'bookmark' ? !wasActive : post.user_reactions.has_bookmarked
+            }
+          };
+        });
+      });
+      
+      // Also update saved-posts if it's a bookmark toggle
+      if (reactionType === 'bookmark') {
+        queryClient.setQueryData(['saved-posts', user.id], (old: Post[] | undefined) => {
+          if (!old) return old;
+          return old.map(post => {
+            if (post.id !== postId) return post;
+            return {
+              ...post,
+              user_reactions: {
+                ...post.user_reactions,
+                has_bookmarked: !post.user_reactions.has_bookmarked
+              }
+            };
+          });
+        });
+      }
+      
+      // 4. Return context for rollback
+      return { previousPosts, previousSaved };
+    },
+    
+    // Rollback on error
+    onError: (_err, _variables, context) => {
+      if (context?.previousPosts) {
+        queryClient.setQueryData(['posts', user?.id], context.previousPosts);
+      }
+      if (context?.previousSaved) {
+        queryClient.setQueryData(['saved-posts', user?.id], context.previousSaved);
+      }
+    },
+    
+    // Background sync for consistency (no blocking)
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['saved-posts'] });
     }
