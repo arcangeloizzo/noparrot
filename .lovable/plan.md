@@ -1,287 +1,325 @@
 
-# Implementazione Hardening Plan per Feed.tsx
+# Piano di Performance Optimization - Eliminazione Lag
 
 ## Panoramica
-Implementeremo 3 hardening per eliminare race conditions e rendere la UX deterministica:
 
-1. **Robust Home Refresh** - Sync deterministico di `activeIndex` prima dello scroll
-2. **Immediate Link Fallback** - Container a altezza fissa + skeleton per link preview
-3. **Resilient Post-Publish Scroll** - Retry loop bounded per trovare il nuovo post
+Questo piano implementa 5 interventi tecnici prioritari per eliminare i colli di bottiglia su GPU, rendering e network. Ogni intervento è mirato a una specifica causa di lag.
 
 ---
 
-## HARDENING 1: Robust Home Refresh
+## INTERVENTO 1: Sostituzione Noise Filter (GPU Killer)
 
-### File: `src/pages/Feed.tsx`
+### Problema
+Il filtro SVG inline con `<feTurbulence type='fractalNoise' .../>` viene ricalcolato dalla GPU per OGNI card ad ogni frame, causando jank nello scroll.
 
-**Problema attuale (linee 107-128):**
-```typescript
-const handleHomeRefresh = () => {
-  sessionStorage.removeItem('feed-active-index'); // ❌ Rimuove invece di settare a 0
-  feedContainerRef.current?.scrollToTop();
-  window.scrollTo({ top: 0, behavior: 'smooth' }); // ❌ VIOLA constraint - usa window scroll
-  // ...
-};
-```
+### File coinvolti e occorrenze trovate:
+- `src/components/feed/ImmersivePostCard.tsx` (linee 877-881, 917-921, 1122-1126, 1862-1866, 1995-1999)
+- `src/components/feed/ImmersiveEditorialCarousel.tsx` (linee 219-223)
+- `src/components/feed/QuotedPostCard.tsx` (linee 101-105)
+- `src/components/feed/QuotedEditorialCard.tsx` (linee 36-40)
+- `src/components/composer/ComposerModal.tsx` (linee 976-980)
+- `src/components/profile/CompactNebula.tsx` (linee 287-291)
 
-**Soluzione:**
-
-1. Creare funzione `syncActiveIndex` (nuova, linea ~74):
-```typescript
-// Lightweight state sync ONLY (no side effects)
-const syncActiveIndex = useCallback((index: number) => {
-  setActiveIndex(index);
-  sessionStorage.setItem('feed-active-index', index.toString());
-}, []);
-```
-
-2. Modificare `handleActiveIndexChange` per usare `syncActiveIndex`:
-```typescript
-const handleActiveIndexChange = useCallback((index: number) => {
-  syncActiveIndex(index);
-  
-  // Prefetch next card's image
-  const nextItem = mixedFeedRef.current[index + 1];
-  if (nextItem?.type === 'post' && nextItem.data.preview_img) {
-    const img = new Image();
-    img.src = nextItem.data.preview_img;
-  }
-  
-  // Perf tracking
-  perfStore.startAction('scroll');
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      perfStore.endAction();
-    });
-  });
-}, [syncActiveIndex]);
-```
-
-3. Riscrivere `handleHomeRefresh` (linee 107-128):
-```typescript
-const handleHomeRefresh = () => {
-  // 1) Hard sync activeIndex a 0 PRIMA dello scroll
-  syncActiveIndex(0);
-  
-  // 2) Scroll SOLO il container (NO window.scrollTo)
-  if (feedContainerRef.current) {
-    feedContainerRef.current.scrollToIndex(0);
-  }
-  
-  // 3) Refresh data
-  setRefreshNonce(prev => prev + 1);
-  queryClient.invalidateQueries({ queryKey: ['posts'] });
-  queryClient.invalidateQueries({ queryKey: ['daily-focus'] });
-  
-  haptics.light();
-  sonnerToast.success('Feed aggiornato');
-};
-```
-
----
-
-## HARDENING 2: Immediate Link Fallback
-
-### File: `src/pages/Feed.tsx`
-
-Aggiungere useEffect per prefetch dinamico (dopo linea 67):
-```typescript
-// Dynamic prefetch: when activeIndex changes, prefetch for upcoming items
-useEffect(() => {
-  if (mixedFeed.length === 0) return;
-  
-  const candidates = [activeIndex + 1, activeIndex + 2, activeIndex + 3]
-    .map(i => mixedFeedRef.current[i])
-    .filter(item => item?.type === 'post')
-    .map(item => item.data.shared_url)
-    .filter((url): url is string => !!url);
-
-  if (candidates.length > 0) {
-    prefetchArticlePreviews(queryClient, candidates);
-  }
-}, [activeIndex, queryClient, mixedFeed.length]);
-```
-
-### File: `src/components/feed/ImmersivePostCard.tsx`
-
-Aggiungere rilevamento stato loading (dopo linea 256):
-```typescript
-// Detect if we're waiting for preview data
-const isPreviewLoading = !articlePreviewData && !!urlToPreview;
-```
-
-Modificare il Generic Link Preview (linee 1522-1577) per usare container a altezza fissa:
-```tsx
-{hasLink && !isReshareWithShortComment && (
-  <div className="min-h-[300px]"> {/* Fixed height container */}
-    <div 
-      className="cursor-pointer active:scale-[0.98] transition-transform"
-      onClick={(e) => {
-        e.stopPropagation();
-        if (post.shared_url) {
-          window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-        }
-      }}
-    >
-      <SourceImageWithFallback
-        src={articlePreview?.image || post.preview_img}
-        sharedUrl={post.shared_url}
-        isIntent={post.is_intent}
-        trustScore={displayTrustScore}
-        hideOverlay={true}
-      />
-      
-      <div className="w-12 h-1 bg-white/30 rounded-full mb-4" />
-      
-      {/* Title with loading skeleton */}
-      {isPreviewLoading && !post.shared_title ? (
-        <div className="mb-3 space-y-2">
-          <div className="h-6 bg-white/10 rounded-lg w-3/4 animate-pulse" />
-          <div className="h-6 bg-white/10 rounded-lg w-1/2 animate-pulse" />
-        </div>
-      ) : (
-        // Existing title rendering logic
-      )}
-      
-      <div className="flex items-center gap-2 text-white/70 mb-4">
-        <ExternalLink className="w-3 h-3" />
-        <span className="text-xs uppercase font-bold tracking-widest">
-          {getHostnameFromUrl(post.shared_url)}
-        </span>
-      </div>
-    </div>
-  </div>
-)}
-```
-
----
-
-## HARDENING 3: Resilient Post-Publish Scroll
-
-### File: `src/components/composer/ComposerModal.tsx`
-
-1. Aggiungere prop all'interface (linea 34):
-```typescript
-interface ComposerModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  quotedPost?: any;
-  onPublishSuccess?: (newPostId: string) => void; // NUOVO
+### Soluzione
+1. **Creare file texture statico**: `public/assets/noise.png` (64x64 px, pattern noise leggero)
+2. **Creare CSS utility class** in `src/index.css`:
+```css
+.urban-noise-overlay {
+  background-image: url('/assets/noise.png');
+  background-repeat: repeat;
+  background-size: 64px 64px;
 }
 ```
+3. **Sostituire tutti i div con SVG inline** con la nuova classe CSS
 
-2. Destructurare nel componente (linea 88):
-```typescript
-export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }: ComposerModalProps) {
-```
-
-3. Chiamare callback dopo cache update (dopo linea 836):
-```typescript
-// Update BOTH query keys to ensure immediate visibility
-queryClient.setQueriesData({ queryKey: ['posts'] }, (old: any) => {
-  // ... existing logic
-});
-
-// Notify parent about new post
-if (postId) {
-  onPublishSuccess?.(postId);
-}
-```
-
-### File: `src/pages/Feed.tsx`
-
-1. Aggiungere stato e handler (dopo linea 44):
-```typescript
-// State for pending scroll after publish
-const [pendingScrollToPostId, setPendingScrollToPostId] = useState<string | null>(null);
-
-// Handler for publish success
-const handlePublishSuccess = useCallback((newPostId: string) => {
-  console.log('[Feed] Post published, scheduling scroll to:', newPostId);
-  setPendingScrollToPostId(newPostId);
-}, []);
-```
-
-2. Aggiungere bounded retry loop (dopo linea 184):
-```typescript
-// Bounded retry loop for post-publish scroll
-useEffect(() => {
-  if (!pendingScrollToPostId) return;
-  
-  let attempts = 0;
-  const maxAttempts = 10; // ~2s total (10 * 200ms)
-  const intervalMs = 200;
-  let timeoutId: NodeJS.Timeout;
-  
-  const tryScroll = () => {
-    attempts++;
-    
-    const idx = mixedFeed.findIndex(
-      item => item.type === 'post' && item.data.id === pendingScrollToPostId
-    );
-    
-    if (idx !== -1) {
-      console.log(`[Feed] Found post at index ${idx}, scrolling...`);
-      syncActiveIndex(idx);
-      requestAnimationFrame(() => {
-        feedContainerRef.current?.scrollToIndex(idx);
-      });
-      setPendingScrollToPostId(null);
-      return;
-    }
-    
-    if (attempts < maxAttempts) {
-      timeoutId = setTimeout(tryScroll, intervalMs);
-    } else {
-      console.warn('[Feed] Could not find new post after', maxAttempts, 'attempts');
-      setPendingScrollToPostId(null);
-    }
-  };
-  
-  tryScroll();
-  
-  return () => {
-    if (timeoutId) clearTimeout(timeoutId);
-  };
-}, [pendingScrollToPostId, mixedFeed, syncActiveIndex]);
-```
-
-3. Passare callback a ComposerModal (linee 408-415):
+### Esempio di cambiamento:
 ```tsx
-<ComposerModal
-  isOpen={showComposer}
-  onClose={() => {
-    setShowComposer(false);
-    setQuotedPost(null);
+// PRIMA (GPU Killer)
+<div 
+  className="absolute inset-0 opacity-[0.08] mix-blend-overlay"
+  style={{
+    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512'...`)
   }}
-  quotedPost={quotedPost}
-  onPublishSuccess={handlePublishSuccess}
 />
+
+// DOPO (Statico, GPU-friendly)
+<div className="absolute inset-0 opacity-[0.08] mix-blend-overlay urban-noise-overlay" />
 ```
 
 ---
 
-## Riepilogo Modifiche
+## INTERVENTO 2: Fix Memoization in Feed (Render Killer)
 
-| File | Modifica |
-|------|----------|
-| `src/pages/Feed.tsx` | Nuova funzione `syncActiveIndex` |
-| `src/pages/Feed.tsx` | `handleActiveIndexChange` usa `syncActiveIndex` |
-| `src/pages/Feed.tsx` | `handleHomeRefresh` usa `syncActiveIndex(0)` + rimuove `window.scrollTo` |
-| `src/pages/Feed.tsx` | Nuovo `useEffect` per prefetch dinamico |
-| `src/pages/Feed.tsx` | Stato `pendingScrollToPostId` + handler + retry loop |
-| `src/pages/Feed.tsx` | Passare `onPublishSuccess` a `ComposerModal` |
-| `src/components/composer/ComposerModal.tsx` | Aggiungere prop `onPublishSuccess` |
-| `src/components/composer/ComposerModal.tsx` | Chiamare `onPublishSuccess(postId)` dopo cache |
-| `src/components/feed/ImmersivePostCard.tsx` | Aggiungere `isPreviewLoading` detection |
-| `src/components/feed/ImmersivePostCard.tsx` | Container `min-h-[300px]` + skeleton per link preview |
+### Problema
+In `Feed.tsx` (linee 445-451), le funzioni passate alle card sono instabili:
+```tsx
+onRemove={() => handleRemovePost(item.data.id)}  // ❌ Nuova funzione ad ogni render
+onQuoteShare={handleQuoteShare}
+```
+Questo invalida il `React.memo` di `ImmersivePostCard` ad ogni scroll.
+
+### Soluzione
+1. **Stabilizzare tutti gli handler con useCallback** (alcuni già stabilizzati):
+   - `handleRemovePost` → già callback ma deve usare ID passato come prop
+   - `handleQuoteShare` → già callback, OK
+   - `handleCreatePost` → già callback, OK
+
+2. **Modificare ImmersivePostCard** per accettare `postId` invece di `onRemove`:
+```tsx
+// In ImmersivePostCard.tsx
+interface ImmersivePostCardProps {
+  post: Post;
+  // onRemove?: () => void;  // ❌ Rimuovere
+  onRemove?: (postId: string) => void;  // ✅ Passare ID
+  ...
+}
+```
+
+3. **In Feed.tsx, passare handler stabile**:
+```tsx
+// PRIMA
+onRemove={() => handleRemovePost(item.data.id)}
+
+// DOPO
+onRemove={handleRemovePost}
+```
+
+4. **Modificare handleRemovePost**:
+```tsx
+const handleRemovePost = useCallback((postId: string) => {
+  // Post removed via database
+}, []);
+```
+
+5. **In ImmersivePostCard, chiamare con ID**:
+```tsx
+onRemove?.(post.id);  // Invece di onRemove?.()
+```
 
 ---
 
-## Vincoli Rispettati
+## INTERVENTO 3: Rimozione Blur Superfluo (Overdraw Killer)
 
-- Sliding Window Virtualization intatta (wrapper sempre montato)
-- Snap scroll invariato (`h-[100dvh]`)
-- Nessun `window.scrollTo` per navigazione feed
-- Keys stabili (`post-${id}`, `daily-carousel-${id}`)
-- Retry loop bounded (max 2s, no loop infiniti)
+### Problema
+Le classi `backdrop-blur-*` su elementi piccoli e dinamici causano compositing layers costosi. Trovate in `ImmersivePostCard.tsx`:
+- Linea 943: `backdrop-blur-md` su avatar (10x10 px)
+- Linea 968: `backdrop-blur-xl` su Trust Score badge
+- Linea 1017: `backdrop-blur-md` su menu button
+- Linea 1049-1050: `backdrop-blur-sm` su Intent post block
+- Linea 1059: `backdrop-blur-sm` su Intent post block
+- Linea 1118: `backdrop-blur-xl` su text-only card container
+- Linea 1935: `backdrop-blur-xl` su reactions bar (dialog)
+- Linea 2058: `backdrop-blur-xl` su reactions bar (caption modal)
+
+Trovate in `ImmersiveEditorialCarousel.tsx`:
+- Linea 400: `backdrop-blur-sm` su quiz loading (OK - modal)
+- Linea 492: `backdrop-blur-sm` su AI badge
+- Linea 553: `backdrop-blur-sm` su sources button
+- Linea 579: `backdrop-blur-xl` su reactions bar
+
+### Soluzione
+**Rimuovere `backdrop-blur` da elementi piccoli/dinamici**, mantenendolo SOLO su:
+- Modal/overlay a schermo intero (es. quiz loading, SourceReaderGate)
+- Dialog content
+
+**Elementi da cui RIMUOVERE backdrop-blur:**
+
+| File | Linea | Elemento | Azione |
+|------|-------|----------|--------|
+| ImmersivePostCard.tsx | 943 | Avatar container | Rimuovere `backdrop-blur-md` |
+| ImmersivePostCard.tsx | 968 | Trust Score badge | Rimuovere `backdrop-blur-xl` |
+| ImmersivePostCard.tsx | 1017 | Menu button | Rimuovere `backdrop-blur-md` |
+| ImmersivePostCard.tsx | 1049-1050 | Intent post block | Rimuovere `backdrop-blur-sm` |
+| ImmersivePostCard.tsx | 1059 | Intent post block | Rimuovere `backdrop-blur-sm` |
+| ImmersivePostCard.tsx | 1118 | Text-only card | Rimuovere `backdrop-blur-xl` |
+| ImmersivePostCard.tsx | 1935 | Reactions bar (dialog) | Rimuovere `backdrop-blur-xl` |
+| ImmersivePostCard.tsx | 2058 | Reactions bar (modal) | Rimuovere `backdrop-blur-xl` |
+| ImmersiveEditorialCarousel.tsx | 492 | AI badge | Rimuovere `backdrop-blur-sm` |
+| ImmersiveEditorialCarousel.tsx | 553 | Sources button | Rimuovere `backdrop-blur-sm` |
+| ImmersiveEditorialCarousel.tsx | 579 | Reactions bar | Rimuovere `backdrop-blur-xl` |
+
+**Mantenere backdrop-blur su:**
+- `SourceReaderGate.tsx` linea 875 (modal fullscreen)
+- `ImmersiveEditorialCarousel.tsx` linea 400 (quiz loading overlay)
+
+---
+
+## INTERVENTO 4: Optimistic UI per Reazioni (Interaction Lag)
+
+### Problema
+In `usePosts.ts` (linee 174-225), `useToggleReaction` aspetta la risposta del server prima di aggiornare la UI, causando 200-500ms di lag percepito.
+
+### Soluzione
+Implementare pattern optimistic update con React Query:
+
+```typescript
+export const useToggleReaction = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ postId, reactionType }: { postId: string; reactionType: 'heart' | 'bookmark' }) => {
+      // ... existing DB logic
+    },
+    
+    // ✅ NUOVO: Optimistic update
+    onMutate: async ({ postId, reactionType }) => {
+      if (!user) return;
+      
+      // 1. Cancella query in corso per evitare race conditions
+      await queryClient.cancelQueries({ queryKey: ['posts'] });
+      await queryClient.cancelQueries({ queryKey: ['saved-posts'] });
+      
+      // 2. Salva snapshot dello stato precedente
+      const previousPosts = queryClient.getQueryData(['posts', user.id]);
+      const previousSaved = queryClient.getQueryData(['saved-posts', user.id]);
+      
+      // 3. Aggiorna cache immediatamente (optimistic)
+      queryClient.setQueryData(['posts', user.id], (old: Post[] | undefined) => {
+        if (!old) return old;
+        return old.map(post => {
+          if (post.id !== postId) return post;
+          
+          const wasActive = reactionType === 'heart' 
+            ? post.user_reactions.has_hearted 
+            : post.user_reactions.has_bookmarked;
+          
+          return {
+            ...post,
+            reactions: {
+              ...post.reactions,
+              hearts: reactionType === 'heart' 
+                ? post.reactions.hearts + (wasActive ? -1 : 1)
+                : post.reactions.hearts
+            },
+            user_reactions: {
+              ...post.user_reactions,
+              has_hearted: reactionType === 'heart' ? !wasActive : post.user_reactions.has_hearted,
+              has_bookmarked: reactionType === 'bookmark' ? !wasActive : post.user_reactions.has_bookmarked
+            }
+          };
+        });
+      });
+      
+      // 4. Ritorna contesto per rollback
+      return { previousPosts, previousSaved };
+    },
+    
+    // ✅ NUOVO: Rollback su errore
+    onError: (err, variables, context) => {
+      if (context?.previousPosts) {
+        queryClient.setQueryData(['posts', user?.id], context.previousPosts);
+      }
+      if (context?.previousSaved) {
+        queryClient.setQueryData(['saved-posts', user?.id], context.previousSaved);
+      }
+    },
+    
+    // ✅ NUOVO: Sync finale (opzionale, per sicurezza)
+    onSettled: () => {
+      // Rivalidazione in background per garantire consistenza
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['saved-posts'] });
+    }
+  });
+};
+```
+
+---
+
+## INTERVENTO 5: Image Optimization (Bandwidth Killer)
+
+### Problema
+In `ProgressiveImage.tsx`, le immagini da Supabase Storage vengono caricate a risoluzione piena, consumando banda e rallentando il caricamento su mobile.
+
+### Soluzione
+Aggiungere trasformazione automatica per immagini Supabase:
+
+```typescript
+// In ProgressiveImage.tsx
+
+// Helper per rilevare e trasformare URL Supabase Storage
+const getOptimizedSrc = (src: string | undefined): string | undefined => {
+  if (!src) return undefined;
+  
+  // Rileva dominio Supabase Storage
+  const isSupabaseStorage = src.includes('.supabase.co/storage/') || 
+                            src.includes('supabase.co/storage/');
+  
+  if (!isSupabaseStorage) return src; // Link esterni invariati
+  
+  // Controlla se già ha parametri di trasformazione
+  if (src.includes('?') && (src.includes('width=') || src.includes('resize='))) {
+    return src;
+  }
+  
+  // Aggiungi parametri di ottimizzazione per mobile
+  const separator = src.includes('?') ? '&' : '?';
+  return `${src}${separator}width=600&resize=contain&quality=75`;
+};
+
+// Usare nel componente
+export const ProgressiveImage = memo(function ProgressiveImage({
+  src,
+  ...props
+}: ProgressiveImageProps) {
+  // Ottimizza URL se da Supabase
+  const optimizedSrc = useMemo(() => getOptimizedSrc(src), [src]);
+  
+  // ... rest of component usando optimizedSrc invece di src
+});
+```
+
+### Parametri scelti:
+- `width=600`: Sufficiente per display mobile (max 3x density)
+- `resize=contain`: Mantiene aspect ratio
+- `quality=75`: Buon compromesso qualità/peso (-50% bandwidth tipico)
+
+---
+
+## Riepilogo File da Modificare
+
+| File | Intervento | Tipo |
+|------|-----------|------|
+| `public/assets/noise.png` | Creare texture | NUOVO |
+| `src/index.css` | Aggiungere `.urban-noise-overlay` | CSS |
+| `src/components/feed/ImmersivePostCard.tsx` | Noise + Blur + Memoization | TSX |
+| `src/components/feed/ImmersiveEditorialCarousel.tsx` | Noise + Blur | TSX |
+| `src/components/feed/QuotedPostCard.tsx` | Noise | TSX |
+| `src/components/feed/QuotedEditorialCard.tsx` | Noise | TSX |
+| `src/components/composer/ComposerModal.tsx` | Noise | TSX |
+| `src/components/profile/CompactNebula.tsx` | Noise | TSX |
+| `src/pages/Feed.tsx` | Memoization fix | TSX |
+| `src/hooks/usePosts.ts` | Optimistic UI | TS |
+| `src/components/feed/ProgressiveImage.tsx` | Image optimization | TSX |
+
+---
+
+## Impatto Atteso
+
+| Intervento | Metrica | Miglioramento Atteso |
+|------------|---------|---------------------|
+| 1. Noise Filter | GPU time | -30-50% per card |
+| 2. Memoization | Re-renders | -80% durante scroll |
+| 3. Blur Removal | Composite layers | -10-15 layers |
+| 4. Optimistic UI | Interaction latency | -200-500ms |
+| 5. Image Optimization | Bandwidth | -40-60% per immagine |
+
+---
+
+## Note Tecniche
+
+### Creazione noise.png
+La texture noise deve essere:
+- 64x64 pixel
+- Grayscale con alpha
+- Molto leggera (opacity finale ~0.04-0.08)
+- Pattern tileable (seamless)
+
+Può essere generata con qualsiasi tool (Photoshop, GIMP, online generator) o scaricata da librerie free (es. transparenttextures.com già usato nel progetto).
+
+### Compatibilità
+- Tutti gli interventi sono backward-compatible
+- Nessun breaking change alle API
+- Sliding window virtualization rimane invariata
+- Snap scroll invariato
