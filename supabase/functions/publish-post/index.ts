@@ -1,5 +1,6 @@
 // Lovable Cloud Function: publish-post
 // Creates a post with DB-backed idempotency to prevent duplicates on crash/retry
+// Security hardened with input sanitization
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
 
@@ -12,6 +13,82 @@ const CATEGORIES = [
   'Politica', 'Economia', 'Tecnologia', 'Sport', 'Cultura',
   'Scienza', 'Ambiente', 'Società', 'Esteri', 'Salute'
 ];
+
+// ========================================================================
+// INPUT SANITIZATION UTILITIES
+// ========================================================================
+
+/**
+ * Sanitizes HTML content by removing potentially dangerous tags and attributes.
+ * This is a simple sanitizer that strips tags - for a production app, consider DOMPurify.
+ */
+function sanitizeContent(input: string): string {
+  if (!input || typeof input !== 'string') return '';
+  
+  // Remove script tags and their content
+  let clean = input.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+  
+  // Remove event handlers (onclick, onerror, etc.)
+  clean = clean.replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '');
+  clean = clean.replace(/\s*on\w+\s*=\s*[^\s>]*/gi, '');
+  
+  // Remove javascript: protocol
+  clean = clean.replace(/javascript\s*:/gi, '');
+  
+  // Remove data: protocol (potential XSS vector)
+  clean = clean.replace(/data\s*:/gi, 'data-blocked:');
+  
+  return clean.trim();
+}
+
+/**
+ * Validates URL protocol - only allows http:// and https://
+ */
+function isValidUrlProtocol(url: string): boolean {
+  if (!url || typeof url !== 'string') return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Sanitizes and validates a URL, returning null if invalid.
+ */
+function sanitizeUrl(url: string | null | undefined): string | null {
+  if (!url || typeof url !== 'string') return null;
+  
+  const trimmed = url.trim();
+  if (trimmed.length === 0 || trimmed.length > 2000) return null;
+  
+  // Block dangerous protocols
+  const lowerUrl = trimmed.toLowerCase();
+  if (lowerUrl.startsWith('javascript:') || 
+      lowerUrl.startsWith('data:') || 
+      lowerUrl.startsWith('vbscript:') ||
+      lowerUrl.startsWith('file:')) {
+    return null;
+  }
+  
+  // Validate it's a proper URL with allowed protocol
+  if (!isValidUrlProtocol(trimmed)) return null;
+  
+  return trimmed;
+}
+
+/**
+ * Validates UUID format
+ */
+function isValidUuid(id: string | null | undefined): boolean {
+  if (!id || typeof id !== 'string') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+}
+
+// ========================================================================
+// CLASSIFICATION LOGIC
+// ========================================================================
 
 async function classifyAndUpdatePost(
   supabase: ReturnType<typeof createClient>,
@@ -250,14 +327,30 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Sanitize all inputs before insertion
+    const sanitizedContent = sanitizeContent(finalContent).substring(0, 5000);
+    const sanitizedSharedUrl = sanitizeUrl(body.sharedUrl);
+    const sanitizedPreviewImg = sanitizeUrl(body.previewImg);
+    const sanitizedTitle = body.sharedTitle 
+      ? sanitizeContent(String(body.sharedTitle)).substring(0, 500) 
+      : null;
+    const sanitizedArticle = body.articleContent 
+      ? sanitizeContent(String(body.articleContent)).substring(0, 10000) 
+      : null;
+    
+    // Validate quotedPostId is a valid UUID if provided
+    const validQuotedPostId = body.quotedPostId && isValidUuid(body.quotedPostId) 
+      ? body.quotedPostId 
+      : null;
+
     const insertPayload = {
-      content: finalContent.substring(0, 5000),
+      content: sanitizedContent,
       author_id: user.id,
-      shared_url: body.sharedUrl ? String(body.sharedUrl).substring(0, 2000) : null,
-      shared_title: body.sharedTitle ? String(body.sharedTitle).substring(0, 500) : null,
-      preview_img: body.previewImg ? String(body.previewImg).substring(0, 2000) : null,
-      article_content: body.articleContent ? String(body.articleContent).substring(0, 10000) : null,
-      quoted_post_id: body.quotedPostId ?? null,
+      shared_url: sanitizedSharedUrl,
+      shared_title: sanitizedTitle,
+      preview_img: sanitizedPreviewImg,
+      article_content: sanitizedArticle,
+      quoted_post_id: validQuotedPostId,
       category: null as string | null,
       is_intent: body.isIntent || false,
     }
