@@ -369,8 +369,8 @@ const ImmersivePostCardInner = ({
     postText: post.content,
     authorUsername: articlePreview?.author_username,
     isVerified: articlePreview?.is_verified,
-    // Skip if reshare (use cached) or Twitter URL without preview yet
-    skip: !!cachedTrustScore || (isTwitterUrl && !articlePreview)
+    // Skip if reshare (use cached), Twitter URL without preview, or card not near active index
+    skip: !!cachedTrustScore || (isTwitterUrl && !articlePreview) || !isNearActive
   });
 
   // Use cached trust score for reshares, or calculated for original posts
@@ -858,7 +858,7 @@ const ImmersivePostCardInner = ({
           <>
             {/* Dynamic gradient background from dominant colors */}
             <div 
-              className="absolute inset-0 transition-colors duration-700"
+              className="absolute inset-0"
               style={{ 
                 background: `linear-gradient(to bottom, ${dominantPrimary}, ${dominantSecondary})` 
               }}
@@ -1105,7 +1105,7 @@ const ImmersivePostCardInner = ({
             {isTextOnly && post.content && (
               <div className="relative w-full max-w-lg mx-auto">
                 {/* Card container with glassmorphism and urban texture - GPU optimized */}
-                <div className="relative bg-gradient-to-br from-white/[0.08] to-white/[0.02] rounded-3xl p-6 sm:p-8 border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.5),_0_0_24px_rgba(31,51,71,0.3)] overflow-hidden">
+                <div className="relative bg-gradient-to-br from-white/[0.08] to-white/[0.02] rounded-3xl p-6 sm:p-8 border border-white/10 shadow-2xl overflow-hidden">
                   
                   {/* Urban texture overlay - static PNG */}
                   <div className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay rounded-3xl urban-noise-overlay" />
@@ -1154,7 +1154,7 @@ const ImmersivePostCardInner = ({
                   e.stopPropagation();
                   setSelectedMediaIndex(0);
                 }}
-                className="relative w-full max-w-[88%] mx-auto rounded-2xl overflow-hidden shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_20px_rgba(0,0,0,0.3)] border border-white/10 active:scale-[0.98] transition-transform mb-6"
+                className="relative w-full max-w-[88%] mx-auto rounded-2xl overflow-hidden shadow-2xl border border-white/10 active:scale-[0.98] transition-transform mb-6"
               >
                 {isVideoMedia ? (
                   <>
@@ -1178,7 +1178,7 @@ const ImmersivePostCardInner = ({
                       className="w-full h-[44vh] object-cover"
                     />
                     {/* Expand pill with label */}
-                    <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                    <div className="absolute bottom-3 right-3 bg-black/80 px-3 py-1.5 rounded-full flex items-center gap-1.5">
                       <Maximize2 className="w-3.5 h-3.5 text-white" />
                       <span className="text-xs font-medium text-white">Apri</span>
                     </div>
@@ -1192,7 +1192,7 @@ const ImmersivePostCardInner = ({
               <div className="w-full max-w-md mx-auto mt-6">
                 {/* Unified Twitter Card - Author + Content in one container */}
                 <div 
-                  className="bg-gradient-to-br from-[#15202B]/95 to-[#0d1117]/95 backdrop-blur-xl rounded-3xl p-5 border border-white/15 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_16px_rgba(29,161,242,0.12)] cursor-pointer active:scale-[0.98] transition-transform"
+                  className="bg-gradient-to-br from-[#15202B] to-[#0d1117] rounded-3xl p-5 border border-white/15 shadow-2xl cursor-pointer active:scale-[0.98] transition-transform"
                   onClick={(e) => {
                     e.stopPropagation();
                     if (post.shared_url) {

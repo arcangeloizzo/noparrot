@@ -10,6 +10,8 @@ interface ProgressiveImageProps {
   className?: string;
   /** Called when hero image loads */
   onLoad?: () => void;
+  /** If true, use eager loading for cards in or near viewport */
+  priority?: boolean;
 }
 
 type LoadState = 'placeholder' | 'thumb' | 'hero';
@@ -56,7 +58,8 @@ export const ProgressiveImage = memo(function ProgressiveImage({
   dominantColor = '#1F3347',
   shouldLoad = true,
   className,
-  onLoad
+  onLoad,
+  priority = false
 }: ProgressiveImageProps) {
   // Optimize src for Supabase Storage
   const optimizedSrc = useMemo(() => getOptimizedSrc(src), [src]);
@@ -130,7 +133,7 @@ export const ProgressiveImage = memo(function ProgressiveImage({
         <img 
           src={optimizedSrc}
           alt={alt}
-          loading="lazy"
+          loading={priority ? "eager" : "lazy"}
           decoding="async"
           onLoad={handleLoad}
           onError={handleError}
