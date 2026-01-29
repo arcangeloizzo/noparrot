@@ -53,20 +53,20 @@ export const SpotifyGradientBackground = ({
   
   return (
     <div className={cn("absolute inset-0", className)}>
-      {/* Main dynamic gradient */}
+      {/* Main dynamic gradient - no transition for performance */}
       <div 
-        className={cn("absolute inset-0 transition-all duration-1000", animationClass)}
+        className={cn("absolute inset-0", animationClass)}
         style={{ background: gradient }}
       />
       
       {/* Subtle overlay for depth */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-black/20" />
       
-      {/* Soft glow from album colors */}
+      {/* Static glow effect - no blur for GPU performance */}
       <div 
-        className="absolute inset-0 opacity-30 blur-3xl"
+        className="absolute inset-0 opacity-20"
         style={{ 
-          background: `radial-gradient(circle at 50% 30%, ${primary} 0%, transparent 60%)` 
+          background: `linear-gradient(180deg, ${primary} 0%, rgba(18,18,18,0.8) 50%, #121212 100%)` 
         }}
       />
     </div>

@@ -25,6 +25,16 @@ import { perfStore, isEmailAllowed } from "@/lib/perfStore";
 import { PostCardSkeleton, EditorialSlideSkeleton } from "@/components/feed/skeletons";
 import { prefetchArticlePreviews } from "@/hooks/useArticlePreview";
 
+// Helper to get optimized Supabase image URL for prefetch
+const getOptimizedImageUrl = (src: string | undefined): string | undefined => {
+  if (!src) return undefined;
+  const isSupabaseStorage = src.includes('.supabase.co/storage/') || src.includes('supabase.co/storage/');
+  if (!isSupabaseStorage) return src;
+  if (src.includes('width=') || src.includes('resize=')) return src;
+  const separator = src.includes('?') ? '&' : '?';
+  return `${src}${separator}width=600&resize=contain&quality=75`;
+};
+
 export const Feed = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -92,11 +102,11 @@ export const Feed = () => {
     // Use atomic sync utility
     syncActiveIndex(index);
     
-    // Prefetch next card's image using ref
+    // Prefetch next card's optimized image using ref
     const nextItem = mixedFeedRef.current[index + 1];
     if (nextItem?.type === 'post' && nextItem.data.preview_img) {
       const img = new Image();
-      img.src = nextItem.data.preview_img;
+      img.src = getOptimizedImageUrl(nextItem.data.preview_img) || nextItem.data.preview_img;
     }
     
     // Trigger perf tracking for scroll action
