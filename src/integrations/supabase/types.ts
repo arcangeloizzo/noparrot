@@ -62,6 +62,35 @@ export type Database = {
         }
         Relationships: []
       }
+      comment_cognitive_metrics: {
+        Row: {
+          comment_id: string
+          created_at: string
+          density_data: Json
+          user_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          density_data: Json
+          user_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          density_data?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comment_cognitive_metrics_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: true
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comment_media: {
         Row: {
           comment_id: string

@@ -175,6 +175,7 @@ export const useAddComment = () => {
       const postCategory = postData?.category || null;
       const userDensity = profileData?.cognitive_density || {};
 
+      // Step 1: Insert comment WITHOUT sensitive density data (public table)
       const { data, error } = await supabase
         .from('comments')
         .insert({
@@ -184,14 +185,34 @@ export const useAddComment = () => {
           parent_id: parentId,
           level,
           passed_gate: passedGate,
-          post_category: postCategory,
-          user_density_before_comment: userDensity
+          post_category: postCategory
+          // NOTE: user_density_before_comment removed - now stored in separate private table
         })
         .select('id')
         .single();
 
       if (error) throw error;
-      return data.id;
+      
+      const commentId = data.id;
+
+      // Step 2: Insert sensitive cognitive metrics into private table
+      // This is non-blocking - if it fails, the comment is still saved
+      if (userDensity && Object.keys(userDensity).length > 0) {
+        const { error: metricsError } = await supabase
+          .from('comment_cognitive_metrics')
+          .insert({
+            comment_id: commentId,
+            user_id: user.id,
+            density_data: userDensity
+          });
+        
+        if (metricsError) {
+          // Log error but don't block the user - comment was saved successfully
+          console.warn('Failed to save cognitive metrics:', metricsError.message);
+        }
+      }
+
+      return commentId;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['comments', variables.postId] });
