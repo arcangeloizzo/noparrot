@@ -1241,25 +1241,29 @@ serve(async (req) => {
               lyricsAvailable = true;
               geniusUrl = lyricsData.geniusUrl || '';
               
-              // Cache lyrics for Q/A generation
+              // Cache lyrics for Q/A generation (include thumbnail for preview)
               await cacheContentServerSide(
                 supabase,
                 url,
                 'spotify',
                 lyricsData.lyrics,
-                `${trackTitle} - ${artist}`
+                `${trackTitle} - ${artist}`,
+                oembedData.thumbnail_url || ''
               );
             } else if (supabase) {
               // NEGATIVE CACHE: Save that lyrics are unavailable
-              // This prevents infinite retry loops
+              // This prevents infinite retry loops - BUT still save the image!
               const negativeExpiry = new Date();
               negativeExpiry.setMinutes(negativeExpiry.getMinutes() + 30); // 30 min TTL
               
+              const normalizedUrl = safeNormalizeUrl(url);
               await supabase.from('content_cache').upsert({
-                source_url: url,
+                source_url: normalizedUrl,
                 source_type: 'spotify',
                 content_text: '', // EMPTY = unavailable
                 title: `${trackTitle} - ${artist}`,
+                meta_image_url: oembedData.thumbnail_url || null,
+                meta_hostname: 'open.spotify.com',
                 expires_at: negativeExpiry.toISOString()
               }, { onConflict: 'source_url' });
               
@@ -1372,14 +1376,15 @@ serve(async (req) => {
         }
       }
       
-      // Cache content server-side for Q/A
+      // Cache content server-side for Q/A (include image)
       if (tweetData?.text && supabase) {
         await cacheContentServerSide(
           supabase,
           url,
           'twitter',
           tweetData.text,
-          tweetData.user_name
+          tweetData.user_name,
+          tweetData?.media?.photos?.[0]?.url || ''
         );
       }
       
@@ -1706,14 +1711,15 @@ serve(async (req) => {
             if (fcData.success && fcData.data?.markdown && fcData.data.markdown.length > 100) {
               console.log(`[Preview] ✅ Firecrawl success: ${fcData.data.markdown.length} chars`);
               
-              // Cache content server-side
+              // Cache content server-side (include image)
               if (supabase) {
                 await cacheContentServerSide(
                   supabase,
                   url,
                   'article',
                   fcData.data.markdown,
-                  fcData.data.metadata?.title
+                  fcData.data.metadata?.title,
+                  fcData.data.metadata?.ogImage || ''
                 );
               }
               
@@ -1763,14 +1769,15 @@ serve(async (req) => {
           
           const cleanedContent = cleanReaderText(jinaData.content);
           
-          // Cache content server-side
+          // Cache content server-side (include image)
           if (supabase) {
             await cacheContentServerSide(
               supabase,
               url,
               'article',
               cleanedContent,
-              jinaData.title
+              jinaData.title,
+              jinaData.image || ''
             );
           }
           
