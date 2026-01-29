@@ -38,6 +38,14 @@ export interface Post {
       full_name: string | null;
       avatar_url: string | null;
     };
+    media?: Array<{
+      id: string;
+      type: 'image' | 'video';
+      url: string;
+      extracted_status?: string | null;
+      extracted_text?: string | null;
+      extracted_kind?: string | null;
+    }>;
   } | null;
   media?: Array<{
     id: string;
@@ -48,6 +56,9 @@ export interface Post {
     height?: number | null;
     mime?: string;
     duration_sec?: number | null;
+    extracted_status?: string | null;
+    extracted_text?: string | null;
+    extracted_kind?: string | null;
   }>;
   reactions: {
     hearts: number;
@@ -100,7 +111,10 @@ export const usePosts = () => {
               width,
               height,
               mime,
-              duration_sec
+              duration_sec,
+              extracted_status,
+              extracted_text,
+              extracted_kind
             )
           ),
           quoted_post:posts!quoted_post_id (
@@ -115,6 +129,17 @@ export const usePosts = () => {
               username,
               full_name,
               avatar_url
+            ),
+            post_media!post_media_post_id_fkey (
+              order_idx,
+              media:media_id (
+                id,
+                type,
+                url,
+                extracted_status,
+                extracted_text,
+                extracted_kind
+              )
             )
           )
         `)
@@ -138,7 +163,13 @@ export const usePosts = () => {
         created_at: post.created_at,
         quoted_post_id: post.quoted_post_id,
         category: post.category || null,
-        quoted_post: post.quoted_post || null,
+        quoted_post: post.quoted_post ? {
+          ...post.quoted_post,
+          media: (post.quoted_post.post_media || [])
+            .sort((a: any, b: any) => a.order_idx - b.order_idx)
+            .map((pm: any) => pm.media)
+            .filter(Boolean)
+        } : null,
         shares_count: post.shares_count ?? 0,
         is_intent: post.is_intent ?? false,
         media: (post.post_media || [])
