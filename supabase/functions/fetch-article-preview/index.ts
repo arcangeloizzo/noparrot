@@ -735,7 +735,14 @@ async function cacheContentServerSide(
   
   try {
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days TTL
+    // Short TTL (15 min) if image is missing, so we can retry extraction
+    // Long TTL (7 days) if image is present
+    if (imageUrl && imageUrl.length > 5) {
+      expiresAt.setDate(expiresAt.getDate() + 7); // 7 days TTL
+    } else {
+      expiresAt.setMinutes(expiresAt.getMinutes() + 15); // 15 min TTL for retry
+      console.log(`[Cache] ⚠️ Missing image for ${sourceUrl}, using short TTL`);
+    }
     
     // Normalize URL for consistent cache key
     const normalizedUrl = safeNormalizeUrl(sourceUrl);
