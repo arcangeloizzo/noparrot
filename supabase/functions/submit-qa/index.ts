@@ -10,6 +10,34 @@ const corsHeaders = {
 const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_ATTEMPTS_PER_WINDOW = 10;
 
+// ========================================================================
+// INPUT VALIDATION UTILITIES
+// ========================================================================
+
+/**
+ * Validates UUID format
+ */
+function isValidUuid(id: unknown): id is string {
+  if (!id || typeof id !== 'string') return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+}
+
+/**
+ * Validates that answers object has proper structure
+ */
+function validateAnswersObject(answers: unknown): answers is Record<string, string> {
+  if (!answers || typeof answers !== 'object' || Array.isArray(answers)) return false;
+  
+  // Check all keys and values are strings (UUIDs)
+  for (const [key, value] of Object.entries(answers)) {
+    if (!isValidUuid(key) || !isValidUuid(value)) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
 /**
  * SUBMIT-QA Edge Function
  * 
@@ -55,9 +83,59 @@ serve(async (req) => {
     const body = await req.json();
     const { qaId, sourceUrl, postId, answers, gateType, mode, questionId, choiceId } = body;
 
+    // ========================================================================
+    // INPUT VALIDATION - Validate all IDs before processing
+    // ========================================================================
+    
+    // Validate qaId format if provided
+    if (qaId && !isValidUuid(qaId)) {
+      console.warn('[submit-qa] Invalid qaId format:', qaId);
+      return new Response(
+        JSON.stringify({ error: 'Invalid qaId format', code: 'INVALID_QA_ID' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate postId format if provided
+    if (postId && !isValidUuid(postId)) {
+      console.warn('[submit-qa] Invalid postId format:', postId);
+      return new Response(
+        JSON.stringify({ error: 'Invalid postId format', code: 'INVALID_POST_ID' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate questionId and choiceId for step mode
+    if (mode === 'step') {
+      if (questionId && !isValidUuid(questionId)) {
+        console.warn('[submit-qa] Invalid questionId format:', questionId);
+        return new Response(
+          JSON.stringify({ error: 'Invalid questionId format', code: 'INVALID_QUESTION_ID' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (choiceId && !isValidUuid(choiceId)) {
+        console.warn('[submit-qa] Invalid choiceId format:', choiceId);
+        return new Response(
+          JSON.stringify({ error: 'Invalid choiceId format', code: 'INVALID_CHOICE_ID' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Validate gateType is one of allowed values
+    const validGateTypes = ['share', 'comment', 'reshare', 'source'];
+    if (gateType && !validGateTypes.includes(gateType)) {
+      console.warn('[submit-qa] Invalid gateType:', gateType);
+      return new Response(
+        JSON.stringify({ error: 'Invalid gateType', code: 'INVALID_GATE_TYPE' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     console.log('[submit-qa] Request:', { 
       qaId, 
-      sourceUrl, 
+      sourceUrl: sourceUrl?.substring(0, 50), 
       postId,
       gateType,
       mode: mode || 'final',
@@ -122,9 +200,10 @@ serve(async (req) => {
     }
 
     // ===== MODE: FINAL - Validate all answers =====
-    if (!answers || typeof answers !== 'object') {
+    if (!validateAnswersObject(answers)) {
+      console.warn('[submit-qa] Invalid answers format or structure');
       return new Response(
-        JSON.stringify({ error: 'Invalid answers format' }),
+        JSON.stringify({ error: 'Invalid answers format. All IDs must be valid UUIDs.', code: 'INVALID_ANSWERS_FORMAT' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
