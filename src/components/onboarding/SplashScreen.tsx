@@ -39,12 +39,12 @@ export const SplashScreen = ({ onComplete }: SplashScreenProps) => {
               phase >= 0 ? 'opacity-100' : 'opacity-0'
             }`}
           >
-            <LogoVertical hideText={true} className="w-32 h-32" />
+            <LogoVertical hideText={true} className="w-64 h-64" />
           </div>
           
           {/* Wordmark - NO (blue) + PARROT (white) */}
           <div 
-            className={`mt-6 transition-all duration-500 ease-out ${
+            className={`-mt-12 transition-all duration-500 ease-out ${
               phase >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             }`}
           >
