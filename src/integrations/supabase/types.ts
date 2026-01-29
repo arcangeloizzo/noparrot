@@ -549,6 +549,10 @@ export type Database = {
         Row: {
           created_at: string
           duration_sec: number | null
+          extracted_kind: string | null
+          extracted_meta: Json | null
+          extracted_status: string | null
+          extracted_text: string | null
           height: number | null
           id: string
           mime: string
@@ -561,6 +565,10 @@ export type Database = {
         Insert: {
           created_at?: string
           duration_sec?: number | null
+          extracted_kind?: string | null
+          extracted_meta?: Json | null
+          extracted_status?: string | null
+          extracted_text?: string | null
           height?: number | null
           id?: string
           mime: string
@@ -573,6 +581,10 @@ export type Database = {
         Update: {
           created_at?: string
           duration_sec?: number | null
+          extracted_kind?: string | null
+          extracted_meta?: Json | null
+          extracted_status?: string | null
+          extracted_text?: string | null
           height?: number | null
           id?: string
           mime?: string
