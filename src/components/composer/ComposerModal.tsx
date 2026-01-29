@@ -156,6 +156,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     m.extracted_text.length > 120
   );
 
+  // [FIX] Check if quotedPost has media with OCR/transcription (for reshares)
+  const quotedPostMediaWithExtractedText = quotedPost?.media?.find((m: any) => 
+    m.extracted_status === 'done' && 
+    m.extracted_text && 
+    m.extracted_text.length > 120
+  );
+
   // Gate status indicator (real-time feedback)
   // Character-based gate applies ONLY to reshares (quotedPost), not free text
   const gateStatus = (() => {
@@ -164,10 +171,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       return { label: 'Gate attivo', requiresGate: true };
     }
     
-    // [NEW] Gate attivo se c'è media con testo estratto (OCR/trascrizione)
-    if (mediaWithExtractedText) {
+    // [NEW] Gate attivo se c'è media con testo estratto (OCR/trascrizione) - sia nuovo che da reshare
+    if (mediaWithExtractedText || quotedPostMediaWithExtractedText) {
+      const activeMedia = mediaWithExtractedText || quotedPostMediaWithExtractedText;
       return { 
-        label: mediaWithExtractedText.extracted_kind === 'ocr' 
+        label: activeMedia?.extracted_kind === 'ocr' 
           ? 'Gate OCR attivo' 
           : 'Gate trascrizione attivo', 
         requiresGate: true 
@@ -377,7 +385,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       return;
     }
 
-    // [NEW] Branch for media with extracted text (OCR/transcription)
+    // [NEW] Branch for media with extracted text (OCR/transcription) - own uploads
     if (mediaWithExtractedText) {
       console.log('[Composer] Media with extracted text detected, triggering gate');
       addBreadcrumb('media_gate_start', { 
@@ -387,6 +395,19 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       });
       
       await handleMediaGateFlow(mediaWithExtractedText);
+      return;
+    }
+
+    // [FIX] Branch for reshare of post with media OCR/transcription
+    if (quotedPostMediaWithExtractedText && quotedPost) {
+      console.log('[Composer] Resharing post with OCR media, triggering gate');
+      addBreadcrumb('reshare_media_gate_start', { 
+        mediaId: quotedPostMediaWithExtractedText.id,
+        kind: quotedPostMediaWithExtractedText.extracted_kind,
+        textLength: quotedPostMediaWithExtractedText.extracted_text?.length
+      });
+      
+      await handleQuotedMediaGateFlow(quotedPostMediaWithExtractedText);
       return;
     }
 
@@ -463,6 +484,75 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     }
   };
   
+  // [FIX] Handle reshare of post with media OCR/transcription
+  const handleQuotedMediaGateFlow = async (media: any) => {
+    if (isGeneratingQuiz) return;
+    
+    try {
+      setIsGeneratingQuiz(true);
+      addBreadcrumb('reshare_media_generating_quiz');
+      
+      toast.loading('Stiamo mettendo a fuoco ciò che conta…');
+      
+      const result = await generateQA({
+        contentId: quotedPost?.id || null,
+        isPrePublish: true,
+        title: '', // Media doesn't have a title
+        qaSourceRef: { kind: 'mediaId', id: media.id },
+        sourceUrl: undefined,
+        userText: content,
+        testMode: 'SOURCE_ONLY', // For media reshare, always SOURCE_ONLY
+      });
+      
+      toast.dismiss();
+      addBreadcrumb('reshare_media_qa_generated', { 
+        hasQuestions: !!result.questions, 
+        error: result.error,
+        pending: result.pending
+      });
+      
+      // Handle pending (extraction still in progress - should not happen for reshare)
+      if (result.pending) {
+        toast.info('Estrazione testo in corso, riprova tra qualche secondo...');
+        setIsGeneratingQuiz(false);
+        return;
+      }
+      
+      if (result.insufficient_context) {
+        // Text insufficient: fallback to Intent Gate
+        console.log('[Composer] Reshare media text insufficient, activating intent mode');
+        toast.warning('Testo insufficiente per il test. Aggiungi almeno 30 parole.');
+        setIntentMode(true);
+        setIsGeneratingQuiz(false);
+        return;
+      }
+      
+      if (result.error || !result.questions) {
+        console.error('[ComposerModal] Reshare media quiz generation failed:', result.error);
+        toast.error('Errore generazione quiz. Riprova.');
+        setIsGeneratingQuiz(false);
+        return; // DO NOT publish - gate is mandatory
+      }
+      
+      // Show quiz
+      setQuizData({
+        qaId: result.qaId,
+        questions: result.questions,
+        sourceUrl: `media://${media.id}`, // Special identifier for media
+      });
+      setShowQuiz(true);
+      addBreadcrumb('reshare_media_quiz_mount');
+      
+    } catch (error) {
+      console.error('[ComposerModal] Reshare media gate flow error:', error);
+      toast.dismiss();
+      toast.error('Errore durante la generazione del quiz. Riprova.');
+      addBreadcrumb('reshare_media_gate_error', { error: String(error) });
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
+  };
+
   // iOS-specific: Skip reader, go directly to quiz (mirrors comment flow)
   // FIXED: Uses qaSourceRef instead of full-text summary, blocks publish on failure
   const handleIOSQuizOnlyFlow = async () => {

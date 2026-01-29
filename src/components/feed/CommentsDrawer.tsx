@@ -42,7 +42,14 @@ interface CommentsDrawerProps {
 
 export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId }: CommentsDrawerProps) => {
   const { user } = useAuth();
-  const postHasSource = !!post.shared_url;
+  
+  // [FIX] Check for sources - include both URL-based sources AND media with OCR text
+  const postMediaWithExtractedText = (post as any).media?.find((m: any) => 
+    m.extracted_status === 'done' && 
+    m.extracted_text && 
+    m.extracted_text.length > 120
+  );
+  const postHasSource = !!post.shared_url || !!postMediaWithExtractedText;
   const isFocusContent = post.shared_url === 'focus://internal';
   
   // Determine focus type from post data
@@ -642,11 +649,13 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                 console.log('[Consapevole button] Clicked', { 
                   hasSharedUrl: !!post.shared_url, 
                   sharedUrl: post.shared_url,
+                  hasMediaOCR: !!postMediaWithExtractedText,
                   isProcessing: isProcessingGate,
                   newCommentLength: newComment.length
                 });
                 
-                if (!post.shared_url) {
+                // [FIX] Allow if has URL OR media with OCR
+                if (!post.shared_url && !postMediaWithExtractedText) {
                   sonnerToast.error("Questo post non ha una fonte da verificare");
                   setShowCommentTypeChoice(false);
                   return;
@@ -662,7 +671,35 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                   
                   sonnerToast.info("Sto preparando ciò che ti serve per orientarti…");
                   
-                  // Se è un Focus, usa il deep_content già disponibile
+                  // [FIX] Handle media OCR case - use media text directly
+                  if (postMediaWithExtractedText && !post.shared_url) {
+                    // Post has media with OCR but no URL - generate QA from media
+                    const result = await generateQA({
+                      contentId: post.id,
+                      title: '',
+                      qaSourceRef: { kind: 'mediaId', id: postMediaWithExtractedText.id },
+                      userText: newComment,
+                      sourceUrl: undefined,
+                      testMode: 'SOURCE_ONLY', // For media, always SOURCE_ONLY
+                    });
+                    
+                    if (result.insufficient_context || result.error || !result.questions) {
+                      sonnerToast.error(result.error || "Contenuto insufficiente per il quiz");
+                      setIsProcessingGate(false);
+                      return;
+                    }
+                    
+                    setQuizData({
+                      qaId: result.qaId,
+                      questions: result.questions,
+                      sourceUrl: `media://${postMediaWithExtractedText.id}`,
+                    });
+                    setShowQuiz(true);
+                    setIsProcessingGate(false);
+                    return;
+                  }
+                  
+                  // URL-based source (existing logic)
                   const isFocusContent = post.shared_url === 'focus://internal';
                   let fullContent = '';
                   let contentTitle = '';
@@ -674,7 +711,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                     console.log('[CommentsDrawer] Using Focus deep_content:', fullContent.substring(0, 100));
                   } else {
                     // Post normale - fetch articolo esterno
-                    const preview = await fetchArticlePreview(post.shared_url);
+                    const preview = await fetchArticlePreview(post.shared_url!);
                     
                     if (!preview) {
                       sonnerToast.error("Impossibile recuperare il contenuto della fonte");
@@ -694,7 +731,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                     title: contentTitle,
                     summary: fullContent,
                     userText: newComment,
-                    sourceUrl: post.shared_url,
+                    sourceUrl: post.shared_url!,
                     testMode,
                   });
                   
