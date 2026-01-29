@@ -115,23 +115,33 @@ export function QuizModal({ questions, qaId, onSubmit, onCancel, onComplete, pos
    */
   const validateStep = async (questionId: string, choiceId: string): Promise<{ isCorrect: boolean } | null> => {
     try {
-      console.log('[QuizModal] Validating step:', { qaId, questionId, choiceId });
+      // FORENSIC LOGGING: Track exact values being sent
+      console.log('[QuizModal] ===== STEP VALIDATION =====');
+      console.log('[QuizModal] qaId:', qaId);
+      console.log('[QuizModal] questionId:', questionId, '(type:', typeof questionId, ')');
+      console.log('[QuizModal] choiceId:', choiceId, '(type:', typeof choiceId, ')');
       
       const { data, error } = await supabase.functions.invoke('submit-qa', {
         body: { qaId, questionId, choiceId, mode: 'step' }
       });
 
       if (error) {
-        console.error('[QuizModal] Step validation error:', error);
+        console.error('[QuizModal] Step validation INVOKE error:', error);
         return null;
       }
 
+      console.log('[QuizModal] Server response:', JSON.stringify(data));
+
       if (data && typeof data.isCorrect === 'boolean') {
-        console.log('[QuizModal] Step result:', { isCorrect: data.isCorrect });
+        console.log('[QuizModal] Step result: isCorrect =', data.isCorrect);
         return { isCorrect: data.isCorrect };
       }
 
-      console.error('[QuizModal] Invalid step response:', data);
+      if (data?.error) {
+        console.error('[QuizModal] Server returned error:', data.error, data.code);
+      } else {
+        console.error('[QuizModal] Invalid step response format:', data);
+      }
       return null;
     } catch (err) {
       console.error('[QuizModal] Step validation exception:', err);
