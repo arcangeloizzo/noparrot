@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { getDisplayUsername } from '@/lib/utils';
+import { haptics } from '@/lib/haptics';
 
 interface MentionTextProps {
   text?: string;
@@ -13,16 +14,33 @@ export const MentionText = ({ text, content }: MentionTextProps) => {
   const parts = textContent.split(/(@[\w@.]+)/g);
 
   const handleMentionClick = async (e: React.MouseEvent, username: string) => {
+    // CRITICAL: Ferma completamente l'evento per evitare propagazione
     e.preventDefault();
     e.stopPropagation();
     
-    // Cerca l'utente nel database per ottenere l'ID
+    haptics.light();
+    
+    // Pulisci lo username per la ricerca
     const cleanUsername = username.replace(/^@/, '');
-    const { data: profile } = await supabase
+    
+    // Prima prova match esatto
+    let { data: profile } = await supabase
       .from('public_profiles')
       .select('id')
       .eq('username', cleanUsername)
       .maybeSingle();
+    
+    // Se non trovato, prova match flessibile (potrebbe essere troncato o con email)
+    if (!profile?.id) {
+      const { data: flexProfile } = await supabase
+        .from('public_profiles')
+        .select('id, username')
+        .ilike('username', `${cleanUsername}%`)
+        .limit(1)
+        .maybeSingle();
+      
+      profile = flexProfile;
+    }
     
     if (profile?.id) {
       navigate(`/profile/${profile.id}`);
@@ -36,13 +54,18 @@ export const MentionText = ({ text, content }: MentionTextProps) => {
           const displayName = part.slice(1); // Rimuovi @
           const cleanName = getDisplayUsername(displayName);
           return (
-            <span
+            <button
               key={index}
-              className="text-primary hover:underline cursor-pointer"
+              type="button"
+              className="text-primary hover:underline cursor-pointer inline bg-transparent border-0 p-0 m-0 font-inherit text-inherit"
               onClick={(e) => handleMentionClick(e, part)}
+              onTouchEnd={(e) => {
+                // Previeni ghost click su mobile
+                e.stopPropagation();
+              }}
             >
               @{cleanName}
-            </span>
+            </button>
           );
         }
         return <span key={index}>{part}</span>;

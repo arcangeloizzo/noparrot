@@ -41,6 +41,7 @@ export const useFocusBookmark = (focusId: string, focusType: 'daily' = 'daily') 
 };
 
 // Toggle bookmark for a focus item
+// Con optimistic updates per feedback immediato
 export const useToggleFocusBookmark = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -81,7 +82,42 @@ export const useToggleFocusBookmark = () => {
         return { bookmarked: true };
       }
     },
-    onSuccess: (_, variables) => {
+    
+    // ===== OPTIMISTIC UI: Instant feedback =====
+    onMutate: async ({ focusId, focusType = 'daily' }) => {
+      if (!user) return;
+      
+      // Cancel in-flight queries
+      await queryClient.cancelQueries({ 
+        queryKey: ['focus-bookmark', focusId, focusType, user.id] 
+      });
+      
+      // Snapshot previous state
+      const previousBookmark = queryClient.getQueryData<boolean>(
+        ['focus-bookmark', focusId, focusType, user.id]
+      );
+      
+      // Optimistically toggle
+      queryClient.setQueryData(
+        ['focus-bookmark', focusId, focusType, user.id],
+        !previousBookmark
+      );
+      
+      return { previousBookmark };
+    },
+    
+    // Rollback on error
+    onError: (_err, variables, context) => {
+      if (context?.previousBookmark !== undefined) {
+        queryClient.setQueryData(
+          ['focus-bookmark', variables.focusId, variables.focusType, user?.id],
+          context.previousBookmark
+        );
+      }
+    },
+    
+    // Background sync
+    onSettled: (_, __, variables) => {
       queryClient.invalidateQueries({ 
         queryKey: ['focus-bookmark', variables.focusId, variables.focusType] 
       });
