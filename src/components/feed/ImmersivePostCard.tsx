@@ -383,8 +383,12 @@ const ImmersivePostCardInner = ({
   const isQuotedIntentPost = !!quotedPost?.is_intent;
   const useStackLayoutEarly = !isQuotedIntentPost && (isReshareWithShortCommentEarly || isReshareWithSourceEarly);
   
+  // Gate logic: ALWAYS search for original source for reshares without direct source
+  // Independent from layout - required for Comprehension Gate to find the original URL
+  const needsDeepSourceLookup = !!post.quoted_post_id && !effectiveSharedUrl;
+  
   const { data: originalSource } = useOriginalSource(
-    useStackLayoutEarly && !effectiveSharedUrl ? post.quoted_post_id : null
+    needsDeepSourceLookup ? post.quoted_post_id : null
   );
   
   // Final effective source: prefer direct, fallback to deep chain search
@@ -1744,52 +1748,52 @@ const ImmersivePostCardInner = ({
           {/* Flexible spacer with minimum gap for small screens */}
           <div className="min-h-4 sm:min-h-0 flex-shrink-0" />
 
-          {/* Bottom Actions - Aligned heights h-10, mr-16 for FAB clearance */}
-          <div className="flex items-center justify-between gap-3 mr-16">
+          {/* Bottom Actions - Compact mode for smaller screens */}
+          <div className="flex items-center justify-between gap-2 sm:gap-3 mr-12 sm:mr-16">
             
-            {/* Primary Share Button - h-10 px-4 to match reactions */}
+            {/* Primary Share Button - Compact padding on mobile */}
             <button 
               onClick={(e) => {
                 e.stopPropagation();
                 haptics.light();
                 handleShareClick(e);
               }}
-              className="h-10 px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              className="h-10 px-3 sm:px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-1.5 sm:gap-2 transition-all active:scale-[0.98]"
             >
               <Logo variant="icon" size="sm" className="h-4 w-4" />
-              <span className="text-sm font-semibold leading-none">Condividi</span>
+              <span className="text-[11px] sm:text-sm font-semibold leading-none">Condividi</span>
               {(post.shares_count ?? 0) > 0 && (
-                <span className="text-xs opacity-70">({post.shares_count})</span>
+                <span className="text-[10px] sm:text-xs opacity-70">({post.shares_count})</span>
               )}
             </button>
 
-            {/* Reactions - Horizontal layout h-10 matching share button */}
-            <div className="flex items-center gap-1 bg-black/20 backdrop-blur-xl h-10 px-3 rounded-2xl border border-white/5">
+            {/* Reactions - Compact mode on mobile */}
+            <div className="flex items-center gap-0.5 sm:gap-1 bg-black/20 backdrop-blur-xl h-10 px-2 sm:px-3 rounded-2xl border border-white/5">
               
               {/* Like */}
               <button 
-                className="flex items-center justify-center gap-1.5 h-full px-2"
+                className="flex items-center justify-center gap-1 sm:gap-1.5 h-full px-1.5 sm:px-2"
                 onClick={(e) => { e.stopPropagation(); handleHeart(e); }}
               >
                 <Heart 
                   className={cn("w-5 h-5 transition-transform active:scale-90", post.user_reactions.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
                   fill={post.user_reactions.has_hearted ? "currentColor" : "none"}
                 />
-                <span className="text-xs font-bold text-white">{post.reactions.hearts}</span>
+                <span className="text-[10px] sm:text-xs font-bold text-white">{post.reactions.hearts}</span>
               </button>
 
               {/* Comments */}
               <button 
-                className="flex items-center justify-center gap-1.5 h-full px-2"
+                className="flex items-center justify-center gap-1 sm:gap-1.5 h-full px-1.5 sm:px-2"
                 onClick={(e) => { e.stopPropagation(); haptics.light(); setShowComments(true); }}
               >
                 <MessageCircle className="w-5 h-5 text-white transition-transform active:scale-90" />
-                <span className="text-xs font-bold text-white">{post.reactions.comments}</span>
+                <span className="text-[10px] sm:text-xs font-bold text-white">{post.reactions.comments}</span>
               </button>
 
               {/* Bookmark */}
               <button 
-                className="flex items-center justify-center h-full px-2"
+                className="flex items-center justify-center h-full px-1.5 sm:px-2"
                 onClick={handleBookmark}
               >
                 <Bookmark 

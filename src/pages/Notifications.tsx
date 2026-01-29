@@ -235,7 +235,7 @@ export const Notifications = () => {
     if (notification.type === "new_user" && notification.actor_id) {
       navigate(`/profile/${notification.actor_id}`);
     } else if (notification.type === "follow" && notification.actor_id) {
-      navigate(`/user/${notification.actor_id}`);
+      navigate(`/profile/${notification.actor_id}`);
     } else if (notification.type === "message_like" && notification.message_id) {
       navigate(`/messages`);
     } else if (notification.post_id) {

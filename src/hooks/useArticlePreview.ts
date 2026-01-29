@@ -11,6 +11,7 @@ interface ArticlePreview {
   content?: string;
   summary?: string;
   excerpt?: string;
+  popularity?: number;
 }
 
 /**
