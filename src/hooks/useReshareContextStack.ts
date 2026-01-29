@@ -51,7 +51,7 @@ export function useReshareContextStack(quotedPostId: string | null) {
             content,
             created_at,
             quoted_post_id,
-            author:profiles!author_id (
+            author:public_profiles!author_id (
               username,
               full_name,
               avatar_url

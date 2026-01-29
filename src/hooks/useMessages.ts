@@ -42,7 +42,7 @@ export function useMessages(threadId: string | undefined) {
           content,
           link_url,
           created_at,
-          sender:profiles!messages_sender_id_fkey(id, username, full_name, avatar_url)
+          sender:public_profiles!messages_sender_id_fkey(id, username, full_name, avatar_url)
         `)
         .eq('thread_id', threadId)
         .order('created_at', { ascending: true });

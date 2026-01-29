@@ -37,7 +37,7 @@ export const useFocusComments = (focusId: string, focusType: 'daily' | 'interest
           parent_id,
           level,
           is_verified,
-          author:profiles!author_id (
+          author:public_profiles!author_id (
             id,
             username,
             full_name,

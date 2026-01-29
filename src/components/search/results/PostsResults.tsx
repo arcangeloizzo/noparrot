@@ -122,7 +122,7 @@ export const PostsResults = ({ query, filters, searchType }: PostsResultsProps) 
         .from("posts")
         .select(`
           *,
-          author:profiles!author_id (
+          author:public_profiles!author_id (
             id,
             username,
             full_name,
@@ -137,7 +137,7 @@ export const PostsResults = ({ query, filters, searchType }: PostsResultsProps) 
             id,
             content,
             created_at,
-            author:profiles!author_id (
+            author:public_profiles!author_id (
               username,
               full_name,
               avatar_url
