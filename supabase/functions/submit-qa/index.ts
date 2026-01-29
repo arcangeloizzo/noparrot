@@ -177,20 +177,31 @@ serve(async (req) => {
         );
       }
 
+      // FORENSIC LOGGING: Show exact values for debugging
+      console.log('[submit-qa][step] ===== FORENSIC DEBUG =====');
+      console.log('[submit-qa][step] qaId:', qaId);
+      console.log('[submit-qa][step] questionId received:', JSON.stringify(questionId), 'type:', typeof questionId);
+      console.log('[submit-qa][step] choiceId received:', JSON.stringify(choiceId), 'type:', typeof choiceId);
+      console.log('[submit-qa][step] correctAnswers from DB:', JSON.stringify(correctAnswers));
+      
       // Find the specific question's correct answer
       const correctAnswer = correctAnswers.find((c: any) => c.id === questionId);
       
       if (!correctAnswer) {
-        console.log('[submit-qa][step] Question not found:', questionId);
+        console.error('[submit-qa][step] Question NOT FOUND in correctAnswers');
+        console.error('[submit-qa][step] Available question IDs:', correctAnswers.map((c: any) => c.id));
         return new Response(
           JSON.stringify({ error: 'Question not found', code: 'QUESTION_NOT_FOUND' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
+      console.log('[submit-qa][step] Found correct answer record:', JSON.stringify(correctAnswer));
+      console.log('[submit-qa][step] Comparing: submitted choiceId', JSON.stringify(choiceId), '=== correctId', JSON.stringify(correctAnswer.correctId));
+      
       const isCorrect = choiceId === correctAnswer.correctId;
       
-      console.log(`[submit-qa][step] Q:${questionId.substring(0, 8)} submitted:${choiceId.substring(0, 8)} isCorrect:${isCorrect}`);
+      console.log(`[submit-qa][step] RESULT: isCorrect = ${isCorrect}`);
 
       // Return ONLY isCorrect - no other information
       return new Response(

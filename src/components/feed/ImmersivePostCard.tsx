@@ -785,6 +785,25 @@ const ImmersivePostCardInner = ({
     if (!readerSource || !user) return;
     setGateStep('reader:loading');
     setReaderLoading(true);
+    console.log('[Gate] handleReaderComplete started', { 
+      isIntentPost: readerSource.isIntentPost, 
+      isOriginalPost: readerSource.isOriginalPost,
+      isEditorial: readerSource.isEditorial,
+      url: readerSource.url?.substring(0, 50)
+    });
+
+    // Safety timeout - 30 seconds max
+    const timeoutId = setTimeout(() => {
+      console.error('[Gate] TIMEOUT: Quiz generation exceeded 30 seconds');
+      toast({ 
+        title: 'Timeout', 
+        description: 'La generazione del quiz ha impiegato troppo tempo. Riprova.',
+        variant: 'destructive' 
+      });
+      setReaderLoading(false);
+      setReaderClosing(false);
+      setGateStep('idle');
+    }, 30000);
 
     try {
       // Check contenuto minimo per fonti esterne (non Intent, non OriginalPost)
@@ -792,13 +811,13 @@ const ImmersivePostCardInner = ({
       if (!readerSource.isOriginalPost && !readerSource.isIntentPost && !isEditorial) {
         const hasContent = readerSource.content || readerSource.summary || readerSource.articleContent;
         if (!hasContent || hasContent.length < 50) {
+          console.log('[Gate] Content too short, blocking share');
           toast({ 
             title: 'Contenuto non disponibile', 
             description: 'Apri la fonte originale per leggerla.',
             variant: 'destructive' 
           });
-          setReaderLoading(false);
-          return;  // Non permettere di proseguire
+          return;  // Finally will cleanup
         }
       }
 
@@ -807,6 +826,7 @@ const ImmersivePostCardInner = ({
         const userText = readerSource.content || '';
         const questionCount = readerSource.questionCount;
         
+        console.log('[Gate] Intent post - generating quiz', { userTextLength: userText.length, questionCount });
         toast({ title: 'Stiamo mettendo a fuoco ciò che conta…' });
         
         const result = await generateQA({
@@ -817,6 +837,13 @@ const ImmersivePostCardInner = ({
           questionCount,
         });
         
+        console.log('[Gate] Intent post generateQA result:', { 
+          hasError: !!result.error, 
+          insufficient: result.insufficient_context,
+          questionCount: result.questions?.length,
+          qaId: result.qaId?.substring(0, 8)
+        });
+        
         if (result.insufficient_context) {
           toast({ title: 'Contenuto troppo breve', description: 'Post pronto per la condivisione' });
           await closeReaderSafely();
@@ -825,8 +852,8 @@ const ImmersivePostCardInner = ({
         }
         
         if (!result || result.error || !result.questions?.length) {
+          console.error('[Gate] Intent quiz invalid:', result?.error);
           toast({ title: 'Errore', description: result?.error || 'Quiz non valido', variant: 'destructive' });
-          setReaderLoading(false);
           return;
         }
         
@@ -835,7 +862,6 @@ const ImmersivePostCardInner = ({
         
         await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
         setShowReader(false);
-        setReaderLoading(false);
         setReaderSource(null);
         return;
       }
@@ -856,6 +882,7 @@ const ImmersivePostCardInner = ({
         testMode = getTestModeWithSource(userWordCount);
       }
       
+      console.log('[Gate] Generating quiz', { isOriginalPost, isEditorial, testMode, questionCount, userWordCount });
       toast({ title: 'Stiamo mettendo a fuoco ciò che conta…' });
 
       const fullContent = readerSource.content || readerSource.summary || readerSource.excerpt || post.content;
@@ -873,37 +900,46 @@ const ImmersivePostCardInner = ({
         questionCount,
       });
 
+      console.log('[Gate] GenerateQA result:', { 
+        hasError: !!result.error,
+        insufficient: result.insufficient_context,
+        questionCount: result.questions?.length,
+        qaId: result.qaId?.substring(0, 8)
+      });
+
       if (result.insufficient_context) {
         // FAIL-CLOSED: per fonti esterne, bloccare la condivisione
         // Solo per post originali (post://) permettiamo il fallback
         if (isOriginalPost) {
           // Post originale troppo breve - ok, può condividere
+          console.log('[Gate] Original post insufficient - allowing share');
           toast({ title: 'Contenuto troppo breve', description: 'Puoi condividere questo post' });
           await closeReaderSafely();
           onQuoteShare?.(post);
           return;
         } else {
           // Fonte esterna non valutabile - BLOCCARE
+          console.warn('[Gate] External source insufficient - BLOCKING share');
           toast({ 
             title: 'Impossibile verificare la fonte', 
             description: 'Non è stato possibile generare il test. Apri la fonte originale per verificarla.',
             variant: 'destructive' 
           });
-          setReaderLoading(false);
           // NON chiamare onQuoteShare - la share è bloccata
           return;
         }
       }
 
       if (!result || result.error || !result.questions?.length) {
+        console.error('[Gate] Quiz generation failed:', result?.error);
         toast({ title: 'Errore', description: result?.error || 'Quiz non valido', variant: 'destructive' });
-        setReaderLoading(false);
         return;
       }
 
       const sourceUrl = readerSource.url || '';
       setGateStep('quiz:mount');
       // Include qaId for server-side validation
+      console.log('[Gate] Setting quiz data, qaId:', result.qaId);
       setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl });
       setShowQuiz(true);
 
@@ -915,16 +951,19 @@ const ImmersivePostCardInner = ({
 
       setGateStep('reader:unmount');
       setShowReader(false);
-      setReaderLoading(false);
       setReaderSource(null);
-      setReaderClosing(false);
       setGateStep('quiz:shown');
 
     } catch (error) {
       setGateStep('error');
+      console.error('[Gate] handleReaderComplete exception:', error);
       toast({ title: 'Errore', description: 'Si è verificato un errore. Riprova.', variant: 'destructive' });
+    } finally {
+      // ALWAYS cleanup - prevents infinite spinner
+      clearTimeout(timeoutId);
       setReaderLoading(false);
       setReaderClosing(false);
+      console.log('[Gate] handleReaderComplete finished, cleanup done');
     }
   };
 
