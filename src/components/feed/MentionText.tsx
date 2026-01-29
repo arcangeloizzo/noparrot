@@ -57,7 +57,7 @@ export const MentionText = ({ text, content }: MentionTextProps) => {
             <button
               key={index}
               type="button"
-              className="text-primary hover:underline cursor-pointer inline bg-transparent border-0 p-0 m-0 font-inherit text-inherit"
+              className="text-primary font-semibold bg-primary/20 px-1.5 py-0.5 rounded-md hover:bg-primary/30 active:scale-95 transition-all cursor-pointer inline border-0 m-0"
               onClick={(e) => handleMentionClick(e, part)}
               onTouchEnd={(e) => {
                 // Previeni ghost click su mobile
