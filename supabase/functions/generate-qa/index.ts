@@ -346,6 +346,36 @@ serve(async (req) => {
           }
           break;
         }
+        
+        case 'mediaId': {
+          // Fetch extracted text from media table
+          const { data: media } = await supabase
+            .from('media')
+            .select('extracted_text, extracted_status, extracted_kind, extracted_meta')
+            .eq('id', qaSourceRef.id)
+            .maybeSingle();
+          
+          if (media?.extracted_status === 'done' && media.extracted_text && media.extracted_text.length > 120) {
+            serverSideContent = media.extracted_text;
+            contentSource = `media_${media.extracted_kind}`;
+            console.log(`[generate-qa] ✅ Media text: ${serverSideContent.length} chars via ${media.extracted_kind}`);
+          } else if (media?.extracted_status === 'pending') {
+            // Estrazione ancora in corso - client deve riprovare
+            console.log('[generate-qa] ⏳ Media extraction still pending');
+            return new Response(
+              JSON.stringify({ pending: true, retryAfterMs: 3000 }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          } else {
+            // Fallback a Intent Gate
+            console.log('[generate-qa] ❌ Media extraction failed/insufficient, using intent gate');
+            return new Response(
+              JSON.stringify({ insufficient_context: true }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          break;
+        }
       }
     }
     
