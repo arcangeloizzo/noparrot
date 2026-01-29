@@ -78,7 +78,7 @@ export const usePosts = () => {
         .from('posts')
         .select(`
           *,
-          author:profiles!author_id (
+          author:public_profiles!author_id (
             id,
             username,
             full_name,
@@ -111,7 +111,7 @@ export const usePosts = () => {
             shared_title,
             preview_img,
             is_intent,
-            author:profiles!author_id (
+            author:public_profiles!author_id (
               username,
               full_name,
               avatar_url
@@ -333,7 +333,7 @@ export const useSavedPosts = () => {
           created_at,
           posts!inner (
             *,
-            author:profiles!author_id (
+            author:public_profiles!author_id (
               id,
               username,
               full_name,
@@ -420,7 +420,7 @@ export const useQuotedPost = (quotedPostId: string | null) => {
           shared_title,
           preview_img,
           is_intent,
-          author:profiles!author_id (
+          author:public_profiles!author_id (
             username,
             full_name,
             avatar_url
