@@ -1,820 +1,231 @@
 
-# Implementazione OCR Smart & Whisper Transcription
 
-## Panoramica
+# Piano: Integrazione Media OCR nel Comprehension Gate
 
-Questo piano implementa l'estrazione intelligente di testo da contenuti multimediali caricati dagli utenti:
-- **Immagini/PDF**: OCR automatico tramite Gemini Vision (se "screenshot-like")
-- **Video**: Trascrizione on-demand tramite OpenAI Whisper (modifica critica al piano originale)
+## Obiettivo
 
-Il sistema è non-blocking: il post si pubblica subito e l'estrazione avviene in background.
+Fare in modo che le immagini con OCR completato (testo estratto sufficiente) attivino il Comprehension Gate (quiz) prima della pubblicazione, mantenendo inalterati tutti i flussi esistenti per link, YouTube, X, LinkedIn, quoted post e reshare.
 
 ---
 
-## Fase 1: Database Migration
+## Analisi del Flusso Attuale
 
-### Aggiunta Colonne alla Tabella `media`
-
-```sql
--- Aggiunge colonne per text extraction alla tabella media esistente
-ALTER TABLE public.media ADD COLUMN IF NOT EXISTS extracted_text TEXT;
-ALTER TABLE public.media ADD COLUMN IF NOT EXISTS extracted_status TEXT DEFAULT 'idle' 
-  CHECK (extracted_status IN ('idle', 'pending', 'done', 'failed'));
-ALTER TABLE public.media ADD COLUMN IF NOT EXISTS extracted_kind TEXT 
-  CHECK (extracted_kind IN ('ocr', 'transcript'));
-ALTER TABLE public.media ADD COLUMN IF NOT EXISTS extracted_meta JSONB;
-
--- Commento sulla struttura di extracted_meta:
--- { "language": "it", "confidence": 0.95, "chars": 1234, "provider": "gemini-vision" | "whisper-1", "duration_sec": 90 }
-
--- Indice per query su media con estrazione completata
-CREATE INDEX IF NOT EXISTS idx_media_extraction_status 
-  ON public.media(extracted_status) WHERE extracted_status = 'done';
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          handlePublish()                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ┌─ detectedUrl? ─────────────────────────────────────────────────────────┐│
+│   │                                                                         ││
+│   │   ┌─ intentMode? ────────┐    ┌─ urlPreview ok? ─────────────────────┐ ││
+│   │   │                      │    │                                       │ ││
+│   │   │  publishPost(true)   │    │  showReader=true → Reader → Quiz     │ ││
+│   │   │  (bypass gate)       │    │  → publishPost() dopo quiz pass      │ ││
+│   │   └──────────────────────┘    └───────────────────────────────────────┘ ││
+│   └─────────────────────────────────────────────────────────────────────────┘│
+│                                                                             │
+│   ┌─ NO detectedUrl ───────────────────────────────────────────────────────┐│
+│   │                                                                         ││
+│   │   publishPost() direttamente                                            ││
+│   │   (nessun gate, anche con media OCR!)    ← PROBLEMA                    ││
+│   └─────────────────────────────────────────────────────────────────────────┘│
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Fase 2: Edge Function `extract-media-text`
+## Soluzione Proposta
 
-### File: `supabase/functions/extract-media-text/index.ts`
+Aggiungere un nuovo branch in `handlePublish()` che intercetta i media con OCR completato e genera il quiz direttamente (senza Reader, perché l'utente ha già visto l'immagine).
 
-Nuova edge function ibrida che gestisce:
-- **OCR (Immagini/PDF)**: Gemini Vision via `LOVABLE_API_KEY` (già disponibile)
-- **Trascrizione Video**: OpenAI Whisper via `OPENAI_API_KEY` (da aggiungere)
+### Nuovo Flusso
+
+```text
+handlePublish()
+  │
+  ├─ detectedUrl? → [flusso esistente - INVARIATO]
+  │
+  ├─ mediaWithExtractedText? → [NUOVO: genera quiz da mediaId → showQuiz]
+  │
+  └─ else → publishPost() [flusso esistente - INVARIATO]
+```
+
+---
+
+## Modifiche Tecniche
+
+### File: `src/components/composer/ComposerModal.tsx`
+
+#### 1. Nuova Helper per Rilevare Media con Testo Estratto
 
 ```typescript
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+// Cerca media con OCR/trascrizione completata e testo sufficiente (>120 chars)
+const mediaWithExtractedText = uploadedMedia.find(m => 
+  m.extracted_status === 'done' && 
+  m.extracted_text && 
+  m.extracted_text.length > 120
+);
+```
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+#### 2. Aggiornamento `gateStatus` per Feedback UI
 
-const MAX_VIDEO_DURATION_SEC = 180; // 3 minuti
+Modificare la sezione `gateStatus` per includere i media con OCR:
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+```typescript
+const gateStatus = (() => {
+  // Gate attivo se c'è un URL
+  if (detectedUrl) {
+    return { label: 'Gate attivo', requiresGate: true };
   }
+  
+  // [NUOVO] Gate attivo se c'è media con testo estratto
+  if (mediaWithExtractedText) {
+    return { 
+      label: mediaWithExtractedText.extracted_kind === 'ocr' 
+        ? 'Gate OCR attivo' 
+        : 'Gate trascrizione attivo', 
+      requiresGate: true 
+    };
+  }
+  
+  // Gate sui caratteri SOLO per ricondivisioni (quotedPost presente)
+  if (quotedPost) {
+    const wordCount = getWordCount(content);
+    if (wordCount > 120) {
+      return { label: 'Gate completo', requiresGate: true };
+    }
+    if (wordCount > 30) {
+      return { label: 'Gate light', requiresGate: true };
+    }
+  }
+  
+  // Nessun gate per testo libero senza URL
+  return { label: 'Nessun gate', requiresGate: false };
+})();
+```
 
+#### 3. Nuovo Branch in `handlePublish()`
+
+Inserire il nuovo branch DOPO il check per `detectedUrl` ma PRIMA del fallback a `publishPost()`:
+
+```typescript
+const handlePublish = async () => {
+  if (!user || (!content.trim() && !detectedUrl && uploadedMedia.length === 0 && !quotedPost)) return;
+  
+  // [ESISTENTE] Branch per URL
+  if (detectedUrl) {
+    // ... codice esistente INVARIATO ...
+    return;
+  }
+  
+  // [NUOVO] Branch per media con testo estratto (OCR/trascrizione)
+  if (mediaWithExtractedText) {
+    console.log('[Composer] Media with extracted text detected, triggering gate');
+    addBreadcrumb('media_gate_start', { 
+      mediaId: mediaWithExtractedText.id,
+      kind: mediaWithExtractedText.extracted_kind,
+      textLength: mediaWithExtractedText.extracted_text?.length
+    });
+    
+    await handleMediaGateFlow(mediaWithExtractedText);
+    return;
+  }
+  
+  // [ESISTENTE] Fallback: nessun gate
+  await publishPost();
+};
+```
+
+#### 4. Nuova Funzione `handleMediaGateFlow()`
+
+Simile a `handleIOSQuizOnlyFlow()` ma per media:
+
+```typescript
+const handleMediaGateFlow = async (media: MediaFile) => {
+  if (isGeneratingQuiz) return;
+  
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    setIsGeneratingQuiz(true);
+    addBreadcrumb('media_generating_quiz');
     
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    toast.loading('Stiamo mettendo a fuoco ciò che conta…');
     
-    const { mediaId, mediaUrl, extractionType, durationSec } = await req.json();
+    const result = await generateQA({
+      contentId: null,
+      isPrePublish: true,
+      title: '', // Media non ha titolo
+      qaSourceRef: { kind: 'mediaId', id: media.id },
+      sourceUrl: undefined,
+      userText: content,
+      testMode: 'SOURCE_ONLY', // Per media, sempre SOURCE_ONLY
+    });
     
-    if (!mediaId || !mediaUrl || !extractionType) {
-      return new Response(
-        JSON.stringify({ error: 'Missing required parameters' }),
-        { status: 400, headers: corsHeaders }
-      );
+    toast.dismiss();
+    addBreadcrumb('media_qa_generated', { 
+      hasQuestions: !!result.questions, 
+      error: result.error,
+      pending: result.pending
+    });
+    
+    // Handle pending (estrazione ancora in corso)
+    if (result.pending) {
+      toast.info('Estrazione testo in corso, riprova tra qualche secondo...');
+      setIsGeneratingQuiz(false);
+      return;
     }
     
-    console.log(`[extract-media-text] Starting ${extractionType} for media ${mediaId}`);
-    
-    // =====================================================
-    // OCR VIA GEMINI VISION
-    // =====================================================
-    if (extractionType === 'ocr') {
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${lovableApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [{
-            role: 'user',
-            content: [
-              { 
-                type: 'text', 
-                text: 'Extract ALL text visible in this image. Return ONLY the text content, preserving line breaks and structure. Do not add descriptions or explanations. If no text is found, respond with exactly: NO_TEXT_FOUND' 
-              },
-              { 
-                type: 'image_url', 
-                image_url: { url: mediaUrl } 
-              }
-            ]
-          }],
-          max_tokens: 4000,
-        }),
-      });
-
-      if (!response.ok) {
-        console.error(`[extract-media-text] Gemini API error: ${response.status}`);
-        await supabase.from('media').update({
-          extracted_status: 'failed',
-          extracted_meta: { error: `API error ${response.status}`, provider: 'gemini-vision' }
-        }).eq('id', mediaId);
-        
-        return new Response(
-          JSON.stringify({ success: false, error: 'OCR failed' }),
-          { headers: corsHeaders }
-        );
-      }
-
-      const data = await response.json();
-      const extractedText = data.choices?.[0]?.message?.content || '';
-      const isValidText = extractedText && 
-                          extractedText.length > 50 && 
-                          !extractedText.includes('NO_TEXT_FOUND');
-
-      await supabase.from('media').update({
-        extracted_text: isValidText ? extractedText : null,
-        extracted_status: isValidText ? 'done' : 'failed',
-        extracted_kind: 'ocr',
-        extracted_meta: {
-          provider: 'gemini-vision',
-          chars: extractedText.length,
-          language: 'auto'
-        }
-      }).eq('id', mediaId);
-
-      return new Response(
-        JSON.stringify({ 
-          success: isValidText, 
-          chars: extractedText.length,
-          status: isValidText ? 'done' : 'failed'
-        }),
-        { headers: corsHeaders }
-      );
+    if (result.insufficient_context) {
+      // Testo insufficiente: fallback a Intent Gate
+      console.log('[Composer] Media text insufficient, activating intent mode');
+      toast.warning('Testo insufficiente per il test. Aggiungi almeno 30 parole.');
+      setIntentMode(true);
+      setIsGeneratingQuiz(false);
+      return;
     }
     
-    // =====================================================
-    // TRASCRIZIONE VIDEO VIA OPENAI WHISPER
-    // =====================================================
-    if (extractionType === 'transcript') {
-      // Check per API key
-      if (!openaiApiKey) {
-        console.error('[extract-media-text] OPENAI_API_KEY not configured');
-        await supabase.from('media').update({
-          extracted_status: 'failed',
-          extracted_meta: { error: 'Transcription service not configured' }
-        }).eq('id', mediaId);
-        
-        return new Response(
-          JSON.stringify({ success: false, error: 'Transcription service not available' }),
-          { headers: corsHeaders }
-        );
-      }
-      
-      // Check durata video
-      if (durationSec && durationSec > MAX_VIDEO_DURATION_SEC) {
-        console.log(`[extract-media-text] Video too long: ${durationSec}s > ${MAX_VIDEO_DURATION_SEC}s`);
-        await supabase.from('media').update({
-          extracted_status: 'failed',
-          extracted_meta: { 
-            error: 'video_too_long',
-            duration_sec: durationSec,
-            max_duration_sec: MAX_VIDEO_DURATION_SEC
-          }
-        }).eq('id', mediaId);
-        
-        return new Response(
-          JSON.stringify({ success: false, error: 'video_too_long' }),
-          { headers: corsHeaders }
-        );
-      }
-      
-      // Download video file
-      console.log('[extract-media-text] Downloading video...');
-      const videoResponse = await fetch(mediaUrl);
-      if (!videoResponse.ok) {
-        throw new Error(`Failed to download video: ${videoResponse.status}`);
-      }
-      
-      const videoBlob = await videoResponse.blob();
-      console.log(`[extract-media-text] Video downloaded: ${videoBlob.size} bytes`);
-      
-      // Crea FormData per Whisper API
-      const formData = new FormData();
-      formData.append('file', videoBlob, 'video.mp4');
-      formData.append('model', 'whisper-1');
-      formData.append('response_format', 'verbose_json');
-      
-      // Call OpenAI Whisper API
-      console.log('[extract-media-text] Calling Whisper API...');
-      const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openaiApiKey}`,
-        },
-        body: formData,
-      });
-      
-      if (!whisperResponse.ok) {
-        const errorText = await whisperResponse.text();
-        console.error(`[extract-media-text] Whisper API error: ${whisperResponse.status}`, errorText);
-        await supabase.from('media').update({
-          extracted_status: 'failed',
-          extracted_meta: { error: `Whisper API error ${whisperResponse.status}`, provider: 'whisper-1' }
-        }).eq('id', mediaId);
-        
-        return new Response(
-          JSON.stringify({ success: false, error: 'Transcription failed' }),
-          { headers: corsHeaders }
-        );
-      }
-      
-      const whisperData = await whisperResponse.json();
-      const transcript = whisperData.text || '';
-      const detectedLanguage = whisperData.language || 'unknown';
-      const isValidTranscript = transcript.length > 50;
-      
-      console.log(`[extract-media-text] Transcript received: ${transcript.length} chars, language: ${detectedLanguage}`);
-      
-      await supabase.from('media').update({
-        extracted_text: isValidTranscript ? transcript : null,
-        extracted_status: isValidTranscript ? 'done' : 'failed',
-        extracted_kind: 'transcript',
-        extracted_meta: {
-          provider: 'whisper-1',
-          chars: transcript.length,
-          language: detectedLanguage,
-          duration_sec: durationSec || null
-        }
-      }).eq('id', mediaId);
-      
-      return new Response(
-        JSON.stringify({ 
-          success: isValidTranscript, 
-          chars: transcript.length,
-          language: detectedLanguage,
-          status: isValidTranscript ? 'done' : 'failed'
-        }),
-        { headers: corsHeaders }
-      );
+    if (result.error || !result.questions) {
+      console.error('[ComposerModal] Media quiz generation failed:', result.error);
+      toast.error('Errore generazione quiz. Riprova.');
+      setIsGeneratingQuiz(false);
+      return; // Non pubblicare - gate mandatory
     }
     
-    return new Response(
-      JSON.stringify({ error: 'Invalid extraction type' }),
-      { status: 400, headers: corsHeaders }
-    );
+    // Mostra quiz
+    setQuizData({
+      qaId: result.qaId,
+      questions: result.questions,
+      sourceUrl: `media://${media.id}`, // Identificatore speciale per media
+    });
+    setShowQuiz(true);
+    addBreadcrumb('media_quiz_mount');
     
   } catch (error) {
-    console.error('[extract-media-text] Error:', error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: corsHeaders }
-    );
-  }
-});
-```
-
-### Configurazione in `supabase/config.toml`
-
-```toml
-[functions.extract-media-text]
-verify_jwt = false
-```
-
----
-
-## Fase 3: Modifica `useMediaUpload.ts`
-
-### Aggiunta Heuristica Screenshot e Trigger OCR
-
-```typescript
-import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
-
-interface MediaFile {
-  id: string;
-  type: 'image' | 'video';
-  url: string;
-  file?: File;
-  mime?: string;
-  width?: number;
-  height?: number;
-  duration_sec?: number;
-  thumbnail_url?: string;
-  // Nuovi campi extraction
-  extracted_status?: 'idle' | 'pending' | 'done' | 'failed';
-  extracted_text?: string | null;
-  extracted_kind?: 'ocr' | 'transcript' | null;
-}
-
-// Heuristica per determinare se un'immagine è probabilmente uno screenshot
-function shouldPerformOCR(file: File, width: number, height: number): boolean {
-  // 1. Aspect ratio check - screenshot tipici
-  const ratio = width / height;
-  const screenshotRatios = [
-    { min: 0.55, max: 0.65 },   // 9:16 (mobile vertical)
-    { min: 1.5, max: 1.9 },     // 3:2, 16:9 (desktop)
-    { min: 2.0, max: 2.5 },     // 19.5:9 (mobile moderno)
-    { min: 0.7, max: 0.8 },     // 3:4 (tablet)
-  ];
-  
-  const hasScreenshotRatio = screenshotRatios.some(
-    r => ratio >= r.min && ratio <= r.max
-  );
-  
-  // 2. Resolution check - screenshot hanno risoluzioni tipiche
-  const typicalWidths = [1080, 1170, 1284, 1290, 1179, 1242, 1440, 1920, 2560];
-  const hasTypicalWidth = typicalWidths.some(w => Math.abs(width - w) < 50);
-  
-  // 3. File format heuristic - screenshot PNG sono spesso grandi
-  const isLikelyPNG = file.type === 'image/png' && file.size > 200_000;
-  
-  // 4. PDF sempre OCR
-  const isPDF = file.type === 'application/pdf';
-  
-  if (isPDF) return true;
-  
-  // Decision: almeno 2 su 3 indicatori
-  const score = [hasScreenshotRatio, hasTypicalWidth, isLikelyPNG].filter(Boolean).length;
-  return score >= 2;
-}
-
-// Estrae la durata di un video
-async function getVideoDuration(file: File): Promise<number | undefined> {
-  return new Promise((resolve) => {
-    const video = document.createElement('video');
-    video.preload = 'metadata';
-    video.onloadedmetadata = () => {
-      URL.revokeObjectURL(video.src);
-      resolve(Math.round(video.duration));
-    };
-    video.onerror = () => {
-      resolve(undefined);
-    };
-    video.src = URL.createObjectURL(file);
-  });
-}
-
-export const useMediaUpload = () => {
-  const { user } = useAuth();
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadedMedia, setUploadedMedia] = useState<MediaFile[]>([]);
-
-  const uploadMedia = async (files: File[], type: 'image' | 'video'): Promise<MediaFile[]> => {
-    if (!user) {
-      toast({
-        title: 'Accedi per caricare file',
-        description: 'Devi essere autenticato',
-        variant: 'destructive'
-      });
-      return [];
-    }
-
-    setIsUploading(true);
-    const uploaded: MediaFile[] = [];
-
-    try {
-      for (const file of files) {
-        // Upload file to storage
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const bucketName = 'avatars'; // Usa bucket esistente
-
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from(bucketName)
-          .upload(fileName, file, {
-            cacheControl: '3600',
-            upsert: false
-          });
-
-        if (uploadError) throw uploadError;
-
-        // Get public URL
-        const { data: { publicUrl } } = supabase.storage
-          .from(bucketName)
-          .getPublicUrl(fileName);
-
-        // Get file metadata
-        let width: number | undefined;
-        let height: number | undefined;
-        let duration_sec: number | undefined;
-        let performOCR = false;
-
-        if (type === 'image') {
-          const img = await createImageBitmap(file);
-          width = img.width;
-          height = img.height;
-          // Heuristica OCR
-          performOCR = shouldPerformOCR(file, width, height);
-          console.log(`[useMediaUpload] Image ${width}x${height}, shouldOCR: ${performOCR}`);
-        } else if (type === 'video') {
-          duration_sec = await getVideoDuration(file);
-          console.log(`[useMediaUpload] Video duration: ${duration_sec}s`);
-        }
-
-        // Insert into media table
-        const { data: mediaData, error: mediaError } = await supabase
-          .from('media')
-          .insert({
-            owner_id: user.id,
-            type,
-            mime: file.type,
-            url: publicUrl,
-            width,
-            height,
-            duration_sec,
-            // Se immagine screenshot-like, setta pending per OCR
-            extracted_status: performOCR ? 'pending' : 'idle',
-            extracted_kind: performOCR ? 'ocr' : null
-          })
-          .select()
-          .single();
-
-        if (mediaError) throw mediaError;
-
-        // Trigger OCR in background (fire and forget) se necessario
-        if (performOCR) {
-          console.log(`[useMediaUpload] Triggering OCR for media ${mediaData.id}`);
-          supabase.functions.invoke('extract-media-text', {
-            body: { 
-              mediaId: mediaData.id, 
-              mediaUrl: publicUrl, 
-              extractionType: 'ocr' 
-            }
-          }).catch(err => {
-            console.error('[useMediaUpload] OCR trigger error:', err);
-          });
-        }
-
-        uploaded.push({
-          id: mediaData.id,
-          type,
-          url: publicUrl,
-          file,
-          mime: file.type,
-          width,
-          height,
-          duration_sec,
-          extracted_status: performOCR ? 'pending' : 'idle',
-          extracted_kind: performOCR ? 'ocr' : null
-        });
-      }
-
-      setUploadedMedia(prev => [...prev, ...uploaded]);
-      
-      toast({
-        title: 'File caricati',
-        description: `${uploaded.length} file caricati con successo`
-      });
-
-      return uploaded;
-    } catch (error) {
-      console.error('Upload error:', error);
-      toast({
-        title: 'Errore caricamento',
-        description: 'Impossibile caricare i file',
-        variant: 'destructive'
-      });
-      return [];
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  // Trigger video transcription manually
-  const requestTranscription = async (mediaId: string) => {
-    const media = uploadedMedia.find(m => m.id === mediaId);
-    if (!media || media.type !== 'video') return false;
-    
-    // Check durata
-    if (media.duration_sec && media.duration_sec > 180) {
-      toast({
-        title: 'Video troppo lungo',
-        description: 'La trascrizione è disponibile solo per video fino a 3 minuti',
-        variant: 'destructive'
-      });
-      return false;
-    }
-    
-    // Update state to pending
-    setUploadedMedia(prev => prev.map(m => 
-      m.id === mediaId 
-        ? { ...m, extracted_status: 'pending', extracted_kind: 'transcript' }
-        : m
-    ));
-    
-    // Update DB
-    await supabase.from('media').update({
-      extracted_status: 'pending',
-      extracted_kind: 'transcript'
-    }).eq('id', mediaId);
-    
-    // Trigger transcription
-    try {
-      await supabase.functions.invoke('extract-media-text', {
-        body: { 
-          mediaId, 
-          mediaUrl: media.url, 
-          extractionType: 'transcript',
-          durationSec: media.duration_sec
-        }
-      });
-      return true;
-    } catch (err) {
-      console.error('[useMediaUpload] Transcription trigger error:', err);
-      setUploadedMedia(prev => prev.map(m => 
-        m.id === mediaId 
-          ? { ...m, extracted_status: 'failed' }
-          : m
-      ));
-      return false;
-    }
-  };
-  
-  // Poll extraction status
-  const refreshMediaStatus = async (mediaId: string) => {
-    const { data, error } = await supabase
-      .from('media')
-      .select('extracted_status, extracted_text, extracted_kind, extracted_meta')
-      .eq('id', mediaId)
-      .single();
-    
-    if (!error && data) {
-      setUploadedMedia(prev => prev.map(m => 
-        m.id === mediaId 
-          ? { 
-              ...m, 
-              extracted_status: data.extracted_status,
-              extracted_text: data.extracted_text,
-              extracted_kind: data.extracted_kind
-            }
-          : m
-      ));
-      return data;
-    }
-    return null;
-  };
-
-  const removeMedia = (id: string) => {
-    setUploadedMedia(prev => prev.filter(m => m.id !== id));
-  };
-
-  const clearMedia = () => {
-    setUploadedMedia([]);
-  };
-
-  return {
-    uploadMedia,
-    uploadedMedia,
-    removeMedia,
-    clearMedia,
-    isUploading,
-    requestTranscription,
-    refreshMediaStatus
-  };
-};
-```
-
----
-
-## Fase 4: Modifica `MediaPreviewTray.tsx`
-
-### Aggiunta Feedback Visivo Estrazione
-
-```typescript
-import { X, Loader2, FileText, Mic, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-
-interface MediaPreview {
-  id: string;
-  type: 'image' | 'video';
-  url: string;
-  file?: File;
-  duration_sec?: number;
-  extracted_status?: 'idle' | 'pending' | 'done' | 'failed';
-  extracted_text?: string | null;
-  extracted_kind?: 'ocr' | 'transcript' | null;
-}
-
-interface MediaPreviewTrayProps {
-  media: MediaPreview[];
-  onRemove: (id: string) => void;
-  onRequestTranscription?: (id: string) => void;
-  isTranscribing?: boolean;
-}
-
-export const MediaPreviewTray = ({ 
-  media, 
-  onRemove, 
-  onRequestTranscription,
-  isTranscribing 
-}: MediaPreviewTrayProps) => {
-  if (media.length === 0) return null;
-
-  return (
-    <div className="space-y-2">
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {media.map((item) => (
-          <div key={item.id} className="relative flex-shrink-0">
-            {/* Thumbnail */}
-            <div className="w-24 h-24 rounded-lg overflow-hidden bg-muted">
-              {item.type === 'image' ? (
-                <img src={item.url} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <video src={item.url} className="w-full h-full object-cover" />
-              )}
-            </div>
-            
-            {/* Remove button */}
-            <Button
-              type="button"
-              variant="destructive"
-              size="sm"
-              className="absolute top-1 right-1 h-6 w-6 p-0 rounded-full"
-              onClick={() => onRemove(item.id)}
-            >
-              <X className="w-3 h-3" />
-            </Button>
-            
-            {/* Extraction status badge */}
-            {item.extracted_status === 'pending' && (
-              <div className="absolute bottom-1 left-1 bg-amber-500/90 text-white text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                <Loader2 className="w-3 h-3 animate-spin" />
-                <span>{item.extracted_kind === 'ocr' ? 'OCR' : 'Audio'}</span>
-              </div>
-            )}
-            
-            {item.extracted_status === 'done' && (
-              <div className="absolute bottom-1 left-1 bg-emerald-500/90 text-white text-xs px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                {item.extracted_kind === 'ocr' ? (
-                  <FileText className="w-3 h-3" />
-                ) : (
-                  <Mic className="w-3 h-3" />
-                )}
-                <span>✓</span>
-              </div>
-            )}
-            
-            {item.extracted_status === 'failed' && (
-              <div className="absolute bottom-1 left-1 bg-red-500/90 text-white text-xs px-1.5 py-0.5 rounded-full">
-                <AlertCircle className="w-3 h-3" />
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-      
-      {/* Video transcription trigger */}
-      {media.some(m => m.type === 'video' && m.extracted_status === 'idle') && onRequestTranscription && (
-        <div className="flex items-center gap-2">
-          {media
-            .filter(m => m.type === 'video' && m.extracted_status === 'idle')
-            .map(video => (
-              <Button
-                key={video.id}
-                variant="ghost"
-                size="sm"
-                onClick={() => onRequestTranscription(video.id)}
-                disabled={isTranscribing || (video.duration_sec && video.duration_sec > 180)}
-                className="text-xs text-muted-foreground"
-              >
-                <Mic className="w-4 h-4 mr-1" />
-                {video.duration_sec && video.duration_sec > 180 
-                  ? 'Video troppo lungo' 
-                  : 'Genera trascrizione'}
-              </Button>
-            ))}
-        </div>
-      )}
-      
-      {/* Extraction status feedback */}
-      {media.some(m => m.extracted_status === 'pending') && (
-        <div className="flex items-center gap-2 text-amber-400 text-xs">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span>Stiamo mettendo a fuoco il testo...</span>
-        </div>
-      )}
-      
-      {media.some(m => m.extracted_status === 'done' && m.extracted_text) && (
-        <div className="flex items-center gap-2 text-emerald-400 text-xs">
-          <FileText className="w-4 h-4" />
-          <span>
-            Testo estratto ({media.find(m => m.extracted_text)?.extracted_text?.length || 0} caratteri)
-          </span>
-        </div>
-      )}
-    </div>
-  );
-};
-```
-
----
-
-## Fase 5: Modifica `ComposerModal.tsx`
-
-### Integrazione con Gate e Polling Status
-
-Modifiche chiave da apportare:
-1. **Import nuove funzioni** da `useMediaUpload`
-2. **Polling status** per media in estrazione
-3. **Integrazione con Gate** usando `extracted_text`
-
-```typescript
-// Aggiunte all'inizio del file
-import { useEffect } from "react";
-
-// Nel componente ComposerModal, modificare l'uso di useMediaUpload:
-const { 
-  uploadMedia, 
-  uploadedMedia, 
-  removeMedia, 
-  clearMedia, 
-  isUploading,
-  requestTranscription,
-  refreshMediaStatus 
-} = useMediaUpload();
-
-const [isTranscribing, setIsTranscribing] = useState(false);
-
-// Polling per media in pending status
-useEffect(() => {
-  const pendingMedia = uploadedMedia.filter(m => m.extracted_status === 'pending');
-  if (pendingMedia.length === 0) return;
-  
-  const interval = setInterval(() => {
-    pendingMedia.forEach(m => refreshMediaStatus(m.id));
-  }, 2000); // Poll ogni 2 secondi
-  
-  return () => clearInterval(interval);
-}, [uploadedMedia]);
-
-// Handler per trascrizione video
-const handleRequestTranscription = async (mediaId: string) => {
-  setIsTranscribing(true);
-  try {
-    await requestTranscription(mediaId);
-    toast.info('Trascrizione in corso...');
+    console.error('[ComposerModal] Media gate flow error:', error);
+    toast.dismiss();
+    toast.error('Errore durante la generazione del quiz. Riprova.');
+    addBreadcrumb('media_gate_error', { error: String(error) });
   } finally {
-    setIsTranscribing(false);
+    setIsGeneratingQuiz(false);
   }
 };
-
-// Modifica canPublish per gestire media pending
-const hasPendingExtraction = uploadedMedia.some(m => m.extracted_status === 'pending');
-const canPublish = !hasPendingExtraction && (
-  content.trim().length > 0 || 
-  uploadedMedia.length > 0 || 
-  !!detectedUrl || 
-  !!quotedPost
-) && intentWordsMet;
-
-// In MediaPreviewTray, passare nuovi props:
-<MediaPreviewTray 
-  media={uploadedMedia} 
-  onRemove={removeMedia}
-  onRequestTranscription={handleRequestTranscription}
-  isTranscribing={isTranscribing}
-/>
 ```
+
+#### 5. Nessuna Modifica ai Flussi Esistenti
+
+I seguenti flussi rimangono **completamente invariati**:
+- Link esterni (URL detection → Reader → Quiz)
+- YouTube (qaSourceRef.kind === 'youtubeId')
+- Spotify (qaSourceRef.kind === 'spotifyId')
+- Twitter/X (qaSourceRef.kind === 'tweetId')
+- Quoted post/Reshare (quotedPost presente)
+- Intent mode per piattaforme bloccate
 
 ---
 
-## Fase 6: Integrazione Gate in `generate-qa/index.ts`
+## Aggiornamento ai-helpers.ts
 
-### Nuovo Case per `mediaId`
-
-Aggiungere gestione `mediaId` nel switch per `qaSourceRef`:
-
-```typescript
-case 'mediaId': {
-  // Fetch extracted text from media table
-  const { data: media } = await supabase
-    .from('media')
-    .select('extracted_text, extracted_status, extracted_kind, extracted_meta')
-    .eq('id', qaSourceRef.id)
-    .maybeSingle();
-  
-  if (media?.extracted_status === 'done' && media.extracted_text?.length > 120) {
-    serverSideContent = media.extracted_text;
-    contentSource = `media_${media.extracted_kind}`;
-    console.log(`[generate-qa] ✅ Media text: ${serverSideContent.length} chars via ${media.extracted_kind}`);
-  } else if (media?.extracted_status === 'pending') {
-    // Estrazione ancora in corso - client deve riprovare
-    console.log('[generate-qa] ⏳ Media extraction still pending');
-    return new Response(
-      JSON.stringify({ pending: true, retryAfterMs: 3000 }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  } else {
-    // Fallback a Intent Gate
-    console.log('[generate-qa] ❌ Media extraction failed/insufficient, using intent gate');
-    return new Response(
-      JSON.stringify({ insufficient_context: true }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-  break;
-}
-```
-
-### Aggiornare `QASourceRef` Type
-
-In `src/lib/ai-helpers.ts`:
+Il tipo `QASourceRef` è già stato aggiornato nella precedente implementazione per includere `mediaId`:
 
 ```typescript
 export interface QASourceRef {
@@ -826,56 +237,65 @@ export interface QASourceRef {
 
 ---
 
-## Fase 7: Configurazione Secret `OPENAI_API_KEY`
+## UX e Feedback
 
-Sarà necessario aggiungere la chiave API OpenAI per abilitare Whisper:
-- Il sistema richiederà all'utente di configurare `OPENAI_API_KEY` nei secrets
-- La trascrizione video sarà disabilitata se la chiave non è presente
+### Indicatore Gate nel Composer
+
+Quando è presente un media con OCR completato, l'indicatore mostrerà:
+- `"Gate OCR attivo"` per immagini
+- `"Gate trascrizione attivo"` per video
+
+### Flusso Utente
+
+1. Utente carica immagine/screenshot
+2. OCR parte automaticamente (se heuristica passa)
+3. Badge verde "Testo estratto (X caratteri)" appare
+4. Indicatore "Gate OCR attivo" appare in basso
+5. Utente clicca "Pubblica"
+6. Quiz appare direttamente (senza Reader - l'utente ha già visto l'immagine)
+7. Se quiz passato → post pubblicato
+8. Se quiz fallito → ritorno al composer
+
+### Fallback Intent Gate
+
+Se l'OCR produce testo insufficiente (<120 caratteri):
+- `generate-qa` ritorna `insufficient_context: true`
+- Composer attiva `intentMode`
+- Utente deve aggiungere 30+ parole di contesto
 
 ---
 
-## Riepilogo Files da Modificare/Creare
+## Riepilogo Modifiche
 
-| File | Azione | Scopo |
-|------|--------|-------|
-| Migration SQL | CREARE | Aggiunge colonne a `media` table |
-| `supabase/functions/extract-media-text/index.ts` | CREARE | Edge function ibrida OCR + Whisper |
-| `supabase/config.toml` | MODIFICARE | Registrare nuova function |
-| `src/hooks/useMediaUpload.ts` | MODIFICARE | Heuristica + trigger OCR + transcription |
-| `src/components/media/MediaPreviewTray.tsx` | MODIFICARE | UI feedback estrazione |
-| `src/components/composer/ComposerModal.tsx` | MODIFICARE | Polling + integrazione gate |
-| `supabase/functions/generate-qa/index.ts` | MODIFICARE | Nuovo case `mediaId` |
-| `src/lib/ai-helpers.ts` | MODIFICARE | Aggiungere `mediaId` a QASourceRef |
+| File | Modifica | Impatto |
+|------|----------|---------|
+| `ComposerModal.tsx` | Aggiungere `mediaWithExtractedText` check | Rileva media con OCR |
+| `ComposerModal.tsx` | Aggiornare `gateStatus` | Feedback UI gate OCR |
+| `ComposerModal.tsx` | Nuovo branch in `handlePublish()` | Intercetta media OCR |
+| `ComposerModal.tsx` | Nuova funzione `handleMediaGateFlow()` | Genera quiz da media |
 
----
-
-## Impatto Atteso
-
-| Scenario | Comportamento |
-|----------|---------------|
-| Screenshot di articolo | OCR automatico → Gate basato su testo estratto |
-| Foto normale (selfie, paesaggio) | Nessun OCR → Intent Gate se vuole condividere |
-| Video <3 min | Pulsante "Genera trascrizione" → Gate basato su transcript |
-| Video >3 min | Pulsante disabilitato → Intent Gate (30 parole) |
-| PDF caricato | OCR automatico → Gate basato su testo |
-| Errore estrazione | Nessun blocco UI → Fallback Intent Gate |
+**Flussi NON modificati:**
+- Link detection e Reader
+- YouTube transcription
+- Spotify lyrics
+- Twitter/X embed
+- LinkedIn extraction
+- Quoted post/Reshare
+- Intent mode
 
 ---
 
 ## Note Tecniche
 
-### Perché Gemini Vision per OCR
-- Già disponibile via `LOVABLE_API_KEY`
-- Accuracy superiore su screenshot moderni
-- Supporta multiple lingue senza configurazione
+### Perché No Reader per Media?
 
-### Perché OpenAI Whisper per Video
-- Più economico di ElevenLabs Scribe
-- Accuracy comparabile (~95%)
-- Supporta upload diretto video (estrae audio internamente)
-- Modello `whisper-1` è veloce e affidabile
+A differenza dei link esterni, l'utente ha già visto l'immagine/video nel composer. Il Reader serve per consumare contenuti esterni prima del quiz. Per i media, questo step non è necessario.
 
-### Limiti Cost Control
-- OCR: Solo su immagini "screenshot-like" (heuristica)
-- Trascrizione: Solo su richiesta esplicita + max 3 minuti
-- Rate limit consigliato: Max 10 trascrizioni/utente/giorno (implementabile in futuro)
+### Soglia 120 Caratteri
+
+La soglia di 120 caratteri è la stessa usata in `generate-qa` per determinare se il testo estratto è sufficiente. Questo garantisce coerenza tra frontend e backend.
+
+### sourceUrl per Media
+
+Per i media, usiamo `media://{mediaId}` come sourceUrl identificativo nei log e nel cache. Questo non influenza il flusso ma aiuta il debugging.
+
