@@ -1,250 +1,341 @@
 
-# Performance & Stability Overhaul - 4 Interventi Critici
+# Performance & Reliability Overhaul: Spotify, YouTube e Contenuti Esterni
 
 ## Panoramica
-Questo piano implementa 4 interventi mirati per risolvere definitivamente il lag dello scroll e i tempi di caricamento, eliminando colli di bottiglia su GPU, rendering e network.
+
+Questo piano implementa una ristrutturazione completa del flusso di fetching contenuti per:
+- Ridurre la latenza del 60-80% usando parallel fetching e racing
+- Eliminare l'errore "Contenuto insufficiente" dopo retry
+- Estendere le ottimizzazioni a tutti i tipi di contenuto (non solo Spotify)
 
 ---
 
-## INTERVENTO 1: GPU FIX - Ottimizzazione Spotify
+## PROBLEMA 1: Fallback Sequenziale in fetch-lyrics (20+ secondi)
 
-### File: `src/components/feed/SpotifyGradientBackground.tsx`
-
-### Problema Identificato
-- Linea 58: `transition-all duration-1000` causa ricalcolo CSS continuo durante animazioni
-- Linea 67: `blur-3xl` è il principale colpevole del lag grafico (GPU filter costoso)
-- Il radial gradient con blur viene ricalcolato a ogni frame durante lo scroll
-
-### Soluzione
-Rimuovere effetti dinamici GPU-intensive e sostituire con gradiente statico equivalente.
-
-**Modifiche:**
-
-1. Rimuovere `transition-all duration-1000` dalla linea 58:
-```tsx
-// PRIMA
-className={cn("absolute inset-0 transition-all duration-1000", animationClass)}
-
-// DOPO
-className={cn("absolute inset-0", animationClass)}
+### Stato Attuale
+Il codice attuale (linee 526-566) esegue fallback SEQUENZIALI:
+```
+Genius Search → Genius Page → Lyrics.ovh → Musixmatch
+Tempo totale caso peggiore: 20+ secondi
 ```
 
-2. Sostituire il div con `blur-3xl` (linee 66-71) con gradiente statico:
-```tsx
-// PRIMA (GPU Killer)
-<div 
-  className="absolute inset-0 opacity-30 blur-3xl"
-  style={{ 
-    background: `radial-gradient(circle at 50% 30%, ${primary} 0%, transparent 60%)` 
-  }}
-/>
+### Soluzione: Promise.any Racing Pattern
+Implementare il pattern proposto con miglioramenti:
 
-// DOPO (Statico, senza blur)
-<div 
-  className="absolute inset-0 opacity-20"
-  style={{ 
-    background: `linear-gradient(180deg, ${primary} 0%, rgba(18,18,18,0.8) 50%, #121212 100%)` 
-  }}
-/>
+```typescript
+// NUOVO fetch-lyrics/index.ts - RACE PATTERN
+
+// 1. Lyrics.ovh (VELOCE, 5s timeout)
+async function fetchLyricsOvh(artist: string, title: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
+  
+  try {
+    const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(artist)}/${encodeURIComponent(title)}`;
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeout);
+    
+    if (res.ok) {
+      const data = await res.json();
+      if (data.lyrics?.length > 50) {
+        console.log('[Race] Lyrics.ovh WINNER');
+        return cleanLyrics(data.lyrics);
+      }
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+// 2. Genius (via Jina, 8s timeout)
+async function fetchGenius(artist: string, title: string, apiKey: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  
+  try {
+    // Search
+    const searchUrl = `https://api.genius.com/search?q=${encodeURIComponent(`${artist} ${title}`)}`;
+    const searchRes = await fetch(searchUrl, { 
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      signal: controller.signal 
+    });
+    
+    if (!searchRes.ok) return null;
+    const searchData = await searchRes.json();
+    const hit = searchData.response?.hits?.[0]?.result;
+    if (!hit?.url) return null;
+    
+    // Jina scraping
+    const jinaRes = await fetch(`https://r.jina.ai/${hit.url}`, {
+      signal: controller.signal,
+      headers: { 'Accept': 'text/markdown' }
+    });
+    clearTimeout(timeout);
+    
+    if (jinaRes.ok) {
+      const text = await jinaRes.text();
+      const lyrics = extractLyricsFromMarkdown(text);
+      if (lyrics.length > 100) {
+        console.log('[Race] Genius WINNER');
+        return lyrics;
+      }
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+// 3. Musixmatch (8s timeout)
+async function fetchMusixmatch(artist: string, title: string): Promise<string | null> {
+  // ... existing logic with 8s timeout
+}
+
+// MAIN HANDLER - RACE!
+serve(async (req) => {
+  // ... setup ...
+  
+  const promises = [
+    fetchLyricsOvh(artist, title),
+    GENIUS_KEY ? fetchGenius(artist, title, GENIUS_KEY) : Promise.resolve(null),
+    fetchMusixmatch(artist, title)
+  ];
+  
+  try {
+    // Promise.any: first success wins!
+    const lyrics = await Promise.any(
+      promises.map(p => p.then(res => {
+        if (!res) throw new Error('Empty');
+        return res;
+      }))
+    );
+    
+    return new Response(JSON.stringify({ success: true, lyrics }), { ... });
+  } catch {
+    return new Response(JSON.stringify({ success: false, error: 'Lyrics not found' }), { ... });
+  }
+});
 ```
+
+### Impatto
+- Latenza media: 20s → 3-5s (riduzione 75%)
+- Primo provider che risponde vince
 
 ---
 
-## INTERVENTO 2: RENDER FIX - Stabilizzazione Index Provider
+## PROBLEMA 2: Retry Fallisce Dopo Errore Quiz
 
-### File: `src/pages/Index.tsx`
+### Causa
+Quando l'utente fallisce il quiz e ritorna, `generate-qa` cerca in `content_cache` ma:
+1. Se il primo fetch di lyrics ha fallito, il cache è vuoto
+2. Il secondo tentativo ricrea la stessa race che potrebbe fallire di nuovo
 
-### Problema Identificato
-Linea 236: l'oggetto `policy={{...}}` viene ricreato a ogni render di `Index.tsx`, causando re-render inutili di tutto il tree sotto `CGProvider`:
+### Soluzione: Negative Caching + Retry Backoff
 
-```tsx
-<CGProvider policy={{ minReadSeconds: 10, minScrollRatio: 0.8, passingRule: ">=2_of_3" }}>
-```
+```typescript
+// In fetch-article-preview/index.ts - SPOTIFY HANDLING
 
-Ogni volta che React confronta le props, trova un nuovo oggetto (referenza diversa) e forza il re-render.
-
-### Soluzione
-Estrarre la policy come costante fuori dal componente per garantire referenza stabile.
-
-**Modifiche:**
-
-1. Aggiungere costante PRIMA della definizione del componente (sopra linea 14):
-```tsx
-// Stable policy object - prevents CGProvider re-renders
-const FEED_POLICY = { 
-  minReadSeconds: 10, 
-  minScrollRatio: 0.8, 
-  passingRule: ">=2_of_3" 
-} as const;
-
-const Index = () => {
-  // ...
-```
-
-2. Modificare linea 236 per usare la costante:
-```tsx
-// PRIMA
-<CGProvider policy={{ minReadSeconds: 10, minScrollRatio: 0.8, passingRule: ">=2_of_3" }}>
-
-// DOPO
-<CGProvider policy={FEED_POLICY}>
-```
-
----
-
-## INTERVENTO 3: SHADOW FIX - Alleggerimento Post Standard
-
-### File: `src/components/feed/SourceImageWithFallback.tsx`
-
-### Problema Identificato
-Linea 63: l'ombra complessa `shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_20px_rgba(0,0,0,0.3)]` viene calcolata per ogni card durante lo scroll:
-
-```tsx
-<div className="relative mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_20px_rgba(0,0,0,0.3)] h-40 sm:h-48">
-```
-
-Le box-shadow multi-layer con blur ampio sono computazionalmente costose.
-
-### Soluzione
-Sostituire con classe Tailwind standard ottimizzata, mantenendo il look premium.
-
-**Modifica linea 63:**
-```tsx
-// PRIMA (ombra complessa)
-<div className="relative mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_20px_rgba(0,0,0,0.3)] h-40 sm:h-48">
-
-// DOPO (shadow standard ottimizzata)
-<div className="relative mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-xl h-40 sm:h-48">
-```
-
-**Nota:** `shadow-xl` in Tailwind corrisponde a:
-```css
-box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-```
-Visivamente simile ma con calcolo GPU ottimizzato. Il `border border-white/10` preserva il look premium.
-
----
-
-## INTERVENTO 4: NETWORK - Prefetch & Caching Aggressivo
-
-### 4A. Metadata Caching
-
-**File: `src/hooks/useArticlePreview.ts`**
-
-### Problema Identificato
-Linee 43-44: staleTime di 30 minuti è troppo breve per metadata che non cambiano mai nella sessione:
-```tsx
-staleTime: 1000 * 60 * 30, // 30 minutes
-gcTime: 1000 * 60 * 60,    // 1 hour
-```
-
-### Soluzione
-Portare a `staleTime: Infinity` per evitare refetch inutili.
-
-**Modifiche linee 43-44:**
-```tsx
-// PRIMA
-staleTime: 1000 * 60 * 30, // 30 minutes cache
-gcTime: 1000 * 60 * 60,    // 1 hour in memory
-
-// DOPO
-staleTime: Infinity,              // Never refetch automatically in session
-gcTime: 1000 * 60 * 60,           // 1 hour in memory
-```
-
-**Aggiornare anche prefetch (linea 88):**
-```tsx
-// PRIMA
-staleTime: 1000 * 60 * 30,
-
-// DOPO  
-staleTime: Infinity,
-```
-
----
-
-### 4B. Image Prefetch Ottimizzato
-
-**File: `src/pages/Feed.tsx`**
-
-### Problema Identificato
-Linee 96-100: il prefetch delle immagini usa l'URL originale senza ottimizzazione Supabase:
-```tsx
-const nextItem = mixedFeedRef.current[index + 1];
-if (nextItem?.type === 'post' && nextItem.data.preview_img) {
-  const img = new Image();
-  img.src = nextItem.data.preview_img;  // ❌ URL originale (potenzialmente 4K)
+// Dopo il fetch lyrics
+if (lyricsResult) {
+  lyricsAvailable = true;
+  await cacheContentServerSide(supabase, url, 'spotify', lyricsResult.lyrics);
+} else {
+  // NEGATIVE CACHE: salva che non abbiamo trovato lyrics
+  // Evita retry infiniti
+  await supabase.from('content_cache').upsert({
+    source_url: url,
+    source_type: 'spotify',
+    content_text: '', // EMPTY = unavailable
+    title: trackTitle,
+    expires_at: new Date(Date.now() + 1000 * 60 * 30).toISOString() // 30 min TTL for negative
+  }, { onConflict: 'source_url' });
+  
+  console.log('[Spotify] Negative cache set: lyrics unavailable');
 }
 ```
 
-### Soluzione
-Applicare la stessa trasformazione usata da `ProgressiveImage` per prefetchare immagini ottimizzate.
+```typescript
+// In generate-qa/index.ts - Check cache first
 
-**Modifiche:**
-
-1. Aggiungere helper function (dopo le import, linea ~27):
-```tsx
-// Helper to get optimized Supabase image URL for prefetch
-const getOptimizedImageUrl = (src: string | undefined): string | undefined => {
-  if (!src) return undefined;
-  const isSupabaseStorage = src.includes('.supabase.co/storage/') || src.includes('supabase.co/storage/');
-  if (!isSupabaseStorage) return src;
-  if (src.includes('width=') || src.includes('resize=')) return src;
-  const separator = src.includes('?') ? '&' : '?';
-  return `${src}${separator}width=600&resize=contain&quality=75`;
-};
+case 'spotifyId': {
+  const spotifyUrl = `https://open.spotify.com/track/${qaSourceRef.id}`;
+  const { data: cached } = await supabase
+    .from('content_cache')
+    .select('content_text')
+    .eq('source_url', spotifyUrl)
+    .gt('expires_at', new Date().toISOString())
+    .maybeSingle();
+  
+  if (cached) {
+    if (cached.content_text && cached.content_text.length > 50) {
+      serverSideContent = cached.content_text;
+      contentSource = 'content_cache';
+    } else {
+      // NEGATIVE CACHE HIT: lyrics sono already known unavailable
+      console.log('[generate-qa] Negative cache hit for Spotify - lyrics unavailable');
+      // Skip expensive re-fetch, return insufficient_context immediately
+      return new Response(
+        JSON.stringify({ insufficient_context: true }),
+        { headers: corsHeaders }
+      );
+    }
+  } else {
+    // Only try fresh fetch if not in cache at all
+    // ... existing fetch logic
+  }
+  break;
+}
 ```
 
-2. Modificare prefetch in handleActiveIndexChange (linee 96-100):
-```tsx
-// PRIMA
-if (nextItem?.type === 'post' && nextItem.data.preview_img) {
-  const img = new Image();
-  img.src = nextItem.data.preview_img;
-}
+### Impatto
+- Elimina retry inutili dopo fallimento
+- TTL di 30min per negative cache (permette retry manuale dopo)
 
-// DOPO
-if (nextItem?.type === 'post' && nextItem.data.preview_img) {
-  const img = new Image();
-  img.src = getOptimizedImageUrl(nextItem.data.preview_img) || nextItem.data.preview_img;
+---
+
+## PROBLEMA 3: Spotify API Calls Sequenziali (3-7s overhead)
+
+### Stato Attuale (linee 1095-1155)
+```
+getSpotifyAccessToken() → fetchSpotifyTrackMetadata() → fetchSpotifyAudioFeatures() → fetchLyricsFromGeniusServerSide()
+```
+Tutte sequenziali.
+
+### Soluzione: Parallel Fetching
+
+```typescript
+// In fetch-article-preview/index.ts - SPOTIFY HANDLING
+
+if (spotifyInfo) {
+  try {
+    // 1. oEmbed (always needed, quick)
+    const oembedUrl = `https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`;
+    const oembedResponse = await fetch(oembedUrl);
+    const oembedData = await oembedResponse.json();
+    
+    // 2. PARALLEL: token + all metadata calls
+    if (spotifyInfo.type === 'track') {
+      const accessToken = await getSpotifyAccessToken();
+      
+      if (accessToken) {
+        // PARALLEL execution of metadata + features + lyrics
+        const [trackMetadata, audioFeatures, lyricsResult] = await Promise.allSettled([
+          fetchSpotifyTrackMetadata(spotifyInfo.id, accessToken),
+          fetchSpotifyAudioFeatures(spotifyInfo.id, accessToken),
+          fetchLyricsFromGeniusServerSide(oembedData.author_name || '', oembedData.title || '')
+        ]);
+        
+        // Extract results safely
+        const metadata = trackMetadata.status === 'fulfilled' ? trackMetadata.value : null;
+        const features = audioFeatures.status === 'fulfilled' ? audioFeatures.value : null;
+        const lyrics = lyricsResult.status === 'fulfilled' ? lyricsResult.value : null;
+        
+        // Merge data
+        artist = metadata?.artist || oembedData.author_name || '';
+        trackTitle = metadata?.title || oembedData.title || '';
+        trackPopularity = metadata?.popularity;
+        audioFeaturesData = features;
+        
+        if (lyrics?.lyrics && supabase) {
+          lyricsAvailable = true;
+          await cacheContentServerSide(supabase, url, 'spotify', lyrics.lyrics);
+        }
+      }
+    }
+    // ... rest of response
+  }
+}
+```
+
+### Impatto
+- Latenza Spotify: 7s → 3s (parallel execution)
+- AudioFeatures e Lyrics non bloccano più il metadata fetch
+
+---
+
+## PROBLEMA 4: Lentezza Generalizzata per Altri Contenuti
+
+### Estensione a YouTube
+
+```typescript
+// In fetch-article-preview/index.ts - YOUTUBE HANDLING
+
+if (youtubeId) {
+  // PARALLEL: oEmbed + cache check
+  const [oembedResult, cacheResult] = await Promise.allSettled([
+    fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`),
+    supabase?.from('youtube_transcripts_cache')
+      .select('transcript')
+      .eq('video_id', youtubeId)
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle()
+  ]);
+  
+  // ... process results
+}
+```
+
+### Estensione a LinkedIn/Twitter (Jina + Firecrawl Race)
+
+```typescript
+// RACE between Jina and Firecrawl for social content
+if (socialPlatform === 'linkedin') {
+  const contentPromises = [
+    fetchSocialWithJina(url, 'linkedin'),
+    FIRECRAWL_KEY ? fetchFirecrawl(url) : Promise.resolve(null)
+  ];
+  
+  try {
+    const content = await Promise.any(
+      contentPromises.map(p => p.then(res => {
+        if (!res?.content || res.content.length < 300) throw new Error('Insufficient');
+        return res;
+      }))
+    );
+    // First good result wins
+  } catch {
+    // All failed, use OG fallback
+  }
 }
 ```
 
 ---
 
-## Riepilogo Modifiche
+## RIEPILOGO MODIFICHE
 
-| File | Intervento | Linee |
-|------|-----------|-------|
-| `SpotifyGradientBackground.tsx` | GPU: Rimuovere blur-3xl e transition | 58, 66-71 |
-| `Index.tsx` | RENDER: Costante FEED_POLICY | 14, 236 |
-| `SourceImageWithFallback.tsx` | SHADOW: shadow-xl standard | 63 |
-| `useArticlePreview.ts` | NETWORK: staleTime Infinity | 43-44, 88 |
-| `Feed.tsx` | NETWORK: Prefetch immagini ottimizzate | 27, 96-100 |
-
----
-
-## Impatto Atteso
-
-| Intervento | Metrica | Miglioramento |
-|------------|---------|---------------|
-| GPU Fix (Spotify) | GPU composite time | -50% durante scroll su Spotify content |
-| Render Fix (Provider) | React re-renders | -100% re-render inutili su Index |
-| Shadow Fix | Box-shadow calculation | -30% per card |
-| Network Caching | API calls | -100% refetch metadata dopo primo load |
-| Image Prefetch | Bandwidth | -40-60% per immagine prefetch |
+| File | Modifica | Impatto |
+|------|----------|---------|
+| `supabase/functions/fetch-lyrics/index.ts` | Promise.any racing pattern | -75% latenza |
+| `supabase/functions/fetch-article-preview/index.ts` | Parallel Spotify API calls | -60% latenza |
+| `supabase/functions/fetch-article-preview/index.ts` | Negative caching | Elimina retry inutili |
+| `supabase/functions/generate-qa/index.ts` | Negative cache check | Fast-fail per lyrics unavailable |
+| `supabase/functions/fetch-article-preview/index.ts` | YouTube parallel fetch | -40% latenza |
+| `supabase/functions/fetch-article-preview/index.ts` | LinkedIn/Twitter race | -50% latenza |
 
 ---
 
-## Note Tecniche
+## IMPATTO ATTESO
+
+| Scenario | Prima | Dopo |
+|----------|-------|------|
+| Spotify (lyrics trovati) | 7-22s | 3-5s |
+| Spotify (lyrics non trovati) | 20s + errore | 5s + negative cache |
+| Retry dopo errore quiz | 20s | Immediato (negative cache) |
+| YouTube metadata | 3-5s | 1-2s |
+| LinkedIn/Twitter | 5-10s | 2-4s |
+
+---
+
+## NOTE TECNICHE
+
+### Promise.any vs Promise.race
+- `Promise.any`: aspetta il PRIMO SUCCESS, ignora rejects
+- `Promise.race`: ritorna il PRIMO result (anche errore)
+- Usiamo `Promise.any` per i provider lyrics
+
+### Negative Caching
+- TTL breve (30 min) per permettere retry manuale
+- Evita loop infiniti di retry
+- Indica chiaramente all'utente che i lyrics non sono disponibili
 
 ### Compatibilità
-- Tutti gli interventi sono backward-compatible
 - Nessun breaking change alle API
-- L'estetica Spotify viene preservata (gradiente statico simula il glow)
-- Il look premium delle card è mantenuto con `shadow-xl` + `border-white/10`
-
-### Vincoli Rispettati
-- Sliding window virtualization invariata
-- Snap scroll invariato
-- `React.memo` continua a funzionare correttamente dopo stabilizzazione policy
+- Le risposte mantengono la stessa struttura
+- Il frontend non richiede modifiche
