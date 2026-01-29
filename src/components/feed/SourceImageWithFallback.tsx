@@ -60,7 +60,7 @@ export function SourceImageWithFallback({
   }
 
   return (
-    <div className="relative mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_20px_rgba(0,0,0,0.3)] h-40 sm:h-48">
+    <div className="relative mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-xl h-40 sm:h-48">
       {/* Skeleton overlay while loading */}
       {!loaded && (
         <Skeleton className="absolute inset-0 bg-white/5" />

@@ -40,8 +40,8 @@ export function useArticlePreview(url: string | null | undefined) {
       }
     },
     enabled: !!url,
-    staleTime: 1000 * 60 * 30, // 30 minutes cache
-    gcTime: 1000 * 60 * 60,    // 1 hour in memory
+    staleTime: Infinity,              // Never refetch automatically in session
+    gcTime: 1000 * 60 * 60,           // 1 hour in memory
     retry: 1,
   });
 }
@@ -85,7 +85,7 @@ export function prefetchArticlePreviews(
           return null;
         }
       },
-      staleTime: 1000 * 60 * 30,
+      staleTime: Infinity,
     });
   });
 }
