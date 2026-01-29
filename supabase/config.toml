@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.get-trending-topics]
 verify_jwt = false
+
+[functions.extract-media-text]
+verify_jwt = false

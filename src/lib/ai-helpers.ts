@@ -29,7 +29,7 @@ export interface ValidationResult {
 
 // QA Source Reference for server-side content fetching
 export interface QASourceRef {
-  kind: 'url' | 'youtubeId' | 'spotifyId' | 'tweetId';
+  kind: 'url' | 'youtubeId' | 'spotifyId' | 'tweetId' | 'mediaId';
   id: string;
   url?: string;
 }

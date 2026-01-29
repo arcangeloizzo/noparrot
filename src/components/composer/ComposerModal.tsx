@@ -108,10 +108,36 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const [cursorPosition, setCursorPosition] = useState(0);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [intentMode, setIntentMode] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
-  const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading } = useMediaUpload();
+  const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading, requestTranscription, refreshMediaStatus } = useMediaUpload();
   const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
+
+  // Polling for media extraction status
+  useEffect(() => {
+    const pendingMedia = uploadedMedia.filter(m => m.extracted_status === 'pending');
+    if (pendingMedia.length === 0) return;
+    
+    const interval = setInterval(() => {
+      pendingMedia.forEach(m => refreshMediaStatus(m.id));
+    }, 2000); // Poll ogni 2 secondi
+    
+    return () => clearInterval(interval);
+  }, [uploadedMedia, refreshMediaStatus]);
+
+  // Handler per trascrizione video
+  const handleRequestTranscription = async (mediaId: string) => {
+    setIsTranscribing(true);
+    try {
+      const success = await requestTranscription(mediaId);
+      if (success) {
+        toast.info('Trascrizione in corso...');
+      }
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
 
   // Intent gate: require 30+ words when in intent mode (excluding URL from count)
   const wordCount = getWordCount(content);
@@ -119,7 +145,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const textWithoutUrl = detectedUrl ? content.replace(detectedUrl, '').trim() : content;
   const intentWordCount = getWordCount(textWithoutUrl);
   const intentWordsMet = !intentMode || intentWordCount >= 30;
-  const canPublish = (content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!quotedPost) && intentWordsMet;
+  const hasPendingExtraction = uploadedMedia.some(m => m.extracted_status === 'pending');
+  const canPublish = !hasPendingExtraction && (content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!quotedPost) && intentWordsMet;
   const isLoading = isPublishing || isGeneratingQuiz || isFinalizingPublish;
 
   // Gate status indicator (real-time feedback)
@@ -1170,6 +1197,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                 <MediaPreviewTray
                   media={uploadedMedia}
                   onRemove={removeMedia}
+                  onRequestTranscription={handleRequestTranscription}
+                  isTranscribing={isTranscribing}
                 />
               )}
 
