@@ -346,7 +346,7 @@ export default function MessageThread() {
                 </div>
               ) : (
                 <button 
-                  onClick={() => navigate(`/user/${displayProfile.id}`)}
+                  onClick={() => navigate(`/profile/${displayProfile.id}`)}
                   className="flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
                 >
                   <p className="font-semibold truncate text-sm">
