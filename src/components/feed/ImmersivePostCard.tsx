@@ -1578,6 +1578,8 @@ const ImmersivePostCardInner = ({
                       isIntent={post.is_intent}
                       trustScore={displayTrustScore}
                       hideOverlay={true}
+                      platform={articlePreview?.platform}
+                      hostname={getHostnameFromUrl(post.shared_url)}
                     />
                     
                     <div className="w-12 h-1 bg-white/30 rounded-full mb-4" />
@@ -1660,6 +1662,8 @@ const ImmersivePostCardInner = ({
                     sharedUrl={finalSourceUrl}
                     isIntent={post.is_intent}
                     trustScore={displayTrustScore}
+                    platform={articlePreview?.platform}
+                    hostname={getHostnameFromUrl(finalSourceUrl)}
                   />
                   
                   {/* Source Title */}
