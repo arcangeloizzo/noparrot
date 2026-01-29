@@ -246,16 +246,37 @@ const ImmersivePostCardInner = ({
   
   // Build article preview with fallbacks - use 'any' for compatibility with existing code
   const articlePreview: any = useMemo(() => {
+    // Priority 1: Use articlePreviewData if it has an image
+    if (articlePreviewData?.image) {
+      return articlePreviewData;
+    }
+    
+    // Priority 2: Use DB-stored preview_img as fallback (denormalized at publish time)
+    const dbImage = post.preview_img || quotedPost?.preview_img;
+    if (dbImage) {
+      return {
+        ...(articlePreviewData || {}),
+        platform: articlePreviewData?.platform || (urlToPreview ? detectPlatformFromUrl(urlToPreview) : undefined),
+        title: articlePreviewData?.title || post.shared_title || quotedPost?.shared_title || getHostnameFromUrl(urlToPreview),
+        description: articlePreviewData?.description || '',
+        image: dbImage,
+        previewImg: dbImage,
+      };
+    }
+    
+    // Priority 3: articlePreviewData without image (still useful for title/description)
     if (articlePreviewData) {
       return articlePreviewData;
     }
+    
     if (!urlToPreview) return null;
+    
     // Fallback to basic info if hook hasn't resolved yet
     return {
       platform: detectPlatformFromUrl(urlToPreview),
       title: post.shared_title || quotedPost?.shared_title || getHostnameFromUrl(urlToPreview),
       description: '',
-      image: post.preview_img || quotedPost?.preview_img || '',
+      image: '',
     };
   }, [articlePreviewData, urlToPreview, post.shared_title, post.preview_img, quotedPost?.shared_title, quotedPost?.preview_img]);
   
@@ -288,6 +309,18 @@ const ImmersivePostCardInner = ({
   // Caption expansion state for long Instagram/social captions
   const [showFullCaption, setShowFullCaption] = useState(false);
   const CAPTION_TRUNCATE_LENGTH = 120;
+
+  // Trigger refetch for missing preview images on active cards
+  // This helps recover from temporary extraction failures
+  useEffect(() => {
+    if (isNearActive && !isPreviewLoading && urlToPreview && !articlePreview?.image && !post.preview_img) {
+      // Only invalidate if we have a URL but no image after loading
+      const timeout = setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['article-preview', urlToPreview] });
+      }, 2000); // Wait 2s before retrying to avoid rapid-fire requests
+      return () => clearTimeout(timeout);
+    }
+  }, [isNearActive, isPreviewLoading, urlToPreview, articlePreview?.image, post.preview_img, queryClient]);
 
   // Fetch editorial summary for legacy posts (without article_content stored)
   useEffect(() => {

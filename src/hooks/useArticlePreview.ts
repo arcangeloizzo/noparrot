@@ -40,8 +40,9 @@ export function useArticlePreview(url: string | null | undefined) {
       }
     },
     enabled: !!url,
-    staleTime: Infinity,              // Never refetch automatically in session
+    staleTime: 1000 * 60 * 5,         // 5 minutes - allow refetch if data might be stale
     gcTime: 1000 * 60 * 60,           // 1 hour in memory
+    refetchOnWindowFocus: false,      // Don't refetch on tab focus
     retry: 1,
   });
 }
