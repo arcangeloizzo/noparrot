@@ -150,8 +150,8 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
       
       {/* Swipe hint - stile testuale, più grande */}
       <div className="mt-12 flex items-center gap-3">
-        <span className="text-white/60 text-lg">←</span>
         <span className="text-base text-white/60 font-medium">Scorri per continuare</span>
+        <span className="text-white/60 text-lg">←</span>
       </div>
     </div>
   );
