@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Logo } from "@/components/ui/logo";
+import { LogoVertical } from "@/components/ui/LogoVertical";
 import { Button } from "@/components/ui/button";
 import { SlideToUnlock } from "./SlideToUnlock";
 import { Lock, Check, PenLine, Sparkles, Hand } from "lucide-react";
@@ -97,7 +97,7 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
   const SlideNemico = () => (
     <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
       {/* Logo grande - aspect ratio preserved */}
-      <Logo variant="icon" size="xl" className="w-auto h-32 mb-12" />
+      <LogoVertical className="w-auto h-32 mb-12" />
       
       {/* Titolo */}
       <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-6">
