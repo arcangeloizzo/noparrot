@@ -72,6 +72,48 @@ function isValidExternalUrl(url: string): { valid: boolean; reason?: string } {
 }
 
 // ============================================================================
+// URL NORMALIZATION FOR CONSISTENT CACHE KEYS
+// ============================================================================
+// Removes tracking parameters, normalizes protocol/hostname for reliable cache hits
+const TRACKING_PARAMS = new Set([
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'utm_id',
+  'fbclid', 'gclid', 'gclsrc', 'msclkid', 'dclid', 'igshid', 'twclid', 'ttclid', 'ref'
+]);
+
+function safeNormalizeUrl(rawUrl: string): string {
+  try {
+    const url = new URL(rawUrl.trim());
+    url.protocol = 'https:';
+    url.hostname = url.hostname.toLowerCase().replace(/^www\./, '');
+    url.hash = '';
+    
+    const cleanParams = new URLSearchParams();
+    const entries = Array.from(url.searchParams.entries())
+      .filter(([key]) => {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.startsWith('utm_')) return false;
+        return !TRACKING_PARAMS.has(lowerKey);
+      })
+      .sort(([a], [b]) => a.localeCompare(b));
+    
+    for (const [key, value] of entries) {
+      cleanParams.set(key, value);
+    }
+    url.search = cleanParams.toString();
+    
+    let path = url.pathname;
+    if (path.length > 1 && path.endsWith('/')) {
+      path = path.slice(0, -1);
+    }
+    url.pathname = path;
+    
+    return url.toString();
+  } catch {
+    return rawUrl.trim();
+  }
+}
+
+// ============================================================================
 // SOURCE-FIRST READER REFACTORING
 // ============================================================================
 // This edge function now:
@@ -683,7 +725,8 @@ async function cacheContentServerSide(
   sourceUrl: string,
   sourceType: string,
   contentText: string,
-  title?: string
+  title?: string,
+  imageUrl?: string
 ): Promise<void> {
   if (!contentText || contentText.length < 50) {
     console.log(`[Cache] Skipping cache for ${sourceUrl}: content too short`);
@@ -694,22 +737,33 @@ async function cacheContentServerSide(
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // 7 days TTL
     
+    // Normalize URL for consistent cache key
+    const normalizedUrl = safeNormalizeUrl(sourceUrl);
+    
+    // Extract hostname for quick display
+    let metaHostname = '';
+    try {
+      metaHostname = new URL(sourceUrl).hostname.replace(/^www\./, '');
+    } catch {}
+    
     const { error } = await supabase
       .from('content_cache')
       .upsert({
-        source_url: sourceUrl,
+        source_url: normalizedUrl,
         source_type: sourceType,
         content_text: contentText,
         title: title || null,
+        meta_image_url: imageUrl || null,
+        meta_hostname: metaHostname || null,
         expires_at: expiresAt.toISOString()
       }, {
         onConflict: 'source_url'
       });
     
     if (error) {
-      console.error(`[Cache] Failed to cache content for ${sourceUrl}:`, error.message);
+      console.error(`[Cache] Failed to cache content for ${normalizedUrl}:`, error.message);
     } else {
-      console.log(`[Cache] ✅ Cached ${contentText.length} chars for ${sourceUrl}`);
+      console.log(`[Cache] ✅ Cached ${contentText.length} chars for ${normalizedUrl} (img: ${!!imageUrl})`);
     }
   } catch (err) {
     console.error(`[Cache] Exception caching content:`, err);
@@ -753,6 +807,58 @@ serve(async (req) => {
     
     if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    }
+
+    // ========================================================================
+    // CACHE-FIRST: Check if we have cached metadata before any external fetch
+    // ========================================================================
+    if (supabase) {
+      const normalizedUrl = safeNormalizeUrl(url);
+      console.log(`[Cache] Checking cache for: ${normalizedUrl}`);
+      
+      const { data: cached, error: cacheErr } = await supabase
+        .from('content_cache')
+        .select('title, content_text, meta_image_url, source_type, meta_hostname')
+        .eq('source_url', normalizedUrl)
+        .gt('expires_at', new Date().toISOString())
+        .maybeSingle();
+      
+      if (!cacheErr && cached && cached.title) {
+        console.log(`[Cache] ✅ HIT for ${normalizedUrl}: "${cached.title?.slice(0, 40)}..."`);
+        
+        // Determine platform from source_type
+        const platformMap: Record<string, string> = {
+          'youtube': 'youtube',
+          'spotify': 'spotify',
+          'twitter': 'twitter',
+          'linkedin': 'linkedin',
+          'tiktok': 'tiktok',
+          'threads': 'threads',
+          'article': 'generic',
+        };
+        const platform = platformMap[cached.source_type] || 'generic';
+        
+        return new Response(JSON.stringify({
+          success: true,
+          title: cached.title,
+          summary: cached.content_text?.substring(0, 300) || '',
+          image: cached.meta_image_url || '',
+          previewImg: cached.meta_image_url || '',
+          platform,
+          type: cached.source_type === 'spotify' ? 'audio' : 'article',
+          hostname: cached.meta_hostname || hostname,
+          contentQuality: 'complete',
+          fromCache: true,
+          iframeAllowed: true,
+          qaSourceRef: { kind: 'url', id: url, url }
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } else if (cacheErr) {
+        console.log(`[Cache] Query error: ${cacheErr.message}`);
+      } else {
+        console.log(`[Cache] MISS for ${normalizedUrl}`);
+      }
     }
 
     // Helper to detect generic/useless social titles
@@ -1799,14 +1905,15 @@ serve(async (req) => {
         articleContent = paragraphs.join('\n\n');
       }
       
-      // Cache content server-side
+      // Cache content server-side (include image URL)
       if (articleContent && supabase) {
         await cacheContentServerSide(
           supabase,
           url,
           'article',
           articleContent,
-          title
+          title,
+          image
         );
       }
       
