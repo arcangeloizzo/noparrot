@@ -1585,16 +1585,18 @@ const ImmersivePostCardInner = ({
                       }
                     }}
                   >
-                    {/* Visible Metadata Image - Use SourceImageWithFallback to handle broken/Instagram images */}
-                    <SourceImageWithFallback
-                      src={articlePreview?.image || post.preview_img}
-                      sharedUrl={post.shared_url}
-                      isIntent={post.is_intent}
-                      trustScore={displayTrustScore}
-                      hideOverlay={true}
-                      platform={articlePreview?.platform}
-                      hostname={getHostnameFromUrl(post.shared_url)}
-                    />
+                    {/* Visible Metadata Image - Hide for Intent posts (show only background color) */}
+                    {!post.is_intent && (
+                      <SourceImageWithFallback
+                        src={articlePreview?.image || post.preview_img}
+                        sharedUrl={post.shared_url}
+                        isIntent={post.is_intent}
+                        trustScore={displayTrustScore}
+                        hideOverlay={true}
+                        platform={articlePreview?.platform}
+                        hostname={getHostnameFromUrl(post.shared_url)}
+                      />
+                    )}
                     
                     <div className="w-12 h-1 bg-white/30 rounded-full mb-4" />
                     {/* Caption/Title with truncation for long social captions */}
@@ -1624,9 +1626,17 @@ const ImmersivePostCardInner = ({
                         </div>
                       );
                     })()}
-                    <div className="flex items-center gap-2 text-white/70 mb-4">
-                      <ExternalLink className="w-3 h-3" />
-                      <span className="text-xs uppercase font-bold tracking-widest">
+                    <div className={cn(
+                      "flex items-center text-white/70 mb-4",
+                      post.is_intent ? "gap-1" : "gap-2"
+                    )}>
+                      <ExternalLink className={cn(
+                        post.is_intent ? "w-2.5 h-2.5" : "w-3 h-3"
+                      )} />
+                      <span className={cn(
+                        "uppercase font-bold tracking-widest",
+                        post.is_intent ? "text-[10px]" : "text-xs"
+                      )}>
                         {getHostnameFromUrl(post.shared_url)}
                       </span>
                     </div>
@@ -1670,23 +1680,33 @@ const ImmersivePostCardInner = ({
                     window.open(finalSourceUrl, '_blank', 'noopener,noreferrer');
                   }}
                 >
-                  {/* Source Image - with error handling for broken images */}
-                  <SourceImageWithFallback
-                    src={articlePreview?.image || finalSourceImage}
-                    sharedUrl={finalSourceUrl}
-                    isIntent={post.is_intent}
-                    trustScore={displayTrustScore}
-                    platform={articlePreview?.platform}
-                    hostname={getHostnameFromUrl(finalSourceUrl)}
-                  />
+                  {/* Source Image - Hide for Intent posts (show only background color) */}
+                  {!post.is_intent && (
+                    <SourceImageWithFallback
+                      src={articlePreview?.image || finalSourceImage}
+                      sharedUrl={finalSourceUrl}
+                      isIntent={post.is_intent}
+                      trustScore={displayTrustScore}
+                      platform={articlePreview?.platform}
+                      hostname={getHostnameFromUrl(finalSourceUrl)}
+                    />
+                  )}
                   
                   {/* Source Title */}
                   <h1 className="text-lg font-semibold text-white leading-tight mb-1 drop-shadow-xl">
                     {articlePreview?.title || finalSourceTitle || getHostnameFromUrl(finalSourceUrl)}
                   </h1>
-                  <div className="flex items-center gap-2 text-white/60">
-                    <ExternalLink className="w-3 h-3" />
-                    <span className="text-xs uppercase tracking-widest">
+                  <div className={cn(
+                    "flex items-center text-white/60",
+                    post.is_intent ? "gap-1" : "gap-2"
+                  )}>
+                    <ExternalLink className={cn(
+                      post.is_intent ? "w-2.5 h-2.5" : "w-3 h-3"
+                    )} />
+                    <span className={cn(
+                      "uppercase tracking-widest",
+                      post.is_intent ? "text-[10px]" : "text-xs"
+                    )}>
                       {getHostnameFromUrl(finalSourceUrl)}
                     </span>
                   </div>
