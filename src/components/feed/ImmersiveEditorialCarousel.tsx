@@ -575,7 +575,7 @@ const EditorialSlideInner = ({
                 
                 {/* Like */}
                 <button 
-                  className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                  className="flex items-center justify-center gap-1.5 h-full px-2"
                   onClick={(e) => {
                     e.stopPropagation();
                     haptics.light();
@@ -584,7 +584,7 @@ const EditorialSlideInner = ({
                 >
                   <Heart 
                     className={cn(
-                      "w-5 h-5",
+                      "w-5 h-5 transition-transform active:scale-90",
                       reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-white"
                     )}
                     fill={reactionsData?.likedByMe ? "currentColor" : "none"}
@@ -596,14 +596,14 @@ const EditorialSlideInner = ({
 
                 {/* Comments */}
                 <button 
-                  className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                  className="flex items-center justify-center gap-1.5 h-full px-2"
                   onClick={(e) => {
                     e.stopPropagation();
                     haptics.light();
                     onComment?.(item);
                   }}
                 >
-                  <MessageCircle className="w-5 h-5 text-white" />
+                  <MessageCircle className="w-5 h-5 text-white transition-transform active:scale-90" />
                   <span className="text-xs font-bold text-white">
                     {item.reactions?.comments ?? 0}
                   </span>
@@ -611,7 +611,7 @@ const EditorialSlideInner = ({
 
                 {/* Bookmark */}
                 <button 
-                  className="flex items-center justify-center h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                  className="flex items-center justify-center h-full px-2"
                   onClick={(e) => {
                     e.stopPropagation();
                     haptics.light();
@@ -620,8 +620,8 @@ const EditorialSlideInner = ({
                 >
                   <Bookmark 
                     className={cn(
-                      "w-5 h-5",
-                      isBookmarked ? "text-brand-pink fill-brand-pink" : "text-white"
+                      "w-5 h-5 transition-transform active:scale-90",
+                      isBookmarked ? "text-blue-400 fill-blue-400" : "text-white"
                     )}
                   />
                 </button>
