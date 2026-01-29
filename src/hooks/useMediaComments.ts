@@ -39,10 +39,10 @@ export const useMediaComments = (mediaId: string) => {
       
       if (error) throw error;
       
-      // Fetch authors separately
+      // Fetch authors separately using public_profiles view
       const authorIds = [...new Set(data.map(c => c.author_id))];
       const { data: authors } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, username, full_name, avatar_url')
         .in('id', authorIds);
       

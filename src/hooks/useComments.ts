@@ -43,7 +43,7 @@ export const useComments = (postId: string, sortMode: 'relevance' | 'recent' | '
           parent_id,
           level,
           passed_gate,
-          author:profiles!author_id (
+          author:public_profiles!author_id (
             id,
             username,
             full_name,
