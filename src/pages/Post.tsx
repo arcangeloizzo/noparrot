@@ -24,7 +24,7 @@ export const Post = () => {
         .from('posts')
         .select(`
           *,
-          author:profiles!author_id (
+          author:public_profiles!author_id (
             id,
             username,
             full_name,
