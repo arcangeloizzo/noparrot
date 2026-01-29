@@ -1,301 +1,338 @@
 
+# Piano: App Resume Handler per Session Recovery
 
-# Piano: Integrazione Media OCR nel Comprehension Gate
+## Problema
 
-## Obiettivo
-
-Fare in modo che le immagini con OCR completato (testo estratto sufficiente) attivino il Comprehension Gate (quiz) prima della pubblicazione, mantenendo inalterati tutti i flussi esistenti per link, YouTube, X, LinkedIn, quoted post e reshare.
+Quando l'app torna in primo piano dopo essere stata in background per un periodo prolungato, il token JWT di Supabase potrebbe essere scaduto. Nonostante `autoRefreshToken: true` sia configurato nel client, il refresh automatico non può avvenire mentre l'app è sospesa. Questo causa:
+- Errori di autenticazione (401/403) nelle chiamate API
+- Gate che fallisce perché le edge functions rifiutano il token
+- Query React Query che falliscono silenziosamente
 
 ---
 
-## Analisi del Flusso Attuale
+## Soluzione
+
+Creare un hook globale `useAppLifecycle` che:
+1. Ascolta `visibilitychange` per rilevare il ritorno in primo piano
+2. Esegue un health check della sessione al resume
+3. Tenta il refresh del token se necessario
+4. Invalida le query critiche per garantire dati freschi
+5. Gestisce il logout pulito se la sessione è irrecuperabile
+
+---
+
+## Architettura
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          handlePublish()                                    │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│   ┌─ detectedUrl? ─────────────────────────────────────────────────────────┐│
-│   │                                                                         ││
-│   │   ┌─ intentMode? ────────┐    ┌─ urlPreview ok? ─────────────────────┐ ││
-│   │   │                      │    │                                       │ ││
-│   │   │  publishPost(true)   │    │  showReader=true → Reader → Quiz     │ ││
-│   │   │  (bypass gate)       │    │  → publishPost() dopo quiz pass      │ ││
-│   │   └──────────────────────┘    └───────────────────────────────────────┘ ││
-│   └─────────────────────────────────────────────────────────────────────────┘│
-│                                                                             │
-│   ┌─ NO detectedUrl ───────────────────────────────────────────────────────┐│
-│   │                                                                         ││
-│   │   publishPost() direttamente                                            ││
-│   │   (nessun gate, anche con media OCR!)    ← PROBLEMA                    ││
-│   └─────────────────────────────────────────────────────────────────────────┘│
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+App.tsx
+  └─ QueryClientProvider
+       └─ AuthProvider
+            └─ AppLifecycleHandler  ← NUOVO COMPONENTE
+                 ├─ useAppLifecycle hook
+                 │     ├─ visibilitychange listener
+                 │     ├─ supabase.auth.getSession()
+                 │     ├─ supabase.auth.refreshSession()
+                 │     └─ queryClient.invalidateQueries()
+                 │
+                 └─ Breadcrumb logging per debug
 ```
 
 ---
 
-## Soluzione Proposta
+## Implementazione
 
-Aggiungere un nuovo branch in `handlePublish()` che intercetta i media con OCR completato e genera il quiz direttamente (senza Reader, perché l'utente ha già visto l'immagine).
-
-### Nuovo Flusso
-
-```text
-handlePublish()
-  │
-  ├─ detectedUrl? → [flusso esistente - INVARIATO]
-  │
-  ├─ mediaWithExtractedText? → [NUOVO: genera quiz da mediaId → showQuiz]
-  │
-  └─ else → publishPost() [flusso esistente - INVARIATO]
-```
-
----
-
-## Modifiche Tecniche
-
-### File: `src/components/composer/ComposerModal.tsx`
-
-#### 1. Nuova Helper per Rilevare Media con Testo Estratto
+### File 1: `src/hooks/useAppLifecycle.ts` (NUOVO)
 
 ```typescript
-// Cerca media con OCR/trascrizione completata e testo sufficiente (>120 chars)
-const mediaWithExtractedText = uploadedMedia.find(m => 
-  m.extracted_status === 'done' && 
-  m.extracted_text && 
-  m.extracted_text.length > 120
-);
-```
+import { useEffect, useRef, useCallback } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { addBreadcrumb } from '@/lib/crashBreadcrumbs';
+import { toast } from 'sonner';
 
-#### 2. Aggiornamento `gateStatus` per Feedback UI
+// Query keys critiche da invalidare al resume
+const CRITICAL_QUERY_KEYS = [
+  'posts',
+  'current-profile', 
+  'saved-posts',
+  'notifications',
+  'daily-focus',
+  'message-threads'
+];
 
-Modificare la sezione `gateStatus` per includere i media con OCR:
+// Tempo minimo in background per triggerare il check (30 secondi)
+const MIN_BACKGROUND_TIME_MS = 30_000;
 
-```typescript
-const gateStatus = (() => {
-  // Gate attivo se c'è un URL
-  if (detectedUrl) {
-    return { label: 'Gate attivo', requiresGate: true };
-  }
-  
-  // [NUOVO] Gate attivo se c'è media con testo estratto
-  if (mediaWithExtractedText) {
-    return { 
-      label: mediaWithExtractedText.extracted_kind === 'ocr' 
-        ? 'Gate OCR attivo' 
-        : 'Gate trascrizione attivo', 
-      requiresGate: true 
+export function useAppLifecycle() {
+  const queryClient = useQueryClient();
+  const { user, signOut } = useAuth();
+  const lastHiddenAt = useRef<number | null>(null);
+  const isCheckingSession = useRef(false);
+
+  const handleSessionCheck = useCallback(async () => {
+    // Evita check concorrenti
+    if (isCheckingSession.current) return;
+    isCheckingSession.current = true;
+
+    try {
+      addBreadcrumb('session_check_start');
+      
+      // 1. Prova a ottenere la sessione corrente
+      const { data: { session }, error: getError } = await supabase.auth.getSession();
+      
+      if (getError) {
+        console.error('[useAppLifecycle] getSession error:', getError);
+        addBreadcrumb('session_check_error', { error: getError.message });
+        
+        // Tenta refresh esplicito
+        const { error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError) {
+          console.error('[useAppLifecycle] refreshSession failed:', refreshError);
+          addBreadcrumb('session_refresh_failed', { error: refreshError.message });
+          
+          // Sessione irrecuperabile - logout pulito
+          toast.error('Sessione scaduta. Effettua nuovamente il login.', {
+            duration: 5000,
+            action: {
+              label: 'Login',
+              onClick: () => window.location.href = '/auth'
+            }
+          });
+          await signOut();
+          return;
+        }
+      }
+      
+      // 2. Verifica validità token
+      if (!session) {
+        // Nessuna sessione - non è un errore se l'utente non era loggato
+        if (user) {
+          console.warn('[useAppLifecycle] Session lost while user was logged in');
+          addBreadcrumb('session_lost');
+          toast.error('Sessione scaduta. Effettua nuovamente il login.');
+          await signOut();
+        }
+        return;
+      }
+      
+      // 3. Check esplicito scadenza token
+      const expiresAt = session.expires_at;
+      const now = Math.floor(Date.now() / 1000);
+      const isExpired = expiresAt && expiresAt < now;
+      const isExpiringSoon = expiresAt && (expiresAt - now) < 300; // < 5 minuti
+      
+      if (isExpired || isExpiringSoon) {
+        console.log('[useAppLifecycle] Token expired or expiring soon, refreshing...');
+        addBreadcrumb('session_token_refresh', { isExpired, expiresIn: expiresAt - now });
+        
+        const { error: refreshError } = await supabase.auth.refreshSession();
+        
+        if (refreshError) {
+          console.error('[useAppLifecycle] Token refresh failed:', refreshError);
+          addBreadcrumb('session_refresh_failed', { error: refreshError.message });
+          toast.error('Sessione scaduta. Effettua nuovamente il login.');
+          await signOut();
+          return;
+        }
+        
+        addBreadcrumb('session_refreshed');
+      }
+      
+      // 4. Sessione valida - riprendi mutations pausate e invalida query critiche
+      addBreadcrumb('session_valid');
+      
+      // Resume any paused mutations
+      await queryClient.resumePausedMutations();
+      
+      // Invalidate critical queries to get fresh data
+      for (const key of CRITICAL_QUERY_KEYS) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
+      
+      console.log('[useAppLifecycle] Session check complete, queries invalidated');
+      addBreadcrumb('session_check_complete');
+      
+    } catch (error) {
+      console.error('[useAppLifecycle] Unexpected error:', error);
+      addBreadcrumb('session_check_unexpected_error', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    } finally {
+      isCheckingSession.current = false;
+    }
+  }, [queryClient, user, signOut]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // App va in background - salva timestamp
+        lastHiddenAt.current = Date.now();
+        addBreadcrumb('app_hidden');
+      } else if (document.visibilityState === 'visible') {
+        // App torna in primo piano
+        addBreadcrumb('app_visible');
+        
+        const hiddenDuration = lastHiddenAt.current 
+          ? Date.now() - lastHiddenAt.current 
+          : 0;
+        
+        console.log(`[useAppLifecycle] App resumed after ${Math.round(hiddenDuration / 1000)}s`);
+        
+        // Check sessione solo se:
+        // 1. L'utente era loggato
+        // 2. L'app è stata in background per almeno MIN_BACKGROUND_TIME_MS
+        if (user && hiddenDuration >= MIN_BACKGROUND_TIME_MS) {
+          addBreadcrumb('app_resume_check_session', { 
+            hiddenDurationSec: Math.round(hiddenDuration / 1000) 
+          });
+          handleSessionCheck();
+        }
+        
+        lastHiddenAt.current = null;
+      }
     };
-  }
-  
-  // Gate sui caratteri SOLO per ricondivisioni (quotedPost presente)
-  if (quotedPost) {
-    const wordCount = getWordCount(content);
-    if (wordCount > 120) {
-      return { label: 'Gate completo', requiresGate: true };
-    }
-    if (wordCount > 30) {
-      return { label: 'Gate light', requiresGate: true };
-    }
-  }
-  
-  // Nessun gate per testo libero senza URL
-  return { label: 'Nessun gate', requiresGate: false };
-})();
-```
 
-#### 3. Nuovo Branch in `handlePublish()`
-
-Inserire il nuovo branch DOPO il check per `detectedUrl` ma PRIMA del fallback a `publishPost()`:
-
-```typescript
-const handlePublish = async () => {
-  if (!user || (!content.trim() && !detectedUrl && uploadedMedia.length === 0 && !quotedPost)) return;
-  
-  // [ESISTENTE] Branch per URL
-  if (detectedUrl) {
-    // ... codice esistente INVARIATO ...
-    return;
-  }
-  
-  // [NUOVO] Branch per media con testo estratto (OCR/trascrizione)
-  if (mediaWithExtractedText) {
-    console.log('[Composer] Media with extracted text detected, triggering gate');
-    addBreadcrumb('media_gate_start', { 
-      mediaId: mediaWithExtractedText.id,
-      kind: mediaWithExtractedText.extracted_kind,
-      textLength: mediaWithExtractedText.extracted_text?.length
-    });
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     
-    await handleMediaGateFlow(mediaWithExtractedText);
-    return;
-  }
-  
-  // [ESISTENTE] Fallback: nessun gate
-  await publishPost();
-};
-```
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [user, handleSessionCheck]);
 
-#### 4. Nuova Funzione `handleMediaGateFlow()`
-
-Simile a `handleIOSQuizOnlyFlow()` ma per media:
-
-```typescript
-const handleMediaGateFlow = async (media: MediaFile) => {
-  if (isGeneratingQuiz) return;
-  
-  try {
-    setIsGeneratingQuiz(true);
-    addBreadcrumb('media_generating_quiz');
-    
-    toast.loading('Stiamo mettendo a fuoco ciò che conta…');
-    
-    const result = await generateQA({
-      contentId: null,
-      isPrePublish: true,
-      title: '', // Media non ha titolo
-      qaSourceRef: { kind: 'mediaId', id: media.id },
-      sourceUrl: undefined,
-      userText: content,
-      testMode: 'SOURCE_ONLY', // Per media, sempre SOURCE_ONLY
-    });
-    
-    toast.dismiss();
-    addBreadcrumb('media_qa_generated', { 
-      hasQuestions: !!result.questions, 
-      error: result.error,
-      pending: result.pending
-    });
-    
-    // Handle pending (estrazione ancora in corso)
-    if (result.pending) {
-      toast.info('Estrazione testo in corso, riprova tra qualche secondo...');
-      setIsGeneratingQuiz(false);
-      return;
-    }
-    
-    if (result.insufficient_context) {
-      // Testo insufficiente: fallback a Intent Gate
-      console.log('[Composer] Media text insufficient, activating intent mode');
-      toast.warning('Testo insufficiente per il test. Aggiungi almeno 30 parole.');
-      setIntentMode(true);
-      setIsGeneratingQuiz(false);
-      return;
-    }
-    
-    if (result.error || !result.questions) {
-      console.error('[ComposerModal] Media quiz generation failed:', result.error);
-      toast.error('Errore generazione quiz. Riprova.');
-      setIsGeneratingQuiz(false);
-      return; // Non pubblicare - gate mandatory
-    }
-    
-    // Mostra quiz
-    setQuizData({
-      qaId: result.qaId,
-      questions: result.questions,
-      sourceUrl: `media://${media.id}`, // Identificatore speciale per media
-    });
-    setShowQuiz(true);
-    addBreadcrumb('media_quiz_mount');
-    
-  } catch (error) {
-    console.error('[ComposerModal] Media gate flow error:', error);
-    toast.dismiss();
-    toast.error('Errore durante la generazione del quiz. Riprova.');
-    addBreadcrumb('media_gate_error', { error: String(error) });
-  } finally {
-    setIsGeneratingQuiz(false);
-  }
-};
-```
-
-#### 5. Nessuna Modifica ai Flussi Esistenti
-
-I seguenti flussi rimangono **completamente invariati**:
-- Link esterni (URL detection → Reader → Quiz)
-- YouTube (qaSourceRef.kind === 'youtubeId')
-- Spotify (qaSourceRef.kind === 'spotifyId')
-- Twitter/X (qaSourceRef.kind === 'tweetId')
-- Quoted post/Reshare (quotedPost presente)
-- Intent mode per piattaforme bloccate
-
----
-
-## Aggiornamento ai-helpers.ts
-
-Il tipo `QASourceRef` è già stato aggiornato nella precedente implementazione per includere `mediaId`:
-
-```typescript
-export interface QASourceRef {
-  kind: 'url' | 'youtubeId' | 'spotifyId' | 'tweetId' | 'mediaId';
-  id: string;
-  url?: string;
+  // Export per uso manuale se necessario
+  return { checkSession: handleSessionCheck };
 }
 ```
 
----
+### File 2: `src/components/AppLifecycleHandler.tsx` (NUOVO)
 
-## UX e Feedback
+Componente wrapper che monta l'hook:
 
-### Indicatore Gate nel Composer
+```typescript
+import { useAppLifecycle } from '@/hooks/useAppLifecycle';
 
-Quando è presente un media con OCR completato, l'indicatore mostrerà:
-- `"Gate OCR attivo"` per immagini
-- `"Gate trascrizione attivo"` per video
+export function AppLifecycleHandler() {
+  useAppLifecycle();
+  return null;
+}
+```
 
-### Flusso Utente
+### File 3: Modifica `src/App.tsx`
 
-1. Utente carica immagine/screenshot
-2. OCR parte automaticamente (se heuristica passa)
-3. Badge verde "Testo estratto (X caratteri)" appare
-4. Indicatore "Gate OCR attivo" appare in basso
-5. Utente clicca "Pubblica"
-6. Quiz appare direttamente (senza Reader - l'utente ha già visto l'immagine)
-7. Se quiz passato → post pubblicato
-8. Se quiz fallito → ritorno al composer
+Aggiungere il componente dentro AuthProvider:
 
-### Fallback Intent Gate
+```typescript
+// Import nuovo componente
+import { AppLifecycleHandler } from "@/components/AppLifecycleHandler";
 
-Se l'OCR produce testo insufficiente (<120 caratteri):
-- `generate-qa` ritorna `insufficient_context: true`
-- Composer attiva `intentMode`
-- Utente deve aggiungere 30+ parole di contesto
-
----
-
-## Riepilogo Modifiche
-
-| File | Modifica | Impatto |
-|------|----------|---------|
-| `ComposerModal.tsx` | Aggiungere `mediaWithExtractedText` check | Rileva media con OCR |
-| `ComposerModal.tsx` | Aggiornare `gateStatus` | Feedback UI gate OCR |
-| `ComposerModal.tsx` | Nuovo branch in `handlePublish()` | Intercetta media OCR |
-| `ComposerModal.tsx` | Nuova funzione `handleMediaGateFlow()` | Genera quiz da media |
-
-**Flussi NON modificati:**
-- Link detection e Reader
-- YouTube transcription
-- Spotify lyrics
-- Twitter/X embed
-- LinkedIn extraction
-- Quoted post/Reshare
-- Intent mode
+// Nel render, dopo ServiceWorkerNavigationHandler:
+<AuthProvider>
+  <TooltipProvider>
+    <Sonner />
+    <ServiceWorkerNavigationHandler />
+    <AppLifecycleHandler />  {/* NUOVO */}
+    <BrowserRouter>
+      ...
+    </BrowserRouter>
+  </TooltipProvider>
+</AuthProvider>
+```
 
 ---
 
-## Note Tecniche
+## Logica di Decisione
 
-### Perché No Reader per Media?
+```text
+visibilitychange → visible
+        │
+        ▼
+  User loggato?  ──No──▶ NOOP
+        │
+       Yes
+        │
+        ▼
+  Background > 30s?  ──No──▶ NOOP (refresh non necessario)
+        │
+       Yes
+        │
+        ▼
+  getSession()
+        │
+        ├─ Error ──▶ refreshSession() ──▶ Fail? ──▶ Logout + Toast
+        │                                    │
+        │                                   OK ──▶ Continue
+        │
+        ├─ No session + user exists ──▶ Logout + Toast
+        │
+        └─ Session OK
+                │
+                ▼
+          Token scaduto/scadente?
+                │
+                ├─ Yes ──▶ refreshSession() ──▶ Fail? ──▶ Logout
+                │                                   │
+                │                                  OK ──▶ Continue
+                │
+                └─ No
+                     │
+                     ▼
+          ┌──────────────────────────────┐
+          │ resumePausedMutations()      │
+          │ invalidateQueries(critical)  │
+          └──────────────────────────────┘
+```
 
-A differenza dei link esterni, l'utente ha già visto l'immagine/video nel composer. Il Reader serve per consumare contenuti esterni prima del quiz. Per i media, questo step non è necessario.
+---
 
-### Soglia 120 Caratteri
+## Query Keys Invalidate
 
-La soglia di 120 caratteri è la stessa usata in `generate-qa` per determinare se il testo estratto è sufficiente. Questo garantisce coerenza tra frontend e backend.
+Le seguenti query vengono invalidate al resume:
+- `posts` - Feed principale
+- `current-profile` - Profilo utente
+- `saved-posts` - Post salvati
+- `notifications` - Notifiche
+- `daily-focus` - Focus editoriale
+- `message-threads` - Conversazioni messaggi
 
-### sourceUrl per Media
+---
 
-Per i media, usiamo `media://{mediaId}` come sourceUrl identificativo nei log e nel cache. Questo non influenza il flusso ma aiuta il debugging.
+## Integrazione con Breadcrumbs
+
+Il hook aggiunge breadcrumb per ogni evento significativo, facilitando il debug:
+- `app_hidden` / `app_visible`
+- `app_resume_check_session`
+- `session_check_start` / `session_check_complete`
+- `session_token_refresh` / `session_refreshed`
+- `session_refresh_failed`
+- `session_lost`
+
+---
+
+## Riepilogo Files
+
+| File | Azione | Scopo |
+|------|--------|-------|
+| `src/hooks/useAppLifecycle.ts` | CREARE | Hook con logica session check |
+| `src/components/AppLifecycleHandler.tsx` | CREARE | Componente wrapper |
+| `src/App.tsx` | MODIFICARE | Montare AppLifecycleHandler |
+
+---
+
+## Considerazioni
+
+### Perché 30 secondi di soglia?
+- Un breve switch di tab non richiede refresh
+- Supabase auto-refresh funziona per brevi pause
+- 30s è un buon compromesso tra reattività e riduzione di chiamate inutili
+
+### Perché invalidare invece di refetch?
+- `invalidateQueries` marca le query come stale
+- Il refetch avviene solo quando il componente che le usa è montato
+- Evita fetch inutili per pagine non visualizzate
+
+### Gestione offline?
+- Se l'utente torna online dopo essere stato offline, il check potrebbe fallire temporaneamente
+- Il toast con action button permette di ritentare manualmente
 
