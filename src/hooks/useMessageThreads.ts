@@ -72,7 +72,7 @@ export function useMessageThreads() {
             id,
             user_id,
             last_read_at,
-            profile:profiles(id, username, full_name, avatar_url, last_seen_at)
+            profile:public_profiles(id, username, full_name, avatar_url)
           )
         `)
         .order('updated_at', { ascending: false });
