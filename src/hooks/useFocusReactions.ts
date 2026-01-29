@@ -9,6 +9,11 @@ interface FocusReactionData {
   reactionType?: string;
 }
 
+interface FocusReactionsResult {
+  likes: number;
+  likedByMe: boolean;
+}
+
 /**
  * Hook per ottenere le reazioni di un focus item
  */
@@ -17,7 +22,7 @@ export const useFocusReactions = (focusId: string | undefined, focusType: 'daily
   
   return useQuery({
     queryKey: ['focus-reactions', focusId, focusType],
-    queryFn: async () => {
+    queryFn: async (): Promise<FocusReactionsResult> => {
       if (!focusId) return { likes: 0, likedByMe: false };
 
       // Conta i like totali
@@ -54,6 +59,7 @@ export const useFocusReactions = (focusId: string | undefined, focusType: 'daily
 
 /**
  * Mutation per aggiungere/rimuovere like da un focus item
+ * Con optimistic updates per feedback immediato
  */
 export const useToggleFocusReaction = () => {
   const { user } = useAuth();
@@ -141,17 +147,55 @@ export const useToggleFocusReaction = () => {
         return { action: 'added' };
       }
     },
-    onSuccess: (_, variables) => {
-      // Invalida le query per aggiornare i contatori
+    
+    // ===== OPTIMISTIC UI: Instant feedback, rollback on error =====
+    onMutate: async ({ focusId, focusType }) => {
+      if (!user) return;
+      
+      // 1. Cancel in-flight queries to avoid race conditions
+      await queryClient.cancelQueries({ 
+        queryKey: ['focus-reactions', focusId, focusType] 
+      });
+      
+      // 2. Snapshot previous state for rollback
+      const previousReactions = queryClient.getQueryData<FocusReactionsResult>(
+        ['focus-reactions', focusId, focusType]
+      );
+      
+      // 3. Optimistically update cache immediately
+      if (previousReactions) {
+        const wasLiked = previousReactions.likedByMe;
+        queryClient.setQueryData<FocusReactionsResult>(
+          ['focus-reactions', focusId, focusType],
+          {
+            likes: previousReactions.likes + (wasLiked ? -1 : 1),
+            likedByMe: !wasLiked,
+          }
+        );
+      }
+      
+      // 4. Return context for rollback
+      return { previousReactions };
+    },
+    
+    // Rollback on error
+    onError: (_err, variables, context) => {
+      if (context?.previousReactions) {
+        queryClient.setQueryData(
+          ['focus-reactions', variables.focusId, variables.focusType],
+          context.previousReactions
+        );
+      }
+      toast.error('Errore durante la registrazione della reazione');
+    },
+    
+    // Background sync for consistency (no blocking)
+    onSettled: (_, __, variables) => {
       queryClient.invalidateQueries({ 
         queryKey: ['focus-reactions', variables.focusId, variables.focusType] 
       });
       queryClient.invalidateQueries({ queryKey: ['daily-focus'] });
       queryClient.invalidateQueries({ queryKey: ['interest-focus'] });
-    },
-    onError: (error) => {
-      console.error('Error toggling focus reaction:', error);
-      toast.error('Errore durante la registrazione della reazione');
     },
   });
 };

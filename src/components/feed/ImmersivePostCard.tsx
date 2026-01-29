@@ -1697,11 +1697,11 @@ const ImmersivePostCardInner = ({
               
               {/* Like */}
               <button 
-                className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                className="flex items-center justify-center gap-1.5 h-full px-2"
                 onClick={(e) => { e.stopPropagation(); handleHeart(e); }}
               >
                 <Heart 
-                  className={cn("w-5 h-5", post.user_reactions.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
+                  className={cn("w-5 h-5 transition-transform active:scale-90", post.user_reactions.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
                   fill={post.user_reactions.has_hearted ? "currentColor" : "none"}
                 />
                 <span className="text-xs font-bold text-white">{post.reactions.hearts}</span>
@@ -1709,20 +1709,20 @@ const ImmersivePostCardInner = ({
 
               {/* Comments */}
               <button 
-                className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                className="flex items-center justify-center gap-1.5 h-full px-2"
                 onClick={(e) => { e.stopPropagation(); haptics.light(); setShowComments(true); }}
               >
-                <MessageCircle className="w-5 h-5 text-white" />
+                <MessageCircle className="w-5 h-5 text-white transition-transform active:scale-90" />
                 <span className="text-xs font-bold text-white">{post.reactions.comments}</span>
               </button>
 
               {/* Bookmark */}
               <button 
-                className="flex items-center justify-center h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                className="flex items-center justify-center h-full px-2"
                 onClick={handleBookmark}
               >
                 <Bookmark 
-                  className={cn("w-5 h-5", post.user_reactions.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
+                  className={cn("w-5 h-5 transition-transform active:scale-90", post.user_reactions.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
                   fill={post.user_reactions.has_bookmarked ? "currentColor" : "none"}
                 />
               </button>
@@ -1916,11 +1916,11 @@ const ImmersivePostCardInner = ({
                     
                     {/* Like */}
                     <button 
-                      className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                      className="flex items-center justify-center gap-1.5 h-full px-2"
                       onClick={(e) => { e.stopPropagation(); handleHeart(e); }}
                     >
                       <Heart 
-                        className={cn("w-5 h-5", post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
+                        className={cn("w-5 h-5 transition-transform active:scale-90", post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
                         fill={post.user_reactions?.has_hearted ? "currentColor" : "none"}
                       />
                       <span className="text-xs font-bold text-white">{post.reactions?.hearts || 0}</span>
@@ -1928,20 +1928,20 @@ const ImmersivePostCardInner = ({
 
                     {/* Comments */}
                     <button 
-                      className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                      className="flex items-center justify-center gap-1.5 h-full px-2"
                       onClick={(e) => { e.stopPropagation(); setShowFullText(false); setTimeout(() => setShowComments(true), 100); }}
                     >
-                      <MessageCircle className="w-5 h-5 text-white" />
+                      <MessageCircle className="w-5 h-5 text-white transition-transform active:scale-90" />
                       <span className="text-xs font-bold text-white">{post.reactions?.comments || 0}</span>
                     </button>
 
                     {/* Bookmark */}
                     <button 
-                      className="flex items-center justify-center h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                      className="flex items-center justify-center h-full px-2"
                       onClick={(e) => { e.stopPropagation(); handleBookmark(e); }}
                     >
                       <Bookmark 
-                        className={cn("w-5 h-5", post.user_reactions?.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
+                        className={cn("w-5 h-5 transition-transform active:scale-90", post.user_reactions?.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
                         fill={post.user_reactions?.has_bookmarked ? "currentColor" : "none"}
                       />
                     </button>
@@ -2032,28 +2032,28 @@ const ImmersivePostCardInner = ({
                   {/* Reactions */}
                   <div className="flex items-center gap-1 bg-black/20 h-10 px-3 rounded-2xl border border-white/5">
                     <button 
-                      className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                      className="flex items-center justify-center gap-1.5 h-full px-2"
                       onClick={(e) => { e.stopPropagation(); handleHeart(e); }}
                     >
                       <Heart 
-                        className={cn("w-5 h-5", post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
+                        className={cn("w-5 h-5 transition-transform active:scale-90", post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
                         fill={post.user_reactions?.has_hearted ? "currentColor" : "none"}
                       />
                       <span className="text-xs font-bold text-white">{post.reactions?.hearts || 0}</span>
                     </button>
                     <button 
-                      className="flex items-center justify-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                      className="flex items-center justify-center gap-1.5 h-full px-2"
                       onClick={(e) => { e.stopPropagation(); setShowFullCaption(false); setTimeout(() => setShowComments(true), 100); }}
                     >
-                      <MessageCircle className="w-5 h-5 text-white" />
+                      <MessageCircle className="w-5 h-5 text-white transition-transform active:scale-90" />
                       <span className="text-xs font-bold text-white">{post.reactions?.comments || 0}</span>
                     </button>
                     <button 
-                      className="flex items-center justify-center h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
+                      className="flex items-center justify-center h-full px-2"
                       onClick={(e) => { e.stopPropagation(); handleBookmark(e); }}
                     >
                       <Bookmark 
-                        className={cn("w-5 h-5", post.user_reactions?.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
+                        className={cn("w-5 h-5 transition-transform active:scale-90", post.user_reactions?.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
                         fill={post.user_reactions?.has_bookmarked ? "currentColor" : "none"}
                       />
                     </button>
