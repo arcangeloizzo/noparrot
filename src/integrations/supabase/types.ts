@@ -207,6 +207,8 @@ export type Database = {
           created_at: string | null
           expires_at: string | null
           id: string
+          meta_hostname: string | null
+          meta_image_url: string | null
           source_type: string
           source_url: string
           title: string | null
@@ -216,6 +218,8 @@ export type Database = {
           created_at?: string | null
           expires_at?: string | null
           id?: string
+          meta_hostname?: string | null
+          meta_image_url?: string | null
           source_type: string
           source_url: string
           title?: string | null
@@ -225,6 +229,8 @@ export type Database = {
           created_at?: string | null
           expires_at?: string | null
           id?: string
+          meta_hostname?: string | null
+          meta_image_url?: string | null
           source_type?: string
           source_url?: string
           title?: string | null
@@ -1217,8 +1223,10 @@ export type Database = {
           created_at: string | null
           embed_html: string | null
           full_article: string | null
+          hostname: string | null
           id: string
           is_intent: boolean
+          preview_fetched_at: string | null
           preview_img: string | null
           quoted_post_id: string | null
           shared_title: string | null
@@ -1240,8 +1248,10 @@ export type Database = {
           created_at?: string | null
           embed_html?: string | null
           full_article?: string | null
+          hostname?: string | null
           id?: string
           is_intent?: boolean
+          preview_fetched_at?: string | null
           preview_img?: string | null
           quoted_post_id?: string | null
           shared_title?: string | null
@@ -1263,8 +1273,10 @@ export type Database = {
           created_at?: string | null
           embed_html?: string | null
           full_article?: string | null
+          hostname?: string | null
           id?: string
           is_intent?: boolean
+          preview_fetched_at?: string | null
           preview_img?: string | null
           quoted_post_id?: string | null
           shared_title?: string | null

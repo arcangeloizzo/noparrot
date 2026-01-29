@@ -329,6 +329,57 @@ Deno.serve(async (req) => {
     // triggered automatically on INSERT when quoted_post_id is set
     // No need to call increment_post_shares RPC here (would cause double counting)
 
+    // ========================================================================
+    // PHASE 2: Populate metadata for posts with shared_url (using await, not fire-and-forget)
+    // This ensures Deno runtime doesn't kill the process before metadata is saved
+    // ========================================================================
+    if (insertPayload.shared_url && !insertPayload.shared_title && !insertPayload.preview_img) {
+      try {
+        console.log(`[publish-post:${reqId}] stage=preview_fetch starting for ${insertPayload.shared_url}`);
+        
+        const previewResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-article-preview`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+          },
+          body: JSON.stringify({ url: insertPayload.shared_url }),
+        });
+        
+        if (previewResponse.ok) {
+          const preview = await previewResponse.json();
+          
+          // Extract hostname from URL
+          let extractedHostname = '';
+          try {
+            extractedHostname = new URL(insertPayload.shared_url).hostname.replace(/^www\./, '');
+          } catch {}
+          
+          const updatePayload: Record<string, unknown> = {
+            shared_title: preview.title || null,
+            preview_img: preview.image || preview.previewImg || null,
+            hostname: extractedHostname || preview.hostname || null,
+            preview_fetched_at: new Date().toISOString()
+          };
+          
+          const { error: updateErr } = await supabase
+            .from('posts')
+            .update(updatePayload)
+            .eq('id', inserted.id);
+          
+          if (updateErr) {
+            console.warn(`[publish-post:${reqId}] stage=preview_update_error`, updateErr.message);
+          } else {
+            console.log(`[publish-post:${reqId}] stage=preview_populated title="${preview.title?.slice(0, 30)}..." img=${!!updatePayload.preview_img}`);
+          }
+        } else {
+          console.warn(`[publish-post:${reqId}] stage=preview_fetch_failed status=${previewResponse.status}`);
+        }
+      } catch (previewErr) {
+        console.warn(`[publish-post:${reqId}] stage=preview_fetch_error`, previewErr);
+      }
+    }
+
     // Background classification (non-blocking)
     const contentToClassify = [
       insertPayload.content,
