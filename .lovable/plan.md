@@ -1,112 +1,98 @@
 
-# Piano: Conversione Logo SVG con Colori Preservati
+# Piano: Correzione Colori SVG e Animazione Splash Screen
 
 ## Panoramica
 
-Sostituzione delle immagini PNG del logo con componenti React SVG nativi per garantire migliore qualità e controllo del contrasto in Dark Mode. Il testo "NO" sarà bianco per visibilità su sfondo scuro, mentre l'icona e "PARROT" manterranno i colori originali del brand.
-
-## Analisi File SVG
-
-### Logo Verticale.svg (1024x1024)
-- **Struttura**: Icona pappagallo sopra + testo "NOPARROT" sotto
-- **Colori testo**:
-  - "NO" (linee 120-121): `fill: #2465d2` (classe `.cls-1`)
-  - "PARROT" (linee 122-127): `fill: #393e46` (classe `.cls-12`)
-- **Icona**: Gradients complessi (mantenerli identici)
-
-### LogoOrizzontale.svg (1024x221)
-- **Struttura**: Icona pappagallo a sinistra + testo "NOPARROT" a destra
-- **Colori testo**:
-  - "NO" (linea 125): `fill: url(#Sfumatura_senza_nome_60-2)` → gradiente blu
-  - "PARROT" (linee 127-132): `fill: #393e46` (classe `.cls-13`)
-- **Icona**: Gradients complessi (mantenerli identici)
-
-## File da Creare
-
-### 1. `src/components/ui/LogoVertical.tsx`
-Componente SVG inline con:
-- Tutti i `<defs>` e gradients originali
-- Scritta "NO": override con `className="fill-white"` (rimuove `class="cls-1"`)
-- Icona + "PARROT": colori originali preservati
-- Prop `className` per dimensionamento esterno
-
-### 2. `src/components/ui/LogoHorizontal.tsx`
-Componente SVG inline con:
-- Tutti i `<defs>` e gradients originali
-- Scritta "NO": override con `className="fill-white"` (rimuove `class="cls-2"`)
-- Icona + "PARROT": colori originali preservati
-- Prop `className` per dimensionamento esterno
-
-## File da Modificare
-
-### 3. `src/components/ui/logo.tsx`
-Aggiornare il componente `Logo` per usare i nuovi SVG:
-- `variant="icon"` → `<LogoVertical />` (solo icona, crop della parte testuale o logo intero piccolo)
-- `variant="extended"` → `<LogoHorizontal />`
-- Rimuovere dipendenza da `LOGO_BASE` e `LOGO_EXTENDED` per queste varianti
-
-### 4. `src/components/onboarding/SplashScreen.tsx`
-- Sostituire `<Logo variant="icon" />` con `<LogoVertical />` direttamente
-- Applicare `className="w-48 h-auto"` per dimensionamento
-
-### 5. `src/components/onboarding/OnboardingSlides.tsx`
-- Sostituire `<Logo variant="icon" />` in `SlideNemico` con `<LogoVertical />`
-- Applicare `className="w-auto h-32"` per dimensionamento
-
-### 6. `src/components/navigation/Header.tsx`
-- Sostituire `<Logo variant="extended" />` con `<LogoHorizontal />`
-- Applicare `className="h-7"` per dimensionamento
-
-## Struttura Componenti SVG
-
-```text
-┌─────────────────────────────────────────────────────┐
-│ LogoVertical.tsx / LogoHorizontal.tsx               │
-├─────────────────────────────────────────────────────┤
-│ interface Props {                                   │
-│   className?: string;                               │
-│ }                                                   │
-│                                                     │
-│ export const LogoVertical = ({ className }) => (    │
-│   <svg className={className} viewBox="...">         │
-│     <defs>... gradients originali ...</defs>        │
-│     <g>... icona con colori originali ...</g>       │
-│     <g>                                             │
-│       <path className="fill-white" d="...NO..." /> │
-│       <path fill="#393e46" d="...PARROT..." />      │
-│     </g>                                            │
-│   </svg>                                            │
-│ );                                                  │
-└─────────────────────────────────────────────────────┘
-```
-
-## Regole di Colore (Riepilogo)
-
-| Elemento | Colore Originale | Nuovo Colore |
-|----------|-----------------|--------------|
-| Scritta "NO" | #2465d2 / gradient blu | `fill-white` (Tailwind) |
-| Scritta "PARROT" | #393e46 | #393e46 (invariato) |
-| Icona pappagallo | Gradients complessi | Invariato |
-
-## Impatto Minimo
-
-I file che usano `LOGO_BASE` per icone piccole (badge "Consapevole" nei commenti) continueranno a funzionare - il PNG rimane disponibile per quei casi d'uso dove un SVG complesso non è necessario.
+Questo piano corregge l'inversione dei colori del testo nei loghi SVG e migliora l'animazione della Splash Screen separando l'icona dal testo per un controllo più preciso.
 
 ---
 
-## Dettagli Tecnici
+## 1. Correzione Colori SVG
 
-### Conversione SVG → JSX
-- Attributi `class` → `className`
-- `xmlns:xlink` → `xmlnsXlink`
-- `data-name` → `data-name` (invariato, supportato)
-- Rimuovere `<?xml version...?>` header
-- Rimuovere `id="Livello_3"` o convertire in prop opzionale
+### LogoVertical.tsx e LogoHorizontal.tsx
 
-### Gestione Gradients
-Ogni componente include i propri `<defs>` con ID univoci per evitare conflitti se entrambi i loghi sono sulla stessa pagina. Gli ID saranno prefissati:
-- LogoVertical: `logo-v-gradient-*`
-- LogoHorizontal: `logo-h-gradient-*`
+| Elemento | Stato Attuale | Nuovo Stato |
+|----------|---------------|-------------|
+| Scritta "NO" | `className="fill-white"` | `fill="#2465d2"` (blu originale) |
+| Scritta "PARROT" | `fill="#393e46"` (grigio) | `className="fill-white"` |
+| Icona pappagallo | Colori originali | Invariato |
 
-### Dimensionamento
-I componenti usano `viewBox` per scalare proporzionalmente. Il `className` del container controlla le dimensioni effettive via Tailwind (`w-48`, `h-32`, etc.).
+**Modifiche nei file:**
+- Rimuovere `className="fill-white"` dai path di "N" e "O"
+- Aggiungere `fill="#2465d2"` ai path di "N" e "O"
+- Rimuovere `fill="#393e46"` dai path di "PARROT"
+- Aggiungere `className="fill-white"` ai path di "PARROT"
+
+---
+
+## 2. Prop `hideText` per LogoVertical
+
+### Modifiche all'interfaccia
+
+```text
+interface LogoVerticalProps {
+  className?: string;
+  hideText?: boolean;  // <- Nuova prop opzionale
+}
+```
+
+### Logica di rendering
+
+- Se `hideText={true}`: renderizza solo il gruppo `<g>` con l'icona del pappagallo
+- Se `hideText={false}` o non specificato: renderizza tutto (icona + testo)
+
+### Considerazioni tecniche
+
+Il viewBox del logo verticale è `0 0 1024 1024`, ma l'icona occupa solo la parte superiore. 
+Quando `hideText={true}`, potrebbe essere utile modificare il viewBox per centrare l'icona, oppure lasciarlo invariato e gestire il dimensionamento esternamente con `className`.
+
+**Approccio scelto**: Lasciare il viewBox invariato per semplicità. L'icona si posizionerà nella parte superiore del contenitore SVG.
+
+---
+
+## 3. Aggiornamento SplashScreen
+
+### Struttura attuale (problematica)
+
+```text
+<LogoVertical className="w-48 h-auto" />  // Include testo con colori errati
+<span>NO</span><span>PARROT</span>          // Testo duplicato
+```
+
+### Nuova struttura
+
+```text
+<LogoVertical hideText={true} className="w-32 h-32" />  // Solo icona
+
+<h1 className="text-3xl font-bold tracking-wider">
+  <span className="text-[#2465d2]">NO</span>
+  <span className="text-white">PARROT</span>
+</h1>
+```
+
+### Animazione preservata
+
+L'animazione esistente viene mantenuta:
+- **Phase 0**: Icona appare con fade-in
+- **Phase 1**: L'icona si ridimensiona e sale, il testo appare sotto con fade-in
+- **Phase 2**: Tutto sfuma e si passa alla schermata successiva
+
+---
+
+## File da Modificare
+
+| File | Modifiche |
+|------|-----------|
+| `src/components/ui/LogoVertical.tsx` | Aggiungere prop `hideText`, invertire colori NO/PARROT |
+| `src/components/ui/LogoHorizontal.tsx` | Invertire colori NO/PARROT |
+| `src/components/onboarding/SplashScreen.tsx` | Usare `hideText={true}`, aggiungere h1 con colori corretti |
+
+---
+
+## Riepilogo Colori Brand
+
+| Elemento | Colore | Uso |
+|----------|--------|-----|
+| "NO" | `#2465d2` | Blu corporate, su qualsiasi sfondo |
+| "PARROT" | `white` / `#FFFFFF` | Bianco, visibile su sfondo scuro |
+| Icona | Gradients originali | Mantiene i colori del brand |
