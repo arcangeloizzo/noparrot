@@ -189,21 +189,12 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate }: Quo
                 window.open(quotedPost.shared_url!, '_blank', 'noopener,noreferrer');
               }}
             >
-              {quotedPost.preview_img && (
-                <div className="aspect-video w-full overflow-hidden bg-muted">
-                  <img 
-                    src={quotedPost.preview_img}
-                    alt={quotedPost.shared_title || ''}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-              <div className="p-2">
-                <div className="flex items-center gap-1 text-xs text-muted-foreground mb-0.5">
+              <div className="p-1.5">
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5">
                   <span>{getHostnameFromUrl(quotedPost.shared_url)}</span>
-                  <ExternalLink className="w-2.5 h-2.5" />
+                  <ExternalLink className="w-2 h-2" />
                 </div>
-                <div className="font-medium text-xs text-foreground line-clamp-1">
+                <div className="font-medium text-[10px] text-foreground line-clamp-1">
                   {quotedPost.shared_title}
                 </div>
               </div>
