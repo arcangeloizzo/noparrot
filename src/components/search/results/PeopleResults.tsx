@@ -19,8 +19,9 @@ export const PeopleResults = ({ query }: PeopleResultsProps) => {
       // Remove @ symbol if present for better matching
       const cleanQuery = query.replace('@', '');
       
+      // Use public_profiles view to avoid exposing sensitive data
       const { data, error } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, username, full_name, avatar_url, bio')
         .or(`username.ilike.%${cleanQuery}%,full_name.ilike.%${cleanQuery}%,bio.ilike.%${cleanQuery}%`)
         .limit(20);

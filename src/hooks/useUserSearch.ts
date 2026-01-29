@@ -28,8 +28,9 @@ export const useUserSearch = (query: string) => {
         return [];
       }
 
+      // Use public_profiles view to avoid exposing sensitive data
       const { data, error } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, username, full_name, avatar_url')
         .or(`username.ilike.%${debouncedQuery}%,full_name.ilike.%${debouncedQuery}%`)
         .limit(5);
