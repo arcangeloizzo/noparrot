@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Logo } from "@/components/ui/logo";
+import { LogoVertical } from "@/components/ui/LogoVertical";
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -39,7 +39,7 @@ export const SplashScreen = ({ onComplete }: SplashScreenProps) => {
               phase >= 0 ? 'opacity-100' : 'opacity-0'
             }`}
           >
-            <Logo variant="icon" size="xl" className="w-48 h-auto" />
+            <LogoVertical className="w-48 h-auto" />
           </div>
           
           {/* Wordmark */}

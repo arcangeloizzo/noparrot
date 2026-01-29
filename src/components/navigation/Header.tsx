@@ -1,6 +1,6 @@
 import { Bell } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Logo } from "@/components/ui/logo";
+import { LogoHorizontal } from "@/components/ui/LogoHorizontal";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -33,7 +33,7 @@ export const Header = ({ variant = "default" }: HeaderProps) => {
     )}>
       <div className="container flex h-14 max-w-screen-xl items-center justify-center px-4 relative">
         {/* Logo centrale */}
-        <Logo variant="extended" size="md" className="h-7" />
+        <LogoHorizontal className="h-7" />
 
         {/* Icona notifiche a destra (posizione assoluta) */}
         <div className="absolute right-4 top-1/2 -translate-y-1/2">
