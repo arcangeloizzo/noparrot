@@ -52,7 +52,7 @@ export const useNotifications = () => {
           message_id,
           read,
           created_at,
-          actor:profiles!actor_id (
+          actor:public_profiles!actor_id (
             id,
             username,
             full_name,
