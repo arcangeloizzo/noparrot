@@ -959,35 +959,52 @@ serve(async (req) => {
     }
 
     // ========================================================================
-    // YOUTUBE HANDLING
+    // YOUTUBE HANDLING - PARALLELIZED
     // ========================================================================
     const youtubeId = extractYouTubeId(url);
     if (youtubeId) {
       console.log('[fetch-article-preview] Detected YouTube video:', youtubeId);
+      const ytStartTime = Date.now();
       
       try {
-        // Try oEmbed first, with fallback to thumbnail-based response
-        let oembedData: { title?: string; thumbnail_url?: string; html?: string; author_name?: string; author_url?: string } | null = null;
-        
+        // PARALLEL: oEmbed + transcript cache check
         const oembedUrl = `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${youtubeId}&format=json`;
-        console.log('[YouTube] 📡 Fetching oEmbed from:', oembedUrl);
         
-        try {
-          const oembedResponse = await fetch(oembedUrl, {
+        const [oembedResult, cacheResult] = await Promise.allSettled([
+          fetch(oembedUrl, {
             headers: {
               'User-Agent': 'Mozilla/5.0 (compatible; NoParrot/1.0)',
               'Accept': 'application/json'
             }
-          });
-          
-          if (oembedResponse.ok) {
-            oembedData = await oembedResponse.json();
-            console.log('[YouTube] ✅ oEmbed fetched:', oembedData?.title);
-          } else {
-            console.warn(`[YouTube] ⚠️ oEmbed returned ${oembedResponse.status}, using fallback`);
-          }
-        } catch (oembedError) {
-          console.warn('[YouTube] ⚠️ oEmbed fetch failed, using fallback:', oembedError);
+          }).then(async (res) => {
+            if (res.ok) {
+              return await res.json();
+            }
+            return null;
+          }),
+          supabase?.from('youtube_transcripts_cache')
+            .select('transcript')
+            .eq('video_id', youtubeId)
+            .gt('expires_at', new Date().toISOString())
+            .maybeSingle() || Promise.resolve({ data: null })
+        ]);
+        
+        // Extract oEmbed data
+        let oembedData: { title?: string; thumbnail_url?: string; html?: string; author_name?: string; author_url?: string } | null = null;
+        if (oembedResult.status === 'fulfilled' && oembedResult.value) {
+          oembedData = oembedResult.value;
+          console.log('[YouTube] ✅ oEmbed fetched:', oembedData?.title);
+        } else {
+          console.warn('[YouTube] ⚠️ oEmbed failed, using fallback');
+        }
+        
+        // Extract cache result
+        let transcriptStatus: 'cached' | 'pending' | 'unavailable' = 'pending';
+        if (cacheResult.status === 'fulfilled' && cacheResult.value?.data?.transcript) {
+          transcriptStatus = 'cached';
+          console.log('[YouTube] ✅ CACHE HIT: transcript available for Q/A');
+        } else {
+          console.log('[YouTube] ⏳ CACHE MISS: transcript will be fetched for Q/A');
         }
         
         // Fallback: use YouTube thumbnail directly if oEmbed failed
@@ -996,28 +1013,8 @@ serve(async (req) => {
         const author = oembedData?.author_name || '';
         const authorUrl = oembedData?.author_url || '';
         
-        // Check transcript cache (but don't return transcript to client)
-        let transcriptStatus: 'cached' | 'pending' | 'unavailable' = 'pending';
-        
-        if (supabase) {
-          try {
-            const { data: cached } = await supabase
-              .from('youtube_transcripts_cache')
-              .select('transcript')
-              .eq('video_id', youtubeId)
-              .gt('expires_at', new Date().toISOString())
-              .maybeSingle();
-            
-            if (cached && cached.transcript) {
-              transcriptStatus = 'cached';
-              console.log(`[YouTube] ✅ CACHE HIT: transcript available for Q/A`);
-            } else {
-              console.log(`[YouTube] ⏳ CACHE MISS: transcript will be fetched for Q/A`);
-            }
-          } catch (cacheCheckError: any) {
-            console.warn('[YouTube] ⚠️ Cache check exception:', cacheCheckError.message);
-          }
-        }
+        const ytElapsed = Date.now() - ytStartTime;
+        console.log(`[YouTube] ✅ Complete in ${ytElapsed}ms`);
         
         // SOURCE-FIRST: Return metadata only, NO transcript to client
         return new Response(JSON.stringify({
@@ -1070,13 +1067,15 @@ serve(async (req) => {
     }
 
     // ========================================================================
-    // SPOTIFY HANDLING
+    // SPOTIFY HANDLING - PARALLELIZED FOR SPEED
     // ========================================================================
     const spotifyInfo = extractSpotifyInfo(url);
     if (spotifyInfo) {
       console.log(`[fetch-article-preview] Detected Spotify ${spotifyInfo.type}: ${spotifyInfo.id}`);
+      const spotifyStartTime = Date.now();
       
       try {
+        // STEP 1: oEmbed (always needed, quick)
         const oembedUrl = `https://open.spotify.com/oembed?url=${encodeURIComponent(url)}`;
         const oembedResponse = await fetch(oembedUrl);
         
@@ -1090,24 +1089,68 @@ serve(async (req) => {
         let trackTitle = oembedData.title || '';
         let trackPopularity: number | undefined;
         let audioFeatures: { energy: number; valence: number; tempo: number; danceability: number } | undefined;
+        let lyricsAvailable = false;
+        let geniusUrl = '';
         
-        // Fetch track metadata from Spotify API
+        // STEP 2: PARALLEL execution for track metadata
         if (spotifyInfo.type === 'track') {
           const accessToken = await getSpotifyAccessToken();
           
           if (accessToken) {
-            const trackMetadata = await fetchSpotifyTrackMetadata(spotifyInfo.id, accessToken);
+            // PARALLEL: metadata + features + lyrics all at once!
+            const [metadataResult, featuresResult, lyricsResult] = await Promise.allSettled([
+              fetchSpotifyTrackMetadata(spotifyInfo.id, accessToken),
+              fetchSpotifyAudioFeatures(spotifyInfo.id, accessToken),
+              // Use oEmbed data for initial lyrics search (faster than waiting for metadata)
+              fetchLyricsFromGeniusServerSide(
+                oembedData.author_name || '', 
+                oembedData.title || ''
+              )
+            ]);
             
-            if (trackMetadata) {
-              artist = trackMetadata.artist;
-              trackTitle = trackMetadata.title;
-              trackPopularity = trackMetadata.popularity;
+            // Extract metadata
+            if (metadataResult.status === 'fulfilled' && metadataResult.value) {
+              artist = metadataResult.value.artist;
+              trackTitle = metadataResult.value.title;
+              trackPopularity = metadataResult.value.popularity;
               console.log(`[Spotify] ✅ WEB API: "${trackTitle}" by "${artist}" (PULSE: ${trackPopularity})`);
             }
             
-            const features = await fetchSpotifyAudioFeatures(spotifyInfo.id, accessToken);
-            if (features) {
-              audioFeatures = features;
+            // Extract audio features
+            if (featuresResult.status === 'fulfilled' && featuresResult.value) {
+              audioFeatures = featuresResult.value;
+            }
+            
+            // Process lyrics result
+            const lyricsData = lyricsResult.status === 'fulfilled' ? lyricsResult.value : null;
+            
+            if (lyricsData?.lyrics && supabase) {
+              lyricsAvailable = true;
+              geniusUrl = lyricsData.geniusUrl || '';
+              
+              // Cache lyrics for Q/A generation
+              await cacheContentServerSide(
+                supabase,
+                url,
+                'spotify',
+                lyricsData.lyrics,
+                `${trackTitle} - ${artist}`
+              );
+            } else if (supabase) {
+              // NEGATIVE CACHE: Save that lyrics are unavailable
+              // This prevents infinite retry loops
+              const negativeExpiry = new Date();
+              negativeExpiry.setMinutes(negativeExpiry.getMinutes() + 30); // 30 min TTL
+              
+              await supabase.from('content_cache').upsert({
+                source_url: url,
+                source_type: 'spotify',
+                content_text: '', // EMPTY = unavailable
+                title: `${trackTitle} - ${artist}`,
+                expires_at: negativeExpiry.toISOString()
+              }, { onConflict: 'source_url' });
+              
+              console.log('[Spotify] Negative cache set: lyrics unavailable');
             }
           }
         }
@@ -1126,39 +1169,13 @@ serve(async (req) => {
           }
         }
         
-        // Fetch and CACHE lyrics server-side (but don't return to client)
-        let lyricsAvailable = false;
-        let geniusUrl = '';
-        
-        if (spotifyInfo.type === 'track' && trackTitle && supabase) {
-          let lyricsResult = artist 
-            ? await fetchLyricsFromGeniusServerSide(artist, trackTitle)
-            : null;
-          
-          if (!lyricsResult && trackTitle) {
-            lyricsResult = await fetchLyricsFromGeniusServerSide('', trackTitle);
-          }
-          
-          if (lyricsResult) {
-            lyricsAvailable = true;
-            geniusUrl = lyricsResult.geniusUrl;
-            
-            // Cache lyrics for Q/A generation
-            await cacheContentServerSide(
-              supabase,
-              url,
-              'spotify',
-              lyricsResult.lyrics,
-              `${trackTitle} - ${artist}`
-            );
-          }
-        }
+        const spotifyElapsed = Date.now() - spotifyStartTime;
+        console.log(`[Spotify] ✅ Complete processing in ${spotifyElapsed}ms (lyrics: ${lyricsAvailable})`);
         
         // SOURCE-FIRST: Return metadata only, NO lyrics to client
         return new Response(JSON.stringify({
           success: true,
           title: oembedData.title || `Spotify ${spotifyInfo.type}`,
-          // NO lyrics/content to client
           summary: oembedData.title,
           image: oembedData.thumbnail_url || '',
           previewImg: oembedData.thumbnail_url || '',
@@ -1166,19 +1183,17 @@ serve(async (req) => {
           type: spotifyInfo.type,
           author: artist || oembedData.provider_name || 'Spotify',
           embedHtml: oembedData.html,
-          // NO transcript/lyrics field
-          lyricsAvailable, // Just boolean for UI badge
+          lyricsAvailable,
           geniusUrl,
           contentQuality: lyricsAvailable ? 'complete' : 'partial',
           hostname: 'open.spotify.com',
           popularity: trackPopularity,
           audioFeatures,
-          // Gate config
+          elapsedMs: spotifyElapsed,
           gateConfig: {
             mode: 'timer',
             minSeconds: 15
           },
-          // QA source reference
           qaSourceRef: {
             kind: 'spotifyId',
             id: spotifyInfo.id
@@ -1291,35 +1306,34 @@ serve(async (req) => {
     }
     
     // ========================================================================
-    // TIKTOK, LINKEDIN, THREADS HANDLING
+    // TIKTOK, LINKEDIN, THREADS HANDLING - WITH RACING FOR LINKEDIN
     // ========================================================================
     if (socialPlatform) {
       console.log(`[fetch-article-preview] Detected ${socialPlatform} link`);
+      const socialStartTime = Date.now();
       
-      let jinaResult = await fetchSocialWithJina(url, socialPlatform);
-      let contentSource = 'jina';
+      let jinaResult: any = null;
+      let contentSource = 'none';
       
-      // LinkedIn often requires authentication - try multiple fallbacks
-      if (
-        socialPlatform === 'linkedin' &&
-        (
-          !jinaResult?.content ||
-          jinaResult.content.length < 300 ||
-          isLinkedInAuthWallContent(jinaResult.content) ||
-          isBotChallengeContent(jinaResult.content)
-        )
-      ) {
-        console.log(
-          `[LinkedIn] ⚠️ Jina returned insufficient/blocked content (${jinaResult?.content?.length || 0} chars), trying fallbacks...`
-        );
-        
-        // FALLBACK 1: Try Firecrawl (may not support LinkedIn but worth trying)
+      // For LinkedIn: RACE between Jina and Firecrawl for speed
+      if (socialPlatform === 'linkedin') {
         const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
-        let firecrawlSuccess = false;
         
-        if (FIRECRAWL_API_KEY) {
-          try {
-            const fcResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+        // Build racing promises
+        const racingPromises: Promise<{ result: any; source: string } | null>[] = [
+          // Jina attempt
+          fetchSocialWithJina(url, 'linkedin').then(res => {
+            if (res?.content && res.content.length > 300 && 
+                !isLinkedInAuthWallContent(res.content) && 
+                !isBotChallengeContent(res.content)) {
+              console.log(`[Race] 🏆 Jina WINNER for LinkedIn: ${res.content.length} chars`);
+              return { result: res, source: 'jina' };
+            }
+            throw new Error('Jina insufficient');
+          }),
+          // Firecrawl attempt (if available)
+          ...(FIRECRAWL_API_KEY ? [
+            fetch('https://api.firecrawl.dev/v1/scrape', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -1331,40 +1345,52 @@ serve(async (req) => {
                 onlyMainContent: true,
                 waitFor: 1500
               })
-            });
-            
-            const fcData = await fcResponse.json().catch(() => null);
-
-            if (!fcResponse.ok) {
-              console.log('[LinkedIn] ❌ Firecrawl not supported:', fcResponse.status);
-            } else if (fcData?.success && (fcData.data?.markdown || fcData.markdown)) {
-              const markdown = fcData.data?.markdown || fcData.markdown;
-              if (markdown && markdown.length > 150) {
-                console.log(`[LinkedIn] ✅ Firecrawl success: ${markdown.length} chars`);
-                contentSource = 'firecrawl';
-                firecrawlSuccess = true;
-                jinaResult = {
-                  title: fcData.data?.metadata?.title || fcData.metadata?.title || jinaResult?.title || 'Post LinkedIn',
-                  content: extractTextFromHtml(markdown),
-                  summary: fcData.data?.metadata?.description || fcData.metadata?.description || '',
-                  image: fcData.data?.metadata?.ogImage || fcData.metadata?.ogImage || jinaResult?.image || '',
-                  previewImg: fcData.data?.metadata?.ogImage || fcData.metadata?.ogImage || jinaResult?.image || '',
-                  platform: 'linkedin',
-                  type: 'social',
-                  author: fcData.data?.metadata?.author || fcData.metadata?.author || '',
-                  hostname: 'linkedin.com',
-                  contentQuality: 'complete'
+            }).then(async (res) => {
+              if (!res.ok) throw new Error(`Firecrawl ${res.status}`);
+              const data = await res.json();
+              const markdown = data.data?.markdown || data.markdown;
+              if (data.success && markdown && markdown.length > 150) {
+                console.log(`[Race] 🏆 Firecrawl WINNER for LinkedIn: ${markdown.length} chars`);
+                return {
+                  result: {
+                    title: data.data?.metadata?.title || data.metadata?.title || 'Post LinkedIn',
+                    content: extractTextFromHtml(markdown),
+                    summary: data.data?.metadata?.description || data.metadata?.description || '',
+                    image: data.data?.metadata?.ogImage || data.metadata?.ogImage || '',
+                    previewImg: data.data?.metadata?.ogImage || data.metadata?.ogImage || '',
+                    platform: 'linkedin',
+                    type: 'social',
+                    author: data.data?.metadata?.author || data.metadata?.author || '',
+                    hostname: 'linkedin.com',
+                    contentQuality: 'complete'
+                  },
+                  source: 'firecrawl'
                 };
               }
-            }
-          } catch (fcError) {
-            console.error('[LinkedIn] Firecrawl error:', fcError);
-          }
-        }
+              throw new Error('Firecrawl insufficient');
+            })
+          ] : [])
+        ];
         
-        // FALLBACK 2: Direct OpenGraph fetch (LinkedIn always exposes OG tags publicly)
-        if (!firecrawlSuccess) {
-          console.log('[LinkedIn] Trying direct OpenGraph extraction...');
+        try {
+          // Promise.any: first valid result wins
+          const winner = await Promise.any(racingPromises);
+          if (winner) {
+            jinaResult = winner.result;
+            contentSource = winner.source;
+          }
+        } catch {
+          console.log('[LinkedIn] All racing providers failed, trying OG fallback...');
+        }
+      } else {
+        // For TikTok/Threads: just use Jina
+        jinaResult = await fetchSocialWithJina(url, socialPlatform);
+        contentSource = jinaResult ? 'jina' : 'none';
+      }
+      
+      // LinkedIn fallback to direct OpenGraph if racing failed
+      if (socialPlatform === 'linkedin' && (!jinaResult?.content || jinaResult.content.length < 100)) {
+        console.log('[LinkedIn] Racing failed, trying direct OpenGraph extraction...');
           try {
             const ogResponse = await fetch(url, {
               headers: {
@@ -1482,7 +1508,6 @@ serve(async (req) => {
             console.error('[LinkedIn] OpenGraph extraction error:', ogError);
           }
         }
-      }
 
       // Cache content server-side
       if (jinaResult?.content && jinaResult.content.length > 50 && supabase) {
