@@ -116,7 +116,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     <FeedContext.Provider value={{ activeIndex }}>
       <div 
         ref={containerRef}
-        className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory scroll-smooth no-scrollbar overscroll-none"
+        className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory no-scrollbar overscroll-none"
         style={{ background: '#000' }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
