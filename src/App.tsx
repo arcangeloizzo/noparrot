@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AppErrorBoundary } from "@/components/debug/AppErrorBoundary";
+import { AppLifecycleHandler } from "@/components/AppLifecycleHandler";
 import Index from "./pages/Index";
 import AuthPage from "./pages/AuthPage";
 import Profile from "./pages/Profile";
@@ -62,6 +63,7 @@ const App = () => (
         <TooltipProvider>
           <Sonner />
           <ServiceWorkerNavigationHandler />
+          <AppLifecycleHandler />
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
