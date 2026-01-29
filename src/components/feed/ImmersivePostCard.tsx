@@ -71,6 +71,46 @@ import { useReshareContextStack } from "@/hooks/useReshareContextStack";
 import { useOriginalSource } from "@/hooks/useOriginalSource";
 import { haptics } from "@/lib/haptics";
 
+// Deep lookup imperativo per risolvere la fonte originale al click (indipendente da React Query)
+const resolveOriginalSourceOnDemand = async (quotedPostId: string | null): Promise<{
+  url: string;
+  title: string | null;
+  image: string | null;
+  articleContent?: string;
+} | null> => {
+  if (!quotedPostId) return null;
+  
+  let currentId: string | null = quotedPostId;
+  let depth = 0;
+  const MAX_DEPTH = 10;
+
+  while (currentId && depth < MAX_DEPTH) {
+    const { data, error } = await supabase
+      .from('posts')
+      .select('id, shared_url, shared_title, preview_img, quoted_post_id, article_content')
+      .eq('id', currentId)
+      .single();
+
+    if (error || !data) break;
+
+    // Found a post with a source URL
+    if (data.shared_url) {
+      return {
+        url: data.shared_url,
+        title: data.shared_title,
+        image: data.preview_img,
+        articleContent: data.article_content || undefined,
+      };
+    }
+
+    // Move to the next ancestor
+    currentId = data.quoted_post_id;
+    depth++;
+  }
+
+  return null;
+};
+
 interface ImmersivePostCardProps {
   post: Post;
   onRemove?: (postId: string) => void;  // Accepts postId for stable callback reference
@@ -574,11 +614,84 @@ const ImmersivePostCardInner = ({
   };
 
   const startComprehensionGate = async () => {
-    // Use finalSourceUrl to include sources from quoted posts and deep chains
-    if (!finalSourceUrl || !user) return;
+    if (!user) return;
+
+    // On-demand deep lookup: garantisce di avere la fonte anche se hook non ha finito
+    let resolvedSourceUrl = finalSourceUrl;
+    let resolvedArticleContent: string | undefined;
+    
+    if (!resolvedSourceUrl && post.quoted_post_id) {
+      toast({ title: 'Caricamento fonte originale...' });
+      const deepSource = await resolveOriginalSourceOnDemand(post.quoted_post_id);
+      if (deepSource?.url) {
+        resolvedSourceUrl = deepSource.url;
+        resolvedArticleContent = deepSource.articleContent || undefined;
+      }
+    }
+    
+    if (!resolvedSourceUrl) {
+      // Nessuna fonte trovata nella catena - fail-closed: non permettiamo share
+      toast({ 
+        title: 'Impossibile trovare la fonte', 
+        description: 'Non è possibile condividere questo contenuto.',
+        variant: 'destructive' 
+      });
+      setShareAction(null);
+      return;
+    }
+
+    // === GESTIONE ESPLICITA PER "Il Punto" (focus://daily/...) ===
+    if (resolvedSourceUrl.startsWith('focus://daily/')) {
+      const focusId = resolvedSourceUrl.replace('focus://daily/', '');
+      
+      // Fetch contenuto editoriale dal DB
+      let editorialContent = resolvedArticleContent;
+      let editorialTitle = 'Il Punto';
+      
+      if (!editorialContent || editorialContent.length < 50) {
+        const { data } = await supabase
+          .from('daily_focus')
+          .select('title, deep_content, summary')
+          .eq('id', focusId)
+          .maybeSingle();
+        
+        if (data) {
+          editorialTitle = data.title || 'Il Punto';
+          // Pulisci markers [SOURCE:N] dal contenuto
+          editorialContent = (data.deep_content || data.summary || '')
+            .replace(/\[SOURCE:[\d,\s]+\]/g, '')
+            .trim();
+        }
+      }
+      
+      if (!editorialContent || editorialContent.length < 50) {
+        toast({ 
+          title: 'Contenuto editoriale non disponibile', 
+          variant: 'destructive' 
+        });
+        setShareAction(null);
+        return;
+      }
+      
+      // Apri reader con contenuto editoriale reale
+      setReaderSource({
+        id: focusId,
+        state: 'reading' as const,
+        url: `editorial://${focusId}`,  // Usa editorial:// per il quiz
+        title: editorialTitle,
+        content: editorialContent,
+        articleContent: editorialContent,
+        summary: editorialContent.substring(0, 200),
+        isEditorial: true,
+        platform: 'article',
+        contentQuality: 'complete',
+      });
+      setShowReader(true);
+      return;
+    }
 
     try {
-      const host = new URL(finalSourceUrl).hostname.toLowerCase();
+      const host = new URL(resolvedSourceUrl).hostname.toLowerCase();
       const isBlockedPlatform = host.includes('instagram.com') || host.includes('facebook.com') || host.includes('m.facebook.com') || host.includes('fb.com') || host.includes('fb.watch');
       
       // Check if current post OR quoted post is an Intent post
@@ -625,27 +738,27 @@ const ImmersivePostCardInner = ({
       // For non-Intent posts with blocked platform links, show toast and open externally
       if (isBlockedPlatform) {
         toast({ title: 'Link non supportato', description: 'Instagram e Facebook non sono supportati.' });
-        window.open(finalSourceUrl, '_blank', 'noopener,noreferrer');
+        window.open(resolvedSourceUrl, '_blank', 'noopener,noreferrer');
         return;
       }
     } catch {}
 
     toast({ title: 'Caricamento contenuto...', description: 'Preparazione del Comprehension Gate' });
 
-    const preview = await fetchArticlePreview(finalSourceUrl);
+    const preview = await fetchArticlePreview(resolvedSourceUrl);
     let hostname = '';
-    try { hostname = new URL(finalSourceUrl).hostname.replace('www.', ''); } catch {}
+    try { hostname = new URL(resolvedSourceUrl).hostname.replace('www.', ''); } catch {}
 
     setReaderSource({
       ...preview,
       id: post.id,
       state: 'reading' as const,
-      url: finalSourceUrl,
+      url: resolvedSourceUrl,
       title: preview?.title || finalSourceTitle || `Contenuto da ${hostname}`,
       content: preview?.content || preview?.description || preview?.summary || preview?.excerpt || post.content || '',
       summary: preview?.summary || preview?.description || 'Apri il link per visualizzare il contenuto completo.',
       image: preview?.image || finalSourceImage || '',
-      platform: preview?.platform || detectPlatformFromUrl(finalSourceUrl),
+      platform: preview?.platform || detectPlatformFromUrl(resolvedSourceUrl),
       contentQuality: preview?.contentQuality || 'minimal',
     });
     setShowReader(true);
@@ -674,6 +787,21 @@ const ImmersivePostCardInner = ({
     setReaderLoading(true);
 
     try {
+      // Check contenuto minimo per fonti esterne (non Intent, non OriginalPost)
+      const isEditorial = readerSource.isEditorial || readerSource.url?.startsWith('editorial://');
+      if (!readerSource.isOriginalPost && !readerSource.isIntentPost && !isEditorial) {
+        const hasContent = readerSource.content || readerSource.summary || readerSource.articleContent;
+        if (!hasContent || hasContent.length < 50) {
+          toast({ 
+            title: 'Contenuto non disponibile', 
+            description: 'Apri la fonte originale per leggerla.',
+            variant: 'destructive' 
+          });
+          setReaderLoading(false);
+          return;  // Non permettere di proseguire
+        }
+      }
+
       // Handle Intent Post completion - use saved questionCount
       if (readerSource.isIntentPost) {
         const userText = readerSource.content || '';
@@ -721,6 +849,9 @@ const ImmersivePostCardInner = ({
       
       if (isOriginalPost) {
         questionCount = getQuestionCountWithoutSource(userWordCount) as 1 | 3;
+      } else if (isEditorial) {
+        testMode = 'SOURCE_ONLY';
+        questionCount = 3;
       } else {
         testMode = getTestModeWithSource(userWordCount);
       }
@@ -729,12 +860,13 @@ const ImmersivePostCardInner = ({
 
       const fullContent = readerSource.content || readerSource.summary || readerSource.excerpt || post.content;
 
-      // Use qaSourceRef for source-first, fallback to summary for original posts
+      // Per contenuti editoriali, usare legacy mode con summary
       const result = await generateQA({
-        contentId: post.id,
+        contentId: isEditorial ? readerSource.id : post.id,
         title: readerSource.title,
-        summary: isOriginalPost ? fullContent : undefined,
-        qaSourceRef: !isOriginalPost ? readerSource.qaSourceRef : undefined,
+        // Per editorial, passare summary (legacy mode) invece di qaSourceRef
+        summary: isEditorial ? readerSource.articleContent : (isOriginalPost ? fullContent : undefined),
+        qaSourceRef: (!isOriginalPost && !isEditorial) ? readerSource.qaSourceRef : undefined,
         userText: userText || '',
         sourceUrl: isOriginalPost ? undefined : readerSource.url,
         testMode,
@@ -742,10 +874,25 @@ const ImmersivePostCardInner = ({
       });
 
       if (result.insufficient_context) {
-        toast({ title: 'Contenuto troppo breve', description: 'Puoi comunque condividere questo post' });
-        await closeReaderSafely();
-        onQuoteShare?.(post);
-        return;
+        // FAIL-CLOSED: per fonti esterne, bloccare la condivisione
+        // Solo per post originali (post://) permettiamo il fallback
+        if (isOriginalPost) {
+          // Post originale troppo breve - ok, può condividere
+          toast({ title: 'Contenuto troppo breve', description: 'Puoi condividere questo post' });
+          await closeReaderSafely();
+          onQuoteShare?.(post);
+          return;
+        } else {
+          // Fonte esterna non valutabile - BLOCCARE
+          toast({ 
+            title: 'Impossibile verificare la fonte', 
+            description: 'Non è stato possibile generare il test. Apri la fonte originale per verificarla.',
+            variant: 'destructive' 
+          });
+          setReaderLoading(false);
+          // NON chiamare onQuoteShare - la share è bloccata
+          return;
+        }
       }
 
       if (!result || result.error || !result.questions?.length) {
