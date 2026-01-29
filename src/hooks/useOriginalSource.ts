@@ -45,7 +45,7 @@ export function useOriginalSource(quotedPostId: string | null) {
             shared_title,
             preview_img,
             quoted_post_id,
-            author:profiles!author_id (
+            author:public_profiles!author_id (
               username,
               full_name
             )

@@ -62,7 +62,7 @@ export const useMessageReactions = (messageId: string) => {
 
       const userIds = [...new Set(reactions.map(r => r.user_id))];
       const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, username, avatar_url')
         .in('id', userIds);
 
