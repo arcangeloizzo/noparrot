@@ -233,12 +233,22 @@ serve(async (req) => {
             .gt('expires_at', new Date().toISOString())
             .maybeSingle();
           
-          if (cached?.content_text) {
-            serverSideContent = cached.content_text;
-            contentSource = 'content_cache';
-            console.log(`[generate-qa] ✅ Spotify lyrics from cache: ${serverSideContent.length} chars`);
+          if (cached) {
+            // Check if this is a NEGATIVE cache hit (empty content = lyrics unavailable)
+            if (cached.content_text && cached.content_text.length > 50) {
+              serverSideContent = cached.content_text;
+              contentSource = 'content_cache';
+              console.log(`[generate-qa] ✅ Spotify lyrics from cache: ${serverSideContent.length} chars`);
+            } else {
+              // NEGATIVE CACHE HIT: lyrics are already known to be unavailable
+              console.log('[generate-qa] ⚡ Negative cache hit for Spotify - lyrics unavailable, fast-failing');
+              return new Response(
+                JSON.stringify({ insufficient_context: true }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
           } else {
-            // Try fetching lyrics fresh
+            // Not in cache at all - try fetching fresh
             console.log(`[generate-qa] ⏳ Spotify lyrics not cached, trying fresh fetch...`);
             try {
               const lyricsResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-lyrics`, {
@@ -252,13 +262,31 @@ serve(async (req) => {
               
               if (lyricsResponse.ok) {
                 const lyricsData = await lyricsResponse.json();
-                if (lyricsData.lyrics) {
+                if (lyricsData.lyrics && lyricsData.lyrics.length > 50) {
                   serverSideContent = lyricsData.lyrics;
                   contentSource = 'spotify_fresh';
+                  console.log(`[generate-qa] ✅ Spotify lyrics fetched: ${serverSideContent.length} chars`);
+                } else {
+                  // No lyrics found - fast fail
+                  console.log('[generate-qa] ❌ No lyrics from fresh fetch, returning insufficient_context');
+                  return new Response(
+                    JSON.stringify({ insufficient_context: true }),
+                    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                  );
                 }
+              } else {
+                console.log(`[generate-qa] ❌ Lyrics fetch failed: ${lyricsResponse.status}`);
+                return new Response(
+                  JSON.stringify({ insufficient_context: true }),
+                  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
               }
             } catch (err) {
               console.error('[generate-qa] Spotify lyrics fetch failed:', err);
+              return new Response(
+                JSON.stringify({ insufficient_context: true }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
             }
           }
           break;
