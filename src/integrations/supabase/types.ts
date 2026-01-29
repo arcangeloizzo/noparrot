@@ -173,7 +173,6 @@ export type Database = {
           passed_gate: boolean
           post_category: string | null
           post_id: string
-          user_density_before_comment: Json | null
         }
         Insert: {
           author_id: string
@@ -185,7 +184,6 @@ export type Database = {
           passed_gate?: boolean
           post_category?: string | null
           post_id: string
-          user_density_before_comment?: Json | null
         }
         Update: {
           author_id?: string
@@ -197,7 +195,6 @@ export type Database = {
           passed_gate?: boolean
           post_category?: string | null
           post_id?: string
-          user_density_before_comment?: Json | null
         }
         Relationships: [
           {
