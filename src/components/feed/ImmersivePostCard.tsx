@@ -943,6 +943,20 @@ const ImmersivePostCardInner = ({
         {/* Urban texture overlay - applied to all backgrounds (GPU-friendly static PNG) */}
         <div className="absolute inset-0 z-[1] opacity-[0.025] pointer-events-none mix-blend-overlay urban-noise-overlay" />
 
+        {/* Cinematic Fade Overlay - seamless card-to-card transitions */}
+        <div 
+          className="absolute inset-0 z-[2] pointer-events-none"
+          style={{
+            background: `linear-gradient(
+              to bottom,
+              rgba(0,0,0,1) 0%,
+              rgba(0,0,0,0) 12%,
+              rgba(0,0,0,0) 88%,
+              rgba(0,0,0,1) 100%
+            )`
+          }}
+        />
+
         {/* Heart animation */}
         {showHeartAnimation && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
