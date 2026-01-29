@@ -1,150 +1,336 @@
 
-# Piano: Implementazione Ottimizzazione Performance (Fase 1 + 2)
 
-## Panoramica
+# Piano di Implementazione: Fix Completo del Gate per Reshare
 
-Implementazione delle ottimizzazioni per ridurre drasticamente la latenza dei link preview, passando da 1-6 secondi a ~50ms per URL già visti.
+## Obiettivo
+Ripristinare il comportamento "Fail-Closed" del Gate su tutti i reshare. Il sistema deve:
+1. Sempre trovare la fonte originale (anche per catene profonde)
+2. Mai permettere la condivisione senza quiz completato
+3. Gestire correttamente "Il Punto" (focus://daily/...) come sorgente editoriale
+4. Mostrare errore chiaro quando il contenuto non è valutabile
 
 ---
 
-## Modifiche al Database (Migration Richiesta)
+## Analisi del Problema Attuale
 
-### Nuove Colonne
+### Punti Critici Identificati
 
-```text
-┌────────────────────────────────────────────────────────────────┐
-│ TABELLA: content_cache                                         │
-├────────────────────────────────────────────────────────────────┤
-│ + meta_image_url TEXT  → URL dell'immagine di anteprima       │
-│ + meta_hostname TEXT   → Hostname per display rapido          │
-└────────────────────────────────────────────────────────────────┘
+**1. Deep Lookup Funziona SOLO come Hook React**
+- `useOriginalSource` è un hook che usa React Query
+- Richiede che il componente sia montato e la query sia completata
+- Al click su "Condividi", `originalSource` potrebbe essere `undefined` se la query non è finita
 
-┌────────────────────────────────────────────────────────────────┐
-│ TABELLA: posts                                                  │
-├────────────────────────────────────────────────────────────────┤
-│ + hostname TEXT        → Hostname estratto da shared_url      │
-│ + preview_fetched_at TIMESTAMPTZ → Timestamp del fetch        │
-└────────────────────────────────────────────────────────────────┘
+**2. `handleReaderComplete` Ha un Bypass Pericoloso (righe 744-749)**
+```typescript
+if (result.insufficient_context) {
+  toast({ title: 'Contenuto troppo breve', description: 'Puoi comunque condividere questo post' });
+  await closeReaderSafely();
+  onQuoteShare?.(post);  // ❌ BYPASS - permette share senza quiz
+  return;
+}
 ```
 
-**SQL Migration:**
-```sql
--- Cache Table Update
-ALTER TABLE content_cache
-ADD COLUMN IF NOT EXISTS meta_image_url TEXT,
-ADD COLUMN IF NOT EXISTS meta_hostname TEXT;
+**3. focus://daily/... Viene Trattato come URL Esterno**
+- `fetchArticlePreview` ritorna `{ success: false, isInternal: true }` per focus://
+- Ma `startComprehensionGate` non gestisce questo caso → reader vuoto
 
--- Posts Table Update (Denormalization)
-ALTER TABLE posts
-ADD COLUMN IF NOT EXISTS hostname TEXT,
-ADD COLUMN IF NOT EXISTS preview_fetched_at TIMESTAMPTZ;
+**4. generateQA Riceve `qaSourceRef` Incompleto**
+- Per reshare esterni, il sistema passa `qaSourceRef` ma potrebbe non avere contenuto
+- Backend ritorna `insufficient_context` → bypass attuale permette share
+
+---
+
+## Implementazione
+
+### File da Modificare
+`src/components/feed/ImmersivePostCard.tsx`
+
+---
+
+### 1. Aggiungere Funzione "On-Demand Deep Lookup" (Nuovo Codice)
+
+Posizione: dopo le importazioni (circa riga 72), aggiungere una funzione imperativa che fa lo stesso lavoro di `useOriginalSource` ma senza dipendere da React Query:
+
+```typescript
+// Deep lookup imperativo per risolvere la fonte originale al click
+const resolveOriginalSourceOnDemand = async (quotedPostId: string | null): Promise<{
+  url: string;
+  title: string | null;
+  image: string | null;
+  articleContent?: string;
+} | null> => {
+  if (!quotedPostId) return null;
+  
+  let currentId: string | null = quotedPostId;
+  let depth = 0;
+  const MAX_DEPTH = 10;
+
+  while (currentId && depth < MAX_DEPTH) {
+    const { data, error } = await supabase
+      .from('posts')
+      .select('id, shared_url, shared_title, preview_img, quoted_post_id, article_content')
+      .eq('id', currentId)
+      .single();
+
+    if (error || !data) break;
+
+    // Found a post with a source URL
+    if (data.shared_url) {
+      return {
+        url: data.shared_url,
+        title: data.shared_title,
+        image: data.preview_img,
+        articleContent: data.article_content,
+      };
+    }
+
+    // Move to the next ancestor
+    currentId = data.quoted_post_id;
+    depth++;
+  }
+
+  return null;
+};
 ```
 
 ---
 
-## Fase 1: Cache-First nella Edge Function
+### 2. Modificare `startComprehensionGate` per Usare Deep Lookup On-Demand
 
-### File: `supabase/functions/fetch-article-preview/index.ts`
+Posizione: righe 576-652
 
-**Modifiche principali:**
+**PRIMA (problema):**
+```typescript
+const startComprehensionGate = async () => {
+  // Use finalSourceUrl to include sources from quoted posts and deep chains
+  if (!finalSourceUrl || !user) return;
+  // ...
+```
 
-1. **Aggiungere funzione `safeNormalizeUrl`** (linee ~73-120)
-   - Copia esatta della logica da `src/lib/url.ts`
-   - Rimuove parametri di tracking (utm_*, fbclid, etc.)
-   - Forza https, rimuove www., ordina parametri
+**DOPO (fix):**
+```typescript
+const startComprehensionGate = async () => {
+  if (!user) return;
 
-2. **Aggiungere Cache-First Check** (dopo linea 756)
-   - Query sulla tabella `content_cache` PRIMA di qualsiasi fetch esterno
-   - Se cache HIT: restituisce immediatamente i dati cached (latenza ~50ms)
-   - Se cache MISS: continua con il flusso esistente
+  // On-demand deep lookup: garantisce di avere la fonte anche se hook non ha finito
+  let resolvedSourceUrl = finalSourceUrl;
+  let resolvedArticleContent: string | undefined;
+  
+  if (!resolvedSourceUrl && post.quoted_post_id) {
+    toast({ title: 'Caricamento fonte originale...' });
+    const deepSource = await resolveOriginalSourceOnDemand(post.quoted_post_id);
+    if (deepSource?.url) {
+      resolvedSourceUrl = deepSource.url;
+      resolvedArticleContent = deepSource.articleContent || undefined;
+    }
+  }
+  
+  if (!resolvedSourceUrl) {
+    // Nessuna fonte trovata nella catena - questo non dovrebbe succedere
+    // ma fail-closed: non permettiamo share
+    toast({ 
+      title: 'Impossibile trovare la fonte', 
+      description: 'Non è possibile condividere questo contenuto.',
+      variant: 'destructive' 
+    });
+    setShareAction(null);
+    return;
+  }
 
-3. **Aggiornare funzione `cacheContentServerSide`** (linea 681-717)
-   - Aggiungere parametro `imageUrl?: string`
-   - Salvare `meta_image_url` nell'upsert
-   - Salvare `meta_hostname` estratto dall'URL
+  // === GESTIONE ESPLICITA PER "Il Punto" (focus://daily/...) ===
+  if (resolvedSourceUrl.startsWith('focus://daily/')) {
+    const focusId = resolvedSourceUrl.replace('focus://daily/', '');
+    
+    // Fetch contenuto editoriale dal DB
+    let editorialContent = resolvedArticleContent;
+    let editorialTitle = 'Il Punto';
+    
+    if (!editorialContent || editorialContent.length < 50) {
+      const { data } = await supabase
+        .from('daily_focus')
+        .select('title, deep_content, summary')
+        .eq('id', focusId)
+        .maybeSingle();
+      
+      if (data) {
+        editorialTitle = data.title || 'Il Punto';
+        // Pulisci markers [SOURCE:N] dal contenuto
+        editorialContent = (data.deep_content || data.summary || '')
+          .replace(/\[SOURCE:[\d,\s]+\]/g, '')
+          .trim();
+      }
+    }
+    
+    if (!editorialContent || editorialContent.length < 50) {
+      toast({ 
+        title: 'Contenuto editoriale non disponibile', 
+        variant: 'destructive' 
+      });
+      setShareAction(null);
+      return;
+    }
+    
+    // Apri reader con contenuto editoriale reale
+    setReaderSource({
+      id: focusId,
+      state: 'reading' as const,
+      url: `editorial://${focusId}`,  // Usa editorial:// per il quiz
+      title: editorialTitle,
+      content: editorialContent,
+      articleContent: editorialContent,
+      summary: editorialContent.substring(0, 200),
+      isEditorial: true,
+      platform: 'article',
+      contentQuality: 'complete',
+    });
+    setShowReader(true);
+    return;
+  }
 
-4. **Aggiornare tutte le chiamate a `cacheContentServerSide`**
-   - Passare l'immagine come parametro aggiuntivo
-
-### Struttura Cache-First Check
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│ FLUSSO CACHE-FIRST                                              │
-├─────────────────────────────────────────────────────────────────┤
-│ 1. Ricevi URL e valida (SSRF protection)                        │
-│ 2. Inizializza Supabase client                                  │
-│                                                                 │
-│ 3. normalizedUrl = safeNormalizeUrl(url)                        │
-│ 4. SELECT title, content_text, meta_image_url, source_type,     │
-│           meta_hostname                                         │
-│    FROM content_cache                                           │
-│    WHERE source_url = normalizedUrl                             │
-│    AND expires_at > NOW()                                       │
-│                                                                 │
-│    ✅ Cache HIT (title presente):                               │
-│       → Return JSON con title, summary, image, fromCache: true  │
-│       ⏱️ Latenza: ~50ms                                         │
-│                                                                 │
-│    ❌ Cache MISS:                                                │
-│       → Continua con fetch esterno (YouTube, Jina, etc.)        │
-│       → Alla fine, salva anche meta_image_url e meta_hostname   │
-└─────────────────────────────────────────────────────────────────┘
+  // Resto della logica esistente per URL esterni...
+  try {
+    const host = new URL(resolvedSourceUrl).hostname.toLowerCase();
+    // ... (codice esistente per blocked platforms, Intent posts, etc.)
 ```
 
 ---
 
-## Fase 2: Denormalizzazione in publish-post
+### 3. Modificare `handleReaderComplete` per Rimuovere Bypass (FAIL-CLOSED)
 
-### File: `supabase/functions/publish-post/index.ts`
+Posizione: righe 671-782
 
-**Posizione:** Dopo l'inserimento del post (riga ~327), PRIMA del return finale
-
-### Logica Implementata
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│ NUOVO FLUSSO publish-post                                       │
-├─────────────────────────────────────────────────────────────────┤
-│ 1. Inserisci post (flusso esistente)                            │
-│ 2. Link media (flusso esistente)                                │
-│ 3. Aggiorna idempotency (flusso esistente)                      │
-│                                                                 │
-│ 4. SE shared_url presente E shared_title/preview_img nulli:     │
-│    → AWAIT chiamata a fetch-article-preview                     │
-│    → UPDATE posts SET                                           │
-│        shared_title = risposta.title                            │
-│        preview_img = risposta.image                             │
-│        hostname = new URL(sharedUrl).hostname                   │
-│        preview_fetched_at = NOW()                               │
-│                                                                 │
-│ 5. Classifica post (flusso esistente, async)                    │
-│ 6. Return response                                              │
-└─────────────────────────────────────────────────────────────────┘
+**Problema attuale (riga 744-749):**
+```typescript
+if (result.insufficient_context) {
+  toast({ title: 'Contenuto troppo breve', description: 'Puoi comunque condividere questo post' });
+  await closeReaderSafely();
+  onQuoteShare?.(post);  // ❌ BYPASS
+  return;
+}
 ```
 
-**Nota importante:** Uso `await` esplicito (non fire-and-forget) perché:
-- Il runtime Deno potrebbe terminare il processo dopo il return
-- Con la Fase 1 implementata, la chiamata sarà rapida (cache HIT probabile)
-- Garantisce integrità dei dati
+**FIX (fail-closed per fonti esterne):**
+```typescript
+if (result.insufficient_context) {
+  // FAIL-CLOSED: per fonti esterne, bloccare la condivisione
+  // Solo per post originali (post://) permettiamo il fallback
+  const isOriginalPost = readerSource.isOriginalPost;
+  
+  if (isOriginalPost) {
+    // Post originale troppo breve - ok, può condividere
+    toast({ title: 'Contenuto troppo breve', description: 'Puoi condividere questo post' });
+    await closeReaderSafely();
+    onQuoteShare?.(post);
+    return;
+  } else {
+    // Fonte esterna non valutabile - BLOCCARE
+    toast({ 
+      title: 'Impossibile verificare la fonte', 
+      description: 'Non è stato possibile generare il test. Apri la fonte originale per verificarla.',
+      variant: 'destructive' 
+    });
+    setReaderLoading(false);
+    // NON chiamare onQuoteShare - la share è bloccata
+    return;
+  }
+}
+```
 
 ---
 
-## File da Modificare
+### 4. Gestire Reader Vuoto con Messaggio Chiaro
 
-| File | Modifiche |
-|------|-----------|
-| **Migration SQL** | Aggiungere colonne a content_cache e posts |
-| `supabase/functions/fetch-article-preview/index.ts` | + safeNormalizeUrl, + cache-first check, + imageUrl in cache |
-| `supabase/functions/publish-post/index.ts` | + await fetch-article-preview, + UPDATE metadati |
+Posizione: Componente `SourceReaderGate` (verifica se già gestisce questo caso)
+
+Nel `handleReaderComplete`, aggiungere check per contenuto vuoto prima di chiamare generateQA:
+
+```typescript
+const handleReaderComplete = async () => {
+  if (!readerSource || !user) return;
+  setGateStep('reader:loading');
+  setReaderLoading(true);
+
+  try {
+    // Check contenuto minimo per fonti esterne
+    if (!readerSource.isOriginalPost && !readerSource.isIntentPost) {
+      const hasContent = readerSource.content || readerSource.summary || readerSource.articleContent;
+      if (!hasContent || hasContent.length < 50) {
+        toast({ 
+          title: 'Contenuto non disponibile', 
+          description: 'Apri la fonte originale per leggerla.',
+          variant: 'destructive' 
+        });
+        setReaderLoading(false);
+        return;  // Non permettere di proseguire
+      }
+    }
+    
+    // ... resto del codice esistente
+```
 
 ---
 
-## Impatto Stimato
+### 5. Fix generateQA per Editorial (Legacy Mode)
 
-| Metrica | Prima | Dopo |
-|---------|-------|------|
-| Latenza link già visti | 1-6 secondi | ~50ms |
-| Nuovi post con link | Solo client-fetch | Pre-popolato nel DB |
-| Chiamate API esterne | Ogni render | Solo primo fetch |
-| Costi Jina/Firecrawl | Alto | Ridotto 70-80% |
+Nella chiamata a `generateQA` dentro `handleReaderComplete`, aggiungere supporto per editorial:
+
+```typescript
+// Per contenuti editoriali, usare legacy mode con summary
+const isEditorial = readerSource.isEditorial || readerSource.url?.startsWith('editorial://');
+
+const result = await generateQA({
+  contentId: isEditorial ? readerSource.id : post.id,
+  title: readerSource.title,
+  // Per editorial, passare summary (legacy mode) invece di qaSourceRef
+  summary: isEditorial ? readerSource.articleContent : (isOriginalPost ? fullContent : undefined),
+  qaSourceRef: (!isOriginalPost && !isEditorial) ? readerSource.qaSourceRef : undefined,
+  userText: userText || '',
+  sourceUrl: isOriginalPost ? undefined : readerSource.url,
+  testMode: isEditorial ? 'SOURCE_ONLY' : testMode,
+  questionCount: isEditorial ? 3 : questionCount,
+});
+```
+
+---
+
+## Riepilogo Modifiche
+
+| Riga | Modifica |
+|------|----------|
+| ~72 | Aggiungere `resolveOriginalSourceOnDemand()` |
+| 576-652 | Riscrivere `startComprehensionGate` con deep lookup + supporto focus:// |
+| 671-682 | Aggiungere check contenuto minimo in `handleReaderComplete` |
+| 744-749 | Rimuovere bypass `insufficient_context` per fonti esterne |
+| 733-742 | Aggiungere supporto legacy mode per editorial in `generateQA` call |
+
+---
+
+## Comportamento Atteso Dopo il Fix
+
+| Scenario | Comportamento |
+|----------|---------------|
+| **Reshare Spotify** | Deep lookup → Reader → Quiz → Share (o blocco se lyrics assenti) |
+| **Reshare Il Punto** | Deep lookup → Reader con contenuto editoriale → Quiz legacy → Share |
+| **Reshare Link Web** | Deep lookup → Reader iframe → Quiz → Share (o blocco se estrazione fallita) |
+| **Reshare LinkedIn** | Deep lookup → Reader → Quiz → Share (o blocco se contenuto vuoto) |
+| **Catena reshare** | Deep lookup risolve fonte originale → flusso normale |
+| **Fonte non trovata** | Toast errore, share bloccata |
+
+---
+
+## Note Tecniche
+
+### Perché "On-Demand" invece di aspettare l'Hook?
+- L'hook `useOriginalSource` usa React Query che è asincrono
+- Al click su "Condividi", la query potrebbe non essere completata
+- Il lookup on-demand è sincrono rispetto al click: garantisce di avere la fonte
+
+### Perché "Fail-Closed"?
+- L'utente sta ricondividendo contenuto già nel feed
+- Se il Gate non riesce a valutare, qualcosa non va
+- Meglio bloccare (sicuro) che permettere share non verificate
+
+### Editorial vs External URL
+- `focus://daily/...` → contenuto interno, già nel DB → legacy mode con summary
+- URL esterno → deve passare per `fetchArticlePreview` → qaSourceRef mode
+
