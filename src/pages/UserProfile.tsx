@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -25,12 +25,14 @@ export const UserProfile = () => {
   const [showNebulaExpanded, setShowNebulaExpanded] = useState(false);
   const [diaryFilter, setDiaryFilter] = useState<DiaryFilterType>('all');
 
+  // Use public_profiles view for other users to avoid exposing sensitive data
+  // (date_of_birth, cognitive_tracking_enabled, cognitive_density are not exposed)
   const { data: profile, isLoading } = useQuery({
     queryKey: ["user-profile", userId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
+        .from("public_profiles")
+        .select("id, username, full_name, avatar_url, bio, created_at")
         .eq("id", userId)
         .single();
       
@@ -38,6 +40,18 @@ export const UserProfile = () => {
       return data;
     },
     enabled: !!userId,
+  });
+
+  // Fetch cognitive density separately - this is allowed since it's in a user's public activity
+  // The cognitive density is calculated from public posts, not private profile data
+  const { data: cognitiveDensityData } = useQuery({
+    queryKey: ["user-cognitive-density", userId],
+    queryFn: async () => {
+      // Recalculate from posts instead of accessing private profile data
+      const result = await recalculateCognitiveDensityFromPosts(userId!);
+      return result || {};
+    },
+    enabled: !!userId && !!profile,
   });
 
   const { data: stats } = useQuery({
@@ -51,8 +65,8 @@ export const UserProfile = () => {
         supabase.from("posts").select("id", { count: "exact" }).eq("author_id", userId),
       ]);
 
-      const cognitiveDensity = (profile?.cognitive_density as Record<string, number>) || {};
-      const activeTopics = Object.values(cognitiveDensity).filter(val => val > 0).length;
+      const cogDensity = cognitiveDensityData || {};
+      const activeTopics = Object.values(cogDensity).filter(val => val > 0).length;
 
       return {
         following: followingRes.count || 0,
@@ -61,7 +75,7 @@ export const UserProfile = () => {
         activeTopics,
       };
     },
-    enabled: !!userId && !!profile,
+    enabled: !!userId && !!profile && !!cognitiveDensityData,
   });
 
   const { data: isFollowing } = useQuery({
@@ -208,28 +222,8 @@ export const UserProfile = () => {
     },
   });
 
-  // Recalculate cognitive density if empty
-  useEffect(() => {
-    const recalculateIfNeeded = async () => {
-      if (!profile || !userId) return;
-      
-      const density = profile.cognitive_density as Record<string, number> | null;
-      const isEmpty = !density || Object.keys(density).length === 0;
-      
-      if (isEmpty) {
-        try {
-          const result = await recalculateCognitiveDensityFromPosts(userId);
-          if (result && Object.keys(result).length > 0) {
-            queryClient.invalidateQueries({ queryKey: ['user-profile', userId] });
-          }
-        } catch (error) {
-          console.error('Error recalculating cognitive density:', error);
-        }
-      }
-    };
-    
-    recalculateIfNeeded();
-  }, [profile, userId, queryClient]);
+  // Recalculate cognitive density if empty - now handled by cognitiveDensityData query
+  // No need for separate useEffect since we have dedicated query
 
   const getInitials = (name: string) => {
     return name
@@ -258,7 +252,7 @@ export const UserProfile = () => {
     );
   }
 
-  const cognitiveDensity = (profile?.cognitive_density as Record<string, number>) || {};
+  const cognitiveDensity = cognitiveDensityData || {};
   const totalPaths = Object.values(cognitiveDensity).reduce((sum, val) => sum + val, 0);
   const activeTopics = Object.values(cognitiveDensity).filter(val => val > 0).length;
   
