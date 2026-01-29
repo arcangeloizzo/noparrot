@@ -30,28 +30,28 @@ export const SplashScreen = ({ onComplete }: SplashScreenProps) => {
         {/* Logo Container */}
         <div 
           className={`flex flex-col items-center transition-all duration-700 ease-out ${
-            phase >= 1 ? 'scale-75 -translate-y-4' : 'scale-100'
+            phase >= 1 ? 'scale-90 -translate-y-4' : 'scale-100'
           }`}
         >
-          {/* Logo */}
+          {/* Parrot Icon Only */}
           <div 
             className={`transition-opacity duration-700 ease-out ${
               phase >= 0 ? 'opacity-100' : 'opacity-0'
             }`}
           >
-            <LogoVertical className="w-48 h-auto" />
+            <LogoVertical hideText={true} className="w-32 h-32" />
           </div>
           
-          {/* Wordmark */}
+          {/* Wordmark - NO (blue) + PARROT (white) */}
           <div 
             className={`mt-6 transition-all duration-500 ease-out ${
               phase >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             }`}
           >
-            <span className="font-inter text-5xl font-semibold tracking-tight">
-              <span className="text-accent">NO</span>
-              <span className="text-primary">PARROT</span>
-            </span>
+            <h1 className="font-inter text-4xl font-bold tracking-wider">
+              <span className="text-[#2465d2]">NO</span>
+              <span className="text-white">PARROT</span>
+            </h1>
           </div>
         </div>
       </div>
