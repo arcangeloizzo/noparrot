@@ -1,61 +1,117 @@
 
-# Fix Euristica OCR - Riconoscimento Screenshot Migliorato
+# Fix Gate Commenti - Aggiunta qaSourceRef
 
 ## Problema Identificato
-L'euristica `shouldPerformOCR()` in `useMediaUpload.ts` e troppo restrittiva. Il tuo screenshot (3024x4032, JPEG) ha ottenuto score 1/3 invece del minimo 2/3 richiesto.
 
-**Motivi del fallimento:**
-1. Aspect ratio 0.75 (3:4) - OK, rientra nel range 0.7-0.8
-2. Larghezza 3024px - NON riconosciuta (manca dalla lista delle typical widths)
-3. File JPEG - L'euristica premia solo PNG
+Il flusso del **Comprehension Gate per i commenti consapevoli** (CommentsDrawer) usa una modalità legacy che non sfrutta il `qaSourceRef` restituito da `fetch-article-preview`. Di conseguenza:
 
-## Soluzione Proposta
+- Per contenuti **Spotify/YouTube/Twitter**, il backend ricade sulla modalità legacy che usa il testo generico del `summary` passato dal client
+- Questo produce **domande generiche** invece di domande specifiche sui testi/trascrizioni
 
-### Modifiche a `src/hooks/useMediaUpload.ts`
+### Comportamento Attuale
 
-**1. Aggiungere larghezze tipiche mancanti (dispositivi moderni):**
-```typescript
-// PRIMA:
-const typicalWidths = [1080, 1170, 1284, 1290, 1179, 1242, 1440, 1920, 2560];
-
-// DOPO (aggiungere 3024, 2048, 2436, 2732):
-const typicalWidths = [1080, 1170, 1284, 1290, 1179, 1242, 1440, 1920, 2048, 2436, 2560, 2732, 3024];
+```
+CommentsDrawer                          Composer (funziona)
+     │                                       │
+     ▼                                       ▼
+fetchArticlePreview(url)              fetchArticlePreview(url)
+     │                                       │
+     ├── preview.qaSourceRef ✓              ├── preview.qaSourceRef ✓
+     │                                       │
+     ▼                                       ▼
+generateQA({                          generateQA({
+  summary: preview.content,  ❌         qaSourceRef: preview.qaSourceRef ✓
+  sourceUrl: url                        sourceUrl: url
+})                                    })
+     │                                       │
+     ▼                                       ▼
+Backend: "Legacy mode" →             Backend: "Source-first" →
+domande generiche                    domande su testi Spotify
 ```
 
-**2. Rimuovere discriminazione JPEG/PNG:**
-Gli screenshot moderni (specialmente iOS) possono essere JPEG. Mantenere solo il check sulla dimensione file:
-```typescript
-// PRIMA:
-const isLikelyPNG = file.type === 'image/png' && file.size > 200_000;
+### Causa Root
 
-// DOPO:
-const isLargeImage = file.size > 200_000; // Screenshot sono tipicamente > 200KB
+In `CommentsDrawer.tsx` linea 728-736, il codice:
+```typescript
+const result = await generateQA({
+  contentId: post.id,
+  title: contentTitle,
+  summary: fullContent,        // ❌ Attiva legacy mode
+  userText: newComment,
+  sourceUrl: post.shared_url!,
+  testMode,
+  // ❌ MANCA: qaSourceRef: preview.qaSourceRef
+});
 ```
 
-**3. Ridurre soglia score a 1 (piu permissivo):**
-```typescript
-// PRIMA:
-const score = [hasScreenshotRatio, hasTypicalWidth, isLikelyPNG].filter(Boolean).length;
-return score >= 2;
+## Soluzione
 
-// DOPO:
-const score = [hasScreenshotRatio, hasTypicalWidth, isLargeImage].filter(Boolean).length;
-return score >= 1; // Basta 1 indicatore per tentare OCR
+### Modifica a CommentsDrawer.tsx
+
+Passare `qaSourceRef` da `preview` a `generateQA`, e rimuovere `summary` per contenuti esterni (mantenendolo solo per Focus interni):
+
+**Linee 728-736 - Prima:**
+```typescript
+const result = await generateQA({
+  contentId: post.id,
+  title: contentTitle,
+  summary: fullContent,
+  userText: newComment,
+  sourceUrl: post.shared_url!,
+  testMode,
+});
 ```
 
-## Rationale
-- Con score >= 1, se l'immagine ha anche solo un aspect ratio da screenshot O una larghezza tipica O e grande, si tenta l'OCR
-- Il costo di un falso positivo (OCR su foto normale) e basso: semplicemente il testo estratto sara < 120 chars e si fara fallback su Intent
-- Il costo di un falso negativo (OCR mancato su screenshot con testo) e alto: l'utente non puo usare la feature
+**Dopo:**
+```typescript
+const result = await generateQA({
+  contentId: post.id,
+  title: contentTitle,
+  // Use qaSourceRef for external sources (Spotify, YouTube, etc.)
+  // Use summary only for internal Focus content
+  summary: isFocusContent ? fullContent : undefined,
+  qaSourceRef: !isFocusContent ? preview?.qaSourceRef : undefined,
+  userText: newComment,
+  sourceUrl: post.shared_url!,
+  testMode,
+});
+```
+
+### Dichiarazione Variabile
+
+Bisogna anche salvare il `preview` in una variabile accessibile a tutto lo scope del blocco (attualmente viene perso dopo l'if/else).
+
+**Linee 712-724 - Prima:**
+```typescript
+} else {
+  // Post normale - fetch articolo esterno
+  const preview = await fetchArticlePreview(post.shared_url!);
+  // ...
+}
+```
+
+**Dopo:**
+```typescript
+let preview: any = null;
+// ...
+} else {
+  // Post normale - fetch articolo esterno
+  preview = await fetchArticlePreview(post.shared_url!);
+  // ...
+}
+```
 
 ## Vincoli Rispettati
-- Nessuna modifica alla Edge Function (gia fixata)
-- Nessuna modifica al Gate
+
+- Nessuna modifica al Composer (già funzionante)
+- Nessuna modifica al backend
 - Nessuna modifica al sistema PULSE/Trust Score
+- Compatibilità con Focus interni mantenuta
 - Fix isolato in un singolo file
 
 ## Test Post-Modifica
-1. Caricare lo stesso screenshot JPEG 3024x4032
-2. Verificare nel console log: `shouldOCR: true`
-3. Verificare che `extracted_status` passi a `pending` poi `done`
-4. Verificare che il Gate proponga quiz basato sul testo estratto
+
+1. Aprire un post con link Spotify
+2. Cliccare su "Rispondi" → scegliere "Entra con consapevolezza"
+3. Verificare che le domande siano specifiche sui testi della canzone
+4. Ripetere per YouTube e verificare domande sulla trascrizione
