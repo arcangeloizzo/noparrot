@@ -1,162 +1,90 @@
 
-# Piano di Fix: Comprehension Gate - Root Cause Analysis e Soluzione
+# Piano Fix: Errore 500 su generate-qa (FK Violation)
 
-## Sintesi del Problema
+## Diagnosi
 
-Dopo un'analisi approfondita dei log e del codice, ho identificato la causa root del malfunzionamento del Gate. Il problema non è isolato ma deriva da un **bug architetturale nella gestione della cache**.
+L'errore 500 indica una **violazione della Foreign Key** nel database:
 
----
+```
+insert or update on table "post_qa_questions" violates foreign key constraint "post_qa_questions_post_id_fkey"
+Key (post_id)=(c2a683bd-f945-4e30-94f2-7eda1cc902a9) is not present in table "posts".
+```
 
-## Root Cause Identificata
-
-### Il Bug della Cache (CRITICO)
-
-Nel file `supabase/functions/fetch-article-preview/index.ts`, alle linee 822-863, esiste una logica di cache-first che:
-
-1. Controlla **PRIMA** la tabella `content_cache` per qualsiasi URL
-2. Se trova un cache hit, restituisce immediatamente con `qaSourceRef: { kind: 'url', id: url, url }`
-3. **Non distingue tra tipi di contenuto** (Spotify, YouTube, articoli web)
-
-Questo significa che:
-- Quando un URL Spotify viene cachato (con `source_type: 'spotify'`)
-- Alla successiva richiesta, la cache restituisce `kind: 'url'` invece di `kind: 'spotifyId'`
-- Il backend `generate-qa` riceve `kind: 'url'` e non entra nel case `spotifyId` che ha il fallback sui metadati
-- Risultato: `Content text length: 18` → `insufficient_context: true`
-
-### Catena di Conseguenze
+### Flusso Attuale (Errato)
 
 ```text
-1. Client chiede preview per spotify.com/track/xyz
-2. fetch-article-preview: Cache HIT! → restituisce { kind: 'url' }
-3. Client salva in readerSource.qaSourceRef = { kind: 'url', id: url }
-4. Click "Continua" → generate-qa riceve { kind: 'url' }
-5. generate-qa: case 'url' → prova Jina → fallisce → 18 chars
-6. Fallback title/excerpt: < 80 chars → insufficient_context: true
-7. Frontend: Fail-Open → skip quiz → vai a pubblica
+1. Client: Condividi post editoriale "Il Punto"
+2. Client → generate-qa: {
+     contentId: "c2a683bd-..." (ID della tabella daily_focus)
+     sourceUrl: "editorial://c2a683bd-..."
+     isPrePublish: undefined (non passato!)
+   }
+3. Backend: isPrePublish è undefined, quindi inserisce:
+     post_id: contentId = "c2a683bd-..."
+4. Database: FK error - quell'UUID è di daily_focus, non di posts!
 ```
 
 ---
 
-## I 3 Fix Necessari
+## Soluzione
 
-### FIX 1: Cache Platform-Aware (fetch-article-preview/index.ts)
+### FIX 1: Frontend - Passare isPrePublish per Editorial (ImmersivePostCard.tsx)
 
-**Linee 848-863**: Modificare il blocco cache hit per determinare il corretto `qaSourceRef.kind` basandosi su `source_type`.
+Alla linea 902-912, quando generiamo il quiz per contenuti editoriali, dobbiamo passare `isPrePublish: true`:
 
-**Da (attuale)**:
-```javascript
-qaSourceRef: { kind: 'url', id: url, url }
+```typescript
+// Prima (errato):
+const result = await generateQA({
+  contentId: isEditorial ? readerSource.id : post.id,
+  // ... altri parametri
+});
+
+// Dopo (corretto):
+const result = await generateQA({
+  contentId: null,  // Nessun post_id per editorial
+  isPrePublish: true,  // Forza post_id = null nel backend
+  // ... altri parametri
+});
 ```
 
-**A (corretto)**:
-```javascript
-// Determine correct qaSourceRef based on source_type
-let qaSourceRefKind: 'url' | 'spotifyId' | 'youtubeId' | 'tweetId' = 'url';
-let qaSourceRefId = url;
+### FIX 2: Backend - Check Difensivo per editorial:// (generate-qa/index.ts)
 
-if (cached.source_type === 'spotify') {
-  qaSourceRefKind = 'spotifyId';
-  // Extract Spotify ID from URL
-  const spotifyMatch = url.match(/track\/([a-zA-Z0-9]+)/);
-  qaSourceRefId = spotifyMatch ? spotifyMatch[1] : url;
-} else if (cached.source_type === 'youtube') {
-  qaSourceRefKind = 'youtubeId';
-  // Extract YouTube ID
-  const ytMatch = url.match(/(?:v=|youtu\.be\/)([^&\n?#]+)/);
-  qaSourceRefId = ytMatch ? ytMatch[1] : url;
-} else if (cached.source_type === 'twitter') {
-  qaSourceRefKind = 'tweetId';
-  const tweetMatch = url.match(/status\/(\d+)/);
-  qaSourceRefId = tweetMatch ? tweetMatch[1] : url;
-}
+Aggiungere un check difensivo alla linea 821-825 per forzare `post_id = null` quando l'URL è editoriale:
 
-return new Response(JSON.stringify({
-  // ... other fields ...
-  qaSourceRef: { kind: qaSourceRefKind, id: qaSourceRefId, url }
-}));
-```
-
-### FIX 2: Fallback con Metadati in generate-qa (generate-qa/index.ts)
-
-**Case 'url' (linee 288-339)**: Aggiungere detection della piattaforma e fallback sui metadati se lo scraping fallisce.
-
-Dopo il tentativo Jina (linea 336), aggiungere:
-
-```javascript
-// FALLBACK: If Jina failed but we have metadata (title/excerpt), use them
-if (!serverSideContent || serverSideContent.length < 50) {
-  // Detect if this is a music/media URL that should use metadata fallback
-  const isPlatformWithMetadata = sourceUrl && (
-    sourceUrl.includes('spotify.com') || 
-    sourceUrl.includes('youtube.com') ||
-    sourceUrl.includes('youtu.be') ||
-    sourceUrl.includes('tiktok.com')
-  );
-  
-  if (isPlatformWithMetadata && title) {
-    const syntheticContent = `Contenuto media: ${title}.${excerpt ? ` ${excerpt}` : ''} Disponibile sulla piattaforma originale.`;
-    if (syntheticContent.length >= 50) {
-      serverSideContent = syntheticContent;
-      contentSource = 'platform_metadata_fallback';
-      console.log(`[generate-qa] 🎵 Using platform metadata fallback: ${serverSideContent.length} chars`);
-    }
-  }
-}
-```
-
-### FIX 3: Abbassare la Soglia Fallback Finale (generate-qa/index.ts)
-
-**Linea 530**: Il fallback generale richiede 80 chars, troppo alto per alcuni titoli. Abbassare a 60 chars e migliorare la costruzione del contenuto:
-
-**Da**:
-```javascript
-if (fallbackContent.length >= 80) {
-```
-
-**A**:
-```javascript
-// Lower threshold and include title twice for emphasis in prompt
-const enhancedFallback = `${title ? title + '\n\n' : ''}${fallbackContent}`.trim();
-if (enhancedFallback.length >= 60) {
-  console.log(`[generate-qa] ⚡ Using enhanced title/excerpt fallback: ${enhancedFallback.length} chars`);
-  finalContentText = enhancedFallback;
+```typescript
+// Nel blocco insert (linea 821-834):
+const { data: insertedQA, error: insertError } = await supabase
+  .from('post_qa_questions')
+  .insert({
+    // FIX: Per editorial URLs, sempre null per evitare FK violation
+    post_id: (isPrePublish || sourceUrl?.startsWith('editorial://')) ? null : contentId,
+    source_url: sourceUrl || '',
+    // ...
+  })
 ```
 
 ---
 
-## Riepilogo Modifiche
+## File da Modificare
 
 | File | Linee | Modifica |
 |------|-------|----------|
-| `fetch-article-preview/index.ts` | 848-863 | Cache hit restituisce `qaSourceRef` corretto per piattaforma |
-| `generate-qa/index.ts` | 336+ | Fallback metadati per URL di piattaforme media |
-| `generate-qa/index.ts` | 530 | Abbassare soglia fallback da 80 a 60 chars |
+| `ImmersivePostCard.tsx` | 902-912 | Passare `isPrePublish: true` e `contentId: null` per editorial |
+| `generate-qa/index.ts` | 821-825 | Check difensivo per `editorial://` → `post_id = null` |
 
 ---
 
 ## Risultato Atteso
 
-| Scenario | Prima | Dopo |
-|----------|-------|------|
-| Spotify cachato | `kind: 'url'` → insufficient | `kind: 'spotifyId'` → quiz su metadati |
-| YouTube cachato | `kind: 'url'` → insufficient | `kind: 'youtubeId'` → quiz su titolo |
-| Articolo web con scraper fallito | skip quiz | Quiz su titolo/descrizione |
-| Twitter cachato | `kind: 'url'` | `kind: 'tweetId'` → quiz su tweet |
-
----
-
-## Test di Verifica Post-Fix
-
-1. **Spotify**: Condividi un brano Spotify → il quiz deve apparire con domande sui metadati (titolo/artista)
-2. **YouTube**: Condividi un video YouTube → il quiz deve apparire
-3. **Articolo web**: Condividi un link Il Post → il quiz deve apparire (anche se con domande basate su titolo/descrizione)
-4. **Editorial**: Condividi "Il Punto" → il quiz deve apparire
+| Prima | Dopo |
+|-------|------|
+| FK error 500 su contenuti editoriali | Quiz generato e salvato correttamente |
+| `post_id = daily_focus.id` (errato) | `post_id = null` (corretto) |
 
 ---
 
 ## Note Tecniche
 
-- La cache `content_cache` memorizza `source_type` ma NON `qaSourceRef`
-- Il fix ricostruisce `qaSourceRef` al volo basandosi su `source_type` e parsing dell'URL
-- Non richiede migrazione dati o modifiche allo schema DB
-- Backward compatible con cache entries esistenti
+- `post_qa_questions.post_id` è nullable by design per supportare quiz pre-pubblicazione
+- Il `source_url` (`editorial://...`) rimane il riferimento al contenuto editoriale
+- `owner_id` continua a tracciare chi ha generato il quiz
