@@ -560,9 +560,8 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       );
     }
 
-    // LinkedIn - show extracted text content (iframe blocked by LinkedIn)
+    // LinkedIn - preview card only (no text display per copyright policy, iframe blocked by LinkedIn)
     if (source.platform === 'linkedin' && !isClosing) {
-      const linkedinContent = (source as any).content || (source as any).excerpt || source.summary;
       const authorName = (source as any).author_name || source.author;
       const authorInitials = authorName 
         ? authorName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
@@ -579,44 +578,48 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               <p className="font-semibold text-foreground">{authorName || 'LinkedIn'}</p>
               <p className="text-xs text-muted-foreground">www.linkedin.com</p>
             </div>
-            <Button variant="ghost" size="sm" onClick={openSource} className="h-8 px-2">
+          </div>
+
+          {/* Preview card with image if available */}
+          {(source.title || source.image) && (
+            <div className="p-4 bg-card border border-border rounded-lg">
+              <div className="flex items-start gap-4">
+                {source.image && (
+                  <img 
+                    src={source.image} 
+                    alt="" 
+                    className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-foreground line-clamp-2">
+                    {source.title || 'Post LinkedIn'}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    www.linkedin.com
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* CTA to read on LinkedIn (like Spotify) */}
+          <div className="text-center p-6 bg-[#0A66C2]/5 border border-[#0A66C2]/20 rounded-xl">
+            <p className="text-sm text-muted-foreground mb-4">
+              Leggi il post su LinkedIn prima di procedere
+            </p>
+            <Button 
+              variant="outline" 
+              onClick={openSource} 
+              className="gap-2 border-[#0A66C2]/30 text-[#0A66C2] hover:bg-[#0A66C2]/10"
+            >
               <ExternalLink className="h-4 w-4" />
+              Apri su LinkedIn
             </Button>
           </div>
 
-          {/* Title if available */}
-          {source.title && (
-            <h3 className="font-semibold text-foreground text-lg px-1">
-              {source.title}
-            </h3>
-          )}
-
-          {/* Full extracted content - scrollable */}
-          {linkedinContent && linkedinContent.length > 50 ? (
-            <div 
-              ref={scrollContainerRef}
-              className="bg-card border border-border rounded-lg p-5 max-h-[50vh] overflow-y-auto"
-              style={{ WebkitOverflowScrolling: 'touch' }}
-            >
-              <p className="text-foreground leading-relaxed whitespace-pre-wrap">
-                {linkedinContent}
-              </p>
-            </div>
-          ) : (
-            // Fallback if no content extracted
-            <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
-              <p className="text-sm text-muted-foreground mb-4">
-                LinkedIn non consente la visualizzazione incorporata
-              </p>
-              <Button variant="outline" onClick={openSource} className="gap-2">
-                <ExternalLink className="h-4 w-4" />
-                Apri su LinkedIn
-              </Button>
-            </div>
-          )}
-
           {/* Content quality indicator */}
-          {source.contentQuality === 'complete' && linkedinContent && linkedinContent.length > 50 && (
+          {source.contentQuality === 'complete' && (
             <div className="bg-trust-high/10 border border-trust-high/20 rounded-lg p-3">
               <div className="flex items-center gap-2">
                 <Check className="h-4 w-4 text-trust-high" />
