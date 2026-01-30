@@ -703,6 +703,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                   const isFocusContent = post.shared_url === 'focus://internal';
                   let fullContent = '';
                   let contentTitle = '';
+                  let externalPreview: any = null;
                   
                   if (isFocusContent && post.article_content) {
                     // È un Focus - usa direttamente article_content (deep_content)
@@ -711,25 +712,29 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                     console.log('[CommentsDrawer] Using Focus deep_content:', fullContent.substring(0, 100));
                   } else {
                     // Post normale - fetch articolo esterno
-                    const preview = await fetchArticlePreview(post.shared_url!);
+                    externalPreview = await fetchArticlePreview(post.shared_url!);
                     
-                    if (!preview) {
+                    if (!externalPreview) {
                       sonnerToast.error("Impossibile recuperare il contenuto della fonte");
                       setIsProcessingGate(false);
                       return;
                     }
                     
-                    fullContent = preview.content || preview.summary || preview.excerpt || '';
-                    contentTitle = preview.title || post.shared_title || '';
+                    fullContent = externalPreview.content || externalPreview.summary || externalPreview.excerpt || '';
+                    contentTitle = externalPreview.title || post.shared_title || '';
+                    console.log('[CommentsDrawer] External preview qaSourceRef:', externalPreview.qaSourceRef);
                   }
                   
                   sonnerToast.info(`Sto creando le domande giuste per capire davvero…`);
                   
                   // Generate Q&A with new logic
+                  // Use qaSourceRef for external sources (Spotify, YouTube, etc.)
+                  // Use summary only for internal Focus content
                   const result = await generateQA({
                     contentId: post.id,
                     title: contentTitle,
-                    summary: fullContent,
+                    summary: isFocusContent ? fullContent : undefined,
+                    qaSourceRef: !isFocusContent ? externalPreview?.qaSourceRef : undefined,
                     userText: newComment,
                     sourceUrl: post.shared_url!,
                     testMode,
