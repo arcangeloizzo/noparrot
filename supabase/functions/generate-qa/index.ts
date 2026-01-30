@@ -379,6 +379,41 @@ serve(async (req) => {
       }
     }
     
+    // ========================================================================
+    // EDITORIAL:// HANDLER - Fetch content from daily_focus table
+    // ========================================================================
+    if (sourceUrl?.startsWith('editorial://') && !serverSideContent) {
+      const focusId = sourceUrl.replace('editorial://', '');
+      console.log(`[generate-qa] 📰 Editorial content, fetching from daily_focus: ${focusId}`);
+      
+      try {
+        const { data: focusData, error: focusError } = await supabase
+          .from('daily_focus')
+          .select('title, summary, deep_content')
+          .eq('id', focusId)
+          .maybeSingle();
+        
+        if (focusError) {
+          console.error('[generate-qa] Failed to fetch daily_focus:', focusError);
+        } else if (focusData) {
+          const editorialContent = focusData.deep_content || focusData.summary || '';
+          // Clean [SOURCE:N] markers for quiz generation
+          serverSideContent = editorialContent.replace(/\[SOURCE:[\d,\s]+\]/g, '').trim();
+          contentSource = 'daily_focus';
+          console.log(`[generate-qa] ✅ Editorial content from daily_focus: ${serverSideContent.length} chars`);
+          
+          // Use title from focus if not provided
+          if (!title && focusData.title) {
+            console.log(`[generate-qa] Using title from daily_focus: ${focusData.title.substring(0, 50)}`);
+          }
+        } else {
+          console.warn(`[generate-qa] Editorial focus not found: ${focusId}`);
+        }
+      } catch (err) {
+        console.error('[generate-qa] Editorial fetch exception:', err);
+      }
+    }
+    
     // Combine content sources for hash and prompt
     const contentText = `${title || ''}\n\n${serverSideContent || ''}\n\n${excerpt || ''}`.trim();
     
