@@ -151,14 +151,19 @@ async function fetchGenius(artist: string, title: string, apiKey: string): Promi
       return null;
     }
     
-    // Fetch lyrics page via Jina Reader
+    // Fetch lyrics page via Jina Reader (with API key)
+    const JINA_API_KEY = Deno.env.get('JINA_API_KEY');
     const jinaUrl = `https://r.jina.ai/${hit.url}`;
+    const jinaHeaders: Record<string, string> = { 
+      'Accept': 'text/markdown',
+      'X-Return-Format': 'markdown'
+    };
+    if (JINA_API_KEY) {
+      jinaHeaders['Authorization'] = `Bearer ${JINA_API_KEY}`;
+    }
     const jinaRes = await fetch(jinaUrl, {
       signal: controller.signal,
-      headers: { 
-        'Accept': 'text/markdown',
-        'X-Return-Format': 'markdown'
-      }
+      headers: jinaHeaders
     });
     clearTimeout(timeout);
     
@@ -195,9 +200,14 @@ async function fetchMusixmatch(artist: string, title: string): Promise<string | 
     const searchQuery = a ? `${a} ${t} lyrics musixmatch` : `${t} lyrics musixmatch`;
     const jinaUrl = `https://s.jina.ai/${encodeURIComponent(searchQuery)}`;
     
+    const JINA_API_KEY = Deno.env.get('JINA_API_KEY');
+    const jinaSearchHeaders: Record<string, string> = { 'Accept': 'application/json' };
+    if (JINA_API_KEY) {
+      jinaSearchHeaders['Authorization'] = `Bearer ${JINA_API_KEY}`;
+    }
     const searchRes = await fetch(jinaUrl, {
       signal: controller.signal,
-      headers: { 'Accept': 'application/json' }
+      headers: jinaSearchHeaders
     });
     
     if (!searchRes.ok) {
@@ -216,13 +226,17 @@ async function fetchMusixmatch(artist: string, title: string): Promise<string | 
       return null;
     }
     
-    // Fetch the Musixmatch page
+    // Fetch the Musixmatch page (with API key)
+    const readerHeaders: Record<string, string> = { 
+      'Accept': 'text/markdown',
+      'X-Return-Format': 'markdown'
+    };
+    if (JINA_API_KEY) {
+      readerHeaders['Authorization'] = `Bearer ${JINA_API_KEY}`;
+    }
     const readerRes = await fetch(`https://r.jina.ai/${mxmResult.url}`, {
       signal: controller.signal,
-      headers: { 
-        'Accept': 'text/markdown',
-        'X-Return-Format': 'markdown'
-      }
+      headers: readerHeaders
     });
     clearTimeout(timeout);
     
