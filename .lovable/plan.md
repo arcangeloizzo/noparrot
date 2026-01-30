@@ -1,117 +1,61 @@
 
-# Fix Gate Commenti - Aggiunta qaSourceRef
+# Implementazione NavBar con FAB Centrale
 
-## Problema Identificato
+## Piano Confermato - Pronto per Implementazione
 
-Il flusso del **Comprehension Gate per i commenti consapevoli** (CommentsDrawer) usa una modalità legacy che non sfrutta il `qaSourceRef` restituito da `fetch-article-preview`. Di conseguenza:
+Il piano è stato approvato con le seguenti specifiche aggiuntive:
 
-- Per contenuti **Spotify/YouTube/Twitter**, il backend ricade sulla modalità legacy che usa il testo generico del `summary` passato dal client
-- Questo produce **domande generiche** invece di domande specifiche sui testi/trascrizioni
+### Dettagli Tecnici Finali
 
-### Comportamento Attuale
-
-```
-CommentsDrawer                          Composer (funziona)
-     │                                       │
-     ▼                                       ▼
-fetchArticlePreview(url)              fetchArticlePreview(url)
-     │                                       │
-     ├── preview.qaSourceRef ✓              ├── preview.qaSourceRef ✓
-     │                                       │
-     ▼                                       ▼
-generateQA({                          generateQA({
-  summary: preview.content,  ❌         qaSourceRef: preview.qaSourceRef ✓
-  sourceUrl: url                        sourceUrl: url
-})                                    })
-     │                                       │
-     ▼                                       ▼
-Backend: "Legacy mode" →             Backend: "Source-first" →
-domande generiche                    domande su testi Spotify
-```
-
-### Causa Root
-
-In `CommentsDrawer.tsx` linea 728-736, il codice:
-```typescript
-const result = await generateQA({
-  contentId: post.id,
-  title: contentTitle,
-  summary: fullContent,        // ❌ Attiva legacy mode
-  userText: newComment,
-  sourceUrl: post.shared_url!,
-  testMode,
-  // ❌ MANCA: qaSourceRef: preview.qaSourceRef
-});
-```
-
-## Soluzione
-
-### Modifica a CommentsDrawer.tsx
-
-Passare `qaSourceRef` da `preview` a `generateQA`, e rimuovere `summary` per contenuti esterni (mantenendolo solo per Focus interni):
-
-**Linee 728-736 - Prima:**
-```typescript
-const result = await generateQA({
-  contentId: post.id,
-  title: contentTitle,
-  summary: fullContent,
-  userText: newComment,
-  sourceUrl: post.shared_url!,
-  testMode,
-});
-```
-
-**Dopo:**
-```typescript
-const result = await generateQA({
-  contentId: post.id,
-  title: contentTitle,
-  // Use qaSourceRef for external sources (Spotify, YouTube, etc.)
-  // Use summary only for internal Focus content
-  summary: isFocusContent ? fullContent : undefined,
-  qaSourceRef: !isFocusContent ? preview?.qaSourceRef : undefined,
-  userText: newComment,
-  sourceUrl: post.shared_url!,
-  testMode,
-});
-```
-
-### Dichiarazione Variabile
-
-Bisogna anche salvare il `preview` in una variabile accessibile a tutto lo scope del blocco (attualmente viene perso dopo l'if/else).
-
-**Linee 712-724 - Prima:**
-```typescript
-} else {
-  // Post normale - fetch articolo esterno
-  const preview = await fetchArticlePreview(post.shared_url!);
-  // ...
+**1. Ombra FAB Centrale (morbida per profondità)**
+```css
+.liquid-glass-fab-central {
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.35),    /* Ombra principale morbida */
+    0 4px 16px rgba(0, 0, 0, 0.25),    /* Ombra secondaria */
+    0 2px 8px rgba(135, 206, 250, 0.15), /* Glow azzurro sottile */
+    inset 0 1px 3px rgba(255, 255, 255, 0.2);
 }
 ```
 
-**Dopo:**
+**2. Timing Reattivo (Composer a 300ms)**
 ```typescript
-let preview: any = null;
-// ...
-} else {
-  // Post normale - fetch articolo esterno
-  preview = await fetchArticlePreview(post.shared_url!);
-  // ...
-}
+const handleFabClick = useCallback(() => {
+  haptics.medium();
+  setShowRipple(true);
+  
+  // Apertura composer a 300ms (prima che ripple finisca a 500ms)
+  setTimeout(() => {
+    onComposerClick?.();
+  }, 300);
+  
+  // Ripple completa a 500ms
+  setTimeout(() => {
+    setShowRipple(false);
+  }, 500);
+}, [onComposerClick]);
 ```
 
-## Vincoli Rispettati
+### File da Modificare
 
-- Nessuna modifica al Composer (già funzionante)
-- Nessuna modifica al backend
-- Nessuna modifica al sistema PULSE/Trust Score
-- Compatibilità con Focus interni mantenuta
-- Fix isolato in un singolo file
+1. **`src/components/navigation/BottomNavigation.tsx`**
+   - Riorganizzazione layout a 5 slot
+   - Rimozione tab "Saved"
+   - Aggiunta FAB centrale con stato ripple
+   - Nuova prop `onComposerClick`
 
-## Test Post-Modifica
+2. **`src/index.css`**
+   - Nuova classe `.liquid-glass-fab-central` con ombra morbida
+   - Animazione `@keyframes liquid-ripple`
+   - Classe `.fab-liquid-ripple`
 
-1. Aprire un post con link Spotify
-2. Cliccare su "Rispondi" → scegliere "Entra con consapevolezza"
-3. Verificare che le domande siano specifiche sui testi della canzone
-4. Ripetere per YouTube e verificare domande sulla trascrizione
+3. **`src/pages/Feed.tsx`**
+   - Rimozione `<FloatingActionButton />`
+   - Passaggio `onComposerClick={handleCreatePost}` a `<BottomNavigation />`
+
+4. **`src/pages/Profile.tsx`**
+   - Aggiunta icona Bookmark nel header (a sinistra di Settings)
+   - Navigazione a `/saved` al click
+
+5. **Altre pagine con BottomNavigation**
+   - Search.tsx, Messages.tsx, Saved.tsx: aggiornamento props
