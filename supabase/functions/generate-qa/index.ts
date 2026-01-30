@@ -335,6 +335,26 @@ serve(async (req) => {
                 console.error('[generate-qa] Jina fetch failed:', err);
               }
             }
+            
+            // FALLBACK: If Jina failed but we have metadata (title/excerpt), use them for media platforms
+            if (!serverSideContent || serverSideContent.length < 50) {
+              // Detect if this is a music/media URL that should use metadata fallback
+              const isPlatformWithMetadata = cacheUrl && (
+                cacheUrl.includes('spotify.com') || 
+                cacheUrl.includes('youtube.com') ||
+                cacheUrl.includes('youtu.be') ||
+                cacheUrl.includes('tiktok.com')
+              );
+              
+              if (isPlatformWithMetadata && title) {
+                const syntheticContent = `Contenuto media: ${title}.${excerpt ? ` ${excerpt}` : ''} Disponibile sulla piattaforma originale.`;
+                if (syntheticContent.length >= 50) {
+                  serverSideContent = syntheticContent;
+                  contentSource = 'platform_metadata_fallback';
+                  console.log(`[generate-qa] 🎵 Using platform metadata fallback in URL case: ${serverSideContent.length} chars`);
+                }
+              }
+            }
           }
           break;
         }
@@ -525,12 +545,15 @@ serve(async (req) => {
     let finalContentText = contentText;
     if (contentText.length < 50) {
       // FALLBACK: Try to build minimum content from title + excerpt + userText
+      // Include title twice for emphasis in prompt (title is most reliable metadata)
       const fallbackContent = `${title || ''}\n\n${excerpt || ''}\n\n${userText || ''}`.trim();
+      const enhancedFallback = `${title ? title + '\n\n' : ''}${fallbackContent}`.trim();
       
-      if (fallbackContent.length >= 80) {
-        console.log(`[generate-qa] ⚡ Using title/excerpt fallback for quiz: ${fallbackContent.length} chars`);
-        finalContentText = fallbackContent;
-        serverSideContent = fallbackContent;
+      // Lowered threshold from 80 to 60 to allow shorter but valid content
+      if (enhancedFallback.length >= 60) {
+        console.log(`[generate-qa] ⚡ Using enhanced title/excerpt fallback for quiz: ${enhancedFallback.length} chars`);
+        finalContentText = enhancedFallback;
+        serverSideContent = enhancedFallback;
         contentSource = 'title_excerpt_fallback';
       } else {
         console.log('[generate-qa] ⚠️ Insufficient content for Q/A generation');

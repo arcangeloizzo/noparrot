@@ -845,6 +845,28 @@ serve(async (req) => {
         };
         const platform = platformMap[cached.source_type] || 'generic';
         
+        // FIX: Determine correct qaSourceRef based on source_type for proper Gate handling
+        let qaSourceRefKind: 'url' | 'spotifyId' | 'youtubeId' | 'tweetId' = 'url';
+        let qaSourceRefId = url;
+        
+        if (cached.source_type === 'spotify') {
+          qaSourceRefKind = 'spotifyId';
+          // Extract Spotify ID from URL
+          const spotifyMatch = url.match(/track\/([a-zA-Z0-9]+)/);
+          qaSourceRefId = spotifyMatch ? spotifyMatch[1] : url;
+        } else if (cached.source_type === 'youtube') {
+          qaSourceRefKind = 'youtubeId';
+          // Extract YouTube ID
+          const ytMatch = url.match(/(?:v=|youtu\.be\/)([^&\n?#]+)/);
+          qaSourceRefId = ytMatch ? ytMatch[1] : url;
+        } else if (cached.source_type === 'twitter') {
+          qaSourceRefKind = 'tweetId';
+          const tweetMatch = url.match(/status\/(\d+)/);
+          qaSourceRefId = tweetMatch ? tweetMatch[1] : url;
+        }
+        
+        console.log(`[Cache] Platform-aware qaSourceRef: kind=${qaSourceRefKind}, id=${qaSourceRefId.substring(0, 30)}`);
+        
         return new Response(JSON.stringify({
           success: true,
           title: cached.title,
@@ -857,7 +879,7 @@ serve(async (req) => {
           contentQuality: 'complete',
           fromCache: true,
           iframeAllowed: true,
-          qaSourceRef: { kind: 'url', id: url, url }
+          qaSourceRef: { kind: qaSourceRefKind, id: qaSourceRefId, url }
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
