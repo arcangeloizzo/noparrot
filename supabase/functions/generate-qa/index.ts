@@ -359,40 +359,97 @@ serve(async (req) => {
           if (cacheUrl) {
             const { data: cached } = await supabase
               .from('content_cache')
-              .select('content_text')
+              .select('content_text, source_type')
               .eq('source_url', cacheUrl)
               .gt('expires_at', new Date().toISOString())
               .maybeSingle();
             
-            if (cached?.content_text) {
+            // Check if cached content is synthetic/partial (LinkedIn specific patterns)
+            const cachedText = (cached as any)?.content_text as string | undefined;
+            const isLinkedIn = cacheUrl.toLowerCase().includes('linkedin.com');
+            const looksSyntheticLinkedIn = isLinkedIn && cachedText && (
+              cachedText.length < 300 ||
+              cachedText.includes('Sign in to view') ||
+              cachedText.includes('Join now to see') ||
+              cachedText.includes('Welcome back') ||
+              cachedText.includes('Post da linkedin') ||
+              /^Post di .{1,50}$/.test(cachedText.trim()) // Just a title, no content
+            );
+            
+            if (cached?.content_text && !looksSyntheticLinkedIn) {
               serverSideContent = cached.content_text;
               contentSource = 'content_cache';
               console.log(`[generate-qa] ✅ Content from cache: ${serverSideContent.length} chars`);
             } else {
-              // Try Jina AI Reader as fallback
-              console.log(`[generate-qa] ⏳ Content not cached, trying Jina...`);
+              // Try Jina AI Reader with authentication
+              console.log(`[generate-qa] ⏳ Content not cached or synthetic (LinkedIn refresh: ${looksSyntheticLinkedIn}), trying Jina...`);
               try {
                 const jinaUrl = `https://r.jina.ai/${cacheUrl}`;
-                const jinaResponse = await fetch(jinaUrl, {
-                  headers: {
-                    'Accept': 'application/json',
-                    'X-Return-Format': 'json'
-                  }
-                });
+                const JINA_API_KEY = Deno.env.get('JINA_API_KEY');
+                
+                const jinaHeaders: Record<string, string> = {
+                  'Accept': 'application/json',
+                  'X-Return-Format': 'json'
+                };
+                if (JINA_API_KEY) {
+                  jinaHeaders['Authorization'] = `Bearer ${JINA_API_KEY}`;
+                  console.log(`[generate-qa] Using authenticated Jina request`);
+                }
+                
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                
+                const jinaResponse = await fetch(jinaUrl, { headers: jinaHeaders, signal: controller.signal });
+                clearTimeout(timeoutId);
                 
                 if (jinaResponse.ok) {
                   const jinaData = await jinaResponse.json();
-                  if (jinaData.content && jinaData.content.length > 100) {
-                    serverSideContent = jinaData.content;
-                    contentSource = 'jina_fresh';
+                  let extractedContent = jinaData.content || '';
+                  
+                  // LinkedIn-specific cleaning
+                  if (isLinkedIn && extractedContent) {
+                    const linkedInNoisePatterns = [
+                      /Sign in to view more content/gi,
+                      /Join now to see who you already know/gi,
+                      /See who you know/gi,
+                      /Get the LinkedIn app/gi,
+                      /Skip to main content/gi,
+                      /LinkedIn and 3rd parties use/gi,
+                      /Accept & Join LinkedIn/gi,
+                      /By clicking Continue/gi,
+                      /Like Comment Share/gi,
+                      /\d+ reactions?/gi,
+                      /\d+ comments?/gi,
+                      /View \d+ comments/gi,
+                      /Report this post/gi,
+                      /Copy link to post/gi,
+                      /Repost with your thoughts/gi,
+                      /More from this author/gi,
+                      /Welcome back/gi,
+                      /Don't miss out/gi,
+                      /LinkedIn Corporation ©/gi,
+                      /\[Image[^\]]*\]/gi,
+                      /!\[.*?\]\(.*?\)/gi
+                    ];
+                    
+                    for (const pattern of linkedInNoisePatterns) {
+                      extractedContent = extractedContent.replace(pattern, '');
+                    }
+                    extractedContent = extractedContent.replace(/\n{3,}/g, '\n\n').trim();
+                    console.log(`[generate-qa] LinkedIn content cleaned: ${extractedContent.length} chars`);
+                  }
+                  
+                  if (extractedContent && extractedContent.length > 100) {
+                    serverSideContent = extractedContent;
+                    contentSource = looksSyntheticLinkedIn ? 'linkedin_refresh' : 'jina_fresh';
                     console.log(`[generate-qa] ✅ Content from Jina: ${serverSideContent.length} chars`);
                     
-                    // Cache for future use
+                    // Cache for future use (overwrite synthetic cache)
                     const expiresAt = new Date();
                     expiresAt.setDate(expiresAt.getDate() + 7);
                     await supabase.from('content_cache').upsert({
                       source_url: cacheUrl,
-                      source_type: 'article',
+                      source_type: isLinkedIn ? 'linkedin' : 'article',
                       content_text: serverSideContent,
                       title: jinaData.title || null,
                       expires_at: expiresAt.toISOString()
@@ -408,20 +465,26 @@ serve(async (req) => {
             if (!serverSideContent || serverSideContent.length < 300) {
               const cacheUrlForRetry = effectiveQaSourceRef.url || sourceUrl;
               
-              // STEP 1: Try Jina retry with 8s timeout
+              // STEP 1: Try Jina retry with longer timeout and auth
               if (cacheUrlForRetry && (!serverSideContent || serverSideContent.length < 300)) {
                 console.log(`[generate-qa] ⚠️ Content too short (${serverSideContent?.length || 0} chars), trying extraction cascade...`);
                 
-                // Jina attempt
+                // Jina attempt with auth
                 try {
                   const controller = new AbortController();
-                  const timeoutId = setTimeout(() => controller.abort(), 8000);
+                  const timeoutId = setTimeout(() => controller.abort(), 12000);
+                  
+                  const JINA_API_KEY = Deno.env.get('JINA_API_KEY');
+                  const jinaHeaders: Record<string, string> = {
+                    'Accept': 'application/json',
+                    'X-Return-Format': 'json'
+                  };
+                  if (JINA_API_KEY) {
+                    jinaHeaders['Authorization'] = `Bearer ${JINA_API_KEY}`;
+                  }
                   
                   const jinaRetryResponse = await fetch(`https://r.jina.ai/${cacheUrlForRetry}`, {
-                    headers: {
-                      'Accept': 'application/json',
-                      'X-Return-Format': 'json'
-                    },
+                    headers: jinaHeaders,
                     signal: controller.signal
                   });
                   clearTimeout(timeoutId);
@@ -445,7 +508,7 @@ serve(async (req) => {
                 console.log(`[generate-qa] 🔥 Trying Firecrawl as backup...`);
                 try {
                   const controller = new AbortController();
-                  const timeoutId = setTimeout(() => controller.abort(), 10000);
+                  const timeoutId = setTimeout(() => controller.abort(), 12000);
                   
                   const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
                     method: 'POST',
@@ -456,7 +519,8 @@ serve(async (req) => {
                     body: JSON.stringify({
                       url: cacheUrlForRetry,
                       formats: ['markdown'],
-                      onlyMainContent: true
+                      onlyMainContent: true,
+                      waitFor: 2000
                     }),
                     signal: controller.signal
                   });

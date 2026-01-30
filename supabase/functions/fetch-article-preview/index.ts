@@ -664,12 +664,23 @@ async function fetchSocialWithJina(url: string, platform: string) {
     console.log(`[Jina] Fetching ${platform} content via Jina AI Reader`);
     
     const jinaUrl = `https://r.jina.ai/${url}`;
-    const response = await fetch(jinaUrl, {
-      headers: {
-        'Accept': 'application/json',
-        'X-Return-Format': 'json'
-      }
-    });
+    const JINA_API_KEY = Deno.env.get('JINA_API_KEY');
+    
+    // Build headers with optional auth
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
+      'X-Return-Format': 'json'
+    };
+    if (JINA_API_KEY) {
+      headers['Authorization'] = `Bearer ${JINA_API_KEY}`;
+      console.log(`[Jina] Using authenticated request for ${platform}`);
+    }
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout
+    
+    const response = await fetch(jinaUrl, { headers, signal: controller.signal });
+    clearTimeout(timeoutId);
     
     if (!response.ok) {
       console.error(`[Jina] Failed for ${platform}: ${response.status}`);
@@ -688,15 +699,61 @@ async function fetchSocialWithJina(url: string, platform: string) {
     let author = data.author_name || data.author || '';
     let authorUsername = '';
     
-    if (platform === 'linkedin' && data.content) {
-      const authorMatch = data.content.match(/(?:Posted by|By)\s+([^\n]+)/i);
+    // LinkedIn-specific content cleaning
+    let rawContent = data.content || '';
+    
+    if (platform === 'linkedin' && rawContent) {
+      // Extract author from content patterns
+      const authorMatch = rawContent.match(/(?:Posted by|By|Pubblicato da)\s+([^\n]+)/i);
       if (authorMatch) author = authorMatch[1].trim();
-    } else if (platform === 'twitter' && data.content) {
-      const usernameMatch = data.content.match(/@(\w+)/);
+      
+      // Remove LinkedIn noise markers
+      const linkedInNoiseMarkers = [
+        /Sign in to view more content/gi,
+        /Join now to see who you already know/gi,
+        /See who you know/gi,
+        /Get the LinkedIn app/gi,
+        /Download the app/gi,
+        /Skip to main content/gi,
+        /LinkedIn and 3rd parties use/gi,
+        /Accept & Join LinkedIn/gi,
+        /By clicking Continue/gi,
+        /Like Comment Share/gi,
+        /\d+ reactions?/gi,
+        /\d+ comments?/gi,
+        /View \d+ comments/gi,
+        /Report this post/gi,
+        /Copy link to post/gi,
+        /Repost with your thoughts/gi,
+        /More from this author/gi,
+        /Welcome back/gi,
+        /Don't miss out/gi,
+        /LinkedIn Corporation ©/gi,
+        /\[Image[^\]]*\]/gi,
+        /!\[.*?\]\(.*?\)/gi // Markdown images
+      ];
+      
+      for (const marker of linkedInNoiseMarkers) {
+        rawContent = rawContent.replace(marker, '');
+      }
+      
+      // Remove navigation noise at start
+      rawContent = rawContent.replace(/^[\s\S]*?((?:About|Article|Post|Pubblicato|Posted)\s)/i, '$1');
+      
+      // Trim excessive whitespace
+      rawContent = rawContent.replace(/\n{3,}/g, '\n\n').trim();
+    } else if (platform === 'twitter' && rawContent) {
+      const usernameMatch = rawContent.match(/@(\w+)/);
       if (usernameMatch) authorUsername = usernameMatch[1];
     }
 
-    const cleanedContent = cleanReaderText(data.content || '');
+    const cleanedContent = cleanReaderText(rawContent);
+    
+    // Quality check: reject if too short or looks like auth wall
+    if (cleanedContent.length < 100 || isLinkedInAuthWallContent(cleanedContent)) {
+      console.log(`[Jina] ⚠️ ${platform} content rejected: too short or auth wall (${cleanedContent.length} chars)`);
+      return null;
+    }
     
     return {
       title: data.title || `Post da ${platform}`,
@@ -709,7 +766,7 @@ async function fetchSocialWithJina(url: string, platform: string) {
       author,
       author_username: authorUsername || (platform === 'twitter' ? author.replace('@', '') : ''),
       hostname: new URL(url).hostname,
-      contentQuality: cleanedContent.length > 200 ? 'complete' : 'partial'
+      contentQuality: cleanedContent.length > 300 ? 'complete' : 'partial'
     };
   } catch (error) {
     console.error(`[Jina] Error for ${platform}:`, error);
