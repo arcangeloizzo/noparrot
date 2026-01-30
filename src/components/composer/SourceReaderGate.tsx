@@ -560,6 +560,76 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       );
     }
 
+    // LinkedIn - show extracted text content (iframe blocked by LinkedIn)
+    if (source.platform === 'linkedin' && !isClosing) {
+      const linkedinContent = (source as any).content || (source as any).excerpt || source.summary;
+      const authorName = (source as any).author_name || source.author;
+      const authorInitials = authorName 
+        ? authorName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
+        : 'LI';
+      
+      return (
+        <div className="max-w-2xl mx-auto space-y-4">
+          {/* LinkedIn Header */}
+          <div className="flex items-center gap-3 p-4 bg-[#0A66C2]/10 border border-[#0A66C2]/20 rounded-lg">
+            <div className="w-10 h-10 rounded-full bg-[#0A66C2] flex items-center justify-center text-white font-semibold text-sm">
+              {authorInitials}
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-foreground">{authorName || 'LinkedIn'}</p>
+              <p className="text-xs text-muted-foreground">www.linkedin.com</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={openSource} className="h-8 px-2">
+              <ExternalLink className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Title if available */}
+          {source.title && (
+            <h3 className="font-semibold text-foreground text-lg px-1">
+              {source.title}
+            </h3>
+          )}
+
+          {/* Full extracted content - scrollable */}
+          {linkedinContent && linkedinContent.length > 50 ? (
+            <div 
+              ref={scrollContainerRef}
+              className="bg-card border border-border rounded-lg p-5 max-h-[50vh] overflow-y-auto"
+              style={{ WebkitOverflowScrolling: 'touch' }}
+            >
+              <p className="text-foreground leading-relaxed whitespace-pre-wrap">
+                {linkedinContent}
+              </p>
+            </div>
+          ) : (
+            // Fallback if no content extracted
+            <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
+              <p className="text-sm text-muted-foreground mb-4">
+                LinkedIn non consente la visualizzazione incorporata
+              </p>
+              <Button variant="outline" onClick={openSource} className="gap-2">
+                <ExternalLink className="h-4 w-4" />
+                Apri su LinkedIn
+              </Button>
+            </div>
+          )}
+
+          {/* Content quality indicator */}
+          {source.contentQuality === 'complete' && linkedinContent && linkedinContent.length > 50 && (
+            <div className="bg-trust-high/10 border border-trust-high/20 rounded-lg p-3">
+              <div className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-trust-high" />
+                <span className="text-sm font-medium text-trust-high">
+                  Testo disponibile per il test
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     // Twitter/X
     if (source.platform === 'twitter' && !isClosing) {
       return (
