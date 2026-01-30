@@ -78,7 +78,7 @@ serve(async (req) => {
       const data = await response.json();
       const extractedText = data.choices?.[0]?.message?.content || '';
       const isValidText = extractedText && 
-                          extractedText.length > 50 && 
+                          extractedText.length > 120 && 
                           !extractedText.includes('NO_TEXT_FOUND');
 
       console.log(`[extract-media-text] OCR result: ${extractedText.length} chars, valid: ${isValidText}`);
@@ -183,7 +183,7 @@ serve(async (req) => {
       const whisperData = await whisperResponse.json();
       const transcript = whisperData.text || '';
       const detectedLanguage = whisperData.language || 'unknown';
-      const isValidTranscript = transcript.length > 50;
+      const isValidTranscript = transcript.length > 120;
       
       console.log(`[extract-media-text] Transcript received: ${transcript.length} chars, language: ${detectedLanguage}`);
       
