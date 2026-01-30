@@ -181,8 +181,6 @@ export default function Messages() {
         onTabChange={(tab) => {
           if (tab === 'home') navigate('/');
           else if (tab === 'search') navigate('/search');
-          else if (tab === 'saved') navigate('/saved');
-          else if (tab === 'messages') { /* already here */ }
         }}
         onProfileClick={() => navigate('/profile')}
         onHomeRefresh={() => {}}

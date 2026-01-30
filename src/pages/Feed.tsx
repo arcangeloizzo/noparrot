@@ -7,7 +7,7 @@ import { FocusDetailSheet } from "@/components/feed/FocusDetailSheet";
 import { CommentsDrawer } from "@/components/feed/CommentsDrawer";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 
-import { FloatingActionButton } from "@/components/fab/FloatingActionButton";
+// FloatingActionButton removed - now integrated into BottomNavigation
 import { ComposerModal } from "@/components/composer/ComposerModal";
 import { SimilarContentOverlay } from "@/components/feed/SimilarContentOverlay";
 import { Header } from "@/components/navigation/Header";
@@ -479,11 +479,11 @@ export const Feed = () => {
         )}
       </ImmersiveFeedContainer>
 
-      <FloatingActionButton onClick={handleCreatePost} />
       <BottomNavigation 
         activeTab="home" 
         onTabChange={handleTabChange}
         onHomeRefresh={handleHomeRefresh}
+        onComposerClick={handleCreatePost}
       />
 
       <ComposerModal

@@ -12,7 +12,7 @@ import { NebulaExpandedSheet } from "@/components/profile/NebulaExpandedSheet";
 import { getDisplayUsername } from "@/lib/utils";
 import { recalculateCognitiveDensityFromPosts } from "@/lib/cognitiveDensity";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Settings } from "lucide-react";
+import { Settings, Bookmark } from "lucide-react";
 
 export const Profile = () => {
   const { user } = useAuth();
@@ -250,14 +250,23 @@ export const Profile = () => {
               )}
             </div>
 
-            {/* Settings Icon */}
-            <button
-              onClick={() => setShowSettings(true)}
-              className="flex-shrink-0 p-2.5 rounded-full bg-[#141A1E] border border-white/10 hover:border-white/20 transition-colors"
-              aria-label="Impostazioni"
-            >
-              <Settings className="w-5 h-5 text-muted-foreground" />
-            </button>
+            {/* Saved Icon + Settings Icon */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => navigate('/saved')}
+                className="flex-shrink-0 p-2.5 rounded-full bg-[#141A1E] border border-white/10 hover:border-white/20 transition-colors"
+                aria-label="Contenuti salvati"
+              >
+                <Bookmark className="w-5 h-5 text-muted-foreground" />
+              </button>
+              <button
+                onClick={() => setShowSettings(true)}
+                className="flex-shrink-0 p-2.5 rounded-full bg-[#141A1E] border border-white/10 hover:border-white/20 transition-colors"
+                aria-label="Impostazioni"
+              >
+                <Settings className="w-5 h-5 text-muted-foreground" />
+              </button>
+            </div>
           </div>
 
           {/* Metrics Pills */}
@@ -348,8 +357,6 @@ export const Profile = () => {
         onTabChange={(tab) => {
           if (tab === 'home') navigate('/');
           else if (tab === 'search') navigate('/search');
-          else if (tab === 'saved') navigate('/saved');
-          else if (tab === 'notifications') navigate('/notifications');
         }}
         onProfileClick={() => {}} // Already on profile
       />

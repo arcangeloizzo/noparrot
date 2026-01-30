@@ -335,8 +335,11 @@ export const Saved = () => {
 
       {/* Bottom Navigation */}
       <BottomNavigation 
-        activeTab="saved"
-        onTabChange={handleTabChange}
+        activeTab=""
+        onTabChange={(tab) => {
+          if (tab === 'home') navigate('/');
+          else if (tab === 'search') navigate('/search');
+        }}
       />
     </div>
   );
