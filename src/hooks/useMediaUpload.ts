@@ -34,21 +34,21 @@ function shouldPerformOCR(file: File, width: number, height: number): boolean {
     r => ratio >= r.min && ratio <= r.max
   );
   
-  // 2. Resolution check - screenshot hanno risoluzioni tipiche
-  const typicalWidths = [1080, 1170, 1284, 1290, 1179, 1242, 1440, 1920, 2560];
+  // 2. Resolution check - screenshot hanno risoluzioni tipiche (aggiornato con dispositivi moderni)
+  const typicalWidths = [1080, 1170, 1284, 1290, 1179, 1242, 1440, 1920, 2048, 2436, 2560, 2732, 3024];
   const hasTypicalWidth = typicalWidths.some(w => Math.abs(width - w) < 50);
   
-  // 3. File format heuristic - screenshot PNG sono spesso grandi
-  const isLikelyPNG = file.type === 'image/png' && file.size > 200_000;
+  // 3. File size heuristic - screenshot sono tipicamente > 200KB (supporta JPEG e PNG)
+  const isLargeImage = file.size > 200_000;
   
   // 4. PDF sempre OCR
   const isPDF = file.type === 'application/pdf';
   
   if (isPDF) return true;
   
-  // Decision: almeno 2 su 3 indicatori
-  const score = [hasScreenshotRatio, hasTypicalWidth, isLikelyPNG].filter(Boolean).length;
-  return score >= 2;
+  // Decision: basta 1 indicatore per tentare OCR (fail-open, il costo di falsi positivi è basso)
+  const score = [hasScreenshotRatio, hasTypicalWidth, isLargeImage].filter(Boolean).length;
+  return score >= 1;
 }
 
 // Estrae la durata di un video
