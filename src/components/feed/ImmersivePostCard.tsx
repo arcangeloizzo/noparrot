@@ -806,18 +806,20 @@ const ImmersivePostCardInner = ({
     }, 30000);
 
     try {
-      // Removed frontend content-length block - let backend handle via fail-open
-      // The backend will return insufficient_context which triggers fail-open toast + share
-      const isEditorial = readerSource.isEditorial || 
-        readerSource.url?.startsWith('editorial://') ||
-        readerSource.url?.startsWith('focus://daily/');
-      
-      console.log('[Gate] Pre-flight check:', { 
-        isOriginal: readerSource.isOriginalPost,
-        isIntent: readerSource.isIntentPost, 
-        isEditorial,
-        url: readerSource.url?.substring(0, 50)
-      });
+      // Check contenuto minimo per fonti esterne (non Intent, non OriginalPost)
+      const isEditorial = readerSource.isEditorial || readerSource.url?.startsWith('editorial://');
+      if (!readerSource.isOriginalPost && !readerSource.isIntentPost && !isEditorial) {
+        const hasContent = readerSource.content || readerSource.summary || readerSource.articleContent;
+        if (!hasContent || hasContent.length < 50) {
+          console.log('[Gate] Content too short, blocking share');
+          toast({ 
+            title: 'Contenuto non disponibile', 
+            description: 'Apri la fonte originale per leggerla.',
+            variant: 'destructive' 
+          });
+          return;  // Finally will cleanup
+        }
+      }
 
       // Handle Intent Post completion - use saved questionCount
       if (readerSource.isIntentPost) {
