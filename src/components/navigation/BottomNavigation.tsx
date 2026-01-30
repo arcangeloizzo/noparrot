@@ -1,6 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { HomeIcon, SearchIcon, BookmarkIcon, UserIcon } from "@/components/ui/icons";
+import { HomeIcon, SearchIcon } from "@/components/ui/icons";
 import { Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_PROFILE_AS_HOME } from "@/config/brand";
@@ -8,19 +8,29 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useMessageThreads } from "@/hooks/useMessageThreads";
+import { Logo } from "@/components/ui/logo";
+import { haptics } from "@/lib/haptics";
 
 interface BottomNavigationProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   onProfileClick?: () => void;
   onHomeRefresh?: () => void;
+  onComposerClick?: () => void;
 }
 
-export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick, onHomeRefresh }: BottomNavigationProps) => {
+export const BottomNavigation = ({ 
+  activeTab, 
+  onTabChange, 
+  onProfileClick, 
+  onHomeRefresh,
+  onComposerClick 
+}: BottomNavigationProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: threads } = useMessageThreads();
+  const [showRipple, setShowRipple] = useState(false);
 
   // Force refresh contatore messaggi quando l'app torna in focus (iOS fix)
   useEffect(() => {
@@ -63,17 +73,17 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick, onHom
     );
   };
 
+  // Tabs without "saved" - now 4 items + central FAB
   const tabs = [
     { id: "home", icon: HomeIcon, label: "Home" },
     { id: "search", icon: SearchIcon, label: "Search" },
-    { id: "saved", icon: BookmarkIcon, label: "Saved" },
+    // FAB goes here in the middle (not a tab)
     { id: "messages", icon: Send, label: "Messages", isLucide: true },
     { id: "profile", icon: null, label: "Profile", isAvatar: true },
   ];
 
   const handleTabClick = (id: string) => {
     if (id === "profile") {
-      // Navigate directly to profile page instead of opening drawer
       navigate("/profile");
     } else if (id === "messages") {
       navigate("/messages");
@@ -84,48 +94,113 @@ export const BottomNavigation = ({ activeTab, onTabChange, onProfileClick, onHom
     }
   };
 
+  // Central FAB click with liquid ripple effect
+  const handleFabClick = useCallback(() => {
+    haptics.medium();
+    setShowRipple(true);
+    
+    // Open composer at 300ms (before ripple finishes at 500ms) for snappy feel
+    setTimeout(() => {
+      onComposerClick?.();
+    }, 300);
+    
+    // Ripple completes at 500ms
+    setTimeout(() => {
+      setShowRipple(false);
+    }, 500);
+  }, [onComposerClick]);
+
+  // Split tabs for left and right of FAB
+  const leftTabs = tabs.slice(0, 2);  // Home, Search
+  const rightTabs = tabs.slice(2);    // Messages, Profile
+
   return (
     <nav className="liquid-glass-navbar fixed bottom-0 left-0 right-0 z-40">
-      <div className="flex justify-around items-center h-14 max-w-[600px] mx-auto">
-        {tabs.map(({ id, icon: Icon, label, isAvatar, isLucide }) => (
-          <button
-            key={id}
-            onClick={() => handleTabClick(id)}
-            className={cn(
-              "flex flex-col items-center justify-center gap-0.5 px-4 h-full transition-all duration-200 relative",
-              activeTab === id ? "text-white" : "text-gray-400 hover:text-white"
-            )}
-          >
-            {isAvatar ? (
-              <div className={cn(
-                "ring-2 rounded-full",
-                activeTab === "profile" ? "ring-white" : "ring-white/20"
-              )}>
-                {getAvatarContent()}
-              </div>
-            ) : Icon && (
-              <div className="relative">
+      <div className="flex items-center h-14 max-w-[600px] mx-auto px-2">
+        {/* Left side tabs */}
+        <div className="flex flex-1 justify-around">
+          {leftTabs.map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => handleTabClick(id)}
+              className={cn(
+                "flex flex-col items-center justify-center gap-0.5 px-4 h-full transition-all duration-200 relative",
+                activeTab === id ? "text-white" : "text-gray-400 hover:text-white"
+              )}
+            >
+              {Icon && (
                 <Icon className={cn(
                   "w-6 h-6 transition-all",
                   activeTab === id ? "icon-glow" : "hover:icon-glow"
                 )} />
-                {id === "messages" && unreadCount > 0 && (
-                  <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-semibold shadow-[0_0_8px_rgba(239,68,68,0.6)]">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </div>
-                )}
-              </div>
-            )}
-            {!isAvatar && (
+              )}
               <span className={cn(
                 "text-[10px] font-medium transition-all",
                 activeTab === id ? "text-white" : "text-gray-400"
               )}>
                 {label}
               </span>
-            )}
-          </button>
-        ))}
+            </button>
+          ))}
+        </div>
+
+        {/* Central FAB - "breaks" above navbar */}
+        <button
+          onClick={handleFabClick}
+          className="liquid-glass-fab-central relative -translate-y-3 w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 active:scale-95"
+          aria-label="Crea post"
+        >
+          <Logo 
+            variant="white" 
+            size="sm"
+            className="relative z-10 w-auto h-auto"
+          />
+          {/* Liquid ripple effect */}
+          {showRipple && <span className="fab-liquid-ripple" />}
+        </button>
+
+        {/* Right side tabs */}
+        <div className="flex flex-1 justify-around">
+          {rightTabs.map(({ id, icon: Icon, label, isAvatar, isLucide }) => (
+            <button
+              key={id}
+              onClick={() => handleTabClick(id)}
+              className={cn(
+                "flex flex-col items-center justify-center gap-0.5 px-4 h-full transition-all duration-200 relative",
+                activeTab === id ? "text-white" : "text-gray-400 hover:text-white"
+              )}
+            >
+              {isAvatar ? (
+                <div className={cn(
+                  "ring-2 rounded-full",
+                  activeTab === "profile" ? "ring-white" : "ring-white/20"
+                )}>
+                  {getAvatarContent()}
+                </div>
+              ) : Icon && (
+                <div className="relative">
+                  <Icon className={cn(
+                    "w-6 h-6 transition-all",
+                    activeTab === id ? "icon-glow" : "hover:icon-glow"
+                  )} />
+                  {id === "messages" && unreadCount > 0 && (
+                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-semibold shadow-[0_0_8px_rgba(239,68,68,0.6)]">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </div>
+                  )}
+                </div>
+              )}
+              {!isAvatar && (
+                <span className={cn(
+                  "text-[10px] font-medium transition-all",
+                  activeTab === id ? "text-white" : "text-gray-400"
+                )}>
+                  {label}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
       </div>
     </nav>
   );

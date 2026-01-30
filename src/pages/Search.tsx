@@ -175,7 +175,6 @@ export const Search = () => {
         activeTab="search"
         onTabChange={(tab) => {
           if (tab === 'home') navigate('/');
-          else if (tab === 'saved') navigate('/saved');
           else if (tab === 'messages') navigate('/messages');
         }}
       />
