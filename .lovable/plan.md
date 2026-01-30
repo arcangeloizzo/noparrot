@@ -1,66 +1,75 @@
 
-# Piano Fix Comprehension Gate - COMPLETATO ✅
+# Piano Fix Comprehension Gate - Implementazione Finale
 
-## Riepilogo Fix Implementati
+## Diagnosi Confermata
 
-### 1. FIX runGateBeforeAction (src/lib/runGateBeforeAction.ts)
-- ✅ Cambiato da legacy `summary` a `qaSourceRef` per il gate dei commenti
-- Il backend ora fetcha il contenuto server-side invece di riceverlo dal client
+Ho verificato il codice e confermo i 2 bug critici:
 
-### 2. FIX generate-qa Server Fallback (supabase/functions/generate-qa/index.ts)
-- ✅ Aggiunto `effectiveQaSourceRef` che costruisce automaticamente il riferimento se manca
-- Riconosce automaticamente YouTube, Spotify, Twitter/X dai pattern URL
-- Usa Jina AI come fallback per scraping quando la cache è vuota
+### BUG 1: gateType Non Riconosciuti (CRITICO)
+**File:** `supabase/functions/submit-qa/index.ts` - Linea 139
 
-### 3. FIX ComposerModal qaSourceRef (src/components/composer/ComposerModal.tsx)
-- ✅ Costruisce `qaSourceRef` client-side quando la preview non lo include
-- Riconosce piattaforme specifiche (YouTube, Spotify, Twitter)
-- Fallback a generic URL ref per tutte le altre fonti
+```typescript
+// ATTUALE (SBAGLIATO):
+const validGateTypes = ['share', 'comment', 'reshare', 'source'];
 
-### 4. FIX ImmersivePostCard qaSourceRef (src/components/feed/ImmersivePostCard.tsx)
-- ✅ Aggiunta funzione `buildQaSourceRef` per costruire il riferimento
-- Incluso `qaSourceRef` nel `readerSource` per passarlo a generateQA
-- Supporto per tutte le piattaforme: YouTube, Spotify, Twitter, URL generici
+// CORRETTO:
+const validGateTypes = ['share', 'comment', 'reshare', 'source', 'composer', 'message'];
+```
 
-### 5. FIX publish-post Editorial (supabase/functions/publish-post/index.ts)
-- ✅ Recupero automatico dati editoriali mancanti da `daily_focus`
-- Se `articleContent` o `sharedTitle` sono vuoti, vengono fetchati dal DB
-- Supporto per URL `focus://` che venivano bloccati dalla sanitizzazione URL
+Questo causa il fallimento di TUTTI i quiz perché il frontend invia `gateType: 'composer'` che viene rifiutato con errore 400.
 
----
+### BUG 2: Type Mismatch Possibile
+**File:** `supabase/functions/submit-qa/index.ts` - Linee 214 e 414-432
 
-## Come Testare
+La comparazione usa `===` diretto senza normalizzazione stringhe. Aggiungere safety check:
 
-### Scenario 1 - Composer (Pubblicazione diretta)
-1. Link web → dovrebbe mostrare quiz basato sul contenuto
-2. YouTube → dovrebbe usare transcript per il quiz
-3. Spotify → dovrebbe usare lyrics o metadata fallback
-4. LinkedIn/Twitter → dovrebbe funzionare con Jina/Firecrawl
+```typescript
+// ATTUALE:
+const isCorrect = choiceId === correctAnswer.correctId;
 
-### Scenario 2 - Feed (Ricondivisione)
-1. Ricondivisione post con media OCR → quiz dal testo estratto
-2. Ricondivisione Spotify → quiz dalle lyrics o metadata
-3. Ricondivisione editoriali "Il Punto" → quiz dal contenuto + post NON vuoto
-
-### Scenario 3 - Commenti
-1. Commenti consapevoli con link → quiz dalla fonte
+// CORRETTO:
+const normalizedSubmitted = String(choiceId).toLowerCase().trim();
+const normalizedCorrect = String(correctAnswer.correctId).toLowerCase().trim();
+const isCorrect = normalizedSubmitted === normalizedCorrect;
+```
 
 ---
 
-## Cambiamenti Tecnici Chiave
+## Modifiche da Implementare
 
-| File | Modifica |
-|------|----------|
-| `runGateBeforeAction.ts` | Usa `qaSourceRef` invece di `summary` |
-| `generate-qa/index.ts` | Auto-costruisce `effectiveQaSourceRef` se mancante |
-| `ComposerModal.tsx` | Costruisce `qaSourceRef` client-side |
-| `ImmersivePostCard.tsx` | Costruisce e passa `qaSourceRef` al reader |
-| `publish-post/index.ts` | Recupera dati editoriali da `daily_focus` |
+### 1. submit-qa/index.ts - Fix gateType (1 riga critica + safety checks)
+
+**Linea 139:** Aggiungere 'composer' e 'message'
+
+**Linee 214-216:** Aggiungere normalizzazione per step mode
+
+**Linee 414-432:** Aggiungere normalizzazione per final mode
+
+### 2. generate-qa/index.ts - Fix Editoriali (già verificato)
+
+Il codice per gestire `editorial://` e `focus://` alle linee 430+ esiste già. Verificherò che funzioni correttamente dopo il fix del gateType.
 
 ---
 
-## Note
+## Impatto dei Fix
 
-- I log del database mostrano che `post_gate_attempts` funziona correttamente
-- Il problema principale era la **mancanza di `qaSourceRef`** che forzava il backend in legacy mode
-- Ora il backend può sempre fetchare contenuto server-side in modo affidabile
+| Scenario | Prima | Dopo |
+|----------|-------|------|
+| Scenario 1 (Composer) | Sempre fallito (400 error) | ✅ Funzionerà |
+| Scenario 2 (Reshare) | Sempre fallito (400 error) | ✅ Funzionerà |
+| Scenario 3 (Comments) | Funziona (usa 'comment') | ✅ Invariato |
+
+---
+
+## Ordine di Implementazione
+
+1. **Fix submit-qa gateType** → Risolve tutti gli esiti negativi
+2. **Fix submit-qa string normalization** → Safety check per edge cases
+3. **Deploy automatico** → Nessun comando manuale richiesto
+4. **Test immediato** → Scenario 1, 2, 3
+
+---
+
+## File da Modificare
+
+- `supabase/functions/submit-qa/index.ts` (3 sezioni)
