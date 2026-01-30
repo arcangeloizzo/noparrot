@@ -136,7 +136,7 @@ serve(async (req) => {
     }
 
     // Validate gateType is one of allowed values
-    const validGateTypes = ['share', 'comment', 'reshare', 'source'];
+    const validGateTypes = ['share', 'comment', 'reshare', 'source', 'composer', 'message'];
     if (gateType && !validGateTypes.includes(gateType)) {
       console.warn('[submit-qa] Invalid gateType:', gateType);
       return new Response(
@@ -211,7 +211,10 @@ serve(async (req) => {
       console.log('[submit-qa][step] Found correct answer record:', JSON.stringify(correctAnswer));
       console.log('[submit-qa][step] Comparing: submitted choiceId', JSON.stringify(choiceId), '=== correctId', JSON.stringify(correctAnswer.correctId));
       
-      const isCorrect = choiceId === correctAnswer.correctId;
+      // Normalize both values to strings for safe comparison
+      const normalizedSubmitted = String(choiceId).toLowerCase().trim();
+      const normalizedCorrect = String(correctAnswer.correctId).toLowerCase().trim();
+      const isCorrect = normalizedSubmitted === normalizedCorrect;
       
       console.log(`[submit-qa][step] RESULT: isCorrect = ${isCorrect}`);
 
@@ -414,13 +417,19 @@ serve(async (req) => {
     correctAnswers.forEach((correct: any, index: number) => {
       const submitted = answers[correct.id];
       const expected = correct.correctId;
-      const isCorrect = submitted === expected;
+      
+      // Normalize both values to strings for safe comparison
+      const normalizedSubmitted = String(submitted || '').toLowerCase().trim();
+      const normalizedExpected = String(expected || '').toLowerCase().trim();
+      const isCorrect = normalizedSubmitted === normalizedExpected;
       
       // FORENSIC LOG: Per-question comparison
       console.log(`[submit-qa] Q${index + 1}:`, {
         questionId: correct.id,
         submitted,
         expected,
+        normalizedSubmitted,
+        normalizedExpected,
         isCorrect,
       });
       
