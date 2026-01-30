@@ -269,27 +269,39 @@ serve(async (req) => {
   }
 
   try {
-    // Verify JWT for authenticated access
+    // SECURITY: Require authenticated user to prevent abuse
     const authHeader = req.headers.get('Authorization');
-    let userId: string | null = null;
+    if (!authHeader?.startsWith('Bearer ')) {
+      console.warn('[transcribe-youtube] Unauthorized request - no auth header');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { 
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    if (authHeader) {
-      const token = authHeader.replace('Bearer ', '');
-      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-      if (!authError && user) {
-        userId = user.id;
-      }
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    
+    if (authError || !user) {
+      console.warn('[transcribe-youtube] Unauthorized request - invalid token:', authError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { 
+          status: 401,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
     
-    // For unauthenticated requests, we still proceed but log it
-    // This allows the function to work for edge cases while tracking usage
-    if (!userId) {
-      console.log('[transcribe-youtube] Unauthenticated request - proceeding with caution');
-    }
+    const userId = user.id;
+    console.log(`[transcribe-youtube] Authenticated request from user: ${userId.substring(0, 8)}...`);
     
     const { url } = await req.json();
     
@@ -315,7 +327,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing YouTube video: ${url}${userId ? ` (user: ${userId.substring(0, 8)})` : ''}`);
+    console.log(`Processing YouTube video: ${url} (user: ${userId.substring(0, 8)}...)`);
     
     const videoId = extractYouTubeId(url);
     
