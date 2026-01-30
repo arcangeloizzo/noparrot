@@ -380,10 +380,18 @@ serve(async (req) => {
     }
     
     // ========================================================================
-    // EDITORIAL:// HANDLER - Fetch content from daily_focus table
+    // EDITORIAL:// and FOCUS://DAILY/ HANDLER - Fetch content from daily_focus table
     // ========================================================================
-    if (sourceUrl?.startsWith('editorial://') && !serverSideContent) {
-      const focusId = sourceUrl.replace('editorial://', '');
+    const isEditorialUrl = sourceUrl?.startsWith('editorial://') || sourceUrl?.startsWith('focus://daily/');
+    if (isEditorialUrl && !serverSideContent) {
+      // Extract focus ID from either editorial:// or focus://daily/
+      let focusId = '';
+      if (sourceUrl?.startsWith('editorial://')) {
+        focusId = sourceUrl.replace('editorial://', '');
+      } else if (sourceUrl?.startsWith('focus://daily/')) {
+        focusId = sourceUrl.replace('focus://daily/', '');
+      }
+      
       console.log(`[generate-qa] 📰 Editorial content, fetching from daily_focus: ${focusId}`);
       
       try {
@@ -404,7 +412,8 @@ serve(async (req) => {
           
           // Use title from focus if not provided
           if (!title && focusData.title) {
-            console.log(`[generate-qa] Using title from daily_focus: ${focusData.title.substring(0, 50)}`);
+            title = focusData.title;
+            console.log(`[generate-qa] Using title from daily_focus: ${title.substring(0, 50)}`);
           }
         } else {
           console.warn(`[generate-qa] Editorial focus not found: ${focusId}`);
