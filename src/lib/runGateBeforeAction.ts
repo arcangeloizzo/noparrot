@@ -104,10 +104,12 @@ export async function runGateBeforeAction({
     const articleContent = previewData.content;
     console.log('[runGateBeforeAction] Article content length:', articleContent?.length);
 
-    // 2. Generate QA with correct parameters
+    // 2. Generate QA with correct parameters - use qaSourceRef for server-side fetching
+    // FIX: Use qaSourceRef instead of legacy summary mode to ensure proper content extraction
     const qaPayload = { 
       title: previewData.title || 'Contenuto condiviso',
-      summary: articleContent,
+      // Use qaSourceRef from preview if available, otherwise construct fallback
+      qaSourceRef: previewData.qaSourceRef || { kind: 'url' as const, id: linkUrl, url: linkUrl },
       excerpt: '',
       type: 'article',
       sourceUrl: linkUrl,

@@ -329,12 +329,12 @@ Deno.serve(async (req) => {
 
     // Sanitize all inputs before insertion
     const sanitizedContent = sanitizeContent(finalContent).substring(0, 5000);
-    const sanitizedSharedUrl = sanitizeUrl(body.sharedUrl);
-    const sanitizedPreviewImg = sanitizeUrl(body.previewImg);
-    const sanitizedTitle = body.sharedTitle 
+    let sanitizedSharedUrl = sanitizeUrl(body.sharedUrl);
+    let sanitizedPreviewImg = sanitizeUrl(body.previewImg);
+    let sanitizedTitle = body.sharedTitle 
       ? sanitizeContent(String(body.sharedTitle)).substring(0, 500) 
       : null;
-    const sanitizedArticle = body.articleContent 
+    let sanitizedArticle = body.articleContent 
       ? sanitizeContent(String(body.articleContent)).substring(0, 10000) 
       : null;
     
@@ -342,6 +342,57 @@ Deno.serve(async (req) => {
     const validQuotedPostId = body.quotedPostId && isValidUuid(body.quotedPostId) 
       ? body.quotedPostId 
       : null;
+
+    // ========================================================================
+    // FIX: For editorial posts (focus://), fetch missing data from daily_focus
+    // ========================================================================
+    const isEditorialUrl = sanitizedSharedUrl?.startsWith('focus://daily/') || 
+                           body.sharedUrl?.startsWith('focus://daily/') ||
+                           body.sharedUrl?.startsWith('focus://');
+    
+    if (isEditorialUrl && (!sanitizedArticle || !sanitizedTitle)) {
+      // Extract focus ID from URL
+      const focusUrl = body.sharedUrl || '';
+      const focusId = focusUrl.replace('focus://daily/', '').replace('focus://', '');
+      
+      if (focusId) {
+        console.log(`[publish-post:${reqId}] stage=editorial_fetch fetching missing data for focus: ${focusId}`);
+        
+        try {
+          const { data: focusData, error: focusErr } = await supabase
+            .from('daily_focus')
+            .select('title, summary, deep_content, image_url')
+            .eq('id', focusId)
+            .maybeSingle();
+          
+          if (focusErr) {
+            console.warn(`[publish-post:${reqId}] stage=editorial_fetch_error`, focusErr.message);
+          } else if (focusData) {
+            // Use data from daily_focus if missing in request
+            if (!sanitizedTitle && focusData.title) {
+              sanitizedTitle = sanitizeContent(focusData.title).substring(0, 500);
+              console.log(`[publish-post:${reqId}] stage=editorial_title_populated title="${sanitizedTitle?.slice(0, 30)}..."`);
+            }
+            if (!sanitizedArticle) {
+              const editorialContent = focusData.deep_content || focusData.summary || '';
+              // Clean [SOURCE:N] markers
+              sanitizedArticle = sanitizeContent(editorialContent.replace(/\[SOURCE:[\d,\s]+\]/g, '')).substring(0, 10000);
+              console.log(`[publish-post:${reqId}] stage=editorial_content_populated len=${sanitizedArticle?.length}`);
+            }
+            if (!sanitizedPreviewImg && focusData.image_url) {
+              sanitizedPreviewImg = sanitizeUrl(focusData.image_url);
+            }
+          } else {
+            console.warn(`[publish-post:${reqId}] stage=editorial_not_found focusId=${focusId}`);
+          }
+        } catch (editorialErr) {
+          console.warn(`[publish-post:${reqId}] stage=editorial_fetch_exception`, editorialErr);
+        }
+      }
+      
+      // For focus:// URLs, keep the original format (don't validate with sanitizeUrl which blocks non-http)
+      sanitizedSharedUrl = body.sharedUrl || null;
+    }
 
     const insertPayload = {
       content: sanitizedContent,

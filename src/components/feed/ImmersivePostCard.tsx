@@ -750,6 +750,32 @@ const ImmersivePostCardInner = ({
     let hostname = '';
     try { hostname = new URL(resolvedSourceUrl).hostname.replace('www.', ''); } catch {}
 
+    // FIX: Build qaSourceRef for server-side content fetching
+    // Use preview.qaSourceRef if available, otherwise construct from URL
+    const buildQaSourceRef = (url: string, platform?: string) => {
+      // If preview already has qaSourceRef, use it
+      if (preview?.qaSourceRef) return preview.qaSourceRef;
+      
+      // Platform-specific refs
+      if (platform === 'youtube' || hostname.includes('youtube') || hostname.includes('youtu.be')) {
+        const videoId = extractYoutubeVideoId(url);
+        if (videoId) return { kind: 'youtubeId' as const, id: videoId, url };
+      }
+      if (platform === 'spotify' || hostname.includes('spotify')) {
+        const spotifyMatch = url.match(/track\/([a-zA-Z0-9]+)/);
+        if (spotifyMatch) return { kind: 'spotifyId' as const, id: spotifyMatch[1], url };
+      }
+      if (platform === 'twitter' || hostname.includes('twitter') || hostname.includes('x.com')) {
+        const tweetMatch = url.match(/status\/(\d+)/);
+        if (tweetMatch) return { kind: 'tweetId' as const, id: tweetMatch[1], url };
+      }
+      // Default: generic URL ref
+      return { kind: 'url' as const, id: url, url };
+    };
+
+    const detectedPlatform = preview?.platform || detectPlatformFromUrl(resolvedSourceUrl);
+    const qaSourceRef = buildQaSourceRef(resolvedSourceUrl, detectedPlatform);
+
     setReaderSource({
       ...preview,
       id: post.id,
@@ -759,8 +785,9 @@ const ImmersivePostCardInner = ({
       content: preview?.content || preview?.description || preview?.summary || preview?.excerpt || post.content || '',
       summary: preview?.summary || preview?.description || 'Apri il link per visualizzare il contenuto completo.',
       image: preview?.image || finalSourceImage || '',
-      platform: preview?.platform || detectPlatformFromUrl(resolvedSourceUrl),
+      platform: detectedPlatform,
       contentQuality: preview?.contentQuality || 'minimal',
+      qaSourceRef: qaSourceRef,  // FIX: Include qaSourceRef for generateQA
     });
     setShowReader(true);
   };

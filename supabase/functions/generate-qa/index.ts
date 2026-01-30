@@ -169,6 +169,45 @@ serve(async (req) => {
     let serverSideContent = '';
     let contentSource = 'none';
     
+    // FIX: If qaSourceRef is missing but sourceUrl exists, construct qaSourceRef server-side
+    let effectiveQaSourceRef = qaSourceRef;
+    if (!effectiveQaSourceRef && sourceUrl) {
+      console.log('[generate-qa] 🔧 Constructing qaSourceRef from sourceUrl:', sourceUrl.substring(0, 50));
+      try {
+        const urlObj = new URL(sourceUrl);
+        const host = urlObj.hostname.toLowerCase();
+        
+        // Platform-specific construction
+        if (host.includes('youtube') || host.includes('youtu.be')) {
+          const videoId = host.includes('youtu.be') 
+            ? urlObj.pathname.slice(1).split('?')[0]
+            : urlObj.searchParams.get('v');
+          if (videoId) {
+            effectiveQaSourceRef = { kind: 'youtubeId', id: videoId, url: sourceUrl };
+          }
+        } else if (host.includes('spotify')) {
+          const spotifyMatch = sourceUrl.match(/track\/([a-zA-Z0-9]+)/);
+          if (spotifyMatch) {
+            effectiveQaSourceRef = { kind: 'spotifyId', id: spotifyMatch[1], url: sourceUrl };
+          }
+        } else if (host.includes('twitter') || host.includes('x.com')) {
+          const tweetMatch = sourceUrl.match(/status\/(\d+)/);
+          if (tweetMatch) {
+            effectiveQaSourceRef = { kind: 'tweetId', id: tweetMatch[1], url: sourceUrl };
+          }
+        }
+        
+        // Default: generic URL ref
+        if (!effectiveQaSourceRef) {
+          effectiveQaSourceRef = { kind: 'url', id: sourceUrl, url: sourceUrl };
+        }
+        
+        console.log('[generate-qa] ✅ Constructed qaSourceRef:', effectiveQaSourceRef.kind, effectiveQaSourceRef.id?.substring(0, 20));
+      } catch (err) {
+        console.warn('[generate-qa] Failed to construct qaSourceRef:', err);
+      }
+    }
+    
     // If client sent summary (legacy support), use it but log warning
     if (summary && summary.length > 100) {
       console.log('[generate-qa] ⚠️ Legacy mode: using client-provided summary');
@@ -176,17 +215,17 @@ serve(async (req) => {
       contentSource = 'client-legacy';
     }
     
-    // NEW: Fetch content server-side based on qaSourceRef
-    if (qaSourceRef && !serverSideContent) {
-      console.log(`[generate-qa] 📥 Fetching content server-side for ${qaSourceRef.kind}: ${qaSourceRef.id?.substring(0, 30)}`);
+    // NEW: Fetch content server-side based on qaSourceRef (or effectiveQaSourceRef)
+    if (effectiveQaSourceRef && !serverSideContent) {
+      console.log(`[generate-qa] 📥 Fetching content server-side for ${effectiveQaSourceRef.kind}: ${effectiveQaSourceRef.id?.substring(0, 30)}`);
       
-      switch (qaSourceRef.kind) {
+      switch (effectiveQaSourceRef.kind) {
         case 'youtubeId': {
           // Fetch from youtube_transcripts_cache
           const { data: cached } = await supabase
             .from('youtube_transcripts_cache')
             .select('transcript')
-            .eq('video_id', qaSourceRef.id)
+            .eq('video_id', effectiveQaSourceRef.id)
             .gt('expires_at', new Date().toISOString())
             .maybeSingle();
           
@@ -198,7 +237,7 @@ serve(async (req) => {
             // Trigger async fetch via transcribe-youtube
             console.log(`[generate-qa] ⏳ YouTube transcript not cached, triggering fetch...`);
             try {
-              const ytUrl = `https://www.youtube.com/watch?v=${qaSourceRef.id}`;
+              const ytUrl = `https://www.youtube.com/watch?v=${effectiveQaSourceRef.id}`;
               const transcribeResponse = await fetch(`${supabaseUrl}/functions/v1/transcribe-youtube`, {
                 method: 'POST',
                 headers: {
@@ -225,7 +264,7 @@ serve(async (req) => {
         
         case 'spotifyId': {
           // Fetch from content_cache (lyrics were cached there)
-          const spotifyUrl = `https://open.spotify.com/track/${qaSourceRef.id}`;
+          const spotifyUrl = `https://open.spotify.com/track/${effectiveQaSourceRef.id}`;
           const { data: cached } = await supabase
             .from('content_cache')
             .select('content_text')
@@ -253,7 +292,7 @@ serve(async (req) => {
                   'Content-Type': 'application/json',
                   'Authorization': `Bearer ${supabaseKey}`
                 },
-                body: JSON.stringify({ trackId: qaSourceRef.id })
+                body: JSON.stringify({ trackId: effectiveQaSourceRef.id })
               });
               
               if (lyricsResponse.ok) {
@@ -287,7 +326,7 @@ serve(async (req) => {
         case 'tweetId':
         case 'url': {
           // Fetch from content_cache
-          const cacheUrl = qaSourceRef.url || sourceUrl;
+          const cacheUrl = effectiveQaSourceRef.url || sourceUrl;
           if (cacheUrl) {
             const { data: cached } = await supabase
               .from('content_cache')
@@ -358,7 +397,7 @@ serve(async (req) => {
           const { data: media } = await supabase
             .from('media')
             .select('extracted_text, extracted_status, extracted_kind, extracted_meta')
-            .eq('id', qaSourceRef.id)
+            .eq('id', effectiveQaSourceRef.id)
             .maybeSingle();
           
           if (media?.extracted_status === 'done' && media.extracted_text && media.extracted_text.length > 120) {

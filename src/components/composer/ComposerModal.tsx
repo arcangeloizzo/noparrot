@@ -313,7 +313,35 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       }
       
       // Success - set preview IMMEDIATELY (don't block on classification)
-      setUrlPreview({ url, ...preview });
+      // FIX: Ensure qaSourceRef is always present for generateQA
+      const buildQaSourceRef = (url: string, platform?: string) => {
+        if (preview.qaSourceRef) return preview.qaSourceRef;
+        
+        try {
+          const urlObj = new URL(url);
+          const host = urlObj.hostname.toLowerCase();
+          
+          if (platform === 'youtube' || host.includes('youtube') || host.includes('youtu.be')) {
+            const videoId = host.includes('youtu.be') 
+              ? urlObj.pathname.slice(1).split('?')[0]
+              : urlObj.searchParams.get('v');
+            if (videoId) return { kind: 'youtubeId' as const, id: videoId, url };
+          }
+          if (platform === 'spotify' || host.includes('spotify')) {
+            const spotifyMatch = url.match(/track\/([a-zA-Z0-9]+)/);
+            if (spotifyMatch) return { kind: 'spotifyId' as const, id: spotifyMatch[1], url };
+          }
+          if (platform === 'twitter' || host.includes('twitter') || host.includes('x.com')) {
+            const tweetMatch = url.match(/status\/(\d+)/);
+            if (tweetMatch) return { kind: 'tweetId' as const, id: tweetMatch[1], url };
+          }
+        } catch {}
+        
+        return { kind: 'url' as const, id: url, url };
+      };
+      
+      const qaSourceRef = buildQaSourceRef(url, preview.platform);
+      setUrlPreview({ url, ...preview, qaSourceRef });
       setIsPreviewLoading(false); // Show preview now
       
       // Classification in background - non-blocking
@@ -811,6 +839,22 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       const isQuotingEditorial = quotedPost?.shared_url?.startsWith('focus://') || 
                                   quotedPost?.author?.username === 'ilpunto';
 
+      // FIX: For editorials with missing data, we need to fetch from the original source
+      // The quotedPost might not have article_content populated (legacy posts)
+      let editorialData = {
+        shared_url: quotedPost?.shared_url,
+        shared_title: quotedPost?.shared_title,
+        article_content: quotedPost?.article_content,
+        preview_img: quotedPost?.preview_img,
+      };
+      
+      if (isQuotingEditorial && (!editorialData.article_content || !editorialData.shared_title)) {
+        console.log('[Composer] Editorial missing data, will rely on backend to fetch');
+        addBreadcrumb('editorial_missing_data', { 
+          hasTitle: !!editorialData.shared_title, 
+          hasContent: !!editorialData.article_content 
+        });
+      }
       const allowEmptyCommentary = !!quotedPost || mediaIdsSnapshot.length > 0;
 
       // NEVER auto-fill with title/excerpt - only use actual user-written text
@@ -874,10 +918,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
           body: {
             content: cleanContent,
             // For editorials: embed metadata directly, don't use quoted_post_id
-            sharedUrl: isQuotingEditorial ? quotedPost.shared_url : (snapshotDetectedUrl || null),
-            sharedTitle: isQuotingEditorial ? quotedPost.shared_title : (intentMetadata.sharedTitle || null),
-            previewImg: isQuotingEditorial ? quotedPost.preview_img : (intentMetadata.previewImg || null),
-            articleContent: isQuotingEditorial ? quotedPost.article_content : null,
+            sharedUrl: isQuotingEditorial ? editorialData.shared_url : (snapshotDetectedUrl || null),
+            sharedTitle: isQuotingEditorial ? editorialData.shared_title : (intentMetadata.sharedTitle || null),
+            previewImg: isQuotingEditorial ? editorialData.preview_img : (intentMetadata.previewImg || null),
+            articleContent: isQuotingEditorial ? editorialData.article_content : null,
             quotedPostId: isQuotingEditorial ? null : (quotedPost?.id || null),
             mediaIds: mediaIdsSnapshot,
             idempotencyKey,
@@ -937,9 +981,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
             .insert({
               content: cleanContent.substring(0, 5000),
               author_id: user.id,
-              shared_url: isQuotingEditorial ? quotedPost.shared_url : (snapshotDetectedUrl || null),
-              shared_title: isQuotingEditorial ? quotedPost.shared_title : (intentMetadataFallback.shared_title || null),
-              preview_img: isQuotingEditorial ? quotedPost.preview_img : (intentMetadataFallback.preview_img || null),
+              shared_url: isQuotingEditorial ? editorialData.shared_url : (snapshotDetectedUrl || null),
+              shared_title: isQuotingEditorial ? editorialData.shared_title : (intentMetadataFallback.shared_title || null),
+              preview_img: isQuotingEditorial ? editorialData.preview_img : (intentMetadataFallback.preview_img || null),
               quoted_post_id: isQuotingEditorial ? null : (quotedPost?.id || null),
               is_intent: intentMetadataFallback.is_intent || false,
             })
