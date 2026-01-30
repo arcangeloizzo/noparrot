@@ -23,14 +23,26 @@ function isValidUuid(id: unknown): id is string {
 }
 
 /**
- * Validates that answers object has proper structure
+ * Validates short IDs like "q1", "q2", "q3" and "a", "b", "c"
+ * Used for questionId and choiceId in step mode
+ */
+function isValidShortId(id: unknown): id is string {
+  if (!id || typeof id !== 'string') return false;
+  // Question IDs: q1, q2, q3, q4, q5, etc.
+  // Choice IDs: a, b, c, d
+  return /^(q[1-9]|[a-d])$/i.test(id);
+}
+
+/**
+ * Validates that answers object has proper structure for final mode
+ * Keys are question IDs (q1, q2, q3), values are choice IDs (a, b, c)
  */
 function validateAnswersObject(answers: unknown): answers is Record<string, string> {
   if (!answers || typeof answers !== 'object' || Array.isArray(answers)) return false;
   
-  // Check all keys and values are strings (UUIDs)
+  // Check all keys and values are valid short IDs
   for (const [key, value] of Object.entries(answers)) {
-    if (!isValidUuid(key) || !isValidUuid(value)) {
+    if (!isValidShortId(key) || !isValidShortId(value)) {
       return false;
     }
   }
@@ -105,17 +117,17 @@ serve(async (req) => {
       );
     }
 
-    // Validate questionId and choiceId for step mode
+    // Validate questionId and choiceId for step mode (short IDs like q1, a, b, c)
     if (mode === 'step') {
-      if (questionId && !isValidUuid(questionId)) {
-        console.warn('[submit-qa] Invalid questionId format:', questionId);
+      if (questionId && !isValidShortId(questionId)) {
+        console.warn('[submit-qa] Invalid questionId format:', questionId, '- expected q1, q2, q3, etc.');
         return new Response(
           JSON.stringify({ error: 'Invalid questionId format', code: 'INVALID_QUESTION_ID' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      if (choiceId && !isValidUuid(choiceId)) {
-        console.warn('[submit-qa] Invalid choiceId format:', choiceId);
+      if (choiceId && !isValidShortId(choiceId)) {
+        console.warn('[submit-qa] Invalid choiceId format:', choiceId, '- expected a, b, c, or d');
         return new Response(
           JSON.stringify({ error: 'Invalid choiceId format', code: 'INVALID_CHOICE_ID' }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

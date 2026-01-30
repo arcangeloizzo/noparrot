@@ -692,7 +692,7 @@ const ImmersivePostCardInner = ({
 
     try {
       const host = new URL(resolvedSourceUrl).hostname.toLowerCase();
-      const isBlockedPlatform = host.includes('instagram.com') || host.includes('facebook.com') || host.includes('m.facebook.com') || host.includes('fb.com') || host.includes('fb.watch');
+      const isBlockedPlatform = host.includes('instagram.com') || host.includes('facebook.com') || host.includes('m.facebook.com') || host.includes('fb.com') || host.includes('fb.watch') || host.includes('linkedin.com');
       
       // Check if current post OR quoted post is an Intent post
       const isCurrentPostIntent = post.is_intent;
@@ -737,7 +737,7 @@ const ImmersivePostCardInner = ({
       
       // For non-Intent posts with blocked platform links, show toast and open externally
       if (isBlockedPlatform) {
-        toast({ title: 'Link non supportato', description: 'Instagram e Facebook non sono supportati.' });
+        toast({ title: 'Link non supportato nel Reader', description: 'Instagram, Facebook e LinkedIn non sono supportati. Apertura in nuova scheda.' });
         window.open(resolvedSourceUrl, '_blank', 'noopener,noreferrer');
         return;
       }
@@ -908,26 +908,22 @@ const ImmersivePostCardInner = ({
       });
 
       if (result.insufficient_context) {
-        // FAIL-CLOSED: per fonti esterne, bloccare la condivisione
-        // Solo per post originali (post://) permettiamo il fallback
+        // FAIL-OPEN: permettiamo la condivisione con warning per tutte le fonti
         if (isOriginalPost) {
           // Post originale troppo breve - ok, può condividere
           console.log('[Gate] Original post insufficient - allowing share');
           toast({ title: 'Contenuto troppo breve', description: 'Puoi condividere questo post' });
-          await closeReaderSafely();
-          onQuoteShare?.(post);
-          return;
         } else {
-          // Fonte esterna non valutabile - BLOCCARE
-          console.warn('[Gate] External source insufficient - BLOCKING share');
+          // Fonte esterna non valutabile - ALLOW con warning (Fail-Open policy)
+          console.warn('[Gate] External source insufficient - allowing share with warning (fail-open)');
           toast({ 
-            title: 'Impossibile verificare la fonte', 
-            description: 'Non è stato possibile generare il test. Apri la fonte originale per verificarla.',
-            variant: 'destructive' 
+            title: 'Impossibile generare il quiz', 
+            description: 'Condivisione consentita senza verifica.'
           });
-          // NON chiamare onQuoteShare - la share è bloccata
-          return;
         }
+        await closeReaderSafely();
+        onQuoteShare?.(post);
+        return;
       }
 
       if (!result || result.error || !result.questions?.length) {
