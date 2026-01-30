@@ -92,7 +92,7 @@ async function fetchLyricsOvh(artist: string, title: string): Promise<string | n
   
   try {
     const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(a)}/${encodeURIComponent(t)}`;
-    console.log(`[Race] Starting Lyrics.ovh for "${t}"`);
+    console.log(`[Race] Starting Lyrics.ovh for "${t}" (timeout=10000ms)`);
     
     const res = await fetch(url, { 
       signal: controller.signal,
@@ -101,8 +101,6 @@ async function fetchLyricsOvh(artist: string, title: string): Promise<string | n
         'User-Agent': 'LovableCloud/lyrics-fetcher',
       }
     });
-    clearTimeout(timeout);
-    
     if (res.ok) {
       const data = await res.json();
       if (data.lyrics && data.lyrics.length > 50) {
@@ -112,9 +110,10 @@ async function fetchLyricsOvh(artist: string, title: string): Promise<string | n
     }
     console.log(`[Race] Lyrics.ovh: no valid result`);
   } catch (e) {
-    clearTimeout(timeout);
     const errorMsg = e instanceof Error ? e.message : 'Unknown error';
     console.log(`[Race] Lyrics.ovh failed: ${errorMsg}`);
+  } finally {
+    clearTimeout(timeout);
   }
   return null;
 }
@@ -130,7 +129,7 @@ async function fetchGenius(artist: string, title: string, apiKey: string): Promi
   
   try {
     const JINA_API_KEY = Deno.env.get('JINA_API_KEY');
-    console.log(`[Race] Starting Genius for "${t}" (Jina key: ${JINA_API_KEY ? 'YES' : 'NO'})`);
+    console.log(`[Race] Starting Genius for "${t}" (timeout=15000ms, Jina key: ${JINA_API_KEY ? 'YES' : 'NO'})`);
     
     // Search Genius
     const searchQuery = a ? `${a} ${t}` : t;
@@ -166,7 +165,6 @@ async function fetchGenius(artist: string, title: string, apiKey: string): Promi
       signal: controller.signal,
       headers: jinaHeaders
     });
-    clearTimeout(timeout);
     
     if (jinaRes.ok) {
       const markdown = await jinaRes.text();
@@ -179,9 +177,10 @@ async function fetchGenius(artist: string, title: string, apiKey: string): Promi
     }
     console.log(`[Race] Genius: extraction failed or too short`);
   } catch (e) {
-    clearTimeout(timeout);
     const errorMsg = e instanceof Error ? e.message : 'Unknown error';
     console.log(`[Race] Genius failed: ${errorMsg}`);
+  } finally {
+    clearTimeout(timeout);
   }
   return null;
 }
@@ -197,12 +196,11 @@ async function fetchMusixmatch(artist: string, title: string): Promise<string | 
   
   try {
     const JINA_API_KEY = Deno.env.get('JINA_API_KEY');
-    console.log(`[Race] Starting Musixmatch for "${t}" (Jina key: ${JINA_API_KEY ? 'YES' : 'NO'})`);
+    console.log(`[Race] Starting Musixmatch for "${t}" (timeout=15000ms, Jina key: ${JINA_API_KEY ? 'YES' : 'NO'})`);
     
     const searchQuery = a ? `${a} ${t} lyrics musixmatch` : `${t} lyrics musixmatch`;
     const jinaUrl = `https://s.jina.ai/${encodeURIComponent(searchQuery)}`;
     
-    const JINA_API_KEY = Deno.env.get('JINA_API_KEY');
     const jinaSearchHeaders: Record<string, string> = { 'Accept': 'application/json' };
     if (JINA_API_KEY) {
       jinaSearchHeaders['Authorization'] = `Bearer ${JINA_API_KEY}`;
@@ -240,7 +238,6 @@ async function fetchMusixmatch(artist: string, title: string): Promise<string | 
       signal: controller.signal,
       headers: readerHeaders
     });
-    clearTimeout(timeout);
     
     if (readerRes.ok) {
       const markdown = await readerRes.text();
@@ -253,9 +250,10 @@ async function fetchMusixmatch(artist: string, title: string): Promise<string | 
     }
     console.log(`[Race] Musixmatch: extraction failed or too short`);
   } catch (e) {
-    clearTimeout(timeout);
     const errorMsg = e instanceof Error ? e.message : 'Unknown error';
     console.log(`[Race] Musixmatch failed: ${errorMsg}`);
+  } finally {
+    clearTimeout(timeout);
   }
   return null;
 }
@@ -296,6 +294,29 @@ function extractLyricsFromMarkdown(markdown: string): string {
     .replace(/^>\s*/gm, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+
+  // Hard cut at common non-lyrics sections that often appear *after* the lyrics block
+  const hardStopMarkers = [
+    'You might also like',
+    '\nEmbed',
+    '\nAbout\n',
+    '\nCredits\n',
+    'Genius is the ultimate source',
+    'Genius is the world’s biggest collection',
+    'How to Format Lyrics',
+    '\nQ&A\n',
+  ];
+  const lower = lyrics.toLowerCase();
+  let cutAt = -1;
+  for (const marker of hardStopMarkers) {
+    const idx = lower.indexOf(marker.toLowerCase());
+    if (idx !== -1) {
+      cutAt = cutAt === -1 ? idx : Math.min(cutAt, idx);
+    }
+  }
+  if (cutAt !== -1) {
+    lyrics = lyrics.slice(0, cutAt).trim();
+  }
 
   // Remove footer-ish content
   const footerPatterns = [
@@ -363,8 +384,25 @@ function extractLyricsFromMusixmatchMarkdown(markdown: string): string {
     .replace(/\*/g, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
-  
-  return lyrics;
+
+  // Hard cut at common non-lyrics sections
+  const hardStopMarkers = [
+    '\nWriter',
+    'Lyrics licensed',
+    'Copyright',
+    'Submit Corrections',
+    'Related Songs',
+  ];
+  const lower = lyrics.toLowerCase();
+  let cutAt = -1;
+  for (const marker of hardStopMarkers) {
+    const idx = lower.indexOf(marker.toLowerCase());
+    if (idx !== -1) {
+      cutAt = cutAt === -1 ? idx : Math.min(cutAt, idx);
+    }
+  }
+
+  return (cutAt !== -1 ? lyrics.slice(0, cutAt) : lyrics).trim();
 }
 
 // =====================================================

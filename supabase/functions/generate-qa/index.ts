@@ -272,42 +272,57 @@ serve(async (req) => {
             .gt('expires_at', new Date().toISOString())
             .maybeSingle();
           
-           if (cached) {
-             // Cache can contain either lyrics OR a rich synthetic text (when lyrics are unavailable).
-             if (cached.content_text && cached.content_text.length > 50) {
-               serverSideContent = cached.content_text;
-               contentSource = 'content_cache';
-               console.log(`[generate-qa] ✅ Spotify content from cache: ${serverSideContent.length} chars`);
-             } else {
-               console.log('[generate-qa] ⚡ Spotify cache hit but content is empty - building synthetic fallback');
-             }
-           } else {
-            // Not in cache at all - try fetching fresh
-            console.log(`[generate-qa] ⏳ Spotify lyrics not cached, trying fresh fetch...`);
-            try {
-              const lyricsResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-lyrics`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${supabaseKey}`
-                },
-                body: JSON.stringify({ trackId: effectiveQaSourceRef.id })
-              });
-              
-              if (lyricsResponse.ok) {
-                const lyricsData = await lyricsResponse.json();
-                if (lyricsData.lyrics && lyricsData.lyrics.length > 50) {
-                  serverSideContent = lyricsData.lyrics;
-                  contentSource = 'spotify_fresh';
-                  console.log(`[generate-qa] ✅ Spotify lyrics fetched: ${serverSideContent.length} chars`);
+            const cachedText = (cached as any)?.content_text as string | undefined;
+            const looksSynthetic = !!cachedText && (
+              cachedText.includes('Nota: i lyrics completi potrebbero') ||
+              cachedText.includes('Brano Spotify:') ||
+              cachedText.includes('Per il quiz usiamo metadati')
+            );
+
+            if (cached && cachedText && cachedText.length > 50 && !looksSynthetic) {
+              // Cache contains real lyrics (or at least rich, non-synthetic text)
+              serverSideContent = cachedText;
+              contentSource = 'content_cache';
+              console.log(`[generate-qa] ✅ Spotify content from cache: ${serverSideContent.length} chars`);
+            } else {
+              // Either: no cache, empty cache, or synthetic negative-cache => try fresh lyrics
+              console.log(`[generate-qa] ⏳ Spotify lyrics fetch (refresh=${looksSynthetic ? 'YES' : 'NO'})...`);
+              try {
+                const lyricsResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-lyrics`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${supabaseKey}`
+                  },
+                  body: JSON.stringify({ trackId: effectiveQaSourceRef.id })
+                });
+
+                if (lyricsResponse.ok) {
+                  const lyricsData = await lyricsResponse.json();
+                  if (lyricsData.lyrics && lyricsData.lyrics.length > 50) {
+                    serverSideContent = lyricsData.lyrics;
+                    contentSource = looksSynthetic ? 'spotify_refresh' : 'spotify_fresh';
+                    console.log(`[generate-qa] ✅ Spotify lyrics fetched: ${serverSideContent.length} chars`);
+
+                    // Overwrite cache so future runs don't stick to the synthetic fallback
+                    const expiresAt = new Date();
+                    expiresAt.setDate(expiresAt.getDate() + 7);
+                    await supabase.from('content_cache').upsert({
+                      source_url: spotifyUrl,
+                      source_type: 'spotify',
+                      content_text: serverSideContent,
+                      title: (cached as any)?.title || title || null,
+                      popularity: typeof (cached as any)?.popularity === 'number' ? (cached as any).popularity : null,
+                      expires_at: expiresAt.toISOString(),
+                    }, { onConflict: 'source_url' });
+                  }
+                } else {
+                  console.log(`[generate-qa] ⏳ Lyrics fetch failed: ${lyricsResponse.status}, trying metadata fallback`);
                 }
-              } else {
-                console.log(`[generate-qa] ⏳ Lyrics fetch failed: ${lyricsResponse.status}, trying metadata fallback`);
+              } catch (err) {
+                console.error('[generate-qa] Spotify lyrics fetch failed, trying metadata fallback:', err);
               }
-            } catch (err) {
-              console.error('[generate-qa] Spotify lyrics fetch failed, trying metadata fallback:', err);
             }
-          }
           
            // METADATA FALLBACK: If still no content, build a richer synthetic text.
            // Prefer cached.title (even on negative cache), then request title.
