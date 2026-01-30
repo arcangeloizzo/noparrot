@@ -57,8 +57,9 @@ export default function Messages() {
       }
       
       // 3. Thread nuovo o vuoto → Mostra NewMessageSheet
+      // Use public_profiles view to avoid exposing sensitive data (DOB, cognitive_density, etc.)
       const { data: profiles, error } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, username, full_name, avatar_url')
         .in('id', selectedUserIds);
 
