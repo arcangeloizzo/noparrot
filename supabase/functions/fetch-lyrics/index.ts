@@ -81,14 +81,14 @@ function cleanLyrics(text: string): string {
 // RACING PROVIDERS - All run in parallel
 // =====================================================
 
-// 1. Lyrics.ovh - FASTEST API (5s timeout)
+// 1. Lyrics.ovh - FASTEST API (10s timeout)
 async function fetchLyricsOvh(artist: string, title: string): Promise<string | null> {
   const a = (artist || '').trim();
   const t = (title || '').trim();
   if (!t) return null;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout
+  const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
   
   try {
     const url = `https://api.lyrics.ovh/v1/${encodeURIComponent(a)}/${encodeURIComponent(t)}`;
@@ -119,17 +119,18 @@ async function fetchLyricsOvh(artist: string, title: string): Promise<string | n
   return null;
 }
 
-// 2. Genius (via Jina Reader, 8s timeout)
+// 2. Genius (via Jina Reader, 15s timeout)
 async function fetchGenius(artist: string, title: string, apiKey: string): Promise<string | null> {
   const a = (artist || '').trim();
   const t = (title || '').trim();
   if (!t) return null;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout
+  const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
   
   try {
-    console.log(`[Race] Starting Genius for "${t}"`);
+    const JINA_API_KEY = Deno.env.get('JINA_API_KEY');
+    console.log(`[Race] Starting Genius for "${t}" (Jina key: ${JINA_API_KEY ? 'YES' : 'NO'})`);
     
     // Search Genius
     const searchQuery = a ? `${a} ${t}` : t;
@@ -152,7 +153,6 @@ async function fetchGenius(artist: string, title: string, apiKey: string): Promi
     }
     
     // Fetch lyrics page via Jina Reader (with API key)
-    const JINA_API_KEY = Deno.env.get('JINA_API_KEY');
     const jinaUrl = `https://r.jina.ai/${hit.url}`;
     const jinaHeaders: Record<string, string> = { 
       'Accept': 'text/markdown',
@@ -161,6 +161,7 @@ async function fetchGenius(artist: string, title: string, apiKey: string): Promi
     if (JINA_API_KEY) {
       jinaHeaders['Authorization'] = `Bearer ${JINA_API_KEY}`;
     }
+    console.log(`[Race] Genius: fetching ${hit.url} via Jina Reader`);
     const jinaRes = await fetch(jinaUrl, {
       signal: controller.signal,
       headers: jinaHeaders
@@ -185,17 +186,18 @@ async function fetchGenius(artist: string, title: string, apiKey: string): Promi
   return null;
 }
 
-// 3. Musixmatch (via Jina search, 8s timeout)
+// 3. Musixmatch (via Jina search, 15s timeout)
 async function fetchMusixmatch(artist: string, title: string): Promise<string | null> {
   const a = (artist || '').trim();
   const t = (title || '').trim();
   if (!t) return null;
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout
+  const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
   
   try {
-    console.log(`[Race] Starting Musixmatch for "${t}"`);
+    const JINA_API_KEY = Deno.env.get('JINA_API_KEY');
+    console.log(`[Race] Starting Musixmatch for "${t}" (Jina key: ${JINA_API_KEY ? 'YES' : 'NO'})`);
     
     const searchQuery = a ? `${a} ${t} lyrics musixmatch` : `${t} lyrics musixmatch`;
     const jinaUrl = `https://s.jina.ai/${encodeURIComponent(searchQuery)}`;
