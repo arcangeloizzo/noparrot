@@ -692,7 +692,8 @@ const ImmersivePostCardInner = ({
 
     try {
       const host = new URL(resolvedSourceUrl).hostname.toLowerCase();
-      const isBlockedPlatform = host.includes('instagram.com') || host.includes('facebook.com') || host.includes('m.facebook.com') || host.includes('fb.com') || host.includes('fb.watch') || host.includes('linkedin.com');
+      // LinkedIn removed - iframe will fallback to Preview Card if blocked by CSP
+      const isBlockedPlatform = host.includes('instagram.com') || host.includes('facebook.com') || host.includes('m.facebook.com') || host.includes('fb.com') || host.includes('fb.watch');
       
       // Check if current post OR quoted post is an Intent post
       const isCurrentPostIntent = post.is_intent;
@@ -737,7 +738,7 @@ const ImmersivePostCardInner = ({
       
       // For non-Intent posts with blocked platform links, show toast and open externally
       if (isBlockedPlatform) {
-        toast({ title: 'Link non supportato nel Reader', description: 'Instagram, Facebook e LinkedIn non sono supportati. Apertura in nuova scheda.' });
+        toast({ title: 'Link non supportato nel Reader', description: 'Instagram e Facebook non sono supportati. Apertura in nuova scheda.' });
         window.open(resolvedSourceUrl, '_blank', 'noopener,noreferrer');
         return;
       }
@@ -810,8 +811,18 @@ const ImmersivePostCardInner = ({
       const isEditorial = readerSource.isEditorial || readerSource.url?.startsWith('editorial://');
       if (!readerSource.isOriginalPost && !readerSource.isIntentPost && !isEditorial) {
         const hasContent = readerSource.content || readerSource.summary || readerSource.articleContent;
-        if (!hasContent || hasContent.length < 50) {
-          console.log('[Gate] Content too short, blocking share');
+        const platform = readerSource.platform;
+        
+        // Platforms with rich metadata: let backend decide even if content is empty
+        const platformsWithMetadata = ['spotify', 'youtube', 'tiktok', 'twitter'];
+        const hasRichMetadata = platformsWithMetadata.includes(platform || '') && 
+          (readerSource.title || readerSource.description);
+        
+        // Block ONLY if:
+        // - Not a platform with rich metadata
+        // - AND doesn't have sufficient content
+        if (!hasRichMetadata && (!hasContent || hasContent.length < 50)) {
+          console.log('[Gate] Content too short and no rich metadata, blocking share');
           toast({ 
             title: 'Contenuto non disponibile', 
             description: 'Apri la fonte originale per leggerla.',

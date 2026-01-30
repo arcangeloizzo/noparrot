@@ -240,12 +240,8 @@ serve(async (req) => {
               contentSource = 'content_cache';
               console.log(`[generate-qa] ✅ Spotify lyrics from cache: ${serverSideContent.length} chars`);
             } else {
-              // NEGATIVE CACHE HIT: lyrics are already known to be unavailable
-              console.log('[generate-qa] ⚡ Negative cache hit for Spotify - lyrics unavailable, fast-failing');
-              return new Response(
-                JSON.stringify({ insufficient_context: true }),
-                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-              );
+              // NEGATIVE CACHE HIT: lyrics unavailable - try metadata fallback
+              console.log('[generate-qa] ⚡ Negative cache hit for Spotify - trying metadata fallback');
             }
           } else {
             // Not in cache at all - try fetching fresh
@@ -266,27 +262,23 @@ serve(async (req) => {
                   serverSideContent = lyricsData.lyrics;
                   contentSource = 'spotify_fresh';
                   console.log(`[generate-qa] ✅ Spotify lyrics fetched: ${serverSideContent.length} chars`);
-                } else {
-                  // No lyrics found - fast fail
-                  console.log('[generate-qa] ❌ No lyrics from fresh fetch, returning insufficient_context');
-                  return new Response(
-                    JSON.stringify({ insufficient_context: true }),
-                    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-                  );
                 }
               } else {
-                console.log(`[generate-qa] ❌ Lyrics fetch failed: ${lyricsResponse.status}`);
-                return new Response(
-                  JSON.stringify({ insufficient_context: true }),
-                  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-                );
+                console.log(`[generate-qa] ⏳ Lyrics fetch failed: ${lyricsResponse.status}, trying metadata fallback`);
               }
             } catch (err) {
-              console.error('[generate-qa] Spotify lyrics fetch failed:', err);
-              return new Response(
-                JSON.stringify({ insufficient_context: true }),
-                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-              );
+              console.error('[generate-qa] Spotify lyrics fetch failed, trying metadata fallback:', err);
+            }
+          }
+          
+          // METADATA FALLBACK: If no lyrics, use title/excerpt for quiz
+          if (!serverSideContent && title) {
+            const syntheticContent = `Brano musicale: ${title}.${excerpt ? ` ${excerpt}` : ''} Questo contenuto audio è disponibile sulla piattaforma Spotify.`;
+            
+            if (syntheticContent.length >= 50) {
+              serverSideContent = syntheticContent;
+              contentSource = 'spotify_metadata';
+              console.log(`[generate-qa] 🎵 Using Spotify metadata fallback: ${serverSideContent.length} chars`);
             }
           }
           break;
@@ -386,6 +378,8 @@ serve(async (req) => {
       const focusId = sourceUrl.replace('editorial://', '');
       console.log(`[generate-qa] 📰 Editorial content, fetching from daily_focus: ${focusId}`);
       
+      let editorialTitle = title;
+      
       try {
         const { data: focusData, error: focusError } = await supabase
           .from('daily_focus')
@@ -403,7 +397,8 @@ serve(async (req) => {
           console.log(`[generate-qa] ✅ Editorial content from daily_focus: ${serverSideContent.length} chars`);
           
           // Use title from focus if not provided
-          if (!title && focusData.title) {
+          if (!editorialTitle && focusData.title) {
+            editorialTitle = focusData.title;
             console.log(`[generate-qa] Using title from daily_focus: ${focusData.title.substring(0, 50)}`);
           }
         } else {
@@ -411,6 +406,13 @@ serve(async (req) => {
         }
       } catch (err) {
         console.error('[generate-qa] Editorial fetch exception:', err);
+      }
+      
+      // FALLBACK: If DB has no content, use client title as minimal content
+      if (!serverSideContent && editorialTitle && editorialTitle.length > 20) {
+        serverSideContent = `Sintesi editoriale: ${editorialTitle}. Questo contenuto è una sintesi automatica basata su fonti pubbliche.`;
+        contentSource = 'editorial_title_fallback';
+        console.log(`[generate-qa] 📰 Using editorial title fallback: ${serverSideContent.length} chars`);
       }
     }
     
@@ -520,12 +522,23 @@ serve(async (req) => {
     }
 
     // Check if content is sufficient
+    let finalContentText = contentText;
     if (contentText.length < 50) {
-      console.log('[generate-qa] ⚠️ Insufficient content for Q/A generation');
-      return new Response(
-        JSON.stringify({ insufficient_context: true }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      // FALLBACK: Try to build minimum content from title + excerpt + userText
+      const fallbackContent = `${title || ''}\n\n${excerpt || ''}\n\n${userText || ''}`.trim();
+      
+      if (fallbackContent.length >= 80) {
+        console.log(`[generate-qa] ⚡ Using title/excerpt fallback for quiz: ${fallbackContent.length} chars`);
+        finalContentText = fallbackContent;
+        serverSideContent = fallbackContent;
+        contentSource = 'title_excerpt_fallback';
+      } else {
+        console.log('[generate-qa] ⚠️ Insufficient content for Q/A generation');
+        return new Response(
+          JSON.stringify({ insufficient_context: true }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     const isVideo = type === 'video';
