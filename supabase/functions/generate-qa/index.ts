@@ -819,10 +819,13 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
       console.log('[generate-qa] Q&A updated in secure tables');
     } else {
       // Insert into public table first
+      // FIX: Per editorial URLs, forzare post_id = null per evitare FK violation
+      // (contentId per editorial è daily_focus.id, non posts.id)
+      const isEditorialUrl = sourceUrl?.startsWith('editorial://');
       const { data: insertedQA, error: insertError } = await supabase
         .from('post_qa_questions')
         .insert({
-          post_id: isPrePublish ? null : contentId,
+          post_id: (isPrePublish || isEditorialUrl) ? null : contentId,
           source_url: sourceUrl || '',
           questions: shuffledQuestions,
           content_hash: contentHash,

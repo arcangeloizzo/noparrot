@@ -898,9 +898,11 @@ const ImmersivePostCardInner = ({
 
       const fullContent = readerSource.content || readerSource.summary || readerSource.excerpt || post.content;
 
-      // Per contenuti editoriali, usare legacy mode con summary
+      // Per contenuti editoriali, usare legacy mode con summary e isPrePublish: true
+      // per evitare FK violation (daily_focus.id non esiste in posts)
       const result = await generateQA({
-        contentId: isEditorial ? readerSource.id : post.id,
+        contentId: isEditorial ? null : post.id,  // null per editorial → evita FK error
+        isPrePublish: isEditorial ? true : undefined,  // forza post_id = null nel backend
         title: readerSource.title,
         // Per editorial, passare summary (legacy mode) invece di qaSourceRef
         summary: isEditorial ? readerSource.articleContent : (isOriginalPost ? fullContent : undefined),
