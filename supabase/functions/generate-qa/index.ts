@@ -375,10 +375,54 @@ serve(async (req) => {
               }
             }
             
-            // FALLBACK: If Jina failed or returned little content, use metadata
-            if (!serverSideContent || serverSideContent.length < 100) {
-              // Try metadata fallback for ALL platforms when scraping fails
-              if (title) {
+            // FIX v3: Increase threshold to 300 chars and retry with Jina if too short
+            if (!serverSideContent || serverSideContent.length < 300) {
+              const cacheUrlForRetry = effectiveQaSourceRef.url || sourceUrl;
+              
+              // Try Jina retry with 8s timeout if content is insufficient
+              if (cacheUrlForRetry && (!serverSideContent || serverSideContent.length < 300)) {
+                console.log(`[generate-qa] ⚠️ Content too short (${serverSideContent?.length || 0} chars), retrying Jina with 8s timeout...`);
+                try {
+                  const controller = new AbortController();
+                  const timeoutId = setTimeout(() => controller.abort(), 8000);
+                  
+                  const jinaRetryResponse = await fetch(`https://r.jina.ai/${cacheUrlForRetry}`, {
+                    headers: {
+                      'Accept': 'application/json',
+                      'X-Return-Format': 'json'
+                    },
+                    signal: controller.signal
+                  });
+                  clearTimeout(timeoutId);
+                  
+                  if (jinaRetryResponse.ok) {
+                    const jinaRetryData = await jinaRetryResponse.json();
+                    if (jinaRetryData.content && jinaRetryData.content.length > (serverSideContent?.length || 0)) {
+                      serverSideContent = jinaRetryData.content;
+                      contentSource = 'jina_retry';
+                      console.log(`[generate-qa] ✅ Jina retry success: ${serverSideContent.length} chars`);
+                      
+                      // Update cache with better content
+                      if (serverSideContent.length > 100) {
+                        const expiresAt = new Date();
+                        expiresAt.setDate(expiresAt.getDate() + 7);
+                        await supabase.from('content_cache').upsert({
+                          source_url: cacheUrlForRetry,
+                          source_type: 'article',
+                          content_text: serverSideContent,
+                          title: jinaRetryData.title || title || null,
+                          expires_at: expiresAt.toISOString()
+                        }, { onConflict: 'source_url' });
+                      }
+                    }
+                  }
+                } catch (retryErr) {
+                  console.log('[generate-qa] Jina retry failed/timeout:', retryErr);
+                }
+              }
+              
+              // Metadata fallback only if still insufficient
+              if (serverSideContent.length < 300 && title) {
                 const syntheticContent = `${title}.${excerpt ? ` ${excerpt}` : ''}`.trim();
                 // Only use if it's better than what we have
                 if (syntheticContent.length > (serverSideContent?.length || 0) && syntheticContent.length >= 60) {
@@ -425,10 +469,12 @@ serve(async (req) => {
     }
     
     // ========================================================================
-    // EDITORIAL:// HANDLER - Fetch content from daily_focus table
+    // EDITORIAL/FOCUS HANDLER - Fetch content from daily_focus table
     // ========================================================================
-    if (sourceUrl?.startsWith('editorial://') && !serverSideContent) {
-      const focusId = sourceUrl.replace('editorial://', '');
+    // FIX: Handle both editorial:// and focus://daily/ prefixes
+    const isEditorialUrl = sourceUrl?.startsWith('editorial://') || sourceUrl?.startsWith('focus://daily/');
+    if (isEditorialUrl && !serverSideContent) {
+      const focusId = sourceUrl.replace('editorial://', '').replace('focus://daily/', '');
       console.log(`[generate-qa] 📰 Editorial content, fetching from daily_focus: ${focusId}`);
       
       let editorialTitle = title;

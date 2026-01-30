@@ -235,6 +235,7 @@ export type Database = {
           id: string
           meta_hostname: string | null
           meta_image_url: string | null
+          popularity: number | null
           source_type: string
           source_url: string
           title: string | null
@@ -246,6 +247,7 @@ export type Database = {
           id?: string
           meta_hostname?: string | null
           meta_image_url?: string | null
+          popularity?: number | null
           source_type: string
           source_url: string
           title?: string | null
@@ -257,6 +259,7 @@ export type Database = {
           id?: string
           meta_hostname?: string | null
           meta_image_url?: string | null
+          popularity?: number | null
           source_type?: string
           source_url?: string
           title?: string | null

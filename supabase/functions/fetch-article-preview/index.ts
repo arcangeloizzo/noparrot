@@ -718,7 +718,7 @@ async function fetchSocialWithJina(url: string, platform: string) {
 }
 
 // ============================================================================
-// SERVER-SIDE CONTENT CACHING
+// SERVER-SIDE CONTENT CACHING - v3: Added popularity for Spotify PULSE badge
 // ============================================================================
 async function cacheContentServerSide(
   supabase: any,
@@ -726,7 +726,8 @@ async function cacheContentServerSide(
   sourceType: string,
   contentText: string,
   title?: string,
-  imageUrl?: string
+  imageUrl?: string,
+  popularity?: number // NEW: For Spotify PULSE badge
 ): Promise<void> {
   if (!contentText || contentText.length < 50) {
     console.log(`[Cache] Skipping cache for ${sourceUrl}: content too short`);
@@ -753,24 +754,32 @@ async function cacheContentServerSide(
       metaHostname = new URL(sourceUrl).hostname.replace(/^www\./, '');
     } catch {}
     
+    const upsertData: any = {
+      source_url: normalizedUrl,
+      source_type: sourceType,
+      content_text: contentText,
+      title: title || null,
+      meta_image_url: imageUrl || null,
+      meta_hostname: metaHostname || null,
+      expires_at: expiresAt.toISOString()
+    };
+    
+    // Add popularity for Spotify (PULSE badge)
+    if (typeof popularity === 'number') {
+      upsertData.popularity = popularity;
+      console.log(`[Cache] 🎵 Including Spotify popularity: ${popularity}`);
+    }
+    
     const { error } = await supabase
       .from('content_cache')
-      .upsert({
-        source_url: normalizedUrl,
-        source_type: sourceType,
-        content_text: contentText,
-        title: title || null,
-        meta_image_url: imageUrl || null,
-        meta_hostname: metaHostname || null,
-        expires_at: expiresAt.toISOString()
-      }, {
+      .upsert(upsertData, {
         onConflict: 'source_url'
       });
     
     if (error) {
       console.error(`[Cache] Failed to cache content for ${normalizedUrl}:`, error.message);
     } else {
-      console.log(`[Cache] ✅ Cached ${contentText.length} chars for ${normalizedUrl} (img: ${!!imageUrl})`);
+      console.log(`[Cache] ✅ Cached ${contentText.length} chars for ${normalizedUrl} (img: ${!!imageUrl}, popularity: ${popularity ?? 'N/A'})`);
     }
   } catch (err) {
     console.error(`[Cache] Exception caching content:`, err);
@@ -825,7 +834,7 @@ serve(async (req) => {
       
       const { data: cached, error: cacheErr } = await supabase
         .from('content_cache')
-        .select('title, content_text, meta_image_url, source_type, meta_hostname')
+        .select('title, content_text, meta_image_url, source_type, meta_hostname, popularity')
         .eq('source_url', normalizedUrl)
         .gt('expires_at', new Date().toISOString())
         .maybeSingle();
@@ -867,7 +876,8 @@ serve(async (req) => {
         
         console.log(`[Cache] Platform-aware qaSourceRef: kind=${qaSourceRefKind}, id=${qaSourceRefId.substring(0, 30)}`);
         
-        return new Response(JSON.stringify({
+        // Build response with popularity for Spotify PULSE badge
+        const cacheResponse: any = {
           success: true,
           title: cached.title,
           summary: cached.content_text?.substring(0, 300) || '',
@@ -880,7 +890,15 @@ serve(async (req) => {
           fromCache: true,
           iframeAllowed: true,
           qaSourceRef: { kind: qaSourceRefKind, id: qaSourceRefId, url }
-        }), {
+        };
+        
+        // FIX v3: Include popularity for Spotify PULSE badge from cache
+        if (typeof cached.popularity === 'number') {
+          cacheResponse.popularity = cached.popularity;
+          console.log(`[Cache] 🎵 Returning cached popularity for PULSE: ${cached.popularity}`);
+        }
+        
+        return new Response(JSON.stringify(cacheResponse), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       } else if (cacheErr) {
@@ -1263,23 +1281,24 @@ serve(async (req) => {
               lyricsAvailable = true;
               geniusUrl = lyricsData.geniusUrl || '';
               
-              // Cache lyrics for Q/A generation (include thumbnail for preview)
+              // Cache lyrics for Q/A generation (include thumbnail for preview + popularity for PULSE)
               await cacheContentServerSide(
                 supabase,
                 url,
                 'spotify',
                 lyricsData.lyrics,
                 `${trackTitle} - ${artist}`,
-                oembedData.thumbnail_url || ''
+                oembedData.thumbnail_url || '',
+                trackPopularity // NEW: Pass popularity for PULSE badge cache
               );
             } else if (supabase) {
               // NEGATIVE CACHE: Save that lyrics are unavailable
-              // This prevents infinite retry loops - BUT still save the image!
+              // This prevents infinite retry loops - BUT still save image + popularity for PULSE!
               const negativeExpiry = new Date();
               negativeExpiry.setMinutes(negativeExpiry.getMinutes() + 30); // 30 min TTL
               
               const normalizedUrl = safeNormalizeUrl(url);
-              await supabase.from('content_cache').upsert({
+              const negativeData: any = {
                 source_url: normalizedUrl,
                 source_type: 'spotify',
                 content_text: '', // EMPTY = unavailable
@@ -1287,7 +1306,15 @@ serve(async (req) => {
                 meta_image_url: oembedData.thumbnail_url || null,
                 meta_hostname: 'open.spotify.com',
                 expires_at: negativeExpiry.toISOString()
-              }, { onConflict: 'source_url' });
+              };
+              
+              // Still save popularity even when lyrics unavailable (for PULSE badge)
+              if (typeof trackPopularity === 'number') {
+                negativeData.popularity = trackPopularity;
+                console.log(`[Spotify] Including popularity in negative cache: ${trackPopularity}`);
+              }
+              
+              await supabase.from('content_cache').upsert(negativeData, { onConflict: 'source_url' });
               
               console.log('[Spotify] Negative cache set: lyrics unavailable');
             }
