@@ -375,13 +375,15 @@ serve(async (req) => {
               }
             }
             
-            // FIX v3: Increase threshold to 300 chars and retry with Jina if too short
+            // FIX v3: Increase threshold to 300 chars and use multiple fallbacks
             if (!serverSideContent || serverSideContent.length < 300) {
               const cacheUrlForRetry = effectiveQaSourceRef.url || sourceUrl;
               
-              // Try Jina retry with 8s timeout if content is insufficient
+              // STEP 1: Try Jina retry with 8s timeout
               if (cacheUrlForRetry && (!serverSideContent || serverSideContent.length < 300)) {
-                console.log(`[generate-qa] ⚠️ Content too short (${serverSideContent?.length || 0} chars), retrying Jina with 8s timeout...`);
+                console.log(`[generate-qa] ⚠️ Content too short (${serverSideContent?.length || 0} chars), trying extraction cascade...`);
+                
+                // Jina attempt
                 try {
                   const controller = new AbortController();
                   const timeoutId = setTimeout(() => controller.abort(), 8000);
@@ -401,28 +403,63 @@ serve(async (req) => {
                       serverSideContent = jinaRetryData.content;
                       contentSource = 'jina_retry';
                       console.log(`[generate-qa] ✅ Jina retry success: ${serverSideContent.length} chars`);
-                      
-                      // Update cache with better content
-                      if (serverSideContent.length > 100) {
-                        const expiresAt = new Date();
-                        expiresAt.setDate(expiresAt.getDate() + 7);
-                        await supabase.from('content_cache').upsert({
-                          source_url: cacheUrlForRetry,
-                          source_type: 'article',
-                          content_text: serverSideContent,
-                          title: jinaRetryData.title || title || null,
-                          expires_at: expiresAt.toISOString()
-                        }, { onConflict: 'source_url' });
-                      }
                     }
                   }
                 } catch (retryErr) {
-                  console.log('[generate-qa] Jina retry failed/timeout:', retryErr);
+                  console.log('[generate-qa] Jina retry failed/timeout');
                 }
               }
               
-              // Metadata fallback only if still insufficient
-              if (serverSideContent.length < 300 && title) {
+              // STEP 2: Try Firecrawl if Jina failed and we have API key
+              const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
+              if (cacheUrlForRetry && FIRECRAWL_API_KEY && (!serverSideContent || serverSideContent.length < 300)) {
+                console.log(`[generate-qa] 🔥 Trying Firecrawl as backup...`);
+                try {
+                  const controller = new AbortController();
+                  const timeoutId = setTimeout(() => controller.abort(), 10000);
+                  
+                  const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${FIRECRAWL_API_KEY}`,
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                      url: cacheUrlForRetry,
+                      formats: ['markdown'],
+                      onlyMainContent: true
+                    }),
+                    signal: controller.signal
+                  });
+                  clearTimeout(timeoutId);
+                  
+                  if (firecrawlResponse.ok) {
+                    const firecrawlData = await firecrawlResponse.json();
+                    const markdown = firecrawlData.data?.markdown || '';
+                    if (markdown.length > (serverSideContent?.length || 0)) {
+                      serverSideContent = markdown;
+                      contentSource = 'firecrawl';
+                      console.log(`[generate-qa] ✅ Firecrawl success: ${serverSideContent.length} chars`);
+                      
+                      // Cache for future use
+                      const expiresAt = new Date();
+                      expiresAt.setDate(expiresAt.getDate() + 7);
+                      await supabase.from('content_cache').upsert({
+                        source_url: cacheUrlForRetry,
+                        source_type: 'article',
+                        content_text: serverSideContent,
+                        title: firecrawlData.data?.metadata?.title || title || null,
+                        expires_at: expiresAt.toISOString()
+                      }, { onConflict: 'source_url' });
+                    }
+                  }
+                } catch (fcErr) {
+                  console.log('[generate-qa] Firecrawl failed/timeout');
+                }
+              }
+              
+              // STEP 3: Metadata fallback only if still insufficient
+              if ((!serverSideContent || serverSideContent.length < 300) && title) {
                 const syntheticContent = `${title}.${excerpt ? ` ${excerpt}` : ''}`.trim();
                 // Only use if it's better than what we have
                 if (syntheticContent.length > (serverSideContent?.length || 0) && syntheticContent.length >= 60) {

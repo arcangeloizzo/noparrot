@@ -345,53 +345,62 @@ Deno.serve(async (req) => {
 
     // ========================================================================
     // FIX: For editorial posts (focus://), fetch missing data from daily_focus
+    // CRITICAL: Check body.sharedUrl FIRST, before sanitizeUrl() blocks non-http protocols!
     // ========================================================================
-    const isEditorialUrl = sanitizedSharedUrl?.startsWith('focus://daily/') || 
-                           body.sharedUrl?.startsWith('focus://daily/') ||
-                           body.sharedUrl?.startsWith('focus://');
+    const rawSharedUrl = body.sharedUrl || '';
+    const isEditorialUrl = rawSharedUrl.startsWith('focus://daily/') || 
+                           rawSharedUrl.startsWith('focus://') ||
+                           rawSharedUrl.startsWith('editorial://');
     
-    if (isEditorialUrl && (!sanitizedArticle || !sanitizedTitle)) {
-      // Extract focus ID from URL
-      const focusUrl = body.sharedUrl || '';
-      const focusId = focusUrl.replace('focus://daily/', '').replace('focus://', '');
+    if (isEditorialUrl) {
+      console.log(`[publish-post:${reqId}] stage=editorial_detected url=${rawSharedUrl.slice(0, 50)}`);
       
-      if (focusId) {
-        console.log(`[publish-post:${reqId}] stage=editorial_fetch fetching missing data for focus: ${focusId}`);
+      // For focus:// URLs, bypass sanitizeUrl (which blocks non-http) 
+      sanitizedSharedUrl = rawSharedUrl;
+      
+      // Extract focus ID and fetch content if missing
+      if (!sanitizedArticle || !sanitizedTitle) {
+        const focusId = rawSharedUrl
+          .replace('focus://daily/', '')
+          .replace('focus://', '')
+          .replace('editorial://', '');
         
-        try {
-          const { data: focusData, error: focusErr } = await supabase
-            .from('daily_focus')
-            .select('title, summary, deep_content, image_url')
-            .eq('id', focusId)
-            .maybeSingle();
+        if (focusId) {
+          console.log(`[publish-post:${reqId}] stage=editorial_fetch focusId=${focusId}`);
           
-          if (focusErr) {
-            console.warn(`[publish-post:${reqId}] stage=editorial_fetch_error`, focusErr.message);
-          } else if (focusData) {
-            // Use data from daily_focus if missing in request
-            if (!sanitizedTitle && focusData.title) {
-              sanitizedTitle = sanitizeContent(focusData.title).substring(0, 500);
-              console.log(`[publish-post:${reqId}] stage=editorial_title_populated title="${sanitizedTitle?.slice(0, 30)}..."`);
+          try {
+            const { data: focusData, error: focusErr } = await supabase
+              .from('daily_focus')
+              .select('title, summary, deep_content, image_url')
+              .eq('id', focusId)
+              .maybeSingle();
+            
+            if (focusErr) {
+              console.warn(`[publish-post:${reqId}] stage=editorial_fetch_error`, focusErr.message);
+            } else if (focusData) {
+              // Use data from daily_focus if missing in request
+              if (!sanitizedTitle && focusData.title) {
+                sanitizedTitle = sanitizeContent(focusData.title).substring(0, 500);
+                console.log(`[publish-post:${reqId}] stage=editorial_title_set title="${sanitizedTitle?.slice(0, 30)}..."`);
+              }
+              if (!sanitizedArticle) {
+                const editorialContent = focusData.deep_content || focusData.summary || '';
+                // Clean [SOURCE:N] markers
+                sanitizedArticle = sanitizeContent(editorialContent.replace(/\[SOURCE:[\d,\s]+\]/g, '')).substring(0, 10000);
+                console.log(`[publish-post:${reqId}] stage=editorial_content_set len=${sanitizedArticle?.length}`);
+              }
+              if (!sanitizedPreviewImg && focusData.image_url) {
+                sanitizedPreviewImg = focusData.image_url; // Skip sanitizeUrl for internal URLs
+                console.log(`[publish-post:${reqId}] stage=editorial_image_set`);
+              }
+            } else {
+              console.warn(`[publish-post:${reqId}] stage=editorial_not_found focusId=${focusId}`);
             }
-            if (!sanitizedArticle) {
-              const editorialContent = focusData.deep_content || focusData.summary || '';
-              // Clean [SOURCE:N] markers
-              sanitizedArticle = sanitizeContent(editorialContent.replace(/\[SOURCE:[\d,\s]+\]/g, '')).substring(0, 10000);
-              console.log(`[publish-post:${reqId}] stage=editorial_content_populated len=${sanitizedArticle?.length}`);
-            }
-            if (!sanitizedPreviewImg && focusData.image_url) {
-              sanitizedPreviewImg = sanitizeUrl(focusData.image_url);
-            }
-          } else {
-            console.warn(`[publish-post:${reqId}] stage=editorial_not_found focusId=${focusId}`);
+          } catch (editorialErr) {
+            console.warn(`[publish-post:${reqId}] stage=editorial_fetch_exception`, editorialErr);
           }
-        } catch (editorialErr) {
-          console.warn(`[publish-post:${reqId}] stage=editorial_fetch_exception`, editorialErr);
         }
       }
-      
-      // For focus:// URLs, keep the original format (don't validate with sanitizeUrl which blocks non-http)
-      sanitizedSharedUrl = body.sharedUrl || null;
     }
 
     const insertPayload = {
