@@ -1,102 +1,110 @@
 
-# Implementazione Session Guard - Post-Background Stability
+# Fix: Falso Positivo "Sessione precedente interrotta" dopo Quiz da Notifica
 
-## Obiettivo
-Risolvere i problemi di "Sessione precedente interrotta" e fallimenti random dopo che l'app torna dal background su iOS.
+## Problema Identificato
 
-## Causa Root
-Race condition: le Edge Functions vengono chiamate PRIMA che il refresh del token JWT sia completato dopo il resume dell'app.
+Quando l'utente arriva da una **notifica** e completa il quiz:
+- Il quiz viene chiuso programmaticamente (`setShowQuiz(false)`)
+- Ma il breadcrumb `quiz_closed` **non viene aggiunto**
+- Quando torna sull'Index, `checkForRecentCrash()` vede `quiz_mount` senza un corrispondente evento di chiusura
+- Risultato: toast "Sessione precedente interrotta. Ultimo evento: quiz" errato
 
-## Soluzione: Session Guard System
-
-### Garanzie Richieste (implementate)
-1. **Fail-Safe Timeout 8s**: Se il check sessione impiega più di 8 secondi, l'UI si sblocca comunque
-2. **Singleton Pattern**: Un solo refresh alla volta (cooldown 5s tra refresh)
-
----
-
-## File da Creare/Modificare
-
-### 1. NUOVO: `src/lib/sessionGuard.ts`
-Modulo centrale con:
-- `withSessionGuard(fn)` - wrapper per chiamate Edge Function
-- `markSessionNeedsVerification()` - chiamato al resume dell'app
-- `getIsSessionReady()` - stato corrente
-- Retry automatico su errori 401/403
-- Timeout fail-safe di 8s
-- Singleton pattern per refresh
-
-### 2. MODIFICA: `src/hooks/useAppLifecycle.ts`
-- Usa `markSessionNeedsVerification()` invece di logica inline
-- Esporta stato `isSessionReady` via React hook
-- Sottoscrive ai cambiamenti di stato sessione
-
-### 3. MODIFICA: `src/lib/ai-helpers.ts`
-Wrappa con `withSessionGuard()`:
-- `generateQA()`
-- `validateAnswers()`
-- `fetchArticlePreview()`
-
-### 4. MODIFICA: `src/lib/runGateBeforeAction.ts`
-Wrappa le chiamate Edge Function con `withSessionGuard()`
-
-### 5. MODIFICA: `src/pages/Index.tsx`
-Riduci i falsi positivi del toast "Sessione precedente interrotta":
-- Mostra solo se c'è un reale problema (scroll lock, pending publish, evento di errore)
-- Non mostrare per eventi di sistema normali
+**Perché funziona dal Feed ma non da Notifica:**
+- Dal Feed: L'utente resta sulla stessa pagina. Al prossimo reload, `clearBreadcrumbs()` viene chiamato subito in `Index.tsx`, cancellando tutto prima del check.
+- Da Notifica: L'utente naviga a `/post/:id` (pagina separata) → completa quiz → torna su `/` → i breadcrumbs vecchi ci sono ancora → crash detection li trova.
 
 ---
 
-## Flusso Implementato
+## Soluzione
+
+### Approccio a Due Livelli
+
+**1. Aggiungere `quiz_cleanup_done` come evento di chiusura valido**
+
+Nel file `crashBreadcrumbs.ts`, aggiungere `quiz_cleanup_done` all'array `closeEvents`. Questo è già emesso nel cleanup di `QuizModal`, quindi funziona come fallback.
+
+**2. Aggiungere breadcrumb espliciti `quiz_closed` in `CommentsDrawer.tsx`**
+
+Prima di ogni `setShowQuiz(false)` nel gestore quiz, aggiungere il breadcrumb appropriato per maggiore chiarezza e diagnostica.
+
+---
+
+## Modifiche File
+
+### File 1: `src/lib/crashBreadcrumbs.ts` (linea 115)
+
+```typescript
+// Prima
+const closeEvents = ['reader_closed', 'quiz_closed', 'publish_success'];
+
+// Dopo
+const closeEvents = ['reader_closed', 'quiz_closed', 'quiz_cleanup_done', 'publish_success'];
+```
+
+### File 2: `src/components/feed/CommentsDrawer.tsx`
+
+Aggiungere `addBreadcrumb('quiz_closed', { via: '...' })` prima di ogni `setShowQuiz(false)`:
+
+| Linea circa | Contesto | Breadcrumb da aggiungere |
+|-------------|----------|--------------------------|
+| 833 | Errore validazione | `addBreadcrumb('quiz_closed', { via: 'validation_error' })` |
+| 847 | Quiz non passato | `addBreadcrumb('quiz_closed', { via: 'failed' })` |
+| 854 | Quiz passato | `addBreadcrumb('quiz_closed', { via: 'passed' })` |
+| 861 | Errore catch | `addBreadcrumb('quiz_closed', { via: 'error' })` |
+| 868 | Annullamento manuale | `addBreadcrumb('quiz_closed', { via: 'cancelled' })` |
+
+---
+
+## Perché Questa Soluzione È Sicura
+
+| Garanzia | Dettaglio |
+|----------|-----------|
+| **Nessun cambio al flusso** | Le chiamate a `setShowQuiz(false)` restano identiche |
+| **Fallback robusto** | Anche se il breadcrumb esplicito non viene aggiunto, `quiz_cleanup_done` (dal cleanup di QuizModal) ora conta come chiusura |
+| **Crash detection reale intatta** | Se c'è un crash PRIMA che il quiz venga chiuso, né `quiz_closed` né `quiz_cleanup_done` saranno presenti → il toast apparirà correttamente |
+| **Diagnostica migliorata** | I breadcrumb `{ via: 'passed'/'failed'/... }` aiutano a capire come il quiz è stato chiuso |
+
+---
+
+## Flusso Corretto Dopo il Fix
 
 ```text
-App torna dal background (>30s)
-              │
-              ▼
-   isSessionReady = false
-              │
-              ▼
-   ┌───────────────────────────┐
-   │ markSessionNeedsVerification │
-   │ (con timeout 8s fail-safe)   │
-   │ (singleton - max 1 per 5s)   │
-   └─────────────┬─────────────┘
-                 │
-       ┌─────────┴─────────┐
-       │                   │
-   Successo            Timeout/Errore
-       │                   │
-       ▼                   ▼
- Token refreshato     UI sbloccata
-                      (fail-open)
-       │                   │
-       └─────────┬─────────┘
-                 │
-                 ▼
-        isSessionReady = true
-                 │
-                 ▼
-         UI pronta per azioni
+Utente arriva da notifica
+        │
+        ▼
+   /post/:id carica
+        │
+        ▼
+   CommentsDrawer apre
+        │
+        ▼
+   Quiz genera → quiz_mount ✓
+        │
+        ▼
+   Utente completa quiz
+        │
+        ▼
+   quiz_closed (via: 'passed') ✓   ← NUOVO
+        │
+        ▼
+   QuizModal unmount → quiz_cleanup_done ✓
+        │
+        ▼
+   Utente torna su /
+        │
+        ▼
+   checkForRecentCrash():
+   openCount: 1 (quiz_mount)
+   closeCount: 2 (quiz_closed + quiz_cleanup_done)
+   hasUnmatchedOpen: false
+   crashed: false ✓
 ```
 
 ---
 
-## Impatto
+## Riepilogo Modifiche
 
-| Scenario | Prima | Dopo |
-|----------|-------|------|
-| Commento dopo background | Può fallire con "Sessione interrotta" | Attende sessione, poi esegue |
-| Quiz per post/commento | Fallisce silenziosamente | Retry automatico con refresh |
-| Toast falsi positivi | Frequenti | Solo su reali problemi |
-| Performance normale | Invariata | Invariata (nessun overhead) |
-| Primo rientro da background | Race condition | 200-500ms attesa, poi fluido |
-
----
-
-## Garanzie Anti-Regressione
-
-1. Se l'utente non va in background, tutto funziona esattamente come prima
-2. UI mai bloccata per più di 8 secondi
-3. Nessun refresh duplicato grazie al singleton pattern
-4. Su errore, UI si sblocca comunque (fail-open)
-5. Ogni step viene loggato nei breadcrumbs per diagnostica
+| File | Tipo | Descrizione |
+|------|------|-------------|
+| `src/lib/crashBreadcrumbs.ts` | Modifica | Aggiungere `quiz_cleanup_done` a `closeEvents` |
+| `src/components/feed/CommentsDrawer.tsx` | Modifica | Aggiungere breadcrumb `quiz_closed` prima di ogni `setShowQuiz(false)` |
