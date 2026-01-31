@@ -1,105 +1,90 @@
 
 
-# Fallback a Intent Mode dopo Secondo Tentativo Fallito
+# Fix: LinkedIn Preview Cache - Salvare Immagine e Autore
 
-## Obiettivo
+## Problema Identificato
 
-Quando il retry del quiz fallisce (secondo tentativo), invece di mostrare solo un toast di errore, il sistema deve:
-1. Chiudere il modal del quiz
-2. Attivare l'Intent Mode
-3. Permettere all'utente di pubblicare con 30+ parole
+Lo stesso post LinkedIn mostra l'immagine e il nome utente a volte sì e a volte no perché:
+
+1. **Prima visualizzazione**: Il sistema estrae immagine e autore da LinkedIn e li restituisce al client
+2. **Salvataggio cache (BUG)**: L'immagine e l'autore **non vengono salvati** nella cache
+3. **Visualizzazioni successive**: La cache viene letta, ma `meta_image_url` e autore sono `NULL`
+
+**Prove nel database:**
+```
+source_url: linkedin.com/posts/george-stern_...
+meta_image_url: <nil>   ← Sempre NULL per LinkedIn
+title: "Want that next promotion?... | George Stern | 135 commenti"
+```
+
+Il titolo contiene l'autore, ma l'immagine non viene mai salvata.
 
 ---
 
-## Modifiche Tecniche
+## Soluzione Tecnica
 
-### File: `src/components/composer/ComposerModal.tsx`
+### File: `supabase/functions/fetch-article-preview/index.ts`
 
-#### Linee 717-728: Sostituire toast.error con attivazione Intent Mode
+#### Linee 1757-1764: Passare l'immagine a `cacheContentServerSide()`
 
-**Codice Attuale:**
+**Prima:**
 ```typescript
-// Handle same error again
-if (result.error_code) {
-  toast.error('Impossibile analizzare il contenuto. Prova con un\'altra fonte.');
-  addBreadcrumb('retry_validation_error', { code: result.error_code });
-  setIsGeneratingQuiz(false);
-  return;
-}
-
-if (result.error || !result.questions) {
-  toast.error('Errore generazione quiz. Riprova più tardi.');
-  setIsGeneratingQuiz(false);
-  return;
+if (jinaResult?.content && jinaResult.content.length > 50 && supabase) {
+  await cacheContentServerSide(
+    supabase,
+    url,
+    socialPlatform,
+    jinaResult.content,
+    jinaResult.title
+    // ❌ MISSING: jinaResult.image
+  );
 }
 ```
 
-**Nuovo Codice:**
+**Dopo:**
 ```typescript
-// Handle same error again → Fallback to Intent Mode
-if (result.error_code) {
-  toast.dismiss();
-  console.log('[ComposerModal] Second retry failed, activating Intent Mode');
-  addBreadcrumb('retry_fallback_intent', { code: result.error_code });
-  
-  // Close quiz modal (already closed above, but ensure state is clean)
-  setShowQuiz(false);
-  setQuizData(null);
-  setIsGeneratingQuiz(false);
-  
-  // Activate Intent Mode
-  setIntentMode(true);
-  
-  // Show friendly message
-  toast.info('Contenuto non analizzabile. Aggiungi almeno 30 parole per condividere.');
-  
-  return;
-}
-
-if (result.error || !result.questions) {
-  toast.dismiss();
-  console.log('[ComposerModal] Second retry error, activating Intent Mode');
-  addBreadcrumb('retry_error_intent', { error: result.error });
-  
-  setShowQuiz(false);
-  setQuizData(null);
-  setIsGeneratingQuiz(false);
-  
-  setIntentMode(true);
-  toast.info('Contenuto non analizzabile. Aggiungi almeno 30 parole per condividere.');
-  
-  return;
+if (jinaResult?.content && jinaResult.content.length > 50 && supabase) {
+  await cacheContentServerSide(
+    supabase,
+    url,
+    socialPlatform,
+    jinaResult.content,
+    jinaResult.title,
+    jinaResult.image || jinaResult.previewImg // ✅ Passare l'immagine
+  );
 }
 ```
 
 ---
 
-## Flusso Risultante
+## Impatto
 
-| Tentativo | Esito | Comportamento |
-|-----------|-------|---------------|
-| 1° | Fallisce con error_code | Modal "Riprova Analisi" con pulsante RefreshCw |
-| 2° (Retry) | Fallisce ancora | Chiude modal → Attiva Intent Mode → Word counter visibile |
+- **LinkedIn**: L'immagine del post verrà salvata nella cache e mostrata consistentemente
+- **TikTok/Threads**: Stesso fix si applica (usano lo stesso blocco di codice)
+- **Altre piattaforme**: Non toccate (Spotify, YouTube hanno già il loro flusso separato)
 
 ---
 
-## Garanzie Anti-Regressione
+## Perché il TTL corto non aiuta?
 
-1. **1° tentativo invariato**: La logica che mostra il modal "Riprova Analisi" rimane intatta
-2. **Intent Mode esistente**: L'UI con word counter e validazione 30+ parole è già implementata
-3. **Altre piattaforme non toccate**: Spotify, YouTube, Web funzionano normalmente
-4. **runGateBeforeAction non modificato**: Il flusso per commenti/messaggi rimane separato
-5. **Caso successo**: Se il retry funziona, mostra il quiz normalmente (linee 730-737)
+Il sistema usa un TTL di 15 minuti per entry senza immagine (linea 799-802):
+
+```typescript
+if (imageUrl && imageUrl.length > 5) {
+  expiresAt.setDate(expiresAt.getDate() + 7); // 7 days TTL
+} else {
+  expiresAt.setMinutes(expiresAt.getMinutes() + 15); // 15 min TTL
+}
+```
+
+Ma siccome l'immagine non viene mai salvata per LinkedIn, ogni entry ha TTL di 15 minuti. Dopo la scadenza, il refresh sovrascrive la cache **senza immagine ancora**, creando un loop infinito.
 
 ---
 
 ## Test Post-Implementazione
 
-1. **Contenuto che fallisce due volte**:
-   - 1° tentativo → Modal "Riprova Analisi"
-   - Click su "Riprova Analisi" → (fallisce) → Intent Mode attivo
-   - Word counter visibile, utente scrive 30+ parole → Pubblica abilitato
-
-2. **Contenuto che passa al 2° tentativo**:
-   - Nessuna regressione, quiz normale mostrato
+1. Condividere un nuovo post LinkedIn con immagine
+2. Verificare che la cache abbia `meta_image_url` popolato
+3. Refreshare la pagina più volte e verificare che l'immagine sia sempre visibile
+4. Verificare che i post esistenti si aggiornino al prossimo refresh (dopo scadenza cache)
 
