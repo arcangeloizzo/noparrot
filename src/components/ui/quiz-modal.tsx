@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "./button";
-import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import { QuizQuestion } from "@/lib/ai-helpers";
 import { cn } from "@/lib/utils";
 import { updateCognitiveDensityWeighted } from "@/lib/cognitiveDensity";
@@ -19,9 +19,15 @@ interface QuizModalProps {
   onComplete?: (passed: boolean) => void;
   provider?: string;
   postCategory?: string;
+  // NEW: Error state for validation failures with retry option
+  errorState?: {
+    code: 'ERROR_INSUFFICIENT_CONTENT' | 'ERROR_METADATA_ONLY';
+    message: string;
+  };
+  onRetry?: () => void;
 }
 
-export function QuizModal({ questions, qaId, onSubmit, onCancel, onComplete, postCategory }: QuizModalProps) {
+export function QuizModal({ questions, qaId, onSubmit, onCancel, onComplete, postCategory, errorState, onRetry }: QuizModalProps) {
   const { user } = useAuth();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -78,6 +84,46 @@ export function QuizModal({ questions, qaId, onSubmit, onCancel, onComplete, pos
       addBreadcrumb('quiz_cleanup_done');
     };
   }, []);
+
+  // NEW: Show dedicated error state with retry button for validation failures
+  if (errorState) {
+    return (
+      <div 
+        className="fixed inset-0 bg-black/80 z-[9999] pointer-events-auto"
+        onClick={(e) => e.target === e.currentTarget && onCancel?.()}
+        style={{ pointerEvents: 'auto' }}
+      >
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-auto">
+          <div 
+            className="bg-card rounded-2xl w-full max-w-md p-8 text-center shadow-2xl border border-border pointer-events-auto"
+            onClick={(e) => e.stopPropagation()}
+            style={{ pointerEvents: 'auto' }}
+          >
+            <div className="mb-6 flex justify-center">
+              <div className="w-16 h-16 rounded-full bg-[hsl(var(--cognitive-incorrect))]/20 flex items-center justify-center">
+                <AlertTriangle className="w-8 h-8 text-[hsl(var(--cognitive-incorrect))]" />
+              </div>
+            </div>
+            <h2 className="text-xl font-bold mb-3 text-foreground">L'analisi del contenuto non è stata ottimale</h2>
+            <p className="text-muted-foreground mb-6 text-sm">
+              {errorState.code === 'ERROR_METADATA_ONLY' 
+                ? "Il contenuto estratto contiene troppi elementi di interfaccia. Riprova per un'analisi più accurata."
+                : "Non è stato possibile estrarre abbastanza contenuto dalla fonte. Riprova o aggiungi più contesto."}
+            </p>
+            <div className="space-y-3">
+              <Button onClick={(e) => { e.stopPropagation(); onRetry?.(); }} className="w-full pointer-events-auto">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Riprova Analisi
+              </Button>
+              <Button onClick={(e) => { e.stopPropagation(); onCancel?.(); }} variant="outline" className="w-full pointer-events-auto">
+                Annulla
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Validate questions is actually an array
   const validQuestions = Array.isArray(questions) ? questions : [];

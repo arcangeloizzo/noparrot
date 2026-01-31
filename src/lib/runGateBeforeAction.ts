@@ -10,6 +10,8 @@ interface GateOptions {
   setShowQuiz?: (show: boolean) => void;
   // Intent post reshare: use original text as source
   intentPostContent?: string;
+  // NEW: Force cache invalidation for retry flows
+  forceRefresh?: boolean;
 }
 
 /**
@@ -23,12 +25,13 @@ export async function runGateBeforeAction({
   setIsProcessing,
   setQuizData,
   setShowQuiz,
-  intentPostContent
+  intentPostContent,
+  forceRefresh
 }: GateOptions): Promise<void> {
   try {
     if (setIsProcessing) setIsProcessing(true);
 
-    console.log('[runGateBeforeAction] Starting gate for URL:', linkUrl, 'isIntentReshare:', !!intentPostContent);
+    console.log('[runGateBeforeAction] Starting gate for URL:', linkUrl, 'isIntentReshare:', !!intentPostContent, 'forceRefresh:', !!forceRefresh);
 
     // INTENT POST RESHARE: Generate questions from original text, not from link
     if (intentPostContent) {
@@ -50,7 +53,8 @@ export async function runGateBeforeAction({
             type: 'article',
             isPrePublish: true,
             testMode: 'USER_ONLY', // All questions from user text
-            questionCount: questionCount
+            questionCount: questionCount,
+            forceRefresh // Pass forceRefresh for retry
           } 
         }
       );
@@ -113,7 +117,8 @@ export async function runGateBeforeAction({
       excerpt: '',
       type: 'article',
       sourceUrl: linkUrl,
-      isPrePublish: true
+      isPrePublish: true,
+      forceRefresh // Pass forceRefresh for retry
     };
     
     console.log('[runGateBeforeAction] Calling generate-qa with payload:', qaPayload);
@@ -133,6 +138,33 @@ export async function runGateBeforeAction({
     if (!qaData) {
       console.error('[runGateBeforeAction] No QA data returned');
       throw new Error('Nessuna risposta dal servizio');
+    }
+
+    // NEW: Check for validation errors
+    if (qaData.error_code) {
+      console.log('[runGateBeforeAction] Content validation failed:', qaData.error_code);
+      if (setQuizData && setShowQuiz) {
+        setQuizData({
+          errorState: {
+            code: qaData.error_code,
+            message: qaData.message || 'Analisi non ottimale'
+          },
+          onRetry: () => runGateBeforeAction({ 
+            linkUrl, 
+            onSuccess, 
+            onCancel, 
+            setIsProcessing, 
+            setQuizData, 
+            setShowQuiz,
+            intentPostContent,
+            forceRefresh: true // Retry with cache clear
+          }),
+          onCancel
+        });
+        setShowQuiz(true);
+      }
+      if (setIsProcessing) setIsProcessing(false);
+      return;
     }
 
     if (qaData.insufficient_context) {

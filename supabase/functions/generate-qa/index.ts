@@ -104,78 +104,121 @@ function cleanLinkedInContent(content: string): string {
   
   const originalLength = content.length;
   
-  const patterns = [
-    // UI noise patterns
-    /Sign in to view more content/gi,
-    /Join now to see who you already know/gi,
-    /See who you know/gi,
-    /Get the LinkedIn app/gi,
-    /Skip to main content/gi,
-    /LinkedIn and 3rd parties use/gi,
-    /Accept & Join LinkedIn/gi,
-    /By clicking Continue/gi,
-    /Like Comment Share/gi,
-    /Report this post/gi,
-    /Copy link to post/gi,
-    /Repost with your thoughts/gi,
-    /More from this author/gi,
-    /Welcome back/gi,
-    /Don't miss out/gi,
-    /LinkedIn Corporation ©/gi,
-    /\[Image[^\]]*\]/gi,
-    /!\[.*?\]\(.*?\)/gi,
-    
-    // Reaction/comment counts (comprehensive)
-    /\d{1,3}(?:[.,]\d{3})*\s*(?:reactions?|likes?|commenti?|comments?|reposts?|condivisioni)/gi,
-    /View \d+\s*(?:more\s*)?comments?/gi,
-    /\d+\s*(?:più recenti|more recent)/gi,
-    
-    // Follower/connection counts
-    /\d{1,3}(?:[.,]\d{3})*(?:\+)?\s*(?:follower|collegamenti|connections|seguaci)/gi,
-    
-    // Relative timestamps (1w, 3d, 2h, 1 settimana fa, etc.)
-    /(?:^|\s)\d+[smhdwMy]\s*(?:•|$)/gm,
-    /\d+\s*(?:settiman[aei]|giorn[oi]|or[ae]|minut[oi]|second[oi]|mes[ei]|ann[oi])\s*fa\b/gi,
-    /\d+\s*(?:week|day|hour|minute|second|month|year)s?\s*ago\b/gi,
-    
-    // Edited/Translated markers
-    /\bEdited\b(?:\s*•)?/gi,
-    /\bTranslated\b(?:\s*•)?/gi,
-    /\bModificato\b(?:\s*•)?/gi,
-    /\bTradotto\b(?:\s*•)?/gi,
-    
-    // Stray bullets/separators
-    /^\s*•\s*/gm,
-    /\s*•\s*$/gm,
-    
-    // "See more" / "Altro" buttons
-    /(?:See more|Altro|Mostra altro|Read more|Leggi tutto)\.{0,3}(?:\s|$)/gi,
-    
-    // Only-hashtag lines (preserva hashtag nel testo, rimuove righe solo-hashtag)
-    /^(?:#[\w\u00C0-\u024F]+\s*)+$/gm,
+  // ADDITIVE APPROACH: Only remove EXACT UI strings, not broad regex patterns
+  const exactStringsToRemove = [
+    'Sign in to view more content',
+    'Join now to see who you already know',
+    'See who you know',
+    'Get the LinkedIn app',
+    'Skip to main content',
+    'LinkedIn and 3rd parties use',
+    'Accept & Join LinkedIn',
+    'By clicking Continue',
+    'Like Comment Share',
+    'Report this post',
+    'Copy link to post',
+    'Repost with your thoughts',
+    'More from this author',
+    'Welcome back',
+    "Don't miss out",
+    'LinkedIn Corporation ©',
+    'See more',
+    'Altro',
+    'Mostra altro',
+    'Read more',
+    'Leggi tutto',
+    'Edited',
+    'Tradotto',
+    'Modificato',
+    'View all comments',
+    'View more comments',
+    'Load more comments',
   ];
   
   let cleaned = content;
-  for (const pattern of patterns) {
-    cleaned = cleaned.replace(pattern, ' ');
+  
+  // Remove only exact strings (case-insensitive)
+  for (const str of exactStringsToRemove) {
+    const escapedStr = str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    cleaned = cleaned.replace(new RegExp(escapedStr, 'gi'), ' ');
   }
+  
+  // Remove only safe markdown image patterns
+  cleaned = cleaned.replace(/\[Image[^\]]*\]/gi, ' ');
+  cleaned = cleaned.replace(/!\[.*?\]\(.*?\)/gi, ' ');
+  
+  // Remove lines composed ONLY of hashtags (preserve inline hashtags)
+  cleaned = cleaned.replace(/^(?:#[\w\u00C0-\u024F]+\s*)+$/gm, '');
   
   // Normalize whitespace
   cleaned = cleaned
     .replace(/[ \t]+/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
-    .replace(/^\s+|\s+$/gm, '')
     .trim();
   
-  // SAFEGUARD: Se la pulizia riduce troppo il contenuto (< 150 chars),
-  // mantieni l'originale per evitare fallimento del Comprehension Gate
-  if (cleaned.length < 150 && originalLength > 200) {
-    console.log(`[generate-qa] ⚠️ LinkedIn cleaning too aggressive, keeping original`);
+  // SAFEGUARD ENHANCED: If cleaning reduces below 200 chars AND original was > 200, keep original
+  if (cleaned.length < 200 && originalLength > 200) {
+    console.log(`[generate-qa] ⚠️ LinkedIn cleaning too aggressive (${originalLength} -> ${cleaned.length}), keeping original`);
     return content;
   }
   
-  console.log(`[generate-qa] LinkedIn deep clean: ${originalLength} -> ${cleaned.length} chars`);
+  console.log(`[generate-qa] LinkedIn clean: ${originalLength} -> ${cleaned.length} chars`);
   return cleaned;
+}
+
+// ============================================================================
+// CONTENT QUALITY VALIDATION - "Immune System" against platform noise
+// ============================================================================
+interface ContentValidation {
+  isValid: boolean;
+  metadataRatio: number;
+  errorCode?: 'ERROR_INSUFFICIENT_CONTENT' | 'ERROR_METADATA_ONLY';
+}
+
+function validateContentQuality(text: string): ContentValidation {
+  if (!text || text.length < 150) {
+    return { isValid: false, metadataRatio: 1, errorCode: 'ERROR_INSUFFICIENT_CONTENT' };
+  }
+  
+  // Platform metadata keywords that indicate UI noise
+  const platformKeywords = [
+    'cookie', 'privacy', 'terms', 'log in', 'sign in', 'sign up',
+    'follow', 'following', 'followers', 'reactions', 'repost',
+    'spotify ab', 'linkedin corp', 'twitter inc', 'meta platforms',
+    'accept cookies', 'cookie policy', 'privacy policy',
+    'create account', 'join now', 'see who you know',
+    'get the app', 'download app', 'open in app',
+    'advertisement', 'sponsored', 'promoted',
+    'skip to main', 'navigation', 'menu',
+    'copyright ©', 'all rights reserved',
+    'view profile', 'connect', 'message',
+  ];
+  
+  const lowerText = text.toLowerCase();
+  const words = lowerText.split(/\s+/).filter(w => w.length > 2);
+  
+  if (words.length === 0) {
+    return { isValid: false, metadataRatio: 1, errorCode: 'ERROR_INSUFFICIENT_CONTENT' };
+  }
+  
+  let metadataWordCount = 0;
+  for (const word of words) {
+    for (const keyword of platformKeywords) {
+      if (keyword.split(' ').some(kw => word.includes(kw) || kw.includes(word))) {
+        metadataWordCount++;
+        break;
+      }
+    }
+  }
+  
+  const metadataRatio = metadataWordCount / words.length;
+  
+  if (metadataRatio > 0.3) {
+    console.log(`[generate-qa] ⚠️ Content is ${Math.round(metadataRatio * 100)}% platform metadata`);
+    return { isValid: false, metadataRatio, errorCode: 'ERROR_METADATA_ONLY' };
+  }
+  
+  return { isValid: true, metadataRatio };
 }
 
 // ============================================================================
@@ -233,8 +276,27 @@ serve(async (req) => {
       testMode,
       questionCount,
       // NEW: qaSourceRef for server-side content fetching
-      qaSourceRef
+      qaSourceRef,
+      // NEW: Force cache invalidation for retry flows
+      forceRefresh
     } = await req.json();
+    
+    // CACHE INVALIDATION: If forceRefresh, delete cached content for this URL
+    if (forceRefresh && sourceUrl) {
+      const normalizedUrl = safeNormalizeUrl(sourceUrl);
+      console.log(`[generate-qa] 🔄 Force refresh: invalidating cache for ${normalizedUrl}`);
+      
+      await supabase.from('content_cache').delete().eq('source_url', normalizedUrl);
+      
+      // Also invalidate with qaSourceRef.url if different
+      if (qaSourceRef?.url && safeNormalizeUrl(qaSourceRef.url) !== normalizedUrl) {
+        const qaUrl = safeNormalizeUrl(qaSourceRef.url);
+        await supabase.from('content_cache').delete().eq('source_url', qaUrl);
+        console.log(`[generate-qa] 🔄 Also invalidated qaSourceRef cache: ${qaUrl}`);
+      }
+      
+      console.log(`[generate-qa] ✅ Cache invalidated, will fetch fresh content`);
+    }
 
     console.log('[generate-qa] Request params:', { 
       sourceUrl, 
@@ -832,6 +894,22 @@ serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+    }
+
+    // VALIDATION LAYER: Check content quality before AI generation ("Immune System")
+    const validation = validateContentQuality(finalContentText);
+    if (!validation.isValid) {
+      console.log(`[generate-qa] ❌ Content validation failed: ${validation.errorCode}, metadataRatio: ${Math.round(validation.metadataRatio * 100)}%`);
+      return new Response(
+        JSON.stringify({ 
+          error_code: validation.errorCode,
+          metadata_ratio: validation.metadataRatio,
+          message: validation.errorCode === 'ERROR_METADATA_ONLY' 
+            ? 'Il contenuto estratto contiene troppi metadati di piattaforma'
+            : 'Contenuto insufficiente per generare domande'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const isVideo = type === 'video';

@@ -624,7 +624,26 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       });
       
       toast.dismiss();
-      addBreadcrumb('ios_qa_generated', { hasQuestions: !!result.questions, error: result.error });
+      addBreadcrumb('ios_qa_generated', { hasQuestions: !!result.questions, error: result.error, error_code: result.error_code });
+      
+      // NEW: Handle validation errors with retry UI
+      if (result.error_code) {
+        addBreadcrumb('ios_validation_error', { code: result.error_code });
+        setQuizData({
+          errorState: {
+            code: result.error_code,
+            message: result.message || 'Errore nell\'analisi'
+          },
+          onRetry: handleRetryWithCacheClear,
+          onCancel: () => {
+            setShowQuiz(false);
+            setQuizData(null);
+          }
+        });
+        setShowQuiz(true);
+        setIsGeneratingQuiz(false);
+        return;
+      }
       
       if (result.insufficient_context) {
         toast.error('Contenuto insufficiente per generare il test');
@@ -656,6 +675,71 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       toast.error('Errore durante la generazione del quiz. Riprova.');
       addBreadcrumb('ios_quiz_flow_error', { error: String(error) });
       // DO NOT publish on error - gate is mandatory
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
+  };
+
+  // NEW: Handler for retry with cache invalidation
+  const handleRetryWithCacheClear = async () => {
+    if (!urlPreview?.qaSourceRef || !user) return;
+    
+    try {
+      setShowQuiz(false);
+      setQuizData(null);
+      setIsGeneratingQuiz(true);
+      toast.loading('Riprovo l\'analisi con dati freschi…');
+      
+      const isReshare = !!quotedPost;
+      let testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY';
+      
+      if (isReshare && quotedPost?.content) {
+        const originalAuthorWordCount = getWordCount(quotedPost.content);
+        testMode = getTestModeWithSource(originalAuthorWordCount);
+      } else {
+        testMode = 'SOURCE_ONLY';
+      }
+      
+      const result = await generateQA({
+        contentId: null,
+        isPrePublish: true,
+        title: urlPreview?.title || '',
+        qaSourceRef: urlPreview.qaSourceRef,
+        sourceUrl: detectedUrl || urlPreview?.url,
+        userText: content,
+        testMode: testMode,
+        forceRefresh: true, // KEY: Clear cache before retry
+      });
+      
+      toast.dismiss();
+      
+      // Handle same error again
+      if (result.error_code) {
+        toast.error('Impossibile analizzare il contenuto. Prova con un\'altra fonte.');
+        addBreadcrumb('retry_validation_error', { code: result.error_code });
+        setIsGeneratingQuiz(false);
+        return;
+      }
+      
+      if (result.error || !result.questions) {
+        toast.error('Errore generazione quiz. Riprova più tardi.');
+        setIsGeneratingQuiz(false);
+        return;
+      }
+      
+      // Success! Show quiz
+      addBreadcrumb('retry_quiz_success');
+      setQuizData({
+        qaId: result.qaId,
+        questions: result.questions,
+        sourceUrl: detectedUrl || urlPreview?.url || '',
+      });
+      setShowQuiz(true);
+      
+    } catch (error) {
+      toast.dismiss();
+      toast.error('Errore durante il retry. Riprova più tardi.');
+      addBreadcrumb('retry_error', { error: String(error) });
     } finally {
       setIsGeneratingQuiz(false);
     }
@@ -725,6 +809,26 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       });
 
       toast.dismiss();
+      
+      // NEW: Handle validation errors with retry UI
+      if (result.error_code) {
+        addBreadcrumb('reader_validation_error', { code: result.error_code });
+        await closeReaderSafely(true);
+        setQuizData({
+          errorState: {
+            code: result.error_code,
+            message: result.message || 'Errore nell\'analisi'
+          },
+          onRetry: handleRetryWithCacheClear,
+          onCancel: () => {
+            setShowQuiz(false);
+            setQuizData(null);
+          }
+        });
+        setShowQuiz(true);
+        setIsGeneratingQuiz(false);
+        return;
+      }
 
       if (result.insufficient_context) {
         toast.error('Contenuto insufficiente per generare il test');
