@@ -636,6 +636,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
           },
           onRetry: handleRetryWithCacheClear,
           onCancel: () => {
+            addBreadcrumb('quiz_closed', { via: 'error_cancelled' });
             setShowQuiz(false);
             setQuizData(null);
           }
@@ -685,6 +686,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     if (!urlPreview?.qaSourceRef || !user) return;
     
     try {
+      addBreadcrumb('quiz_closed', { via: 'retry_start' });
       setShowQuiz(false);
       setQuizData(null);
       setIsGeneratingQuiz(true);
@@ -720,6 +722,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         addBreadcrumb('retry_fallback_intent', { code: result.error_code });
         
         // Close quiz modal and clean state
+        addBreadcrumb('quiz_closed', { via: 'retry_fallback' });
         setShowQuiz(false);
         setQuizData(null);
         setIsGeneratingQuiz(false);
@@ -738,6 +741,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         console.log('[ComposerModal] Second retry error, activating Intent Mode');
         addBreadcrumb('retry_error_intent', { error: result.error });
         
+        addBreadcrumb('quiz_closed', { via: 'retry_error' });
         setShowQuiz(false);
         setQuizData(null);
         setIsGeneratingQuiz(false);
@@ -842,6 +846,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
           },
           onRetry: handleRetryWithCacheClear,
           onCancel: () => {
+            addBreadcrumb('quiz_closed', { via: 'error_cancelled' });
             setShowQuiz(false);
             setQuizData(null);
           }
@@ -1639,6 +1644,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
               } else {
                 // User cancelled DURING quiz (before completing)
                 addBreadcrumb('quiz_cancel_during');
+                addBreadcrumb('quiz_closed', { via: 'cancelled' });
                 forceUnlockBodyScroll(); // Ensure scroll is released
                 setShowQuiz(false);
                 setQuizData(null);
@@ -1660,7 +1666,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                 addBreadcrumb('composer_quiz_complete_no_force_unlock_ios');
               }
 
-              // STEP 1: Immediately unmount Quiz UI to reduce memory - NOTHING ELSE
+              // STEP 1: Add explicit quiz_closed breadcrumb before unmount
+              addBreadcrumb('quiz_closed', { via: passed ? 'passed' : 'failed' });
+              // STEP 2: Immediately unmount Quiz UI to reduce memory - NOTHING ELSE
               setShowQuiz(false);
               setQuizData(null);
               setQuizPassed(false);

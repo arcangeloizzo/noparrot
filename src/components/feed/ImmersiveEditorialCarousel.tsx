@@ -22,6 +22,7 @@ import { QuizModal } from "@/components/ui/quiz-modal";
 import { SourcesDrawer } from "@/components/feed/SourcesDrawer";
 import { supabase } from "@/integrations/supabase/client";
 import { haptics } from "@/lib/haptics";
+import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
 
 interface ImmersiveEditorialCarouselProps {
   items: DailyFocus[];
@@ -189,6 +190,7 @@ export const ImmersiveEditorialCarousel = ({
 
   // Handle quiz pass -> trigger share completion
   const handleQuizPass = () => {
+    addBreadcrumb('quiz_closed', { via: 'passed' });
     setShowQuiz(false);
     setQuizData(null);
 
@@ -202,6 +204,7 @@ export const ImmersiveEditorialCarousel = ({
 
   // Handle quiz close without passing
   const handleQuizClose = () => {
+    addBreadcrumb('quiz_closed', { via: 'cancelled' });
     setShowQuiz(false);
     setQuizData(null);
     pendingShareItemRef.current = null;
