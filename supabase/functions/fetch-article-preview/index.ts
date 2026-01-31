@@ -897,9 +897,19 @@ serve(async (req) => {
         .maybeSingle();
       
       if (!cacheErr && cached && cached.title) {
-        console.log(`[Cache] ✅ HIT for ${normalizedUrl}: "${cached.title?.slice(0, 40)}..."`);
+        // NEW: Soft refresh for social platforms missing images
+        const socialPlatformsNeedImage = ['linkedin', 'twitter', 'tiktok', 'threads'];
+        const isSocialMissingImage = 
+          socialPlatformsNeedImage.includes(cached.source_type) && 
+          !cached.meta_image_url;
         
-        // Determine platform from source_type
+        if (isSocialMissingImage) {
+          console.log(`[Cache] ⚠️ Social platform ${cached.source_type} missing image, forcing refresh for ${normalizedUrl}`);
+          // DON'T return from cache - proceed to fetch fresh data below
+        } else {
+          console.log(`[Cache] ✅ HIT for ${normalizedUrl}: "${cached.title?.slice(0, 40)}..."`);
+        
+          // Determine platform from source_type
         const platformMap: Record<string, string> = {
           'youtube': 'youtube',
           'spotify': 'spotify',
@@ -958,6 +968,7 @@ serve(async (req) => {
         return new Response(JSON.stringify(cacheResponse), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+        } // Close the else block for !isSocialMissingImage
       } else if (cacheErr) {
         console.log(`[Cache] Query error: ${cacheErr.message}`);
       } else {
