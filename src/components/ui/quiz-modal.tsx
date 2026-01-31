@@ -28,6 +28,15 @@ interface QuizModalProps {
 }
 
 export function QuizModal({ questions, qaId, onSubmit, onCancel, onComplete, postCategory, errorState, onRetry }: QuizModalProps) {
+  // DEBUG: Log props to verify errorState is being passed correctly
+  console.log('[QuizModal] Render with props:', { 
+    hasErrorState: !!errorState, 
+    errorCode: errorState?.code,
+    hasOnRetry: !!onRetry,
+    questionsCount: questions?.length,
+    qaId: qaId ? 'present' : 'missing'
+  });
+  
   const { user } = useAuth();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);

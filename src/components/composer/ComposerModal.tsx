@@ -1612,13 +1612,18 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
             qaId={quizData.qaId}
             onSubmit={handleQuizSubmit}
             onCancel={() => {
-              // User cancelled DURING quiz (before completing)
-              addBreadcrumb('quiz_cancel_during');
-              forceUnlockBodyScroll(); // Ensure scroll is released
-              setShowQuiz(false);
-              setQuizData(null);
-              setQuizPassed(false);
-              // Return to composer - user can try again
+              // If there's a custom onCancel in quizData (for error state), use it
+              if (quizData.onCancel) {
+                quizData.onCancel();
+              } else {
+                // User cancelled DURING quiz (before completing)
+                addBreadcrumb('quiz_cancel_during');
+                forceUnlockBodyScroll(); // Ensure scroll is released
+                setShowQuiz(false);
+                setQuizData(null);
+                setQuizPassed(false);
+                // Return to composer - user can try again
+              }
             }}
             onComplete={(passed) => {
               // Quiz finished (pass or fail)
@@ -1708,6 +1713,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
             }}
             provider="Comprehension Gate"
             postCategory={contentCategory}
+            // CRITICAL: Pass error state props from quizData
+            errorState={quizData.errorState}
+            onRetry={quizData.onRetry}
           />
         </div>
       )}
