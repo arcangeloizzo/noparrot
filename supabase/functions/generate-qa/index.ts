@@ -100,70 +100,11 @@ async function logAiUsage(
 // LINKEDIN CONTENT CLEANING - Deep noise removal for quiz quality
 // ============================================================================
 function cleanLinkedInContent(content: string): string {
-  if (!content) return '';
-  
-  const originalLength = content.length;
-  
-  // ADDITIVE APPROACH: Only remove EXACT UI strings, not broad regex patterns
-  const exactStringsToRemove = [
-    'Sign in to view more content',
-    'Join now to see who you already know',
-    'See who you know',
-    'Get the LinkedIn app',
-    'Skip to main content',
-    'LinkedIn and 3rd parties use',
-    'Accept & Join LinkedIn',
-    'By clicking Continue',
-    'Like Comment Share',
-    'Report this post',
-    'Copy link to post',
-    'Repost with your thoughts',
-    'More from this author',
-    'Welcome back',
-    "Don't miss out",
-    'LinkedIn Corporation ©',
-    'See more',
-    'Altro',
-    'Mostra altro',
-    'Read more',
-    'Leggi tutto',
-    'Edited',
-    'Tradotto',
-    'Modificato',
-    'View all comments',
-    'View more comments',
-    'Load more comments',
-  ];
-  
-  let cleaned = content;
-  
-  // Remove only exact strings (case-insensitive)
-  for (const str of exactStringsToRemove) {
-    const escapedStr = str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    cleaned = cleaned.replace(new RegExp(escapedStr, 'gi'), ' ');
-  }
-  
-  // Remove only safe markdown image patterns
-  cleaned = cleaned.replace(/\[Image[^\]]*\]/gi, ' ');
-  cleaned = cleaned.replace(/!\[.*?\]\(.*?\)/gi, ' ');
-  
-  // Remove lines composed ONLY of hashtags (preserve inline hashtags)
-  cleaned = cleaned.replace(/^(?:#[\w\u00C0-\u024F]+\s*)+$/gm, '');
-  
-  // Normalize whitespace
-  cleaned = cleaned
-    .replace(/[ \t]+/g, ' ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-  
-  // SAFEGUARD ENHANCED: If cleaning reduces below 200 chars AND original was > 200, keep original
-  if (cleaned.length < 200 && originalLength > 200) {
-    console.log(`[generate-qa] ⚠️ LinkedIn cleaning too aggressive (${originalLength} -> ${cleaned.length}), keeping original`);
-    return content;
-  }
-  
-  console.log(`[generate-qa] LinkedIn clean: ${originalLength} -> ${cleaned.length} chars`);
-  return cleaned;
+  // TEMPORARILY DISABLED: Return raw content to avoid breaking the app
+  // The additive cleaning was still causing issues with content extraction
+  // Better to have "dirty" content than empty content that breaks quiz generation
+  console.log(`[generate-qa] LinkedIn cleaning DISABLED, returning raw content (${content?.length || 0} chars)`);
+  return content || '';
 }
 
 // ============================================================================
