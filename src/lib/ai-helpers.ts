@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { withSessionGuard } from "@/lib/sessionGuard";
 
 // QuizQuestion type - NO correctId on client side (security hardening)
 // Correct answers are NEVER sent to the client
@@ -49,6 +50,7 @@ export interface GateConfig {
 /**
  * Genera Q&A per un contenuto usando Lovable AI
  * SOURCE-FIRST: Receives qaSourceRef, fetches content server-side
+ * WRAPPED with sessionGuard for post-background stability
  */
 export async function generateQA(params: {
   contentId: string | null;
@@ -67,29 +69,32 @@ export async function generateQA(params: {
   // NEW: Force cache invalidation for retry flows
   forceRefresh?: boolean;
 }): Promise<QAGenerationResult> {
-  try {
-    const { data, error } = await supabase.functions.invoke('generate-qa', {
-      body: params
-    });
+  return withSessionGuard(async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-qa', {
+        body: params
+      });
 
-    if (error) {
-      console.error('Error generating Q&A:', error);
-      // Check if it's a payment error
-      if (error.message?.includes('Crediti') || error.message?.includes('402')) {
-        return { error: 'Crediti Lovable AI esauriti' };
+      if (error) {
+        console.error('Error generating Q&A:', error);
+        // Check if it's a payment error
+        if (error.message?.includes('Crediti') || error.message?.includes('402')) {
+          return { error: 'Crediti Lovable AI esauriti' };
+        }
+        throw error;
       }
-      throw error;
+      return data;
+    } catch (error: any) {
+      console.error('Error generating Q&A:', error);
+      return { error: error.message };
     }
-    return data;
-  } catch (error) {
-    console.error('Error generating Q&A:', error);
-    return { error: error.message };
-  }
+  }, { label: 'generateQA' });
 }
 
 /**
  * Valida le risposte dell'utente usando submit-qa (hardened)
  * Calls the secure submit-qa edge function
+ * WRAPPED with sessionGuard for post-background stability
  */
 export async function validateAnswers(params: {
   qaId?: string;
@@ -98,23 +103,25 @@ export async function validateAnswers(params: {
   answers: Record<string, string>;
   gateType: 'share' | 'composer' | 'comment';
 }): Promise<ValidationResult> {
-  try {
-    const { data, error } = await supabase.functions.invoke('submit-qa', {
-      body: {
-        qaId: params.qaId,
-        postId: params.postId,
-        sourceUrl: params.sourceUrl,
-        answers: params.answers,
-        gateType: params.gateType
-      }
-    });
+  return withSessionGuard(async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('submit-qa', {
+        body: {
+          qaId: params.qaId,
+          postId: params.postId,
+          sourceUrl: params.sourceUrl,
+          answers: params.answers,
+          gateType: params.gateType
+        }
+      });
 
-    if (error) throw error;
-    return data;
-  } catch (error) {
-    console.error('Error validating answers:', error);
-    throw error;
-  }
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error validating answers:', error);
+      throw error;
+    }
+  }, { label: 'validateAnswers' });
 }
 
 /**
@@ -151,6 +158,7 @@ export async function getQuizQuestions(params: {
 /**
  * Fetch preview metadata da URL
  * Always returns a structured object - never null or throws
+ * WRAPPED with sessionGuard for post-background stability
  */
 export async function fetchArticlePreview(url: string): Promise<{
   success: boolean;
@@ -159,77 +167,79 @@ export async function fetchArticlePreview(url: string): Promise<{
   platform?: string;
   [key: string]: any;
 }> {
-  try {
-    console.log('[fetchArticlePreview] Fetching:', url);
-    
-    // Skip internal protocol URLs (focus://, post://) - these are internal app links
-    if (url.startsWith('focus://') || url.startsWith('post://')) {
-      console.log('[fetchArticlePreview] Skipping internal URL:', url);
-      return { 
-        success: false, 
-        error: 'Internal URL', 
-        message: 'Internal app links do not require external preview',
-        isInternal: true 
-      };
-    }
-    
-    // NO frontend pre-check for IG/FB - let backend fetch metadata and return gateBlocked flag
-    // The backend will attempt Jina/OpenGraph extraction for title/image/author
-    
-    const { data, error } = await supabase.functions.invoke('fetch-article-preview', {
-      body: { url }
-    });
-
-    // If invoke returned an error, try to extract structured info
-    if (error) {
-      console.error('[fetchArticlePreview] Invoke error:', error);
+  return withSessionGuard(async () => {
+    try {
+      console.log('[fetchArticlePreview] Fetching:', url);
       
-      // Try to parse error context for structured response
-      try {
-        const errorContext = (error as any)?.context;
-        if (errorContext?.json) {
-          const jsonBody = await errorContext.json();
-          if (jsonBody?.error) {
-            return { success: false, ...jsonBody };
+      // Skip internal protocol URLs (focus://, post://) - these are internal app links
+      if (url.startsWith('focus://') || url.startsWith('post://')) {
+        console.log('[fetchArticlePreview] Skipping internal URL:', url);
+        return { 
+          success: false, 
+          error: 'Internal URL', 
+          message: 'Internal app links do not require external preview',
+          isInternal: true 
+        };
+      }
+      
+      // NO frontend pre-check for IG/FB - let backend fetch metadata and return gateBlocked flag
+      // The backend will attempt Jina/OpenGraph extraction for title/image/author
+      
+      const { data, error } = await supabase.functions.invoke('fetch-article-preview', {
+        body: { url }
+      });
+
+      // If invoke returned an error, try to extract structured info
+      if (error) {
+        console.error('[fetchArticlePreview] Invoke error:', error);
+        
+        // Try to parse error context for structured response
+        try {
+          const errorContext = (error as any)?.context;
+          if (errorContext?.json) {
+            const jsonBody = await errorContext.json();
+            if (jsonBody?.error) {
+              return { success: false, ...jsonBody };
+            }
           }
+        } catch (parseErr) {
+          // Ignore parse errors
         }
-      } catch (parseErr) {
-        // Ignore parse errors
+        
+        return { 
+          success: false, 
+          error: 'FETCH_PREVIEW_FAILED', 
+          message: error.message || 'Errore nel recupero del contenuto' 
+        };
+      }
+
+      // Check if backend returned an error structure
+      if (data?.error || data?.success === false) {
+        console.log('[fetchArticlePreview] Backend returned error:', data);
+        return { success: false, ...data };
+      }
+
+      console.log('[fetchArticlePreview] Success:', { title: data?.title, platform: data?.platform });
+      return { success: true, ...data };
+    } catch (error: any) {
+      console.error('[fetchArticlePreview] Exception:', error);
+      
+      // Check if URL parsing failed
+      if (error instanceof TypeError && error.message?.includes('URL')) {
+        return { 
+          success: false, 
+          error: 'INVALID_URL', 
+          message: 'URL non valido' 
+        };
       }
       
       return { 
         success: false, 
         error: 'FETCH_PREVIEW_FAILED', 
-        message: error.message || 'Errore nel recupero del contenuto' 
+        message: error.message || 'Errore imprevisto' 
       };
     }
-
-    // Check if backend returned an error structure
-    if (data?.error || data?.success === false) {
-      console.log('[fetchArticlePreview] Backend returned error:', data);
-      return { success: false, ...data };
-    }
-
-    console.log('[fetchArticlePreview] Success:', { title: data?.title, platform: data?.platform });
-    return { success: true, ...data };
-  } catch (error: any) {
-    console.error('[fetchArticlePreview] Exception:', error);
-    
-    // Check if URL parsing failed
-    if (error instanceof TypeError && error.message?.includes('URL')) {
-      return { 
-        success: false, 
-        error: 'INVALID_URL', 
-        message: 'URL non valido' 
-      };
-    }
-    
-    return { 
-      success: false, 
-      error: 'FETCH_PREVIEW_FAILED', 
-      message: error.message || 'Errore imprevisto' 
-    };
-  }
+  }, { label: 'fetchArticlePreview' });
 }
 
 /**
@@ -293,37 +303,40 @@ export async function classifyContent(params: {
 /**
  * Fetch YouTube transcript asynchronously (for client-side loading)
  * Returns transcript data or null if unavailable
+ * WRAPPED with sessionGuard for post-background stability
  */
 export async function fetchYouTubeTranscript(url: string): Promise<{
   transcript: string | null;
   source: string;
   error?: string;
 }> {
-  try {
-    console.log('[fetchYouTubeTranscript] Fetching transcript for:', url);
-    
-    const { data, error } = await supabase.functions.invoke('transcribe-youtube', {
-      body: { url }
-    });
+  return withSessionGuard(async () => {
+    try {
+      console.log('[fetchYouTubeTranscript] Fetching transcript for:', url);
+      
+      const { data, error } = await supabase.functions.invoke('transcribe-youtube', {
+        body: { url }
+      });
 
-    if (error) {
-      console.error('[fetchYouTubeTranscript] Error:', error);
+      if (error) {
+        console.error('[fetchYouTubeTranscript] Error:', error);
+        return { transcript: null, source: 'error', error: error.message };
+      }
+
+      console.log('[fetchYouTubeTranscript] Result:', {
+        hasTranscript: !!data?.transcript,
+        length: data?.transcript?.length || 0,
+        source: data?.source
+      });
+
+      return {
+        transcript: data?.transcript || null,
+        source: data?.source || 'none',
+        error: data?.error
+      };
+    } catch (error: any) {
+      console.error('[fetchYouTubeTranscript] Exception:', error);
       return { transcript: null, source: 'error', error: error.message };
     }
-
-    console.log('[fetchYouTubeTranscript] Result:', {
-      hasTranscript: !!data?.transcript,
-      length: data?.transcript?.length || 0,
-      source: data?.source
-    });
-
-    return {
-      transcript: data?.transcript || null,
-      source: data?.source || 'none',
-      error: data?.error
-    };
-  } catch (error: any) {
-    console.error('[fetchYouTubeTranscript] Exception:', error);
-    return { transcript: null, source: 'error', error: error.message };
-  }
+  }, { label: 'fetchYouTubeTranscript' });
 }
