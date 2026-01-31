@@ -18,6 +18,10 @@ export interface QAGenerationResult {
   insufficient_context?: boolean;
   pending?: boolean; // Extraction still in progress, retry later
   error?: string;
+  // NEW: Validation error codes for retry UI
+  error_code?: 'ERROR_INSUFFICIENT_CONTENT' | 'ERROR_METADATA_ONLY';
+  metadata_ratio?: number;
+  message?: string;
 }
 
 export interface ValidationResult {
@@ -59,6 +63,8 @@ export async function generateQA(params: {
   questionCount?: 1 | 3;
   // NEW: Server-side content reference
   qaSourceRef?: QASourceRef;
+  // NEW: Force cache invalidation for retry flows
+  forceRefresh?: boolean;
 }): Promise<QAGenerationResult> {
   try {
     const { data, error } = await supabase.functions.invoke('generate-qa', {
