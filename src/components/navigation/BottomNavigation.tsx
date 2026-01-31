@@ -115,8 +115,8 @@ export const BottomNavigation = ({
   const rightTabs = tabs.slice(2);    // Messages, Profile
 
   return (
-    <nav className="liquid-glass-navbar fixed bottom-0 left-0 right-0 z-40">
-      <div className="flex items-center h-14 max-w-[600px] mx-auto px-2">
+    <nav className="liquid-glass-navbar fixed bottom-0 left-0 right-0 z-40 pb-safe">
+      <div className="flex items-center h-16 max-w-[600px] mx-auto px-2">
         {/* Left side tabs */}
         <div className="flex flex-1 justify-around">
           {leftTabs.map(({ id, icon: Icon, label }) => (
@@ -144,10 +144,10 @@ export const BottomNavigation = ({
           ))}
         </div>
 
-        {/* Central FAB - "breaks" above navbar */}
+        {/* Central FAB - "breaks" above navbar with increased protrusion */}
         <button
           onClick={handleFabClick}
-          className="liquid-glass-fab-central relative -translate-y-3 w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 active:scale-95"
+          className="liquid-glass-fab-central relative -translate-y-4 w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 active:scale-95"
           aria-label="Crea post"
         >
           <Logo 
