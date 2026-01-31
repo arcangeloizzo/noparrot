@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getWordCount, getQuestionCountForIntentReshare } from "@/lib/gate-utils";
+import { withSessionGuard } from "@/lib/sessionGuard";
 
 interface GateOptions {
   linkUrl: string;
@@ -17,6 +18,7 @@ interface GateOptions {
 /**
  * Helper per eseguire il Comprehension Gate™ prima di un'azione
  * Usato per commenti con link e messaggi con link
+ * WRAPPED with sessionGuard for post-background stability
  */
 export async function runGateBeforeAction({
   linkUrl,
@@ -42,29 +44,33 @@ export async function runGateBeforeAction({
       
       console.log('[runGateBeforeAction] Intent reshare:', { originalWordCount, questionCount });
       
-      // Generate QA from the original post text (the "cognitive source")
-      const { data: qaData, error: qaError } = await supabase.functions.invoke(
-        'generate-qa',
-        { 
-          body: { 
-            title: 'Contenuto condiviso',
-            summary: intentPostContent,
-            excerpt: '',
-            type: 'article',
-            isPrePublish: true,
-            testMode: 'USER_ONLY', // All questions from user text
-            questionCount: questionCount,
-            forceRefresh // Pass forceRefresh for retry
-          } 
+      // Wrap Edge Function call with sessionGuard
+      const qaData = await withSessionGuard(async () => {
+        const { data, error } = await supabase.functions.invoke(
+          'generate-qa',
+          { 
+            body: { 
+              title: 'Contenuto condiviso',
+              summary: intentPostContent,
+              excerpt: '',
+              type: 'article',
+              isPrePublish: true,
+              testMode: 'USER_ONLY', // All questions from user text
+              questionCount: questionCount,
+              forceRefresh // Pass forceRefresh for retry
+            } 
+          }
+        );
+        
+        if (error) {
+          console.error('[runGateBeforeAction] Intent QA generation error:', error);
+          throw new Error(error.message || 'Failed to generate questions');
         }
-      );
+        
+        return data;
+      }, { label: 'runGateBeforeAction_intent' });
 
-      console.log('[runGateBeforeAction] Intent QA response:', { qaData, qaError });
-
-      if (qaError) {
-        console.error('[runGateBeforeAction] Intent QA generation error:', qaError);
-        throw new Error(qaError.message || 'Failed to generate questions');
-      }
+      console.log('[runGateBeforeAction] Intent QA response:', { qaData });
 
       if (!qaData?.questions || !Array.isArray(qaData.questions)) {
         console.error('[runGateBeforeAction] Invalid Intent questions format:', qaData);
@@ -90,29 +96,32 @@ export async function runGateBeforeAction({
     }
 
     // STANDARD FLOW: Fetch article preview and generate questions from source
+    // Wrap both Edge Function calls with sessionGuard
 
     // 1. Fetch article preview
-    const { data: previewData, error: previewError } = await supabase.functions.invoke(
-      'fetch-article-preview',
-      { body: { url: linkUrl } }
-    );
+    const previewData = await withSessionGuard(async () => {
+      const { data, error } = await supabase.functions.invoke(
+        'fetch-article-preview',
+        { body: { url: linkUrl } }
+      );
+      
+      if (error || !data?.success) {
+        const errorMsg = data?.error || error?.message || 'Failed to fetch article preview';
+        console.error('[runGateBeforeAction] Preview fetch failed:', errorMsg);
+        throw new Error(errorMsg);
+      }
+      
+      return data;
+    }, { label: 'runGateBeforeAction_preview' });
 
-    console.log('[runGateBeforeAction] Preview response:', { previewData, previewError });
-
-    if (previewError || !previewData?.success) {
-      const errorMsg = previewData?.error || previewError?.message || 'Failed to fetch article preview';
-      console.error('[runGateBeforeAction] Preview fetch failed:', errorMsg);
-      throw new Error(errorMsg);
-    }
+    console.log('[runGateBeforeAction] Preview response:', { previewData });
 
     const articleContent = previewData.content;
     console.log('[runGateBeforeAction] Article content length:', articleContent?.length);
 
     // 2. Generate QA with correct parameters - use qaSourceRef for server-side fetching
-    // FIX: Use qaSourceRef instead of legacy summary mode to ensure proper content extraction
     const qaPayload = { 
       title: previewData.title || 'Contenuto condiviso',
-      // Use qaSourceRef from preview if available, otherwise construct fallback
       qaSourceRef: previewData.qaSourceRef || { kind: 'url' as const, id: linkUrl, url: linkUrl },
       excerpt: '',
       type: 'article',
@@ -123,17 +132,21 @@ export async function runGateBeforeAction({
     
     console.log('[runGateBeforeAction] Calling generate-qa with payload:', qaPayload);
 
-    const { data: qaData, error: qaError } = await supabase.functions.invoke(
-      'generate-qa',
-      { body: qaPayload }
-    );
+    const qaData = await withSessionGuard(async () => {
+      const { data, error } = await supabase.functions.invoke(
+        'generate-qa',
+        { body: qaPayload }
+      );
+      
+      if (error) {
+        console.error('[runGateBeforeAction] QA generation error:', error);
+        throw new Error(error.message || 'Failed to generate questions');
+      }
+      
+      return data;
+    }, { label: 'runGateBeforeAction_qa' });
 
-    console.log('[runGateBeforeAction] QA response:', { qaData, qaError });
-
-    if (qaError) {
-      console.error('[runGateBeforeAction] QA generation error:', qaError);
-      throw new Error(qaError.message || 'Failed to generate questions');
-    }
+    console.log('[runGateBeforeAction] QA response:', { qaData });
 
     if (!qaData) {
       console.error('[runGateBeforeAction] No QA data returned');

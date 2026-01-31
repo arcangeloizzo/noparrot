@@ -46,15 +46,25 @@ const Index = () => {
       const last = breadcrumbs[breadcrumbs.length - 1];
       const lastEvent = last?.event || '(non disponibile)';
       
-      // Suppress false positive: sys_visibility_hidden/pagehide are normal background events, not crashes
-      // Only show toast if there's a real indicator of a problem (stale lock, pending publish, or non-sys event)
-      const isSystemEvent = lastEvent.startsWith('sys_');
-      const hasRealProblem = hadStaleLock || localStorage.getItem('publish_flow_step');
+      // SESSION GUARD: Suppress false positives more aggressively
+      // Only show "Sessione precedente interrotta" if there's HIGH CONFIDENCE of a real problem:
+      // 1. Stale scroll lock (body was locked, indicating interrupted modal/overlay)
+      // 2. Pending publish that didn't complete (publish_started or quiz_passed)
+      // 3. Actual error events (not system events like visibility changes)
+      const isSystemEvent = lastEvent.startsWith('sys_') || 
+                            lastEvent === 'app_hidden' || 
+                            lastEvent === 'app_visible' ||
+                            lastEvent === 'session_guard_' ||
+                            lastEvent.startsWith('session_');
+      const hasPendingPublish = localStorage.getItem('publish_flow_step') === 'publish_started' ||
+                                localStorage.getItem('publish_flow_step') === 'quiz_passed';
+      const hasRealProblem = hadStaleLock || hasPendingPublish;
       
-      if (!isSystemEvent || hasRealProblem) {
+      // Only show toast if there's a high-confidence real problem
+      if (hasRealProblem && !isSystemEvent) {
         toast.info(`Sessione precedente interrotta. Ultimo evento: ${lastEvent}.`, { duration: 5000 });
       }
-      // Log last 5 breadcrumbs for diagnostics
+      // Log last 5 breadcrumbs for diagnostics (always, for debugging)
       console.log('[Index] Last 5 breadcrumbs before crash:', breadcrumbs.slice(-5));
     }
 
