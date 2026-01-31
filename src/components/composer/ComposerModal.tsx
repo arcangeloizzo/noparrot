@@ -713,17 +713,38 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       
       toast.dismiss();
       
-      // Handle same error again
+      // Handle same error again → Fallback to Intent Mode
       if (result.error_code) {
-        toast.error('Impossibile analizzare il contenuto. Prova con un\'altra fonte.');
-        addBreadcrumb('retry_validation_error', { code: result.error_code });
+        toast.dismiss();
+        console.log('[ComposerModal] Second retry failed, activating Intent Mode');
+        addBreadcrumb('retry_fallback_intent', { code: result.error_code });
+        
+        // Close quiz modal and clean state
+        setShowQuiz(false);
+        setQuizData(null);
         setIsGeneratingQuiz(false);
+        
+        // Activate Intent Mode
+        setIntentMode(true);
+        
+        // Show friendly message
+        toast.info('Contenuto non analizzabile. Aggiungi almeno 30 parole per condividere.');
+        
         return;
       }
       
       if (result.error || !result.questions) {
-        toast.error('Errore generazione quiz. Riprova più tardi.');
+        toast.dismiss();
+        console.log('[ComposerModal] Second retry error, activating Intent Mode');
+        addBreadcrumb('retry_error_intent', { error: result.error });
+        
+        setShowQuiz(false);
+        setQuizData(null);
         setIsGeneratingQuiz(false);
+        
+        setIntentMode(true);
+        toast.info('Contenuto non analizzabile. Aggiungi almeno 30 parole per condividere.');
+        
         return;
       }
       
