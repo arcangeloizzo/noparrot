@@ -30,6 +30,7 @@ import { toast as sonnerToast } from 'sonner';
 import { LOGO_BASE } from '@/config/brand';
 import { getWordCount, getTestModeWithSource } from '@/lib/gate-utils';
 import { generateQA, fetchArticlePreview } from '@/lib/ai-helpers';
+import { addBreadcrumb } from '@/lib/crashBreadcrumbs';
 
 interface CommentsDrawerProps {
   post: Post;
@@ -830,6 +831,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                 if (error) {
                   console.error('[QuizModal] Validation error:', error);
                   sonnerToast.error("Errore durante la validazione del quiz");
+                  addBreadcrumb('quiz_closed', { via: 'validation_error' });
                   setShowQuiz(false);
                   setQuizData(null);
                   return { passed: false, wrongIndexes: [] };
@@ -844,6 +846,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                 
                 if (!passed) {
                   sonnerToast.error('Non ancora chiaro. Puoi comunque fare un commento spontaneo.');
+                  addBreadcrumb('quiz_closed', { via: 'failed' });
                   setShowQuiz(false);
                   setQuizData(null);
                   return { passed: false, score, total, wrongIndexes };
@@ -851,6 +854,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
 
                 sonnerToast.success('Hai fatto chiarezza. Il tuo commento avrà il segno di NoParrot.');
                 setSelectedCommentType('informed');
+                addBreadcrumb('quiz_closed', { via: 'passed' });
                 setShowQuiz(false);
                 setQuizData(null);
                 setTimeout(() => textareaRef.current?.focus(), 150);
@@ -858,6 +862,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
               } catch (err) {
                 console.error('[QuizModal] Unexpected error:', err);
                 sonnerToast.error("Errore durante la validazione del quiz");
+                addBreadcrumb('quiz_closed', { via: 'error' });
                 setShowQuiz(false);
                 setQuizData(null);
                 return { passed: false, wrongIndexes: [] };
@@ -865,6 +870,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
             }}
             onCancel={() => {
               sonnerToast.info("Puoi fare un commento spontaneo.");
+              addBreadcrumb('quiz_closed', { via: 'cancelled' });
               setShowQuiz(false);
               setQuizData(null);
             }}
