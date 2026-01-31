@@ -112,7 +112,7 @@ export function checkForRecentCrash(): { crashed: boolean; breadcrumbs: Breadcru
     
     // Check if there's an "open" without corresponding "close"
     const openEvents = ['reader_open', 'quiz_mount'];
-    const closeEvents = ['reader_closed', 'quiz_closed', 'publish_success'];
+    const closeEvents = ['reader_closed', 'quiz_closed', 'quiz_cleanup_done', 'publish_success'];
     
     let openCount = 0;
     let closeCount = 0;
