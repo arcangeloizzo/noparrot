@@ -1753,16 +1753,17 @@ serve(async (req) => {
           }
         }
 
-      // Cache content server-side
+      // Cache content server-side (including image for LinkedIn/TikTok/Threads)
       if (jinaResult?.content && jinaResult.content.length > 50 && supabase) {
         await cacheContentServerSide(
           supabase,
           url,
           socialPlatform,
           jinaResult.content,
-          jinaResult.title
+          jinaResult.title,
+          jinaResult.image || jinaResult.previewImg // Fix: save image to cache
         );
-        console.log(`[${socialPlatform}] ✅ Cached ${jinaResult.content.length} chars via ${contentSource}`);
+        console.log(`[${socialPlatform}] ✅ Cached ${jinaResult.content.length} chars via ${contentSource}, image: ${jinaResult.image ? 'yes' : 'no'}`);
       }
       
       const hasContent = jinaResult?.content && jinaResult.content.length > 50;
