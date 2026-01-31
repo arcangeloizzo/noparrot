@@ -226,7 +226,7 @@ export const ImmersiveEditorialCarousel = ({
       />
 
       {/* Content Layer */}
-      <div className="relative z-10 w-full h-full flex flex-col pt-14 pb-24">
+      <div className="relative z-10 w-full h-full flex flex-col pt-14 pb-28">
         
         {/* Carousel Container */}
         <div 
@@ -553,15 +553,15 @@ const EditorialSlideInner = ({
               </span>
             </button>
 
-            {/* Action Bar */}
-            <div className="flex items-center justify-between gap-3">
+            {/* Action Bar - Aligned with ImmersivePostCard */}
+            <div className="flex items-center gap-6">
               {/* Primary Share Button */}
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
                   onShare?.();
                 }}
-                className="h-10 px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                className="h-11 px-5 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
               >
                 <Logo variant="icon" size="sm" className="h-4 w-4" />
                 <span className="text-sm font-semibold leading-none">Condividi</span>
@@ -570,12 +570,12 @@ const EditorialSlideInner = ({
                 )}
               </button>
 
-              {/* Reactions */}
-              <div className="flex items-center gap-1 bg-black/20 h-10 px-3 rounded-2xl border border-white/5">
+              {/* Reactions - Flat layout matching ImmersivePostCard */}
+              <div className="flex items-center gap-4">
                 
                 {/* Like */}
                 <button 
-                  className="flex items-center justify-center gap-1.5 h-full px-2"
+                  className="flex items-center gap-1.5"
                   onClick={(e) => {
                     e.stopPropagation();
                     haptics.light();
@@ -584,34 +584,34 @@ const EditorialSlideInner = ({
                 >
                   <Heart 
                     className={cn(
-                      "w-5 h-5 transition-transform active:scale-90",
+                      "w-6 h-6 transition-transform active:scale-90",
                       reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-white"
                     )}
                     fill={reactionsData?.likedByMe ? "currentColor" : "none"}
                   />
-                  <span className="text-xs font-bold text-white">
+                  <span className="text-sm font-bold text-white">
                     {reactionsData?.likes ?? item.reactions?.likes ?? 0}
                   </span>
                 </button>
 
                 {/* Comments */}
                 <button 
-                  className="flex items-center justify-center gap-1.5 h-full px-2"
+                  className="flex items-center gap-1.5"
                   onClick={(e) => {
                     e.stopPropagation();
                     haptics.light();
                     onComment?.(item);
                   }}
                 >
-                  <MessageCircle className="w-5 h-5 text-white transition-transform active:scale-90" />
-                  <span className="text-xs font-bold text-white">
+                  <MessageCircle className="w-6 h-6 text-white transition-transform active:scale-90" />
+                  <span className="text-sm font-bold text-white">
                     {item.reactions?.comments ?? 0}
                   </span>
                 </button>
 
                 {/* Bookmark */}
                 <button 
-                  className="flex items-center justify-center h-full px-2"
+                  className="flex items-center justify-center"
                   onClick={(e) => {
                     e.stopPropagation();
                     haptics.light();
@@ -620,7 +620,7 @@ const EditorialSlideInner = ({
                 >
                   <Bookmark 
                     className={cn(
-                      "w-5 h-5 transition-transform active:scale-90",
+                      "w-6 h-6 transition-transform active:scale-90",
                       isBookmarked ? "text-blue-400 fill-blue-400" : "text-white"
                     )}
                   />
