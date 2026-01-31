@@ -97,6 +97,88 @@ async function logAiUsage(
 }
 
 // ============================================================================
+// LINKEDIN CONTENT CLEANING - Deep noise removal for quiz quality
+// ============================================================================
+function cleanLinkedInContent(content: string): string {
+  if (!content) return '';
+  
+  const originalLength = content.length;
+  
+  const patterns = [
+    // UI noise patterns
+    /Sign in to view more content/gi,
+    /Join now to see who you already know/gi,
+    /See who you know/gi,
+    /Get the LinkedIn app/gi,
+    /Skip to main content/gi,
+    /LinkedIn and 3rd parties use/gi,
+    /Accept & Join LinkedIn/gi,
+    /By clicking Continue/gi,
+    /Like Comment Share/gi,
+    /Report this post/gi,
+    /Copy link to post/gi,
+    /Repost with your thoughts/gi,
+    /More from this author/gi,
+    /Welcome back/gi,
+    /Don't miss out/gi,
+    /LinkedIn Corporation ©/gi,
+    /\[Image[^\]]*\]/gi,
+    /!\[.*?\]\(.*?\)/gi,
+    
+    // Reaction/comment counts (comprehensive)
+    /\d{1,3}(?:[.,]\d{3})*\s*(?:reactions?|likes?|commenti?|comments?|reposts?|condivisioni)/gi,
+    /View \d+\s*(?:more\s*)?comments?/gi,
+    /\d+\s*(?:più recenti|more recent)/gi,
+    
+    // Follower/connection counts
+    /\d{1,3}(?:[.,]\d{3})*(?:\+)?\s*(?:follower|collegamenti|connections|seguaci)/gi,
+    
+    // Relative timestamps (1w, 3d, 2h, 1 settimana fa, etc.)
+    /(?:^|\s)\d+[smhdwMy]\s*(?:•|$)/gm,
+    /\d+\s*(?:settiman[aei]|giorn[oi]|or[ae]|minut[oi]|second[oi]|mes[ei]|ann[oi])\s*fa\b/gi,
+    /\d+\s*(?:week|day|hour|minute|second|month|year)s?\s*ago\b/gi,
+    
+    // Edited/Translated markers
+    /\bEdited\b(?:\s*•)?/gi,
+    /\bTranslated\b(?:\s*•)?/gi,
+    /\bModificato\b(?:\s*•)?/gi,
+    /\bTradotto\b(?:\s*•)?/gi,
+    
+    // Stray bullets/separators
+    /^\s*•\s*/gm,
+    /\s*•\s*$/gm,
+    
+    // "See more" / "Altro" buttons
+    /(?:See more|Altro|Mostra altro|Read more|Leggi tutto)\.{0,3}(?:\s|$)/gi,
+    
+    // Only-hashtag lines (preserva hashtag nel testo, rimuove righe solo-hashtag)
+    /^(?:#[\w\u00C0-\u024F]+\s*)+$/gm,
+  ];
+  
+  let cleaned = content;
+  for (const pattern of patterns) {
+    cleaned = cleaned.replace(pattern, ' ');
+  }
+  
+  // Normalize whitespace
+  cleaned = cleaned
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/^\s+|\s+$/gm, '')
+    .trim();
+  
+  // SAFEGUARD: Se la pulizia riduce troppo il contenuto (< 150 chars),
+  // mantieni l'originale per evitare fallimento del Comprehension Gate
+  if (cleaned.length < 150 && originalLength > 200) {
+    console.log(`[generate-qa] ⚠️ LinkedIn cleaning too aggressive, keeping original`);
+    return content;
+  }
+  
+  console.log(`[generate-qa] LinkedIn deep clean: ${originalLength} -> ${cleaned.length} chars`);
+  return cleaned;
+}
+
+// ============================================================================
 // SOURCE-FIRST Q/A GENERATION - SECURITY HARDENED
 // ============================================================================
 // This edge function:
@@ -406,37 +488,9 @@ serve(async (req) => {
                   const jinaData = await jinaResponse.json();
                   let extractedContent = jinaData.content || '';
                   
-                  // LinkedIn-specific cleaning
+                  // LinkedIn-specific deep cleaning (use centralized function)
                   if (isLinkedIn && extractedContent) {
-                    const linkedInNoisePatterns = [
-                      /Sign in to view more content/gi,
-                      /Join now to see who you already know/gi,
-                      /See who you know/gi,
-                      /Get the LinkedIn app/gi,
-                      /Skip to main content/gi,
-                      /LinkedIn and 3rd parties use/gi,
-                      /Accept & Join LinkedIn/gi,
-                      /By clicking Continue/gi,
-                      /Like Comment Share/gi,
-                      /\d+ reactions?/gi,
-                      /\d+ comments?/gi,
-                      /View \d+ comments/gi,
-                      /Report this post/gi,
-                      /Copy link to post/gi,
-                      /Repost with your thoughts/gi,
-                      /More from this author/gi,
-                      /Welcome back/gi,
-                      /Don't miss out/gi,
-                      /LinkedIn Corporation ©/gi,
-                      /\[Image[^\]]*\]/gi,
-                      /!\[.*?\]\(.*?\)/gi
-                    ];
-                    
-                    for (const pattern of linkedInNoisePatterns) {
-                      extractedContent = extractedContent.replace(pattern, '');
-                    }
-                    extractedContent = extractedContent.replace(/\n{3,}/g, '\n\n').trim();
-                    console.log(`[generate-qa] LinkedIn content cleaned: ${extractedContent.length} chars`);
+                    extractedContent = cleanLinkedInContent(extractedContent);
                   }
                   
                   if (extractedContent && extractedContent.length > 100) {
@@ -528,10 +582,17 @@ serve(async (req) => {
                   
                   if (firecrawlResponse.ok) {
                     const firecrawlData = await firecrawlResponse.json();
-                    const markdown = firecrawlData.data?.markdown || '';
+                    let markdown = firecrawlData.data?.markdown || '';
+                    
+                    // Apply LinkedIn cleaning to Firecrawl content too
+                    const isLinkedInUrl = cacheUrlForRetry?.toLowerCase().includes('linkedin.com');
+                    if (isLinkedInUrl && markdown) {
+                      markdown = cleanLinkedInContent(markdown);
+                    }
+                    
                     if (markdown.length > (serverSideContent?.length || 0)) {
                       serverSideContent = markdown;
-                      contentSource = 'firecrawl';
+                      contentSource = isLinkedInUrl ? 'firecrawl_linkedin' : 'firecrawl';
                       console.log(`[generate-qa] ✅ Firecrawl success: ${serverSideContent.length} chars`);
                       
                       // Cache for future use
