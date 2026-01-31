@@ -1,90 +1,93 @@
 
+# Fix Completo: LinkedIn Preview Immagine Non Mostrata
 
-# Fix: LinkedIn Preview Cache - Salvare Immagine e Autore
+## Analisi del Problema
 
-## Problema Identificato
+Il problema ha **due cause**:
 
-Lo stesso post LinkedIn mostra l'immagine e il nome utente a volte sì e a volte no perché:
+### Causa 1: Cache esistente senza immagine
+Le entry in `content_cache` per LinkedIn hanno `meta_image_url = NULL` perché il fix che ho applicato (salvare l'immagine) funziona solo per **nuovi** inserimenti.
 
-1. **Prima visualizzazione**: Il sistema estrae immagine e autore da LinkedIn e li restituisce al client
-2. **Salvataggio cache (BUG)**: L'immagine e l'autore **non vengono salvati** nella cache
-3. **Visualizzazioni successive**: La cache viene letta, ma `meta_image_url` e autore sono `NULL`
-
-**Prove nel database:**
-```
-source_url: linkedin.com/posts/george-stern_...
-meta_image_url: <nil>   ← Sempre NULL per LinkedIn
-title: "Want that next promotion?... | George Stern | 135 commenti"
-```
-
-Il titolo contiene l'autore, ma l'immagine non viene mai salvata.
+### Causa 2: Cache HIT blocca il refresh
+Quando c'è un cache HIT (linee 892-960 in `fetch-article-preview/index.ts`), la risposta viene restituita immediatamente con `image: cached.meta_image_url || ''` (che è stringa vuota).
+Il sistema non fa mai un nuovo fetch per aggiornare l'immagine mancante.
 
 ---
 
-## Soluzione Tecnica
+## Soluzione: Refresh Automatico se Immagine Mancante
+
+Aggiungere una logica "soft refresh" nel blocco cache HIT: se l'immagine è NULL per piattaforme che dovrebbero avere immagini (LinkedIn, Twitter, TikTok), non restituire il cache HIT ma procedere con un fetch fresco.
 
 ### File: `supabase/functions/fetch-article-preview/index.ts`
 
-#### Linee 1757-1764: Passare l'immagine a `cacheContentServerSide()`
+#### Modifica al blocco cache HIT (dopo linea 899)
 
-**Prima:**
 ```typescript
-if (jinaResult?.content && jinaResult.content.length > 50 && supabase) {
-  await cacheContentServerSide(
-    supabase,
-    url,
-    socialPlatform,
-    jinaResult.content,
-    jinaResult.title
-    // ❌ MISSING: jinaResult.image
-  );
+if (!cacheErr && cached && cached.title) {
+  // NEW: Soft refresh for social platforms missing images
+  const socialPlatformsNeedImage = ['linkedin', 'twitter', 'tiktok', 'threads'];
+  const isSocialMissingImage = 
+    socialPlatformsNeedImage.includes(cached.source_type) && 
+    !cached.meta_image_url;
+  
+  if (isSocialMissingImage) {
+    console.log(`[Cache] ⚠️ Social platform ${cached.source_type} missing image, forcing refresh`);
+    // DON'T return from cache - proceed to fetch fresh data
+  } else {
+    console.log(`[Cache] ✅ HIT for ${normalizedUrl}: "${cached.title?.slice(0, 40)}..."`);
+    // ... rest of cache hit logic ...
+    return new Response(JSON.stringify(cacheResponse), { ... });
+  }
 }
 ```
 
-**Dopo:**
-```typescript
-if (jinaResult?.content && jinaResult.content.length > 50 && supabase) {
-  await cacheContentServerSide(
-    supabase,
-    url,
-    socialPlatform,
-    jinaResult.content,
-    jinaResult.title,
-    jinaResult.image || jinaResult.previewImg // ✅ Passare l'immagine
-  );
-}
+---
+
+## Logica Completa
+
+```text
+                  Cache Check
+                      │
+                      ▼
+              ┌───────────────┐
+              │  Cache HIT?   │
+              └───────┬───────┘
+                      │
+           ┌──────────┴──────────┐
+           │                     │
+           ▼                     ▼
+    Has Image?            No Image + Social?
+           │                     │
+           ▼                     ▼
+    Return cache         Skip cache HIT
+                         Fetch fresh data
+                         Save with image
+                         Return fresh response
 ```
 
 ---
 
 ## Impatto
 
-- **LinkedIn**: L'immagine del post verrà salvata nella cache e mostrata consistentemente
-- **TikTok/Threads**: Stesso fix si applica (usano lo stesso blocco di codice)
-- **Altre piattaforme**: Non toccate (Spotify, YouTube hanno già il loro flusso separato)
+- **LinkedIn**: Le preview senza immagine faranno un fetch fresco e salveranno l'immagine
+- **Altri social (Twitter, TikTok, Threads)**: Stesso beneficio
+- **Spotify/YouTube**: Non toccati (hanno già logiche separate con immagini funzionanti)
+- **Articoli generici**: Non toccati (non sono nella lista `socialPlatformsNeedImage`)
+- **Performance**: Lieve aumento di latenza per la prima richiesta dopo il fix, poi cache normale
 
 ---
 
-## Perché il TTL corto non aiuta?
+## Riepilogo Modifiche
 
-Il sistema usa un TTL di 15 minuti per entry senza immagine (linea 799-802):
-
-```typescript
-if (imageUrl && imageUrl.length > 5) {
-  expiresAt.setDate(expiresAt.getDate() + 7); // 7 days TTL
-} else {
-  expiresAt.setMinutes(expiresAt.getMinutes() + 15); // 15 min TTL
-}
-```
-
-Ma siccome l'immagine non viene mai salvata per LinkedIn, ogni entry ha TTL di 15 minuti. Dopo la scadenza, il refresh sovrascrive la cache **senza immagine ancora**, creando un loop infinito.
+| File | Linee | Modifica |
+|------|-------|----------|
+| `supabase/functions/fetch-article-preview/index.ts` | 899-960 | Aggiungere soft refresh per social platform senza immagine |
 
 ---
 
 ## Test Post-Implementazione
 
-1. Condividere un nuovo post LinkedIn con immagine
-2. Verificare che la cache abbia `meta_image_url` popolato
-3. Refreshare la pagina più volte e verificare che l'immagine sia sempre visibile
-4. Verificare che i post esistenti si aggiornino al prossimo refresh (dopo scadenza cache)
-
+1. Aprire un post LinkedIn esistente senza immagine
+2. Verificare nei log: `[Cache] ⚠️ Social platform linkedin missing image, forcing refresh`
+3. Verificare che l'immagine appaia nel feed
+4. Ricaricare la pagina e verificare che l'immagine sia persistente (ora cachata con immagine)
