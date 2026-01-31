@@ -19,9 +19,9 @@ interface QuizModalProps {
   onComplete?: (passed: boolean) => void;
   provider?: string;
   postCategory?: string;
-  // NEW: Error state for validation failures with retry option
+  // Error state for validation failures with retry option
   errorState?: {
-    code: 'ERROR_INSUFFICIENT_CONTENT' | 'ERROR_METADATA_ONLY';
+    code: 'ERROR_INSUFFICIENT_CONTENT' | 'ERROR_METADATA_ONLY' | 'ERROR_LOW_QUALITY_QUIZ';
     message: string;
   };
   onRetry?: () => void;
@@ -117,6 +117,8 @@ export function QuizModal({ questions, qaId, onSubmit, onCancel, onComplete, pos
             <p className="text-muted-foreground mb-6 text-sm">
               {errorState.code === 'ERROR_METADATA_ONLY' 
                 ? "Il contenuto estratto contiene troppi elementi di interfaccia. Riprova per un'analisi più accurata."
+                : errorState.code === 'ERROR_LOW_QUALITY_QUIZ'
+                ? "Le domande generate non riflettono il vero contenuto. Riprova per una migliore analisi."
                 : "Non è stato possibile estrarre abbastanza contenuto dalla fonte. Riprova o aggiungi più contesto."}
             </p>
             <div className="space-y-3">

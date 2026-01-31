@@ -18,10 +18,11 @@ export interface QAGenerationResult {
   insufficient_context?: boolean;
   pending?: boolean; // Extraction still in progress, retry later
   error?: string;
-  // NEW: Validation error codes for retry UI
-  error_code?: 'ERROR_INSUFFICIENT_CONTENT' | 'ERROR_METADATA_ONLY';
+  // Validation error codes for retry UI
+  error_code?: 'ERROR_INSUFFICIENT_CONTENT' | 'ERROR_METADATA_ONLY' | 'ERROR_LOW_QUALITY_QUIZ';
   metadata_ratio?: number;
   message?: string;
+  reason?: string;
 }
 
 export interface ValidationResult {

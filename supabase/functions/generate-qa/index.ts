@@ -154,12 +154,80 @@ function validateContentQuality(text: string): ContentValidation {
   
   const metadataRatio = metadataWordCount / words.length;
   
-  if (metadataRatio > 0.3) {
+  if (metadataRatio > 0.45) { // Increased from 0.30 to reduce false positives
     console.log(`[generate-qa] ⚠️ Content is ${Math.round(metadataRatio * 100)}% platform metadata`);
     return { isValid: false, metadataRatio, errorCode: 'ERROR_METADATA_ONLY' };
   }
   
   return { isValid: true, metadataRatio };
+}
+
+// ============================================================================
+// POST-GENERATION QUALITY CHECK - Detect generic/metadata-based questions
+// ============================================================================
+interface QuestionValidation {
+  isValid: boolean;
+  reason?: 'generic_questions' | 'metadata_questions' | 'platform_questions';
+}
+
+function validateGeneratedQuestions(questions: any[]): QuestionValidation {
+  if (!questions || questions.length === 0) {
+    return { isValid: false, reason: 'generic_questions' };
+  }
+  
+  // Patterns that indicate low-quality/metadata questions
+  const genericPatterns = [
+    // Platform metadata
+    /quanti? (like|follower|commenti|reaction|visualizzazion)/i,
+    /numero di (like|follower|commenti|reaction|view)/i,
+    /(like|follower|commenti) (ha ricevuto|sono stati|ci sono)/i,
+    
+    // Platform identity
+    /quale piattaforma/i,
+    /su (spotify|linkedin|youtube|twitter|instagram|tiktok|facebook)/i,
+    /(pubblicato|condiviso) su quale/i,
+    
+    // Format/technical
+    /(formato|tipo) (del contenuto|di file|multimediale)/i,
+    /(audio|video|immagine|testo) (è|sia|formato)/i,
+    
+    // Title-only questions (weak signal)
+    /qual è il titolo/i,
+    /come si intitola/i,
+    /il titolo (del brano|della canzone|del video|dell'articolo)/i,
+    
+    // Cookie/privacy (should never appear)
+    /cookie policy/i,
+    /privacy policy/i,
+    /termini di servizio/i,
+    
+    // Engagement metrics
+    /popolarità (su spotify|del brano)/i,
+    /quanto è popolare/i,
+  ];
+  
+  let genericQuestionCount = 0;
+  
+  for (const question of questions) {
+    const stem = question.stem || question.question || '';
+    
+    for (const pattern of genericPatterns) {
+      if (pattern.test(stem)) {
+        genericQuestionCount++;
+        console.log(`[validateGeneratedQuestions] ⚠️ Generic question detected: "${stem.substring(0, 50)}..."`);
+        break;
+      }
+    }
+  }
+  
+  // If MORE than 1 question out of 3 is generic, reject the quiz
+  const genericRatio = genericQuestionCount / questions.length;
+  if (genericRatio > 0.33) { // More than 1/3 generic = bad quiz
+    console.log(`[validateGeneratedQuestions] ❌ Too many generic questions: ${genericQuestionCount}/${questions.length}`);
+    return { isValid: false, reason: 'generic_questions' };
+  }
+  
+  return { isValid: true };
 }
 
 // ============================================================================
@@ -969,6 +1037,13 @@ ${isVideo && testMode === 'SOURCE_ONLY' ? `NOTA: Poiché questo è un video, foc
   ]
 }
 
+⚠️ ESCLUSIONI OBBLIGATORIE:
+- NON chiedere "Quanti like ha ricevuto?" o simili
+- NON chiedere "Su quale piattaforma è stato pubblicato?"
+- NON chiedere "Qual è il titolo?" (a meno che sia il solo dato)
+- NON chiedere informazioni su formato audio/video/testo
+- Se non riesci a generare ${expectedQuestions} domande sul CONTENUTO EFFETTIVO, restituisci {"insufficient_context": true, "reason": "metadata_only"}
+
 4. Se il contenuto è insufficiente per generare domande valide, restituisci:
 {"insufficient_context": true}
 
@@ -983,7 +1058,26 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'system', content: 'Sei un assistente per quiz di comprensione. Rispondi sempre in JSON valido.' },
+          { role: 'system', content: `Sei un assistente per quiz di comprensione. Rispondi sempre in JSON valido.
+
+REGOLE CRITICHE - ESCLUSIONI OBBLIGATORIE:
+❌ MAI generare domande su:
+- Metadati di piattaforma (numero di like, follower, commenti, reactions)
+- Elementi UI (pulsanti, menu, navigazione, login)
+- Formato tecnico del contenuto (audio, video, testo, immagine)
+- Nome della piattaforma (Spotify, LinkedIn, YouTube, Twitter)
+- Titolo del brano/video/articolo (a meno che sia l'UNICO dato disponibile)
+- Cookie policy, privacy policy, termini di servizio
+- Date di pubblicazione o statistiche di visualizzazione
+
+✅ Genera domande SOLO su:
+- Contenuto semantico effettivo (argomento, tema, messaggio)
+- Fatti, dati, affermazioni presenti nel testo
+- Opinioni e argomentazioni dell'autore
+- Contesto e significato del contenuto
+
+Se il testo sorgente contiene SOLO o PRINCIPALMENTE metadati di piattaforma, 
+rispondi con: {"insufficient_context": true, "reason": "metadata_only"}` },
           { role: 'user', content: prompt }
         ],
         temperature: 0.3,
@@ -1049,8 +1143,32 @@ IMPORTANTE: Rispondi SOLO con JSON valido, senza commenti o testo aggiuntivo.`;
     }
 
     if (parsedContent.insufficient_context) {
+      // Check if AI explicitly flagged metadata-only
+      if (parsedContent.reason === 'metadata_only') {
+        return new Response(
+          JSON.stringify({ 
+            error_code: 'ERROR_METADATA_ONLY',
+            message: 'Il contenuto contiene solo metadati di piattaforma'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       return new Response(
         JSON.stringify({ insufficient_context: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // POST-GENERATION QUALITY CHECK: Detect generic/metadata-based questions
+    const questionValidation = validateGeneratedQuestions(parsedContent.questions);
+    if (!questionValidation.isValid) {
+      console.log(`[generate-qa] ❌ Generated questions failed quality check: ${questionValidation.reason}`);
+      return new Response(
+        JSON.stringify({ 
+          error_code: 'ERROR_LOW_QUALITY_QUIZ',
+          message: 'Le domande generate non riflettono il contenuto effettivo. Riprova per un\'analisi migliore.',
+          reason: questionValidation.reason
+        }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
