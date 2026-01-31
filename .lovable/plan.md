@@ -1,86 +1,158 @@
 
-
-# Finalizzazione UI - Action Bar Il Punto + NavBar Height
+# Fix Chirurgico: Pulizia LinkedIn per Comprehension Gate
 
 ## Riepilogo
 
-Questo intervento è esclusivamente UI. Nessuna modifica alla logica di Comprehension Gate, commenti consapevoli, Trust Score, PULSE o backend.
+Fix backend-only per migliorare la qualità dei quiz su contenuti LinkedIn. Nessun impatto su frontend, altri provider (Spotify/YouTube/Twitter), Trust Score, PULSE o logica commenti.
 
 ---
 
-## 1. Allineamento Action Bar - ImmersiveEditorialCarousel
+## Modifiche al File
 
-**File:** `src/components/feed/ImmersiveEditorialCarousel.tsx`
-
-### Modifiche linee 556-629:
-- Pulsante "Condividi": da `h-10` a `h-11`, con `font-semibold` (come gli altri post)
-- Icone (Heart, MessageCircle, Bookmark): da `w-5 h-5` a `w-6 h-6`
-- Layout: da `justify-between gap-3` a `gap-6` senza justify-between
-- Rimosso container `bg-black/20 h-10 px-3 rounded-2xl border` dalle reactions
-- Font contatori: da `text-xs` a `text-sm`
-
-### Modifica linea 229:
-- Padding bottom: da `pb-24` a `pb-28` per compensare navbar più alta
+**File unico:** `supabase/functions/generate-qa/index.ts`
 
 ---
 
-## 2. Aumento Altezza NavBar + Sporgenza FAB
+## 1. Nuova Funzione Helper (linee 99-107)
 
-**File:** `src/components/navigation/BottomNavigation.tsx`
+Inserire la funzione `cleanLinkedInContent()` prima del blocco SOURCE-FIRST Q/A:
 
-### Modifiche linee 117-119:
-- Altezza container: da `h-14` (56px) a `h-16` (64px)
-- Aggiunta classe `pb-safe` alla nav per iOS safe area
-
-### Modifiche linee 147-160:
-- Sporgenza FAB: da `-translate-y-3` a `-translate-y-4` per mantenere l'aspetto iconico con la navbar più alta
+```typescript
+// ============================================================================
+// LINKEDIN CONTENT CLEANING - Deep noise removal for quiz quality
+// ============================================================================
+function cleanLinkedInContent(content: string): string {
+  if (!content) return '';
+  
+  const originalLength = content.length;
+  
+  const patterns = [
+    // UI noise patterns (existing)
+    /Sign in to view more content/gi,
+    /Join now to see who you already know/gi,
+    /See who you know/gi,
+    /Get the LinkedIn app/gi,
+    /Skip to main content/gi,
+    /LinkedIn and 3rd parties use/gi,
+    /Accept & Join LinkedIn/gi,
+    /By clicking Continue/gi,
+    /Like Comment Share/gi,
+    /Report this post/gi,
+    /Copy link to post/gi,
+    /Repost with your thoughts/gi,
+    /More from this author/gi,
+    /Welcome back/gi,
+    /Don't miss out/gi,
+    /LinkedIn Corporation ©/gi,
+    /\[Image[^\]]*\]/gi,
+    /!\[.*?\]\(.*?\)/gi,
+    
+    // NEW: Reaction/comment counts (more comprehensive)
+    /\d{1,3}(?:[.,]\d{3})*\s*(?:reactions?|likes?|commenti?|comments?|reposts?|condivisioni)/gi,
+    /View \d+\s*(?:more\s*)?comments?/gi,
+    /\d+\s*(?:più recenti|more recent)/gi,
+    
+    // NEW: Follower/connection counts
+    /\d{1,3}(?:[.,]\d{3})*(?:\+)?\s*(?:follower|collegamenti|connections|seguaci)/gi,
+    
+    // NEW: Relative timestamps (1w, 3d, 2h, 1 settimana fa, etc.)
+    /(?:^|\s)\d+[smhdwMy]\s*(?:•|$)/gm,
+    /\d+\s*(?:settiman[aei]|giorn[oi]|or[ae]|minut[oi]|second[oi]|mes[ei]|ann[oi])\s*fa\b/gi,
+    /\d+\s*(?:week|day|hour|minute|second|month|year)s?\s*ago\b/gi,
+    
+    // NEW: Edited/Translated markers
+    /\bEdited\b(?:\s*•)?/gi,
+    /\bTranslated\b(?:\s*•)?/gi,
+    /\bModificato\b(?:\s*•)?/gi,
+    /\bTradotto\b(?:\s*•)?/gi,
+    
+    // NEW: Stray bullets/separators
+    /^\s*•\s*/gm,
+    /\s*•\s*$/gm,
+    
+    // NEW: "See more" / "Altro" buttons
+    /(?:See more|Altro|Mostra altro|Read more|Leggi tutto)\.{0,3}(?:\s|$)/gi,
+    
+    // NEW: Only-hashtag lines (preserva hashtag nel testo, rimuove righe solo-hashtag)
+    /^(?:#[\w\u00C0-\u024F]+\s*)+$/gm,
+  ];
+  
+  let cleaned = content;
+  for (const pattern of patterns) {
+    cleaned = cleaned.replace(pattern, ' ');
+  }
+  
+  // Normalize whitespace
+  cleaned = cleaned
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/^\s+|\s+$/gm, '')
+    .trim();
+  
+  // SAFEGUARD: Se la pulizia riduce troppo il contenuto (< 150 chars),
+  // mantieni l'originale per evitare fallimento del Comprehension Gate
+  if (cleaned.length < 150 && originalLength > 200) {
+    console.log(`[generate-qa] ⚠️ LinkedIn cleaning too aggressive, keeping original`);
+    return content;
+  }
+  
+  console.log(`[generate-qa] LinkedIn deep clean: ${originalLength} -> ${cleaned.length} chars`);
+  return cleaned;
+}
+```
 
 ---
 
-## 3. CSS Safe Area Support
+## 2. Sostituzione Pulizia Post-Jina (linee 409-440)
 
-**File:** `src/index.css`
+Sostituire il blocco inline con chiamata alla funzione:
 
-### Modifiche linee 607-613:
-- Aggiunto `padding-bottom: env(safe-area-inset-bottom, 0px)` alla classe `.liquid-glass-navbar`
-- Aggiunta nuova classe utility `.pb-safe`
-
----
-
-## Dettagli Tecnici
-
-### Dimensioni Confronto
-
-| Elemento | Prima | Dopo |
-|----------|-------|------|
-| Navbar height | h-14 (56px) | h-16 (64px) + safe-area |
-| FAB sporgenza | -translate-y-3 | -translate-y-4 |
-| Share button | h-10 | h-11 |
-| Icone reazioni | w-5 h-5 | w-6 h-6 |
-| Gap action bar | gap-3 | gap-6 |
-| Content padding-bottom | pb-24 | pb-28 |
-| Font contatori | text-xs | text-sm |
-
-### Font "Condividi" - Coerenza
-
-Il pulsante "Condividi" usa `text-sm font-semibold` sia in ImmersivePostCard che in ImmersiveEditorialCarousel per coerenza assoluta tra i due tipi di contenuto.
+```typescript
+// LinkedIn-specific deep cleaning (use centralized function)
+if (isLinkedIn && extractedContent) {
+  extractedContent = cleanLinkedInContent(extractedContent);
+}
+```
 
 ---
 
-## Vincoli Rispettati
+## 3. Aggiunta Pulizia Post-Firecrawl (linee 529-535)
 
-- Nessuna modifica alla logica Comprehension Gate
-- Nessuna modifica ai commenti consapevoli  
-- Nessuna modifica al Trust Score/PULSE
-- Nessuna modifica al backend
-- Posizionamento fixed della navbar non toccato
+Aggiungere pulizia LinkedIn anche dopo Firecrawl:
+
+```typescript
+if (firecrawlResponse.ok) {
+  const firecrawlData = await firecrawlResponse.json();
+  let markdown = firecrawlData.data?.markdown || '';
+  
+  // Apply LinkedIn cleaning to Firecrawl content too
+  const isLinkedInUrl = cacheUrlForRetry?.toLowerCase().includes('linkedin.com');
+  if (isLinkedInUrl && markdown) {
+    markdown = cleanLinkedInContent(markdown);
+  }
+  
+  if (markdown.length > (serverSideContent?.length || 0)) {
+    serverSideContent = markdown;
+    contentSource = isLinkedInUrl ? 'firecrawl_linkedin' : 'firecrawl';
+    console.log(`[generate-qa] ✅ Firecrawl success: ${serverSideContent.length} chars`);
+```
+
+---
+
+## Garanzie Richieste
+
+| Requisito | Soluzione |
+|-----------|-----------|
+| **Hashtag preservati nel testo** | Pattern `^(?:#[\w\u00C0-\u024F]+\s*)+$` rimuove SOLO righe composte esclusivamente da hashtag, non quelli inline |
+| **Fallback sicuro** | Se `cleaned.length < 150 && originalLength > 200`, la funzione restituisce il contenuto originale |
+| **Isolamento LinkedIn** | Pulizia attivata SOLO quando `isLinkedIn === true` o `url.includes('linkedin.com')` |
+| **Zero regressioni** | Nessun impatto su Spotify, YouTube, Twitter, News, Il Punto |
 
 ---
 
 ## Test Post-Implementazione
 
-1. Verificare su iPhone che la navbar non si sovrapponga alla home indicator bar
-2. Verificare che il FAB sporga in modo iconico sopra la navbar più alta
-3. Verificare che le icone e il pulsante Condividi abbiano le stesse dimensioni su Post e Il Punto
-4. Testare il contenuto scrollabile per assicurarsi che non sia nascosto dalla navbar
-
+1. Testare il link LinkedIn fornito: https://www.linkedin.com/posts/willmedia-it_il-31-gennaio-2020-il-regno-unito-usciva-activity-7423288980139302913-olNR
+2. Verificare che le domande riguardino Brexit/UK, non numeri di commenti
+3. Testare un post Spotify per confermare nessuna regressione
+4. Testare un post YouTube per confermare nessuna regressione
