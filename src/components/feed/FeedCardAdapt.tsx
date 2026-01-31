@@ -48,6 +48,7 @@ import { useCreateThread } from "@/hooks/useMessageThreads";
 import { useSendMessage } from "@/hooks/useMessages";
 import { getWordCount, getTestModeWithSource, getQuestionCountWithoutSource } from "@/lib/gate-utils";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
+import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
 
 interface FeedCardProps {
   post: Post;
@@ -638,6 +639,7 @@ export const FeedCard = ({
           title: 'Possiamo procedere.',
           description: 'Hai messo a fuoco.'
         });
+        addBreadcrumb('quiz_closed', { via: 'passed' });
         setShowQuiz(false);
         setQuizData(null);
         setGateStep('idle');
@@ -660,6 +662,7 @@ export const FeedCard = ({
           title: "Serve ancora un po' di chiarezza.",
           description: 'Rileggi il contenuto e riprova.'
         });
+        addBreadcrumb('quiz_closed', { via: 'failed' });
         setShowQuiz(false);
         setQuizData(null);
         setShareAction(null);
@@ -675,6 +678,7 @@ export const FeedCard = ({
         description: 'Errore durante la validazione',
         variant: 'destructive'
       });
+      addBreadcrumb('quiz_closed', { via: 'error' });
       return { passed: false, score: 0, total: 0, wrongIndexes: [] };
     }
   };
@@ -1005,6 +1009,7 @@ export const FeedCard = ({
             qaId={quizData.qaId}
             onSubmit={handleQuizSubmit}
             onCancel={() => {
+              addBreadcrumb('quiz_closed', { via: 'cancelled' });
               setShowQuiz(false);
               setQuizData(null);
               setGateStep('idle');
@@ -1022,6 +1027,7 @@ export const FeedCard = ({
             <Button
               onClick={() => {
                 if (quizData.onCancel) quizData.onCancel();
+                addBreadcrumb('quiz_closed', { via: 'error_dismissed' });
                 setShowQuiz(false);
                 setQuizData(null);
               }}

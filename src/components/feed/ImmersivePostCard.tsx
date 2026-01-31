@@ -70,6 +70,7 @@ import { useDoubleTap } from "@/hooks/useDoubleTap";
 import { useReshareContextStack } from "@/hooks/useReshareContextStack";
 import { useOriginalSource } from "@/hooks/useOriginalSource";
 import { haptics } from "@/lib/haptics";
+import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
 
 // Deep lookup imperativo per risolvere la fonte originale al click (indipendente da React Query)
 const resolveOriginalSourceOnDemand = async (quotedPostId: string | null): Promise<{
@@ -1041,6 +1042,7 @@ const ImmersivePostCardInner = ({
       
       if (passed) {
         toast({ title: 'Possiamo procedere.', description: 'Hai messo a fuoco.' });
+        addBreadcrumb('quiz_closed', { via: 'passed' });
         setShowQuiz(false);
         setQuizData(null);
         setGateStep('idle');
@@ -1053,6 +1055,7 @@ const ImmersivePostCardInner = ({
         setShareAction(null);
       } else {
         toast({ title: "Serve ancora un po' di chiarezza.", description: 'Rileggi il contenuto e riprova.' });
+        addBreadcrumb('quiz_closed', { via: 'failed' });
         setShowQuiz(false);
         setQuizData(null);
         setShareAction(null);
@@ -1062,6 +1065,7 @@ const ImmersivePostCardInner = ({
       return data;
     } catch {
       toast({ title: 'Errore', description: 'Errore durante la validazione', variant: 'destructive' });
+      addBreadcrumb('quiz_closed', { via: 'error' });
       return { passed: false, score: 0, total: 0, wrongIndexes: [] };
     }
   };
@@ -2062,6 +2066,7 @@ const ImmersivePostCardInner = ({
             qaId={quizData.qaId}
             onSubmit={handleQuizSubmit}
             onCancel={() => {
+              addBreadcrumb('quiz_closed', { via: 'cancelled' });
               setShowQuiz(false);
               setQuizData(null);
               setGateStep('idle');

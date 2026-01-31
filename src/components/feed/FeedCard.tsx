@@ -27,6 +27,7 @@ import { haptics } from "@/lib/haptics";
 import { ComposerModal } from "@/components/composer/ComposerModal";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import { CategoryChip } from "@/components/ui/category-chip";
+import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
 
 interface FeedCardProps {
   post: MockPost;
@@ -651,6 +652,7 @@ export const FeedCard = ({
               if (quizData.onSuccess) {
                 quizData.onSuccess();
               }
+              addBreadcrumb('quiz_closed', { via: 'passed' });
               setShowQuiz(false);
               setQuizData(null);
             }
@@ -665,6 +667,7 @@ export const FeedCard = ({
           if (quizData.onCancel) {
             quizData.onCancel();
           }
+          addBreadcrumb('quiz_closed', { via: 'cancelled' });
           setShowQuiz(false);
           setQuizData(null);
         }}
@@ -680,9 +683,10 @@ export const FeedCard = ({
           <Button 
             onClick={() => {
               if (quizData.onCancel) quizData.onCancel();
+              addBreadcrumb('quiz_closed', { via: 'error_dismissed' });
               setShowQuiz(false);
               setQuizData(null);
-            }} 
+            }}
             variant="outline" 
             className="w-full"
           >

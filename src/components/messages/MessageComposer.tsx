@@ -10,6 +10,7 @@ import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
 import { supabase } from "@/integrations/supabase/client";
+import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
 
 interface MessageComposerProps {
   threadId: string | null;
@@ -229,6 +230,7 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
 
               if (data?.passed) {
                 quizData.onSuccess();
+                addBreadcrumb('quiz_closed', { via: 'passed' });
                 setShowQuiz(false);
                 setQuizData(null);
               }
@@ -241,11 +243,13 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
               };
             } catch (err) {
               console.error('[MessageComposer] Unexpected error:', err);
+              addBreadcrumb('quiz_closed', { via: 'error' });
               return { passed: false, wrongIndexes: [] };
             }
           }}
           onCancel={() => {
             quizData.onCancel();
+            addBreadcrumb('quiz_closed', { via: 'cancelled' });
             setShowQuiz(false);
             setQuizData(null);
           }}
@@ -261,6 +265,7 @@ export const MessageComposer = ({ threadId, onSendWithoutThread }: MessageCompos
             <button 
               onClick={() => {
                 quizData.onCancel();
+                addBreadcrumb('quiz_closed', { via: 'error_dismissed' });
                 setShowQuiz(false);
                 setQuizData(null);
               }}
