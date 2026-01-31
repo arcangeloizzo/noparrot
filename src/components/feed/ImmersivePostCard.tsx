@@ -1970,56 +1970,56 @@ const ImmersivePostCardInner = ({
           {/* Flexible spacer with minimum gap for small screens */}
           <div className="min-h-4 sm:min-h-0 flex-shrink-0" />
 
-          {/* Bottom Actions - Compact mode for smaller screens */}
-          <div className="flex items-center justify-between gap-2 sm:gap-3 mr-12 sm:mr-16">
+          {/* Bottom Actions - Single horizontal axis alignment */}
+          <div className="flex items-center justify-between gap-6 mr-12 sm:mr-16">
             
-            {/* Primary Share Button - Compact padding on mobile */}
+            {/* Primary Share Button - Pill shape with consistent height */}
             <button 
               onClick={(e) => {
                 e.stopPropagation();
                 haptics.light();
                 handleShareClick(e);
               }}
-              className="h-10 px-3 sm:px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-1.5 sm:gap-2 transition-all active:scale-[0.98]"
+              className="h-11 px-5 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-full shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
             >
-              <Logo variant="icon" size="sm" className="h-4 w-4" />
-              <span className="text-[11px] sm:text-sm font-semibold leading-none">Condividi</span>
+              <Logo variant="icon" size="sm" className="h-5 w-5" />
+              <span className="text-sm font-semibold leading-none">Condividi</span>
               {(post.shares_count ?? 0) > 0 && (
-                <span className="text-[10px] sm:text-xs opacity-70">({post.shares_count})</span>
+                <span className="text-xs opacity-70">({post.shares_count})</span>
               )}
             </button>
 
-            {/* Reactions - Compact mode on mobile */}
-            <div className="flex items-center gap-0.5 sm:gap-1 bg-black/20 backdrop-blur-xl h-10 px-2 sm:px-3 rounded-2xl border border-white/5">
+            {/* Action Icons - Uniform w-6 h-6, aligned on same axis */}
+            <div className="flex items-center gap-4 h-11">
               
               {/* Like */}
               <button 
-                className="flex items-center justify-center gap-1 sm:gap-1.5 h-full px-1.5 sm:px-2"
+                className="flex items-center justify-center gap-1.5 h-full"
                 onClick={(e) => { e.stopPropagation(); handleHeart(e); }}
               >
                 <Heart 
-                  className={cn("w-5 h-5 transition-transform active:scale-90", post.user_reactions.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
+                  className={cn("w-6 h-6 transition-transform active:scale-90", post.user_reactions.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
                   fill={post.user_reactions.has_hearted ? "currentColor" : "none"}
                 />
-                <span className="text-[10px] sm:text-xs font-bold text-white">{post.reactions.hearts}</span>
+                <span className="text-sm font-bold text-white">{post.reactions.hearts}</span>
               </button>
 
               {/* Comments */}
               <button 
-                className="flex items-center justify-center gap-1 sm:gap-1.5 h-full px-1.5 sm:px-2"
+                className="flex items-center justify-center gap-1.5 h-full"
                 onClick={(e) => { e.stopPropagation(); haptics.light(); setShowComments(true); }}
               >
-                <MessageCircle className="w-5 h-5 text-white transition-transform active:scale-90" />
-                <span className="text-[10px] sm:text-xs font-bold text-white">{post.reactions.comments}</span>
+                <MessageCircle className="w-6 h-6 text-white transition-transform active:scale-90" />
+                <span className="text-sm font-bold text-white">{post.reactions.comments}</span>
               </button>
 
               {/* Bookmark */}
               <button 
-                className="flex items-center justify-center h-full px-1.5 sm:px-2"
+                className="flex items-center justify-center h-full"
                 onClick={handleBookmark}
               >
                 <Bookmark 
-                  className={cn("w-5 h-5 transition-transform active:scale-90", post.user_reactions.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
+                  className={cn("w-6 h-6 transition-transform active:scale-90", post.user_reactions.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
                   fill={post.user_reactions.has_bookmarked ? "currentColor" : "none"}
                 />
               </button>

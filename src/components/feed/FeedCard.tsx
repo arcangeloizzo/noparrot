@@ -522,67 +522,78 @@ export const FeedCard = ({
           )}
 
 
-          {/* Actions Bar */}
-          <div className="cognitive-actions flex items-center justify-between max-w-md -ml-2">
-            <button 
-              onClick={(e) => { 
-                e.stopPropagation();
-                navigate(`/post/${post.id}`);
-              }}
-              className="cognitive-action-btn"
-            >
-              <MessageCircleIcon className="w-5 h-5" />
-              <span className="text-sm">
-                {post.reactions.comments}
-              </span>
-            </button>
-
+          {/* Actions Bar - Single horizontal axis alignment */}
+          <div className="flex items-center gap-6 mt-1">
+            
+            {/* Primary Share Button - Pill shape with consistent height */}
             <button 
               onClick={handleShare}
               className={cn(
-                "cognitive-action-btn",
+                "h-10 px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-full flex items-center justify-center gap-2 transition-all active:scale-[0.98]",
                 shouldBlinkShare && "animate-blink-parrot"
               )}
             >
               <Share2 className="w-5 h-5" />
-              <span className="text-sm">
-                {Math.floor(post.reactions.heart / 10)}
-              </span>
+              <span className="text-sm font-semibold">Condividi</span>
             </button>
 
-            <button 
-              onClick={(e) => { 
-                e.stopPropagation(); 
-                setIsLiked(!isLiked);
-                haptics.light();
-              }}
-              className={cn("reaction-btn-heart", isLiked && "liked")}
-            >
-              <HeartIcon 
-                className="w-5 h-5 transition-all"
-                fill={isLiked ? "currentColor" : "none"}
-                strokeWidth={isLiked ? 0 : 2}
-              />
-              <span className="text-sm">
-                {post.reactions.heart + (isLiked ? 1 : 0)}
-              </span>
-            </button>
+            {/* Action Icons - Uniform w-6 h-6, aligned on same axis */}
+            <div className="flex items-center gap-4 h-10">
+              
+              {/* Like */}
+              <button 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  setIsLiked(!isLiked);
+                  haptics.light();
+                }}
+                className="flex items-center justify-center gap-1.5 h-full"
+              >
+                <HeartIcon 
+                  className={cn(
+                    "w-6 h-6 transition-all active:scale-90",
+                    isLiked ? "text-red-500 fill-red-500" : "text-muted-foreground"
+                  )}
+                  fill={isLiked ? "currentColor" : "none"}
+                  strokeWidth={isLiked ? 0 : 2}
+                />
+                <span className="text-sm font-medium text-muted-foreground">
+                  {post.reactions.heart + (isLiked ? 1 : 0)}
+                </span>
+              </button>
 
-            <button 
-              onClick={(e) => { 
-                e.stopPropagation(); 
-                setIsBookmarked(!isBookmarked);
-                haptics.light();
-              }}
-              className={cn("cognitive-action-btn", isBookmarked && "active")}
-            >
-              <BookmarkIcon 
-                className={cn(
-                  "w-5 h-5 transition-all duration-200",
-                  isBookmarked && "fill-current scale-110"
-                )}
-              />
-            </button>
+              {/* Comments */}
+              <button 
+                onClick={(e) => { 
+                  e.stopPropagation();
+                  navigate(`/post/${post.id}`);
+                }}
+                className="flex items-center justify-center gap-1.5 h-full"
+              >
+                <MessageCircleIcon className="w-6 h-6 text-muted-foreground transition-all active:scale-90" />
+                <span className="text-sm font-medium text-muted-foreground">
+                  {post.reactions.comments}
+                </span>
+              </button>
+
+              {/* Bookmark */}
+              <button 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  setIsBookmarked(!isBookmarked);
+                  haptics.light();
+                }}
+                className="flex items-center justify-center h-full"
+              >
+                <BookmarkIcon 
+                  className={cn(
+                    "w-6 h-6 transition-all duration-200 active:scale-90",
+                    isBookmarked ? "text-primary fill-primary" : "text-muted-foreground"
+                  )}
+                  fill={isBookmarked ? "currentColor" : "none"}
+                />
+              </button>
+            </div>
           </div>
 
         </div>
