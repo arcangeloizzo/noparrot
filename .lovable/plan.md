@@ -1,61 +1,86 @@
 
-# Implementazione NavBar con FAB Centrale
 
-## Piano Confermato - Pronto per Implementazione
+# Finalizzazione UI - Action Bar Il Punto + NavBar Height
 
-Il piano è stato approvato con le seguenti specifiche aggiuntive:
+## Riepilogo
 
-### Dettagli Tecnici Finali
+Questo intervento è esclusivamente UI. Nessuna modifica alla logica di Comprehension Gate, commenti consapevoli, Trust Score, PULSE o backend.
 
-**1. Ombra FAB Centrale (morbida per profondità)**
-```css
-.liquid-glass-fab-central {
-  box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.35),    /* Ombra principale morbida */
-    0 4px 16px rgba(0, 0, 0, 0.25),    /* Ombra secondaria */
-    0 2px 8px rgba(135, 206, 250, 0.15), /* Glow azzurro sottile */
-    inset 0 1px 3px rgba(255, 255, 255, 0.2);
-}
-```
+---
 
-**2. Timing Reattivo (Composer a 300ms)**
-```typescript
-const handleFabClick = useCallback(() => {
-  haptics.medium();
-  setShowRipple(true);
-  
-  // Apertura composer a 300ms (prima che ripple finisca a 500ms)
-  setTimeout(() => {
-    onComposerClick?.();
-  }, 300);
-  
-  // Ripple completa a 500ms
-  setTimeout(() => {
-    setShowRipple(false);
-  }, 500);
-}, [onComposerClick]);
-```
+## 1. Allineamento Action Bar - ImmersiveEditorialCarousel
 
-### File da Modificare
+**File:** `src/components/feed/ImmersiveEditorialCarousel.tsx`
 
-1. **`src/components/navigation/BottomNavigation.tsx`**
-   - Riorganizzazione layout a 5 slot
-   - Rimozione tab "Saved"
-   - Aggiunta FAB centrale con stato ripple
-   - Nuova prop `onComposerClick`
+### Modifiche linee 556-629:
+- Pulsante "Condividi": da `h-10` a `h-11`, con `font-semibold` (come gli altri post)
+- Icone (Heart, MessageCircle, Bookmark): da `w-5 h-5` a `w-6 h-6`
+- Layout: da `justify-between gap-3` a `gap-6` senza justify-between
+- Rimosso container `bg-black/20 h-10 px-3 rounded-2xl border` dalle reactions
+- Font contatori: da `text-xs` a `text-sm`
 
-2. **`src/index.css`**
-   - Nuova classe `.liquid-glass-fab-central` con ombra morbida
-   - Animazione `@keyframes liquid-ripple`
-   - Classe `.fab-liquid-ripple`
+### Modifica linea 229:
+- Padding bottom: da `pb-24` a `pb-28` per compensare navbar più alta
 
-3. **`src/pages/Feed.tsx`**
-   - Rimozione `<FloatingActionButton />`
-   - Passaggio `onComposerClick={handleCreatePost}` a `<BottomNavigation />`
+---
 
-4. **`src/pages/Profile.tsx`**
-   - Aggiunta icona Bookmark nel header (a sinistra di Settings)
-   - Navigazione a `/saved` al click
+## 2. Aumento Altezza NavBar + Sporgenza FAB
 
-5. **Altre pagine con BottomNavigation**
-   - Search.tsx, Messages.tsx, Saved.tsx: aggiornamento props
+**File:** `src/components/navigation/BottomNavigation.tsx`
+
+### Modifiche linee 117-119:
+- Altezza container: da `h-14` (56px) a `h-16` (64px)
+- Aggiunta classe `pb-safe` alla nav per iOS safe area
+
+### Modifiche linee 147-160:
+- Sporgenza FAB: da `-translate-y-3` a `-translate-y-4` per mantenere l'aspetto iconico con la navbar più alta
+
+---
+
+## 3. CSS Safe Area Support
+
+**File:** `src/index.css`
+
+### Modifiche linee 607-613:
+- Aggiunto `padding-bottom: env(safe-area-inset-bottom, 0px)` alla classe `.liquid-glass-navbar`
+- Aggiunta nuova classe utility `.pb-safe`
+
+---
+
+## Dettagli Tecnici
+
+### Dimensioni Confronto
+
+| Elemento | Prima | Dopo |
+|----------|-------|------|
+| Navbar height | h-14 (56px) | h-16 (64px) + safe-area |
+| FAB sporgenza | -translate-y-3 | -translate-y-4 |
+| Share button | h-10 | h-11 |
+| Icone reazioni | w-5 h-5 | w-6 h-6 |
+| Gap action bar | gap-3 | gap-6 |
+| Content padding-bottom | pb-24 | pb-28 |
+| Font contatori | text-xs | text-sm |
+
+### Font "Condividi" - Coerenza
+
+Il pulsante "Condividi" usa `text-sm font-semibold` sia in ImmersivePostCard che in ImmersiveEditorialCarousel per coerenza assoluta tra i due tipi di contenuto.
+
+---
+
+## Vincoli Rispettati
+
+- Nessuna modifica alla logica Comprehension Gate
+- Nessuna modifica ai commenti consapevoli  
+- Nessuna modifica al Trust Score/PULSE
+- Nessuna modifica al backend
+- Posizionamento fixed della navbar non toccato
+
+---
+
+## Test Post-Implementazione
+
+1. Verificare su iPhone che la navbar non si sovrapponga alla home indicator bar
+2. Verificare che il FAB sporga in modo iconico sopra la navbar più alta
+3. Verificare che le icone e il pulsante Condividi abbiano le stesse dimensioni su Post e Il Punto
+4. Testare il contenuto scrollabile per assicurarsi che non sia nascosto dalla navbar
+
