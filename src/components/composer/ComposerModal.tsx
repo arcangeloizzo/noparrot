@@ -251,6 +251,51 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     }, 0);
   };
 
+  // Rich Text Markdown formatting
+  const applyFormatting = (format: 'bold' | 'italic' | 'underline') => {
+    if (!textareaRef.current) return;
+    
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = content.slice(start, end);
+    
+    const formatMap = {
+      bold: { prefix: '**', suffix: '**' },
+      italic: { prefix: '_', suffix: '_' },
+      underline: { prefix: '~', suffix: '~' }
+    };
+    
+    const { prefix, suffix } = formatMap[format];
+    
+    let newContent: string;
+    let newCursorPos: number;
+    
+    if (selectedText.length > 0) {
+      // Wrap selection with Markdown
+      newContent = 
+        content.slice(0, start) + 
+        prefix + selectedText + suffix + 
+        content.slice(end);
+      newCursorPos = end + prefix.length + suffix.length;
+    } else {
+      // Insert empty markers and position cursor in the middle
+      newContent = 
+        content.slice(0, start) + 
+        prefix + suffix + 
+        content.slice(end);
+      newCursorPos = start + prefix.length;
+    }
+    
+    setContent(newContent);
+    
+    // Restore focus and cursor position
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    });
+  };
+
   useEffect(() => {
     setSelectedMentionIndex(0);
   }, [mentionUsers]);
@@ -1545,6 +1590,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
               disabled={isUploading || isLoading}
               characterCount={content.length}
               maxCharacters={3000}
+              onFormat={applyFormatting}
             />
           </div>
         </div>
