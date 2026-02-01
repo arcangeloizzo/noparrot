@@ -21,6 +21,7 @@ import { addBreadcrumb, generateIdempotencyKey, setPendingPublish, clearPendingP
 import { forceUnlockBodyScroll } from "@/lib/bodyScrollLock";
 import { haptics } from "@/lib/haptics";
 import { TiptapEditor, TiptapEditorRef } from "./TiptapEditor";
+import { useVisualViewportOffset } from "@/hooks/useVisualViewportOffset";
 
 // iOS detection for stability tweaks (includes iPadOS reporting as Mac)
 const isIOS =
@@ -104,6 +105,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const [intentMode, setIntentMode] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const editorRef = useRef<TiptapEditorRef>(null);
+  
+  // iOS keyboard offset using Visual Viewport API
+  const keyboardOffset = useVisualViewportOffset(isOpen && isIOS);
   
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading, requestTranscription, refreshMediaStatus } = useMediaUpload();
 
@@ -1481,6 +1485,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
             </div>
 
             {/* Toolbar: NOT fixed - part of flex flow, keyboard pushes it up */}
+            {/* On iOS, we also apply a transform offset from visualViewport API */}
             <div className="flex-shrink-0">
               <MediaActionBar
                 onFilesSelected={handleMediaSelect}
@@ -1488,6 +1493,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                 characterCount={content.length}
                 maxCharacters={3000}
                 onFormat={applyFormatting}
+                keyboardOffset={keyboardOffset}
               />
             </div>
           </div>
