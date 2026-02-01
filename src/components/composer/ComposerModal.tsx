@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { X, Send, Sparkles } from "lucide-react";
+import { Bold, Italic, Underline, Camera, ImageIcon, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { addBreadcrumb, generateIdempotencyKey, setPendingPublish, clearPendingPublish, getPendingPublish } from "@/lib/crashBreadcrumbs";
 import { forceUnlockBodyScroll } from "@/lib/bodyScrollLock";
 import { haptics } from "@/lib/haptics";
+
 // iOS detection for stability tweaks (includes iPadOS reporting as Mac)
 const isIOS =
   typeof navigator !== 'undefined' &&
@@ -1327,292 +1328,224 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         </div>
       )}
 
-      <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0 z-50 flex flex-col">
+        {/* Backdrop - desktop only */}
         <div 
-          className="absolute inset-0 bg-black/60 backdrop-blur-md" 
+          className="hidden md:block absolute inset-0 bg-black/60" 
           onClick={onClose} 
         />
         
+        {/* Container: full-screen mobile, centered modal desktop */}
         <div 
           className={cn(
-            "relative w-full max-w-2xl max-h-[90vh] overflow-visible",
-            "bg-gradient-to-b from-[#0A0F14]/98 to-[#121A23]/95 backdrop-blur-xl",
-            "rounded-3xl",
+            "relative flex flex-col h-full w-full",
+            "md:h-auto md:max-h-[85vh] md:w-full md:max-w-xl md:mx-auto md:my-8 md:rounded-2xl",
+            "bg-zinc-950 md:bg-zinc-900",
+            "border-0 md:border md:border-zinc-800",
             "animate-scale-in"
           )}
-          style={{
-            border: '1px solid rgba(56, 189, 248, 0.15)',
-            boxShadow: '0 4px 32px rgba(0, 0, 0, 0.5)'
-          }}
         >
-          {/* Light arc following the top rounded border */}
-          <div 
-            className="absolute -top-[2px] left-4 right-4 h-[3px] pointer-events-none z-20"
-            style={{
-              background: 'linear-gradient(90deg, transparent 0%, rgba(56, 189, 248, 0.4) 15%, rgba(125, 211, 252, 0.9) 50%, rgba(56, 189, 248, 0.4) 85%, transparent 100%)',
-              filter: 'blur(1px)',
-              borderRadius: '9999px'
-            }}
-          />
-          {/* Glow layer for the light arc */}
-          <div 
-            className="absolute -top-[4px] left-8 right-8 h-[6px] pointer-events-none z-10"
-            style={{
-              background: 'linear-gradient(90deg, transparent 0%, rgba(56, 189, 248, 0.3) 20%, rgba(125, 211, 252, 0.5) 50%, rgba(56, 189, 248, 0.3) 80%, transparent 100%)',
-              filter: 'blur(4px)',
-              borderRadius: '9999px'
-            }}
-          />
-
-          {/* Urban texture overlay - GPU optimized */}
-          <div className="absolute inset-0 opacity-[0.03] pointer-events-none rounded-3xl overflow-hidden urban-noise-overlay" />
-          <div className="flex flex-col h-full relative z-10">
-            {/* Modern Header */}
-            <div className="flex items-center gap-3 p-4 border-b border-white/10">
-              <Avatar className="w-11 h-11 aspect-square ring-2 ring-primary/30 ring-offset-2 ring-offset-background">
-                <AvatarImage src={profile?.avatar_url || undefined} className="object-cover" />
-                <AvatarFallback className="bg-gradient-to-br from-primary/20 to-primary/5 text-primary font-semibold">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <h2 className="font-semibold text-foreground flex items-center gap-2">
-                  Nuovo Post
-                  <Sparkles className="w-4 h-4 text-primary animate-pulse" />
-                </h2>
-                <p className="text-xs text-muted-foreground">Condividi con la community</p>
-              </div>
+          <div className="flex flex-col h-full relative">
+            {/* Minimal Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
               <Button 
                 variant="ghost" 
-                size="icon"
+                size="sm"
                 onClick={onClose}
-                className="rounded-full hover:bg-white/10 transition-colors"
+                className="text-muted-foreground hover:text-foreground -ml-2"
               >
-                <X className="w-5 h-5" />
+                Annulla
               </Button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {/* Modern Textarea */}
-              <div className="relative">
-                <Textarea
-                  ref={textareaRef}
-                  value={content}
-                  maxLength={3000}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    const cursorPos = e.target.selectionStart;
-                    
-                    setContent(value);
-                    setCursorPosition(cursorPos);
-
-                    const textBeforeCursor = value.slice(0, cursorPos);
-                    const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
-
-                    if (mentionMatch) {
-                      setMentionQuery(mentionMatch[1]);
-                      setShowMentions(true);
-                    } else {
-                      setShowMentions(false);
-                      setMentionQuery('');
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (!showMentions || mentionUsers.length === 0) return;
-                    
-                    if (e.key === 'ArrowDown') {
-                      e.preventDefault();
-                      setSelectedMentionIndex((prev) => 
-                        (prev + 1) % mentionUsers.length
-                      );
-                    } else if (e.key === 'ArrowUp') {
-                      e.preventDefault();
-                      setSelectedMentionIndex((prev) => 
-                        (prev - 1 + mentionUsers.length) % mentionUsers.length
-                      );
-                    } else if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSelectMention(mentionUsers[selectedMentionIndex]);
-                    } else if (e.key === 'Escape') {
-                      setShowMentions(false);
-                    }
-                  }}
-                  placeholder="Scrivi cosa ne pensi o aggiungi un contesto..."
-                  className={cn(
-                    "min-h-[120px] resize-none text-[16px] leading-relaxed pb-8",
-                    "bg-white/5 border-white/10 rounded-2xl",
-                    "focus:border-primary/50 focus:ring-2 focus:ring-primary/20",
-                    "placeholder:text-muted-foreground/60",
-                    "transition-all duration-200"
-                  )}
-                  rows={4}
-                />
-
-                {/* Hint text inside textarea area - bottom left (no overlap with counter) */}
-                <div className="absolute bottom-3 left-3 right-20 flex items-center gap-1.5 text-xs text-muted-foreground/50 pointer-events-none">
-                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
-                  <span className="truncate">Le fonti e i link attivano il percorso di comprensione</span>
-                </div>
-
-                {/* Character counter - bottom right inside textarea */}
-                <div
-                  className={cn(
-                    "absolute bottom-3 right-3 text-xs pointer-events-none",
-                    content.length > 2500
-                      ? "text-[hsl(var(--warning))]"
-                      : "text-muted-foreground/50",
-                    content.length >= 3000 && "text-destructive"
-                  )}
-                >
-                  {content.length}/3000
-                </div>
-                
-                {showMentions && (
-                  <MentionDropdown
-                    users={mentionUsers}
-                    selectedIndex={selectedMentionIndex}
-                    onSelect={handleSelectMention}
-                    isLoading={isSearching}
-                    position="below"
-                  />
-                )}
-              </div>
               
-              {/* Intent Mode Indicator - word counter */}
-              {intentMode && (
-                <div className="bg-muted/30 border border-border rounded-xl p-3">
-                  <p className="text-sm text-muted-foreground mb-2">
-                    Questo contenuto non è leggibile dal sistema. Per condividerlo, aggiungi il tuo punto di vista.
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <span className={cn(
-                      "text-sm font-medium tabular-nums",
-                      intentWordCount >= 30 ? "text-[hsl(var(--success))]" : "text-muted-foreground"
-                    )}>
-                      {intentWordCount}/30 parole
-                    </span>
-                    {intentWordCount >= 30 && (
-                      <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[hsl(var(--success))] text-white text-xs">✓</span>
-                    )}
-                  </div>
-                </div>
-              )}
-              
-              {/* Gate status indicator - outside textarea (no extra helper text) */}
-              {(detectedUrl || quotedPost) && !intentMode && (
-                <div className="flex items-center justify-end text-xs">
-                  <div className={cn(
-                    "flex items-center gap-1.5 px-2 py-1 rounded-full",
-                    gateStatus.label === 'Nessun gate'
-                      ? "bg-muted/20 text-muted-foreground/60"
-                      : "bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))]"
-                  )}>
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-current" />
-                    <span className="font-medium">
-                      {gateStatus.label === 'Nessun gate' ? 'Nessun gate' : 'Comprensione richiesta'}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {/* URL Preview - Compact Modern */}
-              {urlPreview && (
-                <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5 hover:bg-white/8 transition-colors">
-                  {urlPreview.image && (
-                    <div className="aspect-[2/1] w-full overflow-hidden bg-muted/20">
-                      <img 
-                        src={urlPreview.image}
-                        alt={urlPreview.title || ''}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                  <div className="p-3">
-                    <div className="text-xs text-primary/80 font-medium mb-1">
-                      {urlPreview.domain || (urlPreview.url ? new URL(urlPreview.url).hostname : '')}
-                    </div>
-                    <div className="font-semibold text-sm line-clamp-2 text-foreground">
-                      {urlPreview.title}
-                    </div>
-                    {urlPreview.description && (
-                      <div className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                        {urlPreview.description}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Quoted Post - Editorial vs Regular */}
-              {quotedPost && (
-                quotedPost.shared_url?.startsWith('focus://') || quotedPost.author?.username === 'ilpunto' ? (
-                  <QuotedEditorialCard
-                    title={quotedPost.shared_title || quotedPost.content}
-                    variant="composer"
-                  />
-                ) : (
-                  <QuotedPostCard 
-                    quotedPost={quotedPost} 
-                    parentSources={[]} 
-                  />
-                )
-              )}
-
-              {/* Media Preview */}
-              {uploadedMedia.length > 0 && (
-                <MediaPreviewTray
-                  media={uploadedMedia}
-                  onRemove={removeMedia}
-                  onRequestTranscription={handleRequestTranscription}
-                  isTranscribing={isTranscribing}
-                />
-              )}
-
-              {/* Modern Media Action Bar */}
-              <MediaActionBar
-                onFilesSelected={handleMediaSelect}
-                disabled={isUploading || isLoading}
-              />
-              
-              {isUploading && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                  Caricamento media...
-                </div>
-              )}
-            </div>
-
-            {/* Modern Footer */}
-            <div className="p-4 border-t border-white/10 flex justify-end">
               <Button
                 onClick={handlePublish}
                 disabled={!canPublish || isLoading || isPreviewLoading}
                 className={cn(
-                  "px-6 py-2.5 rounded-full font-semibold",
-                  "bg-gradient-to-r from-primary to-primary/80",
-                  "hover:shadow-lg hover:shadow-primary/25 hover:scale-105",
-                  "active:scale-95 transition-all duration-200",
-                  "disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none"
+                  "px-5 py-1.5 h-auto rounded-full font-semibold text-sm",
+                  "bg-primary hover:bg-primary/90 text-primary-foreground",
+                  "disabled:opacity-50"
                 )}
               >
-                {isPreviewLoading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    Caricamento...
-                  </div>
-                ) : isLoading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    {isGeneratingQuiz ? "Generazione..." : "Pubblicazione..."}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <Send className="w-4 h-4" />
-                    Pubblica
-                  </div>
-                )}
+                {isPreviewLoading ? 'Caricamento...' : isLoading ? (isGeneratingQuiz ? 'Generazione...' : 'Pubblicazione...') : 'Pubblica'}
               </Button>
             </div>
+
+            {/* Scrollable Content Area */}
+            <div className="flex-1 overflow-y-auto">
+              {/* Avatar + Textarea inline (X-style) */}
+              <div className="flex gap-3 px-4 pt-4">
+                <Avatar className="w-10 h-10 flex-shrink-0">
+                  <AvatarImage src={profile?.avatar_url || undefined} className="object-cover" />
+                  <AvatarFallback className="bg-zinc-800 text-zinc-400 text-sm font-medium">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                
+                <div className="flex-1 min-w-0 relative">
+                  <Textarea
+                    ref={textareaRef}
+                    value={content}
+                    maxLength={3000}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      const cursorPos = e.target.selectionStart;
+                      
+                      setContent(value);
+                      setCursorPosition(cursorPos);
+
+                      const textBeforeCursor = value.slice(0, cursorPos);
+                      const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
+
+                      if (mentionMatch) {
+                        setMentionQuery(mentionMatch[1]);
+                        setShowMentions(true);
+                      } else {
+                        setShowMentions(false);
+                        setMentionQuery('');
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (!showMentions || mentionUsers.length === 0) return;
+                      
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setSelectedMentionIndex((prev) => 
+                          (prev + 1) % mentionUsers.length
+                        );
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setSelectedMentionIndex((prev) => 
+                          (prev - 1 + mentionUsers.length) % mentionUsers.length
+                        );
+                      } else if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSelectMention(mentionUsers[selectedMentionIndex]);
+                      } else if (e.key === 'Escape') {
+                        setShowMentions(false);
+                      }
+                    }}
+                    placeholder="Cosa sta succedendo?"
+                    className={cn(
+                      "w-full min-h-[120px] resize-none",
+                      "bg-transparent border-0 p-0",
+                      "text-[17px] leading-relaxed text-foreground",
+                      "placeholder:text-zinc-500",
+                      "focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                    )}
+                    rows={4}
+                  />
+                  
+                  {showMentions && (
+                    <MentionDropdown
+                      users={mentionUsers}
+                      selectedIndex={selectedMentionIndex}
+                      onSelect={handleSelectMention}
+                      isLoading={isSearching}
+                      position="below"
+                    />
+                  )}
+                </div>
+              </div>
+              
+              {/* Content previews area */}
+              <div className="px-4 py-3 space-y-3">
+                {/* Intent Mode Indicator - word counter */}
+                {intentMode && (
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Questo contenuto non è leggibile dal sistema. Per condividerlo, aggiungi il tuo punto di vista.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        "text-sm font-medium tabular-nums",
+                        intentWordCount >= 30 ? "text-emerald-500" : "text-muted-foreground"
+                      )}>
+                        {intentWordCount}/30 parole
+                      </span>
+                      {intentWordCount >= 30 && (
+                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white text-xs">✓</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Gate status indicator - subtle */}
+                {(detectedUrl || quotedPost || mediaWithExtractedText || quotedPostMediaWithExtractedText) && !intentMode && gateStatus.requiresGate && (
+                  <div className="flex items-center gap-1.5 text-xs text-emerald-500">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    <span>Comprensione richiesta</span>
+                  </div>
+                )}
+
+                {/* URL Preview - Minimal */}
+                {urlPreview && (
+                  <div className="border border-zinc-800 rounded-xl overflow-hidden bg-zinc-900/50">
+                    {urlPreview.image && (
+                      <div className="aspect-[2/1] w-full overflow-hidden">
+                        <img 
+                          src={urlPreview.image}
+                          alt={urlPreview.title || ''}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <div className="px-3 py-2.5">
+                      <p className="text-xs text-zinc-500 mb-0.5">
+                        {urlPreview.domain || (urlPreview.url ? (() => { try { return new URL(urlPreview.url).hostname; } catch { return ''; } })() : '')}
+                      </p>
+                      <p className="text-sm font-medium text-foreground line-clamp-2">
+                        {urlPreview.title}
+                      </p>
+                      {urlPreview.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                          {urlPreview.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Quoted Post - Editorial vs Regular */}
+                {quotedPost && (
+                  quotedPost.shared_url?.startsWith('focus://') || quotedPost.author?.username === 'ilpunto' ? (
+                    <QuotedEditorialCard
+                      title={quotedPost.shared_title || quotedPost.content}
+                      variant="composer"
+                    />
+                  ) : (
+                    <QuotedPostCard 
+                      quotedPost={quotedPost} 
+                      parentSources={[]} 
+                    />
+                  )
+                )}
+
+                {/* Media Preview */}
+                {uploadedMedia.length > 0 && (
+                  <MediaPreviewTray
+                    media={uploadedMedia}
+                    onRemove={removeMedia}
+                    onRequestTranscription={handleRequestTranscription}
+                    isTranscribing={isTranscribing}
+                  />
+                )}
+                
+                {isUploading && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    Caricamento media...
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Sticky Toolbar */}
+            <MediaActionBar
+              onFilesSelected={handleMediaSelect}
+              disabled={isUploading || isLoading}
+              characterCount={content.length}
+              maxCharacters={3000}
+            />
           </div>
         </div>
       </div>
