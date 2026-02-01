@@ -1,133 +1,193 @@
 
-# Fix: Sincronizzazione UI Reazioni e Navigazione Post-Quiz
+# Fix: Deep Link Notifiche "Like al Messaggio" (In-App + Push)
 
-## Problema 1: Incoerenza UI Like/Salva sulla rotta `/post/:id`
+## Panoramica Problema
 
-### Diagnosi
-La pagina `Post.tsx` usa la query key `['post', postId]` per caricare un singolo post. Tuttavia, l'hook `useToggleReaction` in `usePosts.ts`:
-- Aggiorna ottimisticamente solo `['posts', user.id]` e `['saved-posts', user.id]`
-- Invalida solo queste due query in `onSettled`
-- **Non tocca mai** `['post', postId]`
+Quando un utente riceve un like a un messaggio diretto e clicca sulla notifica:
+- **Attuale**: Viene portato alla lista generale `/messages`
+- **Atteso**: Viene portato alla chat specifica `/messages/:threadId?scrollTo=messageId` con il messaggio evidenziato
 
-Risultato: quando l'utente clicca Like o Salva dalla pagina `/post/:id`, l'icona non si aggiorna fino al ritorno al feed.
-
-### Soluzione
-Modificare `useToggleReaction` in `src/hooks/usePosts.ts` per:
-1. Aggiungere l'update ottimistico anche per la query `['post', postId]`
-2. Invalidare `['post', postId]` in `onSettled`
-
-```typescript
-// In onMutate - aggiungere dopo l'update di ['posts', user.id]:
-const previousPost = queryClient.getQueryData(['post', postId]);
-
-queryClient.setQueryData(['post', postId], (old: Post | undefined) => {
-  if (!old) return old;
-  const wasActive = reactionType === 'heart' 
-    ? old.user_reactions.has_hearted 
-    : old.user_reactions.has_bookmarked;
-  
-  return {
-    ...old,
-    reactions: {
-      ...old.reactions,
-      hearts: reactionType === 'heart' 
-        ? old.reactions.hearts + (wasActive ? -1 : 1)
-        : old.reactions.hearts
-    },
-    user_reactions: {
-      ...old.user_reactions,
-      has_hearted: reactionType === 'heart' ? !wasActive : old.user_reactions.has_hearted,
-      has_bookmarked: reactionType === 'bookmark' ? !wasActive : old.user_reactions.has_bookmarked
-    }
-  };
-});
-
-// In onError - aggiungere rollback:
-if (context?.previousPost) {
-  queryClient.setQueryData(['post', variables.postId], context.previousPost);
-}
-
-// In onSettled - aggiungere invalidazione:
-queryClient.invalidateQueries({ queryKey: ['post', variables.postId] });
-```
+Questo bug colpisce sia le notifiche in-app che le push notifications.
 
 ---
 
-## Problema 2: Crash "Ghost Quiz" (quiz_clea) durante Reshare da `/post/:id`
+## Analisi Tecnica
 
-### Diagnosi
-Flusso attuale quando si condivide da `/post/:id`:
-1. Quiz completato → `quiz_closed` breadcrumb → `setShowQuiz(false)`
-2. `onQuoteShare()` chiama `navigate('/', { state: { quotePost } })`
-3. Componente quiz si smonta → `quiz_cleanup_done` breadcrumb
-4. `Index.tsx` monta → `checkForRecentCrash()` eseguito
-5. I breadcrumbs contengono ancora eventi dalla sessione precedente
-6. `hasUnmatchedOpen` = false (perché `quiz_closed` è presente), MA...
-7. Il toast mostra "quiz_clea" (troncato) perché l'ultimo evento è `quiz_cleanup_done`
+### Root Cause 1: Query Notifiche Incompleta
+Il hook `useNotifications.ts` non recupera il `thread_id` tramite join con la tabella `messages`.
 
-Il problema è che la logica attuale in `Index.tsx` richiede `hasRealProblem` per mostrare il toast:
+### Root Cause 2: Navigazione Generica
+In `Notifications.tsx` (riga 239-240):
 ```typescript
-const hasRealProblem = hadStaleLock || hasPendingPublish;
-```
-
-Ma in questo caso:
-- `hadStaleLock` = false (lo scroll lock è stato rilasciato correttamente)
-- `hasPendingPublish` potrebbe essere true se il marker non è stato pulito
-
-### Causa Root
-Il marker `publish_flow_step` viene impostato durante il flusso di pubblicazione ma non viene sempre pulito correttamente quando la navigazione avviene PRIMA della pubblicazione (durante il reshare, non la pubblicazione vera).
-
-### Soluzione
-Aggiungere un marker specifico per la "navigazione legittima post-share" che segnala all'Index.tsx di ignorare i breadcrumbs del quiz:
-
-#### 1. In `Post.tsx` - Aggiungere breadcrumb prima della navigazione:
-```typescript
-onQuoteShare={(quotedPost) => {
-  addBreadcrumb('share_navigation_to_composer', { from: 'post_page' });
-  navigate('/', { state: { quotePost: quotedPost } });
-}}
-```
-
-#### 2. In `Index.tsx` - Riconoscere la navigazione legittima:
-```typescript
-// Aggiungi questo controllo prima di mostrare il toast:
-const lastEvents = breadcrumbs.slice(-3).map(b => b.event);
-const isLegitimateShareNavigation = 
-  lastEvents.includes('quiz_closed') && 
-  lastEvents.includes('share_navigation_to_composer');
-
-// Only show toast if there's a high-confidence real problem
-if (hasRealProblem && !isSystemEvent && !isLegitimateShareNavigation) {
-  toast.info(`Sessione precedente interrotta...`);
+} else if (notification.type === "message_like" && notification.message_id) {
+  navigate(`/messages`); // ❌ Generico!
 }
 ```
 
+### Root Cause 3: MessageThread Senza Scroll a Messaggio
+`MessageThread.tsx` non legge `useSearchParams` per lo `scrollTo` e non implementa lo scroll al messaggio specifico.
+
+### Root Cause 4: Notifiche Realtime Incomplete
+In `useNotifications.ts` (riga 133), la notifica browser per `message_like` non include l'URL corretto:
+```typescript
+data: { url: notif.post_id ? `/post/${notif.post_id}` : '/notifications' }
+// ❌ Non gestisce message_like con thread_id!
+```
+
+### Root Cause 5: Edge Function Push Non Ottimizzata
+L'Edge Function `send-push-notification` per le notifiche standard (`type: 'notification'`) non gestisce il caso `message_like` per generare l'URL al thread corretto.
+
 ---
 
-## Problema 3: Navigation State Non Consumato
+## Soluzione Proposta
 
-### Diagnosi Aggiuntiva
-Il `navigate('/', { state: { quotePost } })` in `Post.tsx` passa lo stato, ma `Feed.tsx` **non legge mai** `location.state`. Questo significa che quando l'utente arriva al Feed dopo il quiz, il Composer non si apre automaticamente.
+### File 1: `src/hooks/useNotifications.ts`
 
-### Soluzione
-Modificare `Feed.tsx` per leggere e consumare la navigation state:
+**Modifiche:**
+1. Aggiungere interfaccia per il messaggio con `thread_id`
+2. Modificare la query per includere il join con `messages`
+3. Aggiornare la notifica browser per `message_like`
 
 ```typescript
-import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+// Aggiungere al type Notification:
+message?: {
+  id: string;
+  thread_id: string;
+} | null;
 
-// In Feed component:
-const location = useLocation();
+// Query modificata:
+.select(`
+  ...
+  message:messages!message_id (
+    id,
+    thread_id
+  )
+`)
 
-// Effect per gestire navigation state da /post/:id
-useEffect(() => {
-  if (location.state?.quotePost) {
-    setQuotedPost(location.state.quotePost);
-    setShowComposer(true);
-    // Clear state to prevent re-triggering on refresh
-    navigate(location.pathname, { replace: true, state: {} });
+// Notifica browser per message_like (riga ~130):
+case 'message_like':
+  title = 'Like al messaggio ❤️';
+  body = 'Il tuo messaggio è piaciuto!';
+  // URL con thread_id (richiede query separata o invalidation)
+  break;
+```
+
+**Nota**: Per la notifica realtime, il payload non include dati correlati. Dovremo usare `invalidateQueries` e lasciare che la UI gestisca la navigazione.
+
+---
+
+### File 2: `src/pages/Notifications.tsx`
+
+**Modifiche:**
+1. Aggiungere tipo `message` all'interfaccia `Notification`
+2. Modificare `handleNotificationClick` per navigare al thread specifico con scroll
+
+```typescript
+// Interfaccia aggiornata (riga ~22):
+message?: {
+  id: string;
+  thread_id: string;
+} | null;
+
+// Navigazione aggiornata (riga ~239):
+} else if (notification.type === "message_like") {
+  const threadId = notification.message?.thread_id;
+  if (threadId) {
+    const scrollTo = notification.message_id ? `?scrollTo=${notification.message_id}` : "";
+    navigate(`/messages/${threadId}${scrollTo}`);
+  } else {
+    // Fallback se thread_id non disponibile
+    navigate(`/messages`);
   }
-}, [location.state, navigate, location.pathname]);
+}
 ```
+
+---
+
+### File 3: `src/pages/MessageThread.tsx`
+
+**Modifiche:**
+1. Importare `useSearchParams`
+2. Leggere il parametro `scrollTo` (message ID)
+3. Implementare scroll al messaggio specifico con highlight temporaneo
+4. Aggiungere `id` attribute ai messaggi per il targeting
+
+```typescript
+// Imports:
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+
+// Nel componente:
+const [searchParams, setSearchParams] = useSearchParams();
+const scrollToMessageId = searchParams.get('scrollTo');
+
+// Effect per scroll al messaggio:
+useEffect(() => {
+  if (!isReady || !scrollToMessageId) return;
+  
+  const messageElement = document.getElementById(`message-${scrollToMessageId}`);
+  if (messageElement) {
+    messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // Highlight temporaneo
+    messageElement.classList.add('ring-2', 'ring-primary/50', 'transition-all');
+    setTimeout(() => {
+      messageElement.classList.remove('ring-2', 'ring-primary/50');
+    }, 2000);
+    
+    // Pulisci URL
+    setSearchParams({}, { replace: true });
+  }
+}, [isReady, scrollToMessageId]);
+```
+
+---
+
+### File 4: `src/components/messages/MessageBubble.tsx`
+
+**Modifica:**
+Aggiungere `id` attribute al wrapper del messaggio per permettere il targeting.
+
+```typescript
+// Riga ~144, aggiungere id:
+<div 
+  id={`message-${message.id}`}
+  className={cn('flex gap-2 mb-4', isSent ? 'flex-row-reverse' : 'flex-row')}
+>
+```
+
+---
+
+### File 5: `supabase/functions/send-push-notification/index.ts`
+
+**Modifiche:**
+Aggiungere gestione per `notification_type: 'message_like'` nel blocco notifiche standard.
+
+```typescript
+// Dopo il blocco switch per notification_type (riga ~189), aggiungere:
+case 'message_like':
+  title = `${actorName} ha messo like al tuo messaggio`;
+  // Recuperare thread_id dal message_id
+  if (body.message_id) {
+    const { data: msg } = await supabase
+      .from('messages')
+      .select('thread_id')
+      .eq('id', body.message_id)
+      .single();
+    
+    url = msg?.thread_id 
+      ? `/messages/${msg.thread_id}?scrollTo=${body.message_id}`
+      : '/messages';
+  } else {
+    url = '/messages';
+  }
+  break;
+```
+
+---
+
+### File 6: `public/sw.js`
+
+**Nessuna modifica richiesta**: Il Service Worker già gestisce correttamente l'URL passato nel payload tramite `data.url`. Una volta che l'Edge Function genera l'URL corretto, il SW lo utilizzerà.
 
 ---
 
@@ -135,10 +195,13 @@ useEffect(() => {
 
 | File | Tipo | Descrizione |
 |------|------|-------------|
-| `src/hooks/usePosts.ts` | Modifica | Aggiungere update ottimistico e invalidazione per `['post', postId]` |
-| `src/pages/Post.tsx` | Modifica | Aggiungere breadcrumb `share_navigation_to_composer` prima di navigate |
-| `src/pages/Index.tsx` | Modifica | Riconoscere navigazione legittima post-share e non mostrare toast |
-| `src/pages/Feed.tsx` | Modifica | Leggere e consumare `location.state.quotePost` per aprire il Composer |
+| `src/hooks/useNotifications.ts` | Modifica | Aggiungere join con `messages` per recuperare `thread_id` |
+| `src/pages/Notifications.tsx` | Modifica | Navigare a `/messages/:threadId?scrollTo=messageId` |
+| `src/pages/MessageThread.tsx` | Modifica | Implementare scroll e highlight al messaggio |
+| `src/components/messages/MessageBubble.tsx` | Modifica | Aggiungere `id` attribute per targeting |
+| `supabase/functions/send-push-notification/index.ts` | Modifica | Generare URL corretto per `message_like` |
+
+**Totale: 5 file, ~50 righe di codice**
 
 ---
 
@@ -146,17 +209,17 @@ useEffect(() => {
 
 | Garanzia | Dettaglio |
 |----------|-----------|
-| CommentsDrawer intatto | Nessuna modifica ai breadcrumbs già aggiunti nel fix precedente |
 | SessionGuard intatto | Nessuna modifica alle logiche di autenticazione |
-| Quiz validation intatto | Nessuna modifica alla validazione semantica dei quiz |
-| Breadcrumb count corretto | `quiz_closed` + `quiz_cleanup_done` + `share_navigation` = 3 close events, open count = 1, no false positive |
+| Realtime DM intatto | Nessuna modifica alla sincronizzazione messaggi |
+| Scroll state preservato | Il nuovo scroll è additivo, non sostituisce la logica esistente |
+| Fallback sicuro | Se `thread_id` non disponibile, fallback a `/messages` |
 
 ---
 
 ## Test Consigliati
 
-1. **Like/Save da Notifica**: Vai su un post da notifica, clicca Like → l'icona deve aggiornarsi immediatamente
-2. **Like/Save da Saved**: Vai su un post salvato, rimuovi il salvataggio → l'icona deve aggiornarsi
-3. **Reshare da /post/:id**: Condividi un post con fonte, completa il quiz → il Composer deve aprirsi senza toast di errore
-4. **Reshare senza fonte**: Condividi un post senza fonte da /post/:id → il Composer deve aprirsi direttamente
-5. **Annulla quiz**: Annulla un quiz durante la condivisione → nessun toast di errore al ritorno al feed
+1. **Notifica In-App**: Ricevi un like a un messaggio → clicca notifica → verifica navigazione a chat corretta con messaggio evidenziato
+2. **Push iOS**: Con app chiusa, ricevi push per like messaggio → clicca → verifica apertura app su chat corretta
+3. **Push Android**: Stesso test di iOS
+4. **Fallback**: Simula notifica senza `thread_id` → verifica navigazione a `/messages`
+5. **Scroll Existing Chat**: Se già nella stessa chat, verifica che lo scroll al messaggio funzioni senza re-render completo
