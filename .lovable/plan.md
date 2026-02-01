@@ -1,134 +1,111 @@
 
-# Piano di Implementazione: Rich Text Markdown + Media Shortcuts Diretti
+# Piano di Correzione: Toolbar iOS e Semplificazione Media Actions
 
-## Stato Corrente
-Ho analizzato entrambi i file (`ComposerModal.tsx` e `MediaActionBar.tsx`) e sono pronto ad applicare le modifiche tecniche come da piano approvato.
+## Problema Identificato
 
----
+### 1. Toolbar coperta dalla tastiera (iOS Safari/PWA)
+Su Safari iOS, `position: absolute` con `100dvh` **non basta**. Il visualViewport di iOS non spinge automaticamente elementi non-fixed. L'unica soluzione affidabile è usare `visualViewport.resize` per calcolare manualmente l'offset della tastiera.
 
-## Modifiche da Applicare
-
-### 1. MediaActionBar.tsx - Refactoring Completo
-
-**Nuova prop `onFormat`:**
-```tsx
-interface MediaActionBarProps {
-  onFilesSelected: (files: File[], type: 'image' | 'video') => void;
-  disabled?: boolean;
-  maxImages?: number;
-  maxVideos?: number;
-  characterCount?: number;
-  maxCharacters?: number;
-  onFormat?: (format: 'bold' | 'italic' | 'underline') => void;  // NEW
-}
-```
-
-**Pulsanti B/I/U con haptics:**
-```tsx
-const handleFormat = (format: 'bold' | 'italic' | 'underline') => {
-  haptics.light();
-  onFormat?.(format);
-};
-
-// Collegamento ai pulsanti:
-<button onClick={() => handleFormat('bold')}>...</button>
-<button onClick={() => handleFormat('italic')}>...</button>
-<button onClick={() => handleFormat('underline')}>...</button>
-```
-
-**Tre input file separati:**
-
-| Input | Accept | Attributi | Scopo |
-|-------|--------|-----------|-------|
-| Camera | `image/*,video/*` | `capture="environment"` | Scatto diretto |
-| Gallery | `image/*,video/*` | `multiple` | Galleria foto/video |
-| Files | `*/*` | - | Documenti generici |
-
-**Handler `handleFileChange` per file generici:**
-```tsx
-const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const files = Array.from(e.target.files || []);
-  const file = files[0];
-  const type = file.type.startsWith('video/') ? 'video' : 'image';
-  
-  if (!file.type.startsWith('video/') && !file.type.startsWith('image/')) {
-    toast.info('File allegato. Verrà caricato come documento.');
-  }
-  validateAndSelect(files, type, ...);
-};
-```
+### 2. Menu nativo iOS per input file
+Quando un `<input type="file" accept="image/*,video/*">` viene attivato su iOS, il sistema **mostra sempre un action sheet nativo** ("Scatta foto", "Fotocamera", "Libreria foto") - non è controllabile dall'app. L'unica alternativa è separare gli input (solo immagini OPPURE solo video).
 
 ---
 
-### 2. ComposerModal.tsx - Funzione `applyFormatting`
+## Soluzione Proposta
 
-**Nuova funzione (dopo linea ~252, dopo `handleSelectMention`):**
+### Parte A: Tornare a Fotocamera + Dropdown (come richiesto)
+
+Come da tua richiesta, semplificheremo la MediaActionBar:
+
+- **Icona Camera**: Azione diretta → Apre fotocamera per scatto/registrazione
+- **Icona Plus (+)**: Apre un dropdown custom con opzioni:
+  - Galleria Foto
+  - Galleria Video  
+  - File/Documenti
+
+Questo elimina il menu nativo iOS perché ogni input avrà un solo tipo di accept.
+
+```text
++------------------------------------------------------------------+
+|  [B]  [I]  [U]    |    [📷 Camera]  [+ Menu]               123/3000
++------------------------------------------------------------------+
+                              ↓
+                     ┌─────────────────┐
+                     │ 🖼 Foto         │
+                     │ 🎬 Video        │
+                     │ 📎 File         │
+                     └─────────────────┘
+```
+
+### Parte B: Fix Toolbar iOS con visualViewport API
+
+Implementeremo un listener su `window.visualViewport` per calcolare dinamicamente il `bottom` della toolbar quando la tastiera è aperta:
+
 ```tsx
-const applyFormatting = (format: 'bold' | 'italic' | 'underline') => {
-  if (!textareaRef.current) return;
+// In ComposerModal.tsx
+const [keyboardOffset, setKeyboardOffset] = useState(0);
+
+useEffect(() => {
+  if (!isOpen) return;
   
-  const textarea = textareaRef.current;
-  const start = textarea.selectionStart;
-  const end = textarea.selectionEnd;
-  const selectedText = content.slice(start, end);
+  const viewport = window.visualViewport;
+  if (!viewport) return;
   
-  const formatMap = {
-    bold: { prefix: '**', suffix: '**' },
-    italic: { prefix: '_', suffix: '_' },
-    underline: { prefix: '~', suffix: '~' }
+  const handleResize = () => {
+    // Calcola quanto spazio la tastiera sta occupando
+    const offset = window.innerHeight - viewport.height;
+    setKeyboardOffset(offset > 50 ? offset : 0);
   };
   
-  const { prefix, suffix } = formatMap[format];
+  viewport.addEventListener('resize', handleResize);
+  viewport.addEventListener('scroll', handleResize);
   
-  let newContent: string;
-  let newCursorPos: number;
-  
-  if (selectedText.length > 0) {
-    // Wrap selezione con Markdown
-    newContent = 
-      content.slice(0, start) + 
-      prefix + selectedText + suffix + 
-      content.slice(end);
-    newCursorPos = end + prefix.length + suffix.length;
-  } else {
-    // Inserisci markers vuoti e posiziona cursore al centro
-    newContent = 
-      content.slice(0, start) + 
-      prefix + suffix + 
-      content.slice(end);
-    newCursorPos = start + prefix.length;
-  }
-  
-  setContent(newContent);
-  
-  // Ripristina focus e posizione cursore
-  requestAnimationFrame(() => {
-    textarea.focus();
-    textarea.setSelectionRange(newCursorPos, newCursorPos);
-  });
-};
+  return () => {
+    viewport.removeEventListener('resize', handleResize);
+    viewport.removeEventListener('scroll', handleResize);
+  };
+}, [isOpen]);
 ```
 
-**Passaggio prop a MediaActionBar (linea ~1543-1548):**
+La MediaActionBar userà questo offset per posizionarsi sopra la tastiera:
+
 ```tsx
 <MediaActionBar
-  onFilesSelected={handleMediaSelect}
-  disabled={isUploading || isLoading}
-  characterCount={content.length}
-  maxCharacters={3000}
-  onFormat={applyFormatting}  // NEW
+  style={{ transform: `translateY(-${keyboardOffset}px)` }}
+  // oppure
+  style={{ bottom: keyboardOffset }}
 />
 ```
 
 ---
 
-## Mappatura Markdown Finale
+## Dettagli Tecnici
 
-| Pulsante | Formato Markdown | Esempio Output |
-|----------|------------------|----------------|
-| **B** (Bold) | `**testo**` | `**importante**` |
-| **I** (Italic) | `_testo_` | `_enfasi_` |
-| **U** (Underline) | `~testo~` | `~sottolineato~` |
+### MediaActionBar.tsx - Modifiche
+
+1. **Rimuovere** le 3 icone separate (Camera, Image, FileText)
+2. **Aggiungere** stato `showMediaMenu` per il dropdown
+3. **Creare dropdown** con 3 opzioni (Foto, Video, File)
+4. **Mantenere** 3 input nascosti con accept specifici:
+   - `cameraInput`: `accept="image/*,video/*" capture="environment"` (scatto diretto)
+   - `photoInput`: `accept="image/*" multiple` (solo foto da galleria)
+   - `videoInput`: `accept="video/*"` (solo video da galleria)
+   - `fileInput`: `accept="*/*"` (documenti)
+
+### ComposerModal.tsx - Modifiche
+
+1. **Aggiungere** hook `useVisualViewportOffset()` per iOS keyboard detection
+2. **Modificare** layout: toolbar con `position: sticky` + `bottom: offset`
+3. **Fallback**: Se visualViewport non disponibile, usa CSS `100dvh` come backup
+
+---
+
+## File da Modificare
+
+| File | Azione |
+|------|--------|
+| `src/components/composer/MediaActionBar.tsx` | Refactoring completo con dropdown |
+| `src/components/composer/ComposerModal.tsx` | Aggiunta visualViewport listener + sticky toolbar |
 
 ---
 
@@ -136,33 +113,18 @@ const applyFormatting = (format: 'bold' | 'italic' | 'underline') => {
 
 | Funzionalità | Status |
 |--------------|--------|
-| `handlePublish` | ✅ Non modificata |
-| `loadPreview` | ✅ Non modificata |
-| URL detection regex | ✅ Non modificato |
-| Comprehension Gate | ✅ Intatto |
-| OCR/Trascrizione flow | ✅ Intatto |
-| Character counter | ✅ Include simboli Markdown |
-| Mention dropdown | ✅ Invariato |
+| Tiptap Editor | Non toccato |
+| Comprehension Gate | Non toccato |
+| Formattazione B/I/U | Mantenuta |
+| Character counter | Mantenuto |
+| OCR/Trascrizione | Non toccato |
+| Menzioni floating | Non toccate |
 
 ---
 
-## Struttura Toolbar Finale
+## Risultato Atteso
 
-```text
-+------------------------------------------------------------------+
-|  [B]  [I]  [U]    |    [📷 Camera]  [🖼 Galleria]  [📎 File]  123/3000
-+------------------------------------------------------------------+
-```
-
----
-
-## Test Consigliati Post-Implementazione
-
-1. **Formattazione Bold**: Selezionare testo → premere B → verificare `**testo**`
-2. **Formattazione Italic senza selezione**: Premere I → verificare `__` con cursore al centro
-3. **Conteggio caratteri**: Verificare che includa i simboli Markdown
-4. **Camera su mobile**: Verificare apertura diretta fotocamera
-5. **Galleria**: Verificare apertura picker con foto E video
-6. **Plus (File)**: Verificare apertura file picker generico
-7. **Gate URL**: Incollare URL → verificare che il Comprehension Gate funzioni
-8. **Mention**: Digitare `@utente` → verificare dropdown
+1. Su iOS Safari/PWA: la toolbar sale sopra la tastiera
+2. Click su Camera: apre direttamente la fotocamera (nessun menu)
+3. Click su Plus: apre un dropdown app-styled con 3 opzioni chiare
+4. Ogni opzione del dropdown apre direttamente il picker corretto (nessun menu nativo intermedio)
