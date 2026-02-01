@@ -17,6 +17,8 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { LOGO_BASE, EDITORIAL } from '@/config/brand';
+import { ReactionPicker, type ReactionType, reactionToEmoji } from '@/components/ui/reaction-picker';
+import { useLongPress } from '@/hooks/useLongPress';
 
 interface CommentItemProps {
   comment: Comment;
@@ -47,7 +49,9 @@ export const CommentItem = ({
   const [showMenu, setShowMenu] = useState(false);
   const longPressTimer = useRef<NodeJS.Timeout>();
 
-  const handleLike = () => {
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+
+  const handleLike = (reactionType: ReactionType = 'heart') => {
     setIsLiking(true);
     haptics.light();
     onLike(comment.id, reactions?.likedByMe || false);
@@ -66,6 +70,12 @@ export const CommentItem = ({
       clearTimeout(longPressTimer.current);
     }
   };
+
+  // Long press handlers for like button
+  const likeButtonHandlers = useLongPress({
+    onLongPress: () => setShowReactionPicker(true),
+    onTap: () => handleLike('heart'),
+  });
 
   const copyLink = () => {
     const url = `${window.location.origin}/post/${comment.post_id}?focus=${comment.id}`;
@@ -214,25 +224,41 @@ export const CommentItem = ({
 
             {/* Footer: Actions */}
             <div className="flex items-center gap-1">
-              {/* Like button */}
-              <button
-                onClick={handleLike}
-                className={cn(
-                  "flex items-center gap-1.5 py-1.5 px-2.5 rounded-full transition-all duration-200",
-                  "hover:bg-red-500/10",
-                  reactions?.likedByMe && "text-red-400",
-                  isLiking && "scale-110"
-                )}
-                aria-label={reactions?.likedByMe ? "Rimuovi mi piace" : "Metti mi piace"}
-              >
-                <Heart className={cn(
-                  "w-4 h-4 transition-all",
-                  reactions?.likedByMe && "fill-current"
-                )} />
-                {reactions?.likesCount && reactions.likesCount > 0 && (
-                  <span className="text-xs font-medium">{reactions.likesCount}</span>
-                )}
-              </button>
+              {/* Like button with long press for reaction picker */}
+              <div className="relative">
+                <button
+                  {...likeButtonHandlers}
+                  className={cn(
+                    "flex items-center gap-1.5 py-1.5 px-2.5 rounded-full transition-all duration-200",
+                    "hover:bg-red-500/10",
+                    reactions?.likedByMe && "text-red-400",
+                    isLiking && "scale-110"
+                  )}
+                  aria-label={reactions?.likedByMe ? "Rimuovi mi piace" : "Metti mi piace"}
+                >
+                  {reactions?.myReactionType && reactions.myReactionType !== 'heart' ? (
+                    <span className="text-base">{reactionToEmoji(reactions.myReactionType)}</span>
+                  ) : (
+                    <Heart className={cn(
+                      "w-4 h-4 transition-all",
+                      reactions?.likedByMe && "fill-current"
+                    )} />
+                  )}
+                  {reactions?.likesCount && reactions.likesCount > 0 && (
+                    <span className="text-xs font-medium">{reactions.likesCount}</span>
+                  )}
+                </button>
+                
+                <ReactionPicker
+                  isOpen={showReactionPicker}
+                  onClose={() => setShowReactionPicker(false)}
+                  onSelect={(type) => {
+                    handleLike(type);
+                    setShowReactionPicker(false);
+                  }}
+                  currentReaction={reactions?.myReactionType}
+                />
+              </div>
 
               {/* Reply button */}
               <button
