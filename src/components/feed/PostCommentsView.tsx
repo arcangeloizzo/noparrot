@@ -13,6 +13,10 @@ import { cn, getDisplayUsername } from '@/lib/utils';
 import { MediaGallery } from '@/components/media/MediaGallery';
 import { CommentReplySheet } from './CommentReplySheet';
 import { Comment } from '@/hooks/useComments';
+import { useLongPress } from '@/hooks/useLongPress';
+import { ReactionPicker, type ReactionType, reactionToEmoji } from '@/components/ui/reaction-picker';
+import { ReactionSummary, getReactionCounts } from '@/components/feed/ReactionSummary';
+import { haptics } from '@/lib/haptics';
 
 interface PostCommentsViewProps {
   post: Post;
@@ -264,28 +268,25 @@ interface CommentItemProps {
 const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar, depth }: CommentItemProps) => {
   const { data: reactions } = useCommentReactions(comment.id);
   const toggleReaction = useToggleCommentReaction();
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
 
-  const handleLike = () => {
+  const handleLike = (reactionType: ReactionType = 'heart') => {
+    haptics.light();
     toggleReaction.mutate({
       commentId: comment.id,
-      isLiked: reactions?.likedByMe || false
+      isLiked: reactions?.likedByMe || false,
+      reactionType
     });
   };
+
+  const likeHandlers = useLongPress({
+    onLongPress: () => setShowReactionPicker(true),
+    onTap: () => handleLike('heart'),
+  });
 
   // ALWAYS use comment.level from database, ignore depth prop
   const actualDepth = comment.level;
   const indentAmount = actualDepth > 0 ? actualDepth * 40 : 0;
-  
-  console.log('🔍 [CommentItem RENDER]', {
-    content: comment.content.substring(0, 20),
-    level_from_db: comment.level,
-    depth_prop: depth,
-    actualDepth,
-    indentAmount,
-    paddingLeft: 16 + indentAmount,
-    willShowLine: actualDepth > 0,
-    parent_id: comment.parent_id
-  });
 
   return (
     <div 
@@ -326,9 +327,22 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar,
             </span>
           </div>
           
-          <div className="text-sm mb-2">
+          <div className="text-sm mb-1">
             <MentionText content={comment.content} />
           </div>
+
+          {/* Reaction Summary for multiple reaction types */}
+          {reactions && reactions.likesCount > 0 && 
+           Object.keys(reactions.byType || {}).length > 1 && (
+            <div className="mb-2">
+              <ReactionSummary
+                reactions={getReactionCounts(reactions.byType)}
+                totalCount={reactions.likesCount}
+                showCount={false}
+                className="text-xs"
+              />
+            </div>
+          )}
           
           {comment.media && comment.media.length > 0 && (
             <div className="mb-2">
@@ -339,18 +353,33 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar,
           )}
           
           <div className="flex items-center gap-2 text-muted-foreground">
-            <button
-              onClick={handleLike}
-              className={cn(
-                "flex items-center gap-1.5 py-1.5 px-2 -ml-2 rounded hover:bg-muted hover:text-destructive transition-colors",
-                reactions?.likedByMe && "text-destructive"
-              )}
-            >
-              <Heart className={cn("w-4 h-4", reactions?.likedByMe && "fill-current")} />
-              {reactions?.likesCount && reactions.likesCount > 0 && (
-                <span className="text-xs">{reactions.likesCount}</span>
-              )}
-            </button>
+            <div className="relative">
+              <button
+                {...likeHandlers}
+                className={cn(
+                  "flex items-center gap-1.5 py-1.5 px-2 -ml-2 rounded hover:bg-muted hover:text-destructive transition-colors active:scale-90",
+                  reactions?.likedByMe && "text-destructive"
+                )}
+              >
+                {reactions?.myReactionType && reactions.myReactionType !== 'heart' ? (
+                  <span className="text-base">{reactionToEmoji(reactions.myReactionType)}</span>
+                ) : (
+                  <Heart className={cn("w-4 h-4", reactions?.likedByMe && "fill-destructive text-destructive")} />
+                )}
+                {reactions?.likesCount && reactions.likesCount > 0 && (
+                  <span className="text-xs">{reactions.likesCount}</span>
+                )}
+              </button>
+              <ReactionPicker
+                isOpen={showReactionPicker}
+                onClose={() => setShowReactionPicker(false)}
+                onSelect={(type) => {
+                  handleLike(type);
+                  setShowReactionPicker(false);
+                }}
+                currentReaction={reactions?.myReactionType}
+              />
+            </div>
             
             <button
               onClick={onReply}
