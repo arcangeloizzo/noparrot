@@ -141,7 +141,7 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
   };
 
   return (
-    <div className={cn('flex gap-2 mb-4', isSent ? 'flex-row-reverse' : 'flex-row')}>
+    <div id={`message-${message.id}`} className={cn('flex gap-2 mb-4 rounded-lg', isSent ? 'flex-row-reverse' : 'flex-row')}>
       {/* Avatar solo per messaggi ricevuti */}
       {!isSent && (
         <Avatar className="h-7 w-7 flex-shrink-0 mt-1">

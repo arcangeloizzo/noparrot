@@ -1,6 +1,6 @@
 import { useEffect, useRef, useMemo, useLayoutEffect, useState, useCallback } from "react";
 import { ArrowLeft } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageBubble } from "@/components/messages/MessageBubble";
@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils";
 export default function MessageThread() {
   const { threadId } = useParams<{ threadId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const scrollToMessageId = searchParams.get('scrollTo');
   const { user, loading } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -296,6 +298,30 @@ export default function MessageThread() {
       markAsRead.mutate(threadId);
     }
   }, [threadId]);
+
+  // Scroll to specific message from notification deep link
+  useEffect(() => {
+    if (!isReady || !scrollToMessageId || !messages?.length) return;
+    
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(() => {
+      const messageElement = document.getElementById(`message-${scrollToMessageId}`);
+      if (messageElement) {
+        messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Temporary highlight with ring
+        messageElement.classList.add('ring-2', 'ring-primary/50', 'transition-all', 'duration-300');
+        setTimeout(() => {
+          messageElement.classList.remove('ring-2', 'ring-primary/50');
+        }, 2000);
+        
+        // Clear URL param to prevent re-triggering
+        setSearchParams({}, { replace: true });
+      }
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [isReady, scrollToMessageId, messages?.length, setSearchParams]);
 
   if (!threadId) {
     navigate('/messages');
