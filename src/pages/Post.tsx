@@ -6,6 +6,7 @@ import { Post as PostType } from '@/hooks/usePosts';
 import { useAuth } from '@/contexts/AuthContext';
 import { ImmersivePostCard } from '@/components/feed/ImmersivePostCard';
 import { useEffect } from 'react';
+import { addBreadcrumb } from '@/lib/crashBreadcrumbs';
 
 export const Post = () => {
   const { postId } = useParams<{ postId: string }>();
@@ -153,6 +154,8 @@ export const Post = () => {
           initialOpenComments={!!scrollToCommentId}
           scrollToCommentId={scrollToCommentId || undefined}
           onQuoteShare={(quotedPost) => {
+            // Signal legitimate navigation for crash detection to ignore quiz cleanup
+            addBreadcrumb('share_navigation_to_composer', { from: 'post_page' });
             navigate('/', { state: { quotePost: quotedPost } });
           }}
         />
