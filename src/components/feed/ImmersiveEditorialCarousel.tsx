@@ -557,28 +557,28 @@ const EditorialSlideInner = ({
             </button>
 
             {/* Action Bar - Aligned with ImmersivePostCard */}
-            <div className="flex items-center gap-6">
-              {/* Primary Share Button */}
+            <div className="flex items-center justify-between gap-6 mr-12 sm:mr-16">
+              {/* Primary Share Button - Pill shape with consistent height */}
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
                   onShare?.();
                 }}
-                className="h-11 px-5 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                className="h-11 px-5 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-full shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
               >
-                <Logo variant="icon" size="sm" className="h-4 w-4" />
+                <Logo variant="icon" size="sm" className="h-5 w-5" />
                 <span className="text-sm font-semibold leading-none">Condividi</span>
                 {(item.reactions?.shares ?? 0) > 0 && (
                   <span className="text-xs opacity-70">({item.reactions?.shares})</span>
                 )}
               </button>
 
-              {/* Reactions - Flat layout matching ImmersivePostCard */}
-              <div className="flex items-center gap-4">
+              {/* Action Icons - Uniform w-6 h-6, aligned on same axis */}
+              <div className="flex items-center gap-4 h-11">
                 
                 {/* Like */}
                 <button 
-                  className="flex items-center gap-1.5"
+                  className="flex items-center justify-center gap-1.5 h-full"
                   onClick={(e) => {
                     e.stopPropagation();
                     haptics.light();
@@ -599,7 +599,7 @@ const EditorialSlideInner = ({
 
                 {/* Comments */}
                 <button 
-                  className="flex items-center gap-1.5"
+                  className="flex items-center justify-center gap-1.5 h-full"
                   onClick={(e) => {
                     e.stopPropagation();
                     haptics.light();
@@ -614,7 +614,7 @@ const EditorialSlideInner = ({
 
                 {/* Bookmark */}
                 <button 
-                  className="flex items-center justify-center"
+                  className="flex items-center justify-center h-full"
                   onClick={(e) => {
                     e.stopPropagation();
                     haptics.light();

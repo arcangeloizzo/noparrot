@@ -71,6 +71,8 @@ import { useReshareContextStack } from "@/hooks/useReshareContextStack";
 import { useOriginalSource } from "@/hooks/useOriginalSource";
 import { haptics } from "@/lib/haptics";
 import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
+import { useLongPress } from "@/hooks/useLongPress";
+import { ReactionPicker, type ReactionType } from "@/components/ui/reaction-picker";
 
 // Deep lookup imperativo per risolvere la fonte originale al click (indipendente da React Query)
 const resolveOriginalSourceOnDemand = async (quotedPostId: string | null): Promise<{
@@ -454,11 +456,21 @@ const ImmersivePostCardInner = ({
   // Use cached trust score for reshares, or calculated for original posts
   const displayTrustScore = cachedTrustScore || calculatedTrustScore;
 
-  const handleHeart = (e?: React.MouseEvent) => {
+  // Reaction picker state
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+
+  const handleHeart = (e?: React.MouseEvent, reactionType: ReactionType | 'heart' = 'heart') => {
     e?.stopPropagation();
     haptics.light();
-    toggleReaction.mutate({ postId: post.id, reactionType: 'heart' });
+    // For like reactions, always use 'heart' as the base type for posts
+    toggleReaction.mutate({ postId: post.id, reactionType: reactionType as any });
   };
+
+  // Long press handlers for like button
+  const likeButtonHandlers = useLongPress({
+    onLongPress: () => setShowReactionPicker(true),
+    onTap: () => handleHeart(undefined, 'heart'),
+  });
 
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
   
@@ -1996,17 +2008,29 @@ const ImmersivePostCardInner = ({
             {/* Action Icons - Uniform w-6 h-6, aligned on same axis */}
             <div className="flex items-center gap-4 h-11">
               
-              {/* Like */}
-              <button 
-                className="flex items-center justify-center gap-1.5 h-full"
-                onClick={(e) => { e.stopPropagation(); handleHeart(e); }}
-              >
-                <Heart 
-                  className={cn("w-6 h-6 transition-transform active:scale-90", post.user_reactions.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
-                  fill={post.user_reactions.has_hearted ? "currentColor" : "none"}
+              {/* Like with long press for reaction picker */}
+              <div className="relative flex items-center justify-center gap-1.5 h-full">
+                <button 
+                  className="flex items-center justify-center gap-1.5 h-full"
+                  {...likeButtonHandlers}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Heart 
+                    className={cn("w-6 h-6 transition-transform active:scale-90", post.user_reactions.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
+                    fill={post.user_reactions.has_hearted ? "currentColor" : "none"}
+                  />
+                  <span className="text-sm font-bold text-white">{post.reactions.hearts}</span>
+                </button>
+                
+                <ReactionPicker
+                  isOpen={showReactionPicker}
+                  onClose={() => setShowReactionPicker(false)}
+                  onSelect={(type) => {
+                    handleHeart(undefined, type);
+                    setShowReactionPicker(false);
+                  }}
                 />
-                <span className="text-sm font-bold text-white">{post.reactions.hearts}</span>
-              </button>
+              </div>
 
               {/* Comments */}
               <button 

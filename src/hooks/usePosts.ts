@@ -202,12 +202,14 @@ export const usePosts = () => {
   });
 };
 
+export type PostReactionType = 'heart' | 'bookmark' | 'laugh' | 'wow' | 'sad' | 'fire';
+
 export const useToggleReaction = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ postId, reactionType }: { postId: string; reactionType: 'heart' | 'bookmark' }) => {
+    mutationFn: async ({ postId, reactionType }: { postId: string; reactionType: PostReactionType }) => {
       if (!user) throw new Error('Not authenticated');
 
       const { data: existing } = await supabase

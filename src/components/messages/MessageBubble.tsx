@@ -15,6 +15,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useLongPress } from "@/hooks/useLongPress";
+import { ReactionPicker, type ReactionType, reactionToEmoji } from "@/components/ui/reaction-picker";
 
 const getHostnameFromUrl = (url: string): string => {
   try {
@@ -34,6 +36,7 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
   const isSent = message.sender_id === user?.id;
   const [articlePreview, setArticlePreview] = useState<any>(null);
   const [showActions, setShowActions] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
 
   const bubbleRef = useRef<HTMLDivElement>(null);
 
@@ -116,6 +119,13 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
 
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
 
+  // Long press handlers for double-tap area
+  const messageLongPressHandlers = useLongPress({
+    onLongPress: () => setShowReactionPicker(true),
+    onTap: () => {}, // Single tap does nothing, double tap handled separately
+    disableHaptic: true, // Haptic handled by long press itself
+  });
+
   // Double tap toggles like (add or remove)
   const { handleTap } = useDoubleTap({
     onDoubleTap: () => {
@@ -175,15 +185,17 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
                 className="w-auto p-1.5 bg-popover/95 backdrop-blur-xl border-border"
               >
                 <div className="flex gap-1">
-                  <button
-                    onClick={(e) => handleLike(e)}
-                    className={cn(
-                      'p-2 hover:bg-accent rounded-lg transition-colors',
-                      isLiked && 'text-destructive'
-                    )}
-                  >
-                    <Heart className={cn('w-4 h-4', isLiked && 'fill-current')} />
-                  </button>
+                  <div className="relative">
+                    <button
+                      onClick={(e) => handleLike(e)}
+                      className={cn(
+                        'p-2 hover:bg-accent rounded-lg transition-colors',
+                        isLiked && 'text-destructive'
+                      )}
+                    >
+                      <Heart className={cn('w-4 h-4', isLiked && 'fill-current')} />
+                    </button>
+                  </div>
                   <button
                     onClick={handleDeleteForMe}
                     className="p-2 hover:bg-accent rounded-lg transition-colors text-muted-foreground"
@@ -206,6 +218,7 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
           <div className="relative">
             <div
               ref={bubbleRef}
+              {...messageLongPressHandlers}
               onPointerUp={(e) => {
                 e.preventDefault();
                 handleDoubleTap();
@@ -217,6 +230,16 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
                   : 'bg-secondary text-secondary-foreground rounded-bl-sm'
               )}
             >
+              {/* Reaction Picker for long press */}
+              <ReactionPicker
+                isOpen={showReactionPicker}
+                onClose={() => setShowReactionPicker(false)}
+                onSelect={(type) => {
+                  toggleLike('add');
+                  setShowReactionPicker(false);
+                }}
+                className="left-1/2 bottom-full mb-2"
+              />
               {/* Heart animation on double tap */}
               {showHeartAnimation && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
