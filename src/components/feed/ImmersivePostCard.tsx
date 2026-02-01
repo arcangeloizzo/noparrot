@@ -2024,7 +2024,7 @@ const ImmersivePostCardInner = ({
                     className={cn("w-6 h-6 transition-transform active:scale-90", post.user_reactions.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
                     fill={post.user_reactions.has_hearted ? "currentColor" : "none"}
                   />
-                  <span className="text-sm font-bold text-white">{post.reactions.hearts}</span>
+                  <span className="text-sm font-bold text-white">{post.reactions?.hearts || 0}</span>
                 </button>
                 
                 <ReactionPicker
@@ -2038,10 +2038,10 @@ const ImmersivePostCardInner = ({
               </div>
               
               {/* Reaction Summary - Shows top 3 emojis with count */}
-              {Object.keys(post.reactions.byType).length > 0 && (
+              {post.reactions?.byType && Object.keys(post.reactions.byType).length > 0 && (
                 <ReactionSummary
                   reactions={getReactionCounts(post.reactions.byType)}
-                  totalCount={Object.values(post.reactions.byType).reduce((a, b) => a + b, 0)}
+                  totalCount={Object.values(post.reactions.byType || {}).reduce((a, b) => a + b, 0)}
                   onClick={() => setShowReactionsSheet(true)}
                 />
               )}
@@ -2052,7 +2052,7 @@ const ImmersivePostCardInner = ({
                 onClick={(e) => { e.stopPropagation(); haptics.light(); setShowComments(true); }}
               >
                 <MessageCircle className="w-6 h-6 text-white transition-transform active:scale-90" />
-                <span className="text-sm font-bold text-white">{post.reactions.comments}</span>
+                <span className="text-sm font-bold text-white">{post.reactions?.comments || 0}</span>
               </button>
 
               {/* Bookmark */}
