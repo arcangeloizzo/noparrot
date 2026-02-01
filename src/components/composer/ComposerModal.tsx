@@ -1321,23 +1321,21 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         />
         
         {/* Container: full-screen mobile, centered modal desktop */}
+        {/* Uses 100dvh (Dynamic Viewport Height) which resizes with virtual keyboard */}
         <div 
           className={cn(
-            "relative flex flex-col h-full w-full",
+            "relative flex flex-col w-full",
+            // Mobile: full dynamic viewport height, keyboard will resize this
+            "h-[100dvh]",
+            // Desktop: centered modal with max height
             "md:h-auto md:max-h-[85vh] md:w-full md:max-w-xl md:mx-auto md:my-8 md:rounded-2xl",
             "bg-zinc-950 md:bg-zinc-900",
             "border-0 md:border md:border-zinc-800",
             "animate-scale-in"
           )}
         >
-          <div 
-            className="flex flex-col h-full relative"
-            style={{
-              // On iOS 16+ with interactive-widget=resizes-content, viewport adjusts to keyboard
-              // Add padding-bottom for toolbar height + safe area
-              paddingBottom: 'calc(52px + env(safe-area-inset-bottom, 0px))'
-            }}
-          >
+          {/* Inner flex container - toolbar will be pushed up by keyboard */}
+          <div className="flex flex-col h-full">
             {/* Minimal Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
               <Button 
@@ -1478,22 +1476,16 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
               </div>
             </div>
 
-          </div>
-          
-          {/* Fixed Toolbar - stays above keyboard on mobile */}
-          <div 
-            className="fixed left-0 right-0 md:relative md:bottom-auto z-[51]"
-            style={{
-              bottom: 'env(safe-area-inset-bottom, 0px)'
-            }}
-          >
-            <MediaActionBar
-              onFilesSelected={handleMediaSelect}
-              disabled={isUploading || isLoading}
-              characterCount={content.length}
-              maxCharacters={3000}
-              onFormat={applyFormatting}
-            />
+            {/* Toolbar: NOT fixed - part of flex flow, keyboard pushes it up */}
+            <div className="flex-shrink-0">
+              <MediaActionBar
+                onFilesSelected={handleMediaSelect}
+                disabled={isUploading || isLoading}
+                characterCount={content.length}
+                maxCharacters={3000}
+                onFormat={applyFormatting}
+              />
+            </div>
           </div>
         </div>
       </div>
