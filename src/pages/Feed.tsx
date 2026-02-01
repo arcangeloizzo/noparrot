@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { ImmersiveFeedContainer, ImmersiveFeedContainerRef } from "@/components/feed/ImmersiveFeedContainer";
 import { ImmersivePostCard } from "@/components/feed/ImmersivePostCard";
 import { ImmersiveEditorialCarousel } from "@/components/feed/ImmersiveEditorialCarousel";
@@ -38,6 +38,7 @@ const getOptimizedImageUrl = (src: string | undefined): string | undefined => {
 export const Feed = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: dbPosts = [], isLoading, refetch } = usePosts();
   const queryClient = useQueryClient();
@@ -159,6 +160,16 @@ export const Feed = () => {
   const [selectedFocus, setSelectedFocus] = useState<any>(null);
   const [focusCommentsOpen, setFocusCommentsOpen] = useState(false);
   const [selectedFocusForComments, setSelectedFocusForComments] = useState<any>(null);
+
+  // Handle navigation state from /post/:id reshare flow
+  useEffect(() => {
+    if (location.state?.quotePost) {
+      setQuotedPost(location.state.quotePost);
+      setShowComposer(true);
+      // Clear state to prevent re-triggering on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
 
   // Build mixed feed: Daily Focus Carousel + User Posts
   const mixedFeed = useMemo(() => {

@@ -256,10 +256,12 @@ export const useToggleReaction = () => {
       // 1. Cancel in-flight queries to avoid race conditions
       await queryClient.cancelQueries({ queryKey: ['posts'] });
       await queryClient.cancelQueries({ queryKey: ['saved-posts'] });
+      await queryClient.cancelQueries({ queryKey: ['post', postId] });
       
       // 2. Snapshot previous state for rollback
       const previousPosts = queryClient.getQueryData(['posts', user.id]);
       const previousSaved = queryClient.getQueryData(['saved-posts', user.id]);
+      const previousPost = queryClient.getQueryData(['post', postId]);
       
       // 3. Optimistically update cache immediately
       queryClient.setQueryData(['posts', user.id], (old: Post[] | undefined) => {
@@ -305,24 +307,51 @@ export const useToggleReaction = () => {
         });
       }
       
+      // Also update single post query (for /post/:id route)
+      queryClient.setQueryData(['post', postId], (old: Post | undefined) => {
+        if (!old) return old;
+        const wasActive = reactionType === 'heart' 
+          ? old.user_reactions.has_hearted 
+          : old.user_reactions.has_bookmarked;
+        
+        return {
+          ...old,
+          reactions: {
+            ...old.reactions,
+            hearts: reactionType === 'heart' 
+              ? old.reactions.hearts + (wasActive ? -1 : 1)
+              : old.reactions.hearts
+          },
+          user_reactions: {
+            ...old.user_reactions,
+            has_hearted: reactionType === 'heart' ? !wasActive : old.user_reactions.has_hearted,
+            has_bookmarked: reactionType === 'bookmark' ? !wasActive : old.user_reactions.has_bookmarked
+          }
+        };
+      });
+      
       // 4. Return context for rollback
-      return { previousPosts, previousSaved };
+      return { previousPosts, previousSaved, previousPost };
     },
     
     // Rollback on error
-    onError: (_err, _variables, context) => {
+    onError: (_err, variables, context) => {
       if (context?.previousPosts) {
         queryClient.setQueryData(['posts', user?.id], context.previousPosts);
       }
       if (context?.previousSaved) {
         queryClient.setQueryData(['saved-posts', user?.id], context.previousSaved);
       }
+      if (context?.previousPost) {
+        queryClient.setQueryData(['post', variables.postId], context.previousPost);
+      }
     },
     
     // Background sync for consistency (no blocking)
-    onSettled: () => {
+    onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['saved-posts'] });
+      queryClient.invalidateQueries({ queryKey: ['post', variables.postId] });
     }
   });
 };

@@ -60,8 +60,15 @@ const Index = () => {
                                 localStorage.getItem('publish_flow_step') === 'quiz_passed';
       const hasRealProblem = hadStaleLock || hasPendingPublish;
       
-      // Only show toast if there's a high-confidence real problem
-      if (hasRealProblem && !isSystemEvent) {
+      // Detect legitimate share navigation (quiz completed + navigation to composer)
+      // This prevents false positives when resharing from /post/:id
+      const lastEvents = breadcrumbs.slice(-5).map(b => b.event);
+      const isLegitimateShareNavigation = 
+        lastEvents.includes('quiz_closed') && 
+        lastEvents.includes('share_navigation_to_composer');
+      
+      // Only show toast if there's a high-confidence real problem AND it's not a legitimate navigation
+      if (hasRealProblem && !isSystemEvent && !isLegitimateShareNavigation) {
         toast.info(`Sessione precedente interrotta. Ultimo evento: ${lastEvent}.`, { duration: 5000 });
       }
       // Log last 5 breadcrumbs for diagnostics (always, for debugging)
