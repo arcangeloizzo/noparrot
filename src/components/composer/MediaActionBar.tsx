@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Camera, ImageIcon, Video } from 'lucide-react';
+import { Camera, ImageIcon, Plus, Bold, Italic, Underline } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -9,45 +9,17 @@ interface MediaActionBarProps {
   disabled?: boolean;
   maxImages?: number;
   maxVideos?: number;
+  characterCount?: number;
+  maxCharacters?: number;
 }
-
-interface MediaPillProps {
-  icon: React.ElementType;
-  label: string;
-  onClick: () => void;
-  gradient: string;
-  iconColor: string;
-  disabled?: boolean;
-}
-
-const MediaPill = ({ icon: Icon, label, onClick, gradient, iconColor, disabled }: MediaPillProps) => (
-  <button
-    type="button"
-    onClick={() => {
-      haptics.light();
-      onClick();
-    }}
-    disabled={disabled}
-    className={cn(
-      "flex items-center gap-2 px-4 py-2.5 rounded-full",
-      "transition-all duration-200 ease-out",
-      "bg-gradient-to-r backdrop-blur-sm",
-      gradient,
-      "hover:scale-105 hover:shadow-lg active:scale-95",
-      "border border-white/10",
-      "disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
-    )}
-  >
-    <Icon className={cn("w-4 h-4", iconColor)} />
-    <span className="text-sm font-medium text-foreground">{label}</span>
-  </button>
-);
 
 export const MediaActionBar = ({ 
   onFilesSelected, 
   disabled = false,
   maxImages = 4,
-  maxVideos = 1
+  maxVideos = 1,
+  characterCount = 0,
+  maxCharacters = 3000
 }: MediaActionBarProps) => {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -86,42 +58,101 @@ export const MediaActionBar = ({
 
   const handleCameraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    validateAndSelect(files, 'image', 1);
+    // Camera can capture either photo or video
+    const type = files[0]?.type.startsWith('video/') ? 'video' : 'image';
+    validateAndSelect(files, type, 1);
     if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
+  const iconButtonClass = cn(
+    "p-2 rounded-full transition-colors",
+    "text-zinc-500 hover:text-primary hover:bg-zinc-800/50",
+    "disabled:opacity-40 disabled:cursor-not-allowed"
+  );
+
   return (
-    <div className="flex items-center gap-2 p-3 bg-gradient-to-r from-muted/40 via-muted/20 to-muted/40 rounded-2xl backdrop-blur-sm border border-white/5">
-      <MediaPill
-        icon={Camera}
-        label="Scatta"
-        onClick={() => cameraInputRef.current?.click()}
-        gradient="from-blue-500/20 to-cyan-400/20"
-        iconColor="text-blue-400"
-        disabled={disabled}
-      />
-      <MediaPill
-        icon={ImageIcon}
-        label="Foto"
-        onClick={() => imageInputRef.current?.click()}
-        gradient="from-purple-500/20 to-pink-400/20"
-        iconColor="text-purple-400"
-        disabled={disabled}
-      />
-      <MediaPill
-        icon={Video}
-        label="Video"
-        onClick={() => videoInputRef.current?.click()}
-        gradient="from-rose-500/20 to-orange-400/20"
-        iconColor="text-rose-400"
-        disabled={disabled}
-      />
+    <div className="sticky bottom-0 bg-zinc-950 border-t border-zinc-800 px-4 py-2.5 flex items-center justify-between">
+      {/* Left: Rich Text placeholders (no logic) */}
+      <div className="flex items-center gap-0.5">
+        <button
+          type="button"
+          className={iconButtonClass}
+          aria-label="Grassetto"
+        >
+          <Bold className="w-5 h-5" strokeWidth={1.5} />
+        </button>
+        <button
+          type="button"
+          className={iconButtonClass}
+          aria-label="Corsivo"
+        >
+          <Italic className="w-5 h-5" strokeWidth={1.5} />
+        </button>
+        <button
+          type="button"
+          className={iconButtonClass}
+          aria-label="Sottolineato"
+        >
+          <Underline className="w-5 h-5" strokeWidth={1.5} />
+        </button>
+      </div>
+
+      {/* Right: Media Group + Counter */}
+      <div className="flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={() => {
+            haptics.light();
+            cameraInputRef.current?.click();
+          }}
+          disabled={disabled}
+          className={iconButtonClass}
+          aria-label="Scatta foto/video"
+        >
+          <Camera className="w-5 h-5" strokeWidth={1.5} />
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            haptics.light();
+            imageInputRef.current?.click();
+          }}
+          disabled={disabled}
+          className={iconButtonClass}
+          aria-label="Galleria immagini"
+        >
+          <ImageIcon className="w-5 h-5" strokeWidth={1.5} />
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            haptics.light();
+            videoInputRef.current?.click();
+          }}
+          disabled={disabled}
+          className={iconButtonClass}
+          aria-label="Allegati"
+        >
+          <Plus className="w-5 h-5" strokeWidth={1.5} />
+        </button>
+
+        {/* Character counter */}
+        {characterCount > 0 && (
+          <span className={cn(
+            "text-xs tabular-nums ml-3",
+            characterCount > 2500 ? "text-amber-500" : "text-zinc-600",
+            characterCount >= maxCharacters && "text-destructive"
+          )}>
+            {characterCount}/{maxCharacters}
+          </span>
+        )}
+      </div>
 
       {/* Hidden inputs */}
       <input
         ref={cameraInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,video/*"
         capture="environment"
         onChange={handleCameraChange}
         className="hidden"
