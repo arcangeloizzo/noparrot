@@ -28,6 +28,10 @@ export interface Notification {
     id: string;
     content: string;
   } | null;
+  message?: {
+    id: string;
+    thread_id: string;
+  } | null;
 }
 
 export const useNotifications = () => {
@@ -65,6 +69,10 @@ export const useNotifications = () => {
           comment:comments!comment_id (
             id,
             content
+          ),
+          message:messages!message_id (
+            id,
+            thread_id
           )
         `)
         .eq('user_id', user.id)
@@ -127,10 +135,20 @@ export const useNotifications = () => {
                 break;
             }
             
+            // Determine URL based on notification type
+            let url = '/notifications';
+            if (notif.type === 'message_like' && notif.message_id) {
+              // Will be populated after query refetch - just use notifications for now
+              // The full deep link will come from the push notification
+              url = '/notifications';
+            } else if (notif.post_id) {
+              url = `/post/${notif.post_id}`;
+            }
+            
             sendNotification(title, {
               body,
               tag: notif.type,
-              data: { url: notif.post_id ? `/post/${notif.post_id}` : '/notifications' }
+              data: { url }
             });
           }
         }

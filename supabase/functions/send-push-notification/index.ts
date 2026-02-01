@@ -209,11 +209,28 @@ serve(async (req) => {
           break;
         case 'follow':
           title = `${actorName} ha iniziato a seguirti`;
-          url = `/user/${body.actor_id}`;
+          url = `/profile/${body.actor_id}`;
           break;
         case 'reshare':
           title = `${actorName} ha condiviso il tuo post`;
           url = body.post_id ? `/post/${body.post_id}` : '/notifications';
+          break;
+        case 'message_like':
+          title = `${actorName} ha messo like al tuo messaggio`;
+          // Fetch thread_id from message
+          if (body.message_id) {
+            const { data: msg } = await supabase
+              .from('messages')
+              .select('thread_id')
+              .eq('id', body.message_id)
+              .single();
+            
+            url = msg?.thread_id 
+              ? `/messages/${msg.thread_id}?scrollTo=${body.message_id}`
+              : '/messages';
+          } else {
+            url = '/messages';
+          }
           break;
         default:
           title = `${actorName} ha interagito con te`;

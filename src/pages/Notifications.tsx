@@ -40,6 +40,10 @@ interface Notification {
   comment?: {
     content: string;
   } | null;
+  message?: {
+    id: string;
+    thread_id: string;
+  } | null;
 }
 
 // Icona per tipo notifica (Lucide, minimal, desaturate)
@@ -236,8 +240,15 @@ export const Notifications = () => {
       navigate(`/profile/${notification.actor_id}`);
     } else if (notification.type === "follow" && notification.actor_id) {
       navigate(`/profile/${notification.actor_id}`);
-    } else if (notification.type === "message_like" && notification.message_id) {
-      navigate(`/messages`);
+    } else if (notification.type === "message_like") {
+      const threadId = notification.message?.thread_id;
+      if (threadId) {
+        const scrollTo = notification.message_id ? `?scrollTo=${notification.message_id}` : "";
+        navigate(`/messages/${threadId}${scrollTo}`);
+      } else {
+        // Fallback if thread_id not available
+        navigate(`/messages`);
+      }
     } else if (notification.post_id) {
       const scrollTo = notification.comment_id ? `?scrollTo=${notification.comment_id}` : "";
       navigate(`/post/${notification.post_id}${scrollTo}`);
