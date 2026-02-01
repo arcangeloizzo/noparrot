@@ -79,7 +79,13 @@ export const Post = () => {
         media: mediaItems,
         reactions: {
           hearts: data.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
-          comments: data.comments?.[0]?.count || 0
+          comments: data.comments?.[0]?.count || 0,
+          byType: (data.reactions || []).reduce((acc: Record<string, number>, r: any) => {
+            if (r.reaction_type && r.reaction_type !== 'bookmark') {
+              acc[r.reaction_type] = (acc[r.reaction_type] || 0) + 1;
+            }
+            return acc;
+          }, {} as Record<string, number>),
         },
         user_reactions: {
           has_hearted: data.reactions?.some((r: any) => r.reaction_type === 'heart' && r.user_id === user?.id) || false,
