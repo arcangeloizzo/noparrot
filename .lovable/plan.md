@@ -1,207 +1,272 @@
 
-# Fix: Deep Link Notifiche "Like al Messaggio" (In-App + Push)
+# Implementazione: Extended Reactions + Optimistic UI + Layout Alignment
 
-## Panoramica Problema
+## Panoramica
 
-Quando un utente riceve un like a un messaggio diretto e clicca sulla notifica:
-- **Attuale**: Viene portato alla lista generale `/messages`
-- **Atteso**: Viene portato alla chat specifica `/messages/:threadId?scrollTo=messageId` con il messaggio evidenziato
-
-Questo bug colpisce sia le notifiche in-app che le push notifications.
+Questo piano implementa tre miglioramenti interconnessi:
+1. **Reactions Estese (Long Press)** - Menu emoji multiple per Post, Commenti e Messaggi
+2. **Optimistic UI** - Feedback istantaneo per reazioni Commenti e Messaggi
+3. **Allineamento Layout "Il Punto"** - Correzione posizionamento icone azioni
 
 ---
 
-## Analisi Tecnica
+## Architettura Tecnica
 
-### Root Cause 1: Query Notifiche Incompleta
-Il hook `useNotifications.ts` non recupera il `thread_id` tramite join con la tabella `messages`.
+### Struttura Database Esistente
 
-### Root Cause 2: Navigazione Generica
-In `Notifications.tsx` (riga 239-240):
+Le tabelle delle reazioni sono già predisposte per tipi multipli:
+- `reactions` (Post): `reaction_type TEXT` (nessun default)
+- `comment_reactions`: `reaction_type TEXT DEFAULT 'heart'`
+- `message_reactions`: `reaction_type TEXT DEFAULT 'like'`
+- `focus_reactions`: `reaction_type TEXT` (nessun default)
+- `media_reactions`: `reaction_type TEXT DEFAULT 'heart'`
+
+Nessuna migrazione richiesta - le colonne supportano già valori multipli.
+
+### Emoji Supportate
+
 ```typescript
-} else if (notification.type === "message_like" && notification.message_id) {
-  navigate(`/messages`); // ❌ Generico!
+const REACTIONS_PALETTE = ['heart', 'laugh', 'wow', 'sad', 'fire'] as const;
+// UI: ❤️ 😂 😮 😢 🔥
+```
+
+---
+
+## Task 1: Reactions Estese (Long Press)
+
+### 1.1 Nuovo Hook `useLongPress.ts`
+
+Creare un hook riutilizzabile per gestire long press cross-platform:
+
+```typescript
+// src/hooks/useLongPress.ts
+interface UseLongPressOptions {
+  onLongPress: () => void;
+  onTap?: () => void;
+  threshold?: number; // ms, default 500
 }
+
+export const useLongPress = ({ onLongPress, onTap, threshold = 500 }: UseLongPressOptions) => {
+  const timerRef = useRef<NodeJS.Timeout>();
+  const isLongPressRef = useRef(false);
+
+  const handlers = {
+    onTouchStart: () => {
+      isLongPressRef.current = false;
+      timerRef.current = setTimeout(() => {
+        isLongPressRef.current = true;
+        haptics.medium();
+        onLongPress();
+      }, threshold);
+    },
+    onTouchEnd: () => {
+      clearTimeout(timerRef.current);
+      if (!isLongPressRef.current && onTap) {
+        onTap();
+      }
+    },
+    onTouchCancel: () => clearTimeout(timerRef.current),
+    onMouseDown: /* same logic */,
+    onMouseUp: /* same logic */,
+    onMouseLeave: () => clearTimeout(timerRef.current),
+  };
+
+  return handlers;
+};
 ```
 
-### Root Cause 3: MessageThread Senza Scroll a Messaggio
-`MessageThread.tsx` non legge `useSearchParams` per lo `scrollTo` e non implementa lo scroll al messaggio specifico.
+### 1.2 Componente `ReactionPicker.tsx`
 
-### Root Cause 4: Notifiche Realtime Incomplete
-In `useNotifications.ts` (riga 133), la notifica browser per `message_like` non include l'URL corretto:
-```typescript
-data: { url: notif.post_id ? `/post/${notif.post_id}` : '/notifications' }
-// ❌ Non gestisce message_like con thread_id!
-```
-
-### Root Cause 5: Edge Function Push Non Ottimizzata
-L'Edge Function `send-push-notification` per le notifiche standard (`type: 'notification'`) non gestisce il caso `message_like` per generare l'URL al thread corretto.
-
----
-
-## Soluzione Proposta
-
-### File 1: `src/hooks/useNotifications.ts`
-
-**Modifiche:**
-1. Aggiungere interfaccia per il messaggio con `thread_id`
-2. Modificare la query per includere il join con `messages`
-3. Aggiornare la notifica browser per `message_like`
+Creare un componente popover animato per la selezione emoji:
 
 ```typescript
-// Aggiungere al type Notification:
-message?: {
-  id: string;
-  thread_id: string;
-} | null;
-
-// Query modificata:
-.select(`
-  ...
-  message:messages!message_id (
-    id,
-    thread_id
-  )
-`)
-
-// Notifica browser per message_like (riga ~130):
-case 'message_like':
-  title = 'Like al messaggio ❤️';
-  body = 'Il tuo messaggio è piaciuto!';
-  // URL con thread_id (richiede query separata o invalidation)
-  break;
-```
-
-**Nota**: Per la notifica realtime, il payload non include dati correlati. Dovremo usare `invalidateQueries` e lasciare che la UI gestisca la navigazione.
-
----
-
-### File 2: `src/pages/Notifications.tsx`
-
-**Modifiche:**
-1. Aggiungere tipo `message` all'interfaccia `Notification`
-2. Modificare `handleNotificationClick` per navigare al thread specifico con scroll
-
-```typescript
-// Interfaccia aggiornata (riga ~22):
-message?: {
-  id: string;
-  thread_id: string;
-} | null;
-
-// Navigazione aggiornata (riga ~239):
-} else if (notification.type === "message_like") {
-  const threadId = notification.message?.thread_id;
-  if (threadId) {
-    const scrollTo = notification.message_id ? `?scrollTo=${notification.message_id}` : "";
-    navigate(`/messages/${threadId}${scrollTo}`);
-  } else {
-    // Fallback se thread_id non disponibile
-    navigate(`/messages`);
-  }
+// src/components/ui/reaction-picker.tsx
+interface ReactionPickerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSelect: (reactionType: ReactionType) => void;
+  currentReaction?: ReactionType | null;
+  position?: { x: number; y: number };
 }
+
+// Design: Pill orizzontale con emoji animate (scale-in staggered)
+// Stile: bg-popover/95 backdrop-blur-xl rounded-full shadow-2xl
+// Animazione: data-[state=open]:animate-scale-in
 ```
+
+### 1.3 Integrazione nei Componenti
+
+#### ImmersivePostCard.tsx
+
+```typescript
+// Bottone Like con long press
+const [showReactionPicker, setShowReactionPicker] = useState(false);
+const [reactionPickerPosition, setReactionPickerPosition] = useState({ x: 0, y: 0 });
+
+const likeHandlers = useLongPress({
+  onLongPress: () => setShowReactionPicker(true),
+  onTap: () => handleHeart(), // Like rapido (heart default)
+});
+
+// Render:
+<button {...likeHandlers}>
+  <Heart className={...} />
+</button>
+<ReactionPicker 
+  isOpen={showReactionPicker}
+  onSelect={(type) => toggleReaction({ postId, reactionType: type })}
+  onClose={() => setShowReactionPicker(false)}
+/>
+```
+
+#### CommentItem.tsx
+
+Stessa logica applicata al bottone like dei commenti.
+
+#### MessageBubble.tsx
+
+- Applicare long press handler al cuore nel popover azioni
+- **FIX COLORE**: Cambiare `text-destructive` (rosso) al posto del blu per il cuore selezionato
+- Attuale: `isLiked && 'text-destructive'` (già corretto nel codice!)
+- Verificare che il cuore nella pill sotto la bolla usi rosso: già usa `text-destructive fill-destructive`
 
 ---
 
-### File 3: `src/pages/MessageThread.tsx`
+## Task 2: Optimistic UI per Commenti e Messaggi
 
-**Modifiche:**
-1. Importare `useSearchParams`
-2. Leggere il parametro `scrollTo` (message ID)
-3. Implementare scroll al messaggio specifico con highlight temporaneo
-4. Aggiungere `id` attribute ai messaggi per il targeting
+### 2.1 Refactor `useCommentReactions.ts`
+
+Attualmente manca l'optimistic UI. Aggiungere:
 
 ```typescript
-// Imports:
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
-
-// Nel componente:
-const [searchParams, setSearchParams] = useSearchParams();
-const scrollToMessageId = searchParams.get('scrollTo');
-
-// Effect per scroll al messaggio:
-useEffect(() => {
-  if (!isReady || !scrollToMessageId) return;
+export const useToggleCommentReaction = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   
-  const messageElement = document.getElementById(`message-${scrollToMessageId}`);
-  if (messageElement) {
-    messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  return useMutation({
+    mutationFn: async ({ commentId, isLiked, reactionType = 'heart' }) => {
+      // ... existing logic
+    },
     
-    // Highlight temporaneo
-    messageElement.classList.add('ring-2', 'ring-primary/50', 'transition-all');
-    setTimeout(() => {
-      messageElement.classList.remove('ring-2', 'ring-primary/50');
-    }, 2000);
+    // ===== OPTIMISTIC UI =====
+    onMutate: async ({ commentId, isLiked }) => {
+      await queryClient.cancelQueries({ queryKey: ['comment-reactions', commentId] });
+      
+      const previous = queryClient.getQueryData<{likesCount: number, likedByMe: boolean}>(
+        ['comment-reactions', commentId]
+      );
+      
+      queryClient.setQueryData(['comment-reactions', commentId], {
+        likesCount: (previous?.likesCount || 0) + (isLiked ? -1 : 1),
+        likedByMe: !isLiked,
+      });
+      
+      return { previous };
+    },
     
-    // Pulisci URL
-    setSearchParams({}, { replace: true });
-  }
-}, [isReady, scrollToMessageId]);
+    onError: (err, variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['comment-reactions', variables.commentId], context.previous);
+      }
+      haptics.warning();
+      toast.error('Errore nel like al commento');
+    },
+    
+    onSettled: (_, __, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['comment-reactions', variables.commentId] });
+    },
+  });
+};
+```
+
+### 2.2 Verifica `useMessageReactions.ts`
+
+Già implementa optimistic UI (righe 176-202). Nessuna modifica necessaria oltre all'estensione per emoji multiple.
+
+---
+
+## Task 3: Allineamento Layout "Il Punto"
+
+### 3.1 Problema Attuale
+
+In `ImmersiveEditorialCarousel.tsx` (riga 559-631), l'action bar è strutturata così:
+
+```tsx
+<div className="flex items-center gap-6">
+  <button>Condividi</button>
+  <div className="flex items-center gap-4">
+    {/* Like, Comments, Bookmark */}
+  </div>
+</div>
+```
+
+Questo layout NON è allineato con `ImmersivePostCard.tsx` (riga 1977-2031):
+
+```tsx
+<div className="flex items-center justify-between gap-6 mr-12 sm:mr-16">
+```
+
+### 3.2 Soluzione
+
+Modificare `ImmersiveEditorialCarousel.tsx` per usare lo stesso layout:
+
+```tsx
+// Prima (riga 559):
+<div className="flex items-center gap-6">
+
+// Dopo:
+<div className="flex items-center justify-between gap-6 mr-12 sm:mr-16">
+```
+
+E modificare il wrapper delle icone (riga 577):
+
+```tsx
+// Prima:
+<div className="flex items-center gap-4">
+
+// Dopo:
+<div className="flex items-center gap-4 h-11">
 ```
 
 ---
 
-### File 4: `src/components/messages/MessageBubble.tsx`
-
-**Modifica:**
-Aggiungere `id` attribute al wrapper del messaggio per permettere il targeting.
-
-```typescript
-// Riga ~144, aggiungere id:
-<div 
-  id={`message-${message.id}`}
-  className={cn('flex gap-2 mb-4', isSent ? 'flex-row-reverse' : 'flex-row')}
->
-```
-
----
-
-### File 5: `supabase/functions/send-push-notification/index.ts`
-
-**Modifiche:**
-Aggiungere gestione per `notification_type: 'message_like'` nel blocco notifiche standard.
-
-```typescript
-// Dopo il blocco switch per notification_type (riga ~189), aggiungere:
-case 'message_like':
-  title = `${actorName} ha messo like al tuo messaggio`;
-  // Recuperare thread_id dal message_id
-  if (body.message_id) {
-    const { data: msg } = await supabase
-      .from('messages')
-      .select('thread_id')
-      .eq('id', body.message_id)
-      .single();
-    
-    url = msg?.thread_id 
-      ? `/messages/${msg.thread_id}?scrollTo=${body.message_id}`
-      : '/messages';
-  } else {
-    url = '/messages';
-  }
-  break;
-```
-
----
-
-### File 6: `public/sw.js`
-
-**Nessuna modifica richiesta**: Il Service Worker già gestisce correttamente l'URL passato nel payload tramite `data.url`. Una volta che l'Edge Function genera l'URL corretto, il SW lo utilizzerà.
-
----
-
-## Riepilogo Modifiche
+## Riepilogo File da Modificare
 
 | File | Tipo | Descrizione |
 |------|------|-------------|
-| `src/hooks/useNotifications.ts` | Modifica | Aggiungere join con `messages` per recuperare `thread_id` |
-| `src/pages/Notifications.tsx` | Modifica | Navigare a `/messages/:threadId?scrollTo=messageId` |
-| `src/pages/MessageThread.tsx` | Modifica | Implementare scroll e highlight al messaggio |
-| `src/components/messages/MessageBubble.tsx` | Modifica | Aggiungere `id` attribute per targeting |
-| `supabase/functions/send-push-notification/index.ts` | Modifica | Generare URL corretto per `message_like` |
+| `src/hooks/useLongPress.ts` | Nuovo | Hook per long press cross-platform |
+| `src/components/ui/reaction-picker.tsx` | Nuovo | Componente picker emoji animato |
+| `src/hooks/useCommentReactions.ts` | Modifica | Aggiungere optimistic UI |
+| `src/hooks/useMessageReactions.ts` | Modifica | Estendere per supportare emoji multiple |
+| `src/hooks/usePosts.ts` | Modifica | Estendere per supportare emoji multiple |
+| `src/components/feed/ImmersivePostCard.tsx` | Modifica | Integrare long press + reaction picker |
+| `src/components/feed/ImmersiveEditorialCarousel.tsx` | Modifica | Allineare layout + long press |
+| `src/components/feed/CommentItem.tsx` | Modifica | Long press + reaction picker |
+| `src/components/messages/MessageBubble.tsx` | Modifica | Long press + emoji picker |
 
-**Totale: 5 file, ~50 righe di codice**
+---
+
+## Schema Visivo UI
+
+```text
+┌────────────────────────────────────────┐
+│  Tap breve sul cuore                    │
+│  └─> Toggle Like (heart) immediato      │
+│                                          │
+│  Long press (500ms) sul cuore           │
+│  └─> Mostra picker:                      │
+│      ┌─────────────────────────────┐    │
+│      │  ❤️   😂   😮   😢   🔥     │    │
+│      │  ↑                           │    │
+│      │  Reazione attuale evidenziata│    │
+│      └─────────────────────────────┘    │
+│                                          │
+│  Tap su emoji nel picker                │
+│  └─> Sostituisce reazione corrente      │
+│  └─> Aggiornamento ottimistico UI       │
+│  └─> Haptic feedback                    │
+└────────────────────────────────────────┘
+```
 
 ---
 
@@ -209,17 +274,31 @@ case 'message_like':
 
 | Garanzia | Dettaglio |
 |----------|-----------|
-| SessionGuard intatto | Nessuna modifica alle logiche di autenticazione |
-| Realtime DM intatto | Nessuna modifica alla sincronizzazione messaggi |
-| Scroll state preservato | Il nuovo scroll è additivo, non sostituisce la logica esistente |
-| Fallback sicuro | Se `thread_id` non disponibile, fallback a `/messages` |
+| Deep Linking notifiche | Nessuna modifica a `/post/:id` navigation o `scrollTo` logic |
+| SessionGuard intatto | Nessuna modifica a breadcrumbs o crash detection |
+| Realtime DM | Subscription in `useMessageReactions` non modificata |
+| Quiz gate | Nessuna modifica a runGateBeforeAction o QuizModal |
+| Colori coerenti | Rosso per cuori ovunque (feed, commenti, messaggi) |
+
+---
+
+## Ordine di Implementazione
+
+1. **useLongPress.ts** - Hook base
+2. **reaction-picker.tsx** - Componente UI
+3. **useCommentReactions.ts** - Optimistic UI
+4. **ImmersiveEditorialCarousel.tsx** - Layout fix (low risk)
+5. **ImmersivePostCard.tsx** - Long press integration
+6. **CommentItem.tsx** - Long press integration
+7. **MessageBubble.tsx** - Long press + colore fix
 
 ---
 
 ## Test Consigliati
 
-1. **Notifica In-App**: Ricevi un like a un messaggio → clicca notifica → verifica navigazione a chat corretta con messaggio evidenziato
-2. **Push iOS**: Con app chiusa, ricevi push per like messaggio → clicca → verifica apertura app su chat corretta
-3. **Push Android**: Stesso test di iOS
-4. **Fallback**: Simula notifica senza `thread_id` → verifica navigazione a `/messages`
-5. **Scroll Existing Chat**: Se già nella stessa chat, verifica che lo scroll al messaggio funzioni senza re-render completo
+1. **Tap rapido Like**: Verifica toggle istantaneo senza delay percepibile
+2. **Long press (500ms)**: Verifica apertura picker con haptic feedback
+3. **Selezione emoji**: Verifica cambio reazione e aggiornamento UI
+4. **Offline/Errore**: Verifica rollback ottimistico con toast errore
+5. **Allineamento Il Punto**: Verifica icone allineate verticalmente con post standard
+6. **Colore cuore messaggi**: Verifica rosso (non blu) per reazione attiva
