@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Camera, ImageIcon, Plus, Bold, Italic, Underline } from 'lucide-react';
+import { Camera, ImageIcon, FileText, Bold, Italic, Underline } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -110,7 +110,12 @@ export const MediaActionBar = ({
   );
 
   return (
-    <div className="sticky bottom-0 bg-zinc-950 border-t border-zinc-800 px-4 py-2.5 flex items-center justify-between">
+    <div 
+      className="bg-zinc-950 border-t border-zinc-800 px-4 py-2.5 flex items-center justify-between"
+      style={{ 
+        paddingBottom: 'max(env(safe-area-inset-bottom, 10px), 10px)'
+      }}
+    >
       {/* Left: Rich Text formatting */}
       <div className="flex items-center gap-0.5">
         <button
@@ -155,7 +160,7 @@ export const MediaActionBar = ({
           <Camera className="w-5 h-5" strokeWidth={1.5} />
         </button>
         
-        {/* Gallery: photo/video picker */}
+        {/* Gallery: photo/video picker - direct to gallery */}
         <button
           type="button"
           onClick={() => {
@@ -169,7 +174,7 @@ export const MediaActionBar = ({
           <ImageIcon className="w-5 h-5" strokeWidth={1.5} />
         </button>
         
-        {/* Files: generic file picker */}
+        {/* Files: generic file picker - direct to files */}
         <button
           type="button"
           onClick={() => {
@@ -180,7 +185,7 @@ export const MediaActionBar = ({
           className={iconButtonClass}
           aria-label="Scegli file"
         >
-          <Plus className="w-5 h-5" strokeWidth={1.5} />
+          <FileText className="w-5 h-5" strokeWidth={1.5} />
         </button>
 
         {/* Character counter */}
@@ -207,7 +212,7 @@ export const MediaActionBar = ({
         className="hidden"
       />
       
-      {/* Gallery: photo/video picker with multiple support */}
+      {/* Gallery: photo/video picker with multiple support - NO capture to open gallery */}
       <input
         ref={galleryInputRef}
         type="file"

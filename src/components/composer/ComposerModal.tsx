@@ -1330,7 +1330,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
             "animate-scale-in"
           )}
         >
-          <div className="flex flex-col h-full relative">
+          <div 
+            className="flex flex-col h-full relative"
+            style={{
+              // On iOS 16+ with interactive-widget=resizes-content, viewport adjusts to keyboard
+              // Add padding-bottom for toolbar height + safe area
+              paddingBottom: 'calc(52px + env(safe-area-inset-bottom, 0px))'
+            }}
+          >
             {/* Minimal Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
               <Button 
@@ -1471,7 +1478,15 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
               </div>
             </div>
 
-            {/* Sticky Toolbar */}
+          </div>
+          
+          {/* Fixed Toolbar - stays above keyboard on mobile */}
+          <div 
+            className="fixed left-0 right-0 md:relative md:bottom-auto z-[51]"
+            style={{
+              bottom: 'env(safe-area-inset-bottom, 0px)'
+            }}
+          >
             <MediaActionBar
               onFilesSelected={handleMediaSelect}
               disabled={isUploading || isLoading}
