@@ -9,6 +9,7 @@ interface CommentReactionData {
   likesCount: number;
   likedByMe: boolean;
   myReactionType?: ReactionType | null;
+  byType: Record<ReactionType, number>;
 }
 
 export const useCommentReactions = (commentId: string) => {
@@ -28,10 +29,18 @@ export const useCommentReactions = (commentId: string) => {
       const myReaction = data?.find(r => r.user_id === user?.id);
       const likedByMe = !!myReaction;
       
+      // Aggregate reactions by type
+      const byType: Record<ReactionType, number> = {} as Record<ReactionType, number>;
+      data?.forEach(r => {
+        const type = r.reaction_type as ReactionType;
+        byType[type] = (byType[type] || 0) + 1;
+      });
+      
       return { 
         likesCount, 
         likedByMe,
-        myReactionType: myReaction?.reaction_type as ReactionType | undefined
+        myReactionType: myReaction?.reaction_type as ReactionType | undefined,
+        byType
       };
     },
     enabled: !!commentId
@@ -87,11 +96,24 @@ export const useToggleCommentReaction = () => {
         ['comment-reactions', commentId]
       );
       
-      // Optimistically update cache
+      // Optimistically update cache including byType
+      const newByType = { ...(previous?.byType || {}) } as Record<ReactionType, number>;
+      if (isLiked) {
+        // Removing reaction
+        const prevType = previous?.myReactionType || 'heart';
+        if (newByType[prevType]) {
+          newByType[prevType] = Math.max(0, newByType[prevType] - 1);
+        }
+      } else {
+        // Adding reaction
+        newByType[reactionType] = (newByType[reactionType] || 0) + 1;
+      }
+      
       queryClient.setQueryData<CommentReactionData>(['comment-reactions', commentId], {
         likesCount: (previous?.likesCount || 0) + (isLiked ? -1 : 1),
         likedByMe: !isLiked,
         myReactionType: isLiked ? null : reactionType,
+        byType: newByType,
       });
       
       return { previous };

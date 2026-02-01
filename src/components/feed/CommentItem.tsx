@@ -19,6 +19,7 @@ import {
 import { LOGO_BASE, EDITORIAL } from '@/config/brand';
 import { ReactionPicker, type ReactionType, reactionToEmoji } from '@/components/ui/reaction-picker';
 import { useLongPress } from '@/hooks/useLongPress';
+import { ReactionSummary, getReactionCounts } from '@/components/feed/ReactionSummary';
 
 interface CommentItemProps {
   comment: Comment;
@@ -208,9 +209,22 @@ export const CommentItem = ({
             </div>
 
             {/* Body: Comment text */}
-            <div className="text-sm leading-relaxed text-foreground/90 mb-2">
+            <div className="text-sm leading-relaxed text-foreground/90 mb-1">
               <MentionText content={comment.content} />
             </div>
+
+            {/* Reaction Summary for multiple reaction types */}
+            {reactions && reactions.likesCount > 0 && 
+             Object.keys(reactions.byType || {}).length > 1 && (
+              <div className="mb-2">
+                <ReactionSummary
+                  reactions={getReactionCounts(reactions.byType)}
+                  totalCount={reactions.likesCount}
+                  showCount={false}
+                  className="text-xs"
+                />
+              </div>
+            )}
 
             {/* Media */}
             {comment.media && comment.media.length > 0 && (
@@ -230,8 +244,8 @@ export const CommentItem = ({
                   {...likeButtonHandlers}
                   className={cn(
                     "flex items-center gap-1.5 py-1.5 px-2.5 rounded-full transition-all duration-200",
-                    "hover:bg-red-500/10",
-                    reactions?.likedByMe && "text-red-400",
+                    "hover:bg-destructive/10",
+                    reactions?.likedByMe && "text-destructive",
                     isLiking && "scale-110"
                   )}
                   aria-label={reactions?.likedByMe ? "Rimuovi mi piace" : "Metti mi piace"}
@@ -241,7 +255,7 @@ export const CommentItem = ({
                   ) : (
                     <Heart className={cn(
                       "w-4 h-4 transition-all",
-                      reactions?.likedByMe && "fill-current"
+                      reactions?.likedByMe && "fill-destructive text-destructive"
                     )} />
                   )}
                   {reactions?.likesCount && reactions.likesCount > 0 && (

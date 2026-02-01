@@ -31,6 +31,10 @@ import { LOGO_BASE } from '@/config/brand';
 import { getWordCount, getTestModeWithSource } from '@/lib/gate-utils';
 import { generateQA, fetchArticlePreview } from '@/lib/ai-helpers';
 import { addBreadcrumb } from '@/lib/crashBreadcrumbs';
+import { useLongPress } from '@/hooks/useLongPress';
+import { ReactionPicker, type ReactionType, reactionToEmoji } from '@/components/ui/reaction-picker';
+import { ReactionSummary, getReactionCounts } from '@/components/feed/ReactionSummary';
+import { haptics } from '@/lib/haptics';
 
 interface CommentsDrawerProps {
   post: Post;
@@ -920,13 +924,21 @@ interface CommentItemProps {
 const CommentItem = ({ comment, currentUserId, onReply, onLike, onDelete, onMediaClick, getUserAvatar, postHasSource }: CommentItemProps) => {
   const { data: reactions } = useCommentReactions(comment.id);
   const toggleReaction = useToggleCommentReaction();
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
 
-  const handleLike = () => {
+  const handleLike = (reactionType: ReactionType = 'heart') => {
+    haptics.light();
     toggleReaction.mutate({
       commentId: comment.id,
-      isLiked: reactions?.likedByMe || false
+      isLiked: reactions?.likedByMe || false,
+      reactionType
     });
   };
+
+  const likeHandlers = useLongPress({
+    onLongPress: () => setShowReactionPicker(true),
+    onTap: () => handleLike('heart'),
+  });
 
   return (
     <div 
@@ -960,9 +972,22 @@ const CommentItem = ({ comment, currentUserId, onReply, onLike, onDelete, onMedi
             )}
           </div>
 
-          <div className="text-sm text-foreground/90 mb-2 leading-relaxed">
+          <div className="text-sm text-foreground/90 mb-1 leading-relaxed">
             <MentionText content={comment.content} />
           </div>
+
+          {/* Reaction Summary for multiple reaction types */}
+          {reactions && reactions.likesCount > 0 && 
+           Object.keys(reactions.byType || {}).length > 1 && (
+            <div className="mb-2">
+              <ReactionSummary
+                reactions={getReactionCounts(reactions.byType)}
+                totalCount={reactions.likesCount}
+                showCount={false}
+                className="text-xs"
+              />
+            </div>
+          )}
 
           {comment.media && comment.media.length > 0 && (
             <div className="mb-2">
@@ -974,18 +999,33 @@ const CommentItem = ({ comment, currentUserId, onReply, onLike, onDelete, onMedi
           )}
 
           <div className="flex items-center gap-4 mt-2">
-            <button
-              onClick={() => onLike(comment.id, reactions?.likedByMe || false)}
-              className="flex items-center gap-1.5 text-xs cognitive-text-secondary hover:text-primary transition-colors"
-            >
-              <Heart
-                className={cn(
-                  "w-4 h-4",
-                  reactions?.likedByMe && "fill-primary text-primary"
+            <div className="relative">
+              <button
+                {...likeHandlers}
+                className="flex items-center gap-1.5 text-xs cognitive-text-secondary hover:text-destructive transition-colors active:scale-90"
+              >
+                {reactions?.myReactionType && reactions.myReactionType !== 'heart' ? (
+                  <span className="text-base">{reactionToEmoji(reactions.myReactionType)}</span>
+                ) : (
+                  <Heart
+                    className={cn(
+                      "w-4 h-4",
+                      reactions?.likedByMe && "fill-destructive text-destructive"
+                    )}
+                  />
                 )}
+                {reactions?.likesCount || 0}
+              </button>
+              <ReactionPicker
+                isOpen={showReactionPicker}
+                onClose={() => setShowReactionPicker(false)}
+                onSelect={(type) => {
+                  handleLike(type);
+                  setShowReactionPicker(false);
+                }}
+                currentReaction={reactions?.myReactionType}
               />
-              {reactions?.likesCount || 0}
-            </button>
+            </div>
 
             <button
               onClick={onReply}
