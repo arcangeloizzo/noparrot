@@ -1,212 +1,162 @@
 
-# Audit e Fix: Consistenza Breadcrumbs `quiz_closed` su Tutti i Punti di Ingresso
+# Fix: Sincronizzazione UI Reazioni e Navigazione Post-Quiz
 
-## Obiettivo
-Estendere l'audit già completato su `CommentsDrawer.tsx` a tutti i componenti che usano il quiz, assicurando che ogni chiamata a `setShowQuiz(false)` sia preceduta da `addBreadcrumb('quiz_closed', { via: '...' })`.
+## Problema 1: Incoerenza UI Like/Salva sulla rotta `/post/:id`
 
-## Panoramica dell'Architettura Attuale
+### Diagnosi
+La pagina `Post.tsx` usa la query key `['post', postId]` per caricare un singolo post. Tuttavia, l'hook `useToggleReaction` in `usePosts.ts`:
+- Aggiorna ottimisticamente solo `['posts', user.id]` e `['saved-posts', user.id]`
+- Invalida solo queste due query in `onSettled`
+- **Non tocca mai** `['post', postId]`
 
-Il `QuizModal` già gestisce automaticamente:
-- `quiz_mount` → al mount del componente
-- `quiz_cleanup_done` → al unmount (fallback in `crashBreadcrumbs.ts`)
-- `quiz_closed` → solo quando l'utente clicca "Annulla" o backdrop
+Risultato: quando l'utente clicca Like o Salva dalla pagina `/post/:id`, l'icona non si aggiorna fino al ritorno al feed.
 
-**Problema**: Quando il quiz viene chiuso programmaticamente (es. dopo `data.passed === true`), il breadcrumb `quiz_closed` non viene aggiunto nei componenti parent.
+### Soluzione
+Modificare `useToggleReaction` in `src/hooks/usePosts.ts` per:
+1. Aggiungere l'update ottimistico anche per la query `['post', postId]`
+2. Invalidare `['post', postId]` in `onSettled`
 
----
-
-## File da Modificare
-
-### 1. `src/components/feed/FeedCard.tsx`
-
-**Import da aggiungere:**
 ```typescript
-import { addBreadcrumb } from '@/lib/crashBreadcrumbs';
+// In onMutate - aggiungere dopo l'update di ['posts', user.id]:
+const previousPost = queryClient.getQueryData(['post', postId]);
+
+queryClient.setQueryData(['post', postId], (old: Post | undefined) => {
+  if (!old) return old;
+  const wasActive = reactionType === 'heart' 
+    ? old.user_reactions.has_hearted 
+    : old.user_reactions.has_bookmarked;
+  
+  return {
+    ...old,
+    reactions: {
+      ...old.reactions,
+      hearts: reactionType === 'heart' 
+        ? old.reactions.hearts + (wasActive ? -1 : 1)
+        : old.reactions.hearts
+    },
+    user_reactions: {
+      ...old.user_reactions,
+      has_hearted: reactionType === 'heart' ? !wasActive : old.user_reactions.has_hearted,
+      has_bookmarked: reactionType === 'bookmark' ? !wasActive : old.user_reactions.has_bookmarked
+    }
+  };
+});
+
+// In onError - aggiungere rollback:
+if (context?.previousPost) {
+  queryClient.setQueryData(['post', variables.postId], context.previousPost);
+}
+
+// In onSettled - aggiungere invalidazione:
+queryClient.invalidateQueries({ queryKey: ['post', variables.postId] });
 ```
 
-**Punti di modifica:**
-
-| Linea | Contesto | Breadcrumb |
-|-------|----------|------------|
-| ~654 | Quiz passato con successo | `addBreadcrumb('quiz_closed', { via: 'passed' })` |
-| ~668 | onCancel del QuizModal | `addBreadcrumb('quiz_closed', { via: 'cancelled' })` |
-| ~683 | Chiusura error state | `addBreadcrumb('quiz_closed', { via: 'error_dismissed' })` |
-
 ---
 
-### 2. `src/components/feed/FeedCardAdapt.tsx`
+## Problema 2: Crash "Ghost Quiz" (quiz_clea) durante Reshare da `/post/:id`
 
-**Import da aggiungere:**
+### Diagnosi
+Flusso attuale quando si condivide da `/post/:id`:
+1. Quiz completato → `quiz_closed` breadcrumb → `setShowQuiz(false)`
+2. `onQuoteShare()` chiama `navigate('/', { state: { quotePost } })`
+3. Componente quiz si smonta → `quiz_cleanup_done` breadcrumb
+4. `Index.tsx` monta → `checkForRecentCrash()` eseguito
+5. I breadcrumbs contengono ancora eventi dalla sessione precedente
+6. `hasUnmatchedOpen` = false (perché `quiz_closed` è presente), MA...
+7. Il toast mostra "quiz_clea" (troncato) perché l'ultimo evento è `quiz_cleanup_done`
+
+Il problema è che la logica attuale in `Index.tsx` richiede `hasRealProblem` per mostrare il toast:
 ```typescript
-import { addBreadcrumb } from '@/lib/crashBreadcrumbs';
+const hasRealProblem = hadStaleLock || hasPendingPublish;
 ```
 
-**Punti di modifica:**
+Ma in questo caso:
+- `hadStaleLock` = false (lo scroll lock è stato rilasciato correttamente)
+- `hasPendingPublish` potrebbe essere true se il marker non è stato pulito
 
-| Linea | Contesto | Breadcrumb |
-|-------|----------|------------|
-| ~641 | Quiz passato | `addBreadcrumb('quiz_closed', { via: 'passed' })` |
-| ~663 | Quiz fallito | `addBreadcrumb('quiz_closed', { via: 'failed' })` |
-| ~678 | Errore catch | `addBreadcrumb('quiz_closed', { via: 'error' })` |
-| ~1008 | onCancel del QuizModal | `addBreadcrumb('quiz_closed', { via: 'cancelled' })` |
-| ~1025 | Chiusura error state | `addBreadcrumb('quiz_closed', { via: 'error_dismissed' })` |
+### Causa Root
+Il marker `publish_flow_step` viene impostato durante il flusso di pubblicazione ma non viene sempre pulito correttamente quando la navigazione avviene PRIMA della pubblicazione (durante il reshare, non la pubblicazione vera).
 
----
+### Soluzione
+Aggiungere un marker specifico per la "navigazione legittima post-share" che segnala all'Index.tsx di ignorare i breadcrumbs del quiz:
 
-### 3. `src/components/feed/ImmersivePostCard.tsx`
-
-**Import da aggiungere:**
+#### 1. In `Post.tsx` - Aggiungere breadcrumb prima della navigazione:
 ```typescript
-import { addBreadcrumb } from '@/lib/crashBreadcrumbs';
+onQuoteShare={(quotedPost) => {
+  addBreadcrumb('share_navigation_to_composer', { from: 'post_page' });
+  navigate('/', { state: { quotePost: quotedPost } });
+}}
 ```
 
-**Punti di modifica:**
-
-| Linea | Contesto | Breadcrumb |
-|-------|----------|------------|
-| ~1044 | Quiz passato | `addBreadcrumb('quiz_closed', { via: 'passed' })` |
-| ~1056 | Quiz fallito | `addBreadcrumb('quiz_closed', { via: 'failed' })` |
-| ~1065 | Errore catch | `addBreadcrumb('quiz_closed', { via: 'error' })` |
-| ~2065 | onCancel del QuizModal | `addBreadcrumb('quiz_closed', { via: 'cancelled' })` |
-
----
-
-### 4. `src/components/feed/ImmersiveEditorialCarousel.tsx`
-
-**Import da aggiungere:**
+#### 2. In `Index.tsx` - Riconoscere la navigazione legittima:
 ```typescript
-import { addBreadcrumb } from '@/lib/crashBreadcrumbs';
+// Aggiungi questo controllo prima di mostrare il toast:
+const lastEvents = breadcrumbs.slice(-3).map(b => b.event);
+const isLegitimateShareNavigation = 
+  lastEvents.includes('quiz_closed') && 
+  lastEvents.includes('share_navigation_to_composer');
+
+// Only show toast if there's a high-confidence real problem
+if (hasRealProblem && !isSystemEvent && !isLegitimateShareNavigation) {
+  toast.info(`Sessione precedente interrotta...`);
+}
 ```
 
-**Punti di modifica:**
-
-| Linea | Contesto | Breadcrumb |
-|-------|----------|------------|
-| ~192 | `handleQuizPass()` | `addBreadcrumb('quiz_closed', { via: 'passed' })` |
-| ~205 | `handleQuizClose()` | `addBreadcrumb('quiz_closed', { via: 'cancelled' })` |
-
 ---
 
-### 5. `src/components/messages/MessageComposer.tsx`
+## Problema 3: Navigation State Non Consumato
 
-**Import da aggiungere:**
-```typescript
-import { addBreadcrumb } from '@/lib/crashBreadcrumbs';
-```
+### Diagnosi Aggiuntiva
+Il `navigate('/', { state: { quotePost } })` in `Post.tsx` passa lo stato, ma `Feed.tsx` **non legge mai** `location.state`. Questo significa che quando l'utente arriva al Feed dopo il quiz, il Composer non si apre automaticamente.
 
-**Punti di modifica:**
-
-| Linea | Contesto | Breadcrumb |
-|-------|----------|------------|
-| ~232 | Quiz passato | `addBreadcrumb('quiz_closed', { via: 'passed' })` |
-| ~244 | Errore catch | `addBreadcrumb('quiz_closed', { via: 'error' })` |
-| ~249 | onCancel del QuizModal | `addBreadcrumb('quiz_closed', { via: 'cancelled' })` |
-| ~264 | Chiusura error state | `addBreadcrumb('quiz_closed', { via: 'error_dismissed' })` |
-
----
-
-### 6. `src/components/composer/ComposerModal.tsx`
-
-Questo file già importa `addBreadcrumb` e ha molti breadcrumb. Dobbiamo aggiungerne alcuni specifici per `quiz_closed`:
-
-| Linea | Contesto | Breadcrumb |
-|-------|----------|------------|
-| ~639 | Error state onCancel (iOS flow) | `addBreadcrumb('quiz_closed', { via: 'error_cancelled' })` |
-| ~688 | Retry - close before regenerate | `addBreadcrumb('quiz_closed', { via: 'retry_start' })` |
-| ~723 | Retry fallback to Intent Mode | `addBreadcrumb('quiz_closed', { via: 'retry_fallback' })` |
-| ~741 | Retry error - Intent Mode | `addBreadcrumb('quiz_closed', { via: 'retry_error' })` |
-| ~845 | Error state onCancel (reader flow) | `addBreadcrumb('quiz_closed', { via: 'error_cancelled' })` |
-| ~1641 | quiz_cancel_during - già presente ma manca `quiz_closed` specifico | Aggiungere `addBreadcrumb('quiz_closed', { via: 'cancelled' })` |
-| ~1664 | onComplete handler - chiusura quiz | Aggiungere `addBreadcrumb('quiz_closed', { via: passed ? 'passed' : 'failed' })` prima di `setShowQuiz(false)` |
-
----
-
-## Dettaglio Modifiche per File
-
-### FeedCard.tsx - Modifiche Complete
+### Soluzione
+Modificare `Feed.tsx` per leggere e consumare la navigation state:
 
 ```typescript
-// PRIMA (linea ~654)
-if (passed) {
-  haptics.success();
-  if (quizData.onSuccess) {
-    quizData.onSuccess();
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
+
+// In Feed component:
+const location = useLocation();
+
+// Effect per gestire navigation state da /post/:id
+useEffect(() => {
+  if (location.state?.quotePost) {
+    setQuotedPost(location.state.quotePost);
+    setShowComposer(true);
+    // Clear state to prevent re-triggering on refresh
+    navigate(location.pathname, { replace: true, state: {} });
   }
-  setShowQuiz(false);
-
-// DOPO
-if (passed) {
-  haptics.success();
-  if (quizData.onSuccess) {
-    quizData.onSuccess();
-  }
-  addBreadcrumb('quiz_closed', { via: 'passed' });
-  setShowQuiz(false);
-```
-
-```typescript
-// PRIMA (linea ~664)
-onCancel={() => {
-  if (quizData.onCancel) {
-    quizData.onCancel();
-  }
-  setShowQuiz(false);
-
-// DOPO
-onCancel={() => {
-  if (quizData.onCancel) {
-    quizData.onCancel();
-  }
-  addBreadcrumb('quiz_closed', { via: 'cancelled' });
-  setShowQuiz(false);
-```
-
-```typescript
-// PRIMA (linea ~681)
-onClick={() => {
-  if (quizData.onCancel) quizData.onCancel();
-  setShowQuiz(false);
-
-// DOPO
-onClick={() => {
-  if (quizData.onCancel) quizData.onCancel();
-  addBreadcrumb('quiz_closed', { via: 'error_dismissed' });
-  setShowQuiz(false);
+}, [location.state, navigate, location.pathname]);
 ```
 
 ---
 
 ## Riepilogo Modifiche
 
-| File | Punti | Import Nuovo |
-|------|-------|--------------|
-| `FeedCard.tsx` | 3 | ✅ Sì |
-| `FeedCardAdapt.tsx` | 5 | ✅ Sì |
-| `ImmersivePostCard.tsx` | 4 | ✅ Sì |
-| `ImmersiveEditorialCarousel.tsx` | 2 | ✅ Sì |
-| `MessageComposer.tsx` | 4 | ✅ Sì |
-| `ComposerModal.tsx` | 7 | No (già presente) |
-
-**Totale: 25 punti di modifica su 6 file**
+| File | Tipo | Descrizione |
+|------|------|-------------|
+| `src/hooks/usePosts.ts` | Modifica | Aggiungere update ottimistico e invalidazione per `['post', postId]` |
+| `src/pages/Post.tsx` | Modifica | Aggiungere breadcrumb `share_navigation_to_composer` prima di navigate |
+| `src/pages/Index.tsx` | Modifica | Riconoscere navigazione legittima post-share e non mostrare toast |
+| `src/pages/Feed.tsx` | Modifica | Leggere e consumare `location.state.quotePost` per aprire il Composer |
 
 ---
 
 ## Garanzie Anti-Regressione
 
-1. **Nessun cambio logico**: Solo aggiunta di log, nessuna modifica al flusso
-2. **Fallback preservato**: `quiz_cleanup_done` rimane come safety net
-3. **Diagnostica migliorata**: Ogni chiusura quiz avrà un `via` descrittivo
-4. **Pattern consistente**: Stesso approccio già validato in `CommentsDrawer.tsx`
+| Garanzia | Dettaglio |
+|----------|-----------|
+| CommentsDrawer intatto | Nessuna modifica ai breadcrumbs già aggiunti nel fix precedente |
+| SessionGuard intatto | Nessuna modifica alle logiche di autenticazione |
+| Quiz validation intatto | Nessuna modifica alla validazione semantica dei quiz |
+| Breadcrumb count corretto | `quiz_closed` + `quiz_cleanup_done` + `share_navigation` = 3 close events, open count = 1, no false positive |
 
 ---
 
 ## Test Consigliati
 
-Dopo l'implementazione, verificare questi flussi:
-
-1. **Feed → Condividi post con link → Quiz passato** → No toast errore
-2. **Feed → Condividi post con link → Quiz annullato** → No toast errore
-3. **Notifica → Post → Commento con link → Quiz passato** → No toast errore
-4. **DM → Invia messaggio con link → Quiz passato** → No toast errore
-5. **Composer → Pubblica con link → Quiz passato** → No toast errore
-6. **Editorial Carousel → Condividi → Quiz passato** → No toast errore
+1. **Like/Save da Notifica**: Vai su un post da notifica, clicca Like → l'icona deve aggiornarsi immediatamente
+2. **Like/Save da Saved**: Vai su un post salvato, rimuovi il salvataggio → l'icona deve aggiornarsi
+3. **Reshare da /post/:id**: Condividi un post con fonte, completa il quiz → il Composer deve aprirsi senza toast di errore
+4. **Reshare senza fonte**: Condividi un post senza fonte da /post/:id → il Composer deve aprirsi direttamente
+5. **Annulla quiz**: Annulla un quiz durante la condivisione → nessun toast di errore al ritorno al feed
