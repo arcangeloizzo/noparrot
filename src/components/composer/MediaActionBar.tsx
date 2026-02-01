@@ -1,5 +1,5 @@
-import { useRef, useState, useEffect } from 'react';
-import { Camera, Plus, ImageIcon, Video, FileText, Bold, Italic, Underline, X } from 'lucide-react';
+import { useRef } from 'react';
+import { Camera, Plus, Bold, Italic, Underline } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -27,26 +27,7 @@ export const MediaActionBar = ({
   keyboardOffset = 0
 }: MediaActionBarProps) => {
   const cameraInputRef = useRef<HTMLInputElement>(null);
-  const photoInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  
-  const [showMediaMenu, setShowMediaMenu] = useState(false);
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    if (!showMediaMenu) return;
-    
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowMediaMenu(false);
-      }
-    };
-    
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showMediaMenu]);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
 
   const validateAndSelect = (files: File[], type: 'image' | 'video', maxFiles: number) => {
     if (files.length === 0) return;
@@ -65,7 +46,6 @@ export const MediaActionBar = ({
     }
 
     onFilesSelected(files, type);
-    setShowMediaMenu(false);
   };
 
   // Camera: direct capture (photo/video)
@@ -77,41 +57,30 @@ export const MediaActionBar = ({
     if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
-  // Photo gallery: images only (avoids iOS action sheet)
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-    validateAndSelect(files, 'image', maxImages);
-    if (photoInputRef.current) photoInputRef.current.value = '';
-  };
-
-  // Video gallery: videos only (avoids iOS action sheet)
-  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
-    validateAndSelect(files, 'video', maxVideos);
-    if (videoInputRef.current) videoInputRef.current.value = '';
-  };
-
-  // Generic files: documents, PDFs, etc.
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Media picker: shows native iOS action sheet (Libreria foto, Scatta foto, Scegli file)
+  const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
     
-    const file = files[0];
+    // Separate images and videos
+    const images = files.filter(f => f.type.startsWith('image/'));
+    const videos = files.filter(f => f.type.startsWith('video/'));
     
-    // Determine type from MIME
-    if (file.type.startsWith('video/')) {
-      validateAndSelect(files, 'video', maxVideos);
-    } else if (file.type.startsWith('image/')) {
-      validateAndSelect(files, 'image', maxImages);
-    } else {
-      // Non-media files - treat as image for now (useMediaUpload will handle)
-      toast.info('File allegato come documento.');
-      validateAndSelect(files, 'image', 1);
+    if (videos.length > 0) {
+      validateAndSelect(videos, 'video', maxVideos);
+    }
+    if (images.length > 0) {
+      validateAndSelect(images, 'image', maxImages);
     }
     
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    // Handle non-media files (documents)
+    const otherFiles = files.filter(f => !f.type.startsWith('image/') && !f.type.startsWith('video/'));
+    if (otherFiles.length > 0) {
+      toast.info('File allegato come documento.');
+      validateAndSelect(otherFiles, 'image', 1);
+    }
+    
+    if (mediaInputRef.current) mediaInputRef.current.value = '';
   };
 
   // Format handler with haptics
@@ -124,12 +93,6 @@ export const MediaActionBar = ({
     "p-2 rounded-full transition-colors",
     "text-zinc-500 hover:text-primary hover:bg-zinc-800/50",
     "disabled:opacity-40 disabled:cursor-not-allowed"
-  );
-
-  const menuItemClass = cn(
-    "flex items-center gap-3 w-full px-4 py-3 text-left",
-    "text-sm text-zinc-200 hover:bg-zinc-800/80 transition-colors",
-    "first:rounded-t-xl last:rounded-b-xl"
   );
 
   return (
@@ -172,7 +135,7 @@ export const MediaActionBar = ({
 
       {/* Right: Media Group + Counter */}
       <div className="flex items-center gap-0.5">
-        {/* Camera: direct capture - no menu */}
+        {/* Camera: direct capture - opens camera directly */}
         <button
           type="button"
           onClick={() => {
@@ -186,77 +149,19 @@ export const MediaActionBar = ({
           <Camera className="w-5 h-5" strokeWidth={1.5} />
         </button>
         
-        {/* Plus: opens dropdown menu */}
-        <div className="relative" ref={menuRef}>
-          <button
-            type="button"
-            onClick={() => {
-              haptics.light();
-              setShowMediaMenu(!showMediaMenu);
-            }}
-            disabled={disabled}
-            className={cn(iconButtonClass, showMediaMenu && "text-primary bg-zinc-800/50")}
-            aria-label="Aggiungi media"
-            aria-expanded={showMediaMenu}
-          >
-            {showMediaMenu ? (
-              <X className="w-5 h-5" strokeWidth={1.5} />
-            ) : (
-              <Plus className="w-5 h-5" strokeWidth={1.5} />
-            )}
-          </button>
-          
-          {/* Dropdown Menu */}
-          {showMediaMenu && (
-            <div 
-              className={cn(
-                "absolute bottom-full right-0 mb-2 w-48",
-                "bg-zinc-900 border border-zinc-800 rounded-xl shadow-xl",
-                "z-50 overflow-hidden",
-                "animate-in fade-in-0 slide-in-from-bottom-2 duration-200"
-              )}
-            >
-              {/* Photo Gallery */}
-              <button
-                type="button"
-                onClick={() => {
-                  haptics.light();
-                  photoInputRef.current?.click();
-                }}
-                className={menuItemClass}
-              >
-                <ImageIcon className="w-5 h-5 text-zinc-400" strokeWidth={1.5} />
-                <span>Galleria Foto</span>
-              </button>
-              
-              {/* Video Gallery */}
-              <button
-                type="button"
-                onClick={() => {
-                  haptics.light();
-                  videoInputRef.current?.click();
-                }}
-                className={menuItemClass}
-              >
-                <Video className="w-5 h-5 text-zinc-400" strokeWidth={1.5} />
-                <span>Galleria Video</span>
-              </button>
-              
-              {/* Files/Documents */}
-              <button
-                type="button"
-                onClick={() => {
-                  haptics.light();
-                  fileInputRef.current?.click();
-                }}
-                className={menuItemClass}
-              >
-                <FileText className="w-5 h-5 text-zinc-400" strokeWidth={1.5} />
-                <span>File/Documenti</span>
-              </button>
-            </div>
-          )}
-        </div>
+        {/* Plus: opens native iOS action sheet */}
+        <button
+          type="button"
+          onClick={() => {
+            haptics.light();
+            mediaInputRef.current?.click();
+          }}
+          disabled={disabled}
+          className={iconButtonClass}
+          aria-label="Aggiungi media"
+        >
+          <Plus className="w-5 h-5" strokeWidth={1.5} />
+        </button>
 
         {/* Character counter */}
         {characterCount > 0 && (
@@ -270,7 +175,7 @@ export const MediaActionBar = ({
         )}
       </div>
 
-      {/* Hidden inputs - 4 separate for direct actions without iOS action sheet */}
+      {/* Hidden inputs */}
       
       {/* Camera: direct capture with environment camera */}
       <input
@@ -282,31 +187,13 @@ export const MediaActionBar = ({
         className="hidden"
       />
       
-      {/* Photo Gallery: images only - bypasses iOS action sheet */}
+      {/* Media picker: shows native iOS action sheet (Libreria foto, Scatta foto, Scegli file) */}
       <input
-        ref={photoInputRef}
+        ref={mediaInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,video/*"
         multiple
-        onChange={handlePhotoChange}
-        className="hidden"
-      />
-      
-      {/* Video Gallery: videos only - bypasses iOS action sheet */}
-      <input
-        ref={videoInputRef}
-        type="file"
-        accept="video/*"
-        onChange={handleVideoChange}
-        className="hidden"
-      />
-      
-      {/* Files: generic file picker for documents */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="*/*"
-        onChange={handleFileChange}
+        onChange={handleMediaChange}
         className="hidden"
       />
     </div>
