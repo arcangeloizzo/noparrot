@@ -212,11 +212,15 @@ export const MediaActionBar = ({
         className="hidden"
       />
       
-      {/* Gallery: photo/video picker with multiple support - NO capture to open gallery */}
+      {/*
+        Gallery (iOS UX): if we allow both image+video, iOS often shows an action sheet.
+        To open *directly* the Photo Library, restrict this input to images.
+        Video capture/selection remains available via the Camera button.
+      */}
       <input
         ref={galleryInputRef}
         type="file"
-        accept="image/*,video/*"
+        accept="image/*"
         multiple
         onChange={handleGalleryChange}
         className="hidden"

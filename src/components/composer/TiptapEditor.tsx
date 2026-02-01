@@ -220,6 +220,9 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
         orderedList: false,
         listItem: false,
         horizontalRule: false,
+        // Some builds can include underline through StarterKit presets; avoid duplicate name warnings.
+        // (Tiptap will ignore unknown keys, but in builds where it's supported it disables it.)
+        underline: false as any,
       }),
       Underline,
       Placeholder.configure({

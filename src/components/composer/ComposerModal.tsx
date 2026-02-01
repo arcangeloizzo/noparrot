@@ -1313,7 +1313,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         </div>
       )}
 
-      <div className="fixed inset-0 z-50 flex flex-col">
+      {/*
+        IMPORTANT (iOS): `position: fixed` containers often don't resize with the virtual keyboard.
+        Using `absolute` + `100dvh` lets `interactive-widget=resizes-content` push the whole layout up.
+      */}
+      <div className="absolute inset-0 z-50 flex flex-col h-[100dvh]">
         {/* Backdrop - desktop only */}
         <div 
           className="hidden md:block absolute inset-0 bg-black/60" 
