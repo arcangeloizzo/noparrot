@@ -1578,3 +1578,59 @@
   background: rgba(0, 0, 0, 0.6) !important;
   backdrop-filter: blur(4px);
 }
+
+/* ============================================= */
+/* Tiptap Editor Styles */
+/* ============================================= */
+
+/* Tiptap Placeholder */
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: hsl(var(--muted-foreground));
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Tiptap Mention Inline Style */
+.ProseMirror .mention {
+  background: hsl(var(--primary) / 0.15);
+  color: hsl(var(--primary));
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* Tiptap Core Styles */
+.ProseMirror {
+  outline: none;
+}
+
+.ProseMirror > * + * {
+  margin-top: 0.25em;
+}
+
+.ProseMirror p {
+  margin: 0;
+}
+
+/* Tippy Mention Dropdown Theme */
+.tippy-box[data-theme~='mention-dropdown'] {
+  background: hsl(24 10% 10% / 0.98);
+  border: 1px solid hsl(var(--border));
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  padding: 0;
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+
+.tippy-box[data-theme~='mention-dropdown'] .tippy-content {
+  padding: 0;
+}
+
+.tippy-box[data-theme~='mention-dropdown'] .tippy-arrow {
+  display: none;
+}

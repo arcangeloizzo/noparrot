@@ -1,7 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Bold, Italic, Underline, Camera, ImageIcon, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -14,8 +12,6 @@ import { QuotedEditorialCard } from "@/components/feed/QuotedEditorialCard";
 import { SourceReaderGate } from "./SourceReaderGate";
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { getWordCount, getTestModeWithSource } from '@/lib/gate-utils';
-import { MentionDropdown } from "@/components/feed/MentionDropdown";
-import { useUserSearch } from "@/hooks/useUserSearch";
 import { useQueryClient } from "@tanstack/react-query";
 import { updateCognitiveDensityWeighted } from "@/lib/cognitiveDensity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -24,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { addBreadcrumb, generateIdempotencyKey, setPendingPublish, clearPendingPublish, getPendingPublish } from "@/lib/crashBreadcrumbs";
 import { forceUnlockBodyScroll } from "@/lib/bodyScrollLock";
 import { haptics } from "@/lib/haptics";
+import { TiptapEditor, TiptapEditorRef } from "./TiptapEditor";
 
 // iOS detection for stability tweaks (includes iPadOS reporting as Mac)
 const isIOS =
@@ -104,16 +101,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizData, setQuizData] = useState<any>(null);
   const [quizPassed, setQuizPassed] = useState(false);
-  const [mentionQuery, setMentionQuery] = useState('');
-  const [showMentions, setShowMentions] = useState(false);
-  const [cursorPosition, setCursorPosition] = useState(0);
-  const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
   const [intentMode, setIntentMode] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<TiptapEditorRef>(null);
   
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading, requestTranscription, refreshMediaStatus } = useMediaUpload();
-  const { data: mentionUsers = [], isLoading: isSearching } = useUserSearch(mentionQuery);
 
   // Polling for media extraction status
   useEffect(() => {
@@ -210,10 +202,6 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     setShowQuiz(false);
     setQuizData(null);
     setQuizPassed(false);
-    setMentionQuery('');
-    setShowMentions(false);
-    setCursorPosition(0);
-    setSelectedMentionIndex(0);
     setIntentMode(false);
     clearMedia();
   };
@@ -229,76 +217,28 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     }
   }, [isOpen]);
 
-  const handleSelectMention = (user: any) => {
-    const textBeforeCursor = content.slice(0, cursorPosition);
-    const textAfterCursor = content.slice(cursorPosition);
-    
-    const beforeMention = textBeforeCursor.replace(/@\w*$/, '');
-    const newText = `${beforeMention}@${user.username} ${textAfterCursor}`;
-    const newCursorPos = beforeMention.length + user.username.length + 2;
-    
-    setContent(newText);
-    setShowMentions(false);
-    setMentionQuery('');
-    setSelectedMentionIndex(0);
-    setCursorPosition(newCursorPos);
-    
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(newCursorPos, newCursorPos);
-      }
-    }, 0);
+  // Handle content change from Tiptap editor
+  const handleEditorChange = (markdown: string, plainText: string) => {
+    setContent(markdown);
   };
 
-  // Rich Text Markdown formatting
+  // Rich Text formatting via Tiptap
   const applyFormatting = (format: 'bold' | 'italic' | 'underline') => {
-    if (!textareaRef.current) return;
+    haptics.light();
+    if (!editorRef.current) return;
     
-    const textarea = textareaRef.current;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = content.slice(start, end);
-    
-    const formatMap = {
-      bold: { prefix: '**', suffix: '**' },
-      italic: { prefix: '_', suffix: '_' },
-      underline: { prefix: '~', suffix: '~' }
-    };
-    
-    const { prefix, suffix } = formatMap[format];
-    
-    let newContent: string;
-    let newCursorPos: number;
-    
-    if (selectedText.length > 0) {
-      // Wrap selection with Markdown
-      newContent = 
-        content.slice(0, start) + 
-        prefix + selectedText + suffix + 
-        content.slice(end);
-      newCursorPos = end + prefix.length + suffix.length;
-    } else {
-      // Insert empty markers and position cursor in the middle
-      newContent = 
-        content.slice(0, start) + 
-        prefix + suffix + 
-        content.slice(end);
-      newCursorPos = start + prefix.length;
+    switch (format) {
+      case 'bold':
+        editorRef.current.toggleBold();
+        break;
+      case 'italic':
+        editorRef.current.toggleItalic();
+        break;
+      case 'underline':
+        editorRef.current.toggleUnderline();
+        break;
     }
-    
-    setContent(newContent);
-    
-    // Restore focus and cursor position
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    });
   };
-
-  useEffect(() => {
-    setSelectedMentionIndex(0);
-  }, [mentionUsers]);
 
   useEffect(() => {
     const urls = content.match(URL_REGEX);
@@ -1426,69 +1366,16 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                   </AvatarFallback>
                 </Avatar>
                 
-                <div className="flex-1 min-w-0 relative">
-                  <Textarea
-                    ref={textareaRef}
-                    value={content}
-                    maxLength={3000}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      const cursorPos = e.target.selectionStart;
-                      
-                      setContent(value);
-                      setCursorPosition(cursorPos);
-
-                      const textBeforeCursor = value.slice(0, cursorPos);
-                      const mentionMatch = textBeforeCursor.match(/@(\w*)$/);
-
-                      if (mentionMatch) {
-                        setMentionQuery(mentionMatch[1]);
-                        setShowMentions(true);
-                      } else {
-                        setShowMentions(false);
-                        setMentionQuery('');
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (!showMentions || mentionUsers.length === 0) return;
-                      
-                      if (e.key === 'ArrowDown') {
-                        e.preventDefault();
-                        setSelectedMentionIndex((prev) => 
-                          (prev + 1) % mentionUsers.length
-                        );
-                      } else if (e.key === 'ArrowUp') {
-                        e.preventDefault();
-                        setSelectedMentionIndex((prev) => 
-                          (prev - 1 + mentionUsers.length) % mentionUsers.length
-                        );
-                      } else if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSelectMention(mentionUsers[selectedMentionIndex]);
-                      } else if (e.key === 'Escape') {
-                        setShowMentions(false);
-                      }
-                    }}
+                <div className="flex-1 min-w-0">
+                  <TiptapEditor
+                    ref={editorRef}
+                    initialContent=""
+                    onChange={handleEditorChange}
                     placeholder="Cosa sta succedendo?"
-                    className={cn(
-                      "w-full min-h-[120px] resize-none",
-                      "bg-transparent border-0 p-0",
-                      "text-[17px] leading-relaxed text-foreground",
-                      "placeholder:text-zinc-500",
-                      "focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                    )}
-                    rows={4}
+                    maxLength={3000}
+                    disabled={isLoading}
+                    editorClassName="min-h-[120px]"
                   />
-                  
-                  {showMentions && (
-                    <MentionDropdown
-                      users={mentionUsers}
-                      selectedIndex={selectedMentionIndex}
-                      onSelect={handleSelectMention}
-                      isLoading={isSearching}
-                      position="below"
-                    />
-                  )}
                 </div>
               </div>
               
