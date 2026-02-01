@@ -73,6 +73,8 @@ import { haptics } from "@/lib/haptics";
 import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
 import { useLongPress } from "@/hooks/useLongPress";
 import { ReactionPicker, type ReactionType } from "@/components/ui/reaction-picker";
+import { ReactionSummary, getReactionCounts } from "@/components/feed/ReactionSummary";
+import { ReactionsSheet } from "@/components/feed/ReactionsSheet";
 
 // Deep lookup imperativo per risolvere la fonte originale al click (indipendente da React Query)
 const resolveOriginalSourceOnDemand = async (quotedPostId: string | null): Promise<{
@@ -352,6 +354,9 @@ const ImmersivePostCardInner = ({
   // Caption expansion state for long Instagram/social captions
   const [showFullCaption, setShowFullCaption] = useState(false);
   const CAPTION_TRUNCATE_LENGTH = 120;
+  
+  // Reactions sheet state
+  const [showReactionsSheet, setShowReactionsSheet] = useState(false);
 
   // Trigger refetch for missing preview images on active cards
   // This helps recover from temporary extraction failures
@@ -2031,6 +2036,15 @@ const ImmersivePostCardInner = ({
                   }}
                 />
               </div>
+              
+              {/* Reaction Summary - Shows top 3 emojis with count */}
+              {Object.keys(post.reactions.byType).length > 0 && (
+                <ReactionSummary
+                  reactions={getReactionCounts(post.reactions.byType)}
+                  totalCount={Object.values(post.reactions.byType).reduce((a, b) => a + b, 0)}
+                  onClick={() => setShowReactionsSheet(true)}
+                />
+              )}
 
               {/* Comments */}
               <button 
@@ -2411,6 +2425,13 @@ const ImmersivePostCardInner = ({
           scrollToCommentId={scrollToCommentId}
         />
       )}
+      
+      {/* Reactions Sheet - Who reacted */}
+      <ReactionsSheet
+        isOpen={showReactionsSheet}
+        onClose={() => setShowReactionsSheet(false)}
+        postId={post.id}
+      />
     </>
   );
 };

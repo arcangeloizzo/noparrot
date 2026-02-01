@@ -63,6 +63,7 @@ export interface Post {
   reactions: {
     hearts: number;
     comments: number;
+    byType: Record<string, number>;
   };
   user_reactions: {
     has_hearted: boolean;
@@ -178,7 +179,13 @@ export const usePosts = () => {
           .filter(Boolean),
         reactions: {
           hearts: post.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
-          comments: post.comments?.[0]?.count || 0
+          comments: post.comments?.[0]?.count || 0,
+          byType: (post.reactions || []).reduce((acc: Record<string, number>, r: any) => {
+            if (r.reaction_type && r.reaction_type !== 'bookmark') {
+              acc[r.reaction_type] = (acc[r.reaction_type] || 0) + 1;
+            }
+            return acc;
+          }, {} as Record<string, number>),
         },
         user_reactions: {
           has_hearted: post.reactions?.some((r: any) => 
@@ -271,9 +278,17 @@ export const useToggleReaction = () => {
         return old.map(post => {
           if (post.id !== postId) return post;
           
-          const wasActive = reactionType === 'heart' 
-            ? post.user_reactions.has_hearted 
-            : post.user_reactions.has_bookmarked;
+          const isBookmark = reactionType === 'bookmark';
+          const wasActive = isBookmark 
+            ? post.user_reactions.has_bookmarked 
+            : post.user_reactions.has_hearted && reactionType === 'heart';
+          
+          // Update byType counts for non-bookmark reactions
+          const newByType = { ...post.reactions.byType };
+          if (!isBookmark) {
+            const currentCount = newByType[reactionType] || 0;
+            newByType[reactionType] = wasActive ? Math.max(0, currentCount - 1) : currentCount + 1;
+          }
           
           return {
             ...post,
@@ -281,12 +296,13 @@ export const useToggleReaction = () => {
               ...post.reactions,
               hearts: reactionType === 'heart' 
                 ? post.reactions.hearts + (wasActive ? -1 : 1)
-                : post.reactions.hearts
+                : post.reactions.hearts,
+              byType: newByType,
             },
             user_reactions: {
               ...post.user_reactions,
               has_hearted: reactionType === 'heart' ? !wasActive : post.user_reactions.has_hearted,
-              has_bookmarked: reactionType === 'bookmark' ? !wasActive : post.user_reactions.has_bookmarked
+              has_bookmarked: reactionType === 'bookmark' ? !post.user_reactions.has_bookmarked : post.user_reactions.has_bookmarked
             }
           };
         });
@@ -453,6 +469,12 @@ export const useSavedPosts = () => {
           reactions: {
             hearts: post.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
             comments: post.comments?.[0]?.count || 0,
+            byType: (post.reactions || []).reduce((acc: Record<string, number>, r: any) => {
+              if (r.reaction_type && r.reaction_type !== 'bookmark') {
+                acc[r.reaction_type] = (acc[r.reaction_type] || 0) + 1;
+              }
+              return acc;
+            }, {} as Record<string, number>),
           },
           user_reactions: {
             has_hearted: post.reactions?.some((r: any) => r.reaction_type === 'heart' && r.user_id === user.id) || false,

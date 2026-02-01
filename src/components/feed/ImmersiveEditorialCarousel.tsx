@@ -23,6 +23,10 @@ import { SourcesDrawer } from "@/components/feed/SourcesDrawer";
 import { supabase } from "@/integrations/supabase/client";
 import { haptics } from "@/lib/haptics";
 import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
+import { useLongPress } from "@/hooks/useLongPress";
+import { ReactionPicker, reactionToEmoji, type ReactionType } from "@/components/ui/reaction-picker";
+import { ReactionSummary } from "@/components/feed/ReactionSummary";
+import { ReactionsSheet } from "@/components/feed/ReactionsSheet";
 
 interface ImmersiveEditorialCarouselProps {
   items: DailyFocus[];
@@ -68,6 +72,10 @@ export const ImmersiveEditorialCarousel = ({
   // Sources drawer state
   const [sourcesDrawerOpen, setSourcesDrawerOpen] = useState(false);
   const [sourcesDrawerItem, setSourcesDrawerItem] = useState<DailyFocus | null>(null);
+  
+  // Reactions sheet state
+  const [showReactionsSheet, setShowReactionsSheet] = useState(false);
+  const [reactionsSheetItem, setReactionsSheetItem] = useState<DailyFocus | null>(null);
 
   // Comprehension Gate state for editorial share
   const [showReader, setShowReader] = useState(false);
@@ -250,12 +258,12 @@ export const ImmersiveEditorialCarousel = ({
                 onComment={onComment}
                 reactionsData={index === selectedIndex ? reactionsData : null}
                 isBookmarked={index === selectedIndex ? isBookmarked : false}
-                onLike={() => {
+                onLike={(reactionType) => {
                   if (!user) {
                     toast.error("Devi effettuare il login per mettere like");
                     return;
                   }
-                  toggleReaction.mutate({ focusId: item.id, focusType: "daily" });
+                  toggleReaction.mutate({ focusId: item.id, focusType: "daily", reactionType: reactionType || 'heart' });
                 }}
                 onBookmark={() => {
                   if (!user) {
@@ -263,6 +271,10 @@ export const ImmersiveEditorialCarousel = ({
                     return;
                   }
                   toggleBookmark.mutate({ focusId: item.id, focusType: "daily" });
+                }}
+                onOpenReactionsSheet={() => {
+                  setReactionsSheetItem(item);
+                  setShowReactionsSheet(true);
                 }}
               />
             ))}
@@ -402,6 +414,14 @@ export const ImmersiveEditorialCarousel = ({
           </div>
         </div>
       )}
+      
+      {/* Reactions Sheet - Who reacted */}
+      <ReactionsSheet
+        isOpen={showReactionsSheet}
+        onClose={() => setShowReactionsSheet(false)}
+        focusId={reactionsSheetItem?.id}
+        focusType="daily"
+      />
     </div>
   );
 };
@@ -430,8 +450,9 @@ interface EditorialSlideProps {
   onComment?: (item: DailyFocus) => void;
   reactionsData: { likes: number; likedByMe: boolean } | null;
   isBookmarked?: boolean;
-  onLike: () => void;
+  onLike: (reactionType?: ReactionType) => void;
   onBookmark: () => void;
+  onOpenReactionsSheet?: () => void;
 }
 
 const EditorialSlideInner = ({
@@ -447,6 +468,7 @@ const EditorialSlideInner = ({
   isBookmarked,
   onLike,
   onBookmark,
+  onOpenReactionsSheet,
 }: EditorialSlideProps) => {
   // Track renders via ref increment (no useEffect deps issue)
   const renderCountRef = useRef(0);
@@ -454,6 +476,20 @@ const EditorialSlideInner = ({
   if (perfStore.getState().enabled) {
     perfStore.incrementEditorialSlide();
   }
+  
+  // Long press for reaction picker
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [currentReaction, setCurrentReaction] = useState<ReactionType | null>(
+    reactionsData?.likedByMe ? 'heart' : null
+  );
+  
+  const likeHandlers = useLongPress({
+    onLongPress: () => setShowReactionPicker(true),
+    onTap: () => {
+      haptics.light();
+      onLike('heart');
+    },
+  });
 
   return (
     <div 
@@ -576,26 +612,53 @@ const EditorialSlideInner = ({
               {/* Action Icons - Uniform w-6 h-6, aligned on same axis */}
               <div className="flex items-center gap-4 h-11">
                 
-                {/* Like */}
-                <button 
-                  className="flex items-center justify-center gap-1.5 h-full"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    haptics.light();
-                    onLike();
-                  }}
-                >
-                  <Heart 
-                    className={cn(
-                      "w-6 h-6 transition-transform active:scale-90",
-                      reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-white"
+                {/* Like with long press for reaction picker */}
+                <div className="relative flex items-center justify-center gap-1.5 h-full">
+                  <button 
+                    className="flex items-center justify-center gap-1.5 h-full"
+                    {...likeHandlers}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {/* Dynamic icon: show emoji if non-heart reaction, otherwise Heart icon */}
+                    {currentReaction && currentReaction !== 'heart' ? (
+                      <span className="text-xl transition-transform active:scale-90">
+                        {reactionToEmoji(currentReaction)}
+                      </span>
+                    ) : (
+                      <Heart 
+                        className={cn(
+                          "w-6 h-6 transition-transform active:scale-90",
+                          reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-white"
+                        )}
+                        fill={reactionsData?.likedByMe ? "currentColor" : "none"}
+                      />
                     )}
-                    fill={reactionsData?.likedByMe ? "currentColor" : "none"}
+                    <span className="text-sm font-bold text-white">
+                      {reactionsData?.likes ?? item.reactions?.likes ?? 0}
+                    </span>
+                  </button>
+                  
+                  <ReactionPicker
+                    isOpen={showReactionPicker}
+                    onClose={() => setShowReactionPicker(false)}
+                    onSelect={(type) => {
+                      setCurrentReaction(type);
+                      onLike(type);
+                      setShowReactionPicker(false);
+                    }}
+                    currentReaction={currentReaction}
                   />
-                  <span className="text-sm font-bold text-white">
-                    {reactionsData?.likes ?? item.reactions?.likes ?? 0}
-                  </span>
-                </button>
+                </div>
+                
+                {/* Reaction Summary - Show who reacted */}
+                {(reactionsData?.likes ?? 0) > 0 && (
+                  <ReactionSummary
+                    reactions={[{ type: 'heart' as ReactionType, count: reactionsData?.likes ?? 0 }]}
+                    totalCount={reactionsData?.likes ?? 0}
+                    onClick={() => onOpenReactionsSheet?.()}
+                    showCount={false}
+                  />
+                )}
 
                 {/* Comments */}
                 <button 
