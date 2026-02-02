@@ -593,9 +593,12 @@ const CommentWithReplies = ({
       sonnerToast.error('Devi effettuare il login');
       return;
     }
+    const liked = reactionData?.likedByMe || false;
+    const prevType = (reactionData?.myReactionType ?? 'heart') as ReactionType;
+    const mode: 'add' | 'remove' | 'update' = !liked ? 'add' : prevType === reactionType ? 'remove' : 'update';
     toggleReaction.mutate({ 
       focusCommentId: comment.id, 
-      isLiked: reactionData?.likedByMe || false,
+      mode,
       reactionType
     });
     haptics.light();

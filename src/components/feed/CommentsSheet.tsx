@@ -659,9 +659,12 @@ const CommentItem = ({ comment, currentUserId, onReply, onDelete, onMediaClick, 
 
   const handleLike = (reactionType: ReactionType = 'heart') => {
     haptics.light();
+    const liked = reactions?.likedByMe || false;
+    const prevType = (reactions?.myReactionType ?? 'heart') as ReactionType;
+    const mode: 'add' | 'remove' | 'update' = !liked ? 'add' : prevType === reactionType ? 'remove' : 'update';
     toggleReaction.mutate({
       commentId: comment.id,
-      isLiked: reactions?.likedByMe || false,
+      mode,
       reactionType
     });
   };
