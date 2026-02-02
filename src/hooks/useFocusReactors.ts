@@ -39,39 +39,59 @@ export const useFocusReactors = (
         return { reactors: [], byType: {} as Record<ReactionType, FocusReactor[]>, counts: {} as Record<ReactionType, number>, totalCount: 0 };
       }
 
-      const { data, error } = await supabase
+      // Step 1: Fetch reactions
+      const { data: reactionsData, error: reactionsError } = await supabase
         .from('focus_reactions')
-        .select(`
-          id,
-          user_id,
-          reaction_type,
-          created_at,
-          user:public_profiles!user_id (
-            id,
-            username,
-            full_name,
-            avatar_url
-          )
-        `)
+        .select('id, user_id, reaction_type, created_at')
         .eq('focus_id', focusId)
         .eq('focus_type', focusType)
+        .neq('reaction_type', 'bookmark')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('[useFocusReactors] Error fetching reactors:', error);
-        throw error;
+      if (reactionsError) {
+        console.error('[useFocusReactors] Error fetching reactions:', reactionsError);
+        throw reactionsError;
       }
 
-      // Filter out reactors without user data and cast to proper type
-      const reactors: FocusReactor[] = (data || [])
-        .filter((r: any) => r.user && REACTION_TYPES.includes(r.reaction_type as ReactionType))
-        .map((r: any) => ({
+      if (!reactionsData || reactionsData.length === 0) {
+        return { 
+          reactors: [], 
+          byType: { heart: [], laugh: [], wow: [], sad: [], fire: [] }, 
+          counts: { heart: 0, laugh: 0, wow: 0, sad: 0, fire: 0 }, 
+          totalCount: 0 
+        };
+      }
+
+      // Step 2: Get unique user IDs
+      const userIds = [...new Set(reactionsData.map(r => r.user_id).filter(Boolean))];
+
+      // Step 3: Fetch user profiles
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('public_profiles')
+        .select('id, username, full_name, avatar_url')
+        .in('id', userIds);
+
+      if (profilesError) {
+        console.error('[useFocusReactors] Error fetching profiles:', profilesError);
+        // Continue without user data rather than failing
+      }
+
+      // Create a map for quick lookup
+      const profilesMap = new Map(
+        (profilesData || []).map(p => [p.id, p])
+      );
+
+      // Step 4: Combine data
+      const reactors: FocusReactor[] = reactionsData
+        .filter(r => REACTION_TYPES.includes(r.reaction_type as ReactionType))
+        .map(r => ({
           id: r.id,
-          user_id: r.user_id,
+          user_id: r.user_id || '',
           reaction_type: r.reaction_type as ReactionType,
-          created_at: r.created_at,
-          user: r.user
-        }));
+          created_at: r.created_at || '',
+          user: r.user_id ? (profilesMap.get(r.user_id) || null) : null
+        }))
+        .filter(r => r.user !== null);
 
       // Group by type
       const byType: Record<ReactionType, FocusReactor[]> = {
