@@ -6,7 +6,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/u
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useComments, useAddComment, useDeleteComment } from '@/hooks/useComments';
 import { useFocusComments, useAddFocusComment, useDeleteFocusComment } from '@/hooks/useFocusComments';
-import { useCommentReactions, useToggleCommentReaction } from '@/hooks/useCommentReactions';
+import { useCommentReactions } from '@/hooks/useCommentReactions';
 import { useAuth } from '@/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { it } from 'date-fns/locale';

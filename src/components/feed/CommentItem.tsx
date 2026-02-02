@@ -70,6 +70,17 @@ export const CommentItem = ({
   const likeButtonRef = useRef<HTMLButtonElement>(null);
   
   const handleLike = (reactionType: ReactionType = 'heart') => {
+    // DEBUG: Log dettagliato per tracciare il flusso
+    console.log('[CommentItem] handleLike called:', {
+      commentId: comment.id,
+      commentKind,
+      reactionType,
+      currentReactions: reactions,
+      likedByMe: reactions?.likedByMe,
+      myReactionType: reactions?.myReactionType,
+      userId: user?.id
+    });
+
     if (!user) {
       toast.error('Devi effettuare il login');
       return;
@@ -78,18 +89,46 @@ export const CommentItem = ({
     setIsLiking(true);
     haptics.light();
     
-    // Calculate correct mode
-    const liked = reactions?.likedByMe || false;
-    const prevType = (reactions?.myReactionType ?? 'heart') as ReactionType;
-    const mode: 'add' | 'remove' | 'update' = !liked ? 'add' : prevType === reactionType ? 'remove' : 'update';
+    // Calculate correct mode - gestisci undefined in modo robusto
+    const liked = reactions?.likedByMe ?? false;
+    const prevType = (reactions?.myReactionType || 'heart') as ReactionType;
+    
+    let mode: 'add' | 'remove' | 'update';
+    if (!liked) {
+      mode = 'add';
+    } else if (prevType === reactionType) {
+      mode = 'remove';
+    } else {
+      mode = 'update';
+    }
+    
+    console.log('[CommentItem] Mutation params:', { mode, reactionType, commentKind });
     
     // Use correct mutation based on commentKind
     if (commentKind === 'media') {
-      toggleMediaReaction.mutate({ mediaCommentId: comment.id, mode, reactionType });
+      toggleMediaReaction.mutate(
+        { mediaCommentId: comment.id, mode, reactionType },
+        {
+          onSuccess: () => console.log('[CommentItem] Media reaction success'),
+          onError: (err) => console.error('[CommentItem] Media reaction error:', err)
+        }
+      );
     } else if (commentKind === 'focus') {
-      toggleFocusReaction.mutate({ focusCommentId: comment.id, mode, reactionType });
+      toggleFocusReaction.mutate(
+        { focusCommentId: comment.id, mode, reactionType },
+        {
+          onSuccess: () => console.log('[CommentItem] Focus reaction success'),
+          onError: (err) => console.error('[CommentItem] Focus reaction error:', err)
+        }
+      );
     } else {
-      togglePostReaction.mutate({ commentId: comment.id, mode, reactionType });
+      togglePostReaction.mutate(
+        { commentId: comment.id, mode, reactionType },
+        {
+          onSuccess: () => console.log('[CommentItem] Post reaction success'),
+          onError: (err) => console.error('[CommentItem] Post reaction error:', err)
+        }
+      );
     }
     
     setTimeout(() => setIsLiking(false), 250);
