@@ -542,6 +542,11 @@ export const Feed = () => {
                 description: "Funzionalità share Focus (da implementare)"
               });
             }}
+            onComment={() => {
+              // Open CommentsDrawer for this focus - Gate will only trigger when writing
+              setSelectedFocusForComments({ type: 'daily', data: selectedFocus.data });
+              setFocusCommentsOpen(true);
+            }}
           />
         </>
       )}
