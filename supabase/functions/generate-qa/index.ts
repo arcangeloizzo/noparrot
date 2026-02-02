@@ -1226,9 +1226,9 @@ rispondi con: {"insufficient_context": true, "reason": "metadata_only"}` },
       console.log('[generate-qa] Q&A updated in secure tables');
     } else {
       // Insert into public table first
-      // FIX: Per editorial URLs, forzare post_id = null per evitare FK violation
-      // (contentId per editorial è daily_focus.id, non posts.id)
-      const isEditorialUrl = sourceUrl?.startsWith('editorial://');
+      // FIX: Per editorial URLs e Focus URLs, forzare post_id = null per evitare FK violation
+      // (contentId per editorial/focus è daily_focus.id, non posts.id)
+      const isEditorialUrl = sourceUrl?.startsWith('editorial://') || sourceUrl?.startsWith('focus://');
       const { data: insertedQA, error: insertError } = await supabase
         .from('post_qa_questions')
         .insert({
