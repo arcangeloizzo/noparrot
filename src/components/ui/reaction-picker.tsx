@@ -40,32 +40,51 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
       }
     }, [isOpen]);
     
-    // Calculate safe position within viewport
+    // Calculate safe position within viewport with flip logic
     React.useEffect(() => {
       if (!isOpen || !wrapperRef.current) return;
       
       const wrapper = wrapperRef.current;
       const rect = wrapper.getBoundingClientRect();
       const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
       const pickerWidth = 240; // 5 emoji × 40px + padding
+      const pickerHeight = 52; // Height of picker with emoji
       const safeMargin = 12;
+      const minSpaceAbove = pickerHeight + 16; // Minimum space to show picker above
       
       // Calculate ideal left position (centered on the button)
       let idealLeft = rect.left + rect.width / 2 - pickerWidth / 2;
       
-      // Clamp to viewport margins
+      // Clamp to viewport margins (horizontal)
       if (idealLeft < safeMargin) {
         idealLeft = safeMargin;
       } else if (idealLeft + pickerWidth > viewportWidth - safeMargin) {
         idealLeft = viewportWidth - pickerWidth - safeMargin;
       }
       
-      setPositionStyle({
-        position: 'fixed',
-        bottom: `${window.innerHeight - rect.top + 8}px`,
-        left: `${idealLeft}px`,
-        transform: 'none',
-      });
+      // Calculate vertical space
+      const spaceAbove = rect.top;
+      const spaceBelow = viewportHeight - rect.bottom;
+      
+      // If not enough space above, flip to show below
+      const showBelow = spaceAbove < minSpaceAbove && spaceBelow > minSpaceAbove;
+      
+      if (showBelow) {
+        setPositionStyle({
+          position: 'fixed',
+          top: `${rect.bottom + 8}px`,
+          left: `${idealLeft}px`,
+          transform: 'none',
+        });
+      } else {
+        setPositionStyle({
+          position: 'fixed',
+          bottom: `${viewportHeight - rect.top + 8}px`,
+          left: `${idealLeft}px`,
+          transform: 'none',
+        });
+      }
     }, [isOpen]);
 
     // Close on outside click (solo desktop, con delay per evitare ghost clicks)
