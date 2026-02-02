@@ -8,6 +8,7 @@ import { useFocusComments } from "@/hooks/useFocusComments";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState } from "react";
 import { SourcesDrawer } from "./SourcesDrawer";
+import { ReactionsSheet } from "./ReactionsSheet";
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { toast as sonnerToast } from "sonner";
 import { haptics } from "@/lib/haptics";
@@ -63,6 +64,7 @@ export const FocusDetailSheet = ({
 }: FocusDetailSheetProps) => {
   const { user } = useAuth();
   const [sourcesDrawerOpen, setSourcesDrawerOpen] = useState(false);
+  const [reactionsSheetOpen, setReactionsSheetOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [quizData, setQuizData] = useState<{ qaId?: string; questions: any[]; sourceUrl: string; forShare?: boolean; error?: boolean; errorMessage?: string } | null>(null);
@@ -228,15 +230,19 @@ export const FocusDetailSheet = ({
                     }}
                     className="flex items-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
                   >
-                    <Heart 
+                    <Heart
                       className={cn(
                         "w-5 h-5 transition-all",
                         reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-white"
                       )} 
                     />
-                    <span className="text-xs font-bold text-white">
-                      {reactionsData?.likes || reactions.likes || 0}
-                    </span>
+                  </button>
+                  {/* Like Counter - tappable to open reactions sheet */}
+                  <button
+                    onClick={() => setReactionsSheetOpen(true)}
+                    className="text-xs font-bold text-white px-1 hover:underline"
+                  >
+                    {reactionsData?.likes || reactions.likes || 0}
                   </button>
 
                   {/* Comments - now delegates to parent via onComment */}
@@ -278,6 +284,14 @@ export const FocusDetailSheet = ({
       </Sheet>
 
       {/* Sources Drawer */}
+      {/* Reactions Sheet - Who reacted */}
+      <ReactionsSheet
+        isOpen={reactionsSheetOpen}
+        onClose={() => setReactionsSheetOpen(false)}
+        focusId={focusId}
+        focusType={type}
+      />
+
       <SourcesDrawer
         open={sourcesDrawerOpen}
         onOpenChange={setSourcesDrawerOpen}
