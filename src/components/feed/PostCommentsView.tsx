@@ -1,11 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Heart, MessageCircle, Trash2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useComments, useDeleteComment } from '@/hooks/useComments';
-import { useCommentReactions, useToggleCommentReaction } from '@/hooks/useCommentReactions';
 import { useAuth } from '@/contexts/AuthContext';
-import { formatDistanceToNow } from 'date-fns';
-import { it } from 'date-fns/locale';
 import { Post } from '@/hooks/usePosts';
 import { TrustBadge } from '@/components/ui/trust-badge';
 import { MentionText } from './MentionText';
@@ -13,10 +10,7 @@ import { cn, getDisplayUsername } from '@/lib/utils';
 import { MediaGallery } from '@/components/media/MediaGallery';
 import { CommentReplySheet } from './CommentReplySheet';
 import { Comment } from '@/hooks/useComments';
-import { useLongPress } from '@/hooks/useLongPress';
-import { ReactionPicker, type ReactionType, reactionToEmoji } from '@/components/ui/reaction-picker';
-import { ReactionSummary, getReactionCounts } from '@/components/feed/ReactionSummary';
-import { haptics } from '@/lib/haptics';
+import { CommentItem } from './CommentItem';
 
 interface PostCommentsViewProps {
   post: Post;
@@ -235,7 +229,7 @@ const CommentThread = ({ comment, currentUserId, onReply, onDelete, getUserAvata
         }}
         onDelete={() => onDelete(comment.id)}
         getUserAvatar={getUserAvatar}
-        depth={actualDepth}
+        commentKind="post"
       />
       {comment.replies && comment.replies.length > 0 && (
         <>
@@ -253,156 +247,5 @@ const CommentThread = ({ comment, currentUserId, onReply, onDelete, getUserAvata
         </>
       )}
     </>
-  );
-};
-
-interface CommentItemProps {
-  comment: Comment;
-  currentUserId?: string;
-  onReply: () => void;
-  onDelete: () => void;
-  getUserAvatar: (avatarUrl: string | null, fullName: string | null, username: string) => React.ReactNode;
-  depth: number;
-}
-
-const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar, depth }: CommentItemProps) => {
-  const { data: reactions } = useCommentReactions(comment.id);
-  const toggleReaction = useToggleCommentReaction();
-  const [showReactionPicker, setShowReactionPicker] = useState(false);
-
-  const handleLike = (reactionType: ReactionType = 'heart') => {
-    haptics.light();
-    const liked = reactions?.likedByMe || false;
-    const prevType = (reactions?.myReactionType ?? 'heart') as ReactionType;
-    const mode: 'add' | 'remove' | 'update' = !liked ? 'add' : prevType === reactionType ? 'remove' : 'update';
-    toggleReaction.mutate({
-      commentId: comment.id,
-      mode,
-      reactionType
-    });
-  };
-
-  const likeHandlers = useLongPress({
-    onLongPress: () => setShowReactionPicker(true),
-    onTap: () => handleLike('heart'),
-  });
-
-  // ALWAYS use comment.level from database, ignore depth prop
-  const actualDepth = comment.level;
-  const indentAmount = actualDepth > 0 ? actualDepth * 40 : 0;
-
-  return (
-    <div 
-      className="py-3 border-b border-border hover:bg-muted/30 transition-colors relative"
-      style={{ 
-        paddingLeft: `${16 + indentAmount}px`,
-        paddingRight: '16px'
-      }}
-    >
-      {/* Linea verticale di indentazione */}
-      {actualDepth > 0 && (
-        <div 
-          className="absolute top-0 bottom-0 w-0.5 bg-border"
-          style={{ 
-            left: `${16 + (actualDepth - 1) * 40 + 20}px`,
-            zIndex: 1
-          }}
-        />
-      )}
-      <div className="flex gap-3">
-        <div className="flex-shrink-0">
-          {getUserAvatar(comment.author.avatar_url, comment.author.full_name, comment.author.username)}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold text-sm">
-              {comment.author.full_name || getDisplayUsername(comment.author.username)}
-            </span>
-            <span className="text-muted-foreground text-xs">
-              @{getDisplayUsername(comment.author.username)}
-            </span>
-            <span className="text-muted-foreground text-xs">·</span>
-            <span className="text-muted-foreground text-xs">
-              {formatDistanceToNow(new Date(comment.created_at), {
-                addSuffix: true,
-                locale: it
-              })}
-            </span>
-          </div>
-          
-          <div className="text-sm mb-1">
-            <MentionText content={comment.content} />
-          </div>
-
-          {/* Reaction Summary for multiple reaction types */}
-          {reactions && reactions.likesCount > 0 && 
-           Object.keys(reactions.byType || {}).length > 1 && (
-            <div className="mb-2">
-              <ReactionSummary
-                reactions={getReactionCounts(reactions.byType)}
-                totalCount={reactions.likesCount}
-                showCount={false}
-                className="text-xs"
-              />
-            </div>
-          )}
-          
-          {comment.media && comment.media.length > 0 && (
-            <div className="mb-2">
-              <MediaGallery 
-                media={comment.media}
-              />
-            </div>
-          )}
-          
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <div className="relative">
-              <button
-                {...likeHandlers}
-                className={cn(
-                  "flex items-center gap-1.5 py-1.5 px-2 -ml-2 rounded hover:bg-muted hover:text-destructive transition-colors active:scale-90",
-                  reactions?.likedByMe && "text-destructive"
-                )}
-              >
-                {reactions?.myReactionType && reactions.myReactionType !== 'heart' ? (
-                  <span className="text-base">{reactionToEmoji(reactions.myReactionType)}</span>
-                ) : (
-                  <Heart className={cn("w-4 h-4", reactions?.likedByMe && "fill-destructive text-destructive")} />
-                )}
-                {reactions?.likesCount && reactions.likesCount > 0 && (
-                  <span className="text-xs">{reactions.likesCount}</span>
-                )}
-              </button>
-              <ReactionPicker
-                isOpen={showReactionPicker}
-                onClose={() => setShowReactionPicker(false)}
-                onSelect={(type) => {
-                  handleLike(type);
-                  setShowReactionPicker(false);
-                }}
-                currentReaction={reactions?.myReactionType}
-              />
-            </div>
-            
-            <button
-              onClick={onReply}
-              className="flex items-center gap-1.5 py-1.5 px-2 rounded hover:bg-muted hover:text-foreground transition-colors"
-            >
-              <MessageCircle className="w-4 h-4" />
-              <span className="text-xs">Rispondi</span>
-            </button>
-            
-            {currentUserId === comment.author.id && (
-              <button
-                onClick={onDelete}
-                className="flex items-center gap-1.5 py-1.5 px-2 rounded hover:bg-muted hover:text-destructive transition-colors ml-auto"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
   );
 };
