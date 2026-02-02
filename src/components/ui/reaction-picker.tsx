@@ -23,9 +23,13 @@ interface ReactionPickerProps {
 export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerProps>(
   ({ isOpen, onClose, onSelect, currentReaction, className }, ref) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
+    const wrapperRef = React.useRef<HTMLDivElement>(null);
     
     // Stato per bloccare la chiusura immediata dopo l'apertura (fix iOS long-press release)
     const [isInteracting, setIsInteracting] = React.useState(false);
+    
+    // Dynamic position state for viewport-aware positioning
+    const [positionStyle, setPositionStyle] = React.useState<React.CSSProperties>({});
     
     // Reset interacting state quando il picker si apre
     React.useEffect(() => {
@@ -34,6 +38,34 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
         const timer = setTimeout(() => setIsInteracting(false), 350);
         return () => clearTimeout(timer);
       }
+    }, [isOpen]);
+    
+    // Calculate safe position within viewport
+    React.useEffect(() => {
+      if (!isOpen || !wrapperRef.current) return;
+      
+      const wrapper = wrapperRef.current;
+      const rect = wrapper.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const pickerWidth = 240; // 5 emoji × 40px + padding
+      const safeMargin = 12;
+      
+      // Calculate ideal left position (centered on the button)
+      let idealLeft = rect.left + rect.width / 2 - pickerWidth / 2;
+      
+      // Clamp to viewport margins
+      if (idealLeft < safeMargin) {
+        idealLeft = safeMargin;
+      } else if (idealLeft + pickerWidth > viewportWidth - safeMargin) {
+        idealLeft = viewportWidth - pickerWidth - safeMargin;
+      }
+      
+      setPositionStyle({
+        position: 'fixed',
+        bottom: `${window.innerHeight - rect.top + 8}px`,
+        left: `${idealLeft}px`,
+        transform: 'none',
+      });
     }, [isOpen]);
 
     // Close on outside click (solo desktop, con delay per evitare ghost clicks)
@@ -70,14 +102,32 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
     }, [isOpen, onClose]);
     
     // Handler per lo shield: blocca chiusura durante interazione iniziale
-    const handleShieldInteraction = (e: React.MouseEvent | React.TouchEvent) => {
+    const handleShieldInteraction = React.useCallback((e: React.MouseEvent | React.TouchEvent) => {
       e.stopPropagation();
       e.preventDefault();
-      // Chiudi solo se non siamo nella fase iniziale di interazione
-      if (!isInteracting) {
-        onClose();
+      
+      // NON chiudere se:
+      // 1. Siamo nella finestra di interazione iniziale (long-press release)
+      if (isInteracting) {
+        return;
       }
-    };
+      
+      const isTouchEnd = e.type === 'touchend';
+      
+      if (isTouchEnd) {
+        // Per touchend, aspetta un frame prima di decidere
+        // Questo evita che il rilascio del long-press chiuda il picker
+        requestAnimationFrame(() => {
+          if (!isInteracting) {
+            onClose();
+          }
+        });
+        return;
+      }
+      
+      // Click mouse: chiudi immediatamente
+      onClose();
+    }, [isInteracting, onClose]);
 
   if (!isOpen) return null;
 
@@ -98,17 +148,21 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
         onTouchMove={(e) => e.stopPropagation()}
       />
       
-      {/* Actual picker - above shield */}
+      {/* Wrapper for position calculation - relative to the button */}
+      <div ref={wrapperRef} className="absolute inset-0 pointer-events-none" />
+      
+      {/* Actual picker - fixed position, viewport-aware */}
       <div
         ref={containerRef}
         className={cn(
-          "absolute z-50 flex items-center gap-1 px-2 py-1.5",
+          "z-50 flex items-center gap-1 px-2 py-1.5",
           "bg-popover/95 backdrop-blur-xl border border-border/50",
           "rounded-full shadow-2xl",
           "animate-in fade-in-0 zoom-in-95 duration-200",
+          "max-w-[calc(100vw-24px)]",
           className
         )}
-        style={{ bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: '8px' }}
+        style={positionStyle}
       >
         {REACTIONS.map((reaction, index) => (
           <button
@@ -124,17 +178,18 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
               handleSelect(reaction.type);
             }}
             className={cn(
-              "w-10 h-10 flex items-center justify-center rounded-full",
+              "w-10 h-10 flex items-center justify-center rounded-full select-none",
               "transition-all duration-200 hover:scale-125 active:scale-110",
               "animate-in fade-in-0 zoom-in-50",
               currentReaction === reaction.type && "ring-2 ring-primary ring-offset-2 ring-offset-popover bg-primary/10"
             )}
             style={{
               animationDelay: `${index * 30}ms`,
+              WebkitTapHighlightColor: 'transparent',
             }}
             aria-label={reaction.label}
           >
-            <span className="text-2xl">{reaction.emoji}</span>
+            <span className="text-2xl select-none">{reaction.emoji}</span>
           </button>
         ))}
       </div>

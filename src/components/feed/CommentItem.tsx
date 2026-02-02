@@ -237,7 +237,10 @@ export const CommentItem = ({
             )}
 
             {/* Footer: Actions - select-none prevents text selection on long-press */}
-            <div className="flex items-center gap-1 action-bar-zone">
+            <div 
+              className="flex items-center gap-1 action-bar-zone"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
               {/* Like button with long press for reaction picker */}
               <div className="relative">
                 <button
@@ -248,6 +251,7 @@ export const CommentItem = ({
                     reactions?.likedByMe && "text-destructive",
                     isLiking && "scale-110"
                   )}
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
                   aria-label={reactions?.likedByMe ? "Rimuovi mi piace" : "Metti mi piace"}
                 >
                   {reactions?.myReactionType && reactions.myReactionType !== 'heart' ? (
@@ -281,6 +285,7 @@ export const CommentItem = ({
                   "flex items-center gap-1.5 py-1.5 px-2.5 rounded-full transition-all duration-200 select-none",
                   "text-muted-foreground hover:text-primary hover:bg-primary/10"
                 )}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
                 aria-label="Rispondi a questo commento"
               >
                 <MessageCircle className="w-4 h-4" />
