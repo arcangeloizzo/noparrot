@@ -68,6 +68,7 @@ export interface Post {
   user_reactions: {
     has_hearted: boolean;
     has_bookmarked: boolean;
+    myReactionType: 'heart' | 'laugh' | 'wow' | 'sad' | 'fire' | null;
   };
   questions: Array<{
     id: string;
@@ -189,11 +190,14 @@ export const usePosts = () => {
         },
         user_reactions: {
           has_hearted: post.reactions?.some((r: any) => 
-            r.reaction_type === 'heart' && r.user_id === user?.id
+            r.reaction_type !== 'bookmark' && r.user_id === user?.id
           ) || false,
           has_bookmarked: post.reactions?.some((r: any) => 
             r.reaction_type === 'bookmark' && r.user_id === user?.id
-          ) || false
+          ) || false,
+          myReactionType: post.reactions?.find((r: any) => 
+            r.reaction_type !== 'bookmark' && r.user_id === user?.id
+          )?.reaction_type || null
         },
         questions: (post.questions || [])
           .sort((a: any, b: any) => a.order_index - b.order_index)
@@ -294,15 +298,18 @@ export const useToggleReaction = () => {
             ...post,
             reactions: {
               ...post.reactions,
-              hearts: reactionType === 'heart' 
+              hearts: !isBookmark
                 ? post.reactions.hearts + (wasActive ? -1 : 1)
                 : post.reactions.hearts,
               byType: newByType,
             },
             user_reactions: {
               ...post.user_reactions,
-              has_hearted: reactionType === 'heart' ? !wasActive : post.user_reactions.has_hearted,
-              has_bookmarked: reactionType === 'bookmark' ? !post.user_reactions.has_bookmarked : post.user_reactions.has_bookmarked
+              has_hearted: !isBookmark ? !wasActive : post.user_reactions.has_hearted,
+              has_bookmarked: isBookmark ? !post.user_reactions.has_bookmarked : post.user_reactions.has_bookmarked,
+              myReactionType: !isBookmark 
+                ? (wasActive ? null : reactionType as 'heart' | 'laugh' | 'wow' | 'sad' | 'fire')
+                : post.user_reactions.myReactionType
             }
           };
         });
@@ -477,8 +484,9 @@ export const useSavedPosts = () => {
             }, {} as Record<string, number>),
           },
           user_reactions: {
-            has_hearted: post.reactions?.some((r: any) => r.reaction_type === 'heart' && r.user_id === user.id) || false,
+            has_hearted: post.reactions?.some((r: any) => r.reaction_type !== 'bookmark' && r.user_id === user.id) || false,
             has_bookmarked: true,
+            myReactionType: (post.reactions?.find((r: any) => r.reaction_type !== 'bookmark' && r.user_id === user.id)?.reaction_type || null) as 'heart' | 'laugh' | 'wow' | 'sad' | 'fire' | null
           },
           questions: []
         };
