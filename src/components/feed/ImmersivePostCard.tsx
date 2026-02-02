@@ -1807,7 +1807,8 @@ const ImmersivePostCardInner = ({
               />
             ) : hasLink && !isReshareWithShortComment && (
               /* ===== HARDENING 2: Fixed-height container + skeleton for link preview ===== */
-              <div className="min-h-[280px]">
+              /* Intent posts hide the image, so remove min-height to keep action bar visible */
+              <div className={cn("min-h-[280px]", post.is_intent && "min-h-0")}>
                 {isWaitingForPreview && !post.shared_title && !post.preview_img ? (
                   /* Skeleton while loading preview data */
                   <div className="space-y-4 animate-pulse">
