@@ -480,6 +480,7 @@ const EditorialSlideInner = ({
   // Long press for reaction picker
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [currentReaction, setCurrentReaction] = useState<ReactionType | null>(null);
+  const likeButtonRef = useRef<HTMLButtonElement>(null);
   
   // Sync currentReaction with server state (myReactionType) when reactionsData changes
   useEffect(() => {
@@ -627,6 +628,7 @@ const EditorialSlideInner = ({
                 {/* Like with long press for reaction picker */}
                 <div className="relative flex items-center justify-center gap-1.5 h-full">
                   <button 
+                    ref={likeButtonRef}
                     className="flex items-center justify-center h-full select-none"
                     style={{ WebkitTapHighlightColor: 'transparent' }}
                     {...likeHandlers}
@@ -670,6 +672,7 @@ const EditorialSlideInner = ({
                       setShowReactionPicker(false);
                     }}
                     currentReaction={currentReaction}
+                    triggerRef={likeButtonRef}
                   />
                 </div>
                 

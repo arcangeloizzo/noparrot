@@ -925,6 +925,7 @@ const CommentItem = ({ comment, currentUserId, onReply, onLike, onDelete, onMedi
   const { data: reactions } = useCommentReactions(comment.id);
   const toggleReaction = useToggleCommentReaction();
   const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const likeButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleLike = (reactionType: ReactionType = 'heart') => {
     haptics.light();
@@ -1001,6 +1002,7 @@ const CommentItem = ({ comment, currentUserId, onReply, onLike, onDelete, onMedi
           <div className="flex items-center gap-4 mt-2 action-bar-zone">
             <div className="relative">
               <button
+                ref={likeButtonRef}
                 {...likeHandlers}
                 className="flex items-center gap-1.5 text-xs cognitive-text-secondary hover:text-destructive transition-colors active:scale-90 select-none"
                 style={{ WebkitTapHighlightColor: 'transparent', WebkitUserSelect: 'none' }}
@@ -1025,6 +1027,7 @@ const CommentItem = ({ comment, currentUserId, onReply, onLike, onDelete, onMedi
                   setShowReactionPicker(false);
                 }}
                 currentReaction={reactions?.myReactionType}
+                triggerRef={likeButtonRef}
               />
             </div>
 

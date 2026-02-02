@@ -51,7 +51,7 @@ export const CommentItem = ({
   const longPressTimer = useRef<NodeJS.Timeout>();
 
   const [showReactionPicker, setShowReactionPicker] = useState(false);
-
+  const likeButtonRef = useRef<HTMLButtonElement>(null);
   const handleLike = (reactionType: ReactionType = 'heart') => {
     setIsLiking(true);
     haptics.light();
@@ -244,6 +244,7 @@ export const CommentItem = ({
               {/* Like button with long press for reaction picker */}
               <div className="relative">
                 <button
+                  ref={likeButtonRef}
                   {...likeButtonHandlers}
                   className={cn(
                     "flex items-center gap-1.5 py-1.5 px-2.5 rounded-full transition-all duration-200 select-none",
@@ -275,6 +276,7 @@ export const CommentItem = ({
                     setShowReactionPicker(false);
                   }}
                   currentReaction={reactions?.myReactionType}
+                  triggerRef={likeButtonRef}
                 />
               </div>
 
