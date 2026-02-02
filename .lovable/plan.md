@@ -1,49 +1,32 @@
 
-# Fix Strutturale Sistema Reazioni Estese
+# Fix Posizionamento Picker e Text Selection
 
-## Problema Identificato
+## Problemi Identificati
 
-Il sistema di reazioni estese presenta tre categorie di problemi:
+### 1. Picker posizionato sotto il commento (invisibile)
+Il `ReactionPicker` calcola il `bottom` per posizionarsi **sopra** il bottone, ma se il commento è vicino al top dello schermo (es. un solo commento), non c'è spazio e il picker viene tagliato o posizionato fuori viewport.
 
-1. **Posizionamento Picker**: Il picker centrato al 50% esce fuori schermo su dispositivi con viewport ridotti
-2. **Touch UX**: Lo shield intercetta erroneamente il rilascio del dito dopo long-press, causando chiusure immediate
-3. **Persistenza**: Le reazioni selezionate non vengono salvate correttamente quando l'utente cambia emoji
+**Causa**: Il calcolo attuale usa solo `bottom: window.innerHeight - rect.top + 8` senza verificare se c'è spazio sopra. Se non c'è spazio, dovrebbe posizionarsi **sotto** il bottone.
 
-## Stato Attuale del Codice
-
-### Analisi Database
-I CHECK CONSTRAINT sono **già correttamente configurati**:
-- `reactions`: `CHECK (reaction_type = ANY (ARRAY['heart', 'bookmark', 'laugh', 'wow', 'sad', 'fire']))`
-- `focus_reactions`: Stesso vincolo presente
-
-### Analisi Hooks
-La logica di switch in `usePosts.ts` e `useFocusReactions.ts` è **già implementata correttamente**:
-- Verifica se esiste una reazione precedente
-- Se il tipo è diverso, esegue UPDATE invece di INSERT
-- Il conteggio esclude già i bookmark
-
-### CSS Action Bar Zone
-La classe `.action-bar-zone` esiste già in `index.css` con tutte le proprietà necessarie.
+### 2. Selezione testo durante long-press
+L'utente vede ancora la selezione del testo ("macchie blu") durante il long-press perché:
+- L'hook `useLongPress` non chiama `e.preventDefault()` nel `onTouchStart`
+- I button nel `CommentsDrawer` non hanno le proprietà CSS anti-selezione
 
 ## Soluzione Proposta
 
-### 1. Fix Posizionamento Picker (Viewport Aware)
+### Fix 1: Posizionamento Adattivo (Flip Up/Down)
 
 Modificherò `reaction-picker.tsx` per:
-- Usare posizionamento safe con margini laterali garantiti
-- Calcolare dinamicamente la posizione left per evitare overflow
-- Aggiungere `max-width` e centratura safe
+- Verificare se c'è abbastanza spazio sopra il bottone (min 60px per il picker)
+- Se non c'è spazio sopra, posizionare il picker **sotto** il bottone
+- Usare `top` invece di `bottom` quando si flippa
 
-### 2. Fix Shield Touch Flow
+### Fix 2: Prevenzione Selezione Testo
 
-Correggerò la gestione dello shield in `reaction-picker.tsx`:
-- Il `touchend` sullo shield NON deve chiudere durante `isInteracting`
-- Aggiungere delay separato per evitare che il rilascio del long-press triggeri la chiusura
-- Usare `onPointerUp` invece di `onTouchEnd` per gestione più robusta
-
-### 3. Estendere Touch Isolation ai Container Parent
-
-Applicherò la classe `action-bar-zone` anche ai container parent dei pulsanti per garantire isolamento completo del tocco.
+Modificherò:
+- `useLongPress.ts`: Aggiungere `e.preventDefault()` nel `onTouchStart` per bloccare la selezione immediatamente
+- `CommentsDrawer.tsx`: Aggiungere classi `action-bar-zone` e stili inline sui button delle reazioni
 
 ---
 
@@ -53,133 +36,102 @@ Applicherò la classe `action-bar-zone` anche ai container parent dei pulsanti p
 
 | File | Modifiche |
 |------|-----------|
-| `src/components/ui/reaction-picker.tsx` | Fix posizionamento viewport-aware + fix shield touch flow |
-| `src/components/feed/CommentItem.tsx` | Estendere isolation ai pulsanti singoli |
-| `src/components/feed/ImmersivePostCard.tsx` | Verificare action-bar-zone applicata correttamente |
-| `src/components/feed/ImmersiveEditorialCarousel.tsx` | Verificare action-bar-zone applicata correttamente |
+| `src/components/ui/reaction-picker.tsx` | Logica flip up/down basata su spazio disponibile |
+| `src/hooks/useLongPress.ts` | `e.preventDefault()` nel `onTouchStart` |
+| `src/components/feed/CommentsDrawer.tsx` | Touch isolation sui button azioni |
 
-### Fix 1: Posizionamento Viewport-Aware
+### Fix 1: Posizionamento con Flip
 
 ```typescript
-// reaction-picker.tsx - Nuovo posizionamento
-const containerRef = React.useRef<HTMLDivElement>(null);
-const [positionStyle, setPositionStyle] = React.useState<React.CSSProperties>({
-  bottom: '100%',
-  left: '50%',
-  transform: 'translateX(-50%)',
-  marginBottom: '8px'
-});
-
+// reaction-picker.tsx - useEffect per calcolo posizione
 React.useEffect(() => {
-  if (!isOpen || !containerRef.current) return;
+  if (!isOpen || !wrapperRef.current) return;
   
-  const container = containerRef.current;
-  const rect = container.getBoundingClientRect();
+  const wrapper = wrapperRef.current;
+  const rect = wrapper.getBoundingClientRect();
   const viewportWidth = window.innerWidth;
-  const pickerWidth = 240; // 5 emoji × 40px + padding
+  const viewportHeight = window.innerHeight;
+  const pickerWidth = 240;
+  const pickerHeight = 52; // Altezza picker con emoji
   const safeMargin = 12;
+  const minSpaceAbove = pickerHeight + 16; // Spazio minimo sopra per mostrare il picker
   
-  // Calcola posizione left sicura
+  // Calcolo X (left) - già implementato
   let idealLeft = rect.left + rect.width / 2 - pickerWidth / 2;
-  
-  // Clamp ai margini
   if (idealLeft < safeMargin) {
     idealLeft = safeMargin;
   } else if (idealLeft + pickerWidth > viewportWidth - safeMargin) {
     idealLeft = viewportWidth - pickerWidth - safeMargin;
   }
   
-  setPositionStyle({
-    bottom: '100%',
-    left: `${idealLeft}px`,
-    marginBottom: '8px',
-    position: 'fixed',
-    transform: 'none'
-  });
+  // Calcolo Y (flip logic)
+  const spaceAbove = rect.top;
+  const spaceBelow = viewportHeight - rect.bottom;
+  
+  // Se non c'è abbastanza spazio sopra, mostra sotto
+  const showBelow = spaceAbove < minSpaceAbove && spaceBelow > minSpaceAbove;
+  
+  if (showBelow) {
+    setPositionStyle({
+      position: 'fixed',
+      top: `${rect.bottom + 8}px`,
+      left: `${idealLeft}px`,
+      transform: 'none',
+    });
+  } else {
+    setPositionStyle({
+      position: 'fixed',
+      bottom: `${viewportHeight - rect.top + 8}px`,
+      left: `${idealLeft}px`,
+      transform: 'none',
+    });
+  }
 }, [isOpen]);
 ```
 
-### Fix 2: Shield Touch Flow Robusto
+### Fix 2: preventDefault in useLongPress
 
 ```typescript
-// reaction-picker.tsx - Shield handler migliorato
-const handleShieldInteraction = (e: React.MouseEvent | React.TouchEvent) => {
-  e.stopPropagation();
+// useLongPress.ts - onTouchStart
+onTouchStart: (e: React.TouchEvent) => {
+  // CRITICAL: Previene la selezione testo su iOS durante long-press
   e.preventDefault();
-  
-  // NON chiudere se:
-  // 1. Siamo nella finestra di interazione iniziale (long-press release)
-  // 2. L'evento è un touchend (potrebbe essere rilascio long-press)
-  const isTouchEnd = e.type === 'touchend';
-  
-  if (isInteracting) {
-    // Ignora completamente durante la finestra di protezione
-    return;
-  }
-  
-  if (isTouchEnd) {
-    // Per touchend, aspetta un frame prima di decidere
-    requestAnimationFrame(() => {
-      if (!isInteracting) {
-        onClose();
-      }
-    });
-    return;
-  }
-  
-  // Click mouse: chiudi immediatamente
-  onClose();
-};
+  const touch = e.touches[0];
+  start(touch.clientX, touch.clientY);
+},
 ```
 
-### Fix 3: Touch Isolation Completa
+### Fix 3: Touch Isolation in CommentsDrawer
 
 ```tsx
-// CommentItem.tsx - Aggiungere select-none ai pulsanti singoli
-<div className="flex items-center gap-1 action-bar-zone">
-  <button
-    className={cn(
-      "flex items-center gap-1.5 py-1.5 px-2.5 rounded-full select-none",
-      "-webkit-tap-highlight-color: transparent"
-    )}
-    style={{ 
-      WebkitTapHighlightColor: 'transparent',
-      WebkitUserSelect: 'none'
-    }}
-    {...likeButtonHandlers}
-  >
-```
-
-### Cambio Stile Picker
-
-```tsx
-// reaction-picker.tsx - Container con max-width e centratura safe
-<div
-  ref={containerRef}
-  className={cn(
-    "z-50 flex items-center gap-1 px-2 py-1.5",
-    "bg-popover/95 backdrop-blur-xl border border-border/50",
-    "rounded-full shadow-2xl",
-    "animate-in fade-in-0 zoom-in-95 duration-200",
-    className
-  )}
-  style={positionStyle}
->
+// CommentsDrawer.tsx - CommentItem, linea 1001-1028
+<div className="flex items-center gap-4 mt-2 action-bar-zone">
+  <div className="relative">
+    <button
+      {...likeHandlers}
+      className="flex items-center gap-1.5 text-xs ... select-none"
+      style={{ WebkitTapHighlightColor: 'transparent', WebkitUserSelect: 'none' }}
+    >
 ```
 
 ---
 
 ## Risultato Atteso
 
-1. **Picker sempre visibile**: Le emoji non escono mai fuori schermo, con margini garantiti di 12px
-2. **Nessuna macchia blu**: Touch isolation completa su tutta l'action bar
-3. **Nessuna chiusura accidentale**: Lo shield ignora i touchend durante la finestra di protezione di 350ms
-4. **Reazioni persistenti**: Il database e gli hook gestiscono correttamente lo switch tra emoji
-5. **Colore cuore conservato**: `text-destructive` per heart attivo rimane invariato
+1. **Picker sempre visibile**: Se non c'è spazio sopra, il picker appare sotto il bottone
+2. **Nessuna selezione testo**: Il `preventDefault()` blocca iOS dal selezionare durante il touch
+3. **Nessuna macchia blu**: Le proprietà CSS eliminano l'highlight nativo
 
-## Considerazioni Safe Guard
+## Componenti Impattati
 
-- Il flusso Comprehension Gate non viene toccato
-- Le RLS policy rimangono invariate
-- I CHECK constraint esistenti sono già corretti
-- La logica di persistenza negli hook è già funzionante
+Il fix si applica automaticamente a tutti i punti che usano `ReactionPicker` e `useLongPress`:
+- `CommentsDrawer` (Comments nel Drawer)
+- `CommentItem` (src/components/feed/CommentItem.tsx)
+- `ImmersivePostCard` (Feed principale)
+- `ImmersiveEditorialCarousel` (Il Punto)
+
+## Safe Guard
+
+- Il flusso Comprehension Gate rimane invariato
+- Le RLS policies non vengono toccate
+- Il comportamento del tap normale (non long-press) rimane identico
