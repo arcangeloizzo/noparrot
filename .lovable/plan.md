@@ -1,255 +1,169 @@
 
-# Piano: Fix Definitivo Conflitti Touch e Persistenza Reazioni
+# Piano: Soluzione Strutturale Sistema Reazioni
 
-## Obiettivo
-Risolvere definitivamente i conflitti di tocco durante il long-press e correggere il bug per cui la reazione selezionata (es. 😂) ritorna al cuore rosso dopo pochi istanti.
+## Diagnosi Confermata
 
-## Analisi del Problema
+Dopo analisi approfondita del codice, confermo che la soluzione proposta è corretta e necessaria:
 
-### Bug 1: Conflitto Gesture
-Elementi testuali (contatori numerici) vicini ai tasti Like possono essere selezionati durante il long-press, interferendo con l'apertura del ReactionPicker.
+### Bug 1: Conflitto Gesture (Touch)
+**Stato attuale:**
+- `select-none` applicato solo a elementi singoli, non all'intera action bar
+- Manca `-webkit-tap-highlight-color: transparent` per iOS
+- Nessun isolamento z-index durante l'apertura del ReactionPicker
 
-**File coinvolti:**
-- `ImmersivePostCard.tsx` - Contatore commenti senza `select-none`
-- `ImmersiveEditorialCarousel.tsx` - Contatore commenti senza `select-none`
-- `CommentItem.tsx` - Area azioni senza `select-none`
-
-### Bug 2: Persistenza Reazione (Post Feed)
-La logica `wasActive` in `usePosts.ts` verifica solo se `has_hearted && reactionType === 'heart'`. Questo significa:
-
+### Bug 2: Persistenza Focus Reactions (CRITICAL)
+**Trovato in `useFocusReactions.ts` righe 77-85:**
 ```typescript
-// PROBLEMA: Se l'utente ha 🔥 e clicca ❤️
-const wasActive = post.user_reactions.has_hearted && reactionType === 'heart';
-// wasActive = true && false = FALSE  ❌ (dovrebbe gestire lo switch)
+// BUG: Cerca reazione con lo STESSO reaction_type
+const { data: existing } = await supabase
+  .from('focus_reactions')
+  .select('id')
+  .eq('focus_id', focusId)
+  .eq('focus_type', focusType)
+  .eq('user_id', user.id)
+  .eq('reaction_type', reactionType) // ← PROBLEMA!
 ```
-
-Quando l'utente cambia reazione (es. da 🔥 a ❤️), il sistema non rimuove prima la reazione precedente.
-
-### Bug 3: Persistenza Reazione (Editorial)
-L'hook `useFocusReactions.ts` non traccia `myReactionType`, solo `likedByMe` (boolean). Dopo il refresh, non c'è modo di sapere quale emoji era stata scelta.
+Quando l'utente cambia da 🔥 a ❤️, il sistema non trova la reazione esistente e ne crea una NUOVA invece di fare UPDATE. Questo causa duplicati e comportamenti erratici.
 
 ---
 
-## Soluzione Proposta
+## Soluzione Implementativa
 
-### Parte 1: Protezione Globale con `select-none`
+### Parte 1: Isolamento Totale Touch (CSS Globale)
 
-Applicare `select-none` a tutti i contatori e aree di azione per prevenire selezione testo accidentale.
+**File: `src/index.css`**
 
-**ImmersivePostCard.tsx** (riga ~2067):
+Aggiungere regola globale per eliminare highlight blu iOS su tutti gli elementi interattivi:
+
+```css
+/* Touch isolation for action bars */
+.action-bar-zone {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* Prevent text selection on reaction counters globally */
+.reaction-count {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+```
+
+### Parte 2: Z-Index Shield nel ReactionPicker
+
+**File: `src/components/ui/reaction-picker.tsx`**
+
+Quando il picker è aperto, montare un overlay invisibile full-screen che blocca altri eventi:
+
 ```tsx
-{/* Comments - aggiungere select-none */}
-<button className="flex items-center justify-center gap-1.5 h-full select-none" ...>
-  <MessageCircle className="w-6 h-6 text-white" />
-  <span className="text-sm font-bold text-white select-none">{post.reactions?.comments || 0}</span>
-</button>
+return (
+  <>
+    {/* Invisible shield to block other interactions */}
+    <div 
+      className="fixed inset-0 z-40" 
+      onClick={(e) => {
+        e.stopPropagation();
+        onClose();
+      }}
+      onTouchStart={(e) => e.stopPropagation()}
+    />
+    
+    {/* Actual picker - above shield */}
+    <div
+      ref={containerRef}
+      className={cn(
+        "absolute z-50 flex items-center gap-1 px-2 py-1.5",
+        "bg-popover/95 backdrop-blur-xl border border-border/50",
+        "rounded-full shadow-2xl",
+        "animate-in fade-in-0 zoom-in-95 duration-200",
+        className
+      )}
+      style={{ bottom: '100%', left: '50%', transform: 'translateX(-50%)', marginBottom: '8px' }}
+    >
+      {/* emoji buttons */}
+    </div>
+  </>
+);
 ```
 
-**ImmersiveEditorialCarousel.tsx** (riga ~693):
+### Parte 3: Applicare `action-bar-zone` ai Componenti
+
+**File: `ImmersivePostCard.tsx` (riga ~2014)**
 ```tsx
-{/* Comments - aggiungere select-none */}
-<button className="flex items-center justify-center gap-1.5 h-full select-none" ...>
-  <MessageCircle className="w-6 h-6 text-white" />
-  <span className="text-sm font-bold text-white select-none">{item.reactions?.comments ?? 0}</span>
-</button>
+{/* Action Icons - Uniform w-6 h-6, aligned on same axis */}
+<div className="flex items-center gap-4 h-11 action-bar-zone">
 ```
 
-**CommentItem.tsx** (righe ~240-264):
+**File: `ImmersiveEditorialCarousel.tsx` (riga ~622)**
 ```tsx
-{/* Footer actions - aggiungere select-none all'intero container */}
-<div className="flex items-center gap-1 select-none">
-  {/* Like button */}
-  <button {...likeButtonHandlers} className="... select-none">
-    ...
-    <span className="text-xs font-medium select-none">{reactions?.likesCount}</span>
-  </button>
-  {/* Reply button */}
-  <button className="... select-none">...</button>
-</div>
+{/* Action Icons - Uniform w-6 h-6, aligned on same axis */}
+<div className="flex items-center gap-4 h-11 action-bar-zone">
 ```
 
-### Parte 2: Fix Persistenza Reazioni (Post)
-
-Correggere la logica `wasActive` in `usePosts.ts` per gestire correttamente lo switch tra tipi di reazione.
-
-**Problema attuale:**
-```typescript
-const wasActive = isBookmark 
-  ? post.user_reactions.has_bookmarked 
-  : post.user_reactions.has_hearted && reactionType === 'heart';
+**File: `CommentItem.tsx`**
+```tsx
+{/* Footer actions */}
+<div className="flex items-center gap-1 action-bar-zone">
 ```
 
-**Soluzione:**
-```typescript
-// Verifica se la reazione corrente è esattamente quella che stiamo togglando
-const wasActive = isBookmark 
-  ? post.user_reactions.has_bookmarked 
-  : post.user_reactions.myReactionType === reactionType;
-```
+### Parte 4: Fix Persistenza Focus Reactions (CRITICAL)
 
-Inoltre, nella mutationFn, prima di aggiungere una nuova reazione non-bookmark, rimuovere eventuali reazioni esistenti dell'utente sullo stesso post:
+**File: `src/hooks/useFocusReactions.ts`**
+
+Correggere la mutation per usare la stessa logica di `usePosts.ts` (switch/update invece di delete+insert):
 
 ```typescript
-mutationFn: async ({ postId, reactionType }) => {
-  if (!user) throw new Error('Not authenticated');
+mutationFn: async ({ focusId, focusType, reactionType = 'heart' }: FocusReactionData) => {
+  if (!user) throw new Error('User not authenticated');
 
-  // Per reazioni non-bookmark, gestire lo switch
-  if (reactionType !== 'bookmark') {
-    // Trova reazione esistente di qualsiasi tipo (escluso bookmark)
-    const { data: existing } = await supabase
-      .from('reactions')
-      .select('id, reaction_type')
-      .eq('post_id', postId)
-      .eq('user_id', user.id)
-      .neq('reaction_type', 'bookmark')
-      .maybeSingle();
+  // Cerca qualsiasi reazione esistente (non filtrare per reaction_type!)
+  const { data: existing } = await supabase
+    .from('focus_reactions')
+    .select('id, reaction_type')
+    .eq('focus_id', focusId)
+    .eq('focus_type', focusType)
+    .eq('user_id', user.id)
+    .maybeSingle();
 
-    if (existing) {
-      if (existing.reaction_type === reactionType) {
-        // Stesso tipo -> rimuovi (toggle off)
-        await supabase.from('reactions').delete().eq('id', existing.id);
-        return { action: 'removed' };
-      } else {
-        // Tipo diverso -> aggiorna (switch)
-        await supabase.from('reactions')
-          .update({ reaction_type: reactionType })
-          .eq('id', existing.id);
-        return { action: 'switched' };
-      }
+  if (existing) {
+    if (existing.reaction_type === reactionType) {
+      // Same type -> toggle off (delete)
+      await supabase.from('focus_reactions').delete().eq('id', existing.id);
+      return { action: 'removed' as const, previousType: existing.reaction_type };
     } else {
-      // Nessuna reazione -> aggiungi
-      await supabase.from('reactions').insert({
-        post_id: postId,
-        user_id: user.id,
-        reaction_type: reactionType,
-      });
-      return { action: 'added' };
+      // Different type -> switch (update)
+      await supabase
+        .from('focus_reactions')
+        .update({ reaction_type: reactionType })
+        .eq('id', existing.id);
+      return { action: 'switched' as const, previousType: existing.reaction_type };
     }
   } else {
-    // Logica bookmark esistente...
-  }
-}
-```
-
-**Aggiornamento optimistic update:**
-```typescript
-onMutate: async ({ postId, reactionType }) => {
-  // ...cancella query e snapshot...
-  
-  queryClient.setQueryData(['posts', user.id], (old: Post[] | undefined) => {
-    if (!old) return old;
-    return old.map(post => {
-      if (post.id !== postId) return post;
-      
-      const isBookmark = reactionType === 'bookmark';
-      const currentReaction = post.user_reactions.myReactionType;
-      const isSameReaction = currentReaction === reactionType;
-      
-      if (isBookmark) {
-        // Logica bookmark invariata
-        return {
-          ...post,
-          user_reactions: {
-            ...post.user_reactions,
-            has_bookmarked: !post.user_reactions.has_bookmarked
-          }
-        };
-      }
-      
-      // Calcola nuovi conteggi byType
-      const newByType = { ...post.reactions.byType };
-      
-      if (isSameReaction) {
-        // Toggle off: rimuovi la reazione corrente
-        newByType[reactionType] = Math.max(0, (newByType[reactionType] || 0) - 1);
-        
-        return {
-          ...post,
-          reactions: {
-            ...post.reactions,
-            hearts: post.reactions.hearts - 1,
-            byType: newByType,
-          },
-          user_reactions: {
-            ...post.user_reactions,
-            has_hearted: false,
-            myReactionType: null
-          }
-        };
-      } else {
-        // Aggiungi o Switch
-        // Se c'era una reazione precedente, rimuovi il suo count
-        if (currentReaction) {
-          newByType[currentReaction] = Math.max(0, (newByType[currentReaction] || 0) - 1);
-        }
-        // Aggiungi il count per la nuova reazione
-        newByType[reactionType] = (newByType[reactionType] || 0) + 1;
-        
-        return {
-          ...post,
-          reactions: {
-            ...post.reactions,
-            // hearts incrementa solo se non c'era già una reazione
-            hearts: currentReaction 
-              ? post.reactions.hearts 
-              : post.reactions.hearts + 1,
-            byType: newByType,
-          },
-          user_reactions: {
-            ...post.user_reactions,
-            has_hearted: true,
-            myReactionType: reactionType as 'heart' | 'laugh' | 'wow' | 'sad' | 'fire'
-          }
-        };
-      }
+    // No existing -> add new
+    await supabase.from('focus_reactions').insert({
+      focus_id: focusId,
+      focus_type: focusType,
+      user_id: user.id,
+      reaction_type: reactionType,
     });
-  });
-  
-  // ... resto invariato ...
-}
-```
-
-### Parte 3: Fix Persistenza Reazioni (Editorial)
-
-Estendere `useFocusReactions.ts` per tracciare `myReactionType`.
-
-**Aggiornamento interfaccia:**
-```typescript
-interface FocusReactionsResult {
-  likes: number;
-  likedByMe: boolean;
-  myReactionType: ReactionType | null; // NUOVO
-}
-```
-
-**Aggiornamento query:**
-```typescript
-queryFn: async (): Promise<FocusReactionsResult> => {
-  // ... count likes ...
-
-  let likedByMe = false;
-  let myReactionType: ReactionType | null = null;
-  
-  if (user) {
-    const { data: userReaction } = await supabase
-      .from('focus_reactions')
-      .select('id, reaction_type')
-      .eq('focus_id', focusId)
-      .eq('focus_type', focusType)
-      .eq('user_id', user.id)
-      .maybeSingle();
-    
-    likedByMe = !!userReaction;
-    myReactionType = userReaction?.reaction_type as ReactionType || null;
+    return { action: 'added' as const };
   }
-
-  return { likes, likedByMe, myReactionType };
 }
 ```
 
-**Aggiornamento `EditorialSlideInner`:**
-```typescript
-// Sync con server state
+### Parte 5: Sync `currentReaction` con Server State
+
+**File: `src/components/feed/ImmersiveEditorialCarousel.tsx`**
+
+Aggiungere useEffect per sincronizzare lo stato locale con i dati del server:
+
+```tsx
+// Sync currentReaction with server data when available
 useEffect(() => {
   if (reactionsData?.myReactionType) {
     setCurrentReaction(reactionsData.myReactionType);
@@ -265,11 +179,12 @@ useEffect(() => {
 
 | File | Modifiche |
 |------|-----------|
-| `src/hooks/usePosts.ts` | Fix logica `wasActive` e mutationFn per gestire switch reazioni |
-| `src/hooks/useFocusReactions.ts` | Aggiungere `myReactionType` alla query |
-| `src/components/feed/ImmersivePostCard.tsx` | `select-none` su contatore commenti |
-| `src/components/feed/ImmersiveEditorialCarousel.tsx` | `select-none` su contatore commenti + sync `myReactionType` |
-| `src/components/feed/CommentItem.tsx` | `select-none` su tutta l'area azioni |
+| `src/index.css` | Aggiungere `.action-bar-zone` e `.reaction-count` classes |
+| `src/components/ui/reaction-picker.tsx` | Aggiungere shield overlay invisibile |
+| `src/hooks/useFocusReactions.ts` | Fix mutation per switch invece di delete+insert |
+| `src/components/feed/ImmersivePostCard.tsx` | Applicare `action-bar-zone` |
+| `src/components/feed/ImmersiveEditorialCarousel.tsx` | Applicare `action-bar-zone` + sync useEffect |
+| `src/components/feed/CommentItem.tsx` | Applicare `action-bar-zone` |
 
 ---
 
@@ -280,7 +195,7 @@ useEffect(() => {
 | Comprehension Gate | Non toccato |
 | RLS Security | Non toccata |
 | Deep Linking | Non toccato |
-| ReactionsSheet | Non toccato |
+| ReactionsSheet (drawer) | Non toccato |
 | Colore `text-destructive` per cuore | Mantenuto |
 | Logica bookmark | Invariata |
 
@@ -288,7 +203,8 @@ useEffect(() => {
 
 ## Risultato Atteso
 
-1. **Long-press fluido**: Nessuna selezione testo blu durante l'uso del ReactionPicker
-2. **Persistenza corretta**: Se scelgo 🔥, rimane 🔥 anche dopo refresh
-3. **Switch intelligente**: Cambio da 😂 a 🔥 aggiorna la reazione senza duplicati
-4. **Cuore rosso**: Mantenuto come default per reazione heart attiva
+1. **Zero macchie blu**: `-webkit-tap-highlight-color: transparent` elimina ogni highlight iOS
+2. **Nessuna interferenza**: Shield overlay isola il ReactionPicker dagli altri elementi
+3. **Persistenza corretta**: UPDATE invece di DELETE+INSERT garantisce che l'emoji scelta rimanga
+4. **Sync affidabile**: useEffect sincronizza stato locale con database
+5. **UX fluida**: Long-press apre picker senza selezioni accidentali di testo
