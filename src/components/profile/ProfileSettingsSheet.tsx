@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Settings, LogOut, UserPen, XIcon } from "lucide-react";
+import { Settings, LogOut, UserPen, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import {
@@ -50,7 +50,7 @@ export const ProfileSettingsSheet = ({ open, onOpenChange }: ProfileSettingsShee
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent 
         side="bottom" 
-        hideClose
+        hideClose={true}
         className="bg-[#0E1419] border-t border-white/10 rounded-t-3xl px-4 pb-8 pt-4"
       >
         <SheetHeader className="mb-4">
@@ -60,7 +60,7 @@ export const ProfileSettingsSheet = ({ open, onOpenChange }: ProfileSettingsShee
               onClick={() => onOpenChange(false)}
               className="p-2 rounded-full hover:bg-white/10 transition-colors"
             >
-              <XIcon className="w-5 h-5 text-muted-foreground" />
+              <X className="w-5 h-5 text-muted-foreground" />
             </button>
           </div>
         </SheetHeader>
