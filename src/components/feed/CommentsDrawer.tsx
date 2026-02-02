@@ -998,11 +998,12 @@ const CommentItem = ({ comment, currentUserId, onReply, onLike, onDelete, onMedi
             </div>
           )}
 
-          <div className="flex items-center gap-4 mt-2">
+          <div className="flex items-center gap-4 mt-2 action-bar-zone">
             <div className="relative">
               <button
                 {...likeHandlers}
-                className="flex items-center gap-1.5 text-xs cognitive-text-secondary hover:text-destructive transition-colors active:scale-90"
+                className="flex items-center gap-1.5 text-xs cognitive-text-secondary hover:text-destructive transition-colors active:scale-90 select-none"
+                style={{ WebkitTapHighlightColor: 'transparent', WebkitUserSelect: 'none' }}
               >
                 {reactions?.myReactionType && reactions.myReactionType !== 'heart' ? (
                   <span className="text-base">{reactionToEmoji(reactions.myReactionType)}</span>
@@ -1029,7 +1030,8 @@ const CommentItem = ({ comment, currentUserId, onReply, onLike, onDelete, onMedi
 
             <button
               onClick={onReply}
-              className="text-xs cognitive-text-secondary hover:text-primary transition-colors"
+              className="text-xs cognitive-text-secondary hover:text-primary transition-colors select-none"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               Rispondi
             </button>

@@ -56,6 +56,8 @@ export const useLongPress = ({
 
   const handlers: LongPressHandlers = {
     onTouchStart: (e: React.TouchEvent) => {
+      // CRITICAL: Prevent text selection on iOS during long-press
+      e.preventDefault();
       const touch = e.touches[0];
       start(touch.clientX, touch.clientY);
     },
