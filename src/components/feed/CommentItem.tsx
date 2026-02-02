@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Heart, MessageCircle, Trash2, Link2, Flag } from 'lucide-react';
+import { Heart, MessageCircle, Trash2, Link2 } from 'lucide-react';
 import { Comment } from '@/hooks/useComments';
 import { useCommentReactions, useToggleCommentReaction } from '@/hooks/useCommentReactions';
 import { useFocusCommentReactions, useToggleFocusCommentReaction } from '@/hooks/useFocusCommentReactions';
@@ -10,7 +10,6 @@ import { MentionText } from './MentionText';
 import { MediaGallery } from '@/components/media/MediaGallery';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   Tooltip,
@@ -47,7 +46,6 @@ export const CommentItem = ({
   getUserAvatar: externalGetUserAvatar,
   commentKind = 'post'
 }: CommentItemProps) => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   
   // Use correct hooks based on commentKind
@@ -59,8 +57,6 @@ export const CommentItem = ({
   const toggleFocusReaction = useToggleFocusCommentReaction();
   
   const [isLiking, setIsLiking] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
-  const longPressTimer = useRef<NodeJS.Timeout>();
 
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const likeButtonRef = useRef<HTMLButtonElement>(null);
@@ -89,19 +85,6 @@ export const CommentItem = ({
     setTimeout(() => setIsLiking(false), 250);
   };
 
-  const handleLongPressStart = () => {
-    longPressTimer.current = setTimeout(() => {
-      haptics.medium();
-      setShowMenu(true);
-    }, 500);
-  };
-
-  const handleLongPressEnd = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-    }
-  };
-
   // Long press handlers for like button
   const likeButtonHandlers = useLongPress({
     onLongPress: () => setShowReactionPicker(true),
@@ -112,13 +95,11 @@ export const CommentItem = ({
     // Only show copy link for post comments (focus comments don't have post_id)
     if (commentKind === 'focus' || !comment.post_id) {
       toast.info('Link non disponibile');
-      setShowMenu(false);
       return;
     }
     const url = `${window.location.origin}/post/${comment.post_id}?focus=${comment.id}`;
     navigator.clipboard.writeText(url);
     toast.success('Link copiato!');
-    setShowMenu(false);
   };
 
   const getInitials = (name: string) => {
@@ -175,11 +156,6 @@ export const CommentItem = ({
       style={{
         marginLeft: `${indentAmount}px`,
       }}
-      onTouchStart={handleLongPressStart}
-      onTouchEnd={handleLongPressEnd}
-      onMouseDown={handleLongPressStart}
-      onMouseUp={handleLongPressEnd}
-      onMouseLeave={handleLongPressEnd}
     >
       {/* Compact comment card */}
       <div className={cn(
@@ -361,63 +337,6 @@ export const CommentItem = ({
           </div>
         </div>
       </div>
-
-      {/* Context Menu (long press) */}
-      {showMenu && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end animate-fade-in"
-          onClick={() => setShowMenu(false)}
-        >
-          <div className="bg-[#0E1419] w-full rounded-t-3xl p-4 space-y-2 animate-slide-up border-t border-white/10">
-            <div className="w-10 h-1 bg-white/20 rounded-full mx-auto mb-4" />
-            
-            <button
-              onClick={copyLink}
-              className="w-full flex items-center gap-4 p-4 hover:bg-white/5 rounded-xl transition-colors"
-            >
-              <div className="p-2 rounded-full bg-white/5">
-                <Link2 className="w-5 h-5" />
-              </div>
-              <span className="font-medium">Copia link</span>
-            </button>
-            
-            <button
-              onClick={() => {
-                toast.info('Segnalazione inviata');
-                setShowMenu(false);
-              }}
-              className="w-full flex items-center gap-4 p-4 hover:bg-white/5 rounded-xl transition-colors"
-            >
-              <div className="p-2 rounded-full bg-white/5">
-                <Flag className="w-5 h-5" />
-              </div>
-              <span className="font-medium">Segnala</span>
-            </button>
-            
-            {currentUserId === comment.author.id && (
-              <button
-                onClick={() => {
-                  onDelete();
-                  setShowMenu(false);
-                }}
-                className="w-full flex items-center gap-4 p-4 hover:bg-red-500/10 rounded-xl transition-colors text-red-400"
-              >
-                <div className="p-2 rounded-full bg-red-500/10">
-                  <Trash2 className="w-5 h-5" />
-                </div>
-                <span className="font-medium">Elimina</span>
-              </button>
-            )}
-            
-            <button
-              onClick={() => setShowMenu(false)}
-              className="w-full p-4 bg-white/5 rounded-xl font-medium mt-2 hover:bg-white/10 transition-colors"
-            >
-              Annulla
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

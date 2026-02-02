@@ -58,6 +58,7 @@ export const useLongPress = ({
     onTouchStart: (e: React.TouchEvent) => {
       // CRITICAL: Prevent text selection on iOS during long-press
       e.preventDefault();
+      e.stopPropagation();
       const touch = e.touches[0];
       start(touch.clientX, touch.clientY);
     },
@@ -67,6 +68,7 @@ export const useLongPress = ({
     },
     onTouchCancel: clear,
     onMouseDown: (e: React.MouseEvent) => {
+      e.stopPropagation();
       start(e.clientX, e.clientY);
     },
     onMouseUp: end,
