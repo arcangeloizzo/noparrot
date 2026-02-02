@@ -9,7 +9,7 @@ import { useFocusReactions, useToggleFocusReaction } from "@/hooks/useFocusReact
 import { useFocusCommentReactions, useToggleFocusCommentReaction } from "@/hooks/useFocusCommentReactions";
 import { useFocusBookmark, useToggleFocusBookmark } from "@/hooks/useFocusBookmarks";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { SourcesDrawer } from "./SourcesDrawer";
@@ -22,6 +22,8 @@ import { haptics } from "@/lib/haptics";
 import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "@/components/ui/logo";
 import { FocusDetailSkeleton, SourcesSkeleton } from "./skeletons";
+import { useLongPress } from "@/hooks/useLongPress";
+import { ReactionPicker, type ReactionType, reactionToEmoji } from "@/components/ui/reaction-picker";
 
 interface Source {
   icon: string;
@@ -578,11 +580,31 @@ const CommentWithReplies = ({
   const { data: reactionData } = useFocusCommentReactions(comment.id);
   const toggleReaction = useToggleFocusCommentReaction();
   const { user } = useAuth();
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const likeButtonRef = useRef<HTMLButtonElement>(null);
   
   const profile = comment.profiles || {};
   const username = profile.username || profile.full_name || 'Utente';
   const avatarUrl = profile.avatar_url;
   const isOwner = currentUserId === comment.author_id;
+
+  const handleLike = (reactionType: ReactionType = 'heart') => {
+    if (!user) {
+      sonnerToast.error('Devi effettuare il login');
+      return;
+    }
+    toggleReaction.mutate({ 
+      focusCommentId: comment.id, 
+      isLiked: reactionData?.likedByMe || false,
+      reactionType
+    });
+    haptics.light();
+  };
+
+  const likeHandlers = useLongPress({
+    onLongPress: () => setShowReactionPicker(true),
+    onTap: () => handleLike('heart'),
+  });
 
   return (
     <div className="space-y-3">
@@ -614,28 +636,38 @@ const CommentWithReplies = ({
             {comment.content}
           </p>
 
-          {/* Actions */}
-          {/* Actions */}
-          <div className="flex items-center gap-4 mt-2">
-            <button 
-              onClick={() => {
-                if (!user) {
-                  sonnerToast.error('Devi effettuare il login');
-                  return;
-                }
-                toggleReaction.mutate({ focusCommentId: comment.id, isLiked: reactionData?.likedByMe || false });
-                haptics.light();
-              }}
-              className="flex items-center gap-1 text-xs text-gray-500 hover:text-white transition-colors"
-            >
-              <Heart 
-                className={cn(
-                  "w-3.5 h-3.5",
-                  reactionData?.likedByMe ? "text-red-500 fill-red-500" : ""
-                )} 
+          {/* Actions with ReactionPicker */}
+          <div className="flex items-center gap-4 mt-2 action-bar-zone">
+            <div className="relative">
+              <button 
+                ref={likeButtonRef}
+                {...likeHandlers}
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-white transition-colors select-none"
+                style={{ WebkitTapHighlightColor: 'transparent', WebkitUserSelect: 'none' }}
+              >
+                {reactionData?.myReactionType && reactionData.myReactionType !== 'heart' ? (
+                  <span className="text-base">{reactionToEmoji(reactionData.myReactionType)}</span>
+                ) : (
+                  <Heart 
+                    className={cn(
+                      "w-3.5 h-3.5",
+                      reactionData?.likedByMe ? "text-red-500 fill-red-500" : ""
+                    )} 
+                  />
+                )}
+                <span>{reactionData?.likesCount || 0}</span>
+              </button>
+              <ReactionPicker
+                isOpen={showReactionPicker}
+                onClose={() => setShowReactionPicker(false)}
+                onSelect={(type) => {
+                  handleLike(type);
+                  setShowReactionPicker(false);
+                }}
+                currentReaction={reactionData?.myReactionType}
+                triggerRef={likeButtonRef}
               />
-              <span>{reactionData?.likesCount || 0}</span>
-            </button>
+            </div>
             
             <button 
               onClick={() => onReply(comment.id, username)}
