@@ -50,6 +50,7 @@ export const ProfileSettingsSheet = ({ open, onOpenChange }: ProfileSettingsShee
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent 
         side="bottom" 
+        hideClose
         className="bg-[#0E1419] border-t border-white/10 rounded-t-3xl px-4 pb-8 pt-4"
       >
         <SheetHeader className="mb-4">
