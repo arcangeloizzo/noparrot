@@ -448,7 +448,7 @@ interface EditorialSlideProps {
   onShare?: () => void;
   onOpenSources?: () => void;
   onComment?: (item: DailyFocus) => void;
-  reactionsData: { likes: number; likedByMe: boolean } | null;
+  reactionsData: { likes: number; likedByMe: boolean; myReactionType?: string | null } | null;
   isBookmarked?: boolean;
   onLike: (reactionType?: ReactionType) => void;
   onBookmark: () => void;
@@ -481,15 +481,14 @@ const EditorialSlideInner = ({
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [currentReaction, setCurrentReaction] = useState<ReactionType | null>(null);
   
-  // Sync currentReaction with server state when reactionsData changes
+  // Sync currentReaction with server state (myReactionType) when reactionsData changes
   useEffect(() => {
-    if (reactionsData?.likedByMe) {
-      // Keep current reaction if user has one, otherwise default to 'heart'
-      if (!currentReaction) setCurrentReaction('heart');
-    } else {
+    if (reactionsData?.myReactionType) {
+      setCurrentReaction(reactionsData.myReactionType as ReactionType);
+    } else if (!reactionsData?.likedByMe) {
       setCurrentReaction(null);
     }
-  }, [reactionsData?.likedByMe]);
+  }, [reactionsData?.myReactionType, reactionsData?.likedByMe]);
   
   const likeHandlers = useLongPress({
     onLongPress: () => setShowReactionPicker(true),
@@ -680,9 +679,9 @@ const EditorialSlideInner = ({
                   />
                 )}
 
-                {/* Comments */}
+                {/* Comments - select-none prevents text selection on long-press */}
                 <button 
-                  className="flex items-center justify-center gap-1.5 h-full"
+                  className="flex items-center justify-center gap-1.5 h-full select-none"
                   onClick={(e) => {
                     e.stopPropagation();
                     haptics.light();
@@ -690,7 +689,7 @@ const EditorialSlideInner = ({
                   }}
                 >
                   <MessageCircle className="w-6 h-6 text-white transition-transform active:scale-90" />
-                  <span className="text-sm font-bold text-white">
+                  <span className="text-sm font-bold text-white select-none">
                     {item.reactions?.comments ?? 0}
                   </span>
                 </button>

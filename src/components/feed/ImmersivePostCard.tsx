@@ -2058,13 +2058,13 @@ const ImmersivePostCardInner = ({
                 />
               </div>
 
-              {/* Comments */}
+              {/* Comments - select-none prevents text selection on long-press */}
               <button 
-                className="flex items-center justify-center gap-1.5 h-full"
+                className="flex items-center justify-center gap-1.5 h-full select-none"
                 onClick={(e) => { e.stopPropagation(); haptics.light(); setShowComments(true); }}
               >
                 <MessageCircle className="w-6 h-6 text-white transition-transform active:scale-90" />
-                <span className="text-sm font-bold text-white">{post.reactions?.comments || 0}</span>
+                <span className="text-sm font-bold text-white select-none">{post.reactions?.comments || 0}</span>
               </button>
 
               {/* Bookmark */}
