@@ -155,8 +155,11 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
     }, [isInteracting, onClose]);
 
     const handleSelect = (type: ReactionType) => {
+      console.log('[ReactionPicker] handleSelect called with:', type);
       haptics.selection();
+      console.log('[ReactionPicker] About to call onSelect');
       onSelect(type);
+      console.log('[ReactionPicker] onSelect returned, calling onClose');
       onClose();
     };
 
@@ -195,12 +198,17 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
                 {REACTIONS.map((reaction, index) => (
                   <button
                     key={reaction.type}
+                    onTouchStart={(e) => {
+                      console.log('[ReactionPicker] Emoji touchstart:', reaction.type);
+                    }}
                     onTouchEnd={(e) => {
+                      console.log('[ReactionPicker] Emoji touchend:', reaction.type);
                       e.preventDefault();
                       e.stopPropagation();
                       handleSelect(reaction.type);
                     }}
                     onClick={(e) => {
+                      console.log('[ReactionPicker] Emoji click:', reaction.type);
                       e.stopPropagation();
                       handleSelect(reaction.type);
                     }}
@@ -257,12 +265,17 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
           {REACTIONS.map((reaction, index) => (
             <button
               key={reaction.type}
+              onTouchStart={(e) => {
+                console.log('[ReactionPicker] Emoji touchstart:', reaction.type);
+              }}
               onTouchEnd={(e) => {
+                console.log('[ReactionPicker] Emoji touchend:', reaction.type);
                 e.preventDefault();
                 e.stopPropagation();
                 handleSelect(reaction.type);
               }}
               onClick={(e) => {
+                console.log('[ReactionPicker] Emoji click:', reaction.type);
                 e.stopPropagation();
                 handleSelect(reaction.type);
               }}
