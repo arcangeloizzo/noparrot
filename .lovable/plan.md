@@ -1,130 +1,247 @@
 
-# Piano di Correzione: Toolbar iOS e Semplificazione Media Actions
+# Piano: Sistema Reazioni Instagram Drawer
 
-## Problema Identificato
+## Obiettivo
+Trasformare la visualizzazione delle reazioni nell'app NoParrot da emoji stack sovrapposti a un conteggio testuale cliccabile che apre un Drawer (Bottom Sheet) con filtri per tipo di reazione e lista utenti con pulsante "Segui".
 
-### 1. Toolbar coperta dalla tastiera (iOS Safari/PWA)
-Su Safari iOS, `position: absolute` con `100dvh` **non basta**. Il visualViewport di iOS non spinge automaticamente elementi non-fixed. L'unica soluzione affidabile è usare `visualViewport.resize` per calcolare manualmente l'offset della tastiera.
+## Analisi Attuale
 
-### 2. Menu nativo iOS per input file
-Quando un `<input type="file" accept="image/*,video/*">` viene attivato su iOS, il sistema **mostra sempre un action sheet nativo** ("Scatta foto", "Fotocamera", "Libreria foto") - non è controllabile dall'app. L'unica alternativa è separare gli input (solo immagini OPPURE solo video).
+### Componenti Coinvolti
+| Componente | Uso Attuale |
+|------------|-------------|
+| `ReactionSummary.tsx` | Mostra emoji stack sovrapposti + count (usato in 7+ luoghi) |
+| `ReactionsSheet.tsx` | Drawer esistente con tab filtri e lista utenti (già funzionante) |
+| `ImmersivePostCard.tsx` | Feed post - mostra ReactionSummary |
+| `ImmersiveEditorialCarousel.tsx` | Editoriali "Il Punto" - mostra ReactionSummary |
+| `CommentItem.tsx` | Commenti - mostra ReactionSummary |
+| `CommentsDrawer.tsx` | Drawer commenti post |
+| `CommentsSheet.tsx` | Sheet commenti focus |
+| `MediaCommentsSheet.tsx` | Commenti media |
+
+### Problema Identificato
+Il `ReactionsSheet.tsx` esistente è già ben strutturato con:
+- Tab orizzontali per filtrare per tipo di reazione
+- Lista utenti con avatar, nome e username
+
+**Manca solo**:
+1. Sostituzione dello stack emoji con conteggio testuale
+2. Aggiunta pulsante "Segui/Segui già" per ogni utente
+3. Rimozione emoji badge sull'avatar (per aderire al design Instagram)
+4. Applicazione globale della nuova UI
 
 ---
 
-## Soluzione Proposta
+## Design Proposta
 
-### Parte A: Tornare a Fotocamera + Dropdown (come richiesto)
-
-Come da tua richiesta, semplificheremo la MediaActionBar:
-
-- **Icona Camera**: Azione diretta → Apre fotocamera per scatto/registrazione
-- **Icona Plus (+)**: Apre un dropdown custom con opzioni:
-  - Galleria Foto
-  - Galleria Video  
-  - File/Documenti
-
-Questo elimina il menu nativo iOS perché ogni input avrà un solo tipo di accept.
-
-```text
-+------------------------------------------------------------------+
-|  [B]  [I]  [U]    |    [📷 Camera]  [+ Menu]               123/3000
-+------------------------------------------------------------------+
-                              ↓
-                     ┌─────────────────┐
-                     │ 🖼 Foto         │
-                     │ 🎬 Video        │
-                     │ 📎 File         │
-                     └─────────────────┘
+### Prima (Attuale)
+```
+[❤️😂🔥] 42
 ```
 
-### Parte B: Fix Toolbar iOS con visualViewport API
+### Dopo (Instagram-style)
+```
+42 reazioni    ← Testo cliccabile
+```
+oppure
+```
+Piace a mario_rossi e altri 41
+```
 
-Implementeremo un listener su `window.visualViewport` per calcolare dinamicamente il `bottom` della toolbar quando la tastiera è aperta:
+### Drawer Interno (Header con Filtri)
+```
+╭──────────────────────────────────────────╮
+│ ⌢                                         │
+│ Mi piace                                  │
+│                                           │
+│ [Tutti 42] [❤️ 30] [😂 8] [🔥 4]          │
+│ ─────────────────────────────────────     │
+│                                           │
+│ 🔵 Mario Rossi                  [Segui]   │
+│    @mario_rossi                           │
+│                                           │
+│ 🔵 Anna Verdi               [Segui già]   │
+│    @anna_verdi                            │
+│                                           │
+│ ...                                       │
+╰──────────────────────────────────────────╯
+```
+
+---
+
+## Modifiche Tecniche
+
+### 1. ReactionSummary.tsx - Refactoring Completo
+
+Sostituire lo stack emoji con un conteggio testuale semplice:
 
 ```tsx
-// In ComposerModal.tsx
-const [keyboardOffset, setKeyboardOffset] = useState(0);
+// PRIMA: Emoji stack sovrapposti
+<div className="flex items-center">
+  {topReactions.map((reaction, index) => (
+    <span className="...emoji...">{reactionToEmoji(reaction.type)}</span>
+  ))}
+</div>
 
-useEffect(() => {
-  if (!isOpen) return;
-  
-  const viewport = window.visualViewport;
-  if (!viewport) return;
-  
-  const handleResize = () => {
-    // Calcola quanto spazio la tastiera sta occupando
-    const offset = window.innerHeight - viewport.height;
-    setKeyboardOffset(offset > 50 ? offset : 0);
-  };
-  
-  viewport.addEventListener('resize', handleResize);
-  viewport.addEventListener('scroll', handleResize);
-  
-  return () => {
-    viewport.removeEventListener('resize', handleResize);
-    viewport.removeEventListener('scroll', handleResize);
-  };
-}, [isOpen]);
+// DOPO: Conteggio testuale
+<span className="text-sm text-muted-foreground">
+  {totalCount} {totalCount === 1 ? 'reazione' : 'reazioni'}
+</span>
 ```
 
-La MediaActionBar userà questo offset per posizionarsi sopra la tastiera:
+Variante alternativa (stile "Piace a X e altri Y"):
+```tsx
+// Se esiste un primo reactor noto, mostrare nome
+"Piace a {firstReactorName} e altri {count - 1}"
+```
+
+### 2. ReactionsSheet.tsx - Aggiunta Pulsante Segui
+
+Aggiungere logica follow/unfollow al `ReactorRow`:
 
 ```tsx
-<MediaActionBar
-  style={{ transform: `translateY(-${keyboardOffset}px)` }}
-  // oppure
-  style={{ bottom: keyboardOffset }}
-/>
+const ReactorRow = ({ reactor, onClick, currentUserId }) => {
+  // Nuovo: hook per verificare se seguo già questo utente
+  const { data: isFollowing } = useIsFollowing(reactor.user_id);
+  const toggleFollow = useToggleFollow();
+  
+  return (
+    <div className="flex items-center gap-3 p-2">
+      {/* Avatar SENZA badge emoji (stile Instagram) */}
+      <Avatar className="w-11 h-11" onClick={onClick}>
+        <AvatarImage src={user.avatar_url} />
+        <AvatarFallback>{initials}</AvatarFallback>
+      </Avatar>
+      
+      {/* User info */}
+      <div className="flex-1 min-w-0" onClick={onClick}>
+        <p className="font-semibold text-sm">{displayName}</p>
+        <p className="text-xs text-muted-foreground">@{username}</p>
+      </div>
+      
+      {/* NUOVO: Pulsante Segui (non mostrato se è l'utente corrente) */}
+      {currentUserId !== reactor.user_id && (
+        <Button
+          variant={isFollowing ? "outline" : "default"}
+          size="sm"
+          className="rounded-full h-8 px-4 text-xs"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFollow.mutate({ targetUserId: reactor.user_id });
+          }}
+        >
+          {isFollowing ? "Segui già" : "Segui"}
+        </Button>
+      )}
+    </div>
+  );
+};
 ```
 
+### 3. Hooks Necessari - useIsFollowing e useToggleFollow
+
+Creare o riutilizzare hooks per gestire il follow:
+
+```tsx
+// src/hooks/useFollow.ts
+export const useIsFollowing = (targetUserId: string) => {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['is-following', user?.id, targetUserId],
+    queryFn: async () => {
+      if (!user) return false;
+      const { data } = await supabase
+        .from('followers')
+        .select('id')
+        .eq('follower_id', user.id)
+        .eq('following_id', targetUserId)
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !!user && !!targetUserId && user.id !== targetUserId,
+  });
+};
+
+export const useToggleFollow = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ targetUserId }: { targetUserId: string }) => {
+      const isFollowing = queryClient.getQueryData(['is-following', user?.id, targetUserId]);
+      if (isFollowing) {
+        await supabase.from('followers').delete()
+          .eq('follower_id', user!.id)
+          .eq('following_id', targetUserId);
+      } else {
+        await supabase.from('followers').insert({
+          follower_id: user!.id,
+          following_id: targetUserId,
+        });
+      }
+    },
+    onSuccess: (_, { targetUserId }) => {
+      queryClient.invalidateQueries({ queryKey: ['is-following', user?.id, targetUserId] });
+    },
+  });
+};
+```
+
+### 4. Aggiornamento Punti di Utilizzo
+
+Ogni utilizzo di `ReactionSummary` deve essere aggiornato per passare il contesto necessario.
+
+**File da modificare:**
+| File | Modifica |
+|------|----------|
+| `ImmersivePostCard.tsx` | Sostituire `ReactionSummary` con nuovo formato testuale |
+| `ImmersiveEditorialCarousel.tsx` | Idem |
+| `CommentItem.tsx` | Idem per commenti |
+| `CommentsDrawer.tsx` | Idem |
+| `CommentsSheet.tsx` | Idem |
+| `MediaCommentsSheet.tsx` | Idem |
+| `PostCommentsView.tsx` | Idem |
+
+### 5. Stile Drawer Conforme al Tema
+
+Mantenere tema scuro NoParrot:
+- Background: `bg-[#0E141A]` / `zinc-900/950`
+- Border: `border-white/10`
+- Tab attivo: `bg-primary/10 text-primary`
+- Tab inattivo: `bg-white/5 text-muted-foreground`
+- Hover states: `hover:bg-white/5`
+
 ---
 
-## Dettagli Tecnici
+## File da Creare/Modificare
 
-### MediaActionBar.tsx - Modifiche
-
-1. **Rimuovere** le 3 icone separate (Camera, Image, FileText)
-2. **Aggiungere** stato `showMediaMenu` per il dropdown
-3. **Creare dropdown** con 3 opzioni (Foto, Video, File)
-4. **Mantenere** 3 input nascosti con accept specifici:
-   - `cameraInput`: `accept="image/*,video/*" capture="environment"` (scatto diretto)
-   - `photoInput`: `accept="image/*" multiple` (solo foto da galleria)
-   - `videoInput`: `accept="video/*"` (solo video da galleria)
-   - `fileInput`: `accept="*/*"` (documenti)
-
-### ComposerModal.tsx - Modifiche
-
-1. **Aggiungere** hook `useVisualViewportOffset()` per iOS keyboard detection
-2. **Modificare** layout: toolbar con `position: sticky` + `bottom: offset`
-3. **Fallback**: Se visualViewport non disponibile, usa CSS `100dvh` come backup
-
----
-
-## File da Modificare
-
-| File | Azione |
-|------|--------|
-| `src/components/composer/MediaActionBar.tsx` | Refactoring completo con dropdown |
-| `src/components/composer/ComposerModal.tsx` | Aggiunta visualViewport listener + sticky toolbar |
+| File | Azione | Descrizione |
+|------|--------|-------------|
+| `src/hooks/useFollow.ts` | **CREARE** | Hooks per isFollowing e toggleFollow |
+| `src/components/feed/ReactionSummary.tsx` | Modificare | Cambiare da emoji stack a testo |
+| `src/components/feed/ReactionsSheet.tsx` | Modificare | Aggiungere pulsante Segui, rimuovere badge emoji |
+| `src/components/feed/ImmersivePostCard.tsx` | Modificare | Passare currentUserId al ReactionsSheet |
+| `src/components/feed/ImmersiveEditorialCarousel.tsx` | Modificare | Idem |
+| `src/components/feed/CommentItem.tsx` | Verificare | Potrebbe necessitare ReactionsSheet per commenti |
 
 ---
 
 ## Garanzie Zero-Regressione
 
-| Funzionalità | Status |
-|--------------|--------|
-| Tiptap Editor | Non toccato |
+| Sistema | Status |
+|---------|--------|
 | Comprehension Gate | Non toccato |
-| Formattazione B/I/U | Mantenuta |
-| Character counter | Mantenuto |
-| OCR/Trascrizione | Non toccato |
-| Menzioni floating | Non toccate |
+| Sistema commenti (CRUD) | Non toccato |
+| OCR / Trascrizione | Non toccato |
+| Logica reazioni (toggle, persist) | Non toccata |
+| ReactionPicker (long press) | Non toccato |
 
 ---
 
 ## Risultato Atteso
 
-1. Su iOS Safari/PWA: la toolbar sale sopra la tastiera
-2. Click su Camera: apre direttamente la fotocamera (nessun menu)
-3. Click su Plus: apre un dropdown app-styled con 3 opzioni chiare
-4. Ogni opzione del dropdown apre direttamente il picker corretto (nessun menu nativo intermedio)
+1. **Feed Post**: Al posto dello stack `[❤️😂🔥] 42` → testo `42 reazioni` cliccabile
+2. **Click su conteggio**: Apre Drawer con header filtri emoji + count
+3. **Lista utenti**: Avatar, Nome completo, @username, pulsante "Segui"/"Segui già"
+4. **Tab filtri**: Solo reazioni con count > 0 visibili
+5. **Stesso comportamento**: Applicato a Post, Editoriali, Commenti
+6. **Tema coerente**: Zinc-900/950, glassmorphism, urban texture
