@@ -182,11 +182,11 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
                 onTouchMove={(e) => e.stopPropagation()}
               />
               
-              {/* Actual picker */}
+              {/* Actual picker - pointer-events-auto ensures clickability above shield */}
               <div
                 ref={containerRef}
                 className={cn(
-                  "z-[9999] flex items-center gap-1 px-2 py-1.5",
+                  "z-[9999] pointer-events-auto flex items-center gap-1 px-2 py-1.5",
                   "bg-popover/95 backdrop-blur-xl border border-border/50",
                   "rounded-full shadow-2xl",
                   "animate-in fade-in-0 zoom-in-95 duration-200",
@@ -198,6 +198,7 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
                 {REACTIONS.map((reaction, index) => (
                   <button
                     key={reaction.type}
+                    type="button"
                     onTouchStart={(e) => {
                       console.log('[ReactionPicker] Emoji touchstart:', reaction.type);
                     }}
@@ -213,7 +214,7 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
                       handleSelect(reaction.type);
                     }}
                     className={cn(
-                      "w-10 h-10 flex items-center justify-center rounded-full select-none",
+                      "w-10 h-10 flex items-center justify-center rounded-full select-none cursor-pointer",
                       "transition-all duration-200 hover:scale-125 active:scale-110",
                       "animate-in fade-in-0 zoom-in-50",
                       currentReaction === reaction.type && "ring-2 ring-primary ring-offset-2 ring-offset-popover bg-primary/10"
@@ -224,7 +225,7 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
                     }}
                     aria-label={reaction.label}
                   >
-                    <span className="text-2xl select-none">{reaction.emoji}</span>
+                    <span className="text-2xl select-none pointer-events-none">{reaction.emoji}</span>
                   </button>
                 ))}
               </div>
@@ -249,11 +250,11 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
           onTouchMove={(e) => e.stopPropagation()}
         />
         
-        {/* Actual picker */}
+        {/* Actual picker - pointer-events-auto ensures clickability above shield */}
         <div
           ref={containerRef}
           className={cn(
-            "z-[9999] flex items-center gap-1 px-2 py-1.5",
+            "z-[9999] pointer-events-auto flex items-center gap-1 px-2 py-1.5",
             "bg-popover/95 backdrop-blur-xl border border-border/50",
             "rounded-full shadow-2xl",
             "animate-in fade-in-0 zoom-in-95 duration-200",
@@ -265,6 +266,7 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
           {REACTIONS.map((reaction, index) => (
             <button
               key={reaction.type}
+              type="button"
               onTouchStart={(e) => {
                 console.log('[ReactionPicker] Emoji touchstart:', reaction.type);
               }}
@@ -280,7 +282,7 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
                 handleSelect(reaction.type);
               }}
               className={cn(
-                "w-10 h-10 flex items-center justify-center rounded-full select-none",
+                "w-10 h-10 flex items-center justify-center rounded-full select-none cursor-pointer",
                 "transition-all duration-200 hover:scale-125 active:scale-110",
                 "animate-in fade-in-0 zoom-in-50",
                 currentReaction === reaction.type && "ring-2 ring-primary ring-offset-2 ring-offset-popover bg-primary/10"
@@ -291,7 +293,7 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
               }}
               aria-label={reaction.label}
             >
-              <span className="text-2xl select-none">{reaction.emoji}</span>
+              <span className="text-2xl select-none pointer-events-none">{reaction.emoji}</span>
             </button>
           ))}
         </div>
