@@ -2011,12 +2011,16 @@ const ImmersivePostCardInner = ({
             </button>
 
             {/* Action Icons - Uniform w-6 h-6, aligned on same axis */}
-            <div className="flex items-center gap-4 h-11 action-bar-zone">
+            <div 
+              className="flex items-center gap-4 h-11 action-bar-zone"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
               
               {/* Like with long press for reaction picker */}
               <div className="relative flex items-center justify-center gap-1.5 h-full">
                 <button 
-                  className="flex items-center justify-center h-full"
+                  className="flex items-center justify-center h-full select-none"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
                   {...likeButtonHandlers}
                   onClick={(e) => e.stopPropagation()}
                 >
