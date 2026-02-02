@@ -619,7 +619,7 @@ const EditorialSlideInner = ({
               </button>
 
               {/* Action Icons - Uniform w-6 h-6, aligned on same axis */}
-              <div className="flex items-center gap-4 h-11">
+              <div className="flex items-center gap-4 h-11 action-bar-zone">
                 
                 {/* Like with long press for reaction picker */}
                 <div className="relative flex items-center justify-center gap-1.5 h-full">

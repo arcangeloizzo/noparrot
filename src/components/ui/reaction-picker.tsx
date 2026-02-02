@@ -59,15 +59,28 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
       return () => document.removeEventListener('keydown', handleEscape);
     }, [isOpen, onClose]);
 
-    if (!isOpen) return null;
+  if (!isOpen) return null;
 
-    const handleSelect = (type: ReactionType) => {
-      haptics.selection();
-      onSelect(type);
-      onClose();
-    };
+  const handleSelect = (type: ReactionType) => {
+    haptics.selection();
+    onSelect(type);
+    onClose();
+  };
 
-    return (
+  return (
+    <>
+      {/* Invisible shield to block other interactions while picker is open */}
+      <div 
+        className="fixed inset-0 z-40" 
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+      />
+      
+      {/* Actual picker - above shield */}
       <div
         ref={containerRef}
         className={cn(
@@ -101,7 +114,8 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
           </button>
         ))}
       </div>
-    );
+    </>
+  );
   }
 );
 
