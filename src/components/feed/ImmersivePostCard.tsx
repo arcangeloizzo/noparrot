@@ -1328,7 +1328,7 @@ const ImmersivePostCardInner = ({
             {/* Stack Layout: User comment first - Quote Block style for Intent posts */}
             {useStackLayout && post.content && post.content !== post.shared_title && (
               <div className={cn(
-                "text-base sm:text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-3 sm:mb-4 line-clamp-3 sm:line-clamp-none",
+                "text-base sm:text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-3 sm:mb-4",
                 post.is_intent && [
                   "border-l-4 border-primary/60",
                   "bg-white/5",
@@ -1342,7 +1342,7 @@ const ImmersivePostCardInner = ({
             {/* Intent Post (non-stack): Quote Block style for posts with is_intent flag */}
             {!useStackLayout && post.is_intent && post.content && (
               <div className="border-l-4 border-primary/60 bg-white/5 px-3 sm:px-4 py-2 sm:py-3 rounded-r-lg mb-4 sm:mb-6">
-                <p className="text-base sm:text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md line-clamp-2 sm:line-clamp-none">
+                <p className="text-base sm:text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md">
                   <MentionText content={post.content} />
                 </p>
               </div>
