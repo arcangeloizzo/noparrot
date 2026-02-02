@@ -1,4 +1,5 @@
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { haptics } from "@/lib/haptics";
 
@@ -17,13 +18,15 @@ interface ReactionPickerProps {
   onClose: () => void;
   onSelect: (reactionType: ReactionType) => void;
   currentReaction?: ReactionType | null;
+  /** Ref to the trigger button for position calculation */
+  triggerRef?: React.RefObject<HTMLElement>;
   className?: string;
 }
 
 export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerProps>(
-  ({ isOpen, onClose, onSelect, currentReaction, className }, ref) => {
+  ({ isOpen, onClose, onSelect, currentReaction, triggerRef, className }, ref) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
-    const wrapperRef = React.useRef<HTMLDivElement>(null);
+    const internalTriggerRef = React.useRef<HTMLDivElement>(null);
     
     // Stato per bloccare la chiusura immediata dopo l'apertura (fix iOS long-press release)
     const [isInteracting, setIsInteracting] = React.useState(false);
@@ -42,10 +45,13 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
     
     // Calculate safe position within viewport with flip logic
     React.useEffect(() => {
-      if (!isOpen || !wrapperRef.current) return;
+      if (!isOpen) return;
       
-      const wrapper = wrapperRef.current;
-      const rect = wrapper.getBoundingClientRect();
+      // Use external triggerRef if provided, otherwise fall back to internal wrapper
+      const trigger = triggerRef?.current || internalTriggerRef.current;
+      if (!trigger) return;
+      
+      const rect = trigger.getBoundingClientRect();
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
       const pickerWidth = 240; // 5 emoji × 40px + padding
@@ -85,7 +91,7 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
           transform: 'none',
         });
       }
-    }, [isOpen]);
+    }, [isOpen, triggerRef]);
 
     // Close on outside click (solo desktop, con delay per evitare ghost clicks)
     React.useEffect(() => {
@@ -148,72 +154,137 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
       onClose();
     }, [isInteracting, onClose]);
 
-  if (!isOpen) return null;
+    const handleSelect = (type: ReactionType) => {
+      haptics.selection();
+      onSelect(type);
+      onClose();
+    };
 
-  const handleSelect = (type: ReactionType) => {
-    haptics.selection();
-    onSelect(type);
-    onClose();
-  };
+    // If external triggerRef is not provided, render a wrapper to use as position reference
+    // This is for backwards compatibility
+    if (!triggerRef) {
+      return (
+        <>
+          {/* Internal wrapper for position reference when triggerRef not provided */}
+          <div ref={internalTriggerRef} className="absolute inset-0 pointer-events-none" />
+          
+          {isOpen && createPortal(
+            <>
+              {/* Invisible shield */}
+              <div 
+                className="fixed inset-0 z-[9998]" 
+                onClick={handleShieldInteraction}
+                onTouchEnd={handleShieldInteraction}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchMove={(e) => e.stopPropagation()}
+              />
+              
+              {/* Actual picker */}
+              <div
+                ref={containerRef}
+                className={cn(
+                  "z-[9999] flex items-center gap-1 px-2 py-1.5",
+                  "bg-popover/95 backdrop-blur-xl border border-border/50",
+                  "rounded-full shadow-2xl",
+                  "animate-in fade-in-0 zoom-in-95 duration-200",
+                  "max-w-[calc(100vw-24px)]",
+                  className
+                )}
+                style={positionStyle}
+              >
+                {REACTIONS.map((reaction, index) => (
+                  <button
+                    key={reaction.type}
+                    onTouchEnd={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleSelect(reaction.type);
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelect(reaction.type);
+                    }}
+                    className={cn(
+                      "w-10 h-10 flex items-center justify-center rounded-full select-none",
+                      "transition-all duration-200 hover:scale-125 active:scale-110",
+                      "animate-in fade-in-0 zoom-in-50",
+                      currentReaction === reaction.type && "ring-2 ring-primary ring-offset-2 ring-offset-popover bg-primary/10"
+                    )}
+                    style={{
+                      animationDelay: `${index * 30}ms`,
+                      WebkitTapHighlightColor: 'transparent',
+                    }}
+                    aria-label={reaction.label}
+                  >
+                    <span className="text-2xl select-none">{reaction.emoji}</span>
+                  </button>
+                ))}
+              </div>
+            </>,
+            document.body
+          )}
+        </>
+      );
+    }
 
-  return (
-    <>
-      {/* Invisible shield - blocca interazioni ma NON chiude su touch release iniziale */}
-      <div 
-        className="fixed inset-0 z-40" 
-        onClick={handleShieldInteraction}
-        onTouchEnd={handleShieldInteraction}
-        onTouchStart={(e) => e.stopPropagation()}
-        onTouchMove={(e) => e.stopPropagation()}
-      />
-      
-      {/* Wrapper for position calculation - relative to the button */}
-      <div ref={wrapperRef} className="absolute inset-0 pointer-events-none" />
-      
-      {/* Actual picker - fixed position, viewport-aware */}
-      <div
-        ref={containerRef}
-        className={cn(
-          "z-50 flex items-center gap-1 px-2 py-1.5",
-          "bg-popover/95 backdrop-blur-xl border border-border/50",
-          "rounded-full shadow-2xl",
-          "animate-in fade-in-0 zoom-in-95 duration-200",
-          "max-w-[calc(100vw-24px)]",
-          className
-        )}
-        style={positionStyle}
-      >
-        {REACTIONS.map((reaction, index) => (
-          <button
-            key={reaction.type}
-            // onTouchEnd per iOS: cattura il tap prima che propaghi
-            onTouchEnd={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              handleSelect(reaction.type);
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleSelect(reaction.type);
-            }}
-            className={cn(
-              "w-10 h-10 flex items-center justify-center rounded-full select-none",
-              "transition-all duration-200 hover:scale-125 active:scale-110",
-              "animate-in fade-in-0 zoom-in-50",
-              currentReaction === reaction.type && "ring-2 ring-primary ring-offset-2 ring-offset-popover bg-primary/10"
-            )}
-            style={{
-              animationDelay: `${index * 30}ms`,
-              WebkitTapHighlightColor: 'transparent',
-            }}
-            aria-label={reaction.label}
-          >
-            <span className="text-2xl select-none">{reaction.emoji}</span>
-          </button>
-        ))}
-      </div>
-    </>
-  );
+    // With external triggerRef - just render portal content
+    if (!isOpen) return null;
+
+    return createPortal(
+      <>
+        {/* Invisible shield */}
+        <div 
+          className="fixed inset-0 z-[9998]" 
+          onClick={handleShieldInteraction}
+          onTouchEnd={handleShieldInteraction}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+        />
+        
+        {/* Actual picker */}
+        <div
+          ref={containerRef}
+          className={cn(
+            "z-[9999] flex items-center gap-1 px-2 py-1.5",
+            "bg-popover/95 backdrop-blur-xl border border-border/50",
+            "rounded-full shadow-2xl",
+            "animate-in fade-in-0 zoom-in-95 duration-200",
+            "max-w-[calc(100vw-24px)]",
+            className
+          )}
+          style={positionStyle}
+        >
+          {REACTIONS.map((reaction, index) => (
+            <button
+              key={reaction.type}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleSelect(reaction.type);
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSelect(reaction.type);
+              }}
+              className={cn(
+                "w-10 h-10 flex items-center justify-center rounded-full select-none",
+                "transition-all duration-200 hover:scale-125 active:scale-110",
+                "animate-in fade-in-0 zoom-in-50",
+                currentReaction === reaction.type && "ring-2 ring-primary ring-offset-2 ring-offset-popover bg-primary/10"
+              )}
+              style={{
+                animationDelay: `${index * 30}ms`,
+                WebkitTapHighlightColor: 'transparent',
+              }}
+              aria-label={reaction.label}
+            >
+              <span className="text-2xl select-none">{reaction.emoji}</span>
+            </button>
+          ))}
+        </div>
+      </>,
+      document.body
+    );
   }
 );
 

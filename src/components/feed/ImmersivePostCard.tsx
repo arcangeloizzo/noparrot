@@ -463,6 +463,7 @@ const ImmersivePostCardInner = ({
 
   // Reaction picker state
   const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const likeButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleHeart = (e?: React.MouseEvent, reactionType: ReactionType | 'heart' = 'heart') => {
     e?.stopPropagation();
@@ -2019,6 +2020,7 @@ const ImmersivePostCardInner = ({
               {/* Like with long press for reaction picker */}
               <div className="relative flex items-center justify-center gap-1.5 h-full">
                 <button 
+                  ref={likeButtonRef}
                   className="flex items-center justify-center h-full select-none"
                   style={{ WebkitTapHighlightColor: 'transparent' }}
                   {...likeButtonHandlers}
@@ -2059,6 +2061,7 @@ const ImmersivePostCardInner = ({
                     handleHeart(undefined, type);
                     setShowReactionPicker(false);
                   }}
+                  triggerRef={likeButtonRef}
                 />
               </div>
 
