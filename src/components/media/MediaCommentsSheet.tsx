@@ -1,16 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowLeft, Trash2, Heart } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useMediaComments, useAddMediaComment, useDeleteMediaComment } from '@/hooks/useMediaComments';
-import { useCommentReactions, useToggleCommentReaction } from '@/hooks/useCommentReactions';
 import { useAuth } from '@/contexts/AuthContext';
-import { formatDistanceToNow } from 'date-fns';
-import { it } from 'date-fns/locale';
-import { cn, getDisplayUsername } from '@/lib/utils';
-import { useLongPress } from '@/hooks/useLongPress';
-import { ReactionPicker, type ReactionType, reactionToEmoji } from '@/components/ui/reaction-picker';
-import { ReactionSummary, getReactionCounts } from '@/components/feed/ReactionSummary';
-import { haptics } from '@/lib/haptics';
+import { CommentItem } from '@/components/feed/CommentItem';
+import type { Comment } from '@/hooks/useComments';
 
 interface Media {
   id: string;
@@ -60,32 +54,24 @@ export const MediaCommentsSheet = ({ media, isOpen, onClose }: MediaCommentsShee
     };
   }, [isOpen]);
 
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
-  const getUserAvatar = (avatarUrl: string | null | undefined, name: string | undefined, username?: string) => {
-    const displayName = name || username || 'U';
-    if (avatarUrl) {
-      return (
-        <img
-          src={avatarUrl}
-          alt={displayName}
-          className="w-10 h-10 rounded-full object-cover"
-        />
-      );
-    }
-    return (
-      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-sm font-semibold text-primary-foreground">
-        {getInitials(displayName)}
-      </div>
-    );
-  };
+  // Adapter to convert media comment to Comment type for CommentItem
+  const adaptMediaComment = (mediaComment: typeof comments[0]): Comment => ({
+    id: mediaComment.id,
+    post_id: '', // Media comments don't have post_id
+    author_id: mediaComment.author_id,
+    content: mediaComment.content,
+    created_at: mediaComment.created_at,
+    parent_id: mediaComment.parent_id,
+    level: mediaComment.level,
+    passed_gate: false,
+    author: {
+      id: mediaComment.author.id,
+      username: mediaComment.author.username,
+      full_name: mediaComment.author.full_name,
+      avatar_url: mediaComment.author.avatar_url,
+    },
+    media: [],
+  });
 
   if (!isOpen) return null;
 
@@ -117,17 +103,18 @@ export const MediaCommentsSheet = ({ media, isOpen, onClose }: MediaCommentsShee
             </div>
           ) : (
             comments.map((comment) => (
-              <CommentItem
-                key={comment.id}
-                comment={comment}
-                currentUserId={user?.id}
-                onReply={() => {
-                  setReplyingTo(comment.id);
-                  textareaRef.current?.focus();
-                }}
-                onDelete={() => deleteComment.mutate(comment.id)}
-                getUserAvatar={getUserAvatar}
-              />
+              <div key={comment.id} className="px-2 py-1">
+                <CommentItem
+                  comment={adaptMediaComment(comment)}
+                  currentUserId={user?.id}
+                  onReply={() => {
+                    setReplyingTo(comment.id);
+                    textareaRef.current?.focus();
+                  }}
+                  onDelete={() => deleteComment.mutate(comment.id)}
+                  commentKind="media"
+                />
+              </div>
             ))
           )}
         </div>
@@ -164,137 +151,6 @@ export const MediaCommentsSheet = ({ media, isOpen, onClose }: MediaCommentsShee
           >
             {addComment.isPending ? 'Invio...' : 'Invia'}
           </Button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-interface CommentItemProps {
-  comment: any;
-  currentUserId?: string;
-  onReply: () => void;
-  onDelete: () => void;
-  getUserAvatar: (avatarUrl: string | null | undefined, name: string | undefined, username?: string) => JSX.Element;
-}
-
-const CommentItem = ({ comment, currentUserId, onReply, onDelete, getUserAvatar }: CommentItemProps) => {
-  const { data: reactions } = useCommentReactions(comment.id);
-  const toggleReaction = useToggleCommentReaction();
-  const [showReactionPicker, setShowReactionPicker] = useState(false);
-
-  const handleLike = (reactionType: ReactionType = 'heart') => {
-    haptics.light();
-    const liked = reactions?.likedByMe || false;
-    const prevType = (reactions?.myReactionType ?? 'heart') as ReactionType;
-    const mode: 'add' | 'remove' | 'update' = !liked ? 'add' : prevType === reactionType ? 'remove' : 'update';
-    toggleReaction.mutate({
-      commentId: comment.id,
-      mode,
-      reactionType
-    });
-  };
-
-  const likeHandlers = useLongPress({
-    onLongPress: () => setShowReactionPicker(true),
-    onTap: () => handleLike('heart'),
-  });
-
-  return (
-    <div 
-      className="px-4 py-3"
-      style={{ paddingLeft: `${16 + comment.level * 16}px` }}
-    >
-      {comment.level > 0 && (
-        <div 
-          className="absolute left-4 top-0 bottom-0 w-0.5 bg-border"
-          style={{ marginLeft: `${comment.level * 16 - 16}px` }}
-        />
-      )}
-      <div className="flex gap-3">
-        <div className="flex-shrink-0">
-          {getUserAvatar(comment.author.avatar_url, comment.author.full_name || comment.author.username)}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold text-sm">
-              {comment.author.full_name || getDisplayUsername(comment.author.username)}
-            </span>
-            <span className="text-muted-foreground text-xs">
-              @{getDisplayUsername(comment.author.username)}
-            </span>
-            <span className="text-muted-foreground text-xs">·</span>
-            <span className="text-muted-foreground text-xs">
-              {formatDistanceToNow(new Date(comment.created_at), {
-                addSuffix: true,
-                locale: it
-              })}
-            </span>
-          </div>
-          <p className="text-sm whitespace-pre-wrap break-words mb-1">{comment.content}</p>
-
-          {/* Reaction Summary for multiple reaction types */}
-          {reactions && reactions.likesCount > 0 && 
-           Object.keys(reactions.byType || {}).length > 1 && (
-            <div className="mb-2">
-              <ReactionSummary
-                reactions={getReactionCounts(reactions.byType)}
-                totalCount={reactions.likesCount}
-                showCount={false}
-                className="text-xs"
-              />
-            </div>
-          )}
-          
-          {/* Actions */}
-          <div className="flex items-center gap-4 mt-2">
-            <div className="relative">
-              <button
-                {...likeHandlers}
-                className="flex items-center gap-1 text-muted-foreground hover:text-destructive transition-colors active:scale-90"
-              >
-                {reactions?.myReactionType && reactions.myReactionType !== 'heart' ? (
-                  <span className="text-base">{reactionToEmoji(reactions.myReactionType)}</span>
-                ) : (
-                  <Heart 
-                    className={cn(
-                      "w-4 h-4",
-                      reactions?.likedByMe && "fill-destructive text-destructive"
-                    )} 
-                  />
-                )}
-                {reactions?.likesCount ? (
-                  <span className="text-xs">{reactions.likesCount}</span>
-                ) : null}
-              </button>
-              <ReactionPicker
-                isOpen={showReactionPicker}
-                onClose={() => setShowReactionPicker(false)}
-                onSelect={(type) => {
-                  handleLike(type);
-                  setShowReactionPicker(false);
-                }}
-                currentReaction={reactions?.myReactionType}
-              />
-            </div>
-            
-            <button
-              onClick={onReply}
-              className="text-xs text-muted-foreground hover:text-primary transition-colors"
-            >
-              Rispondi
-            </button>
-            
-            {currentUserId === comment.author_id && (
-              <button
-                onClick={onDelete}
-                className="text-xs text-destructive hover:underline flex items-center gap-1"
-              >
-                <Trash2 className="w-3 h-3" />
-                Elimina
-              </button>
-            )}
-          </div>
         </div>
       </div>
     </div>

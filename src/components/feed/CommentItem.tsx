@@ -3,6 +3,7 @@ import { Heart, MessageCircle, Trash2, Link2 } from 'lucide-react';
 import { Comment } from '@/hooks/useComments';
 import { useCommentReactions, useToggleCommentReaction } from '@/hooks/useCommentReactions';
 import { useFocusCommentReactions, useToggleFocusCommentReaction } from '@/hooks/useFocusCommentReactions';
+import { useMediaCommentReactions, useToggleMediaCommentReaction } from '@/hooks/useMediaCommentReactions';
 import { cn, getDisplayUsername } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -31,8 +32,8 @@ interface CommentItemProps {
   postHasSource?: boolean;
   onMediaClick?: (media: any[], index: number) => void;
   getUserAvatar?: (avatarUrl: string | null | undefined, name: string | undefined, username?: string) => React.ReactNode;
-  /** Determines which reaction table to use: 'post' for comment_reactions, 'focus' for focus_comment_reactions */
-  commentKind?: 'post' | 'focus';
+  /** Determines which reaction table to use: 'post' for comment_reactions, 'focus' for focus_comment_reactions, 'media' for media_comment_reactions */
+  commentKind?: 'post' | 'focus' | 'media';
 }
 
 export const CommentItem = ({
@@ -51,10 +52,17 @@ export const CommentItem = ({
   // Use correct hooks based on commentKind
   const postReactionsQuery = useCommentReactions(commentKind === 'post' ? comment.id : '');
   const focusReactionsQuery = useFocusCommentReactions(commentKind === 'focus' ? comment.id : '');
-  const reactions = commentKind === 'focus' ? focusReactionsQuery.data : postReactionsQuery.data;
+  const mediaReactionsQuery = useMediaCommentReactions(commentKind === 'media' ? comment.id : '');
+  
+  const reactions = commentKind === 'media' 
+    ? mediaReactionsQuery.data 
+    : commentKind === 'focus' 
+      ? focusReactionsQuery.data 
+      : postReactionsQuery.data;
   
   const togglePostReaction = useToggleCommentReaction();
   const toggleFocusReaction = useToggleFocusCommentReaction();
+  const toggleMediaReaction = useToggleMediaCommentReaction();
   
   const [isLiking, setIsLiking] = useState(false);
 
@@ -76,7 +84,9 @@ export const CommentItem = ({
     const mode: 'add' | 'remove' | 'update' = !liked ? 'add' : prevType === reactionType ? 'remove' : 'update';
     
     // Use correct mutation based on commentKind
-    if (commentKind === 'focus') {
+    if (commentKind === 'media') {
+      toggleMediaReaction.mutate({ mediaCommentId: comment.id, mode, reactionType });
+    } else if (commentKind === 'focus') {
       toggleFocusReaction.mutate({ focusCommentId: comment.id, mode, reactionType });
     } else {
       togglePostReaction.mutate({ commentId: comment.id, mode, reactionType });
