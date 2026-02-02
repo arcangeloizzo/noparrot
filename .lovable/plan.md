@@ -1,141 +1,185 @@
 
-# Fix: Parsing Markdown nel Feed e Commenti
+# Fix Strutturale Sistema Reazioni Estese
 
 ## Problema Identificato
 
-Il Composer utilizza Tiptap che salva il testo formattato come **Markdown**:
-- Bold → `**testo**`
-- Italic → `_testo_`
-- Underline → `~testo~`
+Il sistema di reazioni estese presenta tre categorie di problemi:
 
-Nel Composer l'utente vede la formattazione WYSIWYG, ma nel feed i marker vengono mostrati come testo grezzo (come visibile negli screenshot).
+1. **Posizionamento Picker**: Il picker centrato al 50% esce fuori schermo su dispositivi con viewport ridotti
+2. **Touch UX**: Lo shield intercetta erroneamente il rilascio del dito dopo long-press, causando chiusure immediate
+3. **Persistenza**: Le reazioni selezionate non vengono salvate correttamente quando l'utente cambia emoji
 
-## Causa Root
+## Stato Attuale del Codice
 
-Il componente `MentionText.tsx` gestisce solo le menzioni (`@utente`), ma non parsa i marker Markdown. Lo stesso componente viene usato in 9 file per renderizzare i contenuti di post e commenti.
+### Analisi Database
+I CHECK CONSTRAINT sono **già correttamente configurati**:
+- `reactions`: `CHECK (reaction_type = ANY (ARRAY['heart', 'bookmark', 'laugh', 'wow', 'sad', 'fire']))`
+- `focus_reactions`: Stesso vincolo presente
+
+### Analisi Hooks
+La logica di switch in `usePosts.ts` e `useFocusReactions.ts` è **già implementata correttamente**:
+- Verifica se esiste una reazione precedente
+- Se il tipo è diverso, esegue UPDATE invece di INSERT
+- Il conteggio esclude già i bookmark
+
+### CSS Action Bar Zone
+La classe `.action-bar-zone` esiste già in `index.css` con tutte le proprietà necessarie.
 
 ## Soluzione Proposta
 
-Estendere `MentionText.tsx` per parsare anche i marker Markdown, mantenendo la compatibilità con tutti i componenti esistenti.
+### 1. Fix Posizionamento Picker (Viewport Aware)
 
-### Approccio
+Modificherò `reaction-picker.tsx` per:
+- Usare posizionamento safe con margini laterali garantiti
+- Calcolare dinamicamente la posizione left per evitare overflow
+- Aggiungere `max-width` e centratura safe
 
-Modificherò il flusso di parsing in `MentionText.tsx`:
+### 2. Fix Shield Touch Flow
 
-```text
-Testo input: "Questo è **bold**, _italic_ e ~underline~ con @utente"
-        ↓
-1. Split per menzioni (@...)
-        ↓
-2. Per ogni parte non-menzione, parso i marker Markdown:
-   - **testo** → <strong>testo</strong>
-   - _testo_ → <em>testo</em>  
-   - ~testo~ → <u>testo</u>
-        ↓
-Output: Questo è <strong>bold</strong>, <em>italic</em> e <u>underline</u> con [bottone @utente]
-```
+Correggerò la gestione dello shield in `reaction-picker.tsx`:
+- Il `touchend` sullo shield NON deve chiudere durante `isInteracting`
+- Aggiungere delay separato per evitare che il rilascio del long-press triggeri la chiusura
+- Usare `onPointerUp` invece di `onTouchEnd` per gestione più robusta
 
-### Dettagli Implementazione
+### 3. Estendere Touch Isolation ai Container Parent
 
-Creerò una funzione `parseFormattedText()` che:
-1. Usa regex per individuare i pattern Markdown
-2. Restituisce un array di React nodes
-3. Gestisce annidamenti semplici (es. `**_grassetto corsivo_**`)
-
-### File da Modificare
-
-| File | Modifiche |
-|------|-----------|
-| `src/components/feed/MentionText.tsx` | Aggiunta parsing Markdown nel rendering |
-
-### Zero Regressione
-
-- La signature del componente rimane identica (`text?: string, content?: string`)
-- La gestione delle menzioni rimane invariata
-- Il click handling sui profili non cambia
-- Tutti i 9 file che usano `MentionText` beneficiano automaticamente del fix
+Applicherò la classe `action-bar-zone` anche ai container parent dei pulsanti per garantire isolamento completo del tocco.
 
 ---
 
 ## Sezione Tecnica
 
-### Regex per Parsing Markdown
+### File da Modificare
+
+| File | Modifiche |
+|------|-----------|
+| `src/components/ui/reaction-picker.tsx` | Fix posizionamento viewport-aware + fix shield touch flow |
+| `src/components/feed/CommentItem.tsx` | Estendere isolation ai pulsanti singoli |
+| `src/components/feed/ImmersivePostCard.tsx` | Verificare action-bar-zone applicata correttamente |
+| `src/components/feed/ImmersiveEditorialCarousel.tsx` | Verificare action-bar-zone applicata correttamente |
+
+### Fix 1: Posizionamento Viewport-Aware
 
 ```typescript
-// Pattern Markdown - ordine: bold prima (per evitare conflitti con italic)
-const MARKDOWN_PATTERNS = [
-  { regex: /\*\*([^*]+)\*\*/g, wrapper: 'strong' },  // **bold**
-  { regex: /_([^_]+)_/g, wrapper: 'em' },            // _italic_
-  { regex: /~([^~]+)~/g, wrapper: 'u' },             // ~underline~
-];
+// reaction-picker.tsx - Nuovo posizionamento
+const containerRef = React.useRef<HTMLDivElement>(null);
+const [positionStyle, setPositionStyle] = React.useState<React.CSSProperties>({
+  bottom: '100%',
+  left: '50%',
+  transform: 'translateX(-50%)',
+  marginBottom: '8px'
+});
+
+React.useEffect(() => {
+  if (!isOpen || !containerRef.current) return;
+  
+  const container = containerRef.current;
+  const rect = container.getBoundingClientRect();
+  const viewportWidth = window.innerWidth;
+  const pickerWidth = 240; // 5 emoji × 40px + padding
+  const safeMargin = 12;
+  
+  // Calcola posizione left sicura
+  let idealLeft = rect.left + rect.width / 2 - pickerWidth / 2;
+  
+  // Clamp ai margini
+  if (idealLeft < safeMargin) {
+    idealLeft = safeMargin;
+  } else if (idealLeft + pickerWidth > viewportWidth - safeMargin) {
+    idealLeft = viewportWidth - pickerWidth - safeMargin;
+  }
+  
+  setPositionStyle({
+    bottom: '100%',
+    left: `${idealLeft}px`,
+    marginBottom: '8px',
+    position: 'fixed',
+    transform: 'none'
+  });
+}, [isOpen]);
 ```
 
-### Funzione di Parsing
+### Fix 2: Shield Touch Flow Robusto
 
 ```typescript
-const parseMarkdown = (text: string): React.ReactNode[] => {
-  // Split complesso che preserva i match
-  const segments: React.ReactNode[] = [];
-  let remaining = text;
-  let key = 0;
+// reaction-picker.tsx - Shield handler migliorato
+const handleShieldInteraction = (e: React.MouseEvent | React.TouchEvent) => {
+  e.stopPropagation();
+  e.preventDefault();
   
-  // Pattern combinato per trovare tutti i marker
-  const combinedRegex = /(\*\*[^*]+\*\*|_[^_]+_|~[^~]+~)/g;
-  let lastIndex = 0;
-  let match;
+  // NON chiudere se:
+  // 1. Siamo nella finestra di interazione iniziale (long-press release)
+  // 2. L'evento è un touchend (potrebbe essere rilascio long-press)
+  const isTouchEnd = e.type === 'touchend';
   
-  while ((match = combinedRegex.exec(text)) !== null) {
-    // Testo prima del match
-    if (match.index > lastIndex) {
-      segments.push(<span key={key++}>{text.slice(lastIndex, match.index)}</span>);
-    }
-    
-    // Matched formatting
-    const matchedText = match[0];
-    if (matchedText.startsWith('**')) {
-      segments.push(<strong key={key++}>{matchedText.slice(2, -2)}</strong>);
-    } else if (matchedText.startsWith('_')) {
-      segments.push(<em key={key++}>{matchedText.slice(1, -1)}</em>);
-    } else if (matchedText.startsWith('~')) {
-      segments.push(<u key={key++}>{matchedText.slice(1, -1)}</u>);
-    }
-    
-    lastIndex = combinedRegex.lastIndex;
+  if (isInteracting) {
+    // Ignora completamente durante la finestra di protezione
+    return;
   }
   
-  // Testo rimanente
-  if (lastIndex < text.length) {
-    segments.push(<span key={key++}>{text.slice(lastIndex)}</span>);
+  if (isTouchEnd) {
+    // Per touchend, aspetta un frame prima di decidere
+    requestAnimationFrame(() => {
+      if (!isInteracting) {
+        onClose();
+      }
+    });
+    return;
   }
   
-  return segments;
+  // Click mouse: chiudi immediatamente
+  onClose();
 };
 ```
 
-### Flusso Aggiornato
+### Fix 3: Touch Isolation Completa
 
-```text
-┌─────────────────────────────────────────────────────────┐
-│                     MentionText                         │
-├─────────────────────────────────────────────────────────┤
-│  Input: "**bold** @utente _italic_"                     │
-│                      ↓                                  │
-│  1. Split per menzioni: ["**bold** ", "@utente", " _i..."]
-│                      ↓                                  │
-│  2. Per ogni parte:                                     │
-│     - Se menzione → bottone cliccabile                  │
-│     - Altrimenti → parseMarkdown()                      │
-│                      ↓                                  │
-│  Output: <strong>bold</strong> [bottone] <em>italic</em>│
-└─────────────────────────────────────────────────────────┘
+```tsx
+// CommentItem.tsx - Aggiungere select-none ai pulsanti singoli
+<div className="flex items-center gap-1 action-bar-zone">
+  <button
+    className={cn(
+      "flex items-center gap-1.5 py-1.5 px-2.5 rounded-full select-none",
+      "-webkit-tap-highlight-color: transparent"
+    )}
+    style={{ 
+      WebkitTapHighlightColor: 'transparent',
+      WebkitUserSelect: 'none'
+    }}
+    {...likeButtonHandlers}
+  >
+```
+
+### Cambio Stile Picker
+
+```tsx
+// reaction-picker.tsx - Container con max-width e centratura safe
+<div
+  ref={containerRef}
+  className={cn(
+    "z-50 flex items-center gap-1 px-2 py-1.5",
+    "bg-popover/95 backdrop-blur-xl border border-border/50",
+    "rounded-full shadow-2xl",
+    "animate-in fade-in-0 zoom-in-95 duration-200",
+    className
+  )}
+  style={positionStyle}
+>
 ```
 
 ---
 
 ## Risultato Atteso
 
-1. **Post nel Feed**: Il testo formattato appare con grassetto, corsivo e sottolineato
-2. **Commenti**: Stessa formattazione visibile
-3. **Menzioni**: Continuano a funzionare normalmente
-4. **Composer**: Nessun cambiamento (già funziona con WYSIWYG)
-5. **Backward compatible**: I post vecchi senza formatting vengono visualizzati normalmente
+1. **Picker sempre visibile**: Le emoji non escono mai fuori schermo, con margini garantiti di 12px
+2. **Nessuna macchia blu**: Touch isolation completa su tutta l'action bar
+3. **Nessuna chiusura accidentale**: Lo shield ignora i touchend durante la finestra di protezione di 350ms
+4. **Reazioni persistenti**: Il database e gli hook gestiscono correttamente lo switch tra emoji
+5. **Colore cuore conservato**: `text-destructive` per heart attivo rimane invariato
+
+## Considerazioni Safe Guard
+
+- Il flusso Comprehension Gate non viene toccato
+- Le RLS policy rimangono invariate
+- I CHECK constraint esistenti sono già corretti
+- La logica di persistenza negli hook è già funzionante
