@@ -1213,7 +1213,7 @@ const ImmersivePostCardInner = ({
         )}
 
         {/* Content Layer */}
-        <div className="relative z-10 w-full h-full flex flex-col justify-between pt-14 pb-20 sm:pb-24">
+        <div className="relative z-10 w-full h-full flex flex-col justify-between pt-14 pb-16 sm:pb-24">
           
           {/* Top Bar */}
           <div className="flex justify-between items-start">
@@ -1323,16 +1323,16 @@ const ImmersivePostCardInner = ({
           </div>
 
           {/* Center Content */}
-          <div className="flex-1 flex flex-col justify-center px-2 pt-4 sm:pt-2">
+          <div className="flex-1 flex flex-col justify-center px-2 pt-2 sm:pt-2">
             
             {/* Stack Layout: User comment first - Quote Block style for Intent posts */}
             {useStackLayout && post.content && post.content !== post.shared_title && (
               <div className={cn(
-                "text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-4",
+                "text-base sm:text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-3 sm:mb-4 line-clamp-3 sm:line-clamp-none",
                 post.is_intent && [
                   "border-l-4 border-primary/60",
                   "bg-white/5",
-                  "px-4 py-3 rounded-r-lg"
+                  "px-3 sm:px-4 py-2 sm:py-3 rounded-r-lg"
                 ]
               )}>
                 <MentionText content={post.content} />
@@ -1341,8 +1341,8 @@ const ImmersivePostCardInner = ({
             
             {/* Intent Post (non-stack): Quote Block style for posts with is_intent flag */}
             {!useStackLayout && post.is_intent && post.content && (
-              <div className="border-l-4 border-primary/60 bg-white/5 px-4 py-3 rounded-r-lg mb-6">
-                <p className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md">
+              <div className="border-l-4 border-primary/60 bg-white/5 px-3 sm:px-4 py-2 sm:py-3 rounded-r-lg mb-4 sm:mb-6">
+                <p className="text-base sm:text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md line-clamp-2 sm:line-clamp-none">
                   <MentionText content={post.content} />
                 </p>
               </div>
@@ -1456,7 +1456,7 @@ const ImmersivePostCardInner = ({
                     <img 
                       src={post.media?.[0]?.thumbnail_url || mediaUrl} 
                       alt="" 
-                      className="w-full h-[38vh] object-cover"
+                      className="w-full h-[28vh] sm:h-[38vh] object-cover"
                     />
                     {/* Play icon overlay */}
                     <div className="absolute inset-0 flex items-center justify-center bg-black/20">
@@ -1470,7 +1470,7 @@ const ImmersivePostCardInner = ({
                     <img 
                       src={mediaUrl} 
                       alt="" 
-                      className="w-full h-[44vh] object-cover"
+                      className="w-full h-[32vh] sm:h-[44vh] object-cover"
                     />
                     {/* Expand pill with label */}
                     <div className="absolute bottom-3 right-3 bg-black/80 px-3 py-1.5 rounded-full flex items-center gap-1.5">
@@ -1552,7 +1552,7 @@ const ImmersivePostCardInner = ({
                       <img 
                         src={articlePreview.image} 
                         alt="" 
-                        className="w-full h-40 object-cover"
+                        className="w-full h-28 sm:h-40 object-cover"
                       />
                     </div>
                   )}
@@ -1647,7 +1647,7 @@ const ImmersivePostCardInner = ({
                       <img 
                         src={articlePreview?.image || post.preview_img} 
                         alt="" 
-                        className="w-full h-40 object-cover"
+                        className="w-full h-28 sm:h-40 object-cover"
                       />
                     </div>
                   )}
@@ -1683,7 +1683,7 @@ const ImmersivePostCardInner = ({
                     <img 
                       src={articlePreview?.image || post.preview_img || `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url!)}/maxresdefault.jpg`}
                       alt=""
-                      className="w-full aspect-video object-cover"
+                      className="w-full aspect-video max-h-[25vh] sm:max-h-none object-cover"
                     />
                     
                     {/* Play Button Overlay */}
@@ -1748,7 +1748,7 @@ const ImmersivePostCardInner = ({
                 {/* Spotify Artwork - Large centered square */}
                 {(articlePreview?.image || post.preview_img) && (
                   <div className="flex justify-center mb-4">
-                    <div className="w-72 h-72 sm:w-80 sm:h-80 rounded-2xl overflow-hidden shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_24px_rgba(30,215,96,0.25)] border border-white/10">
+                    <div className="w-56 h-56 sm:w-72 sm:h-72 md:w-80 md:h-80 rounded-2xl overflow-hidden shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_24px_rgba(30,215,96,0.25)] border border-white/10">
                       <img 
                         src={articlePreview?.image || post.preview_img} 
                         alt="" 

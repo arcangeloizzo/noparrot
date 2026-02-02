@@ -132,7 +132,7 @@ export function SourceImageWithFallback({
     const gradientClass = platformGradients[detectedPlatform] || platformGradients.default;
     
     return (
-      <div className="relative mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-xl aspect-[1.91/1]">
+      <div className="relative mb-2 sm:mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-xl aspect-[1.91/1] max-h-[20vh] sm:max-h-none">
         {/* Gradient Background */}
         <div className={cn(
           "absolute inset-0 bg-gradient-to-br",
@@ -167,7 +167,7 @@ export function SourceImageWithFallback({
   }
 
   return (
-    <div className="relative mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-xl h-40 sm:h-48">
+    <div className="relative mb-2 sm:mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-xl h-32 sm:h-48">
       {/* Skeleton overlay while loading */}
       {!loaded && (
         <Skeleton className="absolute inset-0 bg-white/5" />
