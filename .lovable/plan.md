@@ -1,247 +1,179 @@
 
-# Piano: Sistema Reazioni Instagram Drawer
+# Piano: Fix Gesture e Icona Dinamica Reazioni
 
-## Obiettivo
-Trasformare la visualizzazione delle reazioni nell'app NoParrot da emoji stack sovrapposti a un conteggio testuale cliccabile che apre un Drawer (Bottom Sheet) con filtri per tipo di reazione e lista utenti con pulsante "Segui".
+## Problema Attuale
 
-## Analisi Attuale
+### 1. Conflitto Gesture su Mobile
+Il conteggio reazioni (es. "42") può essere selezionato accidentalmente durante il long-press sul tasto Like, causando comportamenti inaspettati.
 
-### Componenti Coinvolti
-| Componente | Uso Attuale |
-|------------|-------------|
-| `ReactionSummary.tsx` | Mostra emoji stack sovrapposti + count (usato in 7+ luoghi) |
-| `ReactionsSheet.tsx` | Drawer esistente con tab filtri e lista utenti (già funzionante) |
-| `ImmersivePostCard.tsx` | Feed post - mostra ReactionSummary |
-| `ImmersiveEditorialCarousel.tsx` | Editoriali "Il Punto" - mostra ReactionSummary |
-| `CommentItem.tsx` | Commenti - mostra ReactionSummary |
-| `CommentsDrawer.tsx` | Drawer commenti post |
-| `CommentsSheet.tsx` | Sheet commenti focus |
-| `MediaCommentsSheet.tsx` | Commenti media |
+### 2. Icona Statica su Post Feed
+L'icona del Like nei post del feed (`ImmersivePostCard`) mostra sempre il cuore, anche quando l'utente ha scelto una reazione diversa (😂, 🔥, ecc.). 
 
-### Problema Identificato
-Il `ReactionsSheet.tsx` esistente è già ben strutturato con:
-- Tab orizzontali per filtrare per tipo di reazione
-- Lista utenti con avatar, nome e username
+**Nota**: I commenti (`CommentItem`) già implementano correttamente l'icona dinamica usando `reactions?.myReactionType`.
 
-**Manca solo**:
-1. Sostituzione dello stack emoji con conteggio testuale
-2. Aggiunta pulsante "Segui/Segui già" per ogni utente
-3. Rimozione emoji badge sull'avatar (per aderire al design Instagram)
-4. Applicazione globale della nuova UI
+## Analisi Tecnica
 
----
+### Stato Attuale per Componente
 
-## Design Proposta
+| Componente | Icona Dinamica | myReactionType | Status |
+|------------|----------------|----------------|--------|
+| CommentItem | ✅ Implementata | Da useCommentReactions | OK |
+| CommentsDrawer | ✅ Implementata | Da useCommentReactions | OK |
+| CommentsSheet | ✅ Implementata | Da useCommentReactions | OK |
+| MediaCommentsSheet | ✅ Implementata | Da useCommentReactions | OK |
+| ImmersiveEditorialCarousel | ⚠️ Parziale | Stato locale (perde sync) | Da fixare |
+| ImmersivePostCard | ❌ Manca | Non disponibile nel Post type | Da implementare |
 
-### Prima (Attuale)
-```
-[❤️😂🔥] 42
-```
+### Modifiche Necessarie
 
-### Dopo (Instagram-style)
-```
-42 reazioni    ← Testo cliccabile
-```
-oppure
-```
-Piace a mario_rossi e altri 41
+Per abilitare l'icona dinamica nei Post, serve estendere il tipo `Post` e la query `usePosts` per includere `myReactionType`.
+
+## Soluzione Proposta
+
+### Parte 1: Fix Conflitto Gesture (CSS)
+
+Aggiungere `select-none` e `touch-action-none` al conteggio reazioni per prevenire selezione testo accidentale.
+
+**File: `ImmersivePostCard.tsx`**
+```tsx
+// Count button - clickable to open reactions drawer
+<button
+  className="text-sm font-bold text-white select-none hover:text-white/80 transition-colors"
+  onClick={...}
+>
+  {post.reactions?.hearts || 0}
+</button>
 ```
 
-### Drawer Interno (Header con Filtri)
-```
-╭──────────────────────────────────────────╮
-│ ⌢                                         │
-│ Mi piace                                  │
-│                                           │
-│ [Tutti 42] [❤️ 30] [😂 8] [🔥 4]          │
-│ ─────────────────────────────────────     │
-│                                           │
-│ 🔵 Mario Rossi                  [Segui]   │
-│    @mario_rossi                           │
-│                                           │
-│ 🔵 Anna Verdi               [Segui già]   │
-│    @anna_verdi                            │
-│                                           │
-│ ...                                       │
-╰──────────────────────────────────────────╯
+**File: `ReactionSummary.tsx`**
+```tsx
+<button
+  className={cn(
+    "text-sm text-muted-foreground select-none",
+    "cursor-pointer active:opacity-70",
+    className
+  )}
+>
+  ...
+</button>
 ```
 
----
+### Parte 2: Estendere Post Type con myReactionType
 
-## Modifiche Tecniche
+**File: `src/hooks/usePosts.ts`**
 
-### 1. ReactionSummary.tsx - Refactoring Completo
+1. Aggiornare l'interfaccia `Post.user_reactions`:
 
-Sostituire lo stack emoji con un conteggio testuale semplice:
+```typescript
+user_reactions: {
+  has_hearted: boolean;
+  has_bookmarked: boolean;
+  myReactionType?: 'heart' | 'laugh' | 'wow' | 'sad' | 'fire' | null;
+}
+```
+
+2. Nella query, estrarre il tipo di reazione dell'utente corrente:
+
+```typescript
+user_reactions: {
+  has_hearted: post.reactions?.some((r: any) => 
+    r.reaction_type !== 'bookmark' && r.user_id === user?.id
+  ) || false,
+  has_bookmarked: post.reactions?.some((r: any) => 
+    r.reaction_type === 'bookmark' && r.user_id === user?.id
+  ) || false,
+  myReactionType: post.reactions?.find((r: any) => 
+    r.reaction_type !== 'bookmark' && r.user_id === user?.id
+  )?.reaction_type || null
+}
+```
+
+3. Aggiornare l'optimistic update per gestire `myReactionType`:
+
+```typescript
+user_reactions: {
+  ...post.user_reactions,
+  has_hearted: reactionType !== 'bookmark' ? !wasActive : post.user_reactions.has_hearted,
+  has_bookmarked: reactionType === 'bookmark' ? !post.user_reactions.has_bookmarked : post.user_reactions.has_bookmarked,
+  myReactionType: reactionType !== 'bookmark' 
+    ? (wasActive ? null : reactionType) 
+    : post.user_reactions.myReactionType
+}
+```
+
+### Parte 3: Icona Dinamica in ImmersivePostCard
+
+**File: `src/components/feed/ImmersivePostCard.tsx`**
+
+Modificare la sezione Like button (riga ~2023-2027):
 
 ```tsx
-// PRIMA: Emoji stack sovrapposti
-<div className="flex items-center">
-  {topReactions.map((reaction, index) => (
-    <span className="...emoji...">{reactionToEmoji(reaction.type)}</span>
-  ))}
-</div>
-
-// DOPO: Conteggio testuale
-<span className="text-sm text-muted-foreground">
-  {totalCount} {totalCount === 1 ? 'reazione' : 'reazioni'}
-</span>
-```
-
-Variante alternativa (stile "Piace a X e altri Y"):
-```tsx
-// Se esiste un primo reactor noto, mostrare nome
-"Piace a {firstReactorName} e altri {count - 1}"
-```
-
-### 2. ReactionsSheet.tsx - Aggiunta Pulsante Segui
-
-Aggiungere logica follow/unfollow al `ReactorRow`:
-
-```tsx
-const ReactorRow = ({ reactor, onClick, currentUserId }) => {
-  // Nuovo: hook per verificare se seguo già questo utente
-  const { data: isFollowing } = useIsFollowing(reactor.user_id);
-  const toggleFollow = useToggleFollow();
-  
-  return (
-    <div className="flex items-center gap-3 p-2">
-      {/* Avatar SENZA badge emoji (stile Instagram) */}
-      <Avatar className="w-11 h-11" onClick={onClick}>
-        <AvatarImage src={user.avatar_url} />
-        <AvatarFallback>{initials}</AvatarFallback>
-      </Avatar>
-      
-      {/* User info */}
-      <div className="flex-1 min-w-0" onClick={onClick}>
-        <p className="font-semibold text-sm">{displayName}</p>
-        <p className="text-xs text-muted-foreground">@{username}</p>
-      </div>
-      
-      {/* NUOVO: Pulsante Segui (non mostrato se è l'utente corrente) */}
-      {currentUserId !== reactor.user_id && (
-        <Button
-          variant={isFollowing ? "outline" : "default"}
-          size="sm"
-          className="rounded-full h-8 px-4 text-xs"
-          onClick={(e) => {
-            e.stopPropagation();
-            toggleFollow.mutate({ targetUserId: reactor.user_id });
-          }}
-        >
-          {isFollowing ? "Segui già" : "Segui"}
-        </Button>
+{/* Like button - Show emoji if non-heart reaction, otherwise Heart icon */}
+<button 
+  className="flex items-center justify-center gap-1.5 h-full"
+  {...likeButtonHandlers}
+  onClick={(e) => e.stopPropagation()}
+>
+  {post.user_reactions?.myReactionType && 
+   post.user_reactions.myReactionType !== 'heart' ? (
+    <span className="text-xl transition-transform active:scale-90">
+      {reactionToEmoji(post.user_reactions.myReactionType)}
+    </span>
+  ) : (
+    <Heart 
+      className={cn(
+        "w-6 h-6 transition-transform active:scale-90", 
+        post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white"
       )}
-    </div>
-  );
-};
+      fill={post.user_reactions?.has_hearted ? "currentColor" : "none"}
+    />
+  )}
+</button>
 ```
 
-### 3. Hooks Necessari - useIsFollowing e useToggleFollow
+### Parte 4: Fix Stato Persistente per Editorial
 
-Creare o riutilizzare hooks per gestire il follow:
+**File: `src/components/feed/ImmersiveEditorialCarousel.tsx`**
+
+Il `currentReaction` è attualmente uno stato locale che non persiste. Per un fix completo, servirebbe estendere `useFocusReactions` come fatto per i post. Tuttavia, dato il focus su UX immediata, propongo un approccio semplificato:
+
+Sincronizzare `currentReaction` con `reactionsData.likedByMe` quando cambia:
 
 ```tsx
-// src/hooks/useFollow.ts
-export const useIsFollowing = (targetUserId: string) => {
-  const { user } = useAuth();
-  return useQuery({
-    queryKey: ['is-following', user?.id, targetUserId],
-    queryFn: async () => {
-      if (!user) return false;
-      const { data } = await supabase
-        .from('followers')
-        .select('id')
-        .eq('follower_id', user.id)
-        .eq('following_id', targetUserId)
-        .maybeSingle();
-      return !!data;
-    },
-    enabled: !!user && !!targetUserId && user.id !== targetUserId,
-  });
-};
-
-export const useToggleFollow = () => {
-  const { user } = useAuth();
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: async ({ targetUserId }: { targetUserId: string }) => {
-      const isFollowing = queryClient.getQueryData(['is-following', user?.id, targetUserId]);
-      if (isFollowing) {
-        await supabase.from('followers').delete()
-          .eq('follower_id', user!.id)
-          .eq('following_id', targetUserId);
-      } else {
-        await supabase.from('followers').insert({
-          follower_id: user!.id,
-          following_id: targetUserId,
-        });
-      }
-    },
-    onSuccess: (_, { targetUserId }) => {
-      queryClient.invalidateQueries({ queryKey: ['is-following', user?.id, targetUserId] });
-    },
-  });
-};
+// Sync currentReaction with server state
+useEffect(() => {
+  if (reactionsData?.likedByMe) {
+    // Keep current if user selected, else default to 'heart'
+    if (!currentReaction) setCurrentReaction('heart');
+  } else {
+    setCurrentReaction(null);
+  }
+}, [reactionsData?.likedByMe]);
 ```
 
-### 4. Aggiornamento Punti di Utilizzo
+## File da Modificare
 
-Ogni utilizzo di `ReactionSummary` deve essere aggiornato per passare il contesto necessario.
-
-**File da modificare:**
-| File | Modifica |
-|------|----------|
-| `ImmersivePostCard.tsx` | Sostituire `ReactionSummary` con nuovo formato testuale |
-| `ImmersiveEditorialCarousel.tsx` | Idem |
-| `CommentItem.tsx` | Idem per commenti |
-| `CommentsDrawer.tsx` | Idem |
-| `CommentsSheet.tsx` | Idem |
-| `MediaCommentsSheet.tsx` | Idem |
-| `PostCommentsView.tsx` | Idem |
-
-### 5. Stile Drawer Conforme al Tema
-
-Mantenere tema scuro NoParrot:
-- Background: `bg-[#0E141A]` / `zinc-900/950`
-- Border: `border-white/10`
-- Tab attivo: `bg-primary/10 text-primary`
-- Tab inattivo: `bg-white/5 text-muted-foreground`
-- Hover states: `hover:bg-white/5`
-
----
-
-## File da Creare/Modificare
-
-| File | Azione | Descrizione |
-|------|--------|-------------|
-| `src/hooks/useFollow.ts` | **CREARE** | Hooks per isFollowing e toggleFollow |
-| `src/components/feed/ReactionSummary.tsx` | Modificare | Cambiare da emoji stack a testo |
-| `src/components/feed/ReactionsSheet.tsx` | Modificare | Aggiungere pulsante Segui, rimuovere badge emoji |
-| `src/components/feed/ImmersivePostCard.tsx` | Modificare | Passare currentUserId al ReactionsSheet |
-| `src/components/feed/ImmersiveEditorialCarousel.tsx` | Modificare | Idem |
-| `src/components/feed/CommentItem.tsx` | Verificare | Potrebbe necessitare ReactionsSheet per commenti |
-
----
+| File | Modifiche |
+|------|-----------|
+| `src/hooks/usePosts.ts` | Aggiungere myReactionType a Post type e query |
+| `src/components/feed/ImmersivePostCard.tsx` | Icona dinamica + select-none sul count |
+| `src/components/feed/ImmersiveEditorialCarousel.tsx` | Sync stato locale con server |
+| `src/components/feed/ReactionSummary.tsx` | Aggiungere select-none |
 
 ## Garanzie Zero-Regressione
 
 | Sistema | Status |
 |---------|--------|
 | Comprehension Gate | Non toccato |
-| Sistema commenti (CRUD) | Non toccato |
-| OCR / Trascrizione | Non toccato |
-| Logica reazioni (toggle, persist) | Non toccata |
-| ReactionPicker (long press) | Non toccato |
-
----
+| RLS Security | Non toccata |
+| Deep Linking | Non toccato |
+| ReactionsSheet (drawer) | Non toccato |
+| Logica Follow | Non toccata |
+| Colore rosso (text-destructive) | Mantenuto per cuore attivo |
 
 ## Risultato Atteso
 
-1. **Feed Post**: Al posto dello stack `[❤️😂🔥] 42` → testo `42 reazioni` cliccabile
-2. **Click su conteggio**: Apre Drawer con header filtri emoji + count
-3. **Lista utenti**: Avatar, Nome completo, @username, pulsante "Segui"/"Segui già"
-4. **Tab filtri**: Solo reazioni con count > 0 visibili
-5. **Stesso comportamento**: Applicato a Post, Editoriali, Commenti
-6. **Tema coerente**: Zinc-900/950, glassmorphism, urban texture
+1. **Gesture fluide**: Nessuna selezione testo accidentale durante long-press
+2. **Icona dinamica**: Se utente sceglie 🔥, il tasto mostra 🔥 invece di ❤️
+3. **Aggiornamento istantaneo**: Cambio icona con Optimistic UI (~0ms latenza)
+4. **Consistenza globale**: Stesso comportamento su Feed, Editorial, Commenti
