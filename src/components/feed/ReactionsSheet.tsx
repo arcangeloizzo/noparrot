@@ -2,11 +2,14 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { cn, getDisplayUsername } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { usePostReactors } from "@/hooks/usePostReactors";
 import { useFocusReactors } from "@/hooks/useFocusReactors";
+import { useIsFollowing, useToggleFollow } from "@/hooks/useFollow";
+import { useAuth } from "@/contexts/AuthContext";
 import { reactionToEmoji, type ReactionType, REACTIONS } from "@/components/ui/reaction-picker";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -38,7 +41,8 @@ const ALL_TAB = 'all';
 const REACTION_TABS: (ReactionType | typeof ALL_TAB)[] = [ALL_TAB, 'heart', 'laugh', 'wow', 'sad', 'fire'];
 
 /**
- * ReactionsSheet - Bottom drawer showing who reacted with filtering tabs
+ * ReactionsSheet - Instagram-style bottom drawer showing who reacted
+ * Features horizontal emoji filter tabs and user list with follow buttons
  */
 export const ReactionsSheet = ({
   isOpen,
@@ -48,6 +52,7 @@ export const ReactionsSheet = ({
   focusType = 'daily',
 }: ReactionsSheetProps) => {
   const navigate = useNavigate();
+  const { user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = React.useState<string>(ALL_TAB);
 
   // Determine which hook to use
@@ -93,69 +98,74 @@ export const ReactionsSheet = ({
 
   return (
     <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DrawerContent className="max-h-[85vh]">
-        <DrawerHeader className="pb-2">
-          <DrawerTitle className="text-lg font-bold">
-            Reazioni {data && `(${data.totalCount})`}
+      <DrawerContent className="max-h-[85vh] bg-[#0E141A]">
+        <DrawerHeader className="pb-2 border-b border-white/10">
+          <DrawerTitle className="text-lg font-bold text-center">
+            Mi piace
           </DrawerTitle>
         </DrawerHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          {/* Tabs Header - Horizontal scroll */}
-          <TabsList className="flex justify-start gap-1 px-4 pb-2 overflow-x-auto no-scrollbar bg-transparent">
+          {/* Tabs Header - Horizontal scroll with emoji + count */}
+          <TabsList className="flex justify-start gap-2 px-4 py-3 overflow-x-auto no-scrollbar bg-transparent border-b border-white/5">
             {REACTION_TABS.map((tab) => {
               const count = tab === ALL_TAB 
                 ? data?.totalCount || 0 
                 : data?.counts[tab as ReactionType] || 0;
               
+              // Hide tabs with 0 count (except "All" if there are reactions)
               if (tab !== ALL_TAB && count === 0) return null;
+              if (tab === ALL_TAB && count === 0) return null;
 
               return (
                 <TabsTrigger
                   key={tab}
                   value={tab}
                   className={cn(
-                    "flex items-center gap-1 px-3 py-1.5 rounded-full text-sm",
-                    "data-[state=active]:bg-primary/10 data-[state=active]:text-primary",
-                    "data-[state=inactive]:bg-white/5 data-[state=inactive]:text-muted-foreground"
+                    "flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap",
+                    "data-[state=active]:bg-primary/15 data-[state=active]:text-primary",
+                    "data-[state=inactive]:bg-white/5 data-[state=inactive]:text-muted-foreground",
+                    "transition-colors"
                   )}
                 >
                   {tab === ALL_TAB ? (
                     <span>Tutti</span>
                   ) : (
-                    <span>{reactionToEmoji(tab as ReactionType)}</span>
+                    <span className="text-base">{reactionToEmoji(tab as ReactionType)}</span>
                   )}
-                  <span className="text-xs opacity-70">({count})</span>
+                  <span className="text-xs opacity-80">{count}</span>
                 </TabsTrigger>
               );
             })}
           </TabsList>
 
-          {/* Content */}
+          {/* Content - User list */}
           <TabsContent value={activeTab} className="mt-0 px-0">
-            <ScrollArea className="h-[50vh] px-4">
+            <ScrollArea className="h-[55vh] px-4">
               {isLoading ? (
-                <div className="space-y-3 py-2">
-                  {[...Array(5)].map((_, i) => (
+                <div className="space-y-3 py-3">
+                  {[...Array(6)].map((_, i) => (
                     <div key={i} className="flex items-center gap-3">
-                      <Skeleton className="w-10 h-10 rounded-full" />
+                      <Skeleton className="w-11 h-11 rounded-full" />
                       <div className="flex-1 space-y-1.5">
-                        <Skeleton className="h-4 w-24" />
-                        <Skeleton className="h-3 w-32" />
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-3 w-20" />
                       </div>
+                      <Skeleton className="h-8 w-20 rounded-full" />
                     </div>
                   ))}
                 </div>
               ) : filteredReactors.length === 0 ? (
-                <div className="py-8 text-center text-muted-foreground text-sm">
+                <div className="py-12 text-center text-muted-foreground text-sm">
                   Nessuna reazione
                 </div>
               ) : (
-                <div className="space-y-1 py-2">
+                <div className="space-y-1 py-3">
                   {filteredReactors.map((reactor) => (
                     <ReactorRow
                       key={reactor.id}
                       reactor={reactor}
+                      currentUserId={currentUser?.id}
                       onClick={() => reactor.user && handleUserClick(reactor.user.id)}
                     />
                   ))}
@@ -169,47 +179,80 @@ export const ReactionsSheet = ({
   );
 };
 
-// Individual reactor row
+// Individual reactor row - Instagram style with follow button
 interface ReactorRowProps {
   reactor: ReactorItem;
+  currentUserId?: string;
   onClick: () => void;
 }
 
-const ReactorRow = ({ reactor, onClick }: ReactorRowProps) => {
+const ReactorRow = ({ reactor, currentUserId, onClick }: ReactorRowProps) => {
   if (!reactor.user) return null;
 
-  const { user, reaction_type } = reactor;
-  const displayName = user.full_name || getDisplayUsername(user.username);
-  const initials = displayName.slice(0, 2).toUpperCase();
+  const { user } = reactor;
+  const isCurrentUser = currentUserId === user.id;
 
   return (
-    <button
-      onClick={onClick}
-      className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors text-left"
-    >
-      {/* Avatar with reaction badge */}
-      <div className="relative">
-        <Avatar className="w-10 h-10">
-          <AvatarImage src={user.avatar_url || undefined} alt={displayName} />
+    <div className="flex items-center gap-3 py-2">
+      {/* Avatar - Clean, no emoji badge */}
+      <button onClick={onClick} className="shrink-0">
+        <Avatar className="w-11 h-11">
+          <AvatarImage src={user.avatar_url || undefined} alt={user.full_name || user.username} />
           <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-            {initials}
+            {(user.full_name || user.username).slice(0, 2).toUpperCase()}
           </AvatarFallback>
         </Avatar>
-        {/* Reaction badge on bottom-right corner */}
-        <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 flex items-center justify-center text-xs bg-popover border border-border rounded-full shadow-sm">
-          {reactionToEmoji(reaction_type)}
-        </span>
-      </div>
+      </button>
 
       {/* User info */}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground truncate">
-          {displayName}
+      <button onClick={onClick} className="flex-1 min-w-0 text-left">
+        <p className="text-sm font-semibold text-foreground truncate">
+          {user.full_name || getDisplayUsername(user.username)}
         </p>
         <p className="text-xs text-muted-foreground truncate">
           @{getDisplayUsername(user.username)}
         </p>
-      </div>
-    </button>
+      </button>
+
+      {/* Follow button - Only show for other users */}
+      {!isCurrentUser && (
+        <FollowButton targetUserId={user.id} />
+      )}
+    </div>
+  );
+};
+
+// Separate component for follow button to use hooks properly
+const FollowButton = ({ targetUserId }: { targetUserId: string }) => {
+  const { data: isFollowing, isLoading } = useIsFollowing(targetUserId);
+  const toggleFollow = useToggleFollow();
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    toggleFollow.mutate({ 
+      targetUserId, 
+      isCurrentlyFollowing: !!isFollowing 
+    });
+  };
+
+  if (isLoading) {
+    return <Skeleton className="h-8 w-20 rounded-full" />;
+  }
+
+  return (
+    <Button
+      variant={isFollowing ? "outline" : "default"}
+      size="sm"
+      className={cn(
+        "rounded-full h-8 px-4 text-xs font-semibold shrink-0",
+        isFollowing 
+          ? "border-white/20 text-foreground hover:bg-white/5" 
+          : "bg-primary hover:bg-primary/90"
+      )}
+      onClick={handleClick}
+      disabled={toggleFollow.isPending}
+    >
+      {isFollowing ? "Segui già" : "Segui"}
+    </Button>
   );
 };
