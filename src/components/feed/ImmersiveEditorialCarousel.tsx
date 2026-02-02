@@ -479,15 +479,25 @@ const EditorialSlideInner = ({
   
   // Long press for reaction picker
   const [showReactionPicker, setShowReactionPicker] = useState(false);
-  const [currentReaction, setCurrentReaction] = useState<ReactionType | null>(
-    reactionsData?.likedByMe ? 'heart' : null
-  );
+  const [currentReaction, setCurrentReaction] = useState<ReactionType | null>(null);
+  
+  // Sync currentReaction with server state when reactionsData changes
+  useEffect(() => {
+    if (reactionsData?.likedByMe) {
+      // Keep current reaction if user has one, otherwise default to 'heart'
+      if (!currentReaction) setCurrentReaction('heart');
+    } else {
+      setCurrentReaction(null);
+    }
+  }, [reactionsData?.likedByMe]);
   
   const likeHandlers = useLongPress({
     onLongPress: () => setShowReactionPicker(true),
     onTap: () => {
       haptics.light();
       onLike('heart');
+      // Optimistically update local state
+      setCurrentReaction(prev => prev ? null : 'heart');
     },
   });
 
@@ -615,7 +625,7 @@ const EditorialSlideInner = ({
                 {/* Like with long press for reaction picker */}
                 <div className="relative flex items-center justify-center gap-1.5 h-full">
                   <button 
-                    className="flex items-center justify-center gap-1.5 h-full"
+                    className="flex items-center justify-center h-full"
                     {...likeHandlers}
                     onClick={(e) => e.stopPropagation()}
                   >
@@ -633,9 +643,19 @@ const EditorialSlideInner = ({
                         fill={reactionsData?.likedByMe ? "currentColor" : "none"}
                       />
                     )}
-                    <span className="text-sm font-bold text-white">
-                      {reactionsData?.likes ?? item.reactions?.likes ?? 0}
-                    </span>
+                  </button>
+                  {/* Count - clickable to open reactions drawer, select-none prevents text selection */}
+                  <button
+                    className="text-sm font-bold text-white hover:text-white/80 transition-colors select-none"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const likesCount = reactionsData?.likes ?? item.reactions?.likes ?? 0;
+                      if (likesCount > 0) {
+                        onOpenReactionsSheet?.();
+                      }
+                    }}
+                  >
+                    {reactionsData?.likes ?? item.reactions?.likes ?? 0}
                   </button>
                   
                   <ReactionPicker

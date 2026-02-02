@@ -88,8 +88,9 @@ export const Post = () => {
           }, {} as Record<string, number>),
         },
         user_reactions: {
-          has_hearted: data.reactions?.some((r: any) => r.reaction_type === 'heart' && r.user_id === user?.id) || false,
-          has_bookmarked: data.reactions?.some((r: any) => r.reaction_type === 'bookmark' && r.user_id === user?.id) || false
+          has_hearted: data.reactions?.some((r: any) => r.reaction_type !== 'bookmark' && r.user_id === user?.id) || false,
+          has_bookmarked: data.reactions?.some((r: any) => r.reaction_type === 'bookmark' && r.user_id === user?.id) || false,
+          myReactionType: (data.reactions?.find((r: any) => r.reaction_type !== 'bookmark' && r.user_id === user?.id)?.reaction_type || null) as 'heart' | 'laugh' | 'wow' | 'sad' | 'fire' | null
         },
         questions: (data.questions || [])
           .sort((a: any, b: any) => a.order_index - b.order_index)

@@ -72,7 +72,7 @@ import { useOriginalSource } from "@/hooks/useOriginalSource";
 import { haptics } from "@/lib/haptics";
 import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
 import { useLongPress } from "@/hooks/useLongPress";
-import { ReactionPicker, type ReactionType } from "@/components/ui/reaction-picker";
+import { ReactionPicker, reactionToEmoji, type ReactionType } from "@/components/ui/reaction-picker";
 // ReactionSummary removed - count next to heart is now clickable
 import { ReactionsSheet } from "@/components/feed/ReactionsSheet";
 
@@ -2016,18 +2016,28 @@ const ImmersivePostCardInner = ({
               {/* Like with long press for reaction picker */}
               <div className="relative flex items-center justify-center gap-1.5 h-full">
                 <button 
-                  className="flex items-center justify-center gap-1.5 h-full"
+                  className="flex items-center justify-center h-full"
                   {...likeButtonHandlers}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <Heart 
-                    className={cn("w-6 h-6 transition-transform active:scale-90", post.user_reactions.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
-                    fill={post.user_reactions.has_hearted ? "currentColor" : "none"}
-                  />
+                  {/* Dynamic icon: show emoji if non-heart reaction, otherwise Heart icon */}
+                  {post.user_reactions?.myReactionType && post.user_reactions.myReactionType !== 'heart' ? (
+                    <span className="text-xl transition-transform active:scale-90">
+                      {reactionToEmoji(post.user_reactions.myReactionType)}
+                    </span>
+                  ) : (
+                    <Heart 
+                      className={cn(
+                        "w-6 h-6 transition-transform active:scale-90",
+                        post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white"
+                      )}
+                      fill={post.user_reactions?.has_hearted ? "currentColor" : "none"}
+                    />
+                  )}
                 </button>
-                {/* Count - clickable to open reactions drawer */}
+                {/* Count - clickable to open reactions drawer, select-none prevents text selection on long-press */}
                 <button
-                  className="text-sm font-bold text-white hover:text-white/80 transition-colors"
+                  className="text-sm font-bold text-white hover:text-white/80 transition-colors select-none ml-1.5"
                   onClick={(e) => {
                     e.stopPropagation();
                     if ((post.reactions?.hearts || 0) > 0) {

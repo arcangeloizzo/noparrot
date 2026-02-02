@@ -41,7 +41,7 @@ export const ReactionSummary = React.memo(({
       }}
       className={cn(
         "text-sm text-muted-foreground hover:text-foreground transition-colors",
-        "cursor-pointer active:opacity-70",
+        "cursor-pointer active:opacity-70 select-none",
         className
       )}
     >
