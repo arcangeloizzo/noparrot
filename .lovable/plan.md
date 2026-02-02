@@ -1,32 +1,41 @@
 
-# Fix Posizionamento Picker e Text Selection
+# Unificazione Visiva Reazioni Commenti - Il Punto
 
-## Problemi Identificati
+## Problema Identificato
 
-### 1. Picker posizionato sotto il commento (invisibile)
-Il `ReactionPicker` calcola il `bottom` per posizionarsi **sopra** il bottone, ma se il commento è vicino al top dello schermo (es. un solo commento), non c'è spazio e il picker viene tagliato o posizionato fuori viewport.
+L'icona like nei commenti non cambia quando si seleziona un'emoji diversa dal cuore. Il problema è limitato ai **commenti sui Focus editoriali** ("Il Punto") perché:
 
-**Causa**: Il calcolo attuale usa solo `bottom: window.innerHeight - rect.top + 8` senza verificare se c'è spazio sopra. Se non c'è spazio, dovrebbe posizionarsi **sotto** il bottone.
+1. L'hook `useFocusCommentReactions.ts` non restituisce `myReactionType`
+2. L'hook non supporta le reazioni estese nella mutation
+3. Il componente `CommentWithReplies` in `FocusDetailSheet.tsx` mostra sempre e solo il cuore
 
-### 2. Selezione testo durante long-press
-L'utente vede ancora la selezione del testo ("macchie blu") durante il long-press perché:
-- L'hook `useLongPress` non chiama `e.preventDefault()` nel `onTouchStart`
-- I button nel `CommentsDrawer` non hanno le proprietà CSS anti-selezione
+## Stato Attuale
 
-## Soluzione Proposta
+| Componente | myReactionType | Switch Icon | ReactionPicker |
+|------------|----------------|-------------|----------------|
+| `CommentItem.tsx` (standalone) | ✅ Corretto | ✅ Funziona | ✅ Presente |
+| `CommentsDrawer.tsx` (inline CommentItem) | ✅ Corretto | ✅ Funziona | ✅ Presente |
+| `FocusDetailSheet.tsx` (CommentWithReplies) | ❌ Mancante | ❌ Solo Heart | ❌ Mancante |
+| `useFocusCommentReactions.ts` | ❌ Non restituisce | - | - |
 
-### Fix 1: Posizionamento Adattivo (Flip Up/Down)
+## Soluzione
 
-Modificherò `reaction-picker.tsx` per:
-- Verificare se c'è abbastanza spazio sopra il bottone (min 60px per il picker)
-- Se non c'è spazio sopra, posizionare il picker **sotto** il bottone
-- Usare `top` invece di `bottom` quando si flippa
+### 1. Fix Hook `useFocusCommentReactions.ts`
 
-### Fix 2: Prevenzione Selezione Testo
+Allineare completamente all'implementazione di `useCommentReactions.ts`:
 
-Modificherò:
-- `useLongPress.ts`: Aggiungere `e.preventDefault()` nel `onTouchStart` per bloccare la selezione immediatamente
-- `CommentsDrawer.tsx`: Aggiungere classi `action-bar-zone` e stili inline sui button delle reazioni
+- Aggiungere `myReactionType` al return del query
+- Aggiungere `byType` per i conteggi per tipo
+- Supportare `reactionType` nella mutation
+- Implementare Optimistic UI con rollback
+
+### 2. Fix Componente `CommentWithReplies` in `FocusDetailSheet.tsx`
+
+Aggiornare il componente per:
+- Importare `ReactionPicker`, `useLongPress`, `reactionToEmoji`
+- Implementare lo switch dinamico dell'icona (emoji vs Heart)
+- Aggiungere il `ReactionPicker` con long-press
+- Passare `reactionType` alla mutation
 
 ---
 
@@ -36,102 +45,238 @@ Modificherò:
 
 | File | Modifiche |
 |------|-----------|
-| `src/components/ui/reaction-picker.tsx` | Logica flip up/down basata su spazio disponibile |
-| `src/hooks/useLongPress.ts` | `e.preventDefault()` nel `onTouchStart` |
-| `src/components/feed/CommentsDrawer.tsx` | Touch isolation sui button azioni |
+| `src/hooks/useFocusCommentReactions.ts` | Allineamento completo a `useCommentReactions.ts` |
+| `src/components/feed/FocusDetailSheet.tsx` | Switch icona + ReactionPicker in `CommentWithReplies` |
 
-### Fix 1: Posizionamento con Flip
-
-```typescript
-// reaction-picker.tsx - useEffect per calcolo posizione
-React.useEffect(() => {
-  if (!isOpen || !wrapperRef.current) return;
-  
-  const wrapper = wrapperRef.current;
-  const rect = wrapper.getBoundingClientRect();
-  const viewportWidth = window.innerWidth;
-  const viewportHeight = window.innerHeight;
-  const pickerWidth = 240;
-  const pickerHeight = 52; // Altezza picker con emoji
-  const safeMargin = 12;
-  const minSpaceAbove = pickerHeight + 16; // Spazio minimo sopra per mostrare il picker
-  
-  // Calcolo X (left) - già implementato
-  let idealLeft = rect.left + rect.width / 2 - pickerWidth / 2;
-  if (idealLeft < safeMargin) {
-    idealLeft = safeMargin;
-  } else if (idealLeft + pickerWidth > viewportWidth - safeMargin) {
-    idealLeft = viewportWidth - pickerWidth - safeMargin;
-  }
-  
-  // Calcolo Y (flip logic)
-  const spaceAbove = rect.top;
-  const spaceBelow = viewportHeight - rect.bottom;
-  
-  // Se non c'è abbastanza spazio sopra, mostra sotto
-  const showBelow = spaceAbove < minSpaceAbove && spaceBelow > minSpaceAbove;
-  
-  if (showBelow) {
-    setPositionStyle({
-      position: 'fixed',
-      top: `${rect.bottom + 8}px`,
-      left: `${idealLeft}px`,
-      transform: 'none',
-    });
-  } else {
-    setPositionStyle({
-      position: 'fixed',
-      bottom: `${viewportHeight - rect.top + 8}px`,
-      left: `${idealLeft}px`,
-      transform: 'none',
-    });
-  }
-}, [isOpen]);
-```
-
-### Fix 2: preventDefault in useLongPress
+### Fix 1: useFocusCommentReactions.ts
 
 ```typescript
-// useLongPress.ts - onTouchStart
-onTouchStart: (e: React.TouchEvent) => {
-  // CRITICAL: Previene la selezione testo su iOS durante long-press
-  e.preventDefault();
-  const touch = e.touches[0];
-  start(touch.clientX, touch.clientY);
-},
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
+import { haptics } from '@/lib/haptics';
+import type { ReactionType } from '@/components/ui/reaction-picker';
+
+interface FocusCommentReactionData {
+  likesCount: number;
+  likedByMe: boolean;
+  myReactionType?: ReactionType | null;
+  byType: Record<ReactionType, number>;
+}
+
+export const useFocusCommentReactions = (focusCommentId: string) => {
+  const { user } = useAuth();
+  
+  return useQuery({
+    queryKey: ['focus-comment-reactions', focusCommentId],
+    queryFn: async (): Promise<FocusCommentReactionData> => {
+      const { data, error } = await supabase
+        .from('focus_comment_reactions')
+        .select('*')
+        .eq('focus_comment_id', focusCommentId);
+      
+      if (error) throw error;
+      
+      const likesCount = data?.length || 0;
+      const myReaction = data?.find(r => r.user_id === user?.id);
+      const likedByMe = !!myReaction;
+      
+      // Aggregate reactions by type
+      const byType: Record<ReactionType, number> = {} as Record<ReactionType, number>;
+      data?.forEach(r => {
+        const type = r.reaction_type as ReactionType;
+        byType[type] = (byType[type] || 0) + 1;
+      });
+      
+      return { 
+        likesCount, 
+        likedByMe,
+        myReactionType: myReaction?.reaction_type as ReactionType | undefined,
+        byType
+      };
+    },
+    enabled: !!focusCommentId
+  });
+};
+
+export const useToggleFocusCommentReaction = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ 
+      focusCommentId, 
+      isLiked,
+      reactionType = 'heart'
+    }: { 
+      focusCommentId: string; 
+      isLiked: boolean;
+      reactionType?: ReactionType;
+    }) => {
+      if (!user) throw new Error('Not authenticated');
+      
+      if (isLiked) {
+        const { error } = await supabase
+          .from('focus_comment_reactions')
+          .delete()
+          .eq('focus_comment_id', focusCommentId)
+          .eq('user_id', user.id);
+        
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('focus_comment_reactions')
+          .insert({
+            focus_comment_id: focusCommentId,
+            user_id: user.id,
+            reaction_type: reactionType
+          });
+        
+        if (error) throw error;
+      }
+    },
+    
+    // Optimistic UI
+    onMutate: async ({ focusCommentId, isLiked, reactionType = 'heart' }) => {
+      await queryClient.cancelQueries({ queryKey: ['focus-comment-reactions', focusCommentId] });
+      
+      const previous = queryClient.getQueryData<FocusCommentReactionData>(
+        ['focus-comment-reactions', focusCommentId]
+      );
+      
+      const newByType = { ...(previous?.byType || {}) } as Record<ReactionType, number>;
+      if (isLiked) {
+        const prevType = previous?.myReactionType || 'heart';
+        if (newByType[prevType]) {
+          newByType[prevType] = Math.max(0, newByType[prevType] - 1);
+        }
+      } else {
+        newByType[reactionType] = (newByType[reactionType] || 0) + 1;
+      }
+      
+      queryClient.setQueryData<FocusCommentReactionData>(['focus-comment-reactions', focusCommentId], {
+        likesCount: (previous?.likesCount || 0) + (isLiked ? -1 : 1),
+        likedByMe: !isLiked,
+        myReactionType: isLiked ? null : reactionType,
+        byType: newByType,
+      });
+      
+      return { previous };
+    },
+    
+    onError: (_err, variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(['focus-comment-reactions', variables.focusCommentId], context.previous);
+      }
+      haptics.warning();
+      toast.error('Errore nel like al commento');
+    },
+    
+    onSettled: (_, __, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['focus-comment-reactions', variables.focusCommentId] });
+    }
+  });
+};
 ```
 
-### Fix 3: Touch Isolation in CommentsDrawer
+### Fix 2: FocusDetailSheet.tsx (CommentWithReplies)
 
-```tsx
-// CommentsDrawer.tsx - CommentItem, linea 1001-1028
-<div className="flex items-center gap-4 mt-2 action-bar-zone">
-  <div className="relative">
-    <button
-      {...likeHandlers}
-      className="flex items-center gap-1.5 text-xs ... select-none"
-      style={{ WebkitTapHighlightColor: 'transparent', WebkitUserSelect: 'none' }}
-    >
+Aggiungere imports:
+```typescript
+import { useLongPress } from '@/hooks/useLongPress';
+import { ReactionPicker, type ReactionType, reactionToEmoji } from '@/components/ui/reaction-picker';
+import { useRef, useState } from 'react';
+```
+
+Aggiornare `CommentWithReplies`:
+```typescript
+const CommentWithReplies = ({ ... }) => {
+  const { data: reactionData } = useFocusCommentReactions(comment.id);
+  const toggleReaction = useToggleFocusCommentReaction();
+  const { user } = useAuth();
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const likeButtonRef = useRef<HTMLButtonElement>(null);
+
+  const handleLike = (reactionType: ReactionType = 'heart') => {
+    if (!user) {
+      sonnerToast.error('Devi effettuare il login');
+      return;
+    }
+    toggleReaction.mutate({ 
+      focusCommentId: comment.id, 
+      isLiked: reactionData?.likedByMe || false,
+      reactionType
+    });
+    haptics.light();
+  };
+
+  const likeHandlers = useLongPress({
+    onLongPress: () => setShowReactionPicker(true),
+    onTap: () => handleLike('heart'),
+  });
+
+  // ... rest of component
+
+  // In the Actions section:
+  <div className="flex items-center gap-4 mt-2 action-bar-zone">
+    <div className="relative">
+      <button 
+        ref={likeButtonRef}
+        {...likeHandlers}
+        className="flex items-center gap-1 text-xs ... select-none"
+        style={{ WebkitTapHighlightColor: 'transparent', WebkitUserSelect: 'none' }}
+      >
+        {reactionData?.myReactionType && reactionData.myReactionType !== 'heart' ? (
+          <span className="text-base">{reactionToEmoji(reactionData.myReactionType)}</span>
+        ) : (
+          <Heart 
+            className={cn(
+              "w-3.5 h-3.5",
+              reactionData?.likedByMe ? "text-red-500 fill-red-500" : ""
+            )} 
+          />
+        )}
+        <span>{reactionData?.likesCount || 0}</span>
+      </button>
+      <ReactionPicker
+        isOpen={showReactionPicker}
+        onClose={() => setShowReactionPicker(false)}
+        onSelect={(type) => {
+          handleLike(type);
+          setShowReactionPicker(false);
+        }}
+        currentReaction={reactionData?.myReactionType}
+        triggerRef={likeButtonRef}
+      />
+    </div>
+    // ... other buttons
+  </div>
+};
 ```
 
 ---
 
+## Flussi Impattati
+
+| Flusso | Impatto |
+|--------|---------|
+| Feed Principale | Già funzionante (usa `CommentItem.tsx`) |
+| Il Punto (Carousel) | **Fix in corso** (usa `FocusDetailSheet.tsx`) |
+| Il Punto (Detail Sheet) | **Fix in corso** (usa `FocusDetailSheet.tsx`) |
+| Notifiche | Già funzionante (usa `CommentItem.tsx`) |
+| Post Salvati | Già funzionante (usa `CommentItem.tsx`) |
+
 ## Risultato Atteso
 
-1. **Picker sempre visibile**: Se non c'è spazio sopra, il picker appare sotto il bottone
-2. **Nessuna selezione testo**: Il `preventDefault()` blocca iOS dal selezionare durante il touch
-3. **Nessuna macchia blu**: Le proprietà CSS eliminano l'highlight nativo
-
-## Componenti Impattati
-
-Il fix si applica automaticamente a tutti i punti che usano `ReactionPicker` e `useLongPress`:
-- `CommentsDrawer` (Comments nel Drawer)
-- `CommentItem` (src/components/feed/CommentItem.tsx)
-- `ImmersivePostCard` (Feed principale)
-- `ImmersiveEditorialCarousel` (Il Punto)
+1. Le emoji selezionate sui commenti Focus si salvano correttamente
+2. L'icona cambia dinamicamente (🔥, 😂, etc.) invece di tornare al cuore
+3. Il long-press apre il ReactionPicker anche nei commenti Focus
+4. Optimistic UI per feedback istantaneo
 
 ## Safe Guard
 
-- Il flusso Comprehension Gate rimane invariato
-- Le RLS policies non vengono toccate
-- Il comportamento del tap normale (non long-press) rimane identico
+- Il colore `text-destructive` per il cuore attivo viene mantenuto
+- Il Comprehension Gate non viene toccato
+- Il badge "letto" rimane invariato
+- Il posizionamento Portal del picker rimane quello stabilizzato
