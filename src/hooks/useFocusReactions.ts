@@ -74,49 +74,62 @@ export const useToggleFocusReaction = () => {
     mutationFn: async ({ focusId, focusType, reactionType = 'heart' }: FocusReactionData) => {
       if (!user) throw new Error('User not authenticated');
 
-      // Controlla se esiste già
+      // Find any existing reaction (NOT filtered by reaction_type!)
       const { data: existing } = await supabase
         .from('focus_reactions')
-        .select('id')
+        .select('id, reaction_type')
         .eq('focus_id', focusId)
         .eq('focus_type', focusType)
         .eq('user_id', user.id)
-        .eq('reaction_type', reactionType)
         .maybeSingle();
 
+      const table = focusType === 'daily' ? 'daily_focus' : 'interest_focus';
+
       if (existing) {
-        // Rimuovi like
-        const { error } = await supabase
-          .from('focus_reactions')
-          .delete()
-          .eq('id', existing.id);
+        if (existing.reaction_type === reactionType) {
+          // Same type -> toggle off (delete)
+          const { error } = await supabase
+            .from('focus_reactions')
+            .delete()
+            .eq('id', existing.id);
 
-        if (error) throw error;
-        
-        // Aggiorna il count nella cache della tabella focus
-        const table = focusType === 'daily' ? 'daily_focus' : 'interest_focus';
-        const { data: focusItem } = await supabase
-          .from(table)
-          .select('reactions')
-          .eq('id', focusId)
-          .single();
-
-        if (focusItem?.reactions) {
-          const reactions = focusItem.reactions as any;
-          await supabase
+          if (error) throw error;
+          
+          // Update count in focus table cache
+          const { data: focusItem } = await supabase
             .from(table)
-            .update({
-              reactions: {
-                ...reactions,
-                likes: Math.max(0, (reactions.likes || 0) - 1),
-              }
-            } as any)
-            .eq('id', focusId);
-        }
+            .select('reactions')
+            .eq('id', focusId)
+            .single();
 
-        return { action: 'removed' };
+          if (focusItem?.reactions) {
+            const reactions = focusItem.reactions as any;
+            await supabase
+              .from(table)
+              .update({
+                reactions: {
+                  ...reactions,
+                  likes: Math.max(0, (reactions.likes || 0) - 1),
+                }
+              } as any)
+              .eq('id', focusId);
+          }
+
+          return { action: 'removed' as const, previousType: existing.reaction_type };
+        } else {
+          // Different type -> switch (update existing record)
+          const { error } = await supabase
+            .from('focus_reactions')
+            .update({ reaction_type: reactionType })
+            .eq('id', existing.id);
+
+          if (error) throw error;
+
+          // Count stays same for switch, no need to update focus table
+          return { action: 'switched' as const, previousType: existing.reaction_type };
+        }
       } else {
-        // Aggiungi like
+        // No existing -> add new
         const { error } = await supabase
           .from('focus_reactions')
           .insert({
@@ -128,8 +141,7 @@ export const useToggleFocusReaction = () => {
 
         if (error) throw error;
 
-        // Aggiorna il count nella cache della tabella focus
-        const table = focusType === 'daily' ? 'daily_focus' : 'interest_focus';
+        // Update count in focus table cache
         const { data: focusItem } = await supabase
           .from(table)
           .select('reactions')
@@ -149,7 +161,7 @@ export const useToggleFocusReaction = () => {
             .eq('id', focusId);
         }
 
-        return { action: 'added' };
+        return { action: 'added' as const };
       }
     },
     

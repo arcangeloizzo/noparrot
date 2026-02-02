@@ -237,7 +237,7 @@ export const CommentItem = ({
             )}
 
             {/* Footer: Actions - select-none prevents text selection on long-press */}
-            <div className="flex items-center gap-1 select-none">
+            <div className="flex items-center gap-1 action-bar-zone">
               {/* Like button with long press for reaction picker */}
               <div className="relative">
                 <button

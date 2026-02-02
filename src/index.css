@@ -55,6 +55,24 @@
   scrollbar-width: none;
 }
 
+/* ===== TOUCH ISOLATION - Action Bar Zone ===== */
+/* Prevents blue iOS highlights and text selection during long-press gestures */
+.action-bar-zone {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
+/* Prevent text selection on reaction counters */
+.reaction-count {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+
 /* Force scrollbar visibility - overrides no-scrollbar for specific containers */
 .force-scrollbar::-webkit-scrollbar {
   display: block !important;
