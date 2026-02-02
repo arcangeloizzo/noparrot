@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
 import { Heart, MessageCircle, Trash2, Link2, Flag } from 'lucide-react';
 import { Comment } from '@/hooks/useComments';
-import { useCommentReactions } from '@/hooks/useCommentReactions';
+import { useCommentReactions, useToggleCommentReaction } from '@/hooks/useCommentReactions';
+import { useFocusCommentReactions, useToggleFocusCommentReaction } from '@/hooks/useFocusCommentReactions';
 import { cn, getDisplayUsername } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -10,6 +11,7 @@ import { MediaGallery } from '@/components/media/MediaGallery';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Tooltip,
   TooltipContent,
@@ -25,37 +27,65 @@ interface CommentItemProps {
   comment: Comment;
   currentUserId?: string;
   onReply: () => void;
-  onLike: (commentId: string, isLiked: boolean) => void;
   onDelete: () => void;
   isHighlighted?: boolean;
   postHasSource?: boolean;
   onMediaClick?: (media: any[], index: number) => void;
   getUserAvatar?: (avatarUrl: string | null | undefined, name: string | undefined, username?: string) => React.ReactNode;
+  /** Determines which reaction table to use: 'post' for comment_reactions, 'focus' for focus_comment_reactions */
+  commentKind?: 'post' | 'focus';
 }
 
 export const CommentItem = ({
   comment,
   currentUserId,
   onReply,
-  onLike,
   onDelete,
   isHighlighted,
   postHasSource = false,
   onMediaClick,
-  getUserAvatar: externalGetUserAvatar
+  getUserAvatar: externalGetUserAvatar,
+  commentKind = 'post'
 }: CommentItemProps) => {
   const navigate = useNavigate();
-  const { data: reactions } = useCommentReactions(comment.id);
+  const { user } = useAuth();
+  
+  // Use correct hooks based on commentKind
+  const postReactionsQuery = useCommentReactions(commentKind === 'post' ? comment.id : '');
+  const focusReactionsQuery = useFocusCommentReactions(commentKind === 'focus' ? comment.id : '');
+  const reactions = commentKind === 'focus' ? focusReactionsQuery.data : postReactionsQuery.data;
+  
+  const togglePostReaction = useToggleCommentReaction();
+  const toggleFocusReaction = useToggleFocusCommentReaction();
+  
   const [isLiking, setIsLiking] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const longPressTimer = useRef<NodeJS.Timeout>();
 
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const likeButtonRef = useRef<HTMLButtonElement>(null);
+  
   const handleLike = (reactionType: ReactionType = 'heart') => {
+    if (!user) {
+      toast.error('Devi effettuare il login');
+      return;
+    }
+    
     setIsLiking(true);
     haptics.light();
-    onLike(comment.id, reactions?.likedByMe || false);
+    
+    // Calculate correct mode
+    const liked = reactions?.likedByMe || false;
+    const prevType = (reactions?.myReactionType ?? 'heart') as ReactionType;
+    const mode: 'add' | 'remove' | 'update' = !liked ? 'add' : prevType === reactionType ? 'remove' : 'update';
+    
+    // Use correct mutation based on commentKind
+    if (commentKind === 'focus') {
+      toggleFocusReaction.mutate({ focusCommentId: comment.id, mode, reactionType });
+    } else {
+      togglePostReaction.mutate({ commentId: comment.id, mode, reactionType });
+    }
+    
     setTimeout(() => setIsLiking(false), 250);
   };
 
@@ -79,6 +109,12 @@ export const CommentItem = ({
   });
 
   const copyLink = () => {
+    // Only show copy link for post comments (focus comments don't have post_id)
+    if (commentKind === 'focus' || !comment.post_id) {
+      toast.info('Link non disponibile');
+      setShowMenu(false);
+      return;
+    }
     const url = `${window.location.origin}/post/${comment.post_id}?focus=${comment.id}`;
     navigator.clipboard.writeText(url);
     toast.success('Link copiato!');
@@ -294,17 +330,19 @@ export const CommentItem = ({
                 <span className="text-xs font-medium select-none">Rispondi</span>
               </button>
 
-              {/* Share/Copy link */}
-              <button
-                onClick={copyLink}
-                className={cn(
-                  "flex items-center gap-1.5 py-1.5 px-2 rounded-full transition-all duration-200",
-                  "text-muted-foreground/60 hover:text-foreground hover:bg-white/5"
-                )}
-                aria-label="Condividi"
-              >
-                <Link2 className="w-3.5 h-3.5" />
-              </button>
+              {/* Share/Copy link - only for post comments */}
+              {commentKind === 'post' && comment.post_id && (
+                <button
+                  onClick={copyLink}
+                  className={cn(
+                    "flex items-center gap-1.5 py-1.5 px-2 rounded-full transition-all duration-200",
+                    "text-muted-foreground/60 hover:text-foreground hover:bg-white/5"
+                  )}
+                  aria-label="Condividi"
+                >
+                  <Link2 className="w-3.5 h-3.5" />
+                </button>
+              )}
 
               {/* Delete (owner only) */}
               {currentUserId === comment.author.id && (

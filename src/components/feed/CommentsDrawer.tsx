@@ -35,6 +35,7 @@ import { useLongPress } from '@/hooks/useLongPress';
 import { ReactionPicker, type ReactionType, reactionToEmoji } from '@/components/ui/reaction-picker';
 import { ReactionSummary, getReactionCounts } from '@/components/feed/ReactionSummary';
 import { haptics } from '@/lib/haptics';
+import { CommentItem } from './CommentItem';
 
 interface CommentsDrawerProps {
   post: Post;
@@ -74,7 +75,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
   const addFocusComment = useAddFocusComment();
   const deleteComment = useDeleteComment();
   const deleteFocusComment = useDeleteFocusComment();
-  const toggleReaction = useToggleCommentReaction();
+  // toggleReaction removed - CommentItem now handles reactions internally
   const [newComment, setNewComment] = useState('');
   const [mentionQuery, setMentionQuery] = useState('');
   const [showMentions, setShowMentions] = useState(false);
@@ -443,9 +444,6 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                       setReplyingTo(comment.id);
                       setTimeout(() => textareaRef.current?.focus(), 100);
                     }}
-                    onLike={(commentId, mode, reactionType) => {
-                      toggleReaction.mutate({ commentId, mode, reactionType });
-                    }}
                     onDelete={() => {
                       if (isFocusContent) {
                         deleteFocusComment.mutate({ commentId: comment.id, focusId: post.id, focusType });
@@ -459,6 +457,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                     }}
                     getUserAvatar={getUserAvatar}
                     postHasSource={postHasSource}
+                    commentKind={isFocusContent ? 'focus' : 'post'}
                   />
                 ))}
               </div>
@@ -910,149 +909,4 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
   );
 };
 
-interface CommentItemProps {
-  comment: any;
-  currentUserId?: string;
-  onReply: () => void;
-  onLike: (commentId: string, mode: 'add' | 'remove' | 'update', reactionType: ReactionType) => void;
-  onDelete: () => void;
-  onMediaClick: (media: any, index: number) => void;
-  getUserAvatar: (avatarUrl: string | null | undefined, name: string | undefined, username?: string) => JSX.Element;
-  postHasSource?: boolean;
-}
-
-const CommentItem = ({ comment, currentUserId, onReply, onLike, onDelete, onMediaClick, getUserAvatar, postHasSource }: CommentItemProps) => {
-  const { data: reactions } = useCommentReactions(comment.id);
-  const toggleReaction = useToggleCommentReaction();
-  const [showReactionPicker, setShowReactionPicker] = useState(false);
-  const likeButtonRef = useRef<HTMLButtonElement>(null);
-
-  const handleLike = (reactionType: ReactionType = 'heart') => {
-    haptics.light();
-    const liked = reactions?.likedByMe || false;
-    const prevType = (reactions?.myReactionType ?? 'heart') as ReactionType;
-    const mode: 'add' | 'remove' | 'update' = !liked ? 'add' : prevType === reactionType ? 'remove' : 'update';
-    toggleReaction.mutate({
-      commentId: comment.id,
-      mode,
-      reactionType
-    });
-  };
-
-  const likeHandlers = useLongPress({
-    onLongPress: () => setShowReactionPicker(true),
-    onTap: () => handleLike('heart'),
-  });
-
-  return (
-    <div 
-      id={`comment-${comment.id}`}
-      className={cn(
-        "py-3 px-1",
-        comment.level > 0 && "ml-6 pl-3 border-l-2 border-gradient-to-b from-primary/40 to-primary/10"
-      )}
-    >
-      <div className="flex gap-3">
-        <div className="flex-shrink-0">
-          {getUserAvatar(comment.author.avatar_url, comment.author.full_name, comment.author.username)}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-0.5">
-            <span className="font-bold text-sm text-foreground">
-              {comment.author.full_name || getDisplayUsername(comment.author.username)}
-            </span>
-            <span className="text-muted-foreground/50 text-xs">
-              · {formatDistanceToNow(new Date(comment.created_at), {
-                addSuffix: false,
-                locale: it
-              })}
-            </span>
-            {postHasSource && (comment.passed_gate || comment.is_verified) && (
-              <img 
-                src={LOGO_BASE}
-                alt="Consapevole"
-                className="w-4 h-4"
-              />
-            )}
-          </div>
-
-          <div className="text-sm text-foreground/90 mb-1 leading-relaxed">
-            <MentionText content={comment.content} />
-          </div>
-
-          {/* Reaction Summary for multiple reaction types */}
-          {reactions && reactions.likesCount > 0 && 
-           Object.keys(reactions.byType || {}).length > 1 && (
-            <div className="mb-2">
-              <ReactionSummary
-                reactions={getReactionCounts(reactions.byType)}
-                totalCount={reactions.likesCount}
-                showCount={false}
-                className="text-xs"
-              />
-            </div>
-          )}
-
-          {comment.media && comment.media.length > 0 && (
-            <div className="mb-2">
-              <MediaGallery
-                media={comment.media}
-                onClick={onMediaClick}
-              />
-            </div>
-          )}
-
-          <div className="flex items-center gap-4 mt-2 action-bar-zone">
-            <div className="relative">
-              <button
-                ref={likeButtonRef}
-                {...likeHandlers}
-                className="flex items-center gap-1.5 text-xs cognitive-text-secondary hover:text-destructive transition-colors active:scale-90 select-none"
-                style={{ WebkitTapHighlightColor: 'transparent', WebkitUserSelect: 'none' }}
-              >
-                {reactions?.myReactionType && reactions.myReactionType !== 'heart' ? (
-                  <span className="text-base">{reactionToEmoji(reactions.myReactionType)}</span>
-                ) : (
-                  <Heart
-                    className={cn(
-                      "w-4 h-4",
-                      reactions?.likedByMe && "fill-destructive text-destructive"
-                    )}
-                  />
-                )}
-                {reactions?.likesCount || 0}
-              </button>
-              <ReactionPicker
-                isOpen={showReactionPicker}
-                onClose={() => setShowReactionPicker(false)}
-                onSelect={(type) => {
-                  handleLike(type);
-                  setShowReactionPicker(false);
-                }}
-                currentReaction={reactions?.myReactionType}
-                triggerRef={likeButtonRef}
-              />
-            </div>
-
-            <button
-              onClick={onReply}
-              className="text-xs cognitive-text-secondary hover:text-primary transition-colors select-none"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              Rispondi
-            </button>
-
-            {currentUserId === comment.author.id && (
-              <button
-                onClick={onDelete}
-                className="text-xs text-destructive hover:underline"
-              >
-                Elimina
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
+// Local CommentItem removed - now using imported CommentItem from './CommentItem'

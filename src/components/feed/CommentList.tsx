@@ -6,11 +6,12 @@ interface CommentListProps {
   comments: Comment[];
   currentUserId?: string;
   onReply: (comment: Comment) => void;
-  onLike: (commentId: string, isLiked: boolean) => void;
   onDelete: (commentId: string) => void;
   focusCommentId?: string | null;
   sortMode: 'relevance' | 'recent' | 'top';
   postHasSource?: boolean;
+  /** Determines which reaction table to use */
+  commentKind?: 'post' | 'focus';
 }
 
 interface CommentWithReplies extends Comment {
@@ -22,11 +23,11 @@ export const CommentList = ({
   comments,
   currentUserId,
   onReply,
-  onLike,
   onDelete,
   focusCommentId,
   sortMode,
-  postHasSource = false
+  postHasSource = false,
+  commentKind = 'post'
 }: CommentListProps) => {
   const [visibleCount, setVisibleCount] = useState(30);
   const [hasAnimated, setHasAnimated] = useState(false);
@@ -138,10 +139,10 @@ export const CommentList = ({
             comment={comment}
             currentUserId={currentUserId}
             onReply={() => onReply(comment)}
-            onLike={onLike}
             onDelete={() => onDelete(comment.id)}
             isHighlighted={comment.id === focusCommentId}
             postHasSource={postHasSource}
+            commentKind={commentKind}
           />
         </div>
       ))}
