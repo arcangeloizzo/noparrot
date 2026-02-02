@@ -9,9 +9,12 @@ interface FocusReactionData {
   reactionType?: string;
 }
 
+export type FocusReactionType = 'heart' | 'laugh' | 'wow' | 'sad' | 'fire';
+
 interface FocusReactionsResult {
   likes: number;
   likedByMe: boolean;
+  myReactionType: FocusReactionType | null;
 }
 
 /**
@@ -23,34 +26,36 @@ export const useFocusReactions = (focusId: string | undefined, focusType: 'daily
   return useQuery({
     queryKey: ['focus-reactions', focusId, focusType],
     queryFn: async (): Promise<FocusReactionsResult> => {
-      if (!focusId) return { likes: 0, likedByMe: false };
+      if (!focusId) return { likes: 0, likedByMe: false, myReactionType: null };
 
-      // Conta i like totali
+      // Conta i like totali (tutte le reazioni non-bookmark)
       const { count: likes } = await supabase
         .from('focus_reactions')
         .select('*', { count: 'exact', head: true })
         .eq('focus_id', focusId)
-        .eq('focus_type', focusType)
-        .eq('reaction_type', 'heart');
+        .eq('focus_type', focusType);
 
-      // Controlla se l'utente ha messo like
+      // Controlla la reazione dell'utente corrente
       let likedByMe = false;
+      let myReactionType: FocusReactionType | null = null;
+      
       if (user) {
         const { data: userReaction } = await supabase
           .from('focus_reactions')
-          .select('id')
+          .select('id, reaction_type')
           .eq('focus_id', focusId)
           .eq('focus_type', focusType)
           .eq('user_id', user.id)
-          .eq('reaction_type', 'heart')
           .maybeSingle();
         
         likedByMe = !!userReaction;
+        myReactionType = (userReaction?.reaction_type as FocusReactionType) || null;
       }
 
       return {
         likes: likes || 0,
         likedByMe,
+        myReactionType,
       };
     },
     enabled: !!focusId,
@@ -149,7 +154,7 @@ export const useToggleFocusReaction = () => {
     },
     
     // ===== OPTIMISTIC UI: Instant feedback, rollback on error =====
-    onMutate: async ({ focusId, focusType }) => {
+    onMutate: async ({ focusId, focusType, reactionType = 'heart' }) => {
       if (!user) return;
       
       // 1. Cancel in-flight queries to avoid race conditions
@@ -164,12 +169,35 @@ export const useToggleFocusReaction = () => {
       
       // 3. Optimistically update cache immediately
       if (previousReactions) {
-        const wasLiked = previousReactions.likedByMe;
+        const currentReaction = previousReactions.myReactionType;
+        const isSameReaction = currentReaction === reactionType;
+        
+        let newLikes = previousReactions.likes;
+        let newLikedByMe: boolean;
+        let newMyReactionType: FocusReactionType | null;
+        
+        if (isSameReaction) {
+          // Toggle off
+          newLikes = Math.max(0, newLikes - 1);
+          newLikedByMe = false;
+          newMyReactionType = null;
+        } else if (currentReaction) {
+          // Switch reaction type (count stays same)
+          newLikedByMe = true;
+          newMyReactionType = reactionType as FocusReactionType;
+        } else {
+          // New reaction
+          newLikes += 1;
+          newLikedByMe = true;
+          newMyReactionType = reactionType as FocusReactionType;
+        }
+        
         queryClient.setQueryData<FocusReactionsResult>(
           ['focus-reactions', focusId, focusType],
           {
-            likes: previousReactions.likes + (wasLiked ? -1 : 1),
-            likedByMe: !wasLiked,
+            likes: newLikes,
+            likedByMe: newLikedByMe,
+            myReactionType: newMyReactionType,
           }
         );
       }

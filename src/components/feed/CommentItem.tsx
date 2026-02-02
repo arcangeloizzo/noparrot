@@ -236,14 +236,14 @@ export const CommentItem = ({
               </div>
             )}
 
-            {/* Footer: Actions */}
-            <div className="flex items-center gap-1">
+            {/* Footer: Actions - select-none prevents text selection on long-press */}
+            <div className="flex items-center gap-1 select-none">
               {/* Like button with long press for reaction picker */}
               <div className="relative">
                 <button
                   {...likeButtonHandlers}
                   className={cn(
-                    "flex items-center gap-1.5 py-1.5 px-2.5 rounded-full transition-all duration-200",
+                    "flex items-center gap-1.5 py-1.5 px-2.5 rounded-full transition-all duration-200 select-none",
                     "hover:bg-destructive/10",
                     reactions?.likedByMe && "text-destructive",
                     isLiking && "scale-110"
@@ -251,7 +251,7 @@ export const CommentItem = ({
                   aria-label={reactions?.likedByMe ? "Rimuovi mi piace" : "Metti mi piace"}
                 >
                   {reactions?.myReactionType && reactions.myReactionType !== 'heart' ? (
-                    <span className="text-base">{reactionToEmoji(reactions.myReactionType)}</span>
+                    <span className="text-base select-none">{reactionToEmoji(reactions.myReactionType)}</span>
                   ) : (
                     <Heart className={cn(
                       "w-4 h-4 transition-all",
@@ -259,7 +259,7 @@ export const CommentItem = ({
                     )} />
                   )}
                   {reactions?.likesCount && reactions.likesCount > 0 && (
-                    <span className="text-xs font-medium">{reactions.likesCount}</span>
+                    <span className="text-xs font-medium select-none">{reactions.likesCount}</span>
                   )}
                 </button>
                 
@@ -278,13 +278,13 @@ export const CommentItem = ({
               <button
                 onClick={onReply}
                 className={cn(
-                  "flex items-center gap-1.5 py-1.5 px-2.5 rounded-full transition-all duration-200",
+                  "flex items-center gap-1.5 py-1.5 px-2.5 rounded-full transition-all duration-200 select-none",
                   "text-muted-foreground hover:text-primary hover:bg-primary/10"
                 )}
                 aria-label="Rispondi a questo commento"
               >
                 <MessageCircle className="w-4 h-4" />
-                <span className="text-xs font-medium">Rispondi</span>
+                <span className="text-xs font-medium select-none">Rispondi</span>
               </button>
 
               {/* Share/Copy link */}

@@ -223,31 +223,62 @@ export const useToggleReaction = () => {
     mutationFn: async ({ postId, reactionType }: { postId: string; reactionType: PostReactionType }) => {
       if (!user) throw new Error('Not authenticated');
 
+      const isBookmark = reactionType === 'bookmark';
+
+      if (isBookmark) {
+        // Bookmark logic: toggle on/off
+        const { data: existing } = await supabase
+          .from('reactions')
+          .select('id')
+          .eq('post_id', postId)
+          .eq('user_id', user.id)
+          .eq('reaction_type', 'bookmark')
+          .maybeSingle();
+
+        if (existing) {
+          await supabase.from('reactions').delete().eq('id', existing.id);
+          return { action: 'removed' as const };
+        } else {
+          await supabase.from('reactions').insert({
+            post_id: postId,
+            user_id: user.id,
+            reaction_type: 'bookmark',
+          });
+          return { action: 'added' as const };
+        }
+      }
+
+      // Non-bookmark reactions: handle toggle & switch between types
       const { data: existing } = await supabase
         .from('reactions')
-        .select('id')
+        .select('id, reaction_type')
         .eq('post_id', postId)
         .eq('user_id', user.id)
-        .eq('reaction_type', reactionType)
+        .neq('reaction_type', 'bookmark')
         .maybeSingle();
 
       if (existing) {
-        // Rimuovi reazione
-        await supabase
-          .from('reactions')
-          .delete()
-          .eq('id', existing.id);
+        if (existing.reaction_type === reactionType) {
+          // Same type -> toggle off
+          await supabase.from('reactions').delete().eq('id', existing.id);
+          return { action: 'removed' as const, previousType: existing.reaction_type };
+        } else {
+          // Different type -> switch (update)
+          await supabase
+            .from('reactions')
+            .update({ reaction_type: reactionType })
+            .eq('id', existing.id);
+          return { action: 'switched' as const, previousType: existing.reaction_type };
+        }
       } else {
-        // Aggiungi reazione
-        await supabase
-          .from('reactions')
-          .insert({
-            post_id: postId,
-            user_id: user.id,
-            reaction_type: reactionType,
-          });
+        // No existing -> add new reaction
+        await supabase.from('reactions').insert({
+          post_id: postId,
+          user_id: user.id,
+          reaction_type: reactionType,
+        });
 
-        // Se è un like (heart), aggiorna cognitive density
+        // Cognitive density update for new likes
         if (reactionType === 'heart') {
           const { data: postData } = await supabase
             .from('posts')
@@ -259,6 +290,7 @@ export const useToggleReaction = () => {
             await updateCognitiveDensityWeighted(user.id, postData.category, 'LIKE');
           }
         }
+        return { action: 'added' as const };
       }
     },
     
@@ -283,35 +315,67 @@ export const useToggleReaction = () => {
           if (post.id !== postId) return post;
           
           const isBookmark = reactionType === 'bookmark';
-          const wasActive = isBookmark 
-            ? post.user_reactions.has_bookmarked 
-            : post.user_reactions.has_hearted && reactionType === 'heart';
+          const currentReaction = post.user_reactions.myReactionType;
+          const isSameReaction = currentReaction === reactionType;
           
-          // Update byType counts for non-bookmark reactions
-          const newByType = { ...post.reactions.byType };
-          if (!isBookmark) {
-            const currentCount = newByType[reactionType] || 0;
-            newByType[reactionType] = wasActive ? Math.max(0, currentCount - 1) : currentCount + 1;
+          if (isBookmark) {
+            return {
+              ...post,
+              user_reactions: {
+                ...post.user_reactions,
+                has_bookmarked: !post.user_reactions.has_bookmarked
+              }
+            };
           }
           
-          return {
-            ...post,
-            reactions: {
-              ...post.reactions,
-              hearts: !isBookmark
-                ? post.reactions.hearts + (wasActive ? -1 : 1)
-                : post.reactions.hearts,
-              byType: newByType,
-            },
-            user_reactions: {
-              ...post.user_reactions,
-              has_hearted: !isBookmark ? !wasActive : post.user_reactions.has_hearted,
-              has_bookmarked: isBookmark ? !post.user_reactions.has_bookmarked : post.user_reactions.has_bookmarked,
-              myReactionType: !isBookmark 
-                ? (wasActive ? null : reactionType as 'heart' | 'laugh' | 'wow' | 'sad' | 'fire')
-                : post.user_reactions.myReactionType
+          // Calculate new byType counts
+          const newByType = { ...post.reactions.byType };
+          let newHeartsCount = post.reactions.hearts;
+          
+          if (isSameReaction) {
+            // Toggle off: remove current reaction
+            newByType[reactionType] = Math.max(0, (newByType[reactionType] || 0) - 1);
+            newHeartsCount = Math.max(0, newHeartsCount - 1);
+            
+            return {
+              ...post,
+              reactions: {
+                ...post.reactions,
+                hearts: newHeartsCount,
+                byType: newByType,
+              },
+              user_reactions: {
+                ...post.user_reactions,
+                has_hearted: false,
+                myReactionType: null
+              }
+            };
+          } else {
+            // Add or switch
+            // If there was a previous reaction, decrement its count
+            if (currentReaction) {
+              newByType[currentReaction] = Math.max(0, (newByType[currentReaction] || 0) - 1);
+            } else {
+              // New reaction, increment total
+              newHeartsCount += 1;
             }
-          };
+            // Increment new reaction count
+            newByType[reactionType] = (newByType[reactionType] || 0) + 1;
+            
+            return {
+              ...post,
+              reactions: {
+                ...post.reactions,
+                hearts: newHeartsCount,
+                byType: newByType,
+              },
+              user_reactions: {
+                ...post.user_reactions,
+                has_hearted: true,
+                myReactionType: reactionType as 'heart' | 'laugh' | 'wow' | 'sad' | 'fire'
+              }
+            };
+          }
         });
       });
       
