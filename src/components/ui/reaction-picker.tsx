@@ -23,8 +23,20 @@ interface ReactionPickerProps {
 export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerProps>(
   ({ isOpen, onClose, onSelect, currentReaction, className }, ref) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
+    
+    // Stato per bloccare la chiusura immediata dopo l'apertura (fix iOS long-press release)
+    const [isInteracting, setIsInteracting] = React.useState(false);
+    
+    // Reset interacting state quando il picker si apre
+    React.useEffect(() => {
+      if (isOpen) {
+        setIsInteracting(true);
+        const timer = setTimeout(() => setIsInteracting(false), 350);
+        return () => clearTimeout(timer);
+      }
+    }, [isOpen]);
 
-    // Close on outside click
+    // Close on outside click (solo desktop, con delay per evitare ghost clicks)
     React.useEffect(() => {
       if (!isOpen) return;
 
@@ -34,16 +46,14 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
         }
       };
 
-      // Delay to prevent immediate close
+      // Delay maggiore per evitare chiusure accidentali su mobile
       const timer = setTimeout(() => {
         document.addEventListener('mousedown', handleClickOutside);
-        document.addEventListener('touchstart', handleClickOutside as any);
-      }, 100);
+      }, 400);
 
       return () => {
         clearTimeout(timer);
         document.removeEventListener('mousedown', handleClickOutside);
-        document.removeEventListener('touchstart', handleClickOutside as any);
       };
     }, [isOpen, onClose]);
 
@@ -58,6 +68,16 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
       document.addEventListener('keydown', handleEscape);
       return () => document.removeEventListener('keydown', handleEscape);
     }, [isOpen, onClose]);
+    
+    // Handler per lo shield: blocca chiusura durante interazione iniziale
+    const handleShieldInteraction = (e: React.MouseEvent | React.TouchEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      // Chiudi solo se non siamo nella fase iniziale di interazione
+      if (!isInteracting) {
+        onClose();
+      }
+    };
 
   if (!isOpen) return null;
 
@@ -69,13 +89,11 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
 
   return (
     <>
-      {/* Invisible shield to block other interactions while picker is open */}
+      {/* Invisible shield - blocca interazioni ma NON chiude su touch release iniziale */}
       <div 
         className="fixed inset-0 z-40" 
-        onClick={(e) => {
-          e.stopPropagation();
-          onClose();
-        }}
+        onClick={handleShieldInteraction}
+        onTouchEnd={handleShieldInteraction}
         onTouchStart={(e) => e.stopPropagation()}
         onTouchMove={(e) => e.stopPropagation()}
       />
@@ -95,6 +113,12 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
         {REACTIONS.map((reaction, index) => (
           <button
             key={reaction.type}
+            // onTouchEnd per iOS: cattura il tap prima che propaghi
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              handleSelect(reaction.type);
+            }}
             onClick={(e) => {
               e.stopPropagation();
               handleSelect(reaction.type);

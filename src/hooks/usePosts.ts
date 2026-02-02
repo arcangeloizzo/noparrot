@@ -179,7 +179,10 @@ export const usePosts = () => {
           .map((pm: any) => pm.media)
           .filter(Boolean),
         reactions: {
-          hearts: post.reactions?.filter((r: any) => r.reaction_type === 'heart').length || 0,
+          // Conta TUTTE le reazioni non-bookmark (heart, laugh, wow, sad, fire)
+          hearts: post.reactions?.filter((r: any) => 
+            r.reaction_type && r.reaction_type !== 'bookmark'
+          ).length || 0,
           comments: post.comments?.[0]?.count || 0,
           byType: (post.reactions || []).reduce((acc: Record<string, number>, r: any) => {
             if (r.reaction_type && r.reaction_type !== 'bookmark') {
