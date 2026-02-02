@@ -52,7 +52,9 @@ export const useFocusComments = (focusId: string, focusType: 'daily' | 'interest
 
       const comments = (commentsData || []).map((comment: any) => ({
         ...comment,
-        author: comment.author
+        author: comment.author,
+        // Map is_verified to passed_gate for CommentItem compatibility
+        passed_gate: comment.is_verified
       }));
 
       // Calculate replies count in-memory (N+1 fix - O(n) without extra queries)
