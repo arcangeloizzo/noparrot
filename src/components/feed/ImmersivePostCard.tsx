@@ -73,7 +73,7 @@ import { haptics } from "@/lib/haptics";
 import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
 import { useLongPress } from "@/hooks/useLongPress";
 import { ReactionPicker, type ReactionType } from "@/components/ui/reaction-picker";
-import { ReactionSummary, getReactionCounts } from "@/components/feed/ReactionSummary";
+// ReactionSummary removed - count next to heart is now clickable
 import { ReactionsSheet } from "@/components/feed/ReactionsSheet";
 
 // Deep lookup imperativo per risolvere la fonte originale al click (indipendente da React Query)
@@ -2024,7 +2024,18 @@ const ImmersivePostCardInner = ({
                     className={cn("w-6 h-6 transition-transform active:scale-90", post.user_reactions.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
                     fill={post.user_reactions.has_hearted ? "currentColor" : "none"}
                   />
-                  <span className="text-sm font-bold text-white">{post.reactions?.hearts || 0}</span>
+                </button>
+                {/* Count - clickable to open reactions drawer */}
+                <button
+                  className="text-sm font-bold text-white hover:text-white/80 transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if ((post.reactions?.hearts || 0) > 0) {
+                      setShowReactionsSheet(true);
+                    }
+                  }}
+                >
+                  {post.reactions?.hearts || 0}
                 </button>
                 
                 <ReactionPicker
@@ -2036,15 +2047,6 @@ const ImmersivePostCardInner = ({
                   }}
                 />
               </div>
-              
-              {/* Reaction Summary - Shows top 3 emojis with count */}
-              {post.reactions?.byType && Object.keys(post.reactions.byType).length > 0 && (
-                <ReactionSummary
-                  reactions={getReactionCounts(post.reactions.byType)}
-                  totalCount={Object.values(post.reactions.byType || {}).reduce((a, b) => a + b, 0)}
-                  onClick={() => setShowReactionsSheet(true)}
-                />
-              )}
 
               {/* Comments */}
               <button 
