@@ -443,8 +443,8 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                       setReplyingTo(comment.id);
                       setTimeout(() => textareaRef.current?.focus(), 100);
                     }}
-                    onLike={(commentId, isLiked) => {
-                      toggleReaction.mutate({ commentId, isLiked });
+                    onLike={(commentId, mode, reactionType) => {
+                      toggleReaction.mutate({ commentId, mode, reactionType });
                     }}
                     onDelete={() => {
                       if (isFocusContent) {
@@ -914,7 +914,7 @@ interface CommentItemProps {
   comment: any;
   currentUserId?: string;
   onReply: () => void;
-  onLike: (commentId: string, isLiked: boolean) => void;
+  onLike: (commentId: string, mode: 'add' | 'remove' | 'update', reactionType: ReactionType) => void;
   onDelete: () => void;
   onMediaClick: (media: any, index: number) => void;
   getUserAvatar: (avatarUrl: string | null | undefined, name: string | undefined, username?: string) => JSX.Element;
@@ -929,9 +929,12 @@ const CommentItem = ({ comment, currentUserId, onReply, onLike, onDelete, onMedi
 
   const handleLike = (reactionType: ReactionType = 'heart') => {
     haptics.light();
+    const liked = reactions?.likedByMe || false;
+    const prevType = (reactions?.myReactionType ?? 'heart') as ReactionType;
+    const mode: 'add' | 'remove' | 'update' = !liked ? 'add' : prevType === reactionType ? 'remove' : 'update';
     toggleReaction.mutate({
       commentId: comment.id,
-      isLiked: reactions?.likedByMe || false,
+      mode,
       reactionType
     });
   };
