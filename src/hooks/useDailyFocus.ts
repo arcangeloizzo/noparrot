@@ -55,23 +55,40 @@ export const useDailyFocus = (refreshNonce: number = 0) => {
 
       if (cached && cached.length > 0) {
         // Use RPC to get share counts in a single aggregated query (N+1 fix)
-        const sharedUrls = cached.map((item: any) => `focus://daily/${item.id}`);
+        const focusIds = cached.map((item: any) => item.id);
+        const sharedUrls = focusIds.map(id => `focus://daily/${id}`);
         
         let shareMap = new Map<string, number>();
+        let commentCountMap = new Map<string, number>();
         
-        // Skip RPC call if no URLs to check
-        if (sharedUrls.length > 0) {
-          const { data: shareCounts, error: shareError } = await supabase
-            .rpc('get_share_counts', { shared_urls: sharedUrls });
-          
-          if (shareError) {
-            console.warn('Error fetching share counts via RPC:', shareError);
-          } else if (shareCounts && shareCounts.length > 5000) {
-            console.warn('[useDailyFocus] ⚠️ Share count rows > 5000');
-          }
-          
-          (shareCounts || []).forEach((row: { shared_url: string; count: number }) => {
-            shareMap.set(row.shared_url, row.count);
+        // Fetch share counts and comment counts in parallel
+        const [shareResult, commentResult] = await Promise.all([
+          sharedUrls.length > 0 
+            ? supabase.rpc('get_share_counts', { shared_urls: sharedUrls })
+            : { data: [], error: null },
+          // Get actual comment counts from focus_comments table
+          supabase
+            .from('focus_comments')
+            .select('focus_id')
+            .in('focus_id', focusIds)
+            .eq('focus_type', 'daily')
+        ]);
+        
+        if (shareResult.error) {
+          console.warn('Error fetching share counts via RPC:', shareResult.error);
+        } else if (shareResult.data && shareResult.data.length > 5000) {
+          console.warn('[useDailyFocus] ⚠️ Share count rows > 5000');
+        }
+        
+        (shareResult.data || []).forEach((row: { shared_url: string; count: number }) => {
+          shareMap.set(row.shared_url, row.count);
+        });
+        
+        // Count comments per focus_id
+        if (!commentResult.error && commentResult.data) {
+          commentResult.data.forEach((row: { focus_id: string }) => {
+            const current = commentCountMap.get(row.focus_id) || 0;
+            commentCountMap.set(row.focus_id, current + 1);
           });
         }
 
@@ -81,13 +98,14 @@ export const useDailyFocus = (refreshNonce: number = 0) => {
             ...(raw as DailyFocus),
             reactions: {
               likes: r.likes ?? 0,
-              comments: r.comments ?? 0,
+              // Use actual comment count from focus_comments table
+              comments: commentCountMap.get(raw.id) ?? r.comments ?? 0,
               shares: shareMap.get(`focus://daily/${raw.id}`) ?? r.shares ?? 0,
             },
           } as DailyFocus;
         });
 
-        console.log('Using cached daily focus items:', items.length, 'total in DB:', totalCount);
+        console.log('Using cached daily focus items:', items.length, 'total in DB:', totalCount, 'comment counts:', Object.fromEntries(commentCountMap));
         return {
           items,
           totalCount: totalCount || items.length,
