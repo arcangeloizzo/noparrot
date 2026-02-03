@@ -1,79 +1,152 @@
 
-# Piano: Ripristino del Flusso YouTube Nativo
+# Piano: Fix Caricamento Video e Integrazione Whisper nel Composer
 
 ## Problema Identificato
 
-Il flusso YouTube si rompe nel **Composer** quando provi a pubblicare un link `youtu.be/`. L'errore "contenuto insufficiente" appare perché:
+Il caricamento video nel Composer **non funziona** perché:
 
-1. `generate-qa` tenta di chiamare `transcribe-youtube` internamente per recuperare la trascrizione
-2. La chiamata usa il **service role key** come Authorization header
-3. `transcribe-youtube` rifiuta la chiamata perché cerca un JWT utente valido (errore: "invalid claim: missing sub claim")
-4. Senza trascrizione, il contenuto risulta insufficiente per il quiz
+1. **Bucket sbagliato**: `useMediaUpload.ts` usa il bucket `avatars` che:
+   - Ha un limite di **5.24 MB** (troppo piccolo per video)
+   - Accetta **solo immagini** (PNG/JPG/WebP) - nessun MIME type video permesso
+
+2. **UI trascrizione poco visibile**: Il tasto "Genera trascrizione" esiste ma è un piccolo bottone sotto le miniature, poco evidente
+
+3. **Nessun feedback visivo chiaro**: Manca uno spinner overlay sulla miniatura durante la trascrizione
+
+---
 
 ## Soluzione Proposta
 
-Modificare `transcribe-youtube` per accettare **anche** il service role per le chiamate server-to-server interne, mantenendo la sicurezza per le chiamate client dirette.
+### 1. Database: Nuovo Bucket `user-media` dedicato
 
-## Modifiche Tecniche
+Creare un bucket ottimizzato per tutti i media utente (immagini + video):
 
-### 1. `supabase/functions/transcribe-youtube/index.ts`
+```sql
+-- Crea bucket per media utente con limite 100MB e tutti i MIME video/immagini
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+  'user-media',
+  'user-media', 
+  true,
+  104857600,  -- 100 MB
+  ARRAY[
+    -- Immagini
+    'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif', 'image/heic', 'image/heif',
+    -- Video
+    'video/mp4', 'video/quicktime', 'video/mov', 'video/webm', 'video/mpeg', 'video/3gpp'
+  ]
+);
 
-Aggiungere la logica per distinguere tra:
-- **Chiamata client diretta**: richiede JWT utente valido
-- **Chiamata interna (server-to-server)**: accetta service role key
+-- Policy RLS per upload
+CREATE POLICY "Users can upload own media" ON storage.objects
+FOR INSERT TO authenticated
+WITH CHECK (bucket_id = 'user-media' AND (storage.foldername(name))[1] = auth.uid()::text);
 
-```text
-// BEFORE (lines 272-301):
-// Solo JWT utente accettato
+-- Policy RLS per lettura pubblica
+CREATE POLICY "Public read access" ON storage.objects
+FOR SELECT TO public
+USING (bucket_id = 'user-media');
 
-// AFTER:
-// 1. Prova prima JWT utente
-// 2. Se fallisce, verifica se è il service role (internal call)
-// 3. Service role identificato controllando se l'auth fallisce ma il token 
-//    corrisponde al pattern del service role (usato solo internamente)
+-- Policy RLS per delete
+CREATE POLICY "Users can delete own media" ON storage.objects
+FOR DELETE TO authenticated
+USING (bucket_id = 'user-media' AND (storage.foldername(name))[1] = auth.uid()::text);
 ```
 
-Logica di autenticazione aggiornata:
-- Se `getUser()` ha successo → chiamata client, procedi con userId
-- Se fallisce con "missing sub claim" → verifica se è una chiamata interna da Edge Function
-- Per chiamate interne, usa un userId placeholder e logga come "internal_call"
+### 2. `useMediaUpload.ts` - Usare il nuovo bucket
 
-### 2. Nessuna modifica a questi file
+Modificare l'hook per:
+- Usare il bucket `user-media` invece di `avatars`
+- Mantenere la logica esistente per video (durata, trascrizione on-demand)
 
-- `generate-qa/index.ts` - già corretto, usa `qaSourceRef.kind: 'youtubeId'`
-- `fetch-article-preview/index.ts` - già corretto, restituisce `qaSourceRef` per YouTube
-- `ComposerModal.tsx` - già corretto, costruisce `qaSourceRef` per YouTube
-- `CommentsDrawer.tsx` - non coinvolto in questo flusso (Composer)
-- `useMediaUpload.ts` - non coinvolto (è per media caricati, non link)
-
-## Flusso Corretto (dopo il fix)
-
-```text
-1. Utente incolla youtu.be/xxx nel Composer
-2. ComposerModal → fetchArticlePreview(url)
-3. fetch-article-preview → rileva YouTube, restituisce:
-   - title, thumbnail, embedHtml
-   - qaSourceRef: { kind: 'youtubeId', id: 'xxx' }
-   - transcriptStatus: 'pending' (se non in cache)
-4. Utente clicca Pubblica → Reader → Continua
-5. ComposerModal → generateQA({ qaSourceRef: { kind: 'youtubeId', id: 'xxx' } })
-6. generate-qa:
-   a. Cerca in youtube_transcripts_cache
-   b. Se MISS → chiama transcribe-youtube internamente (ora funziona!)
-   c. Usa la trascrizione per generare il quiz
-7. Quiz mostrato, utente risponde, post pubblicato
+```typescript
+// Linea 93: cambiare da 'avatars' a 'user-media'
+const bucketName = 'user-media';
 ```
 
-## Separazione dei Flussi Garantita
+### 3. `MediaPreviewTray.tsx` - UI Trascrizione Migliorata
 
-| Flusso | Sorgente Contenuto | Servizio AI | Nessun Cross-over |
-|--------|-------------------|-------------|-------------------|
-| **YouTube Link** | `youtube_transcripts_cache` / Supadata | Gemini (quiz) | ✓ Nessun Whisper/OCR |
-| **Video Caricato** | `media.extracted_text` | Whisper | ✓ Nessun YouTube |
-| **Immagine OCR** | `media.extracted_text` | Gemini Vision | ✓ Separato |
+Rendere il tasto trascrizione più visibile e con feedback overlay:
 
-## Impatto
+**Modifiche UI:**
+- Overlay semitrasparente sulla miniatura video con icona Mic/Sparkles
+- Stato "Processing" con spinner centrato sulla thumbnail
+- Badge verde "✓ Trascritto" al completamento
+- Disabilitare il tasto se video > 3 minuti
 
-- **Basso rischio**: modifica isolata a `transcribe-youtube`
-- **Retrocompatibile**: le chiamate client continuano a funzionare
-- **Nessun costo aggiuntivo**: usa l'infrastruttura esistente (Supadata già configurato)
+```typescript
+// Nuovo design: overlay sulla thumbnail invece di bottone separato
+{item.type === 'video' && item.extracted_status === 'idle' && onRequestTranscription && (
+  <button
+    onClick={() => onRequestTranscription(item.id)}
+    disabled={isTranscribing || (item.duration_sec && item.duration_sec > 180)}
+    className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg"
+  >
+    <div className="flex flex-col items-center gap-1">
+      <Sparkles className="w-5 h-5 text-white" />
+      <span className="text-[10px] text-white font-medium">
+        {item.duration_sec && item.duration_sec > 180 ? 'Max 3 min' : 'Trascrivi'}
+      </span>
+    </div>
+  </button>
+)}
+
+{/* Spinner overlay durante trascrizione */}
+{item.type === 'video' && item.extracted_status === 'pending' && (
+  <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-lg">
+    <Loader2 className="w-6 h-6 animate-spin text-white" />
+  </div>
+)}
+```
+
+### 4. `MediaActionBar.tsx` - Confermare i limiti
+
+Verificare che i limiti siano coerenti:
+- Già configurato con 100MB per video (riga 35) ✓
+- Accept include `video/*` ✓
+
+### 5. Vincoli di Stabilità
+
+| Vincolo | Implementazione |
+|---------|----------------|
+| **YouTube separato** | Nessuna modifica a `transcribe-youtube` - usa sottotitoli nativi |
+| **Trascrizione on-demand** | L'utente clicca esplicitamente il tasto "Trascrivi" |
+| **Modal non si chiude** | `hasPendingExtraction` blocca già il publish (riga 145 ComposerModal) |
+| **Flusso generate-qa** | `qaSourceRef: { kind: 'mediaId', id: media.id }` già implementato (riga 450) |
+
+---
+
+## File da Modificare
+
+| File | Modifica |
+|------|----------|
+| **Nuova migrazione SQL** | Crea bucket `user-media` con policy |
+| `src/hooks/useMediaUpload.ts` | Cambia bucket da `avatars` a `user-media` |
+| `src/components/media/MediaPreviewTray.tsx` | UI overlay trascrizione migliorata |
+
+---
+
+## Flusso Corretto Post-Fix
+
+```text
+1. Utente seleziona/registra video (fino a 100MB)
+2. useMediaUpload → upload su bucket 'user-media'
+3. MediaPreviewTray mostra thumbnail con overlay "Trascrivi"
+4. Utente clicca overlay → requestTranscription(mediaId)
+5. extract-media-text (Whisper) processa il video
+6. Stato updated: extracted_status = 'done', extracted_text = "..."
+7. ComposerModal rileva mediaWithExtractedText → attiva Gate
+8. generateQA con qaSourceRef: { kind: 'mediaId' }
+9. Quiz mostrato, utente risponde, post pubblicato
+```
+
+---
+
+## Separazione Flussi Garantita
+
+| Flusso | Sorgente | Servizio | Note |
+|--------|----------|----------|------|
+| **YouTube Link** | Sottotitoli YT | Supadata | Nessun Whisper |
+| **Video Caricato** | Audio → Whisper | OpenAI | On-demand, max 3 min |
+| **Immagine** | OCR | Gemini Vision | Automatico se screenshot |
+
