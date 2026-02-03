@@ -213,7 +213,7 @@ const FullTextModalInner = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[85vh] max-w-lg p-0 border-0 shadow-none overflow-hidden bg-gradient-to-br from-[#1F3347] to-[#0f1a24] rounded-3xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.7),_0_0_40px_rgba(31,51,71,0.4)] [&>button]:text-white [&>button]:opacity-80 [&>button]:hover:opacity-100 [&>button]:bg-white/10 [&>button]:rounded-full [&>button]:p-1">
+      <DialogContent className="max-h-[85vh] max-w-lg p-0 border-0 shadow-none overflow-hidden bg-gradient-to-br from-[#1F3347] to-[#0f1a24] rounded-3xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.7),_0_0_40px_rgba(31,51,71,0.4)] [&>button]:z-20 [&>button]:text-white [&>button]:opacity-90 [&>button]:hover:opacity-100 [&>button]:bg-white/15 [&>button]:rounded-full [&>button]:p-1.5 [&>button]:w-8 [&>button]:h-8">
         {/* Urban texture overlay - GPU optimized */}
         <div className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay urban-noise-overlay rounded-3xl" />
         
@@ -221,7 +221,7 @@ const FullTextModalInner = ({
         {renderHeader()}
         
         {/* Scrollable content area */}
-        <div className="relative z-10 px-6 py-5 max-h-[55vh] overflow-y-auto no-scrollbar">
+        <div className="relative px-6 py-5 max-h-[55vh] overflow-y-auto no-scrollbar">
           {renderContent()}
           
           {/* External link for caption variant */}
