@@ -104,7 +104,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const [quizData, setQuizData] = useState<any>(null);
   const [quizPassed, setQuizPassed] = useState(false);
   const [intentMode, setIntentMode] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
+  // [NEW] Persistent transcription state - tracks which media is being transcribed
+  // This remains true until polling confirms done/failed from DB
+  const [transcribingMediaId, setTranscribingMediaId] = useState<string | null>(null);
   const editorRef = useRef<TiptapEditorRef>(null);
   
   // iOS keyboard offset using Visual Viewport API
@@ -124,19 +126,52 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     return () => clearInterval(interval);
   }, [uploadedMedia, refreshMediaStatus]);
 
-  // Handler per trascrizione video - isTranscribing blocca il pulsante durante l'invio
-  const handleRequestTranscription = async (mediaId: string) => {
-    if (isTranscribing) return; // Prevent double-click
-    setIsTranscribing(true);
-    try {
-      const success = await requestTranscription(mediaId);
-      if (success) {
-        toast.info('Trascrizione avviata. Attendi il completamento...', { duration: 5000 });
-      }
-    } finally {
-      // Keep isTranscribing true briefly to prevent rapid re-clicks
-      setTimeout(() => setIsTranscribing(false), 500);
+  // [NEW] Reset transcribingMediaId when transcription completes (done/failed)
+  useEffect(() => {
+    if (!transcribingMediaId) return;
+    
+    const media = uploadedMedia.find(m => m.id === transcribingMediaId);
+    if (!media) {
+      setTranscribingMediaId(null);
+      return;
     }
+    
+    if (media.extracted_status === 'done') {
+      toast.success('Trascrizione completata!');
+      setTranscribingMediaId(null);
+    } else if (media.extracted_status === 'failed') {
+      toast.error('Trascrizione fallita. Puoi pubblicare comunque.');
+      setTranscribingMediaId(null);
+    }
+  }, [uploadedMedia, transcribingMediaId]);
+
+  // [NEW] Handler per trascrizione video - persistent state until DB confirms
+  const handleRequestTranscription = async (mediaId: string) => {
+    if (transcribingMediaId) return; // Prevent if already transcribing any media
+    
+    setTranscribingMediaId(mediaId);
+    toast.info('Trascrizione avviata...', { duration: 3000 });
+    
+    const result = await requestTranscription(mediaId);
+    
+    if (!result.success) {
+      // Immediate failure - reset state and show detailed error
+      setTranscribingMediaId(null);
+      
+      const errorMessages: Record<string, string> = {
+        'video_too_long': 'Video troppo lungo (max 3 minuti)',
+        'file_too_large': 'File troppo pesante per la trascrizione',
+        'service_unavailable': 'Servizio temporaneamente non disponibile',
+        'transcription_failed': 'Trascrizione fallita. Puoi pubblicare senza test.',
+        'already_processing': 'Trascrizione già in corso',
+        'invalid_media': 'Media non valido',
+        'db_error': 'Errore di connessione. Riprova.'
+      };
+      
+      const message = errorMessages[result.errorCode || ''] || result.error || 'Impossibile avviare la trascrizione';
+      toast.error(message);
+    }
+    // If success, do NOT reset transcribingMediaId - wait for polling to confirm done/failed
   };
 
   // Handler per OCR immagini (on-demand)
@@ -164,27 +199,15 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     m.extracted_status === 'pending' && m.extracted_kind === 'transcript'
   );
   
-  const canPublish = !hasPendingExtraction && (content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!quotedPost) && intentWordsMet;
+  // [NEW] Combined flag: local transcribingMediaId OR DB pending state
+  // This ensures UI stays locked even during the initial DB update window
+  const isTranscriptionInProgress = !!transcribingMediaId || hasPendingTranscription;
+  
+  // [NEW] Block publish during transcription
+  const canPublish = !hasPendingExtraction && !transcribingMediaId && (content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!quotedPost) && intentWordsMet;
   const isLoading = isPublishing || isGeneratingQuiz || isFinalizingPublish;
   
-  // Track previous transcription state for completion toast
-  const prevPendingTranscriptionRef = useRef(false);
-  
-  // Show toast when transcription completes
-  useEffect(() => {
-    const wasPending = prevPendingTranscriptionRef.current;
-    const isNowComplete = !hasPendingTranscription && uploadedMedia.some(m => 
-      m.extracted_status === 'done' && 
-      m.extracted_kind === 'transcript' &&
-      m.extracted_text
-    );
-    
-    if (wasPending && isNowComplete) {
-      toast.success('Trascrizione completata! Ora puoi pubblicare.');
-    }
-    
-    prevPendingTranscriptionRef.current = hasPendingTranscription;
-  }, [hasPendingTranscription, uploadedMedia]);
+  // Note: Toast on transcription completion is now handled by the transcribingMediaId reset effect above
 
   // Find media with extracted text (OCR/transcription) sufficient for gate (>120 chars)
   const mediaWithExtractedText = uploadedMedia.find(m => 
@@ -517,10 +540,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       }
       
       if (result.error || !result.questions) {
+        // [NEW] Allow publish without test when quiz generation fails
         console.error('[ComposerModal] Media quiz generation failed:', result.error);
-        toast.error('Errore generazione quiz. Riprova.');
+        toast.warning('Test non disponibile. Puoi pubblicare comunque.', { duration: 5000 });
         setIsGeneratingQuiz(false);
-        return; // DO NOT publish - gate is mandatory
+        addBreadcrumb('media_quiz_failed_publish_anyway');
+        await publishPost(); // Proceed without gate
+        return;
       }
       
       // Show quiz
@@ -586,10 +612,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       }
       
       if (result.error || !result.questions) {
+        // [NEW] Allow publish without test when quiz generation fails
         console.error('[ComposerModal] Reshare media quiz generation failed:', result.error);
-        toast.error('Errore generazione quiz. Riprova.');
+        toast.warning('Test non disponibile. Puoi pubblicare comunque.', { duration: 5000 });
         setIsGeneratingQuiz(false);
-        return; // DO NOT publish - gate is mandatory
+        addBreadcrumb('reshare_media_quiz_failed_publish_anyway');
+        await publishPost(); // Proceed without gate
+        return;
       }
       
       // Show quiz
@@ -1397,14 +1426,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
               
               <Button
                 onClick={handlePublish}
-                disabled={!canPublish || isLoading || isPreviewLoading || hasPendingTranscription}
+                disabled={!canPublish || isLoading || isPreviewLoading || isTranscriptionInProgress}
                 className={cn(
                   "px-5 py-1.5 h-auto rounded-full font-semibold text-sm",
                   "bg-primary hover:bg-primary/90 text-primary-foreground",
                   "disabled:opacity-50"
                 )}
               >
-                {hasPendingTranscription ? (
+                {isTranscriptionInProgress ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
                     Attendere...
@@ -1517,7 +1546,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                     onRemove={removeMedia}
                     onRequestTranscription={handleRequestTranscription}
                     onRequestOCR={handleRequestOCR}
-                    isTranscribing={isTranscribing}
+                    isTranscribing={isTranscriptionInProgress}
                   />
                 )}
                 
