@@ -213,35 +213,31 @@ const FullTextModalInner = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[85vh] max-w-lg p-0 bg-transparent border-0 shadow-none overflow-hidden">
-        {/* Immersive glass card container */}
-        <div className="relative bg-gradient-to-br from-[#1F3347]/95 to-[#0f1a24]/98 rounded-3xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.7),_0_0_40px_rgba(31,51,71,0.4)] overflow-hidden">
+      <DialogContent className="max-h-[85vh] max-w-lg p-0 border-0 shadow-none overflow-hidden bg-gradient-to-br from-[#1F3347] to-[#0f1a24] rounded-3xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.7),_0_0_40px_rgba(31,51,71,0.4)] [&>button]:text-white [&>button]:opacity-80 [&>button]:hover:opacity-100 [&>button]:bg-white/10 [&>button]:rounded-full [&>button]:p-1">
+        {/* Urban texture overlay - GPU optimized */}
+        <div className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay urban-noise-overlay rounded-3xl" />
+        
+        {/* Header */}
+        {renderHeader()}
+        
+        {/* Scrollable content area */}
+        <div className="relative z-10 px-6 py-5 max-h-[55vh] overflow-y-auto no-scrollbar">
+          {renderContent()}
           
-          {/* Urban texture overlay - GPU optimized */}
-          <div className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay urban-noise-overlay" />
+          {/* External link for caption variant */}
+          {renderExternalLink()}
           
-          {/* Header */}
-          {renderHeader()}
+          {/* Action bar */}
+          {renderActionBar()}
           
-          {/* Scrollable content area */}
-          <div className="relative z-10 px-6 py-5 max-h-[55vh] overflow-y-auto no-scrollbar">
-            {renderContent()}
-            
-            {/* External link for caption variant */}
-            {renderExternalLink()}
-            
-            {/* Action bar */}
-            {renderActionBar()}
-            
-            {/* Footer CTA */}
-            <div className="mt-6">
-              <button
-                onClick={() => onClose()}
-                className="w-full py-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/10 text-white/90 font-medium text-sm transition-all active:scale-[0.98]"
-              >
-                Torna al feed
-              </button>
-            </div>
+          {/* Footer CTA */}
+          <div className="mt-6">
+            <button
+              onClick={() => onClose()}
+              className="w-full py-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/10 text-white/90 font-medium text-sm transition-all active:scale-[0.98]"
+            >
+              Torna al feed
+            </button>
           </div>
         </div>
       </DialogContent>
