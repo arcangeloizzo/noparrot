@@ -482,6 +482,20 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                 </div>
               )}
               
+              {/* Mention dropdown - ABOVE the composer to stay visible with keyboard */}
+              {showMentions && (
+                <div className="relative mb-2 pl-11">
+                  <MentionDropdown
+                    users={mentionUsers}
+                    selectedIndex={selectedMentionIndex}
+                    onSelect={handleSelectMention}
+                    isLoading={isSearching}
+                    position="above"
+                    containerRef={composerContainerRef}
+                  />
+                </div>
+              )}
+              
               {/* Compact composer row */}
               <div className="flex gap-2 items-center" ref={composerContainerRef}>
                 {/* Current user avatar */}
@@ -587,20 +601,6 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                   <MediaPreviewTray
                     media={uploadedMedia}
                     onRemove={removeMedia}
-                  />
-                </div>
-              )}
-              
-              {/* Mention dropdown */}
-              {showMentions && (
-                <div className="relative mt-2 pl-11">
-                  <MentionDropdown
-                    users={mentionUsers}
-                    selectedIndex={selectedMentionIndex}
-                    onSelect={handleSelectMention}
-                    isLoading={isSearching}
-                    position="below"
-                    containerRef={composerContainerRef}
                   />
                 </div>
               )}
