@@ -124,16 +124,18 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     return () => clearInterval(interval);
   }, [uploadedMedia, refreshMediaStatus]);
 
-  // Handler per trascrizione video
+  // Handler per trascrizione video - isTranscribing blocca il pulsante durante l'invio
   const handleRequestTranscription = async (mediaId: string) => {
+    if (isTranscribing) return; // Prevent double-click
     setIsTranscribing(true);
     try {
       const success = await requestTranscription(mediaId);
       if (success) {
-        toast.info('Trascrizione in corso...');
+        toast.info('Trascrizione avviata. Attendi il completamento...', { duration: 5000 });
       }
     } finally {
-      setIsTranscribing(false);
+      // Keep isTranscribing true briefly to prevent rapid re-clicks
+      setTimeout(() => setIsTranscribing(false), 500);
     }
   };
 
