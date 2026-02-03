@@ -143,14 +143,20 @@ export const useMediaUpload = () => {
     }
   };
 
-  // Trigger video transcription manually
-  const requestTranscription = async (mediaId: string): Promise<boolean> => {
+  // Trigger video transcription manually - returns detailed error info
+  const requestTranscription = async (mediaId: string): Promise<{ 
+    success: boolean; 
+    error?: string; 
+    errorCode?: string 
+  }> => {
     const media = uploadedMedia.find(m => m.id === mediaId);
-    if (!media || media.type !== 'video') return false;
+    if (!media || media.type !== 'video') {
+      return { success: false, error: 'Media non valido', errorCode: 'invalid_media' };
+    }
     
     // Already processing or done
     if (media.extracted_status === 'pending' || media.extracted_status === 'done') {
-      return false;
+      return { success: false, error: 'Già in elaborazione', errorCode: 'already_processing' };
     }
     
     // Check durata
@@ -160,7 +166,7 @@ export const useMediaUpload = () => {
         description: 'La trascrizione è disponibile solo per video fino a 3 minuti',
         variant: 'destructive'
       });
-      return false;
+      return { success: false, error: 'Video troppo lungo (max 3 minuti)', errorCode: 'video_too_long' };
     }
     
     // OPTIMISTIC: Update local state FIRST to block UI immediately
@@ -184,35 +190,47 @@ export const useMediaUpload = () => {
           ? { ...m, extracted_status: 'idle' as const, extracted_kind: null }
           : m
       ));
-      toast({
-        title: 'Errore',
-        description: 'Impossibile avviare la trascrizione',
-        variant: 'destructive'
-      });
-      return false;
+      return { success: false, error: 'Impossibile avviare la trascrizione', errorCode: 'db_error' };
     }
     
-    // Trigger transcription (fire and forget - edge function updates DB when done)
+    // Trigger transcription - NOW we await to catch immediate errors
     try {
-      supabase.functions.invoke('extract-media-text', {
+      const { data, error } = await supabase.functions.invoke('extract-media-text', {
         body: { 
           mediaId, 
           mediaUrl: media.url, 
           extractionType: 'transcript',
           durationSec: media.duration_sec
         }
-      }).catch(err => {
-        console.error('[useMediaUpload] Edge function error (non-blocking):', err);
       });
-      return true;
+      
+      if (error) {
+        console.error('[useMediaUpload] Edge function error:', error);
+        // Don't revert - edge function might still be processing
+        // Let polling handle the final state
+        return { success: true }; // Consider it started
+      }
+      
+      if (data?.error) {
+        console.error('[useMediaUpload] Edge function returned error:', data.error);
+        // Update local state to failed
+        setUploadedMedia(prev => prev.map(m => 
+          m.id === mediaId 
+            ? { ...m, extracted_status: 'failed' as const }
+            : m
+        ));
+        return { 
+          success: false, 
+          error: data.error, 
+          errorCode: data.errorCode || 'transcription_failed' 
+        };
+      }
+      
+      return { success: true };
     } catch (err) {
       console.error('[useMediaUpload] Transcription trigger error:', err);
-      setUploadedMedia(prev => prev.map(m => 
-        m.id === mediaId 
-          ? { ...m, extracted_status: 'failed' as const }
-          : m
-      ));
-      return false;
+      // Don't immediately mark as failed - edge function might still run
+      return { success: true }; // Optimistic - let polling determine final state
     }
   };
 
