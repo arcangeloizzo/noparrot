@@ -109,7 +109,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   // iOS keyboard offset using Visual Viewport API
   const keyboardOffset = useVisualViewportOffset(isOpen && isIOS);
   
-  const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading, requestTranscription, refreshMediaStatus } = useMediaUpload();
+  const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading, requestTranscription, requestOCR, refreshMediaStatus } = useMediaUpload();
 
   // Polling for media extraction status
   useEffect(() => {
@@ -133,6 +133,18 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       }
     } finally {
       setIsTranscribing(false);
+    }
+  };
+
+  // Handler per OCR immagini (on-demand)
+  const handleRequestOCR = async (mediaId: string) => {
+    try {
+      const success = await requestOCR(mediaId);
+      if (success) {
+        toast.info('Estrazione testo in corso...');
+      }
+    } catch (error) {
+      toast.error('Errore durante l\'estrazione del testo');
     }
   };
 
@@ -1471,6 +1483,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                     media={uploadedMedia}
                     onRemove={removeMedia}
                     onRequestTranscription={handleRequestTranscription}
+                    onRequestOCR={handleRequestOCR}
                     isTranscribing={isTranscribing}
                   />
                 )}
