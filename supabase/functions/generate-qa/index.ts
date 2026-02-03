@@ -706,24 +706,65 @@ serve(async (req) => {
             .eq('id', effectiveQaSourceRef.id)
             .maybeSingle();
           
-          if (media?.extracted_status === 'done' && media.extracted_text && media.extracted_text.length > 120) {
-            serverSideContent = media.extracted_text;
-            contentSource = `media_${media.extracted_kind}`;
-            console.log(`[generate-qa] ✅ Media text: ${serverSideContent.length} chars via ${media.extracted_kind}`);
-          } else if (media?.extracted_status === 'pending') {
-            // Estrazione ancora in corso - client deve riprovare
-            console.log('[generate-qa] ⏳ Media extraction still pending');
-            return new Response(
-              JSON.stringify({ pending: true, retryAfterMs: 3000 }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
+          // [NEW] Handle different test modes for media
+          const hasExtractedText = media?.extracted_status === 'done' && 
+                                   media.extracted_text && 
+                                   media.extracted_text.length > 120;
+          
+          console.log('[generate-qa] Media gate check:', {
+            mediaId: effectiveQaSourceRef.id,
+            hasExtractedText,
+            extractedLength: media?.extracted_text?.length || 0,
+            testMode,
+            userTextLength: userText?.length || 0
+          });
+          
+          if (testMode === 'USER_ONLY') {
+            // USER_ONLY: Use only userText (comment) for quiz
+            if (!userText || userText.length < 50) {
+              console.log('[generate-qa] ❌ USER_ONLY but userText insufficient');
+              return new Response(
+                JSON.stringify({ insufficient_context: true }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+            serverSideContent = userText;
+            contentSource = 'user_text';
+            console.log(`[generate-qa] ✅ Media USER_ONLY mode: using userText ${serverSideContent.length} chars`);
+          } else if (testMode === 'MIXED') {
+            // MIXED: Combine extracted_text + userText
+            if (!hasExtractedText) {
+              console.log('[generate-qa] ❌ MIXED but no extracted text');
+              return new Response(
+                JSON.stringify({ insufficient_context: true }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+            // Combine: userText first (for Q1), then media text (for Q2, Q3)
+            serverSideContent = `COMMENTO UTENTE:\n${userText || ''}\n\nCONTENUTO MEDIA:\n${media.extracted_text}`;
+            contentSource = `media_${media.extracted_kind}_mixed`;
+            console.log(`[generate-qa] ✅ Media MIXED mode: ${serverSideContent.length} chars`);
           } else {
-            // Fallback a Intent Gate
-            console.log('[generate-qa] ❌ Media extraction failed/insufficient, using intent gate');
-            return new Response(
-              JSON.stringify({ insufficient_context: true }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
+            // SOURCE_ONLY (default): Use only extracted_text
+            if (hasExtractedText) {
+              serverSideContent = media.extracted_text;
+              contentSource = `media_${media.extracted_kind}`;
+              console.log(`[generate-qa] ✅ Media text: ${serverSideContent.length} chars via ${media.extracted_kind}`);
+            } else if (media?.extracted_status === 'pending') {
+              // Estrazione ancora in corso - client deve riprovare
+              console.log('[generate-qa] ⏳ Media extraction still pending');
+              return new Response(
+                JSON.stringify({ pending: true, retryAfterMs: 3000 }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            } else {
+              // Fallback a Intent Gate
+              console.log('[generate-qa] ❌ Media extraction failed/insufficient, using intent gate');
+              return new Response(
+                JSON.stringify({ insufficient_context: true }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
           }
           break;
         }
@@ -940,7 +981,18 @@ ${excerpt ? `Dettagli: ${excerpt}` : ''}`;
    - Domanda 3 (DETTAGLIO): Su un dato specifico, cifra o fatto nella fonte`;
 
     } else if (testMode === 'MIXED') {
-      contentDescription = `TESTO UTENTE DA ANALIZZARE:
+      // Check if it's a media MIXED (1 user + 2 source) based on content structure
+      const isMediaMixed = serverSideContent.includes('COMMENTO UTENTE:') && serverSideContent.includes('CONTENUTO MEDIA:');
+      
+      if (isMediaMixed) {
+        contentDescription = serverSideContent; // Already formatted with sections
+        
+        questionRules = `1. Genera ESATTAMENTE 3 domande:
+   - Domanda 1: Sul COMMENTO DELL'UTENTE (tema, opinione o punto espresso nel commento)
+   - Domanda 2: Sul CONTENUTO MEDIA (tema principale, informazione chiave)
+   - Domanda 3: Sul CONTENUTO MEDIA (dettaglio specifico, dato o fatto)`;
+      } else {
+        contentDescription = `TESTO UTENTE DA ANALIZZARE:
 ${userText || ''}
 
 CONTENUTO FONTE DA ANALIZZARE:
@@ -948,10 +1000,11 @@ Titolo: ${title || ''}
 Contenuto: ${serverSideContent || ''}
 ${excerpt ? `Dettagli: ${excerpt}` : ''}`;
 
-      questionRules = `1. Genera ESATTAMENTE 3 domande:
+        questionRules = `1. Genera ESATTAMENTE 3 domande:
    - Domanda 1: Sul TESTO DELL'UTENTE (tema, argomento o opinione espressa)
    - Domanda 2: Sulla FONTE (tema principale o punto chiave)
    - Domanda 3: Sulla FONTE (dettaglio specifico, dato o fatto)`;
+      }
 
     } else if (testMode === 'USER_ONLY') {
       contentDescription = `TESTO DA ANALIZZARE:

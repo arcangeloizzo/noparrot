@@ -65,3 +65,50 @@ export function getQuestionCountForIntentReshare(originalWordCount: number): 1 |
     return 3;
   }
 }
+
+/**
+ * Risultato della valutazione gate per media
+ */
+export interface MediaGateResult {
+  gateRequired: boolean;
+  testMode: TestMode | null;
+  questionCount: 0 | 1 | 3;
+}
+
+/**
+ * Determina il test mode e numero di domande per contenuti MEDIA (video/immagini).
+ * 
+ * SCENARIO 1 - Media SENZA OCR/Trascrizione:
+ *   - ≤30 parole commento: NO GATE
+ *   - 31-120 parole: USER_ONLY, 1 domanda
+ *   - >120 parole: USER_ONLY, 3 domande
+ * 
+ * SCENARIO 2 - Media CON OCR/Trascrizione:
+ *   - ≤30 parole commento: SOURCE_ONLY, 3 domande sul media
+ *   - 31-120 parole: MIXED, 3 domande (1 commento + 2 media)
+ *   - >120 parole: USER_ONLY, 3 domande solo sul commento
+ * 
+ * @param userWordCount - parole del commento dell'utente
+ * @param hasExtractedText - true se il media ha OCR/trascrizione valida
+ */
+export function getMediaTestMode(userWordCount: number, hasExtractedText: boolean): MediaGateResult {
+  if (!hasExtractedText) {
+    // SCENARIO 1: Media senza testo estratto
+    if (userWordCount <= 30) {
+      return { gateRequired: false, testMode: null, questionCount: 0 };
+    } else if (userWordCount <= 120) {
+      return { gateRequired: true, testMode: 'USER_ONLY', questionCount: 1 };
+    } else {
+      return { gateRequired: true, testMode: 'USER_ONLY', questionCount: 3 };
+    }
+  } else {
+    // SCENARIO 2: Media con testo estratto (OCR/trascrizione)
+    if (userWordCount <= 30) {
+      return { gateRequired: true, testMode: 'SOURCE_ONLY', questionCount: 3 };
+    } else if (userWordCount <= 120) {
+      return { gateRequired: true, testMode: 'MIXED', questionCount: 3 };
+    } else {
+      return { gateRequired: true, testMode: 'USER_ONLY', questionCount: 3 };
+    }
+  }
+}
