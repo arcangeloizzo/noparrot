@@ -112,3 +112,25 @@ export function getMediaTestMode(userWordCount: number, hasExtractedText: boolea
     }
   }
 }
+
+/**
+ * Gate per UPLOAD DIRETTI nel Composer (l'utente è AUTORE).
+ * 
+ * REGOLA D'ORO: Chi scrive non fa mai il test su se stesso.
+ * 
+ * - Media SENZA OCR/Trascrizione: MAI Gate (l'autore non deve essere testato sul suo commento)
+ * - Media CON OCR/Trascrizione: Gate SOURCE_ONLY (3 domande sul contenuto estratto)
+ * 
+ * Il commento dell'autore NON viene MAI considerato per determinare il gate.
+ * 
+ * @param hasExtractedText - true se il media ha OCR/trascrizione valida
+ */
+export function getMediaGateForComposer(hasExtractedText: boolean): MediaGateResult {
+  if (!hasExtractedText) {
+    // Media senza testo estratto: l'autore non deve fare alcun test
+    return { gateRequired: false, testMode: null, questionCount: 0 };
+  } else {
+    // Media con testo estratto: test SOLO sul contenuto estratto (OCR/trascrizione)
+    return { gateRequired: true, testMode: 'SOURCE_ONLY', questionCount: 3 };
+  }
+}

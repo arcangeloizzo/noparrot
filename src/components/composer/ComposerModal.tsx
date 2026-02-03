@@ -11,7 +11,7 @@ import { QuotedPostCard } from "@/components/feed/QuotedPostCard";
 import { QuotedEditorialCard } from "@/components/feed/QuotedEditorialCard";
 import { SourceReaderGate } from "./SourceReaderGate";
 import { QuizModal } from "@/components/ui/quiz-modal";
-import { getWordCount, getTestModeWithSource, getMediaTestMode } from '@/lib/gate-utils';
+import { getWordCount, getTestModeWithSource, getMediaTestMode, getMediaGateForComposer } from '@/lib/gate-utils';
 import { useQueryClient } from "@tanstack/react-query";
 import { updateCognitiveDensityWeighted } from "@/lib/cognitiveDensity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -235,29 +235,24 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       return { label: 'Gate attivo', requiresGate: true };
     }
     
-    // [NEW] Check media gate logic for uploads (new media, not reshare)
+    // [FIX] Check media gate logic for DIRECT UPLOADS (new media, not reshare)
+    // REGOLA D'ORO: L'autore non fa mai il test sul proprio commento
+    // Usa getMediaGateForComposer che ignora wordCount e testa SOLO sull'OCR
     if (uploadedMedia.length > 0 && !quotedPost) {
       const hasExtracted = !!mediaWithExtractedText;
-      const mediaGate = getMediaTestMode(wordCount, hasExtracted);
+      const mediaGate = getMediaGateForComposer(hasExtracted);
       
       if (mediaGate.gateRequired) {
-        if (mediaGate.testMode === 'SOURCE_ONLY') {
-          const activeMedia = mediaWithExtractedText;
-          return { 
-            label: activeMedia?.extracted_kind === 'ocr' 
-              ? 'Gate OCR attivo' 
-              : 'Gate trascrizione attivo', 
-            requiresGate: true 
-          };
-        } else if (mediaGate.testMode === 'MIXED') {
-          return { label: 'Gate mixed (1+2)', requiresGate: true };
-        } else if (mediaGate.testMode === 'USER_ONLY') {
-          return { 
-            label: mediaGate.questionCount === 1 ? 'Gate light (1)' : 'Gate completo (3)', 
-            requiresGate: true 
-          };
-        }
+        // Per upload diretti con OCR, sempre SOURCE_ONLY (3 domande sul media)
+        const activeMedia = mediaWithExtractedText;
+        return { 
+          label: activeMedia?.extracted_kind === 'ocr' 
+            ? 'Gate OCR attivo' 
+            : 'Gate trascrizione attivo', 
+          requiresGate: true 
+        };
       }
+      // Media senza OCR o commento qualsiasi: nessun gate per l'autore
       return { label: 'Nessun gate', requiresGate: false };
     }
     
@@ -507,37 +502,39 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     }
 
     // [NEW] Branch for media uploads - use getMediaTestMode for consistent logic
+    // [FIX] Branch for DIRECT media uploads (author) - REGOLA D'ORO
+    // L'autore non fa MAI il test sul proprio commento, solo sull'OCR/trascrizione
     if (uploadedMedia.length > 0 && !quotedPost) {
       const hasExtracted = !!mediaWithExtractedText;
-      const mediaGate = getMediaTestMode(wordCount, hasExtracted);
+      const mediaGate = getMediaGateForComposer(hasExtracted);
       
-      console.log('[Composer] Media gate evaluation:', { 
+      console.log('[Composer] Direct media gate (author):', { 
         hasExtracted,
-        wordCount,
         gateRequired: mediaGate.gateRequired,
         testMode: mediaGate.testMode,
-        questionCount: mediaGate.questionCount
+        questionCount: mediaGate.questionCount,
+        note: 'Author wordCount ignored per Golden Rule'
       });
       
       if (mediaGate.gateRequired) {
-        // Find the media to use for gate (extracted text one, or first one for USER_ONLY)
-        const targetMedia = mediaWithExtractedText || uploadedMedia[0];
+        // Gate solo su OCR/trascrizione, mai sul commento dell'autore
+        const targetMedia = mediaWithExtractedText!;
         
         addBreadcrumb('media_gate_start', { 
           mediaId: targetMedia.id,
-          kind: targetMedia.extracted_kind || 'none',
-          testMode: mediaGate.testMode,
-          questionCount: mediaGate.questionCount
+          kind: targetMedia.extracted_kind || 'ocr',
+          testMode: 'SOURCE_ONLY',
+          questionCount: 3
         });
         
         await handleMediaGateFlow(
           targetMedia, 
-          mediaGate.testMode as 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY',
-          mediaGate.questionCount as 1 | 3
+          'SOURCE_ONLY',
+          3
         );
         return;
       }
-      // No gate required - fall through to publishPost
+      // No OCR = no gate per l'autore - pubblica direttamente
     }
 
     // [FIX] Branch for reshare of post with media OCR/transcription
