@@ -40,6 +40,7 @@ import { MentionText } from "./MentionText";
 import { ReshareContextStack } from "./ReshareContextStack";
 import { SpotifyGradientBackground } from "./SpotifyGradientBackground";
 import { SourceImageWithFallback } from "./SourceImageWithFallback";
+import { FullTextModal } from "./FullTextModal";
 
 // Media Components
 import { MediaGallery } from "@/components/media/MediaGallery";
@@ -1335,7 +1336,19 @@ const ImmersivePostCardInner = ({
                   "px-3 sm:px-4 py-2 sm:py-3 rounded-r-lg"
                 ]
               )}>
-                <MentionText content={post.content} />
+                {post.content.length > 400 ? (
+                  <>
+                    <MentionText content={post.content.slice(0, 400) + '...'} />
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                      className="mt-2 text-sm text-primary font-semibold hover:underline block"
+                    >
+                      Mostra tutto
+                    </button>
+                  </>
+                ) : (
+                  <MentionText content={post.content} />
+                )}
               </div>
             )}
             
@@ -1435,9 +1448,19 @@ const ImmersivePostCardInner = ({
 
             {/* User Text for media-only posts - ABOVE the media */}
             {isMediaOnlyPost && post.content && (
-              <h2 className="text-xl font-medium text-white leading-snug tracking-wide drop-shadow-lg mb-6">
-                <MentionText content={post.content.length > 200 ? post.content.slice(0, 200) + '...' : post.content} />
-              </h2>
+              <div className="mb-6">
+                <h2 className="text-xl font-medium text-white leading-snug tracking-wide drop-shadow-lg">
+                  <MentionText content={post.content.length > 200 ? post.content.slice(0, 200) + '...' : post.content} />
+                </h2>
+                {post.content.length > 200 && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                    className="mt-2 text-sm text-primary font-semibold hover:underline"
+                  >
+                    Mostra tutto
+                  </button>
+                )}
+              </div>
             )}
 
             {/* Framed Media Window for media-only posts - centered, reduced height (-30%) */}
@@ -2196,244 +2219,62 @@ const ImmersivePostCardInner = ({
         }}
       />
 
-      {/* Full Text Modal for long posts - Expanded capsule style */}
-      <Dialog open={showFullText} onOpenChange={setShowFullText}>
-        <DialogContent className="max-h-[85vh] max-w-lg p-0 bg-transparent border-0 shadow-none overflow-hidden">
-          {/* Immersive glass card container */}
-          <div className="relative bg-gradient-to-br from-[#1F3347]/95 to-[#0f1a24]/98 rounded-3xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.7),_0_0_40px_rgba(31,51,71,0.4)] overflow-hidden">
-            
-            {/* Urban texture overlay - GPU optimized */}
-            <div className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay urban-noise-overlay" />
-            
-            {/* Header with author info */}
-            <div className="relative z-10 px-6 pt-6 pb-4 border-b border-white/[0.06]">
-              <div className="flex items-center gap-3">
-                {post.author.avatar_url ? (
-                  <img 
-                    src={post.author.avatar_url} 
-                    alt="" 
-                    className="w-10 h-10 rounded-full object-cover border border-white/20"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/40 to-primary/20 flex items-center justify-center border border-white/20">
-                    <span className="text-white/80 font-semibold text-sm">
-                      {(post.author.full_name || post.author.username)?.[0]?.toUpperCase()}
-                    </span>
-                  </div>
-                )}
-                <div className="flex flex-col">
-                  <span className="font-semibold text-white/95 text-sm">
-                    {post.author.full_name || post.author.username}
-                  </span>
-                  <span className="text-xs text-white/50">
-                    @{post.author.username}
-                  </span>
-                </div>
-              </div>
-            </div>
-            
-            {/* Scrollable content area - action bar at the end (inline, not fixed) */}
-            <div className="relative z-10 px-6 py-5 max-h-[55vh] overflow-y-auto no-scrollbar">
-              {/* Render content with visual paragraph breaks - uniform styling */}
-              {(() => {
-                const paragraphs = post.content.split(/\n\n+/);
-                return paragraphs.map((paragraph, idx) => (
-                  <div key={idx} className={cn(idx > 0 && "mt-5")}>
-                    <p className="text-[16px] sm:text-[17px] font-normal text-white/90 leading-[1.7] tracking-[0.01em] whitespace-pre-wrap">
-                      <MentionText content={paragraph} />
-                    </p>
-                    {/* Soft divider between paragraphs (except last) */}
-                    {idx < paragraphs.length - 1 && (
-                      <div className="mt-5 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
-                    )}
-                  </div>
-                ));
-              })()}
-              
-              {/* Action Bar - Inside scroll area, visible after reading */}
-              <div className="mt-8 pt-6 border-t border-white/[0.08]">
-                <div className="flex items-center justify-between gap-3">
-                  {/* Primary Share Button - goes directly to gate (already read) */}
-                  <button 
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      setShowFullText(false);
-                      setShareAction('feed');
-                      // Go directly to gate - user already read the content
-                      await goDirectlyToGateForPost();
-                    }}
-                    className="h-10 px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                  >
-                    <Logo variant="icon" size="sm" className="h-4 w-4" />
-                    <span className="text-sm font-semibold leading-none">Condividi</span>
-                    {(post.shares_count ?? 0) > 0 && (
-                      <span className="text-xs opacity-70">({post.shares_count})</span>
-                    )}
-                  </button>
+      {/* Full Text Modal for long posts */}
+      <FullTextModal
+        isOpen={showFullText}
+        onClose={() => setShowFullText(false)}
+        content={post.content}
+        author={{
+          name: post.author.full_name || post.author.username,
+          username: post.author.username,
+          avatar: post.author.avatar_url,
+        }}
+        variant="post"
+        post={{
+          id: post.id,
+          reactions: post.reactions,
+          user_reactions: post.user_reactions,
+          shares_count: post.shares_count ?? 0,
+        }}
+        actions={{
+          onHeart: handleHeart,
+          onComment: () => setShowComments(true),
+          onBookmark: handleBookmark,
+          onShare: async () => {
+            setShareAction('feed');
+            await goDirectlyToGateForPost();
+          },
+        }}
+      />
 
-                  {/* Reactions - Horizontal layout h-10 matching share button */}
-                  <div className="flex items-center gap-1 bg-black/20 h-10 px-3 rounded-2xl border border-white/5">
-                    
-                    {/* Like */}
-                    <button 
-                      className="flex items-center justify-center gap-1.5 h-full px-2"
-                      onClick={(e) => { e.stopPropagation(); handleHeart(e); }}
-                    >
-                      <Heart 
-                        className={cn("w-5 h-5 transition-transform active:scale-90", post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
-                        fill={post.user_reactions?.has_hearted ? "currentColor" : "none"}
-                      />
-                      <span className="text-xs font-bold text-white">{post.reactions?.hearts || 0}</span>
-                    </button>
-
-                    {/* Comments */}
-                    <button 
-                      className="flex items-center justify-center gap-1.5 h-full px-2"
-                      onClick={(e) => { e.stopPropagation(); setShowFullText(false); setTimeout(() => setShowComments(true), 100); }}
-                    >
-                      <MessageCircle className="w-5 h-5 text-white transition-transform active:scale-90" />
-                      <span className="text-xs font-bold text-white">{post.reactions?.comments || 0}</span>
-                    </button>
-
-                    {/* Bookmark */}
-                    <button 
-                      className="flex items-center justify-center h-full px-2"
-                      onClick={(e) => { e.stopPropagation(); handleBookmark(e); }}
-                    >
-                      <Bookmark 
-                        className={cn("w-5 h-5 transition-transform active:scale-90", post.user_reactions?.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
-                        fill={post.user_reactions?.has_bookmarked ? "currentColor" : "none"}
-                      />
-                    </button>
-
-                  </div>
-                </div>
-              </div>
-              
-              {/* Footer CTA - also inside scroll */}
-              <div className="mt-6">
-                <button
-                  onClick={() => setShowFullText(false)}
-                  className="w-full py-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/10 text-white/90 font-medium text-sm transition-all active:scale-[0.98]"
-                >
-                  Torna al feed
-                </button>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Full Caption Modal for long social media captions (Instagram, etc.) */}
-      <Dialog open={showFullCaption} onOpenChange={setShowFullCaption}>
-        <DialogContent className="max-h-[85vh] max-w-lg p-0 bg-transparent border-0 shadow-none overflow-hidden">
-          {/* Immersive glass card container */}
-          <div className="relative bg-gradient-to-br from-[#1F3347]/95 to-[#0f1a24]/98 rounded-3xl border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.7),_0_0_40px_rgba(31,51,71,0.4)] overflow-hidden">
-            
-            {/* Urban texture overlay - GPU optimized */}
-            <div className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay urban-noise-overlay" />
-            
-            {/* Header with source info */}
-            <div className="relative z-10 px-6 pt-6 pb-4 border-b border-white/[0.06]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500/40 via-purple-500/40 to-orange-500/40 flex items-center justify-center border border-white/20">
-                  <ExternalLink className="w-4 h-4 text-white/80" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-semibold text-white/95 text-sm">
-                    {getHostnameFromUrl(post.shared_url)}
-                  </span>
-                  <span className="text-xs text-white/50">
-                    Contenuto esterno
-                  </span>
-                </div>
-              </div>
-            </div>
-            
-            {/* Scrollable content area */}
-            <div className="relative z-10 px-6 py-5 max-h-[55vh] overflow-y-auto no-scrollbar">
-              <p className="text-[16px] sm:text-[17px] font-normal text-white/90 leading-[1.7] tracking-[0.01em] whitespace-pre-wrap">
-                {articlePreview?.title || post.shared_title || ''}
-              </p>
-              
-              {/* Open external link button */}
-              <div className="mt-6 pt-4 border-t border-white/[0.08]">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (post.shared_url) {
-                      window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                    }
-                  }}
-                  className="w-full py-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/10 text-white/90 font-medium text-sm transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  Apri su {getHostnameFromUrl(post.shared_url)}
-                </button>
-              </div>
-              
-              {/* Action Bar */}
-              <div className="mt-4 pt-4 border-t border-white/[0.08]">
-                <div className="flex items-center justify-between gap-3">
-                  {/* Primary Share Button */}
-                  <button 
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      setShowFullCaption(false);
-                      setShareAction('feed');
-                      handleShareClick(e);
-                    }}
-                    className="h-10 px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                  >
-                    <Logo variant="icon" size="sm" className="h-4 w-4" />
-                    <span className="text-sm font-semibold leading-none">Condividi</span>
-                  </button>
-
-                  {/* Reactions */}
-                  <div className="flex items-center gap-1 bg-black/20 h-10 px-3 rounded-2xl border border-white/5">
-                    <button 
-                      className="flex items-center justify-center gap-1.5 h-full px-2"
-                      onClick={(e) => { e.stopPropagation(); handleHeart(e); }}
-                    >
-                      <Heart 
-                        className={cn("w-5 h-5 transition-transform active:scale-90", post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white")}
-                        fill={post.user_reactions?.has_hearted ? "currentColor" : "none"}
-                      />
-                      <span className="text-xs font-bold text-white">{post.reactions?.hearts || 0}</span>
-                    </button>
-                    <button 
-                      className="flex items-center justify-center gap-1.5 h-full px-2"
-                      onClick={(e) => { e.stopPropagation(); setShowFullCaption(false); setTimeout(() => setShowComments(true), 100); }}
-                    >
-                      <MessageCircle className="w-5 h-5 text-white transition-transform active:scale-90" />
-                      <span className="text-xs font-bold text-white">{post.reactions?.comments || 0}</span>
-                    </button>
-                    <button 
-                      className="flex items-center justify-center h-full px-2"
-                      onClick={(e) => { e.stopPropagation(); handleBookmark(e); }}
-                    >
-                      <Bookmark 
-                        className={cn("w-5 h-5 transition-transform active:scale-90", post.user_reactions?.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
-                        fill={post.user_reactions?.has_bookmarked ? "currentColor" : "none"}
-                      />
-                    </button>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Footer CTA */}
-              <div className="mt-6">
-                <button
-                  onClick={() => setShowFullCaption(false)}
-                  className="w-full py-3 rounded-xl bg-white/[0.08] hover:bg-white/[0.12] border border-white/10 text-white/90 font-medium text-sm transition-all active:scale-[0.98]"
-                >
-                  Torna al feed
-                </button>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Full Caption Modal for long social media captions */}
+      <FullTextModal
+        isOpen={showFullCaption}
+        onClose={() => setShowFullCaption(false)}
+        content={articlePreview?.title || post.shared_title || ''}
+        source={{
+          hostname: getHostnameFromUrl(post.shared_url),
+          url: post.shared_url || undefined,
+        }}
+        variant="caption"
+        post={{
+          id: post.id,
+          reactions: post.reactions,
+          user_reactions: post.user_reactions,
+          shares_count: post.shares_count ?? 0,
+        }}
+        actions={{
+          onHeart: handleHeart,
+          onComment: () => setShowComments(true),
+          onBookmark: handleBookmark,
+          onShare: () => {
+            setShareAction('feed');
+            // Create a synthetic event for handleShareClick
+            const syntheticEvent = { stopPropagation: () => {} } as React.MouseEvent;
+            handleShareClick(syntheticEvent);
+          },
+        }}
+      />
 
       {/* Comments Drawer */}
       {showComments && (
