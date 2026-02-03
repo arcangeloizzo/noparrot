@@ -256,6 +256,27 @@ function isLinkedInAuthWallContent(content: string): boolean {
   return matchCount >= 2;
 }
 
+// Detect truncated LinkedIn content ("... See more" / "... Visualizza altro")
+function isLinkedInTruncated(content: string): boolean {
+  if (!content) return false;
+  const trimmed = content.trim();
+  const truncationMarkers = [
+    '… Visualizza altro',
+    '...Visualizza altro',
+    '… See more',
+    '...See more',
+    '…See more',
+    '…Visualizza altro',
+    '... see more',
+    '… see more',
+    '...altro',
+    '…altro'
+  ];
+  return truncationMarkers.some(marker => 
+    trimmed.toLowerCase().endsWith(marker.toLowerCase())
+  );
+}
+
 function isGoogleCookieConsent(content: string): boolean {
   const markers = [
     'Prima di continuare su Google',
@@ -1603,13 +1624,23 @@ serve(async (req) => {
             }).then(async (res) => {
               if (!res.ok) throw new Error(`Firecrawl ${res.status}`);
               const data = await res.json();
-              const markdown = data.data?.markdown || data.markdown;
-              if (data.success && markdown && markdown.length > 150) {
-                console.log(`[Race] 🏆 Firecrawl WINNER for LinkedIn: ${markdown.length} chars`);
+              const rawMarkdown = data.data?.markdown || data.markdown || '';
+              const cleanedContent = extractTextFromHtml(rawMarkdown);
+              
+              // HARDENED: Higher threshold (400) + validation against auth walls and truncation
+              const isValidContent = 
+                data.success && 
+                cleanedContent.length > 400 &&
+                !isLinkedInAuthWallContent(cleanedContent) &&
+                !isBotChallengeContent(cleanedContent) &&
+                !isLinkedInTruncated(cleanedContent);
+              
+              if (isValidContent) {
+                console.log(`[Race] 🏆 Firecrawl WINNER for LinkedIn: ${cleanedContent.length} chars (validated)`);
                 return {
                   result: {
                     title: data.data?.metadata?.title || data.metadata?.title || 'Post LinkedIn',
-                    content: extractTextFromHtml(markdown),
+                    content: cleanedContent,
                     summary: data.data?.metadata?.description || data.metadata?.description || '',
                     image: data.data?.metadata?.ogImage || data.metadata?.ogImage || '',
                     previewImg: data.data?.metadata?.ogImage || data.metadata?.ogImage || '',
@@ -1622,7 +1653,8 @@ serve(async (req) => {
                   source: 'firecrawl'
                 };
               }
-              throw new Error('Firecrawl insufficient');
+              console.log(`[Race] ⚠️ Firecrawl rejected: ${cleanedContent.length} chars, truncated=${isLinkedInTruncated(cleanedContent)}, authWall=${isLinkedInAuthWallContent(cleanedContent)}`);
+              throw new Error('Firecrawl insufficient or truncated');
             })
           ] : [])
         ];

@@ -507,9 +507,12 @@ serve(async (req) => {
         
         case 'tweetId':
         case 'url': {
-          // Fetch from content_cache
-          const cacheUrl = effectiveQaSourceRef.url || sourceUrl;
+          // Fetch from content_cache - NORMALIZE URL for consistent cache key
+          const rawCacheUrl = effectiveQaSourceRef.url || sourceUrl;
+          const cacheUrl = rawCacheUrl ? safeNormalizeUrl(rawCacheUrl) : null;
+          
           if (cacheUrl) {
+            console.log(`[generate-qa] 🔍 Looking up cache with normalized URL: ${cacheUrl.substring(0, 80)}...`);
             const { data: cached } = await supabase
               .from('content_cache')
               .select('content_text, source_type')
