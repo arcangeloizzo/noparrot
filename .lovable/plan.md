@@ -1,211 +1,187 @@
 
 
-# Piano: Upgrade Trascrizione Video con Deepgram
+# Piano: Migliorare Feedback Visivo Trascrizione Video
 
-## Problema Attuale
+## Problemi Identificati
 
-OpenAI Whisper ha un limite hardcoded di **25MB** per file. Video moderni (specialmente in .mov da iPhone) superano facilmente questa soglia. Il video dell'utente era di ~55MB e la trascrizione ha fallito con errore 413.
+### 1. **Toast "Trascrizione in corso..." sparisce dopo 5 secondi**
+L'unico feedback e' un toast temporaneo che sparisce rapidamente. L'utente non ha modo di sapere se il processo e' ancora attivo.
+
+### 2. **Nessun indicatore di progresso persistente**
+Il pulsante "Trascrivi" diventa opaco (disabled) ma non c'e' alcun indicatore che mostri che il processo e' in corso.
+
+### 3. **Pulsante "Pubblica" sempre attivo durante trascrizione**
+L'utente puo' premere "Pubblica" e potenzialmente interrompere il processo di trascrizione.
+
+### 4. **Overlay "pending" poco visibile**
+L'overlay di elaborazione (loader sulla preview) e' piccolo e non comunica chiaramente lo stato.
+
+### 5. **Messaggio sotto la preview troppo discreto**
+Il testo "Stiamo mettendo a fuoco il testo..." e' piccolo e poco visibile.
 
 ---
 
-## Soluzione: Integrare Deepgram
+## Soluzioni Proposte
 
-**Deepgram** offre:
-- Limite file fino a **2GB**
-- Supporto per **URL diretto** (no download in memoria)
-- Trascrizione real-time o batch
-- Tier gratuito: $200 di crediti per iniziare
+### A. **Bloccare "Pubblica" durante trascrizione attiva**
 
-### Architettura Proposta
+```typescript
+// In ComposerModal.tsx, aggiornare canPublish
+const hasPendingTranscription = uploadedMedia.some(m => 
+  m.extracted_status === 'pending' && m.extracted_kind === 'transcript'
+);
+
+const canPublish = !hasPendingExtraction && 
+  !hasPendingTranscription &&  // <-- NUOVO
+  (content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!quotedPost) && 
+  intentWordsMet;
+```
+
+### B. **Mostrare un overlay persistente durante la trascrizione**
+
+Aggiungere un overlay full-modal (ma non bloccante) che mostra lo stato della trascrizione:
+
+```typescript
+// In ComposerModal.tsx, nuovo componente
+{hasPendingTranscription && (
+  <div className="absolute inset-x-0 top-0 z-40 bg-gradient-to-b from-black/80 to-transparent pt-safe pb-6 px-4">
+    <div className="flex items-center gap-3 bg-primary/20 border border-primary/30 rounded-xl px-4 py-3">
+      <Loader2 className="w-5 h-5 animate-spin text-primary" />
+      <div className="flex-1">
+        <p className="text-sm font-medium text-white">Trascrizione in corso...</p>
+        <p className="text-xs text-muted-foreground">Il video viene analizzato, potrebbe richiedere fino a 60 secondi</p>
+      </div>
+    </div>
+  </div>
+)}
+```
+
+### C. **Pulsante Pubblica con stato visivo**
+
+Mostrare stato diverso quando trascrizione e' in corso:
+
+```typescript
+// Pulsante Pubblica con feedback
+<Button 
+  onClick={handlePublish}
+  disabled={!canPublish || hasPendingTranscription}
+  className={cn(
+    // ... classi esistenti,
+    hasPendingTranscription && "opacity-50"
+  )}
+>
+  {hasPendingTranscription ? (
+    <>
+      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+      Attendere...
+    </>
+  ) : (
+    'Pubblica'
+  )}
+</Button>
+```
+
+### D. **Progress Indicator nella MediaPreviewTray**
+
+Migliorare l'overlay di pending con un messaggio piu' chiaro:
+
+```typescript
+// In MediaPreviewTray.tsx, sostituire l'overlay pending
+{isPending && (
+  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-10 gap-3">
+    <div className="bg-black/80 backdrop-blur-sm rounded-full p-4">
+      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+    </div>
+    <div className="text-center px-4">
+      <p className="text-white text-sm font-medium">
+        {item.extracted_kind === 'transcript' ? 'Trascrizione in corso' : 'Estrazione testo'}
+      </p>
+      <p className="text-white/60 text-xs mt-1">
+        {item.extracted_kind === 'transcript' ? 'Circa 30-60 secondi' : 'Pochi secondi'}
+      </p>
+    </div>
+  </div>
+)}
+```
+
+### E. **Banner persistente sotto la preview (piu' visibile)**
+
+```typescript
+// In MediaPreviewTray.tsx, migliorare il feedback
+{media.some(m => m.extracted_status === 'pending') && (
+  <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 rounded-lg px-3 py-2.5">
+    <Loader2 className="w-5 h-5 animate-spin text-primary" />
+    <div className="flex-1">
+      <span className="text-sm font-medium text-primary">
+        {media.find(m => m.extracted_kind === 'transcript') 
+          ? 'Trascrizione video in corso...'
+          : 'Estrazione testo in corso...'}
+      </span>
+      <p className="text-xs text-muted-foreground mt-0.5">
+        Non chiudere questa schermata
+      </p>
+    </div>
+  </div>
+)}
+```
+
+### F. **Toast di conferma finale**
+
+Quando la trascrizione termina con successo, mostrare un toast chiaro:
+
+```typescript
+// In ComposerModal.tsx, useEffect per monitorare cambio stato
+useEffect(() => {
+  const justCompleted = uploadedMedia.find(m => 
+    m.extracted_status === 'done' && 
+    m.extracted_kind === 'transcript' &&
+    m.extracted_text
+  );
+  
+  if (justCompleted && isTranscribing) {
+    toast.success('Trascrizione completata! Ora puoi pubblicare.');
+    setIsTranscribing(false);
+  }
+}, [uploadedMedia]);
+```
+
+---
+
+## Riepilogo UX Migliorata
+
+| Momento | Prima | Dopo |
+|---------|-------|------|
+| Clicca "Trascrivi" | Toast che sparisce | Toast + Overlay persistente |
+| Durante trascrizione | Solo loader piccolo | Banner visibile + Pulsante "Attendere..." |
+| Pulsante Pubblica | Sempre attivo | Disabilitato con testo "Attendere..." |
+| Fine trascrizione | Badge "Pronto" discreto | Toast successo + Badge |
+| Errore trascrizione | Badge "Errore" | Toast errore + Badge |
+
+---
+
+## Flusso Utente Corretto
 
 ```text
-Client                    Edge Function                  Deepgram
-   │                           │                            │
-   │──POST /extract-media-text─▶│                            │
-   │  {mediaId, mediaUrl}      │                            │
-   │                           │──POST /v1/listen───────────▶│
-   │                           │  {url: mediaUrl}           │
-   │                           │                            │
-   │                           │◀──────────transcript────────│
-   │                           │                            │
-   │                           │──UPDATE media.extracted_text│
-   │◀───────{success}──────────│                            │
+1. Utente carica video
+2. Vede anteprima con pulsante "Trascrivi"
+3. Clicca "Trascrivi"
+4. IMMEDIATAMENTE:
+   - Toast "Trascrizione avviata"
+   - Overlay sul video con spinner e "Trascrizione in corso (30-60s)"
+   - Banner sotto la preview "Non chiudere questa schermata"
+   - Pulsante Pubblica → "Attendere..."
+5. DURANTE (polling ogni 2s):
+   - Tutto resta visibile e persistente
+   - Utente capisce chiaramente che deve aspettare
+6. FINE SUCCESSO:
+   - Toast "Trascrizione completata!"
+   - Badge verde "Pronto"
+   - Pulsante torna "Pubblica"
+7. FINE ERRORE:
+   - Toast rosso con messaggio specifico
+   - Badge rosso "Errore"
+   - Pulsante torna "Pubblica" (l'utente puo' riprovare o pubblicare senza trascrizione)
 ```
-
----
-
-## Modifiche Tecniche
-
-### File 1: `supabase/functions/extract-media-text/index.ts`
-
-**A. Aggiungere supporto Deepgram (provider primario)**
-
-```typescript
-// Nuove costanti
-const DEEPGRAM_MAX_SIZE = 2 * 1024 * 1024 * 1024; // 2GB
-const WHISPER_MAX_SIZE = 25 * 1024 * 1024; // 25MB (fallback)
-
-// Nuova funzione per trascrizione Deepgram
-async function transcribeWithDeepgram(
-  mediaUrl: string, 
-  apiKey: string
-): Promise<{ transcript: string; language: string; confidence: number }> {
-  const response = await fetch('https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&language=it&detect_language=true', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Token ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ url: mediaUrl }),
-  });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Deepgram API error: ${response.status} - ${errorText}`);
-  }
-  
-  const data = await response.json();
-  const transcript = data.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
-  const language = data.results?.channels?.[0]?.detected_language || 'it';
-  const confidence = data.results?.channels?.[0]?.alternatives?.[0]?.confidence || 0;
-  
-  return { transcript, language, confidence };
-}
-```
-
-**B. Modificare la sezione trascrizione (linee 110-227)**
-
-```typescript
-if (extractionType === 'transcript') {
-  const deepgramApiKey = Deno.env.get('DEEPGRAM_API_KEY');
-  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-  
-  // Check durata video (manteniamo il limite di 3 minuti per UX)
-  if (durationSec && durationSec > MAX_VIDEO_DURATION_SEC) {
-    // ... logica esistente per video troppo lunghi
-  }
-  
-  // STRATEGIA: Deepgram primario, Whisper fallback per file piccoli
-  let transcript = '';
-  let detectedLanguage = 'unknown';
-  let provider = '';
-  
-  if (deepgramApiKey) {
-    // DEEPGRAM: Supporta file fino a 2GB via URL diretto
-    console.log('[extract-media-text] Using Deepgram (URL-based, max 2GB)');
-    try {
-      const result = await transcribeWithDeepgram(mediaUrl, deepgramApiKey);
-      transcript = result.transcript;
-      detectedLanguage = result.language;
-      provider = 'deepgram-nova-2';
-      console.log(`[extract-media-text] Deepgram success: ${transcript.length} chars, lang: ${detectedLanguage}`);
-    } catch (err) {
-      console.error('[extract-media-text] Deepgram failed:', err);
-      // Fallback a Whisper se disponibile e file piccolo
-    }
-  }
-  
-  // FALLBACK: Whisper per file < 25MB se Deepgram fallisce
-  if (!transcript && openaiApiKey) {
-    console.log('[extract-media-text] Falling back to Whisper (download required, max 25MB)');
-    // ... logica Whisper esistente (linee 143-201)
-    // Aggiungere check dimensione prima del download
-  }
-  
-  // ... resto della logica esistente per salvare il risultato
-}
-```
-
-**C. Migliorare la gestione degli errori**
-
-```typescript
-// Errori specifici per feedback utente
-const ERROR_MESSAGES = {
-  'file_too_large': 'Video troppo pesante per la trascrizione',
-  'video_too_long': 'Video troppo lungo (max 3 minuti)',
-  'service_unavailable': 'Servizio di trascrizione non disponibile',
-  'unsupported_format': 'Formato video non supportato',
-  'network_error': 'Errore di rete durante la trascrizione',
-};
-```
-
----
-
-### File 2: Configurazione Secret
-
-**Nuovo secret richiesto:**
-
-```
-DEEPGRAM_API_KEY = "dg_xxxxxxxxxxxxxxxx"
-```
-
-L'utente dovra' creare un account Deepgram e ottenere una API key:
-1. Registrarsi su https://console.deepgram.com
-2. Creare un progetto
-3. Generare API key
-4. Aggiungere come secret in Lovable
-
----
-
-### File 3: `src/components/composer/ComposerModal.tsx`
-
-**Migliorare feedback errori (opzionale ma consigliato)**
-
-```typescript
-const handleRequestTranscription = async (mediaId: string) => {
-  try {
-    const success = await requestTranscription(mediaId);
-    if (success) {
-      toast.info('Trascrizione in corso...');
-    }
-  } catch (error: any) {
-    const errorCode = error?.message || '';
-    
-    if (errorCode.includes('413') || errorCode.includes('file_too_large')) {
-      toast.error('Video troppo pesante. Prova con un file piu\' piccolo.');
-    } else if (errorCode.includes('video_too_long')) {
-      toast.error('Video troppo lungo. Massimo 3 minuti.');
-    } else if (errorCode.includes('format') || errorCode.includes('codec')) {
-      toast.error('Formato video non supportato.');
-    } else {
-      toast.error('Errore durante la trascrizione');
-    }
-  }
-};
-```
-
----
-
-## Flusso Aggiornato
-
-```text
-1. Utente carica video (qualsiasi dimensione fino a 100MB del bucket)
-2. Clicca "Trascrivi"
-3. Edge function riceve richiesta
-4. IF Deepgram API key configurata:
-     - Invia URL diretto a Deepgram (no download)
-     - Deepgram elabora e ritorna trascrizione
-   ELSE IF Whisper API key E file < 25MB:
-     - Scarica video in memoria
-     - Invia a Whisper
-   ELSE:
-     - Ritorna errore "Servizio non disponibile"
-5. Salva trascrizione in media.extracted_text
-6. generate-qa legge da media.extracted_text (invariato)
-```
-
----
-
-## Vantaggi di Deepgram
-
-| Aspetto | Whisper | Deepgram |
-|---------|---------|----------|
-| Limite file | 25MB | 2GB |
-| Download richiesto | Si (in memoria) | No (URL diretto) |
-| Velocita | ~1x real-time | Real-time streaming |
-| Lingue | 50+ | 30+ (ottimo italiano) |
-| Costo | ~$0.006/min | ~$0.0043/min |
-| Timeout risk | Alto per file grandi | Basso |
 
 ---
 
@@ -213,37 +189,6 @@ const handleRequestTranscription = async (mediaId: string) => {
 
 | File | Modifica |
 |------|----------|
-| `supabase/functions/extract-media-text/index.ts` | Aggiungere Deepgram come provider primario |
-| Supabase Secrets | Aggiungere `DEEPGRAM_API_KEY` |
-| `src/components/composer/ComposerModal.tsx` | Migliorare messaggi errore (opzionale) |
-
----
-
-## Configurazione Edge Function Timeout
-
-Se necessario, il timeout della Edge Function puo' essere esteso nel config.toml:
-
-```toml
-[functions.extract-media-text]
-verify_jwt = false
-# Il timeout default e' 60s, sufficiente per Deepgram che usa URL diretto
-```
-
----
-
-## Piano di Rollout
-
-1. **Fase 1**: Aggiungere secret `DEEPGRAM_API_KEY`
-2. **Fase 2**: Modificare `extract-media-text` con logica Deepgram + fallback Whisper
-3. **Fase 3**: Testare con video > 25MB
-4. **Fase 4**: Migliorare feedback errori nel Composer (opzionale)
-
----
-
-## Note
-
-- Il flusso `generate-qa` rimane **invariato** - legge sempre da `media.extracted_text`
-- Il limite di **3 minuti per video** rimane per UX (quiz troppo lunghi non sono utili)
-- Whisper resta come **fallback** per compatibilita' retroattiva
-- Il bucket `user-media` ha gia' limite **100MB**, compatibile con Deepgram
+| `src/components/composer/ComposerModal.tsx` | Bloccare Pubblica durante trascrizione, aggiungere banner header, toast finale |
+| `src/components/media/MediaPreviewTray.tsx` | Overlay pending migliorato, banner sotto preview piu' visibile |
 
