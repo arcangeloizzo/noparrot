@@ -1,52 +1,62 @@
 
-# Piano: Fix errore "null is not an object (evaluating 'fe.target')" su iOS Safari
+# Piano: Fix posizione MentionDropdown nei commenti
 
 ## Problema
 
-L'errore si verifica su **iOS Safari** quando l'utente interagisce con un elemento che usa **Radix UI Tooltip** e il componente viene smontato mentre un pointer event (`onPointerOut`) e ancora in corso.
+Quando l'utente digita `@` nel composer dei commenti per menzionare qualcuno, il dropdown con i suggerimenti utenti appare **sotto** il campo di input. Dato che il composer è fisso in fondo allo schermo e la tastiera mobile è attiva, il dropdown viene completamente coperto dalla tastiera e risulta invisibile.
 
-### Stack trace decodificato
-```
-source: window.error
-message: null is not an object (evaluating 'fe.target')
-handler: onPointerOut
-device: iPhone Safari iOS 18.7
-```
+## Analisi tecnica
 
-### Root Cause
-
-Il componente `CommentItem.tsx` (linee 246-261) usa un `Tooltip` Radix per mostrare il badge "Ha letto la fonte prima di commentare":
+In `CommentsDrawer.tsx` (linee 594-606):
 
 ```tsx
-<TooltipProvider delayDuration={200}>
-  <Tooltip>
-    <TooltipTrigger>
-      <img src={LOGO_BASE} ... />
-    </TooltipTrigger>
-    <TooltipContent>...</TooltipContent>
-  </Tooltip>
-</TooltipProvider>
+{/* Mention dropdown */}
+{showMentions && (
+  <div className="relative mt-2 pl-11">
+    <MentionDropdown
+      users={mentionUsers}
+      selectedIndex={selectedMentionIndex}
+      onSelect={handleSelectMention}
+      isLoading={isSearching}
+      position="below"   // ❌ Problema: appare sotto il composer
+      containerRef={composerContainerRef}
+    />
+  </div>
+)}
 ```
 
-Questo tooltip si trova all'interno di commenti che possono essere smontati rapidamente durante:
-- Scroll veloce nel feed virtualizzato
-- Chiusura del drawer dei commenti
-- Navigazione tra post
-
-Quando il puntatore esce (`onPointerOut`) da un elemento che viene smontato, Radix UI tenta di accedere a `event.target` che e gia `null`, causando il crash.
+La prop `position="below"` combinata con il posizionamento DOM dopo il composer causa il problema.
 
 ---
 
-## Soluzione proposta
+## Soluzione
 
-### Approccio: Wrapping difensivo del Tooltip
+Spostare il `MentionDropdown` **prima** dell'input e cambiare `position` a `"above"`, in modo che il dropdown appaia sopra il composer, nell'area scrollabile visibile.
 
-Creare un componente wrapper `SafeTooltip` che:
-1. Usa `React.memo` per evitare re-render inutili
-2. Aggiunge un try-catch a livello di event handler per iOS Safari
-3. Disabilita il tooltip su dispositivi touch (dove non ha senso mostrare hover tooltips)
+### Modifica CommentsDrawer.tsx
 
-Questo approccio e **minimamente invasivo** e non impatta altri componenti.
+Il MentionDropdown deve essere posizionato in modo che appaia sopra la riga del composer:
+
+```tsx
+{/* Mention dropdown - ABOVE the composer row */}
+{showMentions && (
+  <div className="relative mb-2 pl-11">
+    <MentionDropdown
+      users={mentionUsers}
+      selectedIndex={selectedMentionIndex}
+      onSelect={handleSelectMention}
+      isLoading={isSearching}
+      position="above"   // ✅ Ora appare sopra
+      containerRef={composerContainerRef}
+    />
+  </div>
+)}
+
+{/* Compact composer row */}
+<div className="flex gap-2 items-center" ref={composerContainerRef}>
+  ...
+</div>
+```
 
 ---
 
@@ -54,113 +64,36 @@ Questo approccio e **minimamente invasivo** e non impatta altri componenti.
 
 | File | Modifica |
 |------|----------|
-| `src/components/ui/tooltip.tsx` | Aggiungere protezione difensiva contro eventi null |
-| `src/components/feed/CommentItem.tsx` | Usare `disableHoverableContent` per iOS |
+| `src/components/feed/CommentsDrawer.tsx` | Spostare MentionDropdown sopra il composer row e cambiare position a "above" |
 
 ---
 
-## Dettagli tecnici
+## Dettagli dell'implementazione
 
-### Modifica 1: tooltip.tsx - Protezione per iOS Safari
+1. **Rimuovere** il blocco MentionDropdown dalla posizione attuale (linee 594-606)
+2. **Inserirlo** prima del `composerContainerRef` div (prima della linea 486)
+3. **Cambiare** `position="below"` a `position="above"`
+4. **Cambiare** `mt-2` (margin-top) a `mb-2` (margin-bottom)
 
-Aggiungere una prop `disableHoverableContent` e gestione difensiva:
+### Risultato visivo atteso
 
-```tsx
-import * as React from "react"
-import * as TooltipPrimitive from "@radix-ui/react-tooltip"
-import { cn } from "@/lib/utils"
-
-const TooltipProvider = TooltipPrimitive.Provider
-
-const Tooltip = TooltipPrimitive.Root
-
-const TooltipTrigger = TooltipPrimitive.Trigger
-
-// Detect iOS Safari for defensive handling
-const isIOSSafari = () => {
-  if (typeof window === 'undefined') return false;
-  const ua = window.navigator.userAgent;
-  const iOS = /iPad|iPhone|iPod/.test(ua);
-  const webkit = /WebKit/.test(ua);
-  const notChrome = !/CriOS/.test(ua);
-  return iOS && webkit && notChrome;
-};
-
-const TooltipContent = React.forwardRef<
-  React.ElementRef<typeof TooltipPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof TooltipPrimitive.Content>
->(({ className, sideOffset = 4, ...props }, ref) => {
-  // On iOS Safari, disable hoverable content to prevent unmount race conditions
-  const disableHoverable = isIOSSafari();
-  
-  return (
-    <TooltipPrimitive.Content
-      ref={ref}
-      sideOffset={sideOffset}
-      // Prevents pointer events on content, avoiding the null target crash
-      {...(disableHoverable ? { 
-        onPointerDownOutside: (e) => e.preventDefault(),
-        disableHoverableContent: true 
-      } : {})}
-      className={cn(
-        "z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-        className
-      )}
-      {...props}
-    />
-  );
-})
-TooltipContent.displayName = TooltipPrimitive.Content.displayName
-
-export { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider }
 ```
-
-### Modifica 2: CommentItem.tsx - Conditional rendering del Tooltip
-
-Alternativa piu conservativa: su iOS non mostrare proprio il tooltip (i tooltip hover non hanno senso su touch):
-
-```tsx
-// Helper per rilevare touch device
-const isTouchDevice = () => 
-  typeof window !== 'undefined' && 
-  ('ontouchstart' in window || navigator.maxTouchPoints > 0);
-
-// Nel JSX, renderizza condizionalmente:
-{postHasSource && comment.passed_gate && (
-  isTouchDevice() ? (
-    // Su touch: solo icona, no tooltip (evita crash iOS)
-    <img
-      src={LOGO_BASE}
-      alt="Lettore consapevole"
-      className="w-4 h-4"
-    />
-  ) : (
-    <TooltipProvider delayDuration={200}>
-      <Tooltip>
-        <TooltipTrigger>
-          <img
-            src={LOGO_BASE}
-            alt="Lettore consapevole"
-            className="w-4 h-4"
-          />
-        </TooltipTrigger>
-        <TooltipContent side="top" className="bg-[#1a2227] border-white/10">
-          <p className="text-xs">Ha letto la fonte prima di commentare</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  )
-)}
+┌─────────────────────────────────┐
+│ [Lista commenti...]             │
+├─────────────────────────────────┤
+│ ┌─────────────────────────────┐ │
+│ │ 📷 Marco Rossi              │ │ ← Dropdown SOPRA
+│ │ @marcorossi                 │ │
+│ ├─────────────────────────────┤ │
+│ │ 📷 Maria Russo              │ │
+│ │ @mariarusso                 │ │
+│ └─────────────────────────────┘ │
+├─────────────────────────────────┤
+│ 👤 [ @mar█              📷] [Invia] │ ← Composer
+├─────────────────────────────────┤
+│ ⌨️ Tastiera iOS                │
+└─────────────────────────────────┘
 ```
-
----
-
-## Soluzione raccomandata
-
-Implementare **entrambe le modifiche** per massima robustezza:
-
-1. **tooltip.tsx**: Protezione difensiva globale per iOS Safari (beneficia tutti i tooltip dell'app)
-2. **CommentItem.tsx**: Skip del tooltip su dispositivi touch (semanticamente corretto - tooltip hover non servono su touch)
 
 ---
 
@@ -168,24 +101,27 @@ Implementare **entrambe le modifiche** per massima robustezza:
 
 | Componente | Impatto |
 |------------|---------|
-| CommentItem | Fix diretto - no tooltip hover su touch |
-| Sidebar tooltips | Protetti dalla modifica a tooltip.tsx |
-| Altri Radix components | Nessuno - isolato a Tooltip |
-| Desktop experience | Invariata - tooltip funziona normalmente |
+| CommentsDrawer | Fix diretto - nessun impatto su altre funzionalità |
+| CommentItem | Nessuno |
+| Gate/Quiz flow | Nessuno - logica separata |
+| Enhanced reactions | Nessuno |
+| StickyComposer | Nessuno - già usa position="below" ma in contesto diverso |
 
 ---
 
 ## Test di validazione
 
-1. Aprire l'app su iPhone Safari
-2. Scrollare rapidamente nel feed mentre i commenti sono aperti
-3. Verificare che non appaia piu l'errore
-4. Verificare che su desktop i tooltip funzionino ancora
+1. Aprire il drawer dei commenti su un post
+2. Iniziare a digitare `@mar` nel campo di testo
+3. Verificare che il dropdown appaia **sopra** il campo di input
+4. Verificare che sia visibile anche con la tastiera aperta
+5. Selezionare un utente e verificare che la menzione venga inserita correttamente
+6. Testare anche su iPhone per confermare la visibilità
 
 ---
 
 ## Rischio
 
-- **Basso**: le modifiche sono difensive e additive
-- **Rollback**: revert dei 2 file modificati
-- **Compatibilita**: nessun impatto su altri browser/dispositivi
+- **Basso**: modifica isolata al posizionamento DOM
+- **Rollback**: ripristino della posizione originale
+- **Compatibilità**: nessun impatto su altri browser/dispositivi
