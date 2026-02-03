@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Loader2, FileText, Mic, AlertCircle, Sparkles } from 'lucide-react';
+import { X, Loader2, FileText, Mic, AlertCircle, Sparkles, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface MediaPreview {
@@ -21,25 +21,54 @@ interface MediaPreviewTrayProps {
   isTranscribing?: boolean;
 }
 
-// Hook to generate poster thumbnail from video
-const useVideoThumbnail = (videoUrl: string, type: 'image' | 'video') => {
+// Hook to generate poster thumbnail from video - uses local file to avoid CORS
+const useVideoThumbnail = (videoUrl: string, type: 'image' | 'video', file?: File) => {
   const [poster, setPoster] = useState<string | null>(null);
   
   useEffect(() => {
     if (type !== 'video') return;
     
+    // Prefer local file to avoid CORS issues with canvas
+    const isLocalFile = !!file;
+    const videoSrc = file ? URL.createObjectURL(file) : videoUrl;
+    
     const video = document.createElement('video');
-    video.crossOrigin = 'anonymous';
-    video.preload = 'metadata';
+    // DO NOT use crossOrigin - causes CORS blocking when drawing to canvas
+    video.preload = 'auto';
     video.muted = true;
     video.playsInline = true;
     
+    let hasSeekCompleted = false;
+    let cleanedUp = false;
+    
+    const cleanup = () => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      video.pause();
+      video.src = '';
+      if (isLocalFile) URL.revokeObjectURL(videoSrc);
+    };
+    
+    // Timeout fallback in case video never loads
+    const timeout = setTimeout(() => {
+      if (!hasSeekCompleted) {
+        console.warn('[VideoThumbnail] Timeout - could not generate thumbnail');
+        cleanup();
+      }
+    }, 5000);
+    
     video.onloadeddata = () => {
-      // Seek to 0.5 seconds to avoid black frame
-      video.currentTime = 0.5;
+      if (!hasSeekCompleted && !cleanedUp) {
+        // Seek to 0.5 seconds to avoid black frame
+        video.currentTime = Math.min(0.5, video.duration || 0.5);
+      }
     };
     
     video.onseeked = () => {
+      if (hasSeekCompleted || cleanedUp) return;
+      hasSeekCompleted = true;
+      clearTimeout(timeout);
+      
       try {
         const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth || 320;
@@ -47,24 +76,33 @@ const useVideoThumbnail = (videoUrl: string, type: 'image' | 'video') => {
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          setPoster(canvas.toDataURL('image/jpeg', 0.8));
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          // Verify it's not an empty/black image (very short data URL)
+          if (dataUrl.length > 1000) {
+            setPoster(dataUrl);
+          }
         }
       } catch (err) {
         console.warn('[VideoThumbnail] Failed to generate poster:', err);
+      } finally {
+        cleanup();
       }
     };
     
     video.onerror = () => {
       console.warn('[VideoThumbnail] Failed to load video for thumbnail');
+      clearTimeout(timeout);
+      cleanup();
     };
     
-    video.src = videoUrl;
+    video.src = videoSrc;
+    video.load();
     
     return () => {
-      video.src = '';
-      video.load();
+      clearTimeout(timeout);
+      cleanup();
     };
-  }, [videoUrl, type]);
+  }, [videoUrl, type, file]);
   
   return poster;
 };
@@ -104,7 +142,8 @@ const MediaItem = ({
   const isFailed = item.extracted_status === 'failed';
 
   // Generate video thumbnail
-  const videoPoster = useVideoThumbnail(item.url, item.type);
+  // Generate video thumbnail using local file to bypass CORS
+  const videoPoster = useVideoThumbnail(item.url, item.type, item.file);
 
   // Layout classes based on single vs multiple media
   const containerClasses = isSingleMedia 
@@ -121,14 +160,24 @@ const MediaItem = ({
           className="w-full h-full object-cover" 
         />
       ) : (
-        <video 
-          src={item.url} 
-          className="w-full h-full object-cover"
-          poster={videoPoster || undefined}
-          preload="metadata"
-          playsInline
-          muted
-        />
+        <div className="w-full h-full relative">
+          <video 
+            src={item.url} 
+            className="w-full h-full object-cover"
+            poster={videoPoster || undefined}
+            preload="metadata"
+            playsInline
+            muted
+          />
+          {/* Fallback Play icon overlay when no poster available */}
+          {!videoPoster && (
+            <div className="absolute inset-0 bg-muted/60 flex items-center justify-center pointer-events-none">
+              <div className="w-14 h-14 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
+                <Play className="w-7 h-7 text-white ml-1" />
+              </div>
+            </div>
+          )}
+        </div>
       )}
       
       {/* Remove button - always visible in top right */}
