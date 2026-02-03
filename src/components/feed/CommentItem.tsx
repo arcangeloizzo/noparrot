@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { Heart, MessageCircle, Trash2, Link2 } from 'lucide-react';
 import { Comment } from '@/hooks/useComments';
 import { useCommentReactions, useToggleCommentReaction } from '@/hooks/useCommentReactions';
@@ -23,6 +23,10 @@ import { ReactionPicker, type ReactionType, reactionToEmoji } from '@/components
 import { useLongPress } from '@/hooks/useLongPress';
 import { ReactionSummary, getReactionCounts } from '@/components/feed/ReactionSummary';
 
+// Helper to detect touch device - tooltips are meaningless on touch (hover doesn't exist)
+const isTouchDevice = (): boolean => 
+  typeof window !== 'undefined' && 
+  ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 interface CommentItemProps {
   comment: Comment;
   currentUserId?: string;
@@ -243,22 +247,31 @@ export const CommentItem = ({
               
               {/* Aware badge */}
               {postHasSource && comment.passed_gate && (
-                <TooltipProvider delayDuration={200}>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <img
-                        src={LOGO_BASE}
-                        alt="Lettore consapevole"
-                        className="w-4 h-4"
-                      />
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="bg-[#1a2227] border-white/10">
-                      <p className="text-xs">
-                        Ha letto la fonte prima di commentare
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                isTouchDevice() ? (
+                  // On touch devices: just show icon, no tooltip (avoids iOS Safari crash)
+                  <img
+                    src={LOGO_BASE}
+                    alt="Lettore consapevole"
+                    className="w-4 h-4"
+                  />
+                ) : (
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <img
+                          src={LOGO_BASE}
+                          alt="Lettore consapevole"
+                          className="w-4 h-4"
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="bg-[#1a2227] border-white/10">
+                        <p className="text-xs">
+                          Ha letto la fonte prima di commentare
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )
               )}
               
               <span className="text-muted-foreground/50 text-xs">
