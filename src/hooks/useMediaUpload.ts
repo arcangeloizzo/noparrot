@@ -321,6 +321,17 @@ export const useMediaUpload = () => {
     setUploadedMedia([]);
   };
 
+  // Reorder media in the array
+  const reorderMedia = (fromIndex: number, toIndex: number) => {
+    setUploadedMedia(prev => {
+      const result = [...prev];
+      const [removed] = result.splice(fromIndex, 1);
+      result.splice(toIndex, 0, removed);
+      // Update order_idx for all items
+      return result.map((m, i) => ({ ...m, order_idx: i }));
+    });
+  };
+
   // Batch extraction for multiple media (parallel OCR/transcription)
   const requestBatchExtraction = async () => {
     const extractableMedia = uploadedMedia.filter(m => 
@@ -399,6 +410,7 @@ export const useMediaUpload = () => {
     uploadedMedia,
     removeMedia,
     clearMedia,
+    reorderMedia,
     isUploading,
     isBatchExtracting,
     requestTranscription,

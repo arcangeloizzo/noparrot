@@ -112,7 +112,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   // iOS keyboard offset using Visual Viewport API
   const keyboardOffset = useVisualViewportOffset(isOpen && isIOS);
   
-  const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading, isBatchExtracting, requestTranscription, requestOCR, refreshMediaStatus, requestBatchExtraction, getAggregatedExtractedText } = useMediaUpload();
+  const { uploadMedia, uploadedMedia, removeMedia, clearMedia, reorderMedia, isUploading, isBatchExtracting, requestTranscription, requestOCR, refreshMediaStatus, requestBatchExtraction, getAggregatedExtractedText } = useMediaUpload();
 
   // Polling for media extraction status
   useEffect(() => {
@@ -1796,6 +1796,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                   <MediaPreviewTray
                     media={uploadedMedia}
                     onRemove={removeMedia}
+                    onReorder={reorderMedia}
                     onRequestTranscription={handleRequestTranscription}
                     onRequestOCR={handleRequestOCR}
                     onRequestBatchExtraction={requestBatchExtraction}

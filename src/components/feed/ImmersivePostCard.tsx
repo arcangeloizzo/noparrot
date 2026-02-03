@@ -274,6 +274,7 @@ const ImmersivePostCardInner = ({
   const deletePost = useDeletePost();
   const { data: quotedPost } = useQuotedPost(post.quoted_post_id);
   const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
+  const [carouselIndex, setCarouselIndex] = useState(0);
   const createThread = useCreateThread();
   const sendMessage = useSendMessage();
   const isOwnPost = user?.id === post.author.id;
@@ -1463,46 +1464,59 @@ const ImmersivePostCardInner = ({
               </div>
             )}
 
-            {/* Framed Media Window for media-only posts - centered, reduced height (-30%) */}
-            {isMediaOnlyPost && mediaUrl && (
-              <button
-                role="button"
-                aria-label={isVideoMedia ? "Riproduci video" : "Apri immagine"}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedMediaIndex(0);
-                }}
-                className="relative w-full max-w-[88%] mx-auto rounded-2xl overflow-hidden shadow-2xl border border-white/10 active:scale-[0.98] transition-transform mb-6"
-              >
-                {isVideoMedia ? (
-                  <>
-                    <img 
-                      src={post.media?.[0]?.thumbnail_url || mediaUrl} 
-                      alt="" 
-                      className="w-full h-[28vh] sm:h-[38vh] object-cover"
-                    />
-                    {/* Play icon overlay */}
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                      <div className="bg-white/90 backdrop-blur-sm p-4 rounded-full shadow-xl">
-                        <Play className="w-8 h-8 text-black fill-black" />
+            {/* Framed Media Window for media-only posts */}
+            {isMediaOnlyPost && post.media && post.media.length > 0 && (
+              post.media.length === 1 ? (
+                /* Single media: comportamento esistente */
+                <button
+                  role="button"
+                  aria-label={isVideoMedia ? "Riproduci video" : "Apri immagine"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedMediaIndex(0);
+                  }}
+                  className="relative w-full max-w-[88%] mx-auto rounded-2xl overflow-hidden shadow-2xl border border-white/10 active:scale-[0.98] transition-transform mb-6"
+                >
+                  {isVideoMedia ? (
+                    <>
+                      <img 
+                        src={post.media?.[0]?.thumbnail_url || mediaUrl} 
+                        alt="" 
+                        className="w-full h-[28vh] sm:h-[38vh] object-cover"
+                      />
+                      {/* Play icon overlay */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <div className="bg-white/90 backdrop-blur-sm p-4 rounded-full shadow-xl">
+                          <Play className="w-8 h-8 text-black fill-black" />
+                        </div>
                       </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <img 
-                      src={mediaUrl} 
-                      alt="" 
-                      className="w-full h-[32vh] sm:h-[44vh] object-cover"
-                    />
-                    {/* Expand pill with label */}
-                    <div className="absolute bottom-3 right-3 bg-black/80 px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                      <Maximize2 className="w-3.5 h-3.5 text-white" />
-                      <span className="text-xs font-medium text-white">Apri</span>
-                    </div>
-                  </>
-                )}
-              </button>
+                    </>
+                  ) : (
+                    <>
+                      <img 
+                        src={mediaUrl} 
+                        alt="" 
+                        className="w-full h-[32vh] sm:h-[44vh] object-cover"
+                      />
+                      {/* Expand pill with label */}
+                      <div className="absolute bottom-3 right-3 bg-black/80 px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                        <Maximize2 className="w-3.5 h-3.5 text-white" />
+                        <span className="text-xs font-medium text-white">Apri</span>
+                      </div>
+                    </>
+                  )}
+                </button>
+              ) : (
+                /* Multi-media: usa MediaGallery con carousel */
+                <div className="w-full max-w-[88%] mx-auto mb-6">
+                  <MediaGallery
+                    media={post.media}
+                    onClick={(_, index) => setSelectedMediaIndex(index)}
+                    initialIndex={carouselIndex}
+                    onIndexChange={setCarouselIndex}
+                  />
+                </div>
+              )
             )}
 
             {/* Twitter/X Card - Unified glassmorphic container */}
@@ -2162,7 +2176,12 @@ const ImmersivePostCardInner = ({
           <MediaViewer
             media={post.media}
             initialIndex={selectedMediaIndex}
-            onClose={() => setSelectedMediaIndex(null)}
+            onClose={(finalIndex) => {
+              if (finalIndex !== undefined) {
+                setCarouselIndex(finalIndex);
+              }
+              setSelectedMediaIndex(null);
+            }}
             postActions={{
               onShare: () => {
                 setSelectedMediaIndex(null);

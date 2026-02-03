@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { X, Loader2, FileText, Mic, AlertCircle, Sparkles, Play, CheckCircle2, Zap } from 'lucide-react';
+import { useState, useEffect, useRef, DragEvent } from 'react';
+import { X, Loader2, FileText, Mic, AlertCircle, Sparkles, Play, CheckCircle2, Zap, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
@@ -20,6 +20,7 @@ interface MediaPreviewTrayProps {
   onRequestTranscription?: (id: string) => void;
   onRequestOCR?: (id: string) => void;
   onRequestBatchExtraction?: () => void;
+  onReorder?: (fromIndex: number, toIndex: number) => void;
   isTranscribing?: boolean;
   isBatchExtracting?: boolean;
 }
@@ -108,20 +109,34 @@ const useVideoThumbnail = (videoUrl: string, type: 'image' | 'video', file?: Fil
 
 const MediaItem = ({
   item,
+  index,
   onRemove,
   onRequestTranscription,
   onRequestOCR,
   isTranscribing,
   isCompact,
-  isBatchExtracting
+  isBatchExtracting,
+  isDragging,
+  isDragOver,
+  onDragStart,
+  onDragOver,
+  onDragEnd,
+  onDrop
 }: {
   item: MediaPreview;
+  index: number;
   onRemove: (id: string) => void;
   onRequestTranscription?: (id: string) => void;
   onRequestOCR?: (id: string) => void;
   isTranscribing?: boolean;
   isCompact: boolean;
   isBatchExtracting?: boolean;
+  isDragging?: boolean;
+  isDragOver?: boolean;
+  onDragStart?: (e: DragEvent<HTMLDivElement>) => void;
+  onDragOver?: (e: DragEvent<HTMLDivElement>) => void;
+  onDragEnd?: () => void;
+  onDrop?: (e: DragEvent<HTMLDivElement>) => void;
 }) => {
   const isVideo = item.type === 'video';
   const isImage = item.type === 'image';
@@ -153,19 +168,32 @@ const MediaItem = ({
     : "relative w-full aspect-video rounded-xl overflow-hidden bg-muted";
 
   return (
-    <div className={containerClasses}>
+    <div 
+      className={cn(
+        containerClasses,
+        isDragging && "opacity-50 scale-95",
+        isDragOver && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+        isCompact && "cursor-grab active:cursor-grabbing"
+      )}
+      draggable={isCompact}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDragEnd={onDragEnd}
+      onDrop={onDrop}
+    >
       {/* Media content */}
       {item.type === 'image' ? (
         <img 
           src={item.url} 
           alt="" 
-          className="w-full h-full object-cover" 
+          className="w-full h-full object-cover pointer-events-none" 
+          draggable={false}
         />
       ) : (
         <div className="w-full h-full relative">
           <video 
             src={item.url} 
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover pointer-events-none"
             poster={videoPoster || undefined}
             preload="metadata"
             playsInline
@@ -183,6 +211,13 @@ const MediaItem = ({
           )}
         </div>
       )}
+
+      {/* Drag handle indicator for compact mode */}
+      {isCompact && (
+        <div className="absolute top-1 left-1 p-0.5 rounded bg-black/50 backdrop-blur-sm z-10 pointer-events-none">
+          <GripVertical className="w-3 h-3 text-white/70" />
+        </div>
+      )}
       
       {/* Remove button */}
       <Button
@@ -193,7 +228,11 @@ const MediaItem = ({
           "absolute top-1 right-1 rounded-full z-20 shadow-lg",
           isCompact ? "h-5 w-5 p-0" : "h-7 w-7 p-0 top-2 right-2"
         )}
-        onClick={() => onRemove(item.id)}
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          onRemove(item.id);
+        }}
       >
         <X className={isCompact ? "w-3 h-3" : "w-3.5 h-3.5"} />
       </Button>
@@ -304,12 +343,16 @@ export const MediaPreviewTray = ({
   onRequestTranscription,
   onRequestOCR,
   onRequestBatchExtraction,
+  onReorder,
   isTranscribing,
   isBatchExtracting = false
 }: MediaPreviewTrayProps) => {
   if (media.length === 0) return null;
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  
   const isSingleMedia = media.length === 1;
   const isMultiMedia = media.length > 2;
   const hasPendingTranscription = media.some(m => m.extracted_status === 'pending' && m.extracted_kind === 'transcript');
@@ -336,12 +379,45 @@ export const MediaPreviewTray = ({
   const totalExtractable = extractableImages.length + extractableVideos.length + completedCount;
   const extractedMediaWithText = media.filter(m => m.extracted_status === 'done' && m.extracted_text);
 
+  // Drag handlers
+  const handleDragStart = (e: DragEvent<HTMLDivElement>, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const handleDragOver = (e: DragEvent<HTMLDivElement>, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (draggedIndex !== null && draggedIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: DragEvent<HTMLDivElement>, toIndex: number) => {
+    e.preventDefault();
+    const fromIndex = draggedIndex;
+    
+    if (fromIndex !== null && fromIndex !== toIndex && onReorder) {
+      onReorder(fromIndex, toIndex);
+    }
+    
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
   return (
     <div className="space-y-3">
       {/* Single media: large full-width preview */}
       {isSingleMedia ? (
         <MediaItem
           item={media[0]}
+          index={0}
           onRemove={onRemove}
           onRequestTranscription={onRequestTranscription}
           onRequestOCR={onRequestOCR}
@@ -350,32 +426,40 @@ export const MediaPreviewTray = ({
           isBatchExtracting={isBatchExtracting}
         />
       ) : isMultiMedia ? (
-        /* Multi-media (>2): Horizontal scroll layout */
+        /* Multi-media (>2): Horizontal scroll layout with drag & drop */
         <div 
           ref={scrollRef}
           className="flex gap-2 overflow-x-auto pb-2 scrollbar-none"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
-          {media.map((item) => (
+          {media.map((item, index) => (
             <MediaItem
               key={item.id}
               item={item}
+              index={index}
               onRemove={onRemove}
               onRequestTranscription={onRequestTranscription}
               onRequestOCR={onRequestOCR}
               isTranscribing={isTranscribing}
               isCompact={true}
               isBatchExtracting={isBatchExtracting}
+              isDragging={draggedIndex === index}
+              isDragOver={dragOverIndex === index}
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDragEnd={handleDragEnd}
+              onDrop={(e) => handleDrop(e, index)}
             />
           ))}
         </div>
       ) : (
-        /* 2 media: 2-column grid */
+        /* 2 media: 2-column grid with drag & drop */
         <div className="grid grid-cols-2 gap-2">
-          {media.map((item) => (
+          {media.map((item, index) => (
             <MediaItem
               key={item.id}
               item={item}
+              index={index}
               onRemove={onRemove}
               onRequestTranscription={onRequestTranscription}
               onRequestOCR={onRequestOCR}
@@ -385,6 +469,13 @@ export const MediaPreviewTray = ({
             />
           ))}
         </div>
+      )}
+      
+      {/* Drag hint for multi-media */}
+      {media.length > 2 && (
+        <p className="text-xs text-muted-foreground text-center">
+          Trascina per riordinare
+        </p>
       )}
       
       {/* Batch extraction button for multi-media */}
