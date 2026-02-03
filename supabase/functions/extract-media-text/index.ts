@@ -8,6 +8,8 @@ const corsHeaders = {
 
 const MAX_VIDEO_DURATION_SEC = 180; // 3 minuti
 const WHISPER_MAX_SIZE = 25 * 1024 * 1024; // 25MB
+const MIN_TRANSCRIPT_CHARS = 50; // Soglia minima per trascrizioni valide (abbassata per video brevi)
+const MIN_OCR_CHARS = 80; // Soglia minima per OCR
 
 // =====================================================
 // DEEPGRAM TRANSCRIPTION (supports up to 2GB via URL)
@@ -167,7 +169,7 @@ serve(async (req) => {
       const data = await response.json();
       const extractedText = data.choices?.[0]?.message?.content || '';
       const isValidText = extractedText && 
-                          extractedText.length > 120 && 
+                          extractedText.length >= MIN_OCR_CHARS && 
                           !extractedText.includes('NO_TEXT_FOUND');
 
       console.log(`[extract-media-text] OCR result: ${extractedText.length} chars, valid: ${isValidText}`);
@@ -313,9 +315,9 @@ serve(async (req) => {
         );
       }
       
-      const isValidTranscript = transcript.length > 120;
+      const isValidTranscript = transcript.length >= MIN_TRANSCRIPT_CHARS;
       
-      console.log(`[extract-media-text] Final result: ${transcript.length} chars, valid: ${isValidTranscript}, provider: ${provider}`);
+      console.log(`[extract-media-text] Final result: ${transcript.length} chars, valid: ${isValidTranscript} (min: ${MIN_TRANSCRIPT_CHARS}), provider: ${provider}`);
       
       await supabase.from('media').update({
         extracted_text: isValidTranscript ? transcript : null,
