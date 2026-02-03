@@ -223,6 +223,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     m.extracted_text.length > 120
   );
 
+  // [FIX] Word count of the ORIGINAL quoted post (source) - used for reshare gate logic
+  // The resharer is tested on the SOURCE content, NEVER on their own comment
+  const quotedPostWordCount = quotedPost?.content ? getWordCount(quotedPost.content) : 0;
+
   // Gate status indicator (real-time feedback)
   // Character-based gate applies ONLY to reshares (quotedPost), not free text
   const gateStatus = (() => {
@@ -257,32 +261,36 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       return { label: 'Nessun gate', requiresGate: false };
     }
     
-    // [EXISTING] Gate attivo se c'è media con testo estratto in reshare
+    // [FIX] Gate per reshare di post con media OCR/trascrizione
+    // Usa le parole del POST ORIGINALE (quotedPost.content), NON il commento del resharer
     if (quotedPostMediaWithExtractedText) {
-      const mediaGate = getMediaTestMode(wordCount, true);
+      const mediaGate = getMediaTestMode(quotedPostWordCount, true);
       if (mediaGate.testMode === 'SOURCE_ONLY') {
         return { 
           label: quotedPostMediaWithExtractedText?.extracted_kind === 'ocr' 
-            ? 'Gate OCR attivo' 
-            : 'Gate trascrizione attivo', 
+            ? 'Gate OCR (fonte)' 
+            : 'Gate trascrizione (fonte)', 
           requiresGate: true 
         };
       } else if (mediaGate.testMode === 'MIXED') {
-        return { label: 'Gate mixed (1+2)', requiresGate: true };
+        return { label: 'Gate mixed (fonte)', requiresGate: true };
       } else {
-        return { label: 'Gate completo (3)', requiresGate: true };
+        return { label: 'Gate completo (fonte)', requiresGate: true };
       }
     }
     
-    // Gate sui caratteri SOLO per ricondivisioni (quotedPost presente)
-    if (quotedPost) {
-      const wordCount = getWordCount(content);
-      if (wordCount > 120) {
-        return { label: 'Gate completo', requiresGate: true };
+    // [FIX] Gate per reshare di post TEXT-ONLY (senza media, senza URL nel post originale)
+    // L'utente che ricondivide fa il test sul TESTO del POST ORIGINALE
+    // Il commento che scrive nel composer NON viene MAI usato per il gate
+    if (quotedPost && !quotedPostMediaWithExtractedText) {
+      if (quotedPostWordCount > 120) {
+        return { label: 'Gate completo (fonte)', requiresGate: true };
       }
-      if (wordCount > 30) {
-        return { label: 'Gate light', requiresGate: true };
+      if (quotedPostWordCount > 30) {
+        return { label: 'Gate light (fonte)', requiresGate: true };
       }
+      // Post originale ≤30 parole: nessun gate
+      return { label: 'Nessun gate', requiresGate: false };
     }
     
     // Nessun gate per testo libero senza URL
@@ -533,11 +541,12 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     }
 
     // [FIX] Branch for reshare of post with media OCR/transcription
+    // Use quotedPostWordCount (SOURCE content), NOT wordCount (resharer's comment)
     if (quotedPostMediaWithExtractedText && quotedPost) {
-      const mediaGate = getMediaTestMode(wordCount, true); // Always has extracted text
+      const mediaGate = getMediaTestMode(quotedPostWordCount, true); // Use SOURCE word count
       
       console.log('[Composer] Reshare media gate evaluation:', { 
-        wordCount,
+        quotedPostWordCount, // Log source word count, not user's
         testMode: mediaGate.testMode,
         questionCount: mediaGate.questionCount
       });
@@ -554,6 +563,27 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         mediaGate.testMode as 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY',
         mediaGate.questionCount as 1 | 3
       );
+      return;
+    }
+    
+    // [FIX] Branch for reshare of text-only posts (no media, no URL in original)
+    // Gate based on ORIGINAL post content (source), NEVER on resharer's comment
+    if (quotedPost && !quotedPostMediaWithExtractedText && !detectedUrl) {
+      if (quotedPostWordCount > 30) {
+        console.log('[Composer] Reshare text-only gate, source words:', quotedPostWordCount);
+        
+        addBreadcrumb('reshare_textonly_gate_start', { 
+          quotedPostWordCount,
+          questionCount: quotedPostWordCount > 120 ? 3 : 1
+        });
+        
+        // Generate quiz directly on the quoted post's content
+        await handleReshareTextOnlyGateFlow(quotedPostWordCount > 120 ? 3 : 1);
+        return;
+      }
+      // ≤30 words in original post: no gate, publish directly
+      console.log('[Composer] Reshare text-only, no gate needed (source ≤30 words)');
+      await publishPost();
       return;
     }
 
@@ -715,7 +745,72 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     }
   };
 
-  // iOS-specific: Skip reader, go directly to quiz (mirrors comment flow)
+  // [FIX] Handle reshare of text-only posts - quiz on the original post's content
+  // The resharer is tested on the SOURCE (quotedPost.content), not their own comment
+  const handleReshareTextOnlyGateFlow = async (questionCount: 1 | 3) => {
+    if (isGeneratingQuiz || !quotedPost || !user) return;
+    
+    try {
+      setIsGeneratingQuiz(true);
+      addBreadcrumb('reshare_textonly_generating_quiz', { questionCount });
+      
+      toast.loading('Stiamo mettendo a fuoco ciò che conta…');
+      
+      const result = await generateQA({
+        contentId: quotedPost.id,
+        isPrePublish: true,
+        title: quotedPost.author?.full_name || quotedPost.author?.username || 'Post',
+        // For text-only posts, use 'url' kind with post:// protocol
+        qaSourceRef: { kind: 'url', id: `post://${quotedPost.id}`, url: `post://${quotedPost.id}` },
+        sourceUrl: undefined,
+        userText: quotedPost.content, // Use SOURCE text, not resharer's comment
+        testMode: 'USER_ONLY', // Test on the original author's text
+        questionCount,
+      });
+      
+      toast.dismiss();
+      addBreadcrumb('reshare_textonly_qa_generated', { 
+        hasQuestions: !!result.questions, 
+        error: result.error 
+      });
+      
+      if (result.insufficient_context) {
+        // Should not happen since we already checked >30 words
+        console.log('[Composer] Reshare text-only insufficient context');
+        toast.warning('Testo insufficiente per il test.');
+        setIsGeneratingQuiz(false);
+        return;
+      }
+      
+      if (result.error || !result.questions) {
+        // Allow publish without test when quiz generation fails
+        console.error('[ComposerModal] Reshare text-only quiz generation failed:', result.error);
+        toast.warning('Test non disponibile. Puoi pubblicare comunque.', { duration: 5000 });
+        setIsGeneratingQuiz(false);
+        addBreadcrumb('reshare_textonly_quiz_failed_publish_anyway');
+        await publishPost();
+        return;
+      }
+      
+      // Show quiz - user will be tested on the original post's content
+      setQuizData({
+        qaId: result.qaId,
+        questions: result.questions,
+        sourceUrl: `post://${quotedPost.id}`,
+      });
+      setShowQuiz(true);
+      addBreadcrumb('reshare_textonly_quiz_mount');
+      
+    } catch (error) {
+      console.error('[ComposerModal] Reshare text-only gate flow error:', error);
+      toast.dismiss();
+      toast.error('Errore durante la generazione del quiz. Riprova.');
+      addBreadcrumb('reshare_textonly_gate_error', { error: String(error) });
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
+  };
+
   // FIXED: Uses qaSourceRef instead of full-text summary, blocks publish on failure
   const handleIOSQuizOnlyFlow = async () => {
     if (isGeneratingQuiz || !urlPreview || !user) return;
