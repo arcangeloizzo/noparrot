@@ -11,7 +11,7 @@ import { QuotedPostCard } from "@/components/feed/QuotedPostCard";
 import { QuotedEditorialCard } from "@/components/feed/QuotedEditorialCard";
 import { SourceReaderGate } from "./SourceReaderGate";
 import { QuizModal } from "@/components/ui/quiz-modal";
-import { getWordCount, getTestModeWithSource } from '@/lib/gate-utils';
+import { getWordCount, getTestModeWithSource, getMediaTestMode } from '@/lib/gate-utils';
 import { useQueryClient } from "@tanstack/react-query";
 import { updateCognitiveDensityWeighted } from "@/lib/cognitiveDensity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -231,15 +231,47 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       return { label: 'Gate attivo', requiresGate: true };
     }
     
-    // [NEW] Gate attivo se c'è media con testo estratto (OCR/trascrizione) - sia nuovo che da reshare
-    if (mediaWithExtractedText || quotedPostMediaWithExtractedText) {
-      const activeMedia = mediaWithExtractedText || quotedPostMediaWithExtractedText;
-      return { 
-        label: activeMedia?.extracted_kind === 'ocr' 
-          ? 'Gate OCR attivo' 
-          : 'Gate trascrizione attivo', 
-        requiresGate: true 
-      };
+    // [NEW] Check media gate logic for uploads (new media, not reshare)
+    if (uploadedMedia.length > 0 && !quotedPost) {
+      const hasExtracted = !!mediaWithExtractedText;
+      const mediaGate = getMediaTestMode(wordCount, hasExtracted);
+      
+      if (mediaGate.gateRequired) {
+        if (mediaGate.testMode === 'SOURCE_ONLY') {
+          const activeMedia = mediaWithExtractedText;
+          return { 
+            label: activeMedia?.extracted_kind === 'ocr' 
+              ? 'Gate OCR attivo' 
+              : 'Gate trascrizione attivo', 
+            requiresGate: true 
+          };
+        } else if (mediaGate.testMode === 'MIXED') {
+          return { label: 'Gate mixed (1+2)', requiresGate: true };
+        } else if (mediaGate.testMode === 'USER_ONLY') {
+          return { 
+            label: mediaGate.questionCount === 1 ? 'Gate light (1)' : 'Gate completo (3)', 
+            requiresGate: true 
+          };
+        }
+      }
+      return { label: 'Nessun gate', requiresGate: false };
+    }
+    
+    // [EXISTING] Gate attivo se c'è media con testo estratto in reshare
+    if (quotedPostMediaWithExtractedText) {
+      const mediaGate = getMediaTestMode(wordCount, true);
+      if (mediaGate.testMode === 'SOURCE_ONLY') {
+        return { 
+          label: quotedPostMediaWithExtractedText?.extracted_kind === 'ocr' 
+            ? 'Gate OCR attivo' 
+            : 'Gate trascrizione attivo', 
+          requiresGate: true 
+        };
+      } else if (mediaGate.testMode === 'MIXED') {
+        return { label: 'Gate mixed (1+2)', requiresGate: true };
+      } else {
+        return { label: 'Gate completo (3)', requiresGate: true };
+      }
     }
     
     // Gate sui caratteri SOLO per ricondivisioni (quotedPost presente)
@@ -466,29 +498,62 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       return;
     }
 
-    // [NEW] Branch for media with extracted text (OCR/transcription) - own uploads
-    if (mediaWithExtractedText) {
-      console.log('[Composer] Media with extracted text detected, triggering gate');
-      addBreadcrumb('media_gate_start', { 
-        mediaId: mediaWithExtractedText.id,
-        kind: mediaWithExtractedText.extracted_kind,
-        textLength: mediaWithExtractedText.extracted_text?.length
+    // [NEW] Branch for media uploads - use getMediaTestMode for consistent logic
+    if (uploadedMedia.length > 0 && !quotedPost) {
+      const hasExtracted = !!mediaWithExtractedText;
+      const mediaGate = getMediaTestMode(wordCount, hasExtracted);
+      
+      console.log('[Composer] Media gate evaluation:', { 
+        hasExtracted,
+        wordCount,
+        gateRequired: mediaGate.gateRequired,
+        testMode: mediaGate.testMode,
+        questionCount: mediaGate.questionCount
       });
       
-      await handleMediaGateFlow(mediaWithExtractedText);
-      return;
+      if (mediaGate.gateRequired) {
+        // Find the media to use for gate (extracted text one, or first one for USER_ONLY)
+        const targetMedia = mediaWithExtractedText || uploadedMedia[0];
+        
+        addBreadcrumb('media_gate_start', { 
+          mediaId: targetMedia.id,
+          kind: targetMedia.extracted_kind || 'none',
+          testMode: mediaGate.testMode,
+          questionCount: mediaGate.questionCount
+        });
+        
+        await handleMediaGateFlow(
+          targetMedia, 
+          mediaGate.testMode as 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY',
+          mediaGate.questionCount as 1 | 3
+        );
+        return;
+      }
+      // No gate required - fall through to publishPost
     }
 
     // [FIX] Branch for reshare of post with media OCR/transcription
     if (quotedPostMediaWithExtractedText && quotedPost) {
-      console.log('[Composer] Resharing post with OCR media, triggering gate');
+      const mediaGate = getMediaTestMode(wordCount, true); // Always has extracted text
+      
+      console.log('[Composer] Reshare media gate evaluation:', { 
+        wordCount,
+        testMode: mediaGate.testMode,
+        questionCount: mediaGate.questionCount
+      });
+      
       addBreadcrumb('reshare_media_gate_start', { 
         mediaId: quotedPostMediaWithExtractedText.id,
         kind: quotedPostMediaWithExtractedText.extracted_kind,
-        textLength: quotedPostMediaWithExtractedText.extracted_text?.length
+        testMode: mediaGate.testMode,
+        questionCount: mediaGate.questionCount
       });
       
-      await handleQuotedMediaGateFlow(quotedPostMediaWithExtractedText);
+      await handleQuotedMediaGateFlow(
+        quotedPostMediaWithExtractedText,
+        mediaGate.testMode as 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY',
+        mediaGate.questionCount as 1 | 3
+      );
       return;
     }
 
@@ -497,12 +562,16 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   };
   
   // [NEW] Handle media gate flow (OCR/transcription) - similar to handleIOSQuizOnlyFlow
-  const handleMediaGateFlow = async (media: typeof uploadedMedia[0]) => {
+  const handleMediaGateFlow = async (
+    media: typeof uploadedMedia[0], 
+    overrideTestMode?: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY',
+    overrideQuestionCount?: 1 | 3
+  ) => {
     if (isGeneratingQuiz) return;
     
     try {
       setIsGeneratingQuiz(true);
-      addBreadcrumb('media_generating_quiz');
+      addBreadcrumb('media_generating_quiz', { testMode: overrideTestMode, questionCount: overrideQuestionCount });
       
       toast.loading('Stiamo mettendo a fuoco ciò che conta…');
       
@@ -513,7 +582,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         qaSourceRef: { kind: 'mediaId', id: media.id },
         sourceUrl: undefined,
         userText: content,
-        testMode: 'SOURCE_ONLY', // For media, always SOURCE_ONLY
+        testMode: overrideTestMode || 'SOURCE_ONLY',
+        questionCount: overrideQuestionCount || 3,
       });
       
       toast.dismiss();
@@ -569,12 +639,16 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   };
   
   // [FIX] Handle reshare of post with media OCR/transcription
-  const handleQuotedMediaGateFlow = async (media: any) => {
+  const handleQuotedMediaGateFlow = async (
+    media: any,
+    overrideTestMode?: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY',
+    overrideQuestionCount?: 1 | 3
+  ) => {
     if (isGeneratingQuiz) return;
     
     try {
       setIsGeneratingQuiz(true);
-      addBreadcrumb('reshare_media_generating_quiz');
+      addBreadcrumb('reshare_media_generating_quiz', { testMode: overrideTestMode, questionCount: overrideQuestionCount });
       
       toast.loading('Stiamo mettendo a fuoco ciò che conta…');
       
@@ -585,7 +659,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         qaSourceRef: { kind: 'mediaId', id: media.id },
         sourceUrl: undefined,
         userText: content,
-        testMode: 'SOURCE_ONLY', // For media reshare, always SOURCE_ONLY
+        testMode: overrideTestMode || 'SOURCE_ONLY',
+        questionCount: overrideQuestionCount || 3,
       });
       
       toast.dismiss();
