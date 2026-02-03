@@ -90,7 +90,7 @@ export const useMediaUpload = () => {
         // Upload file to storage
         const fileExt = file.name.split('.').pop();
         const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-        const bucketName = 'avatars'; // Usa bucket esistente
+        const bucketName = 'user-media'; // Bucket con supporto video 100MB
 
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from(bucketName)
