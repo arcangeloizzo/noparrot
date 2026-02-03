@@ -7,6 +7,94 @@ const corsHeaders = {
 };
 
 const MAX_VIDEO_DURATION_SEC = 180; // 3 minuti
+const WHISPER_MAX_SIZE = 25 * 1024 * 1024; // 25MB
+
+// =====================================================
+// DEEPGRAM TRANSCRIPTION (supports up to 2GB via URL)
+// =====================================================
+async function transcribeWithDeepgram(
+  mediaUrl: string, 
+  apiKey: string
+): Promise<{ transcript: string; language: string; confidence: number }> {
+  console.log('[extract-media-text] Calling Deepgram API...');
+  
+  const response = await fetch('https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&language=it&detect_language=true', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Token ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ url: mediaUrl }),
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Deepgram API error: ${response.status} - ${errorText}`);
+  }
+  
+  const data = await response.json();
+  const transcript = data.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
+  const language = data.results?.channels?.[0]?.detected_language || 'it';
+  const confidence = data.results?.channels?.[0]?.alternatives?.[0]?.confidence || 0;
+  
+  return { transcript, language, confidence };
+}
+
+// =====================================================
+// WHISPER TRANSCRIPTION (fallback, max 25MB)
+// =====================================================
+async function transcribeWithWhisper(
+  mediaUrl: string,
+  apiKey: string
+): Promise<{ transcript: string; language: string; fileSize: number }> {
+  console.log('[extract-media-text] Downloading video for Whisper...');
+  const videoResponse = await fetch(mediaUrl);
+  if (!videoResponse.ok) {
+    throw new Error(`Failed to download video: ${videoResponse.status}`);
+  }
+  
+  const videoBlob = await videoResponse.blob();
+  const fileSize = videoBlob.size;
+  console.log(`[extract-media-text] Video downloaded: ${fileSize} bytes`);
+  
+  if (fileSize > WHISPER_MAX_SIZE) {
+    throw new Error(`file_too_large: ${fileSize} > ${WHISPER_MAX_SIZE}`);
+  }
+  
+  const formData = new FormData();
+  formData.append('file', videoBlob, 'video.mp4');
+  formData.append('model', 'whisper-1');
+  formData.append('response_format', 'verbose_json');
+  
+  console.log('[extract-media-text] Calling Whisper API...');
+  const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: formData,
+  });
+  
+  if (!whisperResponse.ok) {
+    const errorText = await whisperResponse.text();
+    let errorData;
+    try { errorData = JSON.parse(errorText); } catch {}
+    
+    const isQuotaError = whisperResponse.status === 429 || 
+                         errorData?.error?.code === 'insufficient_quota';
+    
+    if (isQuotaError) {
+      throw new Error('whisper_quota_exceeded');
+    }
+    throw new Error(`Whisper API error: ${whisperResponse.status} - ${errorText}`);
+  }
+  
+  const whisperData = await whisperResponse.json();
+  const transcript = whisperData.text || '';
+  const language = whisperData.language || 'unknown';
+  
+  return { transcript, language, fileSize };
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,6 +106,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    const deepgramApiKey = Deno.env.get('DEEPGRAM_API_KEY');
     
     const supabase = createClient(supabaseUrl, supabaseKey);
     
@@ -105,23 +194,9 @@ serve(async (req) => {
     }
     
     // =====================================================
-    // TRASCRIZIONE VIDEO VIA OPENAI WHISPER
+    // VIDEO TRANSCRIPTION (Deepgram primary, Whisper fallback)
     // =====================================================
     if (extractionType === 'transcript') {
-      // Check per API key
-      if (!openaiApiKey) {
-        console.error('[extract-media-text] OPENAI_API_KEY not configured');
-        await supabase.from('media').update({
-          extracted_status: 'failed',
-          extracted_meta: { error: 'Transcription service not configured' }
-        }).eq('id', mediaId);
-        
-        return new Response(
-          JSON.stringify({ success: false, error: 'Transcription service not available' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
       // Check durata video
       if (durationSec && durationSec > MAX_VIDEO_DURATION_SEC) {
         console.log(`[extract-media-text] Video too long: ${durationSec}s > ${MAX_VIDEO_DURATION_SEC}s`);
@@ -140,75 +215,114 @@ serve(async (req) => {
         );
       }
       
-      // Download video file
-      console.log('[extract-media-text] Downloading video...');
-      const videoResponse = await fetch(mediaUrl);
-      if (!videoResponse.ok) {
-        throw new Error(`Failed to download video: ${videoResponse.status}`);
+      let transcript = '';
+      let detectedLanguage = 'unknown';
+      let provider = '';
+      let deepgramError: string | null = null;
+      
+      // STRATEGIA: Deepgram primario (URL-based, fino a 2GB)
+      if (deepgramApiKey) {
+        console.log('[extract-media-text] Using Deepgram (URL-based, max 2GB)');
+        try {
+          const result = await transcribeWithDeepgram(mediaUrl, deepgramApiKey);
+          transcript = result.transcript;
+          detectedLanguage = result.language;
+          provider = 'deepgram-nova-2';
+          console.log(`[extract-media-text] Deepgram success: ${transcript.length} chars, lang: ${detectedLanguage}`);
+        } catch (err) {
+          deepgramError = err instanceof Error ? err.message : String(err);
+          console.error('[extract-media-text] Deepgram failed:', deepgramError);
+          // Continua a Whisper fallback
+        }
       }
       
-      const videoBlob = await videoResponse.blob();
-      console.log(`[extract-media-text] Video downloaded: ${videoBlob.size} bytes`);
+      // FALLBACK: Whisper per file piccoli se Deepgram non disponibile/fallito
+      if (!transcript && openaiApiKey) {
+        console.log('[extract-media-text] Falling back to Whisper (download required, max 25MB)');
+        try {
+          const result = await transcribeWithWhisper(mediaUrl, openaiApiKey);
+          transcript = result.transcript;
+          detectedLanguage = result.language;
+          provider = 'whisper-1';
+          console.log(`[extract-media-text] Whisper success: ${transcript.length} chars, lang: ${detectedLanguage}`);
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          console.error('[extract-media-text] Whisper failed:', errorMsg);
+          
+          // Gestione errori specifici
+          if (errorMsg.includes('file_too_large')) {
+            await supabase.from('media').update({
+              extracted_status: 'failed',
+              extracted_meta: { 
+                error: 'file_too_large',
+                deepgram_error: deepgramError,
+                message: 'File troppo grande per la trascrizione'
+              }
+            }).eq('id', mediaId);
+            
+            return new Response(
+              JSON.stringify({ success: false, error: 'file_too_large' }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
+          if (errorMsg.includes('whisper_quota_exceeded')) {
+            await supabase.from('media').update({
+              extracted_status: 'failed',
+              extracted_meta: { 
+                error: 'service_unavailable',
+                deepgram_error: deepgramError,
+                message: 'Servizio temporaneamente non disponibile'
+              }
+            }).eq('id', mediaId);
+            
+            return new Response(
+              JSON.stringify({ success: false, error: 'service_unavailable' }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
+          // Errore generico
+          await supabase.from('media').update({
+            extracted_status: 'failed',
+            extracted_meta: { 
+              error: 'transcription_failed',
+              deepgram_error: deepgramError,
+              whisper_error: errorMsg
+            }
+          }).eq('id', mediaId);
+          
+          return new Response(
+            JSON.stringify({ success: false, error: 'transcription_failed' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
       
-      // Crea FormData per Whisper API
-      const formData = new FormData();
-      formData.append('file', videoBlob, 'video.mp4');
-      formData.append('model', 'whisper-1');
-      formData.append('response_format', 'verbose_json');
-      
-      // Call OpenAI Whisper API
-      console.log('[extract-media-text] Calling Whisper API...');
-      const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${openaiApiKey}`,
-        },
-        body: formData,
-      });
-      
-      if (!whisperResponse.ok) {
-        const errorText = await whisperResponse.text();
-        console.error(`[extract-media-text] Whisper API error: ${whisperResponse.status}`, errorText);
-        
-        // Parse error to detect quota issues
-        let errorData;
-        try { errorData = JSON.parse(errorText); } catch {}
-        
-        const isQuotaError = whisperResponse.status === 429 || 
-                             errorData?.error?.code === 'insufficient_quota';
-        
-        const userFriendlyError = isQuotaError 
-          ? 'Servizio temporaneamente non disponibile'
-          : `Transcription failed: ${whisperResponse.status}`;
-        
+      // Nessun provider disponibile
+      if (!transcript && !deepgramApiKey && !openaiApiKey) {
+        console.error('[extract-media-text] No transcription service configured');
         await supabase.from('media').update({
           extracted_status: 'failed',
-          extracted_meta: { 
-            error: userFriendlyError, 
-            provider: 'whisper-1',
-            is_quota_error: isQuotaError 
-          }
+          extracted_meta: { error: 'service_not_configured' }
         }).eq('id', mediaId);
         
         return new Response(
-          JSON.stringify({ success: false, error: userFriendlyError, isQuotaError }),
+          JSON.stringify({ success: false, error: 'service_not_configured' }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
       
-      const whisperData = await whisperResponse.json();
-      const transcript = whisperData.text || '';
-      const detectedLanguage = whisperData.language || 'unknown';
       const isValidTranscript = transcript.length > 120;
       
-      console.log(`[extract-media-text] Transcript received: ${transcript.length} chars, language: ${detectedLanguage}`);
+      console.log(`[extract-media-text] Final result: ${transcript.length} chars, valid: ${isValidTranscript}, provider: ${provider}`);
       
       await supabase.from('media').update({
         extracted_text: isValidTranscript ? transcript : null,
         extracted_status: isValidTranscript ? 'done' : 'failed',
         extracted_kind: 'transcript',
         extracted_meta: {
-          provider: 'whisper-1',
+          provider,
           chars: transcript.length,
           language: detectedLanguage,
           duration_sec: durationSec || null
@@ -220,6 +334,7 @@ serve(async (req) => {
           success: isValidTranscript, 
           chars: transcript.length,
           language: detectedLanguage,
+          provider,
           status: isValidTranscript ? 'done' : 'failed'
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
