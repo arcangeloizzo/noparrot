@@ -1,287 +1,193 @@
 
-# Piano Fix: Carousel Multi-Media - Feed UI + MediaViewer + Drag & Drop
+# Piano: Fix estrazione testo LinkedIn per Comprehension Gate
 
-## Problemi Identificati
+## Problema identificato
 
-### 1. Carousel nel Feed NON ATTIVO
-Il componente `ImmersivePostCard.tsx` **importa ma non usa** `MediaGallery`:
-- Riga 46: `import { MediaGallery } from "@/components/media/MediaGallery";`
-- Righe 1466-1506: Mostra **solo il primo media** (`mediaUrl = post.media?.[0]?.url`) per tutti i post
-- **Risultato**: Nessun carousel, nessun dots, nessun contatore 1/X
+Il quiz viene generato solo sulle prime 2 righe del post LinkedIn perché `generate-qa` non trova il contenuto in cache, nonostante sia presente.
 
-### 2. Drag & Drop nel Composer NON implementato
-Il componente `MediaPreviewTray.tsx`:
-- Ha solo layout orizzontale scrollabile (righe 354-371)
-- **Nessuna logica drag & drop** per riordinare i media
-- Il drop non fa niente perché non c'è handler
+### Analisi dei log
 
-### 3. MediaViewer obsoleto
-Il componente attuale:
-- Usa frecce laterali (ChevronLeft/ChevronRight) per navigazione
-- Mostra tutte le immagini in una lista verticale (come nello screenshot)
-- Nessun carousel orizzontale con snap-scroll
-- UI datata non coerente con il resto dell'app
+```
+[generate-qa] ⏳ Content not cached or synthetic (LinkedIn refresh: undefined), trying Jina...
+[generate-qa] ⚠️ Content too short (0 chars), trying extraction cascade...
+[generate-qa] 🔥 Trying Firecrawl as backup...
+[generate-qa] 📝 Using metadata fallback for URL: 220 chars
+```
+
+Il contenuto completo (2524 chars) È presente in `content_cache`, ma non viene trovato.
+
+### Root Cause: Mismatch URL normalizzato
+
+| Fase | URL utilizzato |
+|------|---------------|
+| **Salvataggio** (`fetch-article-preview`) | `https://linkedin.com/posts/...?rcm=...` (normalizzato) |
+| **Ricerca** (`generate-qa`) | `https://www.linkedin.com/posts/...?utm_source=...&rcm=...` (originale) |
+
+La funzione `cacheContentServerSide` normalizza l'URL prima di salvare, ma `generate-qa` cerca con l'URL originale.
 
 ---
 
-## Soluzione Proposta
+## Soluzione proposta
 
-### Fix 1: ImmersivePostCard - Usare MediaGallery per multi-media
+### Fix 1: Normalizzare URL prima della ricerca in cache (generate-qa)
 
-**File**: `src/components/feed/ImmersivePostCard.tsx`
-
-**Modifica** (righe ~1466-1506): Sostituire il rendering del singolo media con `MediaGallery`:
+Modificare `generate-qa` per normalizzare l'URL prima di cercare nel database:
 
 ```typescript
-// PRIMA: Solo primo media
-{isMediaOnlyPost && mediaUrl && (
-  <button onClick={() => setSelectedMediaIndex(0)}>
-    <img src={mediaUrl} ... />
-  </button>
-)}
+// PRIMA
+const cacheUrl = effectiveQaSourceRef.url || sourceUrl;
 
-// DOPO: Carousel per multi-media
-{isMediaOnlyPost && post.media && post.media.length > 0 && (
-  post.media.length === 1 ? (
-    // Singolo media: comportamento esistente
-    <button onClick={() => setSelectedMediaIndex(0)} ...>
-      {/* existing single media render */}
-    </button>
-  ) : (
-    // Multi-media: usa MediaGallery con carousel
-    <div className="w-full max-w-[88%] mx-auto mb-6">
-      <MediaGallery
-        media={post.media}
-        onClick={(_, index) => setSelectedMediaIndex(index)}
-        initialIndex={carouselIndex}
-        onIndexChange={setCarouselIndex}
-      />
-    </div>
-  )
-)}
+// DOPO
+const rawCacheUrl = effectiveQaSourceRef.url || sourceUrl;
+const cacheUrl = rawCacheUrl ? safeNormalizeUrl(rawCacheUrl) : null;
 ```
 
-**Aggiungere stato**:
+Questo garantisce che la ricerca usi lo stesso formato dell'URL salvato.
+
+### Fix 2: Hardening del racing LinkedIn (fetch-article-preview)
+
+Attualmente Firecrawl può "vincere" la race con solo 150 caratteri (spesso contenuto troncato). Aumentare la soglia:
+
 ```typescript
-const [carouselIndex, setCarouselIndex] = useState(0);
+// PRIMA
+if (data.success && markdown && markdown.length > 150) {
+
+// DOPO  
+if (data.success && markdown && markdown.length > 400 && 
+    !isLinkedInAuthWallContent(markdown) &&
+    !isBotChallengeContent(markdown)) {
 ```
 
-**Sincronizzazione con MediaViewer** (riga ~2165):
-```typescript
-onClose={(finalIndex) => {
-  if (finalIndex !== undefined) {
-    setCarouselIndex(finalIndex);
-  }
-  setSelectedMediaIndex(null);
-}}
-```
+### Fix 3: Detect "Visualizza altro" / "See more" truncation
 
----
-
-### Fix 2: MediaPreviewTray - Aggiungere Drag & Drop
-
-**File**: `src/components/media/MediaPreviewTray.tsx`
-
-**Approccio**: Drag & Drop nativo HTML5 senza librerie esterne
+Aggiungere un controllo per rilevare contenuto troncato da LinkedIn:
 
 ```typescript
-// Nuove props
-interface MediaPreviewTrayProps {
-  // ... existing
-  onReorder?: (fromIndex: number, toIndex: number) => void; // NUOVO
+function isLinkedInTruncated(content: string): boolean {
+  const truncationMarkers = [
+    '… Visualizza altro',
+    '...Visualizza altro', 
+    '… See more',
+    '...See more',
+    '…See more',
+    '…Visualizza altro'
+  ];
+  return truncationMarkers.some(marker => 
+    content.trim().endsWith(marker) || 
+    content.trim().endsWith(marker.replace('…', '...'))
+  );
 }
+```
 
-// Stato locale per drag
-const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+Se rilevato, il contenuto viene marcato come `partial` e non salvato in cache come "complete".
 
-// Handler per ogni MediaItem
-const handleDragStart = (e: DragEvent, index: number) => {
-  setDraggedIndex(index);
-  e.dataTransfer.effectAllowed = 'move';
-};
+---
 
-const handleDragOver = (e: DragEvent, index: number) => {
-  e.preventDefault();
-  if (draggedIndex === null || draggedIndex === index) return;
-  // Visual feedback durante drag
-};
+## Files da modificare
 
-const handleDrop = (e: DragEvent, index: number) => {
-  e.preventDefault();
-  if (draggedIndex !== null && draggedIndex !== index) {
-    onReorder?.(draggedIndex, index);
+| File | Modifica |
+|------|----------|
+| `supabase/functions/generate-qa/index.ts` | Normalizzare URL prima della ricerca in cache |
+| `supabase/functions/fetch-article-preview/index.ts` | Aumentare soglia Firecrawl + detect truncation |
+
+---
+
+## Dettagli tecnici
+
+### Modifica 1: generate-qa/index.ts (linee 509-518)
+
+```typescript
+case 'url': {
+  // Fetch from content_cache - NORMALIZE URL for consistent cache key
+  const rawCacheUrl = effectiveQaSourceRef.url || sourceUrl;
+  const cacheUrl = rawCacheUrl ? safeNormalizeUrl(rawCacheUrl) : null;
+  
+  if (cacheUrl) {
+    console.log(`[generate-qa] Looking up cache with normalized URL: ${cacheUrl}`);
+    const { data: cached } = await supabase
+      .from('content_cache')
+      .select('content_text, source_type')
+      .eq('source_url', cacheUrl)
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle();
+```
+
+### Modifica 2: fetch-article-preview/index.ts (linee 1603-1625)
+
+Hardening del racing Firecrawl per LinkedIn:
+
+```typescript
+.then(async (res) => {
+  if (!res.ok) throw new Error(`Firecrawl ${res.status}`);
+  const data = await res.json();
+  const markdown = data.data?.markdown || data.markdown;
+  
+  // HARDENED: Higher threshold + validation for LinkedIn
+  const cleanedMarkdown = extractTextFromHtml(markdown || '');
+  const isValidContent = 
+    data.success && 
+    cleanedMarkdown.length > 400 &&  // Raised from 150
+    !isLinkedInAuthWallContent(cleanedMarkdown) &&
+    !isBotChallengeContent(cleanedMarkdown) &&
+    !isLinkedInTruncated(cleanedMarkdown);  // NEW check
+    
+  if (isValidContent) {
+    console.log(`[Race] 🏆 Firecrawl WINNER: ${cleanedMarkdown.length} chars`);
+    // ... rest of success handling
   }
-  setDraggedIndex(null);
-};
+  throw new Error('Firecrawl insufficient or truncated');
+})
 ```
 
-**Nel MediaItem** (layout compatto):
-```typescript
-<div
-  draggable
-  onDragStart={(e) => handleDragStart(e, index)}
-  onDragOver={(e) => handleDragOver(e, index)}
-  onDrop={(e) => handleDrop(e, index)}
-  className={cn(
-    containerClasses,
-    draggedIndex === index && "opacity-50 ring-2 ring-primary"
-  )}
->
-```
+### Modifica 3: Aggiungere helper function
 
-**Nel hook useMediaUpload** - aggiungere metodo `reorderMedia`:
+In `fetch-article-preview/index.ts` (dopo `isLinkedInAuthWallContent`):
+
 ```typescript
-const reorderMedia = (fromIndex: number, toIndex: number) => {
-  setUploadedMedia(prev => {
-    const result = [...prev];
-    const [removed] = result.splice(fromIndex, 1);
-    result.splice(toIndex, 0, removed);
-    // Update order_idx
-    return result.map((m, i) => ({ ...m, order_idx: i }));
-  });
-};
+function isLinkedInTruncated(content: string): boolean {
+  if (!content) return false;
+  const trimmed = content.trim();
+  const truncationMarkers = [
+    '… Visualizza altro',
+    '...Visualizza altro',
+    '… See more', 
+    '...See more',
+    '…See more',
+    '…Visualizza altro',
+    '... see more',
+    '… see more'
+  ];
+  return truncationMarkers.some(marker => 
+    trimmed.toLowerCase().endsWith(marker.toLowerCase())
+  );
+}
 ```
 
 ---
 
-### Fix 3: MediaViewer - UI Moderna con Carousel Orizzontale
+## Impatto sugli altri flussi
 
-**File**: `src/components/media/MediaViewer.tsx`
-
-**Refactor completo** per UX moderna:
-
-```text
-Layout attuale (obsoleto):
-┌────────────────────────────────┐
-│ [X]                     1/3    │
-│                                │
-│     ┌─────────────────┐        │
-│     │    Media 1      │        │
-│     └─────────────────┘        │
-│ [<]                      [>]   │  ← Frecce laterali
-│     ┌─────────────────┐        │
-│     │    Media 2      │        │
-│     └─────────────────┘        │
-│                                │
-│ [ Action Bar ]                 │
-└────────────────────────────────┘
-
-Layout proposto (moderno):
-┌────────────────────────────────┐
-│ [X]                     1/3    │
-│                                │
-│  ← SWIPE ORIZZONTALE →         │
-│ ┌─────────────────────────────┐│
-│ │                             ││
-│ │       MEDIA FULLSCREEN      ││
-│ │       (uno per volta)       ││
-│ │                             ││
-│ └─────────────────────────────┘│
-│              ● ○ ○             │  ← Dots indicatori
-│                                │
-│ [ Action Bar ]                 │
-└────────────────────────────────┘
-```
-
-**Modifiche tecniche**:
-
-1. **Sostituire navigazione a frecce con snap-scroll orizzontale**:
-```typescript
-<div 
-  ref={scrollRef}
-  className="flex-1 flex overflow-x-auto snap-x snap-mandatory scrollbar-none"
-  onScroll={handleScroll}
->
-  {media.map((item, idx) => (
-    <div key={item.id} className="flex-shrink-0 w-full h-full snap-center flex items-center justify-center">
-      {item.type === 'image' ? (
-        <TransformWrapper ...>
-          <img src={item.url} className="max-w-full max-h-full object-contain" />
-        </TransformWrapper>
-      ) : (
-        <video src={item.url} controls autoPlay className="max-w-full max-h-full" />
-      )}
-    </div>
-  ))}
-</div>
-```
-
-2. **Rimuovere frecce laterali**, mantenere swipe-down-to-close
-
-3. **Aggiungere dots indicatori** sotto il media (non sopra):
-```typescript
-{media.length > 1 && (
-  <div className="absolute bottom-24 left-0 right-0 flex justify-center gap-1.5 z-20">
-    {media.map((_, idx) => (
-      <button
-        key={idx}
-        onClick={() => scrollToIndex(idx)}
-        className={cn(
-          "w-2 h-2 rounded-full transition-all",
-          idx === currentIndex ? "bg-white w-4" : "bg-white/40"
-        )}
-      />
-    ))}
-  </div>
-)}
-```
-
-4. **Sincronizzazione scroll → indice**:
-```typescript
-const handleScroll = () => {
-  const slideWidth = scrollRef.current?.offsetWidth || 0;
-  const scrollLeft = scrollRef.current?.scrollLeft || 0;
-  const newIndex = Math.round(scrollLeft / slideWidth);
-  if (newIndex !== currentIndex) {
-    setCurrentIndex(newIndex);
-  }
-};
-```
+| Piattaforma | Impatto |
+|-------------|---------|
+| YouTube | Nessuno - usa `youtubeId` come qaSourceRef |
+| Spotify | Nessuno - usa `spotifyId` come qaSourceRef |
+| Twitter | Nessuno - usa `tweetId` come qaSourceRef |
+| TikTok | Positivo - beneficia della normalizzazione URL |
+| Threads | Positivo - beneficia della normalizzazione URL |
+| Articoli generici | Positivo - beneficia della normalizzazione URL |
 
 ---
 
-## File da Modificare
+## Test di validazione
 
-| File | Modifica | Impatto |
-|------|----------|---------|
-| `src/components/feed/ImmersivePostCard.tsx` | Usare MediaGallery + sync con viewer | Alto |
-| `src/components/media/MediaPreviewTray.tsx` | Aggiungere drag & drop nativo | Medio |
-| `src/hooks/useMediaUpload.ts` | Aggiungere `reorderMedia()` | Basso |
-| `src/components/media/MediaViewer.tsx` | Refactor UI → carousel orizzontale | Alto |
+1. Condividere lo stesso post LinkedIn usato come test
+2. Verificare nei log che `generate-qa` trovi il contenuto in cache
+3. Verificare che il quiz contenga domande sul contenuto completo (es. "Rawit Studio", "Contrader", "NDA", ecc.)
+4. Testare con un nuovo link LinkedIn per verificare il flusso completo
 
 ---
 
-## Flusso Corretto dopo Fix
+## Rischio e rollback
 
-```text
-COMPOSER:
-1. Utente carica 3 immagini
-2. Miniature appaiono in riga orizzontale
-3. Utente trascina immagine 3 → posizione 1
-4. UI riflette nuovo ordine con feedback visivo
-5. Pubblicazione salva order_idx corretto
-
-FEED:
-1. Post con 3 media mostra CAROUSEL (non griglia)
-2. Dots visibili in basso: ● ○ ○
-3. Contatore in alto: 1/3
-4. Swipe per navigare
-5. Tap apre MediaViewer
-
-MEDIA VIEWER:
-1. Apre sul media cliccato (sincronizzato)
-2. Swipe orizzontale per navigare
-3. Dots in basso mostrano posizione
-4. Zoom disponibile per immagini
-5. Chiusura sincronizza posizione con feed carousel
-```
-
----
-
-## Vincoli Rispettati
-
-✅ Nessuna modifica a Gate logic (URL/Reshare/Commenti)
-✅ Nessuna modifica a Edge Functions
-✅ Nessuna modifica a database schema
-✅ UI coerente con visual identity esistente
-✅ Performance: snap-scroll nativo CSS, no librerie drag-drop pesanti
+- **Rischio basso**: le modifiche sono additive e non rimuovono funzionalità esistenti
+- **Rollback**: se problemi, revertire le 3 modifiche ai file edge functions
