@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { X, Heart, MessageCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Heart, MessageCircle, Bookmark, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
 import { useMediaReactions, useToggleMediaReaction } from '@/hooks/useMediaReactions';
 import { MediaCommentsSheet } from './MediaCommentsSheet';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
+import { Logo } from '@/components/ui/logo';
 
 interface Media {
   id: string;
@@ -15,13 +16,26 @@ interface Media {
   height?: number;
 }
 
+interface PostActions {
+  onShare?: () => void;
+  onHeart?: () => void;
+  onComment?: () => void;
+  onBookmark?: () => void;
+  hasHearted?: boolean;
+  hasBookmarked?: boolean;
+  heartsCount?: number;
+  commentsCount?: number;
+  sharesCount?: number;
+}
+
 interface MediaViewerProps {
   media: Media[];
   initialIndex?: number;
   onClose: () => void;
+  postActions?: PostActions;
 }
 
-export const MediaViewer = ({ media, initialIndex = 0, onClose }: MediaViewerProps) => {
+export const MediaViewer = ({ media, initialIndex = 0, onClose, postActions }: MediaViewerProps) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [showComments, setShowComments] = useState(false);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
@@ -104,7 +118,8 @@ export const MediaViewer = ({ media, initialIndex = 0, onClose }: MediaViewerPro
     setIsZoomed(ref.state.scale > 1.05);
   };
 
-  const handleLike = (e: React.MouseEvent) => {
+  // Legacy media-level like (used when no postActions provided)
+  const handleMediaLike = (e: React.MouseEvent) => {
     e.stopPropagation();
     haptics.light();
     toggleReaction.mutate({
@@ -115,8 +130,42 @@ export const MediaViewer = ({ media, initialIndex = 0, onClose }: MediaViewerPro
 
   const handleCommentsClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setShowComments(true);
+    if (postActions?.onComment) {
+      postActions.onComment();
+    } else {
+      setShowComments(true);
+    }
   };
+
+  const handleShareClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    haptics.light();
+    postActions?.onShare?.();
+  };
+
+  const handleHeartClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    haptics.light();
+    if (postActions?.onHeart) {
+      postActions.onHeart();
+    } else {
+      handleMediaLike(e);
+    }
+  };
+
+  const handleBookmarkClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    haptics.light();
+    postActions?.onBookmark?.();
+  };
+
+  // Determine display values based on mode
+  const usePostActions = !!postActions;
+  const hasHearted = usePostActions ? postActions.hasHearted : reactions?.likedByMe;
+  const heartsCount = usePostActions ? (postActions.heartsCount ?? 0) : (reactions?.likesCount ?? 0);
+  const commentsCount = usePostActions ? (postActions.commentsCount ?? 0) : 0;
+  const hasBookmarked = postActions?.hasBookmarked ?? false;
+  const sharesCount = postActions?.sharesCount ?? 0;
 
   return (
     <>
@@ -218,30 +267,82 @@ export const MediaViewer = ({ media, initialIndex = 0, onClose }: MediaViewerPro
           </div>
         )}
 
-        {/* Actions Bar */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 flex items-center gap-6 bg-gradient-to-t from-black/80 to-transparent z-10">
-          <button
-            onClick={handleLike}
-            className="flex items-center gap-2 text-white hover:scale-110 transition-transform"
-          >
-            <Heart 
+        {/* Actions Bar - matching ImmersivePostCard style */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent z-10">
+          <div className="flex items-center justify-between gap-6">
+            
+            {/* Primary Share Button - Pill shape (only show when postActions provided) */}
+            {usePostActions && postActions.onShare && (
+              <button 
+                onClick={handleShareClick}
+                className="h-11 px-5 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-full shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              >
+                <Logo variant="icon" size="sm" className="h-5 w-5" />
+                <span className="text-sm font-semibold leading-none">Condividi</span>
+                {sharesCount > 0 && (
+                  <span className="text-xs opacity-70">({sharesCount})</span>
+                )}
+              </button>
+            )}
+
+            {/* Action Icons - Uniform w-6 h-6 */}
+            <div 
               className={cn(
-                "w-6 h-6",
-                reactions?.likedByMe && "fill-red-500 text-red-500"
-              )} 
-            />
-            {reactions?.likesCount ? (
-              <span className="text-sm font-medium">{reactions.likesCount}</span>
-            ) : null}
-          </button>
-          
-          <button
-            onClick={handleCommentsClick}
-            className="flex items-center gap-2 text-white hover:scale-110 transition-transform"
-          >
-            <MessageCircle className="w-6 h-6" />
-            <span className="text-sm font-medium">Commenta</span>
-          </button>
+                "flex items-center gap-4 h-11",
+                !usePostActions && "w-full justify-center"
+              )}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              
+              {/* Like */}
+              <button 
+                className="flex items-center justify-center gap-1.5 h-full select-none"
+                onClick={handleHeartClick}
+              >
+                <Heart 
+                  className={cn(
+                    "w-6 h-6 transition-transform active:scale-90",
+                    hasHearted ? "text-red-500 fill-red-500" : "text-white"
+                  )}
+                  fill={hasHearted ? "currentColor" : "none"}
+                />
+                {heartsCount > 0 && (
+                  <span className="text-sm font-bold text-white select-none">{heartsCount}</span>
+                )}
+              </button>
+
+              {/* Comments */}
+              <button 
+                className="flex items-center justify-center gap-1.5 h-full select-none"
+                onClick={handleCommentsClick}
+              >
+                <MessageCircle className="w-6 h-6 text-white transition-transform active:scale-90" />
+                {(usePostActions && commentsCount > 0) && (
+                  <span className="text-sm font-bold text-white select-none">{commentsCount}</span>
+                )}
+                {!usePostActions && (
+                  <span className="text-sm font-medium text-white">Commenta</span>
+                )}
+              </button>
+
+              {/* Bookmark (only show when postActions provided) */}
+              {usePostActions && postActions.onBookmark && (
+                <button 
+                  className="flex items-center justify-center h-full"
+                  onClick={handleBookmarkClick}
+                >
+                  <Bookmark 
+                    className={cn(
+                      "w-6 h-6 transition-transform active:scale-90", 
+                      hasBookmarked ? "text-blue-400 fill-blue-400" : "text-white"
+                    )}
+                    fill={hasBookmarked ? "currentColor" : "none"}
+                  />
+                </button>
+              )}
+
+            </div>
+          </div>
         </div>
 
         {/* Swipe hint when not zoomed */}
@@ -252,8 +353,8 @@ export const MediaViewer = ({ media, initialIndex = 0, onClose }: MediaViewerPro
         )}
       </div>
 
-      {/* Media Comments Sheet */}
-      {showComments && (
+      {/* Media Comments Sheet (only used in legacy mode) */}
+      {showComments && !usePostActions && (
         <MediaCommentsSheet
           media={currentMedia}
           isOpen={showComments}
