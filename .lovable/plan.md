@@ -1,186 +1,185 @@
 
+# Piano: Risolvere Definitivamente UX Trascrizione Video
 
-# Piano: Migliorare Feedback Visivo Trascrizione Video
+## Problema Identificato
 
-## Problemi Identificati
+L'analisi approfondita ha rivelato **3 bug critici** che causano l'esperienza pessima:
 
-### 1. **Toast "Trascrizione in corso..." sparisce dopo 5 secondi**
-L'unico feedback e' un toast temporaneo che sparisce rapidamente. L'utente non ha modo di sapere se il processo e' ancora attivo.
+### 1. Timeout `isTranscribing` troppo breve (500ms)
+```typescript
+// ComposerModal.tsx:138
+setTimeout(() => setIsTranscribing(false), 500);
+```
+Il flag locale `isTranscribing` si resetta dopo **500ms**, ma l'aggiornamento al database puo' impiegare 1-2 secondi. Risultato: il pulsante "Trascrivi" si riabilita mentre lo stato e' ancora `idle` nel DB, causando doppi click.
 
-### 2. **Nessun indicatore di progresso persistente**
-Il pulsante "Trascrivi" diventa opaco (disabled) ma non c'e' alcun indicatore che mostri che il processo e' in corso.
+### 2. Il pulsante Pubblica non e' bloccato dalla trascrizione
+```typescript
+// MediaPreviewTray.tsx:141
+const isPending = item.extracted_status === 'pending' || isTranscribing;
+```
+`isPending` e' calcolato per ogni singolo item, ma il **pulsante Pubblica** dipende da `hasPendingTranscription` che legge solo dallo stato database, non dal flag locale `isTranscribing`. Quando `isTranscribing` si resetta (500ms) e il polling non ha ancora letto `pending` dal DB, il pulsante Pubblica resta cliccabile.
 
-### 3. **Pulsante "Pubblica" sempre attivo durante trascrizione**
-L'utente puo' premere "Pubblica" e potenzialmente interrompere il processo di trascrizione.
-
-### 4. **Overlay "pending" poco visibile**
-L'overlay di elaborazione (loader sulla preview) e' piccolo e non comunica chiaramente lo stato.
-
-### 5. **Messaggio sotto la preview troppo discreto**
-Il testo "Stiamo mettendo a fuoco il testo..." e' piccolo e poco visibile.
+### 3. Errori non mostrati all'utente
+Quando Deepgram o la generazione quiz fallisce, il toast e' generico ("Errore generazione quiz") senza dettagli. L'utente non capisce cosa e' successo.
 
 ---
 
-## Soluzioni Proposte
+## Soluzioni
 
-### A. **Bloccare "Pubblica" durante trascrizione attiva**
+### Fix 1: Stato `isTranscribing` persistente fino al cambio DB
 
-```typescript
-// In ComposerModal.tsx, aggiornare canPublish
-const hasPendingTranscription = uploadedMedia.some(m => 
-  m.extracted_status === 'pending' && m.extracted_kind === 'transcript'
-);
+Attualmente: `isTranscribing` si resetta dopo 500ms.
 
-const canPublish = !hasPendingExtraction && 
-  !hasPendingTranscription &&  // <-- NUOVO
-  (content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!quotedPost) && 
-  intentWordsMet;
-```
-
-### B. **Mostrare un overlay persistente durante la trascrizione**
-
-Aggiungere un overlay full-modal (ma non bloccante) che mostra lo stato della trascrizione:
+Nuovo comportamento: `isTranscribing` resta `true` finche' il media non transita a `done` o `failed`.
 
 ```typescript
-// In ComposerModal.tsx, nuovo componente
-{hasPendingTranscription && (
-  <div className="absolute inset-x-0 top-0 z-40 bg-gradient-to-b from-black/80 to-transparent pt-safe pb-6 px-4">
-    <div className="flex items-center gap-3 bg-primary/20 border border-primary/30 rounded-xl px-4 py-3">
-      <Loader2 className="w-5 h-5 animate-spin text-primary" />
-      <div className="flex-1">
-        <p className="text-sm font-medium text-white">Trascrizione in corso...</p>
-        <p className="text-xs text-muted-foreground">Il video viene analizzato, potrebbe richiedere fino a 60 secondi</p>
-      </div>
-    </div>
-  </div>
-)}
-```
+// ComposerModal.tsx - Nuovo approccio
+const [transcribingMediaId, setTranscribingMediaId] = useState<string | null>(null);
 
-### C. **Pulsante Pubblica con stato visivo**
-
-Mostrare stato diverso quando trascrizione e' in corso:
-
-```typescript
-// Pulsante Pubblica con feedback
-<Button 
-  onClick={handlePublish}
-  disabled={!canPublish || hasPendingTranscription}
-  className={cn(
-    // ... classi esistenti,
-    hasPendingTranscription && "opacity-50"
-  )}
->
-  {hasPendingTranscription ? (
-    <>
-      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-      Attendere...
-    </>
-  ) : (
-    'Pubblica'
-  )}
-</Button>
-```
-
-### D. **Progress Indicator nella MediaPreviewTray**
-
-Migliorare l'overlay di pending con un messaggio piu' chiaro:
-
-```typescript
-// In MediaPreviewTray.tsx, sostituire l'overlay pending
-{isPending && (
-  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-10 gap-3">
-    <div className="bg-black/80 backdrop-blur-sm rounded-full p-4">
-      <Loader2 className="w-8 h-8 animate-spin text-primary" />
-    </div>
-    <div className="text-center px-4">
-      <p className="text-white text-sm font-medium">
-        {item.extracted_kind === 'transcript' ? 'Trascrizione in corso' : 'Estrazione testo'}
-      </p>
-      <p className="text-white/60 text-xs mt-1">
-        {item.extracted_kind === 'transcript' ? 'Circa 30-60 secondi' : 'Pochi secondi'}
-      </p>
-    </div>
-  </div>
-)}
-```
-
-### E. **Banner persistente sotto la preview (piu' visibile)**
-
-```typescript
-// In MediaPreviewTray.tsx, migliorare il feedback
-{media.some(m => m.extracted_status === 'pending') && (
-  <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 rounded-lg px-3 py-2.5">
-    <Loader2 className="w-5 h-5 animate-spin text-primary" />
-    <div className="flex-1">
-      <span className="text-sm font-medium text-primary">
-        {media.find(m => m.extracted_kind === 'transcript') 
-          ? 'Trascrizione video in corso...'
-          : 'Estrazione testo in corso...'}
-      </span>
-      <p className="text-xs text-muted-foreground mt-0.5">
-        Non chiudere questa schermata
-      </p>
-    </div>
-  </div>
-)}
-```
-
-### F. **Toast di conferma finale**
-
-Quando la trascrizione termina con successo, mostrare un toast chiaro:
-
-```typescript
-// In ComposerModal.tsx, useEffect per monitorare cambio stato
-useEffect(() => {
-  const justCompleted = uploadedMedia.find(m => 
-    m.extracted_status === 'done' && 
-    m.extracted_kind === 'transcript' &&
-    m.extracted_text
-  );
-  
-  if (justCompleted && isTranscribing) {
-    toast.success('Trascrizione completata! Ora puoi pubblicare.');
-    setIsTranscribing(false);
+const handleRequestTranscription = async (mediaId: string) => {
+  if (transcribingMediaId) return; // Guard
+  setTranscribingMediaId(mediaId);
+  const success = await requestTranscription(mediaId);
+  if (!success) {
+    setTranscribingMediaId(null); // Solo se fallisce subito
+    toast.error('Impossibile avviare la trascrizione');
   }
-}, [uploadedMedia]);
+};
+
+// Reset quando il media completa (in useEffect esistente)
+useEffect(() => {
+  if (transcribingMediaId) {
+    const media = uploadedMedia.find(m => m.id === transcribingMediaId);
+    if (media && (media.extracted_status === 'done' || media.extracted_status === 'failed')) {
+      setTranscribingMediaId(null); // Reset solo quando DB conferma
+    }
+  }
+}, [uploadedMedia, transcribingMediaId]);
+```
+
+### Fix 2: Blocco corretto di Trascrivi + Pubblica
+
+Usare `transcribingMediaId` (flag locale) combinato con `hasPendingTranscription` (da DB):
+
+```typescript
+// Blocco ENTRAMBI i pulsanti
+const isTranscriptionInProgress = !!transcribingMediaId || hasPendingTranscription;
+
+// Pulsante Pubblica
+<Button disabled={!canPublish || isLoading || isTranscriptionInProgress}>
+  {isTranscriptionInProgress ? (
+    <><Loader2 className="animate-spin" /> Attendere...</>
+  ) : 'Pubblica'}
+</Button>
+
+// MediaPreviewTray riceve il flag
+<MediaPreviewTray
+  isTranscribing={isTranscriptionInProgress}
+  // ...
+/>
+```
+
+### Fix 3: Messaggi di errore dettagliati
+
+Catturare e mostrare errori specifici sia dalla trascrizione che dal quiz:
+
+```typescript
+// useMediaUpload.ts - Ritornare dettagli errore
+const requestTranscription = async (mediaId: string): Promise<{ 
+  success: boolean; 
+  error?: string; 
+  errorCode?: string 
+}> => {
+  // ...
+  const { data, error } = await supabase.functions.invoke('extract-media-text', {...});
+  if (error || data?.error) {
+    return { 
+      success: false, 
+      error: data?.error || error.message,
+      errorCode: data?.errorCode 
+    };
+  }
+  return { success: true };
+};
+
+// ComposerModal.tsx - Mostrare errori specifici
+const result = await requestTranscription(mediaId);
+if (!result.success) {
+  const errorMessages: Record<string, string> = {
+    'video_too_long': 'Video troppo lungo (max 3 minuti)',
+    'file_too_large': 'File troppo pesante per la trascrizione',
+    'service_unavailable': 'Servizio temporaneamente non disponibile',
+    'transcription_failed': 'Trascrizione fallita. Puoi pubblicare senza test.'
+  };
+  toast.error(errorMessages[result.errorCode || ''] || result.error || 'Errore trascrizione');
+}
+```
+
+### Fix 4: Consenti publish senza test se fallisce
+
+Quando la trascrizione o il quiz fallisce, permettere la pubblicazione con avviso:
+
+```typescript
+// ComposerModal.tsx - handleMediaGateFlow
+if (result.error || !result.questions) {
+  // NON bloccare - consenti publish senza test
+  toast.warning('Impossibile generare il test. Puoi pubblicare comunque.', {
+    duration: 5000
+  });
+  // Resetta stati e procedi alla pubblicazione diretta
+  setIsGeneratingQuiz(false);
+  await publishPost(); // Pubblica senza gate
+  return;
+}
 ```
 
 ---
 
-## Riepilogo UX Migliorata
-
-| Momento | Prima | Dopo |
-|---------|-------|------|
-| Clicca "Trascrivi" | Toast che sparisce | Toast + Overlay persistente |
-| Durante trascrizione | Solo loader piccolo | Banner visibile + Pulsante "Attendere..." |
-| Pulsante Pubblica | Sempre attivo | Disabilitato con testo "Attendere..." |
-| Fine trascrizione | Badge "Pronto" discreto | Toast successo + Badge |
-| Errore trascrizione | Badge "Errore" | Toast errore + Badge |
-
----
-
-## Flusso Utente Corretto
+## Flusso UX Corretto
 
 ```text
-1. Utente carica video
-2. Vede anteprima con pulsante "Trascrivi"
-3. Clicca "Trascrivi"
-4. IMMEDIATAMENTE:
-   - Toast "Trascrizione avviata"
-   - Overlay sul video con spinner e "Trascrizione in corso (30-60s)"
-   - Banner sotto la preview "Non chiudere questa schermata"
-   - Pulsante Pubblica → "Attendere..."
-5. DURANTE (polling ogni 2s):
-   - Tutto resta visibile e persistente
-   - Utente capisce chiaramente che deve aspettare
-6. FINE SUCCESSO:
-   - Toast "Trascrizione completata!"
-   - Badge verde "Pronto"
-   - Pulsante torna "Pubblica"
-7. FINE ERRORE:
-   - Toast rosso con messaggio specifico
-   - Badge rosso "Errore"
-   - Pulsante torna "Pubblica" (l'utente puo' riprovare o pubblicare senza trascrizione)
+Stato: IDLE
+┌─────────────────────────────────────┐
+│  [Video Preview]                    │
+│  └ [Trascrivi]  (cliccabile)        │
+│                                     │
+│  [      Pubblica      ]  (attivo)   │
+└─────────────────────────────────────┘
+                 │
+                 ▼ Clicca "Trascrivi"
+                 
+Stato: TRANSCRIBING (immediato, locale)
+┌─────────────────────────────────────┐
+│  [Video Preview]                    │
+│  ├ OVERLAY: Loader + "30-60 sec"    │
+│  └ [Trascrivi]  (disabilitato)      │
+│                                     │
+│  Banner: "Non chiudere schermata"   │
+│                                     │
+│  [Loader + Attendere...]  (disab.)  │
+└─────────────────────────────────────┘
+                 │
+                 ▼ Polling ogni 2s
+                 
+Stato: DONE (da DB)
+┌─────────────────────────────────────┐
+│  Toast: "Trascrizione completata!"  │
+│  [Video Preview]                    │
+│  └ Badge verde "Pronto"             │
+│                                     │
+│  [      Pubblica      ]  (attivo)   │
+└─────────────────────────────────────┘
+
+Stato: FAILED (da DB)
+┌─────────────────────────────────────┐
+│  Toast: "Errore: [motivo specifico]"│
+│  Toast: "Puoi pubblicare comunque"  │
+│  [Video Preview]                    │
+│  └ Badge rosso "Errore"             │
+│  └ [Riprova] (opzionale)            │
+│                                     │
+│  [      Pubblica      ]  (attivo)   │
+└─────────────────────────────────────┘
 ```
 
 ---
@@ -189,6 +188,91 @@ useEffect(() => {
 
 | File | Modifica |
 |------|----------|
-| `src/components/composer/ComposerModal.tsx` | Bloccare Pubblica durante trascrizione, aggiungere banner header, toast finale |
-| `src/components/media/MediaPreviewTray.tsx` | Overlay pending migliorato, banner sotto preview piu' visibile |
+| `src/components/composer/ComposerModal.tsx` | 1. Nuovo stato `transcribingMediaId` persistente; 2. Blocco Pubblica con `isTranscriptionInProgress`; 3. Toast errori dettagliati; 4. Publish senza test se fallisce |
+| `src/components/media/MediaPreviewTray.tsx` | 1. Usare `isTranscribing` passato dal parent per disabilitare tutti i controlli; 2. Badge "Riprova" se fallito |
+| `src/hooks/useMediaUpload.ts` | 1. `requestTranscription` ritorna `{ success, error, errorCode }`; 2. Await dell'invoke (non fire-and-forget) per catturare errori immediati |
 
+---
+
+## Dettagli Tecnici
+
+### useMediaUpload.ts - Modifiche
+
+```typescript
+// PRIMA (fire-and-forget)
+supabase.functions.invoke('extract-media-text', {...}).catch(err => {...});
+return true;
+
+// DOPO (await + errori)
+const { data, error } = await supabase.functions.invoke('extract-media-text', {...});
+if (error) {
+  return { success: false, error: error.message };
+}
+if (data?.error) {
+  return { success: false, error: data.error, errorCode: data.error };
+}
+return { success: true };
+```
+
+### ComposerModal.tsx - Gestione Stato Persistente
+
+```typescript
+// Nuovo stato
+const [transcribingMediaId, setTranscribingMediaId] = useState<string | null>(null);
+
+// Flag combinato per UI
+const isTranscriptionInProgress = !!transcribingMediaId || hasPendingTranscription;
+
+// Reset quando completa
+useEffect(() => {
+  if (!transcribingMediaId) return;
+  const media = uploadedMedia.find(m => m.id === transcribingMediaId);
+  if (media?.extracted_status === 'done') {
+    toast.success('Trascrizione completata!');
+    setTranscribingMediaId(null);
+  }
+  if (media?.extracted_status === 'failed') {
+    toast.error('Trascrizione fallita. Puoi pubblicare comunque.');
+    setTranscribingMediaId(null);
+  }
+}, [uploadedMedia, transcribingMediaId]);
+
+// Handler aggiornato
+const handleRequestTranscription = async (mediaId: string) => {
+  if (transcribingMediaId) return;
+  setTranscribingMediaId(mediaId);
+  toast.info('Trascrizione avviata...');
+  
+  const result = await requestTranscription(mediaId);
+  if (!result.success) {
+    setTranscribingMediaId(null);
+    const msg = {
+      'video_too_long': 'Video troppo lungo (max 3 minuti)',
+      'file_too_large': 'File troppo pesante',
+      'service_unavailable': 'Servizio non disponibile'
+    }[result.errorCode || ''] || 'Impossibile avviare la trascrizione';
+    toast.error(msg);
+  }
+  // Se success, NON resettare - aspetta polling
+};
+```
+
+### handleMediaGateFlow - Fallback Publish
+
+```typescript
+const handleMediaGateFlow = async (media: typeof uploadedMedia[0]) => {
+  // ... generazione quiz ...
+  
+  if (result.error || !result.questions) {
+    // NUOVO: Non bloccare, consenti publish
+    toast.warning('Test non disponibile. Puoi pubblicare comunque.');
+    setIsGeneratingQuiz(false);
+    await publishPost(); // Procedi senza gate
+    return;
+  }
+  
+  // Quiz valido - mostra
+  setQuizData({...});
+  setShowQuiz(true);
+};
+```
