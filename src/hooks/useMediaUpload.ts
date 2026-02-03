@@ -19,38 +19,6 @@ interface MediaFile {
   extracted_kind?: 'ocr' | 'transcript' | null;
 }
 
-// Heuristica per determinare se un'immagine è probabilmente uno screenshot
-function shouldPerformOCR(file: File, width: number, height: number): boolean {
-  // 1. Aspect ratio check - screenshot tipici
-  const ratio = width / height;
-  const screenshotRatios = [
-    { min: 0.55, max: 0.65 },   // 9:16 (mobile vertical)
-    { min: 1.5, max: 1.9 },     // 3:2, 16:9 (desktop)
-    { min: 2.0, max: 2.5 },     // 19.5:9 (mobile moderno)
-    { min: 0.7, max: 0.8 },     // 3:4 (tablet)
-  ];
-  
-  const hasScreenshotRatio = screenshotRatios.some(
-    r => ratio >= r.min && ratio <= r.max
-  );
-  
-  // 2. Resolution check - screenshot hanno risoluzioni tipiche (aggiornato con dispositivi moderni)
-  const typicalWidths = [1080, 1170, 1284, 1290, 1179, 1242, 1440, 1920, 2048, 2436, 2560, 2732, 3024];
-  const hasTypicalWidth = typicalWidths.some(w => Math.abs(width - w) < 50);
-  
-  // 3. File size heuristic - screenshot sono tipicamente > 200KB (supporta JPEG e PNG)
-  const isLargeImage = file.size > 200_000;
-  
-  // 4. PDF sempre OCR
-  const isPDF = file.type === 'application/pdf';
-  
-  if (isPDF) return true;
-  
-  // Decision: basta 1 indicatore per tentare OCR (fail-open, il costo di falsi positivi è basso)
-  const score = [hasScreenshotRatio, hasTypicalWidth, isLargeImage].filter(Boolean).length;
-  return score >= 1;
-}
-
 // Estrae la durata di un video
 async function getVideoDuration(file: File): Promise<number | undefined> {
   return new Promise((resolve) => {
@@ -110,21 +78,18 @@ export const useMediaUpload = () => {
         let width: number | undefined;
         let height: number | undefined;
         let duration_sec: number | undefined;
-        let performOCR = false;
 
         if (type === 'image') {
           const img = await createImageBitmap(file);
           width = img.width;
           height = img.height;
-          // Heuristica OCR
-          performOCR = shouldPerformOCR(file, width, height);
-          console.log(`[useMediaUpload] Image ${width}x${height}, shouldOCR: ${performOCR}`);
+          console.log(`[useMediaUpload] Image ${width}x${height}`);
         } else if (type === 'video') {
           duration_sec = await getVideoDuration(file);
           console.log(`[useMediaUpload] Video duration: ${duration_sec}s`);
         }
 
-        // Insert into media table
+        // Insert into media table - always start with 'idle' status (on-demand extraction)
         const { data: mediaData, error: mediaError } = await supabase
           .from('media')
           .insert({
@@ -135,28 +100,13 @@ export const useMediaUpload = () => {
             width,
             height,
             duration_sec,
-            // Se immagine screenshot-like, setta pending per OCR
-            extracted_status: performOCR ? 'pending' : 'idle',
-            extracted_kind: performOCR ? 'ocr' : null
+            extracted_status: 'idle',
+            extracted_kind: null
           })
           .select()
           .single();
 
         if (mediaError) throw mediaError;
-
-        // Trigger OCR in background (fire and forget) se necessario
-        if (performOCR) {
-          console.log(`[useMediaUpload] Triggering OCR for media ${mediaData.id}`);
-          supabase.functions.invoke('extract-media-text', {
-            body: { 
-              mediaId: mediaData.id, 
-              mediaUrl: publicUrl, 
-              extractionType: 'ocr' 
-            }
-          }).catch(err => {
-            console.error('[useMediaUpload] OCR trigger error:', err);
-          });
-        }
 
         uploaded.push({
           id: mediaData.id,
@@ -167,8 +117,8 @@ export const useMediaUpload = () => {
           width,
           height,
           duration_sec,
-          extracted_status: performOCR ? 'pending' : 'idle',
-          extracted_kind: performOCR ? 'ocr' : null
+          extracted_status: 'idle',
+          extracted_kind: null
         });
       }
 
@@ -242,6 +192,46 @@ export const useMediaUpload = () => {
       return false;
     }
   };
+
+  // Trigger image OCR manually (on-demand)
+  const requestOCR = async (mediaId: string) => {
+    const media = uploadedMedia.find(m => m.id === mediaId);
+    if (!media || media.type !== 'image') return false;
+    
+    // Update state to pending
+    setUploadedMedia(prev => prev.map(m => 
+      m.id === mediaId 
+        ? { ...m, extracted_status: 'pending' as const, extracted_kind: 'ocr' as const }
+        : m
+    ));
+    
+    // Update DB
+    await supabase.from('media').update({
+      extracted_status: 'pending',
+      extracted_kind: 'ocr'
+    }).eq('id', mediaId);
+    
+    // Trigger OCR
+    try {
+      console.log(`[useMediaUpload] Triggering OCR for media ${mediaId}`);
+      await supabase.functions.invoke('extract-media-text', {
+        body: { 
+          mediaId, 
+          mediaUrl: media.url, 
+          extractionType: 'ocr' 
+        }
+      });
+      return true;
+    } catch (err) {
+      console.error('[useMediaUpload] OCR trigger error:', err);
+      setUploadedMedia(prev => prev.map(m => 
+        m.id === mediaId 
+          ? { ...m, extracted_status: 'failed' as const }
+          : m
+      ));
+      return false;
+    }
+  };
   
   // Poll extraction status
   const refreshMediaStatus = async (mediaId: string) => {
@@ -282,6 +272,7 @@ export const useMediaUpload = () => {
     clearMedia,
     isUploading,
     requestTranscription,
+    requestOCR,
     refreshMediaStatus
   };
 };

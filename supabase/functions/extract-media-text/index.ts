@@ -169,13 +169,29 @@ serve(async (req) => {
       if (!whisperResponse.ok) {
         const errorText = await whisperResponse.text();
         console.error(`[extract-media-text] Whisper API error: ${whisperResponse.status}`, errorText);
+        
+        // Parse error to detect quota issues
+        let errorData;
+        try { errorData = JSON.parse(errorText); } catch {}
+        
+        const isQuotaError = whisperResponse.status === 429 || 
+                             errorData?.error?.code === 'insufficient_quota';
+        
+        const userFriendlyError = isQuotaError 
+          ? 'Servizio temporaneamente non disponibile'
+          : `Transcription failed: ${whisperResponse.status}`;
+        
         await supabase.from('media').update({
           extracted_status: 'failed',
-          extracted_meta: { error: `Whisper API error ${whisperResponse.status}`, provider: 'whisper-1' }
+          extracted_meta: { 
+            error: userFriendlyError, 
+            provider: 'whisper-1',
+            is_quota_error: isQuotaError 
+          }
         }).eq('id', mediaId);
         
         return new Response(
-          JSON.stringify({ success: false, error: 'Transcription failed' }),
+          JSON.stringify({ success: false, error: userFriendlyError, isQuotaError }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
