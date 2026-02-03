@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,6 +13,7 @@ interface MediaFile {
   height?: number;
   duration_sec?: number;
   thumbnail_url?: string;
+  order_idx?: number;
   // Extraction fields
   extracted_status?: 'idle' | 'pending' | 'done' | 'failed';
   extracted_text?: string | null;
@@ -38,6 +39,7 @@ async function getVideoDuration(file: File): Promise<number | undefined> {
 export const useMediaUpload = () => {
   const { user } = useAuth();
   const [isUploading, setIsUploading] = useState(false);
+  const [isBatchExtracting, setIsBatchExtracting] = useState(false);
   const [uploadedMedia, setUploadedMedia] = useState<MediaFile[]>([]);
 
   const uploadMedia = async (files: File[], type: 'image' | 'video'): Promise<MediaFile[]> => {
@@ -117,6 +119,7 @@ export const useMediaUpload = () => {
           width,
           height,
           duration_sec,
+          order_idx: uploadedMedia.length + uploaded.length, // Assign order based on upload sequence
           extracted_status: 'idle',
           extracted_kind: null
         });
@@ -318,14 +321,90 @@ export const useMediaUpload = () => {
     setUploadedMedia([]);
   };
 
+  // Batch extraction for multiple media (parallel OCR/transcription)
+  const requestBatchExtraction = async () => {
+    const extractableMedia = uploadedMedia.filter(m => 
+      (m.extracted_status === 'idle' || m.extracted_status === 'failed') &&
+      (m.type === 'image' || (m.type === 'video' && (!m.duration_sec || m.duration_sec <= 180)))
+    );
+    
+    if (extractableMedia.length === 0) return;
+    
+    setIsBatchExtracting(true);
+    
+    // Set all to pending locally first
+    setUploadedMedia(prev => prev.map(m => {
+      const isExtractable = extractableMedia.some(e => e.id === m.id);
+      if (!isExtractable) return m;
+      return { 
+        ...m, 
+        extracted_status: 'pending' as const, 
+        extracted_kind: m.type === 'video' ? 'transcript' as const : 'ocr' as const 
+      };
+    }));
+    
+    // Update DB in parallel
+    await Promise.allSettled(
+      extractableMedia.map(m => 
+        supabase.from('media').update({
+          extracted_status: 'pending',
+          extracted_kind: m.type === 'video' ? 'transcript' : 'ocr'
+        }).eq('id', m.id)
+      )
+    );
+    
+    // Trigger extraction for each media in parallel
+    await Promise.allSettled(
+      extractableMedia.map(m => 
+        supabase.functions.invoke('extract-media-text', {
+          body: { 
+            mediaId: m.id, 
+            mediaUrl: m.url, 
+            extractionType: m.type === 'video' ? 'transcript' : 'ocr',
+            durationSec: m.duration_sec
+          }
+        })
+      )
+    );
+    
+    // Polling will handle status updates - don't reset isBatchExtracting until all done
+    // Check is done in the component via hasPendingAny
+  };
+
+  // Get aggregated extracted text from all media (in order)
+  const getAggregatedExtractedText = (): string => {
+    const mediaWithText = uploadedMedia
+      .filter(m => m.extracted_status === 'done' && m.extracted_text)
+      .sort((a, b) => (a.order_idx ?? 0) - (b.order_idx ?? 0));
+    
+    if (mediaWithText.length === 0) return '';
+    
+    return mediaWithText
+      .map((m, i) => `[Media ${i + 1} - ${m.type === 'video' ? 'Video' : 'Immagine'}] ${m.extracted_text}`)
+      .join('\n\n');
+  };
+
+  // Reset batch extracting when all pending are done
+  useEffect(() => {
+    if (!isBatchExtracting) return;
+    
+    const hasPending = uploadedMedia.some(m => m.extracted_status === 'pending');
+    if (!hasPending) {
+      setIsBatchExtracting(false);
+    }
+  }, [uploadedMedia, isBatchExtracting]);
+
   return {
     uploadMedia,
     uploadedMedia,
     removeMedia,
     clearMedia,
     isUploading,
+    isBatchExtracting,
     requestTranscription,
     requestOCR,
-    refreshMediaStatus
+    refreshMediaStatus,
+    requestBatchExtraction,
+    getAggregatedExtractedText
   };
 };

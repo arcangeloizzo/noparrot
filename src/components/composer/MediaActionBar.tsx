@@ -7,8 +7,10 @@ import { haptics } from '@/lib/haptics';
 interface MediaActionBarProps {
   onFilesSelected: (files: File[], type: 'image' | 'video') => void;
   disabled?: boolean;
-  maxImages?: number;
-  maxVideos?: number;
+  /** Maximum total media items (images + videos combined) */
+  maxTotalMedia?: number;
+  /** Current number of uploaded media items */
+  currentMediaCount?: number;
   characterCount?: number;
   maxCharacters?: number;
   onFormat?: (format: 'bold' | 'italic' | 'underline') => void;
@@ -19,8 +21,8 @@ interface MediaActionBarProps {
 export const MediaActionBar = ({ 
   onFilesSelected, 
   disabled = false,
-  maxImages = 4,
-  maxVideos = 1,
+  maxTotalMedia = 10,
+  currentMediaCount = 0,
   characterCount = 0,
   maxCharacters = 3000,
   onFormat,
@@ -29,31 +31,50 @@ export const MediaActionBar = ({
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
 
-  const validateAndSelect = (files: File[], type: 'image' | 'video', maxFiles: number) => {
+  const validateAndSelect = (files: File[]) => {
     if (files.length === 0) return;
 
-    const maxSize = type === 'image' ? 25 * 1024 * 1024 : 100 * 1024 * 1024;
-    const invalidFiles = files.filter(f => f.size > maxSize);
-
-    if (invalidFiles.length > 0) {
-      toast.error(`File troppo grande (max ${type === 'image' ? '25MB' : '100MB'})`);
+    // Check total limit
+    const remainingSlots = maxTotalMedia - currentMediaCount;
+    if (remainingSlots <= 0) {
+      toast.error(`Hai raggiunto il limite di ${maxTotalMedia} media`);
       return;
     }
 
-    if (files.length > maxFiles) {
-      toast.error(`Massimo ${maxFiles} ${type === 'image' ? 'immagini' : 'video'}`);
-      return;
+    // Limit files to remaining slots
+    const filesToUpload = files.slice(0, remainingSlots);
+    if (filesToUpload.length < files.length) {
+      toast.info(`Caricati solo ${filesToUpload.length} file (limite ${maxTotalMedia} media)`);
     }
 
-    onFilesSelected(files, type);
+    // Validate file sizes
+    const validFiles: File[] = [];
+    for (const file of filesToUpload) {
+      const isVideo = file.type.startsWith('video/');
+      const maxSize = isVideo ? 100 * 1024 * 1024 : 25 * 1024 * 1024;
+      
+      if (file.size > maxSize) {
+        toast.error(`${file.name}: troppo grande (max ${isVideo ? '100MB' : '25MB'})`);
+        continue;
+      }
+      validFiles.push(file);
+    }
+
+    if (validFiles.length === 0) return;
+
+    // Separate images and videos for callback
+    const images = validFiles.filter(f => f.type.startsWith('image/'));
+    const videos = validFiles.filter(f => f.type.startsWith('video/'));
+    
+    if (images.length > 0) onFilesSelected(images, 'image');
+    if (videos.length > 0) onFilesSelected(videos, 'video');
   };
 
   // Camera: direct capture (photo/video)
   const handleCameraChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
-    const type = files[0]?.type.startsWith('video/') ? 'video' : 'image';
-    validateAndSelect(files, type, 1);
+    validateAndSelect(files);
     if (cameraInputRef.current) cameraInputRef.current.value = '';
   };
 
@@ -61,25 +82,7 @@ export const MediaActionBar = ({
   const handleMediaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
-    
-    // Separate images and videos
-    const images = files.filter(f => f.type.startsWith('image/'));
-    const videos = files.filter(f => f.type.startsWith('video/'));
-    
-    if (videos.length > 0) {
-      validateAndSelect(videos, 'video', maxVideos);
-    }
-    if (images.length > 0) {
-      validateAndSelect(images, 'image', maxImages);
-    }
-    
-    // Handle non-media files (documents)
-    const otherFiles = files.filter(f => !f.type.startsWith('image/') && !f.type.startsWith('video/'));
-    if (otherFiles.length > 0) {
-      toast.info('File allegato come documento.');
-      validateAndSelect(otherFiles, 'image', 1);
-    }
-    
+    validateAndSelect(files);
     if (mediaInputRef.current) mediaInputRef.current.value = '';
   };
 

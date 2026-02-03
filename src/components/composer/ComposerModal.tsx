@@ -112,7 +112,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   // iOS keyboard offset using Visual Viewport API
   const keyboardOffset = useVisualViewportOffset(isOpen && isIOS);
   
-  const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading, requestTranscription, requestOCR, refreshMediaStatus } = useMediaUpload();
+  const { uploadMedia, uploadedMedia, removeMedia, clearMedia, isUploading, isBatchExtracting, requestTranscription, requestOCR, refreshMediaStatus, requestBatchExtraction, getAggregatedExtractedText } = useMediaUpload();
 
   // Polling for media extraction status
   useEffect(() => {
@@ -505,11 +505,18 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     // [FIX] Branch for DIRECT media uploads (author) - REGOLA D'ORO
     // L'autore non fa MAI il test sul proprio commento, solo sull'OCR/trascrizione
     if (uploadedMedia.length > 0 && !quotedPost) {
-      const hasExtracted = !!mediaWithExtractedText;
+      // Check for any media with extracted text (single or multi-media)
+      const mediaWithText = uploadedMedia.filter(m => 
+        m.extracted_status === 'done' && 
+        m.extracted_text && 
+        m.extracted_text.length > 50 // Lower threshold for carousel aggregation
+      );
+      const hasExtracted = mediaWithText.length > 0;
       const mediaGate = getMediaGateForComposer(hasExtracted);
       
       console.log('[Composer] Direct media gate (author):', { 
         hasExtracted,
+        mediaWithTextCount: mediaWithText.length,
         gateRequired: mediaGate.gateRequired,
         testMode: mediaGate.testMode,
         questionCount: mediaGate.questionCount,
@@ -517,22 +524,38 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       });
       
       if (mediaGate.gateRequired) {
-        // Gate solo su OCR/trascrizione, mai sul commento dell'autore
-        const targetMedia = mediaWithExtractedText!;
-        
-        addBreadcrumb('media_gate_start', { 
-          mediaId: targetMedia.id,
-          kind: targetMedia.extracted_kind || 'ocr',
-          testMode: 'SOURCE_ONLY',
-          questionCount: 3
-        });
-        
-        await handleMediaGateFlow(
-          targetMedia, 
-          'SOURCE_ONLY',
-          3
-        );
-        return;
+        // For multi-media, use aggregated text; for single, use single media
+        if (mediaWithText.length > 1) {
+          // Multi-media: generate quiz on aggregated text
+          const aggregatedText = getAggregatedExtractedText();
+          
+          addBreadcrumb('multi_media_gate_start', { 
+            mediaCount: mediaWithText.length,
+            aggregatedTextLength: aggregatedText.length,
+            testMode: 'SOURCE_ONLY',
+            questionCount: 3
+          });
+          
+          await handleAggregatedMediaGateFlow(aggregatedText);
+          return;
+        } else {
+          // Single media with extracted text
+          const targetMedia = mediaWithText[0];
+          
+          addBreadcrumb('media_gate_start', { 
+            mediaId: targetMedia.id,
+            kind: targetMedia.extracted_kind || 'ocr',
+            testMode: 'SOURCE_ONLY',
+            questionCount: 3
+          });
+          
+          await handleMediaGateFlow(
+            targetMedia, 
+            'SOURCE_ONLY',
+            3
+          );
+          return;
+        }
       }
       // No OCR = no gate per l'autore - pubblica direttamente
     }
@@ -660,6 +683,68 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       toast.dismiss();
       toast.error('Errore durante la generazione del quiz. Riprova.');
       addBreadcrumb('media_gate_error', { error: String(error) });
+    } finally {
+      setIsGeneratingQuiz(false);
+    }
+  };
+
+  // [NEW] Handle multi-media gate with aggregated text
+  const handleAggregatedMediaGateFlow = async (aggregatedText: string) => {
+    if (isGeneratingQuiz) return;
+    
+    try {
+      setIsGeneratingQuiz(true);
+      addBreadcrumb('aggregated_media_generating_quiz', { textLength: aggregatedText.length });
+      
+      toast.loading('Stiamo mettendo a fuoco ciò che conta…');
+      
+      const result = await generateQA({
+        contentId: null,
+        isPrePublish: true,
+        title: 'Contenuto multi-media',
+        qaSourceRef: { kind: 'url', id: 'media://aggregated', url: 'media://aggregated' },
+        sourceUrl: undefined,
+        userText: aggregatedText, // Use aggregated text as source
+        testMode: 'SOURCE_ONLY',
+        questionCount: 3,
+      });
+      
+      toast.dismiss();
+      addBreadcrumb('aggregated_media_qa_generated', { 
+        hasQuestions: !!result.questions, 
+        error: result.error
+      });
+      
+      if (result.insufficient_context) {
+        console.log('[Composer] Aggregated media text insufficient');
+        toast.warning('Testo estratto insufficiente. Puoi pubblicare comunque.', { duration: 5000 });
+        setIsGeneratingQuiz(false);
+        await publishPost();
+        return;
+      }
+      
+      if (result.error || !result.questions) {
+        console.error('[ComposerModal] Aggregated media quiz generation failed:', result.error);
+        toast.warning('Test non disponibile. Puoi pubblicare comunque.', { duration: 5000 });
+        setIsGeneratingQuiz(false);
+        addBreadcrumb('aggregated_media_quiz_failed_publish_anyway');
+        await publishPost();
+        return;
+      }
+      
+      setQuizData({
+        qaId: result.qaId,
+        questions: result.questions,
+        sourceUrl: 'media://aggregated',
+      });
+      setShowQuiz(true);
+      addBreadcrumb('aggregated_media_quiz_mount');
+      
+    } catch (error) {
+      console.error('[ComposerModal] Aggregated media gate flow error:', error);
+      toast.dismiss();
+      toast.error('Errore durante la generazione del quiz. Riprova.');
+      addBreadcrumb('aggregated_media_gate_error', { error: String(error) });
     } finally {
       setIsGeneratingQuiz(false);
     }
@@ -1713,7 +1798,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                     onRemove={removeMedia}
                     onRequestTranscription={handleRequestTranscription}
                     onRequestOCR={handleRequestOCR}
+                    onRequestBatchExtraction={requestBatchExtraction}
                     isTranscribing={isTranscriptionInProgress}
+                    isBatchExtracting={isBatchExtracting}
                   />
                 )}
                 
@@ -1732,6 +1819,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
               <MediaActionBar
                 onFilesSelected={handleMediaSelect}
                 disabled={isUploading || isLoading}
+                maxTotalMedia={10}
+                currentMediaCount={uploadedMedia.length}
                 characterCount={content.length}
                 maxCharacters={3000}
                 onFormat={applyFormatting}

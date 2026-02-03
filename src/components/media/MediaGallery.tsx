@@ -1,3 +1,7 @@
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Play } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
 interface Media {
   id: string;
   type: 'image' | 'video';
@@ -10,71 +14,170 @@ interface Media {
 interface MediaGalleryProps {
   media: Media[];
   onClick?: (media: Media, index: number) => void;
+  initialIndex?: number;
+  onIndexChange?: (index: number) => void;
 }
 
-export const MediaGallery = ({ media, onClick }: MediaGalleryProps) => {
+export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange }: MediaGalleryProps) => {
   if (!media || media.length === 0) return null;
 
-  const images = media.filter(m => m.type === 'image');
-  const videos = media.filter(m => m.type === 'video');
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const isMultiple = media.length > 1;
+
+  // Sync with external initialIndex changes (e.g., from MediaViewer close)
+  useEffect(() => {
+    if (initialIndex !== currentIndex) {
+      setCurrentIndex(initialIndex);
+      scrollToIndex(initialIndex, false);
+    }
+  }, [initialIndex]);
+
+  const scrollToIndex = useCallback((index: number, smooth = true) => {
+    if (!scrollRef.current) return;
+    const slideWidth = scrollRef.current.offsetWidth;
+    scrollRef.current.scrollTo({
+      left: index * slideWidth,
+      behavior: smooth ? 'smooth' : 'auto'
+    });
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    if (!scrollRef.current || !isMultiple) return;
+    
+    const slideWidth = scrollRef.current.offsetWidth;
+    const scrollLeft = scrollRef.current.scrollLeft;
+    const newIndex = Math.round(scrollLeft / slideWidth);
+    
+    if (newIndex !== currentIndex && newIndex >= 0 && newIndex < media.length) {
+      setCurrentIndex(newIndex);
+      onIndexChange?.(newIndex);
+    }
+  }, [currentIndex, isMultiple, media.length, onIndexChange]);
 
   const handleMediaClick = (e: React.MouseEvent, item: Media, index: number) => {
     if (onClick) {
       e.stopPropagation();
-      // Pass the index within the full media array
-      const fullIndex = media.findIndex(m => m.id === item.id);
-      onClick(item, fullIndex);
+      onClick(item, index);
     }
   };
 
+  const handleDotClick = (index: number) => {
+    setCurrentIndex(index);
+    scrollToIndex(index);
+    onIndexChange?.(index);
+  };
+
+  // Single media: simple display
+  if (!isMultiple) {
+    const item = media[0];
+    return (
+      <div className="mt-3">
+        <div 
+          className={cn(
+            "relative rounded-2xl overflow-hidden bg-muted",
+            onClick && "cursor-pointer"
+          )}
+          onClick={(e) => handleMediaClick(e, item, 0)}
+        >
+          {item.type === 'image' ? (
+            <img
+              src={item.url}
+              alt=""
+              className="w-full h-full object-cover aspect-video"
+              loading="lazy"
+            />
+          ) : (
+            <div className="relative">
+              <video
+                src={item.url}
+                poster={item.thumbnail_url}
+                controls
+                playsInline
+                className="w-full aspect-video bg-black"
+                preload="metadata"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Il tuo browser non supporta il tag video.
+              </video>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Multiple media: Carousel
   return (
-    <div className="mt-3 space-y-2">
-      {/* Immagini - griglia responsiva */}
-      {images.length > 0 && (
-        <div className={`grid gap-1 rounded-2xl overflow-hidden ${
-          images.length === 1 ? 'grid-cols-1' :
-          images.length === 2 ? 'grid-cols-2' :
-          images.length === 3 ? 'grid-cols-2' :
-          'grid-cols-2'
-        }`}>
-          {images.map((img, idx) => (
-            <div 
-              key={img.id}
-              className={`relative ${
-                images.length === 3 && idx === 0 ? 'col-span-2' : ''
-              } ${onClick ? 'cursor-pointer' : ''}`}
-              onClick={(e) => handleMediaClick(e, img, idx)}
-            >
+    <div className="mt-3 relative">
+      {/* Counter badge */}
+      <div className="absolute top-2 right-2 z-10 bg-black/60 backdrop-blur-sm text-white text-xs font-medium px-2 py-1 rounded-full">
+        {currentIndex + 1}/{media.length}
+      </div>
+
+      {/* Carousel container */}
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none rounded-2xl"
+        style={{ 
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none'
+        }}
+      >
+        {media.map((item, idx) => (
+          <div
+            key={item.id}
+            className={cn(
+              "flex-shrink-0 w-full snap-center",
+              onClick && "cursor-pointer"
+            )}
+            onClick={(e) => handleMediaClick(e, item, idx)}
+          >
+            {item.type === 'image' ? (
               <img
-                src={img.url}
+                src={item.url}
                 alt=""
                 className="w-full h-full object-cover aspect-video"
-                loading="lazy"
+                loading={idx <= 1 ? 'eager' : 'lazy'}
               />
-            </div>
-          ))}
-        </div>
-      )}
+            ) : (
+              <div className="relative aspect-video bg-black">
+                <video
+                  src={item.url}
+                  poster={item.thumbnail_url}
+                  controls
+                  playsInline
+                  className="w-full h-full object-contain"
+                  preload="metadata"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Il tuo browser non supporta il tag video.
+                </video>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
 
-      {/* Video */}
-      {videos.map((vid) => (
-        <div 
-          key={vid.id} 
-          className={`rounded-2xl overflow-hidden ${onClick ? 'cursor-pointer' : ''}`}
-          onClick={(e) => handleMediaClick(e, vid, videos.findIndex(v => v.id === vid.id) + images.length)}
-        >
-          <video
-            src={vid.url}
-            poster={vid.thumbnail_url}
-            controls
-            playsInline
-            className="w-full aspect-video bg-black"
-            preload="metadata"
-          >
-            Il tuo browser non supporta il tag video.
-          </video>
-        </div>
-      ))}
+      {/* Dots indicator */}
+      <div className="flex justify-center gap-1.5 mt-2">
+        {media.map((_, idx) => (
+          <button
+            key={idx}
+            type="button"
+            onClick={() => handleDotClick(idx)}
+            className={cn(
+              "w-2 h-2 rounded-full transition-all duration-200",
+              idx === currentIndex 
+                ? "bg-primary w-4" 
+                : "bg-muted-foreground/40 hover:bg-muted-foreground/60"
+            )}
+            aria-label={`Vai a media ${idx + 1}`}
+          />
+        ))}
+      </div>
     </div>
   );
 };

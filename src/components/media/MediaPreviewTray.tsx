@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { X, Loader2, FileText, Mic, AlertCircle, Sparkles, Play } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Loader2, FileText, Mic, AlertCircle, Sparkles, Play, CheckCircle2, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 interface MediaPreview {
   id: string;
@@ -18,7 +19,9 @@ interface MediaPreviewTrayProps {
   onRemove: (id: string) => void;
   onRequestTranscription?: (id: string) => void;
   onRequestOCR?: (id: string) => void;
+  onRequestBatchExtraction?: () => void;
   isTranscribing?: boolean;
+  isBatchExtracting?: boolean;
 }
 
 // Hook to generate poster thumbnail from video - uses local file to avoid CORS
@@ -33,7 +36,6 @@ const useVideoThumbnail = (videoUrl: string, type: 'image' | 'video', file?: Fil
     const videoSrc = file ? URL.createObjectURL(file) : videoUrl;
     
     const video = document.createElement('video');
-    // DO NOT use crossOrigin - causes CORS blocking when drawing to canvas
     video.preload = 'auto';
     video.muted = true;
     video.playsInline = true;
@@ -49,7 +51,6 @@ const useVideoThumbnail = (videoUrl: string, type: 'image' | 'video', file?: Fil
       if (isLocalFile) URL.revokeObjectURL(videoSrc);
     };
     
-    // Timeout fallback in case video never loads
     const timeout = setTimeout(() => {
       if (!hasSeekCompleted) {
         console.warn('[VideoThumbnail] Timeout - could not generate thumbnail');
@@ -59,7 +60,6 @@ const useVideoThumbnail = (videoUrl: string, type: 'image' | 'video', file?: Fil
     
     video.onloadeddata = () => {
       if (!hasSeekCompleted && !cleanedUp) {
-        // Seek to 0.5 seconds to avoid black frame
         video.currentTime = Math.min(0.5, video.duration || 0.5);
       }
     };
@@ -77,7 +77,6 @@ const useVideoThumbnail = (videoUrl: string, type: 'image' | 'video', file?: Fil
         if (ctx) {
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-          // Verify it's not an empty/black image (very short data URL)
           if (dataUrl.length > 1000) {
             setPoster(dataUrl);
           }
@@ -113,44 +112,45 @@ const MediaItem = ({
   onRequestTranscription,
   onRequestOCR,
   isTranscribing,
-  isSingleMedia
+  isCompact,
+  isBatchExtracting
 }: {
   item: MediaPreview;
   onRemove: (id: string) => void;
   onRequestTranscription?: (id: string) => void;
   onRequestOCR?: (id: string) => void;
   isTranscribing?: boolean;
-  isSingleMedia: boolean;
+  isCompact: boolean;
+  isBatchExtracting?: boolean;
 }) => {
   const isVideo = item.type === 'video';
   const isImage = item.type === 'image';
   
-  // Video transcription conditions - allow retry from 'failed' state
+  // Video transcription conditions
   const canTranscribe = isVideo && 
     (item.extracted_status === 'idle' || item.extracted_status === 'failed') && 
     onRequestTranscription &&
     (!item.duration_sec || item.duration_sec <= 180) &&
-    !isTranscribing; // Block during the request phase
+    !isTranscribing &&
+    !isBatchExtracting;
   const isTooLong = isVideo && item.duration_sec && item.duration_sec > 180;
   
-  // Image OCR conditions - allow retry from 'failed' state
+  // Image OCR conditions
   const canOCR = isImage && 
     (item.extracted_status === 'idle' || item.extracted_status === 'failed') && 
-    onRequestOCR;
+    onRequestOCR &&
+    !isBatchExtracting;
   
-  const isPending = item.extracted_status === 'pending' || isTranscribing;
-  const isTranscriptionPending = isPending && item.extracted_kind === 'transcript';
+  const isPending = item.extracted_status === 'pending' || (isTranscribing && item.extracted_kind === 'transcript');
   const isDone = item.extracted_status === 'done';
   const isFailed = item.extracted_status === 'failed';
 
-  // Generate video thumbnail
-  // Generate video thumbnail using local file to bypass CORS
   const videoPoster = useVideoThumbnail(item.url, item.type, item.file);
 
-  // Layout classes based on single vs multiple media
-  const containerClasses = isSingleMedia 
-    ? "relative w-full aspect-video rounded-xl overflow-hidden bg-muted"
-    : "relative aspect-square rounded-lg overflow-hidden bg-muted";
+  // Layout classes based on compact mode
+  const containerClasses = isCompact 
+    ? "relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-muted"
+    : "relative w-full aspect-video rounded-xl overflow-hidden bg-muted";
 
   return (
     <div className={containerClasses}>
@@ -171,30 +171,35 @@ const MediaItem = ({
             playsInline
             muted
           />
-          {/* Fallback Play icon overlay when no poster available */}
           {!videoPoster && (
             <div className="absolute inset-0 bg-muted/60 flex items-center justify-center pointer-events-none">
-              <div className="w-14 h-14 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center">
-                <Play className="w-7 h-7 text-white ml-1" />
+              <div className={cn(
+                "rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center",
+                isCompact ? "w-8 h-8" : "w-14 h-14"
+              )}>
+                <Play className={cn("text-white ml-0.5", isCompact ? "w-4 h-4" : "w-7 h-7")} />
               </div>
             </div>
           )}
         </div>
       )}
       
-      {/* Remove button - always visible in top right */}
+      {/* Remove button */}
       <Button
         type="button"
         variant="destructive"
         size="sm"
-        className="absolute top-2 right-2 h-7 w-7 p-0 rounded-full z-20 shadow-lg"
+        className={cn(
+          "absolute top-1 right-1 rounded-full z-20 shadow-lg",
+          isCompact ? "h-5 w-5 p-0" : "h-7 w-7 p-0 top-2 right-2"
+        )}
         onClick={() => onRemove(item.id)}
       >
-        <X className="w-3.5 h-3.5" />
+        <X className={isCompact ? "w-3 h-3" : "w-3.5 h-3.5"} />
       </Button>
 
-      {/* Video: Discrete Transcribe button in bottom left (NOT full overlay) */}
-      {canTranscribe && (
+      {/* Video: Discrete Transcribe button (only in non-compact single mode) */}
+      {!isCompact && canTranscribe && (
         <button
           type="button"
           onClick={() => onRequestTranscription(item.id)}
@@ -206,8 +211,8 @@ const MediaItem = ({
         </button>
       )}
 
-      {/* Image: Discrete OCR button in bottom left */}
-      {canOCR && (
+      {/* Image: Discrete OCR button (only in non-compact single mode) */}
+      {!isCompact && canOCR && (
         <button
           type="button"
           onClick={() => onRequestOCR(item.id)}
@@ -218,48 +223,75 @@ const MediaItem = ({
         </button>
       )}
 
-      {/* Video: Too long badge (discrete, not full overlay) */}
-      {isVideo && item.extracted_status === 'idle' && isTooLong && (
+      {/* Video: Too long badge (non-compact only) */}
+      {!isCompact && isVideo && item.extracted_status === 'idle' && isTooLong && (
         <div className="absolute bottom-2 left-2 bg-amber-500/90 backdrop-blur-sm px-2.5 py-1.5 rounded-full flex items-center gap-1.5 z-10">
           <AlertCircle className="w-4 h-4 text-white" />
           <span className="text-xs font-medium text-white">Max 3 min</span>
         </div>
       )}
 
-      {/* IMPROVED: Processing overlay with clear messaging */}
+      {/* Processing overlay with spinner */}
       {isPending && (
-        <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-10 gap-3">
-          <div className="bg-black/80 backdrop-blur-sm rounded-full p-4">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-10 gap-1">
+          <div className={cn(
+            "bg-black/80 backdrop-blur-sm rounded-full flex items-center justify-center",
+            isCompact ? "p-2" : "p-4"
+          )}>
+            <Loader2 className={cn(
+              "animate-spin text-primary",
+              isCompact ? "w-4 h-4" : "w-8 h-8"
+            )} />
           </div>
-          <div className="text-center px-4">
-            <p className="text-white text-sm font-medium">
-              {item.extracted_kind === 'transcript' ? 'Trascrizione in corso' : 'Estrazione testo'}
-            </p>
-            <p className="text-white/60 text-xs mt-1">
-              {item.extracted_kind === 'transcript' ? 'Circa 30-60 secondi' : 'Pochi secondi'}
-            </p>
-          </div>
+          {!isCompact && (
+            <div className="text-center px-4">
+              <p className="text-white text-sm font-medium">
+                {item.extracted_kind === 'transcript' ? 'Trascrizione...' : 'Estrazione...'}
+              </p>
+            </div>
+          )}
         </div>
       )}
       
-      {/* Success badge - discrete in corner */}
+      {/* Success badge - compact shows checkmark only */}
       {isDone && (
-        <div className="absolute bottom-2 left-2 bg-emerald-500/90 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full flex items-center gap-1.5 z-10">
-          {item.extracted_kind === 'ocr' ? (
-            <FileText className="w-3.5 h-3.5" />
+        <div className={cn(
+          "absolute bg-emerald-500/90 backdrop-blur-sm text-white rounded-full flex items-center z-10",
+          isCompact 
+            ? "bottom-1 left-1 p-1" 
+            : "bottom-2 left-2 text-xs px-2 py-1 gap-1.5"
+        )}>
+          {isCompact ? (
+            <CheckCircle2 className="w-3 h-3" />
           ) : (
-            <Mic className="w-3.5 h-3.5" />
+            <>
+              {item.extracted_kind === 'ocr' ? (
+                <FileText className="w-3.5 h-3.5" />
+              ) : (
+                <Mic className="w-3.5 h-3.5" />
+              )}
+              <span className="font-medium">Pronto</span>
+            </>
           )}
-          <span className="font-medium">Pronto</span>
         </div>
       )}
       
       {/* Failed badge */}
       {isFailed && (
-        <div className="absolute bottom-2 left-2 bg-red-500/90 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full flex items-center gap-1.5 z-10">
-          <AlertCircle className="w-3.5 h-3.5" />
-          <span className="font-medium">Errore</span>
+        <div className={cn(
+          "absolute bg-red-500/90 backdrop-blur-sm text-white rounded-full flex items-center z-10",
+          isCompact 
+            ? "bottom-1 left-1 p-1" 
+            : "bottom-2 left-2 text-xs px-2 py-1 gap-1.5"
+        )}>
+          {isCompact ? (
+            <AlertCircle className="w-3 h-3" />
+          ) : (
+            <>
+              <AlertCircle className="w-3.5 h-3.5" />
+              <span className="font-medium">Errore</span>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -271,14 +303,38 @@ export const MediaPreviewTray = ({
   onRemove, 
   onRequestTranscription,
   onRequestOCR,
-  isTranscribing 
+  onRequestBatchExtraction,
+  isTranscribing,
+  isBatchExtracting = false
 }: MediaPreviewTrayProps) => {
   if (media.length === 0) return null;
 
+  const scrollRef = useRef<HTMLDivElement>(null);
   const isSingleMedia = media.length === 1;
+  const isMultiMedia = media.length > 2;
   const hasPendingTranscription = media.some(m => m.extracted_status === 'pending' && m.extracted_kind === 'transcript');
   const hasPendingOCR = media.some(m => m.extracted_status === 'pending' && m.extracted_kind === 'ocr');
   const hasPendingAny = media.some(m => m.extracted_status === 'pending');
+  
+  // Count extractable media (images for OCR, videos ≤3min for transcription)
+  const extractableImages = media.filter(m => 
+    m.type === 'image' && 
+    (m.extracted_status === 'idle' || m.extracted_status === 'failed')
+  );
+  const extractableVideos = media.filter(m => 
+    m.type === 'video' && 
+    (m.extracted_status === 'idle' || m.extracted_status === 'failed') &&
+    (!m.duration_sec || m.duration_sec <= 180)
+  );
+  const canBatchExtract = (extractableImages.length + extractableVideos.length) > 0 && 
+    onRequestBatchExtraction && 
+    !isBatchExtracting && 
+    !hasPendingAny;
+  
+  // Count completed extractions
+  const completedCount = media.filter(m => m.extracted_status === 'done').length;
+  const totalExtractable = extractableImages.length + extractableVideos.length + completedCount;
+  const extractedMediaWithText = media.filter(m => m.extracted_status === 'done' && m.extracted_text);
 
   return (
     <div className="space-y-3">
@@ -290,10 +346,31 @@ export const MediaPreviewTray = ({
           onRequestTranscription={onRequestTranscription}
           onRequestOCR={onRequestOCR}
           isTranscribing={isTranscribing}
-          isSingleMedia={true}
+          isCompact={false}
+          isBatchExtracting={isBatchExtracting}
         />
+      ) : isMultiMedia ? (
+        /* Multi-media (>2): Horizontal scroll layout */
+        <div 
+          ref={scrollRef}
+          className="flex gap-2 overflow-x-auto pb-2 scrollbar-none"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          {media.map((item) => (
+            <MediaItem
+              key={item.id}
+              item={item}
+              onRemove={onRemove}
+              onRequestTranscription={onRequestTranscription}
+              onRequestOCR={onRequestOCR}
+              isTranscribing={isTranscribing}
+              isCompact={true}
+              isBatchExtracting={isBatchExtracting}
+            />
+          ))}
+        </div>
       ) : (
-        /* Multiple media: 2-column grid with larger thumbnails */
+        /* 2 media: 2-column grid */
         <div className="grid grid-cols-2 gap-2">
           {media.map((item) => (
             <MediaItem
@@ -303,14 +380,48 @@ export const MediaPreviewTray = ({
               onRequestTranscription={onRequestTranscription}
               onRequestOCR={onRequestOCR}
               isTranscribing={isTranscribing}
-              isSingleMedia={false}
+              isCompact={false}
+              isBatchExtracting={isBatchExtracting}
             />
           ))}
         </div>
       )}
       
-      {/* IMPROVED: Persistent high-visibility status banner */}
-      {hasPendingAny && (
+      {/* Batch extraction button for multi-media */}
+      {media.length > 1 && canBatchExtract && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onRequestBatchExtraction}
+          className="w-full gap-2 border-primary/30 text-primary hover:bg-primary/10"
+        >
+          <Zap className="w-4 h-4" />
+          <span>
+            Analizza tutto ({extractableImages.length > 0 && `${extractableImages.length} immagini`}
+            {extractableImages.length > 0 && extractableVideos.length > 0 && ', '}
+            {extractableVideos.length > 0 && `${extractableVideos.length} video`})
+          </span>
+        </Button>
+      )}
+      
+      {/* Progress indicator during batch extraction */}
+      {isBatchExtracting && hasPendingAny && (
+        <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 rounded-lg px-3 py-2.5">
+          <Loader2 className="w-5 h-5 animate-spin text-primary flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <span className="text-sm font-medium text-primary">
+              Analisi in corso... {completedCount}/{totalExtractable}
+            </span>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Non chiudere questa schermata
+            </p>
+          </div>
+        </div>
+      )}
+      
+      {/* Single media pending status */}
+      {!isBatchExtracting && hasPendingAny && (
         <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 rounded-lg px-3 py-2.5">
           <Loader2 className="w-5 h-5 animate-spin text-primary flex-shrink-0" />
           <div className="flex-1 min-w-0">
@@ -326,12 +437,12 @@ export const MediaPreviewTray = ({
         </div>
       )}
       
-      {/* Success indicator */}
-      {!hasPendingAny && media.some(m => m.extracted_status === 'done' && m.extracted_text) && (
+      {/* Success indicator showing total extracted text */}
+      {!hasPendingAny && extractedMediaWithText.length > 0 && (
         <div className="flex items-center gap-2 text-emerald-400 text-xs">
           <FileText className="w-4 h-4" />
           <span>
-            Testo estratto ({media.find(m => m.extracted_text)?.extracted_text?.length || 0} caratteri)
+            Testo estratto da {extractedMediaWithText.length} media ({extractedMediaWithText.reduce((acc, m) => acc + (m.extracted_text?.length || 0), 0)} caratteri)
           </span>
         </div>
       )}
