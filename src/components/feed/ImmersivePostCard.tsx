@@ -2163,6 +2163,23 @@ const ImmersivePostCardInner = ({
             media={post.media}
             initialIndex={selectedMediaIndex}
             onClose={() => setSelectedMediaIndex(null)}
+            postActions={{
+              onShare: () => {
+                setSelectedMediaIndex(null);
+                setShowShareSheet(true);
+              },
+              onHeart: () => handleHeart(undefined, 'heart'),
+              onComment: () => {
+                setSelectedMediaIndex(null);
+                setShowComments(true);
+              },
+              onBookmark: () => toggleReaction.mutate({ postId: post.id, reactionType: 'bookmark' }),
+              hasHearted: post.user_reactions?.has_hearted ?? false,
+              hasBookmarked: post.user_reactions?.has_bookmarked ?? false,
+              heartsCount: post.reactions?.hearts ?? 0,
+              commentsCount: post.reactions?.comments ?? 0,
+              sharesCount: post.shares_count ?? 0,
+            }}
           />
         </div>
       )}
