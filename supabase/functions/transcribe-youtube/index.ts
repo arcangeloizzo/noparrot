@@ -269,7 +269,7 @@ serve(async (req) => {
   }
 
   try {
-    // SECURITY: Require authenticated user to prevent abuse
+    // SECURITY: Require authentication (user JWT or internal service role)
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       console.warn('[transcribe-youtube] Unauthorized request - no auth header');
@@ -287,21 +287,31 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    let userId = 'internal_call';
+    let isInternalCall = false;
     
-    if (authError || !user) {
-      console.warn('[transcribe-youtube] Unauthorized request - invalid token:', authError?.message);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { 
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+    // Check if this is an internal server-to-server call (service role)
+    if (token === supabaseServiceKey) {
+      isInternalCall = true;
+      console.log('[transcribe-youtube] ✅ Internal call from Edge Function (service role)');
+    } else {
+      // Validate user JWT for client calls
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      
+      if (authError || !user) {
+        console.warn('[transcribe-youtube] Unauthorized request - invalid token:', authError?.message);
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { 
+            status: 401,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          }
+        );
+      }
+      
+      userId = user.id;
+      console.log(`[transcribe-youtube] Authenticated request from user: ${userId.substring(0, 8)}...`);
     }
-    
-    const userId = user.id;
-    console.log(`[transcribe-youtube] Authenticated request from user: ${userId.substring(0, 8)}...`);
     
     const { url } = await req.json();
     
@@ -327,7 +337,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing YouTube video: ${url} (user: ${userId.substring(0, 8)}...)`);
+    console.log(`Processing YouTube video: ${url} (caller: ${isInternalCall ? 'internal' : userId.substring(0, 8) + '...'})`);
     
     const videoId = extractYouTubeId(url);
     
