@@ -1,98 +1,158 @@
 
-# Piano: Eliminare le Notifiche Push Duplicate
+# Piano: Componente Unificato "Mostra Tutto" per Testi Lunghi
 
-## Causa del Problema
+## Problema Identificato
 
-Esistono **trigger duplicati** sulle stesse tabelle che invocano la stessa funzione di push notification:
+Il testo di Marco (nello screenshot) è troncato con "..." ma **manca il pulsante "Mostra tutto"** per vedere il contenuto completo. Questo problema è diffuso in vari tipi di post perché la logica di espansione del testo è frammentata in più punti del codice.
 
-### Tabella `public.notifications` - 2 trigger identici
-| Trigger | Migrazione | Funzione |
-|---------|------------|----------|
-| `on_notification_created` | 20251206... | `trigger_push_notification()` |
-| `on_new_notification_push` | 20251208... | `trigger_push_notification()` |
+### Situazione Attuale
+| Componente | Limite | Ha "Mostra tutto"? |
+|------------|--------|---------------------|
+| ImmersivePostCard (testo) | 400 char | Si |
+| ImmersivePostCard (caption link) | 120 char | Si ("Leggi tutto") |
+| ImmersivePostCard (media-only) | 200 char | **NO** |
+| QuotedPostCard | 280 char | **NO** |
+| QuotedEditorialCard | line-clamp-5 | Testo statico (non cliccabile) |
 
-Ogni volta che viene creata una notifica (like, follow, commento, menzione, reshare), entrambi i trigger scattano e inviano **2 push** identiche.
-
-### Tabella `public.messages` - 2 trigger identici
-| Trigger | Migrazione | Funzione |
-|---------|------------|----------|
-| `on_message_created` | 20251206... | `trigger_push_message()` |
-| `on_new_message_push` | 20251208... | `trigger_push_message()` |
-
-Stesso problema per i messaggi diretti.
-
-### Caso Admin - Tripla notifica potenziale
-La funzione `notify_admins_new_user()` fa **due cose** quando un utente si registra:
-1. Inserisce in `public.notifications` (scatena i 2 trigger di cui sopra)
-2. Chiama **direttamente** `net.http_post` alla Edge Function
-
-Questo causa potenzialmente **3 notifiche** per ogni nuova registrazione agli admin.
+### Il Bug Specifico (Screenshot)
+Il post di Marco è un **post con link** dove il commento dell'utente è lungo. Il testo viene troncato a 400 caratteri ma il bottone "Mostra tutto" non appare perché manca la gestione nel layout "stack" (reshare con commento lungo).
 
 ---
 
 ## Soluzione
 
-Una singola migrazione SQL per rimuovere i trigger ridondanti e pulire la funzione admin:
+Creare un **componente atomico `ExpandableText`** che:
+1. Accetta testo + limite (caratteri o righe)
+2. Mostra testo troncato con indicatore "..."
+3. Aggiunge pulsante "Mostra tutto" se il testo supera il limite
+4. Apre un modal/sheet unificato con il testo completo
 
-```sql
--- 1. Rimuovi trigger duplicato su notifications (manteniamo on_new_notification_push)
-DROP TRIGGER IF EXISTS on_notification_created ON public.notifications;
+Questo componente sostituirà tutte le implementazioni sparse e i due Dialog duplicati.
 
--- 2. Rimuovi trigger duplicato su messages (manteniamo on_new_message_push)
-DROP TRIGGER IF EXISTS on_message_created ON public.messages;
+---
 
--- 3. Aggiorna la funzione admin per rimuovere la chiamata HTTP diretta
--- (il trigger on_new_notification_push si occupa gia' dell'invio push)
-CREATE OR REPLACE FUNCTION public.notify_admins_new_user()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-DECLARE
-  admin_record RECORD;
-BEGIN
-  FOR admin_record IN 
-    SELECT ur.user_id 
-    FROM public.user_roles ur 
-    WHERE ur.role = 'admin'
-  LOOP
-    INSERT INTO public.notifications (user_id, actor_id, type, created_at)
-    VALUES (
-      admin_record.user_id,
-      NEW.id,
-      'new_user',
-      NOW()
-    );
-  END LOOP;
-  
-  -- NOTA: La push viene inviata automaticamente dal trigger 
-  -- on_new_notification_push sulla tabella notifications
-  
-  RETURN NEW;
-EXCEPTION WHEN OTHERS THEN
-  RAISE WARNING 'Failed to create admin notification: %', SQLERRM;
-  RETURN NEW;
-END;
-$$;
+## Modifiche Tecniche
+
+### 1. Nuovo Componente: `src/components/ui/expandable-text.tsx`
+
+```text
+Props:
+- content: string (testo da mostrare)
+- maxLength?: number (default 400)
+- maxLines?: number (alternativa, usa CSS line-clamp)
+- author?: { name, avatar, username } (per header del modal)
+- showExpandButton?: boolean (default true)
+- expandLabel?: string (default "Mostra tutto")
+- className?: string
+
+Comportamento:
+- Se content.length <= maxLength: mostra tutto, nessun bottone
+- Se content.length > maxLength: mostra slice + "..." + bottone
+- Click su bottone → apre Dialog con testo completo
+- Il Dialog ha lo stesso stile glassmorphism già usato
 ```
+
+### 2. Nuovo Componente: `src/components/feed/FullTextModal.tsx`
+
+Estrarre e unificare i due Dialog duplicati (righe 2200-2325 e 2327-2436) in un unico componente riutilizzabile:
+
+```text
+Props:
+- isOpen: boolean
+- onClose: () => void
+- content: string
+- author?: { name, avatar, username }
+- source?: { hostname, url } (per caption esterne)
+- variant: 'post' | 'caption' | 'editorial'
+- actionBar?: ReactNode (opzionale, per azioni custom)
+```
+
+### 3. Aggiornamenti a ImmersivePostCard.tsx
+
+| Sezione | Modifica |
+|---------|----------|
+| Righe 1329-1340 | Usare `<ExpandableText>` nel layout stack |
+| Righe 1358-1376 | Sostituire logica inline con `<ExpandableText>` |
+| Righe 1379-1397 | Sostituire logica inline con `<ExpandableText>` |
+| Righe 1400-1434 | Usare `<ExpandableText>` nei post solo testo |
+| Righe 1437-1441 | **FIX**: Aggiungere `<ExpandableText>` ai post media-only |
+| Righe 1852-1876 | Usare `<ExpandableText>` per caption lunghe |
+| Righe 2200-2436 | Rimuovere i due Dialog inline, usare `<FullTextModal>` |
+
+### 4. Aggiornamenti a QuotedPostCard.tsx
+
+| Sezione | Modifica |
+|---------|----------|
+| Righe 82-84 | Sostituire troncamento JS con `<ExpandableText>` |
+| Righe 118-122 | Usare `<ExpandableText>` per Intent posts (invece di line-clamp-4) |
+
+### 5. Aggiornamenti a QuotedEditorialCard.tsx
+
+| Sezione | Modifica |
+|---------|----------|
+| Righe 75-79 | Rendere "Leggi tutto" cliccabile con `<ExpandableText>` |
+
+---
+
+## Flusso Visivo
+
+```text
+                     Testo lungo nel feed
+                            │
+                            ▼
+              ┌─────────────────────────────┐
+              │  Testo troncato + "..."     │
+              │  [Mostra tutto]             │
+              └─────────────────────────────┘
+                            │
+                        Click
+                            │
+                            ▼
+              ┌─────────────────────────────┐
+              │  FullTextModal              │
+              │  ┌───────────────────────┐  │
+              │  │ 👤 Nome Autore        │  │
+              │  │    @username          │  │
+              │  ├───────────────────────┤  │
+              │  │                       │  │
+              │  │  Testo completo       │  │
+              │  │  scrollabile...       │  │
+              │  │                       │  │
+              │  ├───────────────────────┤  │
+              │  │ [Condividi] ♡ 💬 🔖   │  │
+              │  │ [Torna al feed]       │  │
+              │  └───────────────────────┘  │
+              └─────────────────────────────┘
+```
+
+---
+
+## Cosa NON viene toccato
+
+- Comprehension Gate e flusso quiz
+- Commenti e reazioni
+- OCR e trascrizione media
+- Edge functions
+- Database/RLS
+- Autenticazione
+
+---
+
+## File Coinvolti
+
+| File | Azione |
+|------|--------|
+| `src/components/ui/expandable-text.tsx` | Nuovo |
+| `src/components/feed/FullTextModal.tsx` | Nuovo |
+| `src/components/feed/ImmersivePostCard.tsx` | Modifica |
+| `src/components/feed/QuotedPostCard.tsx` | Modifica |
+| `src/components/feed/QuotedEditorialCard.tsx` | Modifica |
 
 ---
 
 ## Risultato Atteso
 
-| Evento | Prima (bug) | Dopo (fix) |
-|--------|-------------|------------|
-| Like al post | 2 push | 1 push |
-| Nuovo follower | 2 push | 1 push |
-| Nuovo commento | 2 push | 1 push |
-| Menzione | 2 push | 1 push |
-| Reshare | 2 push | 1 push |
-| Messaggio DM | 2 push | 1 push |
-| Nuova registrazione (admin) | 3 push | 1 push |
-
----
-
-## File da Modificare
-
-Nessun file di codice - solo una migrazione SQL al database.
+- **Tutti** i testi lunghi avranno "Mostra tutto" visibile
+- **Un unico stile** per il modal di espansione
+- **Meno codice duplicato** (rimozione ~150 righe)
+- **Nessun impatto** su logiche core (gate, commenti, ecc.)
