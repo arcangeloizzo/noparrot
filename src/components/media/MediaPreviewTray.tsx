@@ -125,19 +125,20 @@ const MediaItem = ({
   const isVideo = item.type === 'video';
   const isImage = item.type === 'image';
   
-  // Video transcription conditions
+  // Video transcription conditions - allow retry from 'failed' state
   const canTranscribe = isVideo && 
-    item.extracted_status === 'idle' && 
+    (item.extracted_status === 'idle' || item.extracted_status === 'failed') && 
     onRequestTranscription &&
-    (!item.duration_sec || item.duration_sec <= 180);
+    (!item.duration_sec || item.duration_sec <= 180) &&
+    !isTranscribing; // Block during the request phase
   const isTooLong = isVideo && item.duration_sec && item.duration_sec > 180;
   
-  // Image OCR conditions
+  // Image OCR conditions - allow retry from 'failed' state
   const canOCR = isImage && 
-    item.extracted_status === 'idle' && 
+    (item.extracted_status === 'idle' || item.extracted_status === 'failed') && 
     onRequestOCR;
   
-  const isPending = item.extracted_status === 'pending';
+  const isPending = item.extracted_status === 'pending' || isTranscribing;
   const isTranscriptionPending = isPending && item.extracted_kind === 'transcript';
   const isDone = item.extracted_status === 'done';
   const isFailed = item.extracted_status === 'failed';

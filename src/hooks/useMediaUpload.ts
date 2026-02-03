@@ -144,9 +144,14 @@ export const useMediaUpload = () => {
   };
 
   // Trigger video transcription manually
-  const requestTranscription = async (mediaId: string) => {
+  const requestTranscription = async (mediaId: string): Promise<boolean> => {
     const media = uploadedMedia.find(m => m.id === mediaId);
     if (!media || media.type !== 'video') return false;
+    
+    // Already processing or done
+    if (media.extracted_status === 'pending' || media.extracted_status === 'done') {
+      return false;
+    }
     
     // Check durata
     if (media.duration_sec && media.duration_sec > 180) {
@@ -158,28 +163,46 @@ export const useMediaUpload = () => {
       return false;
     }
     
-    // Update state to pending
+    // OPTIMISTIC: Update local state FIRST to block UI immediately
     setUploadedMedia(prev => prev.map(m => 
       m.id === mediaId 
         ? { ...m, extracted_status: 'pending' as const, extracted_kind: 'transcript' as const }
         : m
     ));
     
-    // Update DB
-    await supabase.from('media').update({
+    // Update DB - if this fails the polling will catch the stale state
+    const { error: dbError } = await supabase.from('media').update({
       extracted_status: 'pending',
       extracted_kind: 'transcript'
     }).eq('id', mediaId);
     
-    // Trigger transcription
+    if (dbError) {
+      console.error('[useMediaUpload] DB update failed:', dbError);
+      // Revert local state
+      setUploadedMedia(prev => prev.map(m => 
+        m.id === mediaId 
+          ? { ...m, extracted_status: 'idle' as const, extracted_kind: null }
+          : m
+      ));
+      toast({
+        title: 'Errore',
+        description: 'Impossibile avviare la trascrizione',
+        variant: 'destructive'
+      });
+      return false;
+    }
+    
+    // Trigger transcription (fire and forget - edge function updates DB when done)
     try {
-      await supabase.functions.invoke('extract-media-text', {
+      supabase.functions.invoke('extract-media-text', {
         body: { 
           mediaId, 
           mediaUrl: media.url, 
           extractionType: 'transcript',
           durationSec: media.duration_sec
         }
+      }).catch(err => {
+        console.error('[useMediaUpload] Edge function error (non-blocking):', err);
       });
       return true;
     } catch (err) {
@@ -233,7 +256,7 @@ export const useMediaUpload = () => {
     }
   };
   
-  // Poll extraction status
+  // Poll extraction status - only update if DB has progressed beyond local state
   const refreshMediaStatus = async (mediaId: string) => {
     const { data, error } = await supabase
       .from('media')
@@ -242,16 +265,28 @@ export const useMediaUpload = () => {
       .single();
     
     if (!error && data) {
-      setUploadedMedia(prev => prev.map(m => 
-        m.id === mediaId 
-          ? { 
-              ...m, 
-              extracted_status: data.extracted_status as MediaFile['extracted_status'],
-              extracted_text: data.extracted_text,
-              extracted_kind: data.extracted_kind as MediaFile['extracted_kind']
-            }
-          : m
-      ));
+      setUploadedMedia(prev => prev.map(m => {
+        if (m.id !== mediaId) return m;
+        
+        // Don't regress from 'pending' to 'idle' (race condition with DB update)
+        // Only update if DB shows done/failed OR if we're not pending locally
+        const dbStatus = data.extracted_status as MediaFile['extracted_status'];
+        const shouldUpdate = 
+          dbStatus === 'done' || 
+          dbStatus === 'failed' || 
+          m.extracted_status !== 'pending';
+        
+        if (!shouldUpdate) {
+          return m; // Keep local pending state
+        }
+        
+        return { 
+          ...m, 
+          extracted_status: dbStatus,
+          extracted_text: data.extracted_text,
+          extracted_kind: data.extracted_kind as MediaFile['extracted_kind']
+        };
+      }));
       return data;
     }
     return null;
