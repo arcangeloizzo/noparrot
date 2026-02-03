@@ -22,6 +22,7 @@ import { forceUnlockBodyScroll } from "@/lib/bodyScrollLock";
 import { haptics } from "@/lib/haptics";
 import { TiptapEditor, TiptapEditorRef } from "./TiptapEditor";
 import { useVisualViewportOffset } from "@/hooks/useVisualViewportOffset";
+import { Loader2 } from "lucide-react";
 
 // iOS detection for stability tweaks (includes iPadOS reporting as Mac)
 const isIOS =
@@ -155,8 +156,33 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const intentWordCount = getWordCount(textWithoutUrl);
   const intentWordsMet = !intentMode || intentWordCount >= 30;
   const hasPendingExtraction = uploadedMedia.some(m => m.extracted_status === 'pending');
+  
+  // [NEW] Track pending transcription separately for UX feedback
+  const hasPendingTranscription = uploadedMedia.some(m => 
+    m.extracted_status === 'pending' && m.extracted_kind === 'transcript'
+  );
+  
   const canPublish = !hasPendingExtraction && (content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!quotedPost) && intentWordsMet;
   const isLoading = isPublishing || isGeneratingQuiz || isFinalizingPublish;
+  
+  // Track previous transcription state for completion toast
+  const prevPendingTranscriptionRef = useRef(false);
+  
+  // Show toast when transcription completes
+  useEffect(() => {
+    const wasPending = prevPendingTranscriptionRef.current;
+    const isNowComplete = !hasPendingTranscription && uploadedMedia.some(m => 
+      m.extracted_status === 'done' && 
+      m.extracted_kind === 'transcript' &&
+      m.extracted_text
+    );
+    
+    if (wasPending && isNowComplete) {
+      toast.success('Trascrizione completata! Ora puoi pubblicare.');
+    }
+    
+    prevPendingTranscriptionRef.current = hasPendingTranscription;
+  }, [hasPendingTranscription, uploadedMedia]);
 
   // Find media with extracted text (OCR/transcription) sufficient for gate (>120 chars)
   const mediaWithExtractedText = uploadedMedia.find(m => 
@@ -1369,14 +1395,19 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
               
               <Button
                 onClick={handlePublish}
-                disabled={!canPublish || isLoading || isPreviewLoading}
+                disabled={!canPublish || isLoading || isPreviewLoading || hasPendingTranscription}
                 className={cn(
                   "px-5 py-1.5 h-auto rounded-full font-semibold text-sm",
                   "bg-primary hover:bg-primary/90 text-primary-foreground",
                   "disabled:opacity-50"
                 )}
               >
-                {isPreviewLoading ? 'Caricamento...' : isLoading ? (isGeneratingQuiz ? 'Generazione...' : 'Pubblicazione...') : 'Pubblica'}
+                {hasPendingTranscription ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                    Attendere...
+                  </>
+                ) : isPreviewLoading ? 'Caricamento...' : isLoading ? (isGeneratingQuiz ? 'Generazione...' : 'Pubblicazione...') : 'Pubblica'}
               </Button>
             </div>
 

@@ -138,6 +138,7 @@ const MediaItem = ({
     onRequestOCR;
   
   const isPending = item.extracted_status === 'pending';
+  const isTranscriptionPending = isPending && item.extracted_kind === 'transcript';
   const isDone = item.extracted_status === 'done';
   const isFailed = item.extracted_status === 'failed';
 
@@ -224,11 +225,19 @@ const MediaItem = ({
         </div>
       )}
 
-      {/* Processing overlay - semi-transparent so content is still visible */}
+      {/* IMPROVED: Processing overlay with clear messaging */}
       {isPending && (
-        <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-10">
-          <div className="bg-black/60 backdrop-blur-sm rounded-full p-3">
-            <Loader2 className="w-6 h-6 animate-spin text-white" />
+        <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center z-10 gap-3">
+          <div className="bg-black/80 backdrop-blur-sm rounded-full p-4">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+          <div className="text-center px-4">
+            <p className="text-white text-sm font-medium">
+              {item.extracted_kind === 'transcript' ? 'Trascrizione in corso' : 'Estrazione testo'}
+            </p>
+            <p className="text-white/60 text-xs mt-1">
+              {item.extracted_kind === 'transcript' ? 'Circa 30-60 secondi' : 'Pochi secondi'}
+            </p>
           </div>
         </div>
       )}
@@ -266,6 +275,9 @@ export const MediaPreviewTray = ({
   if (media.length === 0) return null;
 
   const isSingleMedia = media.length === 1;
+  const hasPendingTranscription = media.some(m => m.extracted_status === 'pending' && m.extracted_kind === 'transcript');
+  const hasPendingOCR = media.some(m => m.extracted_status === 'pending' && m.extracted_kind === 'ocr');
+  const hasPendingAny = media.some(m => m.extracted_status === 'pending');
 
   return (
     <div className="space-y-3">
@@ -296,15 +308,25 @@ export const MediaPreviewTray = ({
         </div>
       )}
       
-      {/* Status feedback below preview */}
-      {media.some(m => m.extracted_status === 'pending') && (
-        <div className="flex items-center gap-2 text-amber-400 text-xs">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          <span>Stiamo mettendo a fuoco il testo...</span>
+      {/* IMPROVED: Persistent high-visibility status banner */}
+      {hasPendingAny && (
+        <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 rounded-lg px-3 py-2.5">
+          <Loader2 className="w-5 h-5 animate-spin text-primary flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <span className="text-sm font-medium text-primary">
+              {hasPendingTranscription 
+                ? 'Trascrizione video in corso...'
+                : 'Estrazione testo in corso...'}
+            </span>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Non chiudere questa schermata
+            </p>
+          </div>
         </div>
       )}
       
-      {media.some(m => m.extracted_status === 'done' && m.extracted_text) && (
+      {/* Success indicator */}
+      {!hasPendingAny && media.some(m => m.extracted_status === 'done' && m.extracted_text) && (
         <div className="flex items-center gap-2 text-emerald-400 text-xs">
           <FileText className="w-4 h-4" />
           <span>
