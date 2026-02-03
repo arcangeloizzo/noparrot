@@ -1,118 +1,122 @@
 
-# Piano: Fix Caricamento Video e Integrazione Whisper nel Composer
 
-## Problema Identificato
+# Piano: Miglioramento Anteprima Media nel Composer
 
-Il caricamento video nel Composer **non funziona** perché:
+## Problema Attuale
 
-1. **Bucket sbagliato**: `useMediaUpload.ts` usa il bucket `avatars` che:
-   - Ha un limite di **5.24 MB** (troppo piccolo per video)
-   - Accetta **solo immagini** (PNG/JPG/WebP) - nessun MIME type video permesso
+Dallo screenshot condiviso emergono due problemi principali:
 
-2. **UI trascrizione poco visibile**: Il tasto "Genera trascrizione" esiste ma è un piccolo bottone sotto le miniature, poco evidente
-
-3. **Nessun feedback visivo chiaro**: Manca uno spinner overlay sulla miniatura durante la trascrizione
+1. **Thumbnail troppo piccole**: 96x96px sono insufficienti per capire cosa si e' caricato
+2. **Overlay "Trascrivi" copre tutto il video**: L'utente non vede il contenuto e non capisce se il video e' stato caricato
+3. **Video mostra schermo nero**: Il tag `<video>` senza `poster` o frame iniziale appare nero
 
 ---
 
 ## Soluzione Proposta
 
-### 1. Database: Nuovo Bucket `user-media` dedicato
+### Modifiche UI in `MediaPreviewTray.tsx`
 
-Creare un bucket ottimizzato per tutti i media utente (immagini + video):
+**1. Thumbnail piu' grandi e layout migliorato**
+- Singolo media: anteprima grande (aspect-ratio 16:9, larghezza piena)
+- Multipli media: griglia 2 colonne con thumbnail piu' grandi (120x120 o piu')
 
-```sql
--- Crea bucket per media utente con limite 100MB e tutti i MIME video/immagini
-INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-VALUES (
-  'user-media',
-  'user-media', 
-  true,
-  104857600,  -- 100 MB
-  ARRAY[
-    -- Immagini
-    'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif', 'image/heic', 'image/heif',
-    -- Video
-    'video/mp4', 'video/quicktime', 'video/mov', 'video/webm', 'video/mpeg', 'video/3gpp'
-  ]
-);
+**2. Overlay trascrizione discreto (non copre tutto)**
+- Per i video: badge/pulsante in basso a sinistra o angolo, NON full-overlay
+- Icona Sparkles + testo "Trascrivi" visibile ma non invasivo
+- Il video rimane visibile per confermare l'upload
 
--- Policy RLS per upload
-CREATE POLICY "Users can upload own media" ON storage.objects
-FOR INSERT TO authenticated
-WITH CHECK (bucket_id = 'user-media' AND (storage.foldername(name))[1] = auth.uid()::text);
+**3. Generazione thumbnail per video**
+- Cattura un frame dal video per mostrare un'anteprima reale
+- Fallback: usa il video element con `poster` se disponibile
 
--- Policy RLS per lettura pubblica
-CREATE POLICY "Public read access" ON storage.objects
-FOR SELECT TO public
-USING (bucket_id = 'user-media');
+**4. OCR per immagini**
+- Badge discreto per indicare stato OCR (pending/done/failed)
+- Non overlay full-screen, solo indicatore compatto
 
--- Policy RLS per delete
-CREATE POLICY "Users can delete own media" ON storage.objects
-FOR DELETE TO authenticated
-USING (bucket_id = 'user-media' AND (storage.foldername(name))[1] = auth.uid()::text);
+---
+
+## Dettagli Implementativi
+
+### `src/components/media/MediaPreviewTray.tsx`
+
+```text
+BEFORE: w-24 h-24 (96px, troppo piccolo)
+AFTER:  
+  - Singolo: aspect-video w-full (grande, chiaro)
+  - Multiplo: grid con thumbnail piu' grandi (min 120px)
+
+BEFORE: overlay inset-0 (copre tutto)
+AFTER:  badge/bottone posizionato nell'angolo
 ```
 
-### 2. `useMediaUpload.ts` - Usare il nuovo bucket
-
-Modificare l'hook per:
-- Usare il bucket `user-media` invece di `avatars`
-- Mantenere la logica esistente per video (durata, trascrizione on-demand)
+**Struttura proposta:**
 
 ```typescript
-// Linea 93: cambiare da 'avatars' a 'user-media'
-const bucketName = 'user-media';
-```
+// Layout responsivo basato sul numero di media
+const isSingleMedia = media.length === 1;
 
-### 3. `MediaPreviewTray.tsx` - UI Trascrizione Migliorata
-
-Rendere il tasto trascrizione più visibile e con feedback overlay:
-
-**Modifiche UI:**
-- Overlay semitrasparente sulla miniatura video con icona Mic/Sparkles
-- Stato "Processing" con spinner centrato sulla thumbnail
-- Badge verde "✓ Trascritto" al completamento
-- Disabilitare il tasto se video > 3 minuti
-
-```typescript
-// Nuovo design: overlay sulla thumbnail invece di bottone separato
-{item.type === 'video' && item.extracted_status === 'idle' && onRequestTranscription && (
-  <button
-    onClick={() => onRequestTranscription(item.id)}
-    disabled={isTranscribing || (item.duration_sec && item.duration_sec > 180)}
-    className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg"
-  >
-    <div className="flex flex-col items-center gap-1">
-      <Sparkles className="w-5 h-5 text-white" />
-      <span className="text-[10px] text-white font-medium">
-        {item.duration_sec && item.duration_sec > 180 ? 'Max 3 min' : 'Trascrivi'}
-      </span>
-    </div>
-  </button>
+// Per singolo media: anteprima grande
+{isSingleMedia && (
+  <div className="relative w-full aspect-video rounded-xl overflow-hidden">
+    {/* Video/Image a grandezza piena */}
+    {/* Pulsante "Trascrivi" come badge in basso */}
+  </div>
 )}
 
-{/* Spinner overlay durante trascrizione */}
-{item.type === 'video' && item.extracted_status === 'pending' && (
-  <div className="absolute inset-0 bg-black/60 flex items-center justify-center rounded-lg">
-    <Loader2 className="w-6 h-6 animate-spin text-white" />
+// Per multipli: griglia compatta ma piu' grande di prima
+{!isSingleMedia && (
+  <div className="grid grid-cols-2 gap-2">
+    {media.map(item => (
+      <div className="relative aspect-square rounded-lg overflow-hidden">
+        {/* Thumbnail */}
+        {/* Badge stato in overlay angolare */}
+      </div>
+    ))}
   </div>
 )}
 ```
 
-### 4. `MediaActionBar.tsx` - Confermare i limiti
+**Pulsante "Trascrivi" discreto:**
 
-Verificare che i limiti siano coerenti:
-- Già configurato con 100MB per video (riga 35) ✓
-- Accept include `video/*` ✓
+```typescript
+// Invece di coprire tutto, posizionato in basso
+{canTranscribe && (
+  <button
+    className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm 
+               px-2.5 py-1.5 rounded-full flex items-center gap-1.5
+               hover:bg-black/80 transition-colors"
+  >
+    <Sparkles className="w-4 h-4 text-primary" />
+    <span className="text-xs font-medium text-white">Trascrivi</span>
+  </button>
+)}
+```
 
-### 5. Vincoli di Stabilità
+**Stato processing (spinner):**
 
-| Vincolo | Implementazione |
-|---------|----------------|
-| **YouTube separato** | Nessuna modifica a `transcribe-youtube` - usa sottotitoli nativi |
-| **Trascrizione on-demand** | L'utente clicca esplicitamente il tasto "Trascrivi" |
-| **Modal non si chiude** | `hasPendingExtraction` blocca già il publish (riga 145 ComposerModal) |
-| **Flusso generate-qa** | `qaSourceRef: { kind: 'mediaId', id: media.id }` già implementato (riga 450) |
+```typescript
+// Overlay leggero che lascia intravedere il contenuto
+{isPending && (
+  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+    <div className="bg-black/60 rounded-full p-2">
+      <Loader2 className="w-5 h-5 animate-spin text-white" />
+    </div>
+  </div>
+)}
+```
+
+---
+
+## Flussi Non Impattati
+
+| Flusso | Stato |
+|--------|-------|
+| Upload video su bucket `user-media` | Invariato |
+| Chiamata `extract-media-text` per OCR | Invariato |
+| Chiamata `extract-media-text` per Whisper | Invariato |
+| `generate-qa` con `qaSourceRef: mediaId` | Invariato |
+| Polling status trascrizione | Invariato |
+| YouTube link (flusso separato) | Invariato |
 
 ---
 
@@ -120,33 +124,38 @@ Verificare che i limiti siano coerenti:
 
 | File | Modifica |
 |------|----------|
-| **Nuova migrazione SQL** | Crea bucket `user-media` con policy |
-| `src/hooks/useMediaUpload.ts` | Cambia bucket da `avatars` a `user-media` |
-| `src/components/media/MediaPreviewTray.tsx` | UI overlay trascrizione migliorata |
+| `src/components/media/MediaPreviewTray.tsx` | Layout e overlay UI |
 
 ---
 
-## Flusso Corretto Post-Fix
+## Preview Visiva Attesa
 
+**Singolo video caricato:**
 ```text
-1. Utente seleziona/registra video (fino a 100MB)
-2. useMediaUpload → upload su bucket 'user-media'
-3. MediaPreviewTray mostra thumbnail con overlay "Trascrivi"
-4. Utente clicca overlay → requestTranscription(mediaId)
-5. extract-media-text (Whisper) processa il video
-6. Stato updated: extracted_status = 'done', extracted_text = "..."
-7. ComposerModal rileva mediaWithExtractedText → attiva Gate
-8. generateQA con qaSourceRef: { kind: 'mediaId' }
-9. Quiz mostrato, utente risponde, post pubblicato
++----------------------------------+
+|                                  |
+|     [Video frame visibile]       |
+|                                  |
+|  [X]            [✨ Trascrivi]   |
++----------------------------------+
 ```
 
----
+**Singolo video in trascrizione:**
+```text
++----------------------------------+
+|                                  |
+|     [Video frame + overlay]      |
+|           [🔄 spinner]           |
+|                                  |
++----------------------------------+
+```
 
-## Separazione Flussi Garantita
-
-| Flusso | Sorgente | Servizio | Note |
-|--------|----------|----------|------|
-| **YouTube Link** | Sottotitoli YT | Supadata | Nessun Whisper |
-| **Video Caricato** | Audio → Whisper | OpenAI | On-demand, max 3 min |
-| **Immagine** | OCR | Gemini Vision | Automatico se screenshot |
+**Multipli media:**
+```text
++----------------+  +----------------+
+|                |  |                |
+|   [Immagine]   |  |   [Video]      |
+|          [X]   |  |  [✨] [X]      |
++----------------+  +----------------+
+```
 
