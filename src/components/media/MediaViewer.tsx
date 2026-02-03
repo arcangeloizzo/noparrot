@@ -31,7 +31,7 @@ interface PostActions {
 interface MediaViewerProps {
   media: Media[];
   initialIndex?: number;
-  onClose: () => void;
+  onClose: (finalIndex?: number) => void;
   postActions?: PostActions;
 }
 
@@ -100,7 +100,7 @@ export const MediaViewer = ({ media, initialIndex = 0, onClose, postActions }: M
     // Swipe down to close (only when not zoomed)
     if (deltaY > 100 && Math.abs(deltaX) < 50) {
       haptics.light();
-      onClose();
+      onClose(currentIndex);
     }
     // Swipe left/right to navigate
     else if (Math.abs(deltaX) > 50 && Math.abs(deltaY) < 50) {
@@ -177,7 +177,7 @@ export const MediaViewer = ({ media, initialIndex = 0, onClose, postActions }: M
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-20">
           <button
-            onClick={onClose}
+            onClick={() => onClose(currentIndex)}
             className="p-2 rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-black/70 transition-colors"
           >
             <X className="w-6 h-6" />
