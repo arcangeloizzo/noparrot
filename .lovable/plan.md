@@ -1,153 +1,188 @@
 
-# Piano: Gate Comprehension per Media (Video/Immagini)
+# Piano di Correzione: Gate Comprehension - Regola d'Oro
 
-## Riepilogo Situazione Attuale
+## Problema Identificato
 
-Il Composer attualmente gestisce i media uploadati in questo modo:
-- **Media CON OCR/trascrizione**: Gate attivo con 3 domande sul media (SOURCE_ONLY)
-- **Media SENZA OCR/trascrizione**: Nessun Gate, pubblicazione diretta
+Nel `ComposerModal.tsx`, quando un utente fa un **reshare**, la logica del Gate usa erroneamente `wordCount` (le parole che l'utente sta scrivendo nel composer) invece del contenuto del **post originale citato**.
 
-Questo non è coerente con le regole applicate agli altri tipi di contenuto (link, reshare, ecc.).
-
----
-
-## Nuove Regole da Implementare
-
-### SCENARIO 1: Media SENZA OCR/Trascrizione
-| Parole commento | Gate |
-|-----------------|------|
-| 0-30 parole | ❌ Nessun Gate |
-| 31-120 parole | ✅ Gate light: 1 domanda sul commento |
-| >120 parole | ✅ Gate completo: 3 domande sul commento |
-
-### SCENARIO 2: Media CON OCR/Trascrizione
-| Parole commento | Gate |
-|-----------------|------|
-| 0-30 parole | ✅ Gate solo media: 3 domande sul media |
-| 31-120 parole | ✅ Gate mixed: 1 domanda sul commento + 2 sul media |
-| >120 parole | ✅ Gate completo: 3 domande sul commento |
+Questo viola la **Regola d'Oro**:
+- ✅ Chi scrive non fa mai il test su se stesso
+- ✅ Chi condivide fa il test sulla fonte originale
+- ✅ Chi legge un reshare fa il test su tutto
 
 ---
 
-## Modifiche Tecniche
+## Errori Specifici nel Codice
 
-### 1. Nuovo Type e Funzione in `src/lib/gate-utils.ts`
-
+### 1. `gateStatus` (righe 260-286)
 ```text
-Nuova funzione: getMediaTestMode(userWordCount, hasExtractedText)
-Restituisce: { testMode, questionCount, gateRequired }
-
-Logica:
-- hasExtractedText=false && words≤30 → NO GATE
-- hasExtractedText=false && words 31-120 → USER_ONLY, 1 domanda
-- hasExtractedText=false && words>120 → USER_ONLY, 3 domande
-- hasExtractedText=true && words≤30 → SOURCE_ONLY, 3 domande
-- hasExtractedText=true && words 31-120 → MIXED, 3 domande (1+2)
-- hasExtractedText=true && words>120 → USER_ONLY, 3 domande
+ERRORE: usa wordCount (commento dell'utente che sta resharing)
+CORRETTO: usare getWordCount(quotedPost.content) (contenuto originale)
 ```
 
-### 2. Aggiornamento `gateStatus` in `ComposerModal.tsx` (righe 226-258)
-
-La funzione `gateStatus` deve riflettere le nuove regole per mostrare feedback in tempo reale.
-
-Modifiche:
-- Aggiungere branch per media SENZA OCR ma CON commento lungo
-- Distinguere tra "Gate su commento" e "Gate su media"
-- Label dinamiche: "Gate light (1 domanda)", "Gate mixed", "Gate completo"
-
-### 3. Aggiornamento `handlePublish` in `ComposerModal.tsx` (righe 419-497)
-
-Attualmente:
+### 2. Reshare media con OCR (righe 536-557)
 ```text
-if (mediaWithExtractedText) → handleMediaGateFlow (SOURCE_ONLY)
-else if (no detectedUrl && no quotedPost) → publishPost() direttamente
+ERRORE: const mediaGate = getMediaTestMode(wordCount, true)
+CORRETTO: usare lunghezza del contenuto del post originale (quotedPost.content)
 ```
 
-Modifiche:
-- Aggiungere branch per media SENZA OCR ma CON commento lungo (≥30 parole)
-- Chiamare `handleMediaGateFlow` con testMode appropriato
-- Passare `userText` al backend per generazione quiz su commento
-
-### 4. Aggiornamento `handleMediaGateFlow` in `ComposerModal.tsx` (righe 500-569)
-
-Attualmente forza `testMode: 'SOURCE_ONLY'`.
-
-Modifiche:
-- Accettare parametro `testMode` dinamico dalla nuova funzione `getMediaTestMode`
-- Passare `questionCount` corretto (1 o 3)
-- Gestire caso `USER_ONLY` per media senza OCR (quiz solo su commento)
-
-### 5. Aggiornamento Edge Function `generate-qa/index.ts` (righe 700-730)
-
-Il case `mediaId` deve supportare:
-- `testMode: 'USER_ONLY'` → usa solo `userText` per generare domande
-- `testMode: 'MIXED'` → combina extracted_text + userText
-- `testMode: 'SOURCE_ONLY'` → usa solo extracted_text (già funziona)
+### 3. Logica generale reshare (righe 277-286)
+```text
+ERRORE: Applica gate sul commento dell'utente (30-120 parole)
+CORRETTO: Gate basato SEMPRE sul contenuto originale, MAI sul commento del resharer
+```
 
 ---
 
-## Flusso Decisionale
+## Soluzione Proposta
+
+### Principio Fondamentale
+Nel **Composer** (fase di reshare), il Gate deve essere basato **esclusivamente** sulla fonte originale:
+- **Post text-only citato**: Gate sul testo originale del post
+- **Post con media OCR citato**: Gate sul contenuto estratto del media
+- **Il commento che l'utente sta scrivendo**: MAI testato
+
+### File da Modificare
+
+| File | Modifiche |
+|------|-----------|
+| `src/components/composer/ComposerModal.tsx` | Correggere logica `gateStatus` e `handlePublish` |
+
+---
+
+## Modifiche Dettagliate
+
+### 1. Variabile `quotedPostWordCount` (aggiungere dopo riga 178)
+```text
+Aggiungere una nuova variabile per contare le parole del post originale:
+const quotedPostWordCount = quotedPost?.content ? getWordCount(quotedPost.content) : 0;
+```
+
+### 2. Correzione `gateStatus` - Reshare Media (righe 260-275)
+```text
+PRIMA:
+  const mediaGate = getMediaTestMode(wordCount, true);
+
+DOPO:
+  // Per reshare, usa le parole del POST ORIGINALE (fonte), non il commento del resharer
+  // Il resharer fa il test sulla fonte, non su ciò che sta scrivendo
+  const mediaGate = getMediaTestMode(quotedPostWordCount, true);
+```
+
+### 3. Correzione `gateStatus` - Reshare Text-Only (righe 277-286)
+```text
+PRIMA:
+  if (quotedPost) {
+    const wordCount = getWordCount(content);  // ❌ Commento del resharer
+    if (wordCount > 120) return { label: 'Gate completo', requiresGate: true };
+    if (wordCount > 30) return { label: 'Gate light', requiresGate: true };
+  }
+
+DOPO:
+  // Per reshare di post text-only, il Gate è basato sul POST ORIGINALE
+  // L'utente che ricondivide fa il test sul contenuto che sta citando
+  if (quotedPost && !quotedPostMediaWithExtractedText) {
+    if (quotedPostWordCount > 120) {
+      return { label: 'Gate completo (fonte)', requiresGate: true };
+    }
+    if (quotedPostWordCount > 30) {
+      return { label: 'Gate light (fonte)', requiresGate: true };
+    }
+    // Post originale ≤30 parole: nessun gate
+    return { label: 'Nessun gate', requiresGate: false };
+  }
+```
+
+### 4. Correzione `handlePublish` - Reshare Media (righe 536-557)
+```text
+PRIMA:
+  const mediaGate = getMediaTestMode(wordCount, true);
+
+DOPO:
+  // Per reshare, valuta sulla base del POST ORIGINALE, non del commento resharer
+  const mediaGate = getMediaTestMode(quotedPostWordCount, true);
+```
+
+### 5. Aggiungere Branch per Reshare Text-Only nel `handlePublish`
+Dopo il branch per reshare media (riga 558), aggiungere gestione per reshare di post text-only con >30 parole:
+```text
+// Branch for reshare of text-only posts (without media, without URL)
+if (quotedPost && !quotedPostMediaWithExtractedText && !detectedUrl) {
+  if (quotedPostWordCount > 30) {
+    // Show reader for quoted post content
+    setReaderSource({
+      id: quotedPost.id,
+      url: `post://${quotedPost.id}`,
+      title: quotedPost.author?.full_name || quotedPost.author?.username,
+      content: quotedPost.content,
+      isOriginalPost: true,
+      author: quotedPost.author?.username,
+      authorFullName: quotedPost.author?.full_name,
+      authorAvatar: quotedPost.author?.avatar_url,
+    });
+    setShowReader(true);
+    return;
+  }
+  // ≤30 parole: nessun gate, pubblica direttamente
+  await publishPost();
+  return;
+}
+```
+
+---
+
+## Flusso Corretto dopo le Modifiche
 
 ```text
-                      Upload Media nel Composer
+                    Composer: Reshare di un Post
                                │
                                ▼
               ┌────────────────────────────────────┐
-              │ Ha OCR/Trascrizione attivata?      │
+              │  Tipo di contenuto originale?      │
               └────────────────────────────────────┘
-                    │                       │
-                   NO                      SI
-                    │                       │
-                    ▼                       ▼
-           ┌──────────────┐         ┌──────────────┐
-           │ Parole ≤30?  │         │ Parole ≤30?  │
-           └──────────────┘         └──────────────┘
-              │       │                │       │
-             SI      NO               SI      NO
-              │       │                │       │
-              ▼       ▼                ▼       ▼
-         NO GATE   31-120?       SOURCE_ONLY  31-120?
-                     │              (3)          │
-                    SI                          SI
-                     │                           │
-                     ▼                           ▼
-               USER_ONLY                      MIXED
-                 (1)                         (1+2)
-                     │                           │
-                    NO (>120)                   NO (>120)
-                     │                           │
-                     ▼                           ▼
-               USER_ONLY                    USER_ONLY
-                 (3)                          (3)
+          ┌──────────┴──────────┬──────────────────┐
+          │                     │                   │
+     Media con OCR        Text-Only            Con URL
+          │                     │                   │
+          ▼                     ▼                   ▼
+   Gate su media         Gate su testo         Gate su URL
+   (extracted_text)      (quotedPost.content)  (urlPreview)
+          │                     │                   │
+          │    ┌────────────────┴────────────────┐  │
+          │    │     Parole POST ORIGINALE       │  │
+          │    └────────────────┬────────────────┘  │
+          │         │           │           │       │
+          │        ≤30        31-120       >120     │
+          │         │           │           │       │
+          │         ▼           ▼           ▼       │
+          │     NO GATE     1 domanda   3 domande   │
+          │                   fonte       fonte     │
+          │                                         │
+          └─────────────────────────────────────────┘
+
+      ⚠️ Il commento che l'utente scrive nel Composer
+         NON viene MAI usato per determinare il gate
 ```
 
 ---
 
-## File Coinvolti
+## Cosa NON Cambia
 
-| File | Azione |
-|------|--------|
-| `src/lib/gate-utils.ts` | Aggiungere `getMediaTestMode()` |
-| `src/components/composer/ComposerModal.tsx` | Modificare `gateStatus`, `handlePublish`, `handleMediaGateFlow` |
-| `supabase/functions/generate-qa/index.ts` | Supportare USER_ONLY/MIXED per mediaId |
-
----
-
-## Cosa NON viene toccato
-
-- Flusso link/URL (già funziona)
-- Flusso reshare di post (già funziona)
-- Flusso commenti dal feed (già funziona)
-- OCR/trascrizione extraction (già funziona)
-- UI del Composer (nessuna modifica visuale)
-- Altri Edge Functions
-- Database/RLS
+- Upload media nel Composer (utente è autore) → Già corretto nella conversazione precedente
+- Flusso link/URL → Già corretto (usa `handleIOSQuizOnlyFlow` con `quotedPost.content`)
+- Flusso commenti dal Feed → Non toccato
+- Edge Functions → Non toccate
+- Database/RLS → Non toccato
 
 ---
 
-## Risultato Atteso
+## Riepilogo Regola d'Oro Implementata
 
-- Media senza OCR + commento lungo → Quiz sul commento dell'utente
-- Media con OCR + commento corto → Quiz sul contenuto estratto
-- Media con OCR + commento lungo → Quiz misto o solo su commento
-- Coerenza con le regole già applicate a link e reshare
+| Scenario | Chi fa il test? | Su cosa? |
+|----------|-----------------|----------|
+| Creazione post con URL | Autore | Fonte esterna (URL) |
+| Creazione post con media OCR | Autore | Media (OCR/trascrizione) |
+| Creazione post text-only | Autore | ❌ Nessun test |
+| Reshare post text-only | Resharer | Testo originale del post citato |
+| Reshare post con media OCR | Resharer | Media originale (OCR) |
+| Lettura reshare nel Feed | Lettore | Tutto (fonte + commento sharer) |
