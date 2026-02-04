@@ -59,13 +59,13 @@ function ServiceWorkerNavigationHandler() {
 
 const App = () => (
   <AppErrorBoundary>
-    <ThemeProvider
-      attribute="class"
-      defaultTheme="dark"
-      enableSystem
-      disableTransitionOnChange
-    >
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="dark"
+        enableSystem
+        disableTransitionOnChange
+      >
         <AuthProvider>
           <TooltipProvider>
             <Sonner />
@@ -99,8 +99,8 @@ const App = () => (
             </BrowserRouter>
           </TooltipProvider>
         </AuthProvider>
-      </QueryClientProvider>
-    </ThemeProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   </AppErrorBoundary>
 );
 
