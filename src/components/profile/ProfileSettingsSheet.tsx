@@ -51,14 +51,14 @@ export const ProfileSettingsSheet = ({ open, onOpenChange }: ProfileSettingsShee
       <SheetContent 
         side="bottom" 
         hideClose={true}
-        className="bg-[#0E1419] border-t border-white/10 rounded-t-3xl px-4 pb-8 pt-4"
+        className="bg-background border-t border-border rounded-t-3xl px-4 pb-8 pt-4"
       >
         <SheetHeader className="mb-4">
           <div className="flex items-center justify-between">
             <SheetTitle className="text-foreground text-lg">Impostazioni</SheetTitle>
             <button 
               onClick={() => onOpenChange(false)}
-              className="p-2 rounded-full hover:bg-white/10 transition-colors"
+              className="p-2 rounded-full hover:bg-muted/50 transition-colors"
             >
               <X className="w-5 h-5 text-muted-foreground" />
             </button>
@@ -74,8 +74,8 @@ export const ProfileSettingsSheet = ({ open, onOpenChange }: ProfileSettingsShee
                 onClick={action.onClick}
                 className={cn(
                   "w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-200",
-                  "bg-[#141A1E] border border-border/20 hover:border-border/40",
-                  "hover:bg-[#1A2127] active:scale-[0.99]"
+                  "bg-card border border-border hover:border-border/50",
+                  "hover:bg-muted active:scale-[0.99]"
                 )}
               >
                 <div className="flex-shrink-0 p-2 rounded-lg bg-white/5">

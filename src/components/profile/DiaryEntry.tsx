@@ -110,8 +110,8 @@ export const DiaryEntry = ({ entry }: DiaryEntryProps) => {
       onClick={() => navigate(`/post/${entry.id}`)}
       className={cn(
         "p-4 rounded-xl cursor-pointer transition-all duration-200",
-        "bg-[#141A1E] border border-border/20 hover:border-border/40",
-        "hover:bg-[#1A2127] active:scale-[0.98]"
+        "bg-card border border-border hover:border-border/50",
+        "hover:bg-muted active:scale-[0.98]"
       )}
     >
       <div className="flex gap-3">
