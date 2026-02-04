@@ -84,7 +84,7 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange }
             <img
               src={item.url}
               alt=""
-              className="w-full h-full object-cover aspect-video"
+              className="w-full aspect-auto object-contain bg-black/40"
               loading="lazy"
             />
           ) : (
@@ -139,7 +139,7 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange }
               <img
                 src={item.url}
                 alt=""
-                className="w-full h-full object-cover aspect-video"
+                className="w-full aspect-auto object-contain bg-black/40"
                 loading={idx <= 1 ? 'eager' : 'lazy'}
               />
             ) : (
