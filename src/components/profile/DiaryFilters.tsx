@@ -24,8 +24,8 @@ export const DiaryFilters = ({ activeFilter, onFilterChange }: DiaryFiltersProps
           className={cn(
             "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200",
             activeFilter === filter.id
-              ? "bg-white text-black"
-              : "bg-[#1A2127] text-muted-foreground hover:text-foreground hover:bg-[#242B33]"
+              ? "bg-primary text-primary-foreground"
+              : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-muted"
           )}
         >
           {filter.label}

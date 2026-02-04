@@ -384,6 +384,12 @@
   }
 }
 
+/* ===== SVG FILL UTILITIES ===== */
+/* Theme-aware SVG fill for logos and icons */
+.fill-foreground {
+  fill: hsl(var(--foreground));
+}
+
 /* ===== CENTRAL FAB with Liquid Ripple Effect ===== */
 
 /* Central FAB styling with soft shadow for depth */

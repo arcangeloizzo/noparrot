@@ -280,7 +280,7 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
   return (
     <button
       onClick={onClick}
-      className="w-full rounded-2xl bg-[#0A0F14] border border-white/[0.08] p-4 transition-all hover:border-white/15 active:scale-[0.99] relative overflow-hidden"
+      className="w-full rounded-2xl bg-card border border-border p-4 transition-all hover:border-border/50 active:scale-[0.99] relative overflow-hidden"
     >
       {/* Strong urban texture background - GPU optimized */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.08] urban-noise-overlay" />
@@ -330,7 +330,7 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
 
       {/* Empty state */}
       {activeCategories.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center z-20 bg-[#0A0F14]/80 rounded-2xl">
+        <div className="absolute inset-0 flex items-center justify-center z-20 bg-card/80 rounded-2xl">
           <p className="text-sm text-muted-foreground text-center px-8">
             Esplora contenuti per attivare la tua nebulosa cognitiva
           </p>

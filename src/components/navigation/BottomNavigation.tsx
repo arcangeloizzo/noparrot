@@ -125,7 +125,7 @@ export const BottomNavigation = ({
               onClick={() => handleTabClick(id)}
               className={cn(
                 "flex flex-col items-center justify-center gap-0.5 px-4 h-full transition-all duration-200 relative",
-                activeTab === id ? "text-white" : "text-gray-400 hover:text-white"
+                activeTab === id ? "text-foreground" : "text-muted-foreground hover:text-foreground"
               )}
             >
               {Icon && (
@@ -136,7 +136,7 @@ export const BottomNavigation = ({
               )}
               <span className={cn(
                 "text-[10px] font-medium transition-all",
-                activeTab === id ? "text-white" : "text-gray-400"
+                activeTab === id ? "text-foreground" : "text-muted-foreground"
               )}>
                 {label}
               </span>
@@ -167,13 +167,13 @@ export const BottomNavigation = ({
               onClick={() => handleTabClick(id)}
               className={cn(
                 "flex flex-col items-center justify-center gap-0.5 px-4 h-full transition-all duration-200 relative",
-                activeTab === id ? "text-white" : "text-gray-400 hover:text-white"
+                activeTab === id ? "text-foreground" : "text-muted-foreground hover:text-foreground"
               )}
             >
               {isAvatar ? (
                 <div className={cn(
                   "ring-2 rounded-full",
-                  activeTab === "profile" ? "ring-white" : "ring-white/20"
+                  activeTab === "profile" ? "ring-foreground" : "ring-border"
                 )}>
                   {getAvatarContent()}
                 </div>
@@ -193,7 +193,7 @@ export const BottomNavigation = ({
               {!isAvatar && (
                 <span className={cn(
                   "text-[10px] font-medium transition-all",
-                  activeTab === id ? "text-white" : "text-gray-400"
+                  activeTab === id ? "text-foreground" : "text-muted-foreground"
                 )}>
                   {label}
                 </span>

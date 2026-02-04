@@ -227,10 +227,10 @@ export const Profile = () => {
                 <img
                   src={profile.avatar_url}
                   alt="Avatar"
-                  className="w-20 h-20 rounded-full object-cover shadow-[0_0_20px_rgba(10,122,255,0.15)] ring-2 ring-white/10"
+                  className="w-20 h-20 rounded-full object-cover shadow-[0_0_20px_rgba(10,122,255,0.15)] ring-2 ring-border"
                 />
               ) : (
-                <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-2xl font-semibold text-primary-foreground shadow-[0_0_20px_rgba(10,122,255,0.15)] ring-2 ring-white/10">
+                <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-2xl font-semibold text-primary-foreground shadow-[0_0_20px_rgba(10,122,255,0.15)] ring-2 ring-border">
                   {getInitials(getDisplayUsername(profile?.username || "U"))}
                 </div>
               )}
@@ -254,14 +254,14 @@ export const Profile = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => navigate('/saved')}
-                className="flex-shrink-0 p-2.5 rounded-full bg-[#141A1E] border border-white/10 hover:border-white/20 transition-colors"
+                className="flex-shrink-0 p-2.5 rounded-full bg-secondary border border-border hover:border-border/50 transition-colors"
                 aria-label="Contenuti salvati"
               >
                 <Bookmark className="w-5 h-5 text-muted-foreground" />
               </button>
               <button
                 onClick={() => setShowSettings(true)}
-                className="flex-shrink-0 p-2.5 rounded-full bg-[#141A1E] border border-white/10 hover:border-white/20 transition-colors"
+                className="flex-shrink-0 p-2.5 rounded-full bg-secondary border border-border hover:border-border/50 transition-colors"
                 aria-label="Impostazioni"
               >
                 <Settings className="w-5 h-5 text-muted-foreground" />
@@ -271,15 +271,15 @@ export const Profile = () => {
 
           {/* Metrics Pills */}
           <div className="flex gap-2 mt-4 flex-wrap">
-            <div className="px-3 py-1 bg-[#141A1E] rounded-full text-xs">
+            <div className="px-3 py-1 bg-secondary rounded-full text-xs">
               <span className="font-bold text-foreground">{Math.round(totalPaths)}</span>
               <span className="text-muted-foreground ml-1">percorsi</span>
             </div>
-            <div className="px-3 py-1 bg-[#141A1E] rounded-full text-xs">
+            <div className="px-3 py-1 bg-secondary rounded-full text-xs">
               <span className="font-bold text-foreground">{activeTopics}</span>
               <span className="text-muted-foreground ml-1">ambiti</span>
             </div>
-            <div className="px-3 py-1 bg-[#141A1E] rounded-full text-xs">
+            <div className="px-3 py-1 bg-secondary rounded-full text-xs">
               <span className="font-bold text-foreground">{stats?.following || 0}</span>
               <span className="text-muted-foreground ml-1">conn.</span>
             </div>

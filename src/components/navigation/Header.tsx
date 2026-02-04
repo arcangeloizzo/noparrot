@@ -39,14 +39,14 @@ export const Header = ({ variant = "default" }: HeaderProps) => {
         <div className="absolute right-4 top-1/2 -translate-y-1/2">
           <Link
             to="/notifications"
-            className="relative flex items-center justify-center w-10 h-10 rounded-full hover:bg-white/10 transition-colors"
+            className="relative flex items-center justify-center w-10 h-10 rounded-full hover:bg-muted/50 transition-colors"
             onClick={() => {
               const now = new Date().toISOString();
               localStorage.setItem('notifications-last-viewed', now);
               setLastViewedAt(now);
             }}
           >
-            <Bell className="h-5 w-5 text-white icon-glow" />
+            <Bell className="h-5 w-5 text-foreground icon-glow" />
             {unreadCount > 0 && (
               <div className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-xs font-semibold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5 shadow-[0_0_8px_rgba(239,68,68,0.6)]">
                 {unreadCount > 99 ? '99+' : unreadCount}
