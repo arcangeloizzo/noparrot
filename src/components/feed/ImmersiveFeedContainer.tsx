@@ -116,8 +116,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     <FeedContext.Provider value={{ activeIndex }}>
       <div 
         ref={containerRef}
-        className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory no-scrollbar overscroll-none"
-        style={{ background: '#000' }}
+        className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory no-scrollbar overscroll-none bg-background"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -133,7 +132,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
         {children}
         
         {/* Bottom gradient fade for navbar */}
-        <div className="fixed bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-black to-transparent z-40 pointer-events-none" />
+        <div className="fixed bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-background to-transparent z-40 pointer-events-none" />
       </div>
     </FeedContext.Provider>
   );

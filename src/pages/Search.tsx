@@ -76,11 +76,12 @@ export const Search = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <Header />
+      {/* Header - align with Feed (immersive transparent variant) */}
+      <Header variant="immersive" />
       
-      <div className="mobile-container max-w-[600px] mx-auto">
-        {/* Sticky Search Bar */}
-        <div className="sticky top-0 bg-background/95 backdrop-blur-sm z-20 p-4">
+      <div className="mobile-container max-w-[600px] mx-auto pt-14">
+        {/* Search Bar */}
+        <div className="sticky top-14 bg-background/95 backdrop-blur-sm z-20 p-4">
           <SearchBar 
             value={searchQuery}
             onChange={setSearchQuery}

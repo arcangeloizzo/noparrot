@@ -237,7 +237,7 @@ export const ImmersiveEditorialCarousel = ({
       />
 
       {/* Content Layer */}
-      <div className="relative z-10 w-full h-full flex flex-col pt-14 pb-28">
+      <div className="relative z-10 w-full h-full flex flex-col pt-14 pb-36">
         
         {/* Carousel Container */}
         <div 

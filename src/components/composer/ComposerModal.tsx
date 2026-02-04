@@ -1658,15 +1658,15 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
             "h-[100dvh]",
             // Desktop: centered modal with max height
             "md:h-auto md:max-h-[85vh] md:w-full md:max-w-xl md:mx-auto md:my-8 md:rounded-2xl",
-            "bg-zinc-950 md:bg-zinc-900",
-            "border-0 md:border md:border-zinc-800",
+            "bg-background md:bg-card",
+            "border-0 md:border md:border-border",
             "animate-scale-in"
           )}
         >
           {/* Inner flex container - toolbar will be pushed up by keyboard */}
           <div className="flex flex-col h-full">
             {/* Minimal Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
               <Button 
                 variant="ghost" 
                 size="sm"
@@ -1700,7 +1700,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
               <div className="flex gap-3 px-4 pt-4">
                 <Avatar className="w-10 h-10 flex-shrink-0">
                   <AvatarImage src={profile?.avatar_url || undefined} className="object-cover" />
-                  <AvatarFallback className="bg-zinc-800 text-zinc-400 text-sm font-medium">
+                  <AvatarFallback className="bg-muted text-muted-foreground text-sm font-medium">
                     {initials}
                   </AvatarFallback>
                 </Avatar>
@@ -1722,7 +1722,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
               <div className="px-4 py-3 space-y-3">
                 {/* Intent Mode Indicator - word counter */}
                 {intentMode && (
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+                  <div className="bg-secondary border border-border rounded-xl p-3">
                     <p className="text-sm text-muted-foreground mb-2">
                       Questo contenuto non è leggibile dal sistema. Per condividerlo, aggiungi il tuo punto di vista.
                     </p>
@@ -1750,7 +1750,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
 
                 {/* URL Preview - Minimal */}
                 {urlPreview && (
-                  <div className="border border-zinc-800 rounded-xl overflow-hidden bg-zinc-900/50">
+                  <div className="border border-border rounded-xl overflow-hidden bg-card">
                     {urlPreview.image && (
                       <div className="aspect-[2/1] w-full overflow-hidden">
                         <img 
@@ -1761,7 +1761,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                       </div>
                     )}
                     <div className="px-3 py-2.5">
-                      <p className="text-xs text-zinc-500 mb-0.5">
+                      <p className="text-xs text-muted-foreground mb-0.5">
                         {urlPreview.domain || (urlPreview.url ? (() => { try { return new URL(urlPreview.url).hostname; } catch { return ''; } })() : '')}
                       </p>
                       <p className="text-sm font-medium text-foreground line-clamp-2">
