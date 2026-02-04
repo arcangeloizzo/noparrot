@@ -1,291 +1,175 @@
 
-# Piano: Aggiunta supporto Light Mode
+# Piano: Completamento Light Mode - Adattamento Componenti
 
-## Obiettivo
-Implementare un sistema di temi con tre opzioni (Dark default, Light, System) mantenendo l'interfaccia dark attuale esattamente come reference.
+## Problema identificato
 
-## Analisi attuale
+Dagli screenshot emerge che molti componenti hanno colori **hardcoded** che ignorano le variabili CSS del tema:
 
-### Stato del progetto
-- **Tailwind config**: `darkMode: ["class"]` - già configurato per class-based theming
-- **next-themes**: Già installato (^0.3.0) ma non utilizzato
-- **CSS Variables**: Definite in `:root` ma non separate correttamente per dark/light
-- **Problema attuale**: Il tema dark è mischiato tra `:root` e `.dark`, causando incoerenze
+1. **Header** - Icona notifiche `text-white` fissa
+2. **Bottom Navigation** - `text-white`, `text-gray-400` hardcoded
+3. **Profile** - Pill metriche, bottoni con `bg-[#141A1E]`
+4. **ProfileSettingsSheet** - Background `bg-[#0E1419]`, card items `bg-[#141A1E]`
+5. **ComposerModal** - Background `bg-zinc-950`, bordi `border-zinc-800`
+6. **Nebula/CompactNebula** - Background `bg-[#0A0F14]`
+7. **DiaryFilters** - Filtri con `bg-[#1A2127]`
+8. **DiaryEntry** - Card con `bg-[#141A1E]`
+9. **FocusDetailSheet** - Background `bg-[#0E141A]`, testi `text-white`
+10. **LogoHorizontal** - "PARROT" con `fill-white` fisso
+11. **ImmersivePostCard/ImmersiveEditorialCarousel** - Gradienti e overlay dark hardcoded
 
-### Colori attuali (Dark - da preservare)
+## Strategia di risoluzione
+
+### Mappatura colori hardcoded → variabili CSS
+
+| Hardcoded | Variabile CSS corretta |
+|-----------|------------------------|
+| `bg-[#0E141A]`, `bg-[#0E1419]` | `bg-background` |
+| `bg-[#141A1E]`, `bg-[#1A2127]` | `bg-secondary` o `bg-card` |
+| `bg-zinc-950`, `bg-zinc-900` | `bg-background` o `bg-card` |
+| `text-white` (in UI persistente) | `text-foreground` |
+| `text-gray-400` | `text-muted-foreground` |
+| `border-white/10` | `border-border` |
+| `border-zinc-800` | `border-border` |
+| `hover:bg-white/10` | `hover:bg-muted/50` |
+
+### Componenti immersivi (Feed, Editorial)
+
+Per ImmersivePostCard e ImmersiveEditorialCarousel, i gradienti dark sono **intenzionali** per garantire leggibilità del testo bianco su immagini. Questi componenti restano invariati perchè:
+- Sono "full-screen cinematic" cards con overlays su immagini
+- Il testo deve essere bianco per contrasto con qualsiasi immagine
+- Il fade nero garantisce transizioni fluide tra card
+
+## File da modificare
+
+### 1. Header.tsx
+- `text-white` → `text-foreground`
+- `hover:bg-white/10` → `hover:bg-muted/50`
+
+### 2. BottomNavigation.tsx
+- `text-white` → `text-foreground`
+- `text-gray-400` → `text-muted-foreground`
+- `ring-white` → `ring-foreground`
+- `ring-white/20` → `ring-border`
+
+### 3. Profile.tsx
+- `bg-[#141A1E]` → `bg-secondary`
+- `border-white/10` → `border-border`
+- `hover:border-white/20` → `hover:border-border/50`
+
+### 4. ProfileSettingsSheet.tsx
+- `bg-[#0E1419]` → `bg-background`
+- `border-white/10` → `border-border`
+- `bg-[#141A1E]` → `bg-card`
+- `hover:bg-[#1A2127]` → `hover:bg-muted`
+- `hover:bg-white/10` → `hover:bg-muted/50`
+
+### 5. ComposerModal.tsx
+- `bg-zinc-950` → `bg-background`
+- `bg-zinc-900` → `bg-card`
+- `border-zinc-800` → `border-border`
+- `bg-zinc-800` (avatar fallback) → `bg-muted`
+- `text-zinc-400` → `text-muted-foreground`
+
+### 6. CompactNebula.tsx
+- `bg-[#0A0F14]` → `bg-card`
+- `border-white/[0.08]` → `border-border`
+- `hover:border-white/15` → `hover:border-border/50`
+- `bg-[#0A0F14]/80` (empty state) → `bg-card/80`
+
+### 7. DiaryFilters.tsx
+- `bg-[#1A2127]` → `bg-secondary`
+- `hover:bg-[#242B33]` → `hover:bg-muted`
+
+### 8. DiaryEntry.tsx
+- `bg-[#141A1E]` → `bg-card`
+- `hover:bg-[#1A2127]` → `hover:bg-muted`
+
+### 9. FocusDetailSheet.tsx
+- `bg-[#0E141A]` → `bg-background`
+- `border-white/10` → `border-border`
+- `text-white` → `text-foreground`
+- `text-white/70` → `text-muted-foreground`
+- `text-gray-400` → `text-muted-foreground`
+- `text-gray-200` → `text-foreground`
+- `hover:bg-white/10` → `hover:bg-muted/50`
+
+### 10. LogoHorizontal.tsx
+- `fill-white` → `fill-foreground` (con CSS class per supporto tema)
+- Aggiungere classe `text-foreground` e usare `fill-current` per SVG text paths
+
+### 11. index.css (Light Mode specifico)
+Aggiungere regole per componenti specifici in `.light`:
 ```css
---background: 220 25% 5%           /* #0E141A quasi nero */
---foreground: 0 0% 98%             /* bianco caldo */
---card: 210 18% 12%                /* grigio scuro */
---border: 210 18% 18%              /* bordi grigi */
---muted-foreground: 210 10% 55%   /* testo secondario */
---primary: 206 100% 50%            /* blu NoParrot #0A7AFF */
-```
-
-## Architettura della soluzione
-
-### 1. Ristrutturazione CSS Variables
-
-**`:root` (base)** - Variabili condivise tra temi:
-- Primary blue, brand colors (invarianti)
-- Spacing, radius, typography
-- Transition timings
-
-**`:root` (default = dark)** - Tema dark di default:
-- Background scuri
-- Foreground chiari
-- Glass effects con rgba bianco
-
-**`.light`** - Tema light speculare:
-- Background: `#F8FAFC` (slate-50)
-- Foreground: `#1E293B` (slate-800 antracite)
-- Glass effects con rgba nero
-- Stessi colori accent (blu NoParrot)
-
-### 2. Palette Light Mode proposta
-
-```css
-.light {
-  --background: 210 40% 98%;           /* #F8FAFC slate-50 */
-  --background-secondary: 214 32% 95%; /* #F1F5F9 slate-100 */
-  --foreground: 222 47% 11%;           /* #1E293B slate-800 antracite */
-  --foreground-muted: 215 16% 47%;     /* #64748B slate-500 */
-  
-  --card: 0 0% 100%;                   /* bianco puro */
-  --card-foreground: 222 47% 11%;      /* slate-800 */
-  
-  --border: 214 32% 91%;               /* #E2E8F0 slate-200 */
-  --input: 214 32% 91%;
-  
-  /* Primary resta invariato */
-  --primary: 206 100% 50%;             /* #0A7AFF */
-  --primary-foreground: 0 0% 100%;
-  
-  /* Glass per light mode */
-  --glass-primary: rgba(0, 0, 0, 0.04);
-  --glass-border: rgba(0, 0, 0, 0.08);
-  
-  /* Trust badges con contrasto adeguato */
-  --trust-high: 142 71% 35%;
-  --trust-medium: 38 92% 45%;
-  --trust-low: 0 72% 50%;
+.light .liquid-glass-fab-central {
+  background: linear-gradient(135deg, #0A7AFF, #0d6efd);
+  box-shadow: 0 4px 15px rgba(10, 122, 255, 0.3);
 }
 ```
 
-### 3. Integrazione ThemeProvider (next-themes)
+## Componenti da NON modificare
 
-Modifiche a `src/App.tsx`:
-```tsx
-import { ThemeProvider } from "next-themes";
+I seguenti componenti mantengono gradienti dark perche sono "immersive" con contenuto sopra immagini:
+- `ImmersivePostCard.tsx` - Le card del feed sono volutamente cinematiche
+- `ImmersiveEditorialCarousel.tsx` - Il carousel "Il Punto" mantiene lo stile dark
+- `SpotifyGradientBackground.tsx` - Gradiente specifico per Spotify
 
-const App = () => (
-  <AppErrorBoundary>
-    <ThemeProvider 
-      attribute="class" 
-      defaultTheme="dark"
-      enableSystem
-      disableTransitionOnChange
-    >
-      <QueryClientProvider client={queryClient}>
-        ...
-      </QueryClientProvider>
-    </ThemeProvider>
-  </AppErrorBoundary>
-);
+## Flusso delle modifiche
+
+```text
+1. Header + BottomNavigation (navigazione)
+   |
+2. Profile + ProfileSettingsSheet (profilo)
+   |
+3. ComposerModal (creazione contenuto)
+   |
+4. CompactNebula + DiaryFilters + DiaryEntry (componenti profilo)
+   |
+5. FocusDetailSheet (dettaglio editoriale)
+   |
+6. LogoHorizontal (branding)
+   |
+7. index.css (regole light specifiche)
 ```
-
-### 4. Componente ThemeSwitcher
-
-Nuovo file `src/components/ui/theme-switcher.tsx`:
-- Toggle con icone Sun/Moon/Monitor
-- Tre stati: dark, light, system
-- Haptic feedback su cambio
-- Design coerente con action buttons esistenti
-
-### 5. Integrazione nel profilo
-
-Modifiche a `src/pages/SettingsPrivacy.tsx`:
-- Nuova sezione "Aspetto" dopo "Profilo cognitivo"
-- Radio group con opzioni: Scuro, Chiaro, Sistema
-- Preview visivo del tema selezionato
-
-## File da modificare/creare
-
-| File | Azione | Descrizione |
-|------|--------|-------------|
-| `src/index.css` | Modifica | Ristrutturare variabili: `:root` base, `:root`/`html.dark` dark, `.light` light |
-| `src/App.tsx` | Modifica | Wrap con ThemeProvider di next-themes |
-| `index.html` | Modifica | Aggiungere `class="dark"` a `<html>` per evitare flash |
-| `src/components/ui/theme-switcher.tsx` | Nuovo | Componente switch tema con icone |
-| `src/pages/SettingsPrivacy.tsx` | Modifica | Aggiungere sezione "Aspetto" con selettore tema |
-
-## Dettagli implementativi
-
-### CSS: Struttura variabili
-
-```css
-@layer base {
-  :root {
-    /* ===== INVARIANT BRAND TOKENS ===== */
-    --primary-blue: 206 100% 50%;
-    --noparrot-blue: 211 100% 52%;
-    /* ... altri colori brand fissi ... */
-    
-    /* ===== SPACING, RADIUS, TYPOGRAPHY ===== */
-    --space-1: 4px;
-    --radius-sm: 10px;
-    --font-inter: 'Inter', ...;
-    
-    /* ===== DEFAULT DARK THEME ===== */
-    --background: 220 25% 5%;
-    --foreground: 0 0% 98%;
-    --card: 210 18% 12%;
-    /* ... resto dark ... */
-    
-    /* Glass Dark */
-    --glass-primary: rgba(255, 255, 255, 0.08);
-    --glass-border: rgba(255, 255, 255, 0.15);
-  }
-  
-  /* Explicit dark class (mirrors :root for specificity) */
-  .dark {
-    --background: 220 25% 5%;
-    --foreground: 0 0% 98%;
-    /* ... identico a :root dark ... */
-  }
-  
-  /* Light theme override */
-  .light {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
-    --card: 0 0% 100%;
-    --border: 214 32% 91%;
-    /* ... glass light ... */
-    --glass-primary: rgba(0, 0, 0, 0.04);
-    --glass-border: rgba(0, 0, 0, 0.08);
-  }
-}
-```
-
-### Body background per Light Mode
-
-```css
-html.light body {
-  background: 
-    radial-gradient(ellipse at 20% 30%, rgba(10, 122, 255, 0.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 70%, rgba(10, 122, 255, 0.03) 0%, transparent 50%),
-    hsl(210 40% 98%);
-  color: hsl(222 47% 11%);
-}
-```
-
-### Navbar glassmorphism Light
-
-```css
-.light .liquid-glass-navbar {
-  background: rgba(248, 250, 252, 0.92);
-  border-top: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
-}
-```
-
-### ThemeSwitcher component
-
-```tsx
-import { useTheme } from "next-themes";
-import { Sun, Moon, Monitor } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { haptics } from "@/lib/haptics";
-
-export function ThemeSwitcher() {
-  const { theme, setTheme } = useTheme();
-  
-  const options = [
-    { value: 'dark', icon: Moon, label: 'Scuro' },
-    { value: 'light', icon: Sun, label: 'Chiaro' },
-    { value: 'system', icon: Monitor, label: 'Sistema' },
-  ];
-  
-  const handleChange = (value: string) => {
-    haptics.light();
-    setTheme(value);
-  };
-  
-  return (
-    <div className="flex gap-2">
-      {options.map(({ value, icon: Icon, label }) => (
-        <button
-          key={value}
-          onClick={() => handleChange(value)}
-          className={cn(
-            "flex-1 flex flex-col items-center gap-1 p-3 rounded-xl transition-all",
-            theme === value 
-              ? "bg-primary/10 border-primary text-primary" 
-              : "bg-muted/30 border-border text-muted-foreground"
-          )}
-        >
-          <Icon className="w-5 h-5" />
-          <span className="text-xs font-medium">{label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-```
-
-### Integrazione in SettingsPrivacy
-
-```tsx
-import { ThemeSwitcher } from "@/components/ui/theme-switcher";
-import { Palette } from "lucide-react";
-
-// Nuova Card dopo "Profilo cognitivo"
-<Card className="p-4">
-  <div className="flex items-center gap-3 mb-3">
-    <Palette className="w-5 h-5 text-indigo-400" />
-    <h2 className="text-lg font-semibold">Aspetto</h2>
-  </div>
-  <p className="text-sm text-muted-foreground mb-4">
-    Scegli il tema dell'app. "Sistema" seguirà le impostazioni del tuo dispositivo.
-  </p>
-  <ThemeSwitcher />
-</Card>
-```
-
-## Gestione componenti con colori hardcoded
-
-Alcuni componenti usano colori hardcoded (es. `bg-[#0E1419]`). Questi andranno aggiornati per usare variabili CSS:
-
-| Componente | Pattern attuale | Pattern corretto |
-|------------|-----------------|------------------|
-| ProfileSettingsSheet | `bg-[#0E1419]` | `bg-card` |
-| BottomNavigation | `text-gray-400` | `text-muted-foreground` |
-| Various | `bg-[#141A1E]` | `bg-secondary` |
 
 ## Test di validazione
 
-1. **Dark default**: App si apre in dark mode senza flash
-2. **Light mode**: Passare a light, verificare sfondo chiaro e testi scuri
-3. **System**: Cambiare preferenza OS, verificare che il tema cambi
-4. **Persistenza**: Ricaricare pagina, verificare che il tema sia mantenuto
-5. **Glass effects**: Verificare backdrop-blur funzioni in entrambi i temi
-6. **Trust badges**: Verificare contrasto adeguato in light mode
-7. **Componenti critici**: Feed, Commenti, Il Punto, Profilo
+1. Aprire l'app in Dark Mode → verificare che sia identica a prima
+2. Passare a Light Mode tramite /settings/privacy
+3. Verificare:
+   - Header: icona notifiche visibile (non bianca su bianco)
+   - Bottom Nav: icone e testi visibili
+   - Profile: pill metriche leggibili, Nebula con sfondo chiaro
+   - Settings sheet: sfondo chiaro, card items visibili
+   - Composer: sfondo chiaro, placeholder visibile
+   - Focus detail: titolo e testo visibili
+   - Logo nella header: "PARROT" visibile in entrambi i temi
 
-## Rischi e mitigazioni
+## Note tecniche
 
-| Rischio | Mitigazione |
-|---------|-------------|
-| Flash of wrong theme | `class="dark"` su html + suppressHydrationWarning |
-| Colori hardcoded | Audit e sostituzione con variabili |
-| Contrasto insufficiente | Test WCAG AA su tutti i colori light |
-| Glass illeggibile | Glass opacity ridotta in light mode |
+### Gestione SVG fill
+Per `LogoHorizontal.tsx`, il testo "PARROT" usa `fill-white`. Per supportare entrambi i temi:
 
-## Timeline stimata
+```tsx
+// Prima
+<path className="fill-white" d="..."/>
 
-1. **CSS restructure**: 40%
-2. **ThemeProvider integration**: 10%
-3. **ThemeSwitcher component**: 15%
-4. **Settings integration**: 10%
-5. **Hardcoded colors cleanup**: 20%
-6. **Testing & refinement**: 5%
+// Dopo
+<path className="fill-foreground" d="..."/>
+```
+
+Dove `fill-foreground` è definito in CSS come:
+```css
+.fill-foreground {
+  fill: hsl(var(--foreground));
+}
+```
+
+### Filtri attivi
+I DiaryFilters usano `bg-white text-black` per lo stato attivo. Questo va invertito in light mode:
+```css
+.light .filter-active {
+  @apply bg-foreground text-background;
+}
+```
+
+Oppure usare `bg-primary text-primary-foreground` per consistenza.
