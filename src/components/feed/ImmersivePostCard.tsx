@@ -1200,16 +1200,7 @@ const ImmersivePostCardInner = ({
 
         {/* Cinematic Fade Overlay - seamless card-to-card transitions */}
         <div 
-          className="absolute inset-0 z-[2] pointer-events-none"
-          style={{
-            background: `linear-gradient(
-              to bottom,
-              rgba(0,0,0,1) 0%,
-              rgba(0,0,0,0) 12%,
-              rgba(0,0,0,0) 88%,
-              rgba(0,0,0,1) 100%
-            )`
-          }}
+          className="absolute inset-0 z-[2] pointer-events-none cinematic-fade-overlay"
         />
 
         {/* Heart animation */}
@@ -1220,7 +1211,7 @@ const ImmersivePostCardInner = ({
         )}
 
         {/* Content Layer */}
-        <div className="relative z-10 w-full h-full flex flex-col justify-between pt-14 pb-16 sm:pb-24">
+        <div className="relative z-10 w-full h-full flex flex-col justify-between pt-14 pb-28 sm:pb-32">
           
           {/* Top Bar */}
           <div className="flex justify-between items-start">
