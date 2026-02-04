@@ -21,15 +21,23 @@ interface ReactionPickerProps {
   /** Ref to the trigger button for position calculation */
   triggerRef?: React.RefObject<HTMLElement>;
   className?: string;
+  /** Current drag position for drag-to-select behavior */
+  dragPosition?: { x: number; y: number } | null;
+  /** Called when drag ends (touch/mouse up) */
+  onDragRelease?: () => void;
 }
 
 export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerProps>(
-  ({ isOpen, onClose, onSelect, currentReaction, triggerRef, className }, ref) => {
+  ({ isOpen, onClose, onSelect, currentReaction, triggerRef, className, dragPosition, onDragRelease }, ref) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const internalTriggerRef = React.useRef<HTMLDivElement>(null);
     
     // Stato per bloccare la chiusura immediata dopo l'apertura (fix iOS long-press release)
     const [isInteracting, setIsInteracting] = React.useState(false);
+    
+    // Hovered reaction for drag-to-select
+    const [hoveredReaction, setHoveredReaction] = React.useState<ReactionType | null>(null);
+    const lastHoveredRef = React.useRef<ReactionType | null>(null);
     
     // Dynamic position state for viewport-aware positioning
     const [positionStyle, setPositionStyle] = React.useState<React.CSSProperties>({});
@@ -38,10 +46,73 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
     React.useEffect(() => {
       if (isOpen) {
         setIsInteracting(true);
+        setHoveredReaction(null);
+        lastHoveredRef.current = null;
         const timer = setTimeout(() => setIsInteracting(false), 350);
         return () => clearTimeout(timer);
       }
     }, [isOpen]);
+    
+    // Update hovered reaction based on drag position
+    React.useEffect(() => {
+      if (!isOpen || !dragPosition) {
+        return;
+      }
+      
+      const element = document.elementFromPoint(dragPosition.x, dragPosition.y);
+      const reactionButton = element?.closest('[data-reaction-type]');
+      
+      if (reactionButton) {
+        const type = reactionButton.getAttribute('data-reaction-type') as ReactionType;
+        if (type !== lastHoveredRef.current) {
+          setHoveredReaction(type);
+          lastHoveredRef.current = type;
+          haptics.selection();
+        }
+      } else {
+        if (lastHoveredRef.current !== null) {
+          setHoveredReaction(null);
+          lastHoveredRef.current = null;
+        }
+      }
+    }, [isOpen, dragPosition]);
+    
+    // Handle drag release - select hovered reaction
+    React.useEffect(() => {
+      if (!isOpen) return;
+      
+      const handleGlobalTouchEnd = () => {
+        if (hoveredReaction) {
+          haptics.selection();
+          onSelect(hoveredReaction);
+          onClose();
+        } else if (!isInteracting) {
+          // No reaction hovered and not in initial interaction phase - close picker
+          onClose();
+        }
+        onDragRelease?.();
+      };
+      
+      const handleGlobalMouseUp = () => {
+        if (hoveredReaction) {
+          haptics.selection();
+          onSelect(hoveredReaction);
+          onClose();
+        }
+        onDragRelease?.();
+      };
+      
+      // Only add listeners if we have drag support (dragPosition prop is provided)
+      if (dragPosition !== undefined) {
+        document.addEventListener('touchend', handleGlobalTouchEnd, { passive: true });
+        document.addEventListener('mouseup', handleGlobalMouseUp, { passive: true });
+        
+        return () => {
+          document.removeEventListener('touchend', handleGlobalTouchEnd);
+          document.removeEventListener('mouseup', handleGlobalMouseUp);
+        };
+      }
+    }, [isOpen, hoveredReaction, isInteracting, onSelect, onClose, onDragRelease, dragPosition]);
     
     // Calculate safe position within viewport with flip logic
     React.useEffect(() => {
@@ -94,8 +165,9 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
     }, [isOpen, triggerRef]);
 
     // Close on outside click (solo desktop, con delay per evitare ghost clicks)
+    // Only active when NOT in drag mode
     React.useEffect(() => {
-      if (!isOpen) return;
+      if (!isOpen || dragPosition !== undefined) return;
 
       const handleClickOutside = (e: MouseEvent) => {
         if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -112,7 +184,7 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
         clearTimeout(timer);
         document.removeEventListener('mousedown', handleClickOutside);
       };
-    }, [isOpen, onClose]);
+    }, [isOpen, onClose, dragPosition]);
 
     // Close on escape
     React.useEffect(() => {
@@ -127,7 +199,11 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
     }, [isOpen, onClose]);
     
     // Handler per lo shield: blocca chiusura durante interazione iniziale
+    // Only used when NOT in drag mode
     const handleShieldInteraction = React.useCallback((e: React.MouseEvent | React.TouchEvent) => {
+      // In drag mode, shield interactions are handled by global listeners
+      if (dragPosition !== undefined) return;
+      
       e.stopPropagation();
       e.preventDefault();
       
@@ -152,15 +228,63 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
       
       // Click mouse: chiudi immediatamente
       onClose();
-    }, [isInteracting, onClose]);
+    }, [isInteracting, onClose, dragPosition]);
 
     const handleSelect = (type: ReactionType) => {
+      // In drag mode, selection is handled by global touchend/mouseup
+      if (dragPosition !== undefined) return;
+      
       console.log('[ReactionPicker] handleSelect called with:', type);
       haptics.selection();
       console.log('[ReactionPicker] About to call onSelect');
       onSelect(type);
       console.log('[ReactionPicker] onSelect returned, calling onClose');
       onClose();
+    };
+
+    const renderEmojiButton = (reaction: { type: ReactionType; emoji: string; label: string }, index: number) => {
+      const isHovered = hoveredReaction === reaction.type;
+      const isDragMode = dragPosition !== undefined;
+      
+      return (
+        <button
+          key={reaction.type}
+          type="button"
+          data-reaction-type={reaction.type}
+          onTouchStart={(e) => {
+            if (isDragMode) return; // In drag mode, don't handle direct touches
+            console.log('[ReactionPicker] Emoji touchstart:', reaction.type);
+          }}
+          onTouchEnd={(e) => {
+            if (isDragMode) return; // In drag mode, selection handled by global listener
+            console.log('[ReactionPicker] Emoji touchend:', reaction.type);
+            e.preventDefault();
+            e.stopPropagation();
+            handleSelect(reaction.type);
+          }}
+          onClick={(e) => {
+            if (isDragMode) return; // In drag mode, selection handled by global listener
+            console.log('[ReactionPicker] Emoji click:', reaction.type);
+            e.stopPropagation();
+            handleSelect(reaction.type);
+          }}
+          className={cn(
+            "w-10 h-10 flex items-center justify-center rounded-full select-none cursor-pointer",
+            "transition-all duration-100",
+            // In drag mode: scale up when hovered by finger
+            isDragMode ? (isHovered ? "scale-150" : "scale-100") : "hover:scale-125 active:scale-110",
+            "animate-in fade-in-0 zoom-in-50",
+            currentReaction === reaction.type && "ring-2 ring-primary ring-offset-2 ring-offset-popover bg-primary/10"
+          )}
+          style={{
+            animationDelay: `${index * 30}ms`,
+            WebkitTapHighlightColor: 'transparent',
+          }}
+          aria-label={reaction.label}
+        >
+          <span className="text-2xl select-none pointer-events-none">{reaction.emoji}</span>
+        </button>
+      );
     };
 
     // If external triggerRef is not provided, render a wrapper to use as position reference
@@ -173,9 +297,9 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
           
           {isOpen && createPortal(
             <>
-              {/* Invisible shield */}
+              {/* Invisible shield - in drag mode, let events pass through */}
               <div 
-                className="fixed inset-0 z-[9998]" 
+                className={cn("fixed inset-0 z-[9998]", dragPosition !== undefined && "pointer-events-none")}
                 onClick={handleShieldInteraction}
                 onTouchEnd={handleShieldInteraction}
                 onTouchStart={(e) => e.stopPropagation()}
@@ -195,39 +319,7 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
                 )}
                 style={positionStyle}
               >
-                {REACTIONS.map((reaction, index) => (
-                  <button
-                    key={reaction.type}
-                    type="button"
-                    onTouchStart={(e) => {
-                      console.log('[ReactionPicker] Emoji touchstart:', reaction.type);
-                    }}
-                    onTouchEnd={(e) => {
-                      console.log('[ReactionPicker] Emoji touchend:', reaction.type);
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleSelect(reaction.type);
-                    }}
-                    onClick={(e) => {
-                      console.log('[ReactionPicker] Emoji click:', reaction.type);
-                      e.stopPropagation();
-                      handleSelect(reaction.type);
-                    }}
-                    className={cn(
-                      "w-10 h-10 flex items-center justify-center rounded-full select-none cursor-pointer",
-                      "transition-all duration-200 hover:scale-125 active:scale-110",
-                      "animate-in fade-in-0 zoom-in-50",
-                      currentReaction === reaction.type && "ring-2 ring-primary ring-offset-2 ring-offset-popover bg-primary/10"
-                    )}
-                    style={{
-                      animationDelay: `${index * 30}ms`,
-                      WebkitTapHighlightColor: 'transparent',
-                    }}
-                    aria-label={reaction.label}
-                  >
-                    <span className="text-2xl select-none pointer-events-none">{reaction.emoji}</span>
-                  </button>
-                ))}
+                {REACTIONS.map((reaction, index) => renderEmojiButton(reaction, index))}
               </div>
             </>,
             document.body
@@ -241,9 +333,9 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
 
     return createPortal(
       <>
-        {/* Invisible shield */}
+        {/* Invisible shield - in drag mode, let events pass through */}
         <div 
-          className="fixed inset-0 z-[9998]" 
+          className={cn("fixed inset-0 z-[9998]", dragPosition !== undefined && "pointer-events-none")}
           onClick={handleShieldInteraction}
           onTouchEnd={handleShieldInteraction}
           onTouchStart={(e) => e.stopPropagation()}
@@ -263,39 +355,7 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
           )}
           style={positionStyle}
         >
-          {REACTIONS.map((reaction, index) => (
-            <button
-              key={reaction.type}
-              type="button"
-              onTouchStart={(e) => {
-                console.log('[ReactionPicker] Emoji touchstart:', reaction.type);
-              }}
-              onTouchEnd={(e) => {
-                console.log('[ReactionPicker] Emoji touchend:', reaction.type);
-                e.preventDefault();
-                e.stopPropagation();
-                handleSelect(reaction.type);
-              }}
-              onClick={(e) => {
-                console.log('[ReactionPicker] Emoji click:', reaction.type);
-                e.stopPropagation();
-                handleSelect(reaction.type);
-              }}
-              className={cn(
-                "w-10 h-10 flex items-center justify-center rounded-full select-none cursor-pointer",
-                "transition-all duration-200 hover:scale-125 active:scale-110",
-                "animate-in fade-in-0 zoom-in-50",
-                currentReaction === reaction.type && "ring-2 ring-primary ring-offset-2 ring-offset-popover bg-primary/10"
-              )}
-              style={{
-                animationDelay: `${index * 30}ms`,
-                WebkitTapHighlightColor: 'transparent',
-              }}
-              aria-label={reaction.label}
-            >
-              <span className="text-2xl select-none pointer-events-none">{reaction.emoji}</span>
-            </button>
-          ))}
+          {REACTIONS.map((reaction, index) => renderEmojiButton(reaction, index))}
         </div>
       </>,
       document.body

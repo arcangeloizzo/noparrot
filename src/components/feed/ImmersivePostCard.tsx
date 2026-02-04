@@ -474,10 +474,15 @@ const ImmersivePostCardInner = ({
     toggleReaction.mutate({ postId: post.id, reactionType: reactionType as any });
   };
 
-  // Long press handlers for like button
+  // Drag position state for reaction picker
+  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
+  
+  // Long press handlers for like button with drag-to-select
   const likeButtonHandlers = useLongPress({
     onLongPress: () => setShowReactionPicker(true),
     onTap: () => handleHeart(undefined, 'heart'),
+    onMove: (x, y) => setDragPosition({ x, y }),
+    onRelease: () => setDragPosition(null),
   });
 
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
@@ -2100,6 +2105,8 @@ const ImmersivePostCardInner = ({
                     setShowReactionPicker(false);
                   }}
                   triggerRef={likeButtonRef}
+                  dragPosition={dragPosition}
+                  onDragRelease={() => setDragPosition(null)}
                 />
               </div>
 
