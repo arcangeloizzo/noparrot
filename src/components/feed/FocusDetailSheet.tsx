@@ -6,7 +6,7 @@ import { useFocusReactions, useToggleFocusReaction } from "@/hooks/useFocusReact
 import { useFocusBookmark, useToggleFocusBookmark } from "@/hooks/useFocusBookmarks";
 import { useFocusComments } from "@/hooks/useFocusComments";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { SourcesDrawer } from "./SourcesDrawer";
 import { ReactionsSheet } from "./ReactionsSheet";
 import { QuizModal } from "@/components/ui/quiz-modal";
@@ -15,6 +15,8 @@ import { haptics } from "@/lib/haptics";
 import { supabase } from "@/integrations/supabase/client";
 import { Logo } from "@/components/ui/logo";
 import { FocusDetailSkeleton, SourcesSkeleton } from "./skeletons";
+import { useLongPress } from "@/hooks/useLongPress";
+import { ReactionPicker, reactionToEmoji, type ReactionType } from "@/components/ui/reaction-picker";
 
 interface Source {
   icon: string;
@@ -79,6 +81,25 @@ export const FocusDetailSheet = ({
   // Hook per il bookmark
   const { data: isBookmarked } = useFocusBookmark(focusId, type);
   const toggleBookmark = useToggleFocusBookmark();
+  
+  // Long press for reaction picker with drag-to-select
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
+  const likeButtonRef = useRef<HTMLButtonElement>(null);
+  
+  const likeHandlers = useLongPress({
+    onLongPress: () => setShowReactionPicker(true),
+    onTap: () => {
+      if (!user) {
+        sonnerToast.error('Devi effettuare il login per mettere like');
+        return;
+      }
+      toggleReaction.mutate({ focusId, focusType: type });
+      haptics.light();
+    },
+    onMove: (x, y) => setDragPosition({ x, y }),
+    onRelease: () => setDragPosition(null),
+  });
 
   // Skip reader - genera quiz direttamente dal drawer (utente ha già letto)
   const handleShareFromDrawer = async () => {
@@ -218,25 +239,45 @@ export const FocusDetailSheet = ({
 
                 {/* Reactions Bar */}
                 <div className="flex items-center gap-1 bg-white/5 backdrop-blur-xl h-10 px-3 rounded-2xl border border-white/10">
-                  {/* Like */}
-                  <button 
-                    onClick={() => {
-                      if (!user) {
-                        sonnerToast.error('Devi effettuare il login per mettere like');
-                        return;
-                      }
-                      toggleReaction.mutate({ focusId, focusType: type });
-                      haptics.light();
-                    }}
-                    className="flex items-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors"
-                  >
-                    <Heart
-                      className={cn(
-                        "w-5 h-5 transition-all",
-                        reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-white"
-                      )} 
+                  {/* Like with long press for reaction picker */}
+                  <div className="relative flex items-center">
+                    <button 
+                      ref={likeButtonRef}
+                      {...likeHandlers}
+                      className="flex items-center gap-1.5 h-full px-2 rounded-xl hover:bg-white/10 transition-colors select-none"
+                      style={{ WebkitTapHighlightColor: 'transparent' }}
+                    >
+                      {reactionsData?.myReactionType && reactionsData.myReactionType !== 'heart' ? (
+                        <span className="text-lg transition-all">
+                          {reactionToEmoji(reactionsData.myReactionType as ReactionType)}
+                        </span>
+                      ) : (
+                        <Heart
+                          className={cn(
+                            "w-5 h-5 transition-all",
+                            reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-white"
+                          )} 
+                        />
+                      )}
+                    </button>
+                    
+                    <ReactionPicker
+                      isOpen={showReactionPicker}
+                      onClose={() => setShowReactionPicker(false)}
+                      onSelect={(reactionType) => {
+                        if (!user) {
+                          sonnerToast.error('Devi effettuare il login per mettere like');
+                          return;
+                        }
+                        toggleReaction.mutate({ focusId, focusType: type, reactionType });
+                        setShowReactionPicker(false);
+                      }}
+                      currentReaction={reactionsData?.myReactionType as ReactionType | undefined}
+                      triggerRef={likeButtonRef}
+                      dragPosition={dragPosition}
+                      onDragRelease={() => setDragPosition(null)}
                     />
-                  </button>
+                  </div>
                   {/* Like Counter - tappable to open reactions sheet */}
                   <button
                     onClick={() => setReactionsSheetOpen(true)}
