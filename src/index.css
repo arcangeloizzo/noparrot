@@ -95,60 +95,13 @@
 
 @layer base {
   :root {
-    /* X/Threads Brand Colors */
+    /* ===== INVARIANT BRAND TOKENS ===== */
     --primary-blue: 206 100% 50%; /* #1D9BF0 X Blue */
     --dark-blue: 203 48% 20%;
     --light-blue: 180 49% 84%;
     --light-gray: 186 33% 97%;
     --brand-pink: 342 74% 52%;
     --brand-yellow: 47 100% 69%;
-    
-    /* ===== LIQUID GLASS DARK THEME - Deep Space Background ===== */
-    --background: 220 25% 5%;
-    --background-secondary: 220 20% 8%;
-    --background-glow: 220 100% 15%;
-    --foreground: 0 0% 98%;
-    --foreground-muted: 0 0% 70%;
-    --foreground-subtle: 0 0% 50%;
-    
-    /* System Colors - X Style (Dark mode first) */
-    --card: 210 18% 12%;
-    --card-foreground: 210 9% 91%;
-    --popover: 210 18% 15%;
-    --popover-foreground: 210 9% 91%;
-    
-    /* Semantic Mappings - X Style */
-    --primary: 206 100% 50%; /* X Blue */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 10%;
-    --secondary-foreground: 210 9% 91%;
-    --muted: 0 0% 10%;
-    --muted-foreground: 210 10% 55%; /* Più chiaro per migliore leggibilità */
-    --accent: 0 0% 10%;
-    --accent-foreground: 210 9% 91%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 210 18% 18%; /* Border più visibile con tonalità X */
-    --input: 0 0% 10%;
-    --ring: 206 100% 50%;
-    
-    /* Gradient Tokens */
-    --gradient-primary: linear-gradient(135deg, hsl(var(--primary-blue)), hsl(212 100% 60%));
-    --gradient-dark: radial-gradient(circle at center, hsl(var(--dark-blue)), hsl(203 48% 12%));
-    --gradient-subtle: linear-gradient(180deg, hsl(var(--light-gray)), hsl(0 0% 100%));
-    
-    /* Apple-style shadows */
-    --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.06);
-    --shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.08);
-    --shadow-strong: 0 8px 16px rgba(0, 0, 0, 0.12);
-    --shadow-floating: 0 12px 24px rgba(0, 0, 0, 0.15);
-    --shadow-elevated: 0 2px 8px rgba(0, 0, 0, 0.1);
-    
-    /* X-style transitions (faster, snappier) */
-    --transition-smooth: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-fast: all 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    --transition-spring: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    --transition-gentle: all 0.15s ease-out;
     
     /* NoParrot Cognitive System Colors */
     --cognitive-correct: 174 100% 42%;        /* #2AD2C9 - Verde-Blu NoParrot */
@@ -159,23 +112,6 @@
 
     /* Cognitive Animation timings */
     --transition-cognitive: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
-    
-    /* Apple Liquid Glass system */
-    --glass-primary: rgba(255, 255, 255, 0.08);
-    --glass-secondary: rgba(255, 255, 255, 0.05);
-    --glass-elevated: rgba(255, 255, 255, 0.12);
-    --glass-border: rgba(255, 255, 255, 0.15);
-    --glass-border-strong: rgba(255, 255, 255, 0.25);
-    --glass-blur-light: 25px;
-    --glass-blur-medium: 30px;
-    --glass-blur-heavy: 40px;
-    
-    /* Apple-style subtle glows */
-    --glow-subtle: 0 0 8px rgba(10, 122, 255, 0.15);
-    --glow-focus: 0 0 0 4px rgba(10, 122, 255, 0.2);
-    --glow-trust-high: 0 1px 3px rgba(52, 168, 83, 0.2);
-    --glow-trust-medium: 0 1px 3px rgba(251, 188, 4, 0.2);
-    --glow-trust-low: 0 1px 3px rgba(234, 67, 53, 0.2);
     
     /* Spacing Tokens */
     --space-1: 4px;
@@ -194,6 +130,63 @@
     /* Typography */
     --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
     
+    /* Mobile-specific */
+    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    --mobile-width: 375px;
+
+    /* X-style transitions (faster, snappier) */
+    --transition-smooth: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-fast: all 0.1s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    --transition-spring: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    --transition-gentle: all 0.15s ease-out;
+
+    /* NoParrot Brand Colors */
+    --noparrot-blue: 211 100% 52%; /* #0A7AFF Primary Blue */
+    --noparrot-dark: 210 48% 20%; /* #1F3347 Dark Blue */
+    --noparrot-light-blue: 180 49% 84%; /* #BFE9E9 Light Blue Accents */
+    --noparrot-action-gray: 210 12% 67%; /* #9AA3AB Action Icons Base */
+
+    /* ===== DEFAULT DARK THEME ===== */
+    --background: 220 25% 5%;
+    --background-secondary: 220 20% 8%;
+    --background-glow: 220 100% 15%;
+    --foreground: 0 0% 98%;
+    --foreground-muted: 0 0% 70%;
+    --foreground-subtle: 0 0% 50%;
+    
+    /* System Colors - Dark mode */
+    --card: 210 18% 12%;
+    --card-foreground: 210 9% 91%;
+    --popover: 210 18% 15%;
+    --popover-foreground: 210 9% 91%;
+    
+    /* Semantic Mappings */
+    --primary: 206 100% 50%; /* X Blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 210 9% 91%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 210 10% 55%;
+    --accent: 0 0% 10%;
+    --accent-foreground: 210 9% 91%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 210 18% 18%;
+    --input: 0 0% 10%;
+    --ring: 206 100% 50%;
+    
+    /* Gradient Tokens */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary-blue)), hsl(212 100% 60%));
+    --gradient-dark: radial-gradient(circle at center, hsl(var(--dark-blue)), hsl(203 48% 12%));
+    --gradient-subtle: linear-gradient(180deg, hsl(var(--light-gray)), hsl(0 0% 100%));
+    
+    /* Apple-style shadows */
+    --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.08);
+    --shadow-strong: 0 8px 16px rgba(0, 0, 0, 0.12);
+    --shadow-floating: 0 12px 24px rgba(0, 0, 0, 0.15);
+    --shadow-elevated: 0 2px 8px rgba(0, 0, 0, 0.1);
+    
     /* Trust Score Colors - Enhanced Contrast */
     --trust-low: 0 60% 45%; /* #CC4C4C */
     --trust-low-text: 0 0% 100%;
@@ -207,29 +200,26 @@
     --success-foreground: 355 100% 97%;
     --warning: 38 92% 50%;
     --warning-foreground: 48 96% 11%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-
-    /* Mobile-specific */
-    --safe-area-bottom: env(safe-area-inset-bottom, 0px);
-    --mobile-width: 375px;
     
-  /* ========== CAPSULE VIEW DESIGN SYSTEM - NOPARROT ========== */
+    /* Apple Liquid Glass system - Dark */
+    --glass-primary: rgba(255, 255, 255, 0.08);
+    --glass-secondary: rgba(255, 255, 255, 0.05);
+    --glass-elevated: rgba(255, 255, 255, 0.12);
+    --glass-border: rgba(255, 255, 255, 0.15);
+    --glass-border-strong: rgba(255, 255, 255, 0.25);
+    --glass-blur-light: 25px;
+    --glass-blur-medium: 30px;
+    --glass-blur-heavy: 40px;
     
-    /* Background - Silicon Valley Clean */
-    --capsule-feed-bg: 210 17% 98%; /* #F9FAFB Grigio Neutro */
-    
-    /* Professional Card Shadows - Enhanced */
-    --shadow-card: 0 2px 4px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
-    --shadow-card-hover: 0 6px 16px -4px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-    
-    /* NoParrot Brand Colors */
-    --noparrot-blue: 211 100% 52%; /* #0A7AFF Primary Blue */
-    --noparrot-dark: 210 48% 20%; /* #1F3347 Dark Blue */
-    --noparrot-light-blue: 180 49% 84%; /* #BFE9E9 Light Blue Accents */
-    --noparrot-action-gray: 210 12% 67%; /* #9AA3AB Action Icons Base */
+    /* Apple-style subtle glows */
+    --glow-subtle: 0 0 8px rgba(10, 122, 255, 0.15);
+    --glow-focus: 0 0 0 4px rgba(10, 122, 255, 0.2);
+    --glow-trust-high: 0 1px 3px rgba(52, 168, 83, 0.2);
+    --glow-trust-medium: 0 1px 3px rgba(251, 188, 4, 0.2);
+    --glow-trust-low: 0 1px 3px rgba(234, 67, 53, 0.2);
     
     /* Capsule Card */
+    --capsule-feed-bg: 210 17% 98%; /* #F9FAFB Grigio Neutro */
     --capsule-bg-white: 0 0% 100%; /* #FFFFFF */
     --capsule-bg-dark: 220 20% 8%; /* #141A1E for dark mode */
     --capsule-border-subtle: 220 9% 90%; /* #E5E7EB */
@@ -238,18 +228,137 @@
     --capsule-shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08);
     --capsule-shadow-dark: 0 2px 8px rgba(0, 0, 0, 0.3);
     
-    /* Trust Badge Pill Colors (Dynamic) */
-    --trust-pill-high-bg: 140 45% 95%; /* bg-emerald-100 */
-    --trust-pill-high-text: 140 60% 30%; /* text-emerald-700 */
-    --trust-pill-medium-bg: 38 90% 90%; /* bg-amber-100 */
-    --trust-pill-medium-text: 38 92% 35%; /* text-amber-700 */
-    --trust-pill-low-bg: 0 85% 95%; /* bg-red-100 */
-    --trust-pill-low-text: 0 84% 40%; /* text-red-700 */
+    /* Professional Card Shadows */
+    --shadow-card: 0 2px 4px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+    --shadow-card-hover: 0 6px 16px -4px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    
+    /* Trust Badge Pill Colors */
+    --trust-pill-high-bg: 140 45% 95%;
+    --trust-pill-high-text: 140 60% 30%;
+    --trust-pill-medium-bg: 38 90% 90%;
+    --trust-pill-medium-text: 38 92% 35%;
+    --trust-pill-low-bg: 0 85% 95%;
+    --trust-pill-low-text: 0 84% 40%;
     
     /* Typography */
-    --capsule-text-primary: 210 48% 20%; /* #1F3347 Dark Blue for names */
-    --capsule-text-body: 210 15% 30%; /* Body text */
-    --capsule-text-muted: 210 12% 67%; /* #9AA3AB Muted/timestamps */
+    --capsule-text-primary: 210 48% 20%;
+    --capsule-text-body: 210 15% 30%;
+    --capsule-text-muted: 210 12% 67%;
+  }
+  
+  /* ===== DARK THEME (explicit class) ===== */
+  .dark {
+    color-scheme: dark;
+    
+    --background: 220 25% 5%;
+    --background-secondary: 220 20% 8%;
+    --background-glow: 220 100% 15%;
+    --foreground: 0 0% 98%;
+    --foreground-muted: 0 0% 70%;
+    --foreground-subtle: 0 0% 50%;
+    
+    --card: 210 18% 12%;
+    --card-foreground: 210 9% 91%;
+    --popover: 210 18% 15%;
+    --popover-foreground: 210 9% 91%;
+    
+    --primary: 206 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 10%;
+    --secondary-foreground: 210 9% 91%;
+    --muted: 0 0% 10%;
+    --muted-foreground: 210 10% 55%;
+    --accent: 0 0% 10%;
+    --accent-foreground: 210 9% 91%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 210 18% 18%;
+    --input: 0 0% 10%;
+    --ring: 206 100% 50%;
+    
+    /* Glass system - Dark */
+    --glass-primary: rgba(255, 255, 255, 0.08);
+    --glass-secondary: rgba(255, 255, 255, 0.05);
+    --glass-elevated: rgba(255, 255, 255, 0.12);
+    --glass-border: rgba(255, 255, 255, 0.15);
+    --glass-border-strong: rgba(255, 255, 255, 0.25);
+    
+    /* Trust badges - dark mode optimized */
+    --trust-low: 0 60% 45%;
+    --trust-medium: 40 95% 55%;
+    --trust-high: 140 60% 45%;
+    
+    /* Dark mode gradients */
+    --gradient-dark: radial-gradient(circle at center, hsl(203 48% 15%), hsl(203 48% 8%));
+  }
+  
+  /* ===== LIGHT THEME ===== */
+  .light {
+    color-scheme: light;
+    
+    /* Backgrounds - Slate palette */
+    --background: 210 40% 98%;           /* #F8FAFC slate-50 */
+    --background-secondary: 214 32% 95%; /* #F1F5F9 slate-100 */
+    --background-glow: 214 32% 91%;
+    --foreground: 222 47% 11%;           /* #1E293B slate-800 antracite */
+    --foreground-muted: 215 16% 47%;     /* #64748B slate-500 */
+    --foreground-subtle: 215 20% 65%;
+    
+    /* Cards - Pure white */
+    --card: 0 0% 100%;                   /* bianco puro */
+    --card-foreground: 222 47% 11%;      /* slate-800 */
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    
+    /* Primary - Invariant blue */
+    --primary: 206 100% 50%;             /* #0A7AFF */
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary/Muted */
+    --secondary: 214 32% 95%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 214 32% 95%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 214 32% 91%;
+    --accent-foreground: 222 47% 11%;
+    
+    /* Destructive */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Borders & Inputs */
+    --border: 214 32% 91%;               /* #E2E8F0 slate-200 */
+    --input: 214 32% 91%;
+    --ring: 206 100% 50%;
+    
+    /* Glass system - Light mode */
+    --glass-primary: rgba(0, 0, 0, 0.04);
+    --glass-secondary: rgba(0, 0, 0, 0.02);
+    --glass-elevated: rgba(0, 0, 0, 0.06);
+    --glass-border: rgba(0, 0, 0, 0.08);
+    --glass-border-strong: rgba(0, 0, 0, 0.12);
+    
+    /* Trust badges - light mode with better contrast */
+    --trust-low: 0 72% 50%;
+    --trust-medium: 38 92% 45%;
+    --trust-high: 142 71% 35%;
+    
+    /* Shadows for light mode */
+    --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.08);
+    --shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.1);
+    --shadow-strong: 0 8px 16px rgba(0, 0, 0, 0.12);
+    --shadow-floating: 0 12px 24px rgba(0, 0, 0, 0.15);
+    --shadow-elevated: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+    --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.08);
+    
+    /* Capsule overrides for light */
+    --capsule-bg-dark: 0 0% 100%;
+    --capsule-border-dark: 214 32% 91%;
+    --capsule-shadow-dark: 0 1px 3px rgba(0, 0, 0, 0.08);
+    
+    /* Light mode gradients */
+    --gradient-dark: radial-gradient(circle at center, hsl(214 32% 98%), hsl(214 32% 95%));
   }
   
   /* Safe area support for iOS */
@@ -272,31 +381,6 @@
     will-change: transform !important;
     transform: translateZ(0) !important;
     -webkit-transform: translateZ(0) !important;
-  }
-
-  .dark {
-    --background: var(--dark-blue);
-    --foreground: 0 0% 100%;
-    --card: var(--dark-blue);
-    --card-foreground: 0 0% 100%;
-    --popover: var(--dark-blue);
-    --popover-foreground: 0 0% 100%;
-    --primary: var(--primary-blue);
-    --primary-foreground: 0 0% 100%;
-    --secondary: 203 48% 25%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 203 48% 25%;
-    --muted-foreground: 220 9% 65%;
-    --accent: var(--light-blue);
-    --accent-foreground: var(--dark-blue);
-    --destructive: var(--brand-pink);
-    --destructive-foreground: 0 0% 100%;
-    --border: 203 48% 25%;
-    --input: 203 48% 25%;
-    --ring: var(--primary-blue);
-    
-    /* Dark mode gradients */
-    --gradient-dark: radial-gradient(circle at center, hsl(203 48% 15%), hsl(203 48% 8%));
   }
 }
 
@@ -436,11 +520,11 @@
 
   html, body {
     overscroll-behavior: none;
-    background-color: #000;
   }
 
-  body {
-    /* Deep Space Background con sottili rifrazioni blu */
+  /* Dark mode body */
+  html.dark body,
+  html:not(.light) body {
     background: 
       radial-gradient(ellipse at 20% 30%, rgba(135, 206, 250, 0.08) 0%, transparent 50%),
       radial-gradient(ellipse at 80% 70%, rgba(100, 150, 255, 0.06) 0%, transparent 50%),
@@ -451,6 +535,19 @@
       );
     background-attachment: fixed;
     color: hsl(0 0% 98%);
+    font-family: var(--font-inter);
+    margin: 0 auto;
+    overflow-x: hidden;
+  }
+
+  /* Light mode body */
+  html.light body {
+    background: 
+      radial-gradient(ellipse at 20% 30%, rgba(10, 122, 255, 0.04) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 70%, rgba(10, 122, 255, 0.03) 0%, transparent 50%),
+      hsl(210 40% 98%);
+    background-attachment: fixed;
+    color: hsl(222 47% 11%);
     font-family: var(--font-inter);
     margin: 0 auto;
     overflow-x: hidden;
@@ -622,12 +719,24 @@
     box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.08);
   }
 
-.liquid-glass-navbar {
+/* Dark mode navbar */
+.dark .liquid-glass-navbar,
+html:not(.light) .liquid-glass-navbar {
   background: rgba(10, 15, 20, 0.85);
   backdrop-filter: blur(50px);
   -webkit-backdrop-filter: blur(50px);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Light mode navbar */
+.light .liquid-glass-navbar {
+  background: rgba(248, 250, 252, 0.92);
+  backdrop-filter: blur(50px);
+  -webkit-backdrop-filter: blur(50px);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
