@@ -1,4 +1,4 @@
-import { ArrowLeft, FileText, Scale, Trash2, Shield, Brain, Megaphone, Sparkles, Download, Cookie, Bell, RefreshCw, Heart, MessageCircle, AtSign, UserPlus, Mail, Repeat2 } from "lucide-react";
+import { ArrowLeft, FileText, Scale, Trash2, Shield, Brain, Megaphone, Sparkles, Download, Cookie, Bell, RefreshCw, Heart, MessageCircle, AtSign, UserPlus, Mail, Repeat2, Palette } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -25,6 +25,7 @@ import { useCognitiveTracking } from "@/hooks/useCognitiveTracking";
 import { useExportUserData } from "@/hooks/useExportUserData";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useNotificationPreferences, NotificationPreferenceField } from "@/hooks/useNotificationPreferences";
+import { ThemeSwitcher } from "@/components/ui/theme-switcher";
 
 export default function SettingsPrivacy() {
   const navigate = useNavigate();
@@ -146,6 +147,18 @@ export default function SettingsPrivacy() {
         </div>
 
         <div className="space-y-4">
+          {/* Aspetto / Theme */}
+          <Card className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <Palette className="w-5 h-5 text-indigo-400" />
+              <h2 className="text-lg font-semibold">Aspetto</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Scegli il tema dell'app. "Sistema" seguirà le impostazioni del tuo dispositivo.
+            </p>
+            <ThemeSwitcher />
+          </Card>
+
           {/* Tracciamento cognitivo */}
           <Card className="p-4">
             <div className="flex items-center gap-3 mb-3">
