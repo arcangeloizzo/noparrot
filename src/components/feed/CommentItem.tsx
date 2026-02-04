@@ -71,6 +71,7 @@ export const CommentItem = ({
   const [isLiking, setIsLiking] = useState(false);
 
   const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
   const likeButtonRef = useRef<HTMLButtonElement>(null);
   
   const handleLike = (reactionType: ReactionType = 'heart') => {
@@ -138,10 +139,12 @@ export const CommentItem = ({
     setTimeout(() => setIsLiking(false), 250);
   };
 
-  // Long press handlers for like button
+  // Long press handlers for like button with drag-to-select
   const likeButtonHandlers = useLongPress({
     onLongPress: () => setShowReactionPicker(true),
     onTap: () => handleLike('heart'),
+    onMove: (x, y) => setDragPosition({ x, y }),
+    onRelease: () => setDragPosition(null),
   });
 
   const copyLink = () => {
@@ -351,6 +354,8 @@ export const CommentItem = ({
                   }}
                   currentReaction={reactions?.myReactionType}
                   triggerRef={likeButtonRef}
+                  dragPosition={dragPosition}
+                  onDragRelease={() => setDragPosition(null)}
                 />
               </div>
 
