@@ -23,6 +23,16 @@ import { haptics } from "@/lib/haptics";
 import { TiptapEditor, TiptapEditorRef } from "./TiptapEditor";
 import { useVisualViewportOffset } from "@/hooks/useVisualViewportOffset";
 import { Loader2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // iOS detection for stability tweaks (includes iPadOS reporting as Mac)
 const isIOS =
@@ -108,6 +118,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   // This remains true until polling confirms done/failed from DB
   const [transcribingMediaId, setTranscribingMediaId] = useState<string | null>(null);
   const editorRef = useRef<TiptapEditorRef>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   
   // iOS keyboard offset using Visual Viewport API
   const keyboardOffset = useVisualViewportOffset(isOpen && isIOS);
@@ -1667,10 +1678,19 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
           <div className="flex flex-col h-full">
             {/* Minimal Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
-                onClick={onClose}
+                onClick={() => {
+                  // Check if there's any content to lose
+                  const hasContent = content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl;
+                  if (hasContent) {
+                    setShowCancelConfirm(true);
+                  } else {
+                    // No content, just close
+                    onClose();
+                  }
+                }}
                 className="text-muted-foreground hover:text-foreground -ml-2"
               >
                 Annulla
@@ -1963,6 +1983,30 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
           />
         </div>
       )}
+
+      {/* Cancel Confirmation Dialog */}
+      <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+        <AlertDialogContent className="max-w-[90vw] rounded-xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Annullare il post?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Il contenuto che hai scritto verrà eliminato.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Continua a modificare</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                resetAllState();
+                onClose();
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Elimina bozza
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
