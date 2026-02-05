@@ -94,13 +94,13 @@ export const MediaActionBar = ({
 
   const iconButtonClass = cn(
     "p-2 rounded-full transition-colors",
-    "text-zinc-500 hover:text-primary hover:bg-zinc-800/50",
+    "text-muted-foreground hover:text-primary hover:bg-muted/50",
     "disabled:opacity-40 disabled:cursor-not-allowed"
   );
 
   return (
     <div 
-      className="bg-zinc-950 border-t border-zinc-800 px-4 py-2.5 flex items-center justify-between relative"
+      className="bg-card border-t border-border px-4 py-2.5 flex items-center justify-between relative"
       style={{ 
         paddingBottom: 'max(env(safe-area-inset-bottom, 10px), 10px)',
         // Apply keyboard offset transform for iOS
@@ -170,7 +170,7 @@ export const MediaActionBar = ({
         {characterCount > 0 && (
           <span className={cn(
             "text-xs tabular-nums ml-3",
-            characterCount > 2500 ? "text-amber-500" : "text-zinc-600",
+            characterCount > 2500 ? "text-amber-500" : "text-muted-foreground",
             characterCount >= maxCharacters && "text-destructive"
           )}>
             {characterCount}/{maxCharacters}

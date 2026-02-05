@@ -63,7 +63,6 @@ const App = () => (
       <ThemeProvider
         attribute="class"
         defaultTheme="dark"
-        enableSystem
         disableTransitionOnChange
       >
         <AuthProvider>

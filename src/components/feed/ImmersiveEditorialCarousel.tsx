@@ -236,6 +236,9 @@ export const ImmersiveEditorialCarousel = ({
         }}
       />
 
+      {/* Theme-aware cinematic fade overlay - top/bottom */}
+      <div className="absolute inset-0 z-[3] pointer-events-none cinematic-fade-overlay" />
+
       {/* Content Layer */}
       <div className="relative z-10 w-full h-full flex flex-col pt-14 pb-36">
         
