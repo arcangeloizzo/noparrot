@@ -336,20 +336,20 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
   return (
     <>
       <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DrawerContent className="max-h-[90vh] bg-[#0A0F14]/95 backdrop-blur-xl border-t border-white/10 rounded-t-3xl pb-[env(safe-area-inset-bottom)]">
+        <DrawerContent className="max-h-[90vh] bg-background/95 backdrop-blur-xl border-t border-border rounded-t-3xl pb-[env(safe-area-inset-bottom)]">
           {/* Drawer handle */}
           <div className="flex justify-center pt-3 pb-1">
-            <div className="w-10 h-1 bg-white/20 rounded-full" />
+            <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
           </div>
           
           {/* Header */}
-          <DrawerHeader className="border-b border-white/[0.06] sticky top-0 bg-[#0A0F14]/95 backdrop-blur-xl z-20 pt-2 pb-4">
+          <DrawerHeader className="border-b border-border/50 sticky top-0 bg-background/95 backdrop-blur-xl z-20 pt-2 pb-4">
             <DrawerTitle className="text-center text-lg font-semibold text-foreground mb-4">
               Commenti
             </DrawerTitle>
             
             {/* Post Preview - Compact card */}
-            <div className="mx-2 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+            <div className="mx-2 p-2.5 rounded-xl bg-muted/30 border border-border/50">
               <div className="flex gap-2.5">
                 <div className="flex-shrink-0">
                   {getUserAvatar(post.author.avatar_url, post.author.full_name || post.author.username)}
@@ -386,7 +386,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
 
           {/* Comment type indicator badge */}
           {selectedCommentType && (
-            <div className="mx-4 my-2 px-4 py-2.5 bg-white/[0.03] rounded-xl border border-white/[0.08] flex items-center justify-between">
+            <div className="mx-4 my-2 px-4 py-2.5 bg-muted/30 rounded-xl border border-border/50 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {selectedCommentType === 'informed' ? (
                   <img 
@@ -425,7 +425,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
               </div>
             ) : comments.length === 0 ? (
               <div className="text-center py-16 px-6 relative z-10">
-                <div className="w-16 h-16 rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 rounded-full bg-muted/30 border border-border/50 flex items-center justify-center mx-auto mb-4">
                   <MessageCircle className="w-7 h-7 text-muted-foreground/50" />
                 </div>
                 <p className="text-foreground/80 font-medium mb-1">Nessun commento</p>
@@ -465,7 +465,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
           </div>
 
           {/* Fixed Bottom Composer - Compact inline style */}
-          <div className="sticky bottom-0 bg-[#0D1318] border-t border-white/[0.06] z-30 pb-[env(safe-area-inset-bottom)]">
+          <div className="sticky bottom-0 bg-card border-t border-border/50 z-30 pb-[env(safe-area-inset-bottom)]">
             <div className="px-3 py-3">
               {/* Reply indicator */}
               {replyingTo && (
@@ -510,7 +510,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                 {/* Input with inline media icon */}
                 <div className={cn(
                   "flex-1 flex items-center gap-2 rounded-full border transition-all duration-200",
-                  "bg-[#1A2328] border-white/[0.08]",
+                  "bg-secondary border-border/50",
                   "focus-within:border-primary/30"
                 )}>
                   <textarea
