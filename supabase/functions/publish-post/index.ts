@@ -478,6 +478,46 @@ Deno.serve(async (req) => {
       }
     }
 
+   // ========================================================================
+   // LINK QUIZ TO POST: Update post_qa_questions.post_id for gate validation
+   // This enables reshare lookup (Strategy 2.5 in generate-qa)
+   // ========================================================================
+   try {
+     // Find quiz by owner_id that was created recently (last 10 minutes) with null post_id
+     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+     
+     const { data: pendingQuiz, error: quizLookupErr } = await supabase
+       .from('post_qa_questions')
+       .select('id')
+       .eq('owner_id', user.id)
+       .is('post_id', null)
+       .gte('generated_at', tenMinutesAgo)
+       .order('generated_at', { ascending: false })
+       .limit(1)
+       .maybeSingle();
+
+     if (quizLookupErr) {
+       console.warn(`[publish-post:${reqId}] stage=quiz_link_lookup error`, quizLookupErr.message);
+     } else if (pendingQuiz?.id) {
+       // Update the quiz with the new post_id
+       const { error: quizUpdateErr } = await supabase
+         .from('post_qa_questions')
+         .update({ post_id: inserted.id })
+         .eq('id', pendingQuiz.id);
+
+       if (quizUpdateErr) {
+         console.warn(`[publish-post:${reqId}] stage=quiz_link_update error`, quizUpdateErr.message);
+       } else {
+         console.log(`[publish-post:${reqId}] stage=quiz_link_ok quizId=${pendingQuiz.id}`);
+       }
+     } else {
+       console.log(`[publish-post:${reqId}] stage=quiz_link_skip no pending quiz`);
+     }
+   } catch (quizLinkErr) {
+     console.warn(`[publish-post:${reqId}] stage=quiz_link_exception`, quizLinkErr);
+     // Non-blocking: don't fail the publish if quiz linking fails
+   }
+
     // NOTE: Share count increment is handled by database trigger 'increment_shares_on_reshare'
     // triggered automatically on INSERT when quoted_post_id is set
     // No need to call increment_post_shares RPC here (would cause double counting)
