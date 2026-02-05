@@ -342,9 +342,14 @@ serve(async (req) => {
             effectiveQaSourceRef = { kind: 'youtubeId', id: videoId, url: sourceUrl };
           }
         } else if (host.includes('spotify')) {
-          const spotifyMatch = sourceUrl.match(/track\/([a-zA-Z0-9]+)/);
-          if (spotifyMatch) {
-            effectiveQaSourceRef = { kind: 'spotifyId', id: spotifyMatch[1], url: sourceUrl };
+          // Handle both track and episode URLs
+          const trackMatch = sourceUrl.match(/track\/([a-zA-Z0-9]+)/);
+          const episodeMatch = sourceUrl.match(/episode\/([a-zA-Z0-9]+)/);
+          if (trackMatch) {
+            effectiveQaSourceRef = { kind: 'spotifyId', id: trackMatch[1], url: sourceUrl };
+          } else if (episodeMatch) {
+            // Episodes use 'spotifyEpisodeId' kind to distinguish from tracks
+            effectiveQaSourceRef = { kind: 'spotifyEpisodeId', id: episodeMatch[1], url: sourceUrl };
           }
         } else if (host.includes('twitter') || host.includes('x.com')) {
           const tweetMatch = sourceUrl.match(/status\/(\d+)/);
@@ -505,6 +510,109 @@ serve(async (req) => {
              contentSource = 'spotify_metadata';
              console.log(`[generate-qa] 🎵 Using Spotify synthetic fallback: ${serverSideContent.length} chars`);
            }
+          break;
+        }
+        
+        case 'spotifyEpisodeId': {
+          // Spotify podcast episodes - fetch from YouTube transcripts cache via the youtubeId found in fetch-article-preview
+          // OR try to find transcript via content_cache
+          const episodeUrl = effectiveQaSourceRef.url || `https://open.spotify.com/episode/${effectiveQaSourceRef.id}`;
+          const normalizedEpisodeUrl = safeNormalizeUrl(episodeUrl);
+          
+          console.log(`[generate-qa] 🎙️ Processing Spotify episode: ${effectiveQaSourceRef.id}`);
+          
+          // First try content_cache - the transcript may have been cached there by fetch-article-preview
+          const { data: cached } = await supabase
+            .from('content_cache')
+            .select('content_text, title')
+            .eq('source_url', normalizedEpisodeUrl)
+            .gt('expires_at', new Date().toISOString())
+            .maybeSingle();
+          
+          if (cached?.content_text && cached.content_text.length > 300) {
+            serverSideContent = cached.content_text;
+            contentSource = 'episode_cache';
+            console.log(`[generate-qa] ✅ Episode transcript from cache: ${serverSideContent.length} chars`);
+          } else {
+            // Try to fetch fresh via fetch-article-preview (which handles YouTube fallback internally)
+            console.log(`[generate-qa] ⏳ Episode not cached, calling fetch-article-preview...`);
+            try {
+              const previewResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-article-preview`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabaseKey}`
+                },
+                body: JSON.stringify({ url: episodeUrl })
+              });
+              
+              if (previewResponse.ok) {
+                const previewData = await previewResponse.json();
+                console.log(`[generate-qa] fetch-article-preview response:`, {
+                  youtubeFallback: previewData.youtubeFallback,
+                  youtubeVideoId: previewData.youtubeVideoId,
+                  contentQuality: previewData.contentQuality
+                });
+                
+                // If YouTube video was found, fetch its transcript
+                if (previewData.youtubeVideoId) {
+                  const { data: ytCached } = await supabase
+                    .from('youtube_transcripts_cache')
+                    .select('transcript')
+                    .eq('video_id', previewData.youtubeVideoId)
+                    .gt('expires_at', new Date().toISOString())
+                    .maybeSingle();
+                  
+                  if (ytCached?.transcript) {
+                    serverSideContent = ytCached.transcript;
+                    contentSource = 'episode_youtube_cache';
+                    console.log(`[generate-qa] ✅ Episode transcript via YouTube cache: ${serverSideContent.length} chars`);
+                  } else {
+                    // Fetch fresh from transcribe-youtube
+                    const ytUrl = `https://www.youtube.com/watch?v=${previewData.youtubeVideoId}`;
+                    const transcribeResponse = await fetch(`${supabaseUrl}/functions/v1/transcribe-youtube`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${supabaseKey}`
+                      },
+                      body: JSON.stringify({ url: ytUrl })
+                    });
+                    
+                    if (transcribeResponse.ok) {
+                      const transcribeData = await transcribeResponse.json();
+                      if (transcribeData.transcript && transcribeData.transcript.length > 100) {
+                        serverSideContent = transcribeData.transcript;
+                        contentSource = 'episode_youtube_fresh';
+                        console.log(`[generate-qa] ✅ Episode transcript fetched from YouTube: ${serverSideContent.length} chars`);
+                      }
+                    }
+                  }
+                }
+                
+                // Use description/summary as fallback if no transcript
+                if (!serverSideContent && previewData.summary && previewData.summary.length > 100) {
+                  serverSideContent = previewData.summary;
+                  contentSource = 'episode_summary';
+                  console.log(`[generate-qa] 📝 Using episode summary as fallback: ${serverSideContent.length} chars`);
+                }
+              }
+            } catch (err) {
+              console.error('[generate-qa] fetch-article-preview for episode failed:', err);
+            }
+          }
+          
+          // If still no content, return insufficient
+          if (!serverSideContent || serverSideContent.length < 100) {
+            console.log(`[generate-qa] ❌ Insufficient content for Spotify episode`);
+            return new Response(JSON.stringify({
+              insufficient_context: true,
+              message: 'Trascrizione non disponibile per questo episodio. Usa la modalità Intent.'
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            });
+          }
+          
           break;
         }
         
