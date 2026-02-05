@@ -68,6 +68,8 @@ export async function generateQA(params: {
   qaSourceRef?: QASourceRef;
   // NEW: Force cache invalidation for retry flows
   forceRefresh?: boolean;
+  // NEW: Reshare support - lookup quiz from original post
+  quotedPostId?: string;
 }): Promise<QAGenerationResult> {
   return withSessionGuard(async () => {
     try {

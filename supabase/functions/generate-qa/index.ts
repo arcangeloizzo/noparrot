@@ -287,7 +287,9 @@ serve(async (req) => {
       // NEW: qaSourceRef for server-side content fetching
       qaSourceRef,
       // NEW: Force cache invalidation for retry flows
-      forceRefresh
+      forceRefresh,
+      // NEW: Reshare support - lookup quiz from original post
+      quotedPostId
     } = await req.json();
     
     // CACHE INVALIDATION: If forceRefresh, delete cached content for this URL
@@ -313,7 +315,8 @@ serve(async (req) => {
       isPrePublish, 
       testMode, 
       questionCount,
-      qaSourceRef: qaSourceRef ? { kind: qaSourceRef.kind, id: qaSourceRef.id?.substring(0, 20) } : null
+      qaSourceRef: qaSourceRef ? { kind: qaSourceRef.kind, id: qaSourceRef.id?.substring(0, 20) } : null,
+      quotedPostId: quotedPostId?.substring(0, 20)
     });
 
     // ========================================================================
@@ -888,6 +891,42 @@ serve(async (req) => {
       if (prePublishMatch) {
         console.log('[generate-qa] Found pre-publish cache');
         existing = prePublishMatch;
+      }
+    }
+
+    // Strategy 2.5: RESHARE LOOKUP - find quiz from original post being shared
+    // This ensures the resharer takes the SAME test as the original author
+    if (!existing && quotedPostId) {
+      console.log('[generate-qa] Reshare detected, looking for original post quiz:', quotedPostId);
+      
+      const { data: reshareMatch } = await supabase
+        .from('post_qa_questions')
+        .select('id, questions, content_hash, test_mode, owner_id, post_id')
+        .eq('post_id', quotedPostId)
+        .limit(1)
+        .maybeSingle();
+      
+      if (reshareMatch) {
+        console.log('[generate-qa] ✅ Found RESHARE quiz from original post:', reshareMatch.id);
+        
+        // Verify answers exist for this quiz
+        const { data: answersCheck } = await supabase
+          .from('post_qa_answers')
+          .select('id')
+          .eq('id', reshareMatch.id)
+          .maybeSingle();
+        
+        if (answersCheck) {
+          // Return the original quiz - resharer takes same test
+          return new Response(
+            JSON.stringify({ qaId: reshareMatch.id, questions: reshareMatch.questions }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } else {
+          console.log('[generate-qa] Reshare quiz found but answers missing');
+        }
+      } else {
+        console.log('[generate-qa] No quiz found for quoted post, will generate new one');
       }
     }
 
