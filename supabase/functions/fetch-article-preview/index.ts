@@ -803,13 +803,14 @@ async function fetchYouTubeTranscriptInternal(youtubeId: string): Promise<string
     }
     
     const data = await response.json();
-    
-    if (data.success && data.transcript) {
-      console.log(`[Spotify Episode] ✅ YouTube transcript fetched: ${data.transcript.length} chars`);
+
+    // transcribe-youtube returns { transcript, source } (and in errors: { error, transcript:'', source })
+    if (typeof data?.transcript === 'string' && data.transcript.trim().length > 0) {
+      console.log(`[Spotify Episode] ✅ YouTube transcript fetched: ${data.transcript.length} chars (source: ${data.source || 'unknown'})`);
       return data.transcript;
     }
-    
-    console.log('[Spotify Episode] No transcript available:', data.error || 'unknown');
+
+    console.log('[Spotify Episode] No transcript available:', data?.error || 'empty transcript');
     return null;
   } catch (error: any) {
     clearTimeout(timeoutId);
@@ -1193,6 +1194,9 @@ serve(async (req) => {
     const urlLower = url.toLowerCase();
     const hostname = new URL(url).hostname.toLowerCase();
 
+    // Normalize URL for consistent cache key (used across all handlers)
+    const normalizedUrl = safeNormalizeUrl(url);
+
     // Initialize Supabase client for caching
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -1206,7 +1210,6 @@ serve(async (req) => {
     // CACHE-FIRST: Check if we have cached metadata before any external fetch
     // ========================================================================
     if (supabase) {
-      const normalizedUrl = safeNormalizeUrl(url);
       console.log(`[Cache] Checking cache for: ${normalizedUrl}`);
       
       const { data: cached, error: cacheErr } = await supabase
