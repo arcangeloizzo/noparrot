@@ -529,84 +529,144 @@ async function fetchSpotifyTrackMetadata(trackId: string, accessToken: string): 
 // For podcast episodes, attempt to find the equivalent YouTube video for transcription
 
 // Invidious instances for YouTube search (no API key required)
+// NOTE: Public instances can be flaky; we keep a short list + a non-Invidious fallback below.
 const INVIDIOUS_INSTANCES = [
+  // Existing
   'https://invidious.io.lol',
   'https://yt.artemislena.eu',
   'https://invidious.privacyredirect.com',
+  // Additional instances (best-effort)
+  'https://yewtu.be',
+  'https://invidious.fdn.fr',
+  'https://invidious.lunar.icu',
 ];
 
 /**
- * Search YouTube for a podcast episode using Invidious API
+ * Search YouTube for a podcast episode using:
+ * 1) Invidious API (preferred, no scraping)
+ * 2) Fallback: YouTube results page via Jina Reader (r.jina.ai) and regex extraction
+ *
  * Returns videoId if a confident match is found (2/3 first words match)
- * @param showName - Podcast show name from Spotify
- * @param episodeTitle - Episode title from Spotify
- * @returns YouTube video ID or null
  */
 async function searchYouTubeForPodcast(showName: string, episodeTitle: string): Promise<string | null> {
-  const query = `${showName} ${episodeTitle}`;
+  const query = `${showName} ${episodeTitle}`.trim();
   console.log(`[Spotify Episode] 🔍 Searching YouTube for: "${query}"`);
-  
+
   // Extract first 3 words from episode title for confidence check
-  const titleWords = episodeTitle.toLowerCase().split(/\s+/).filter(w => w.length > 2).slice(0, 3);
+  const titleWords = episodeTitle
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 2)
+    .slice(0, 3);
   const minMatchRequired = Math.max(2, Math.ceil(titleWords.length * 0.66));
-  
+
+  // 1) Invidious
   for (const instance of INVIDIOUS_INSTANCES) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout per instance
-    
+
     try {
       const searchUrl = `${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video&sort=relevance`;
       console.log(`[Spotify Episode] Trying Invidious: ${instance}`);
-      
+
       const response = await fetch(searchUrl, {
-        headers: { 'Accept': 'application/json' },
+        headers: { Accept: 'application/json' },
         signal: controller.signal,
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (!response.ok) {
         console.log(`[Spotify Episode] Invidious ${instance} returned ${response.status}`);
         continue;
       }
-      
+
       const results = await response.json();
-      
+
       if (!Array.isArray(results) || results.length === 0) {
         console.log(`[Spotify Episode] No results from ${instance}`);
         continue;
       }
-      
+
       // Check first 3 results for confidence match
       for (const video of results.slice(0, 3)) {
         const videoTitle = (video.title || '').toLowerCase();
-        const matchedWords = titleWords.filter(word => videoTitle.includes(word));
-        
-        console.log(`[Spotify Episode] Checking: "${video.title}" - matched ${matchedWords.length}/${titleWords.length} words`);
-        
+        const matchedWords = titleWords.filter((word) => videoTitle.includes(word));
+
+        console.log(
+          `[Spotify Episode] Checking: "${video.title}" - matched ${matchedWords.length}/${titleWords.length} words`,
+        );
+
         if (matchedWords.length >= minMatchRequired && video.videoId) {
-          console.log(`[Spotify Episode] ✅ YouTube match found: ${video.videoId} (confidence: ${matchedWords.length}/${titleWords.length})`);
+          console.log(
+            `[Spotify Episode] ✅ YouTube match found: ${video.videoId} (confidence: ${matchedWords.length}/${titleWords.length})`,
+          );
           return video.videoId;
         }
       }
-      
+
       console.log(`[Spotify Episode] No confident match from ${instance}`);
-      return null; // Results found but no confident match
-      
+      // Important: do NOT return early; other instances/fallback may still work
+      continue;
     } catch (error: any) {
       clearTimeout(timeoutId);
-      if (error.name === 'AbortError') {
+      if (error?.name === 'AbortError') {
         console.log(`[Spotify Episode] Invidious ${instance} timeout (5s)`);
       } else {
-        console.log(`[Spotify Episode] Invidious ${instance} error:`, error.message);
+        console.log(`[Spotify Episode] Invidious ${instance} error:`, error?.message || String(error));
       }
       continue;
     }
   }
-  
-  console.log('[Spotify Episode] All Invidious instances failed');
-  return null;
+
+  console.log('[Spotify Episode] All Invidious instances failed (or no confident match)');
+
+  // 2) Fallback: YouTube results page via Jina Reader
+  // Uses strict 5s timeout and extracts first watch?v= ID.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  try {
+    const resultsUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+    const jinaUrl = `https://r.jina.ai/${resultsUrl}`;
+
+    const headers: Record<string, string> = {
+      Accept: 'text/plain',
+    };
+
+    const JINA_API_KEY = Deno.env.get('JINA_API_KEY');
+    if (JINA_API_KEY) {
+      headers['Authorization'] = `Bearer ${JINA_API_KEY}`;
+    }
+
+    console.log('[Spotify Episode] Falling back to YouTube results (via Jina Reader)');
+    const res = await fetch(jinaUrl, { headers, signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      console.log(`[Spotify Episode] Jina YouTube results returned ${res.status}`);
+      return null;
+    }
+
+    const text = await res.text();
+    const match = text.match(/watch\?v=([a-zA-Z0-9_-]{11})/);
+    if (match?.[1]) {
+      console.log(`[Spotify Episode] ✅ YouTube fallback match (Jina): ${match[1]}`);
+      return match[1];
+    }
+
+    console.log('[Spotify Episode] Jina fallback did not find any videoId');
+    return null;
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error?.name === 'AbortError') {
+      console.log('[Spotify Episode] Jina fallback timeout (5s)');
+    } else {
+      console.log('[Spotify Episode] Jina fallback error:', error?.message || String(error));
+    }
+    return null;
+  }
 }
+
 
 /**
  * Fetch YouTube transcript via internal transcribe-youtube edge function
