@@ -773,6 +773,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         userText: content,
         testMode: overrideTestMode || 'SOURCE_ONLY',
         questionCount: overrideQuestionCount || 3,
+        quotedPostId: quotedPost?.id, // Reshare: reuse original quiz if exists
       });
       
       toast.dismiss();
@@ -799,12 +800,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       }
       
       if (result.error || !result.questions) {
-        // [NEW] Allow publish without test when quiz generation fails
-        console.error('[ComposerModal] Reshare media quiz generation failed:', result.error);
-        toast.warning('Test non disponibile. Puoi pubblicare comunque.', { duration: 5000 });
+        // [FIX] Block publish if reshare quiz lookup failed - this should not happen
+        console.error('[ComposerModal] Reshare media quiz lookup/generation failed:', result.error);
+        toast.error('Impossibile recuperare il test originale. Riprova.', { duration: 5000 });
         setIsGeneratingQuiz(false);
-        addBreadcrumb('reshare_media_quiz_failed_publish_anyway');
-        await publishPost(); // Proceed without gate
+        addBreadcrumb('reshare_media_quiz_failed_blocked');
         return;
       }
       
@@ -848,6 +848,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         userText: quotedPost.content, // Use SOURCE text, not resharer's comment
         testMode: 'USER_ONLY', // Test on the original author's text
         questionCount,
+        quotedPostId: quotedPost.id, // Reshare: reuse original quiz if exists
       });
       
       toast.dismiss();
@@ -865,12 +866,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       }
       
       if (result.error || !result.questions) {
-        // Allow publish without test when quiz generation fails
-        console.error('[ComposerModal] Reshare text-only quiz generation failed:', result.error);
-        toast.warning('Test non disponibile. Puoi pubblicare comunque.', { duration: 5000 });
+        // [FIX] Block publish if reshare quiz lookup failed - this should not happen
+        console.error('[ComposerModal] Reshare text-only quiz lookup/generation failed:', result.error);
+        toast.error('Impossibile recuperare il test originale. Riprova.', { duration: 5000 });
         setIsGeneratingQuiz(false);
-        addBreadcrumb('reshare_textonly_quiz_failed_publish_anyway');
-        await publishPost();
+        addBreadcrumb('reshare_textonly_quiz_failed_blocked');
         return;
       }
       
