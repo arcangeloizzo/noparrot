@@ -1477,7 +1477,137 @@ serve(async (req) => {
         let lyricsAvailable = false;
         let geniusUrl = '';
         
-        // STEP 2: PARALLEL execution for track metadata
+        // ================================================================
+        // EPISODE HANDLING - Must come BEFORE track to avoid fallthrough
+        // ================================================================
+        if (spotifyInfo.type === 'episode') {
+          console.log(`[Spotify Episode] Processing episode: ${spotifyInfo.id}`);
+          const episodeStartTime = Date.now();
+          
+          // 1. Get Spotify access token
+          const accessToken = await getSpotifyAccessToken();
+          if (!accessToken) {
+            console.log('[Spotify Episode] No access token, returning minimal response');
+            return new Response(JSON.stringify({
+              success: true,
+              title: oembedData.title || 'Episodio Spotify',
+              summary: oembedData.title,
+              image: oembedData.thumbnail_url || '',
+              previewImg: oembedData.thumbnail_url || '',
+              platform: 'spotify',
+              type: 'episode',
+              hostname: 'open.spotify.com',
+              embedHtml: oembedData.html,
+              contentQuality: 'minimal',
+              gateConfig: { mode: 'timer', minSeconds: 30 },
+              qaSourceRef: { kind: 'spotifyId', id: spotifyInfo.id }
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          
+          // 2. Fetch episode metadata from Spotify API
+          console.log('[Spotify Episode] Fetching episode metadata...');
+          const episodeResponse = await fetch(`https://api.spotify.com/v1/episodes/${spotifyInfo.id}`, {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          });
+          
+          let episodeTitle = oembedData.title || 'Episodio Podcast';
+          let showName = '';
+          let episodeImage = oembedData.thumbnail_url || '';
+          let showDescription = '';
+          
+          if (episodeResponse.ok) {
+            const episodeData = await episodeResponse.json();
+            episodeTitle = episodeData.name || episodeTitle;
+            showName = episodeData.show?.name || '';
+            episodeImage = episodeData.images?.[0]?.url || episodeData.show?.images?.[0]?.url || episodeImage;
+            showDescription = episodeData.description || '';
+            console.log(`[Spotify Episode] ✅ Metadata: "${episodeTitle}" from "${showName}"`);
+          } else {
+            console.log(`[Spotify Episode] Episode API failed: ${episodeResponse.status}`);
+          }
+          
+          // 3. Search YouTube for matching video (with 5s timeout)
+          let youtubeVideoId: string | null = null;
+          let youtubeTranscript: string | null = null;
+          let youtubeFallback = false;
+          let youtubeFallbackMessage = '';
+          
+          if (showName && episodeTitle) {
+            youtubeVideoId = await searchYouTubeForPodcast(showName, episodeTitle);
+            
+            if (youtubeVideoId) {
+              // 4. Fetch transcript from YouTube (with 5s timeout)
+              youtubeTranscript = await fetchYouTubeTranscriptInternal(youtubeVideoId);
+              
+              if (youtubeTranscript && youtubeTranscript.length > 200) {
+                youtubeFallback = true;
+                youtubeFallbackMessage = `Trascrizione recuperata da YouTube`;
+                console.log(`[Spotify Episode] ✅ YouTube fallback successful: ${youtubeTranscript.length} chars`);
+                
+                // 5. Cache the transcript with spotify_episode_yt source type
+                if (supabase) {
+                  const cacheExpiry = new Date();
+                  cacheExpiry.setDate(cacheExpiry.getDate() + 7); // 7 days cache
+                  
+                  await supabase.from('content_cache').upsert({
+                    source_url: normalizedUrl,
+                    source_type: 'spotify_episode_yt',
+                    content_text: youtubeTranscript,
+                    title: `${showName}: ${episodeTitle}`,
+                    meta_image_url: episodeImage,
+                    meta_hostname: 'open.spotify.com',
+                    expires_at: cacheExpiry.toISOString()
+                  }, { onConflict: 'source_url' });
+                  
+                  console.log('[Spotify Episode] Cached YouTube transcript in content_cache');
+                }
+              } else {
+                console.log('[Spotify Episode] YouTube transcript too short or unavailable');
+              }
+            }
+          } else {
+            console.log(`[Spotify Episode] Missing metadata for YouTube search: showName="${showName}", episodeTitle="${episodeTitle}"`);
+          }
+          
+          const episodeElapsed = Date.now() - episodeStartTime;
+          console.log(`[Spotify Episode] ✅ Complete in ${episodeElapsed}ms (YouTube fallback: ${youtubeFallback})`);
+          
+          // Return response with YouTube fallback info
+          return new Response(JSON.stringify({
+            success: true,
+            title: showName ? `${showName}: ${episodeTitle}` : episodeTitle,
+            summary: showDescription.slice(0, 200) || episodeTitle,
+            image: episodeImage,
+            previewImg: episodeImage,
+            platform: 'spotify',
+            type: 'episode',
+            author: showName || 'Spotify Podcast',
+            hostname: 'open.spotify.com',
+            embedHtml: oembedData.html,
+            contentQuality: youtubeFallback ? 'complete' : 'minimal',
+            elapsedMs: episodeElapsed,
+            // YouTube fallback info for UI
+            youtubeFallback,
+            youtubeFallbackMessage,
+            youtubeVideoId,
+            // Gate config - timer for minimal, quiz for complete
+            gateConfig: youtubeFallback
+              ? { mode: 'quiz', minQuestions: 3 }
+              : { mode: 'timer', minSeconds: 30 },
+            // QA source reference - point to YouTube if transcript available
+            qaSourceRef: youtubeFallback && youtubeVideoId
+              ? { kind: 'youtubeId', id: youtubeVideoId, url }
+              : { kind: 'spotifyId', id: spotifyInfo.id }
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        // ================================================================
+        // TRACK HANDLING - PARALLEL execution for track metadata
+        // ================================================================
         if (spotifyInfo.type === 'track') {
           const accessToken = await getSpotifyAccessToken();
           
@@ -1631,145 +1761,6 @@ serve(async (req) => {
           hostname: 'open.spotify.com',
           contentQuality: 'minimal',
           gateConfig: { mode: 'timer', minSeconds: 15 },
-          qaSourceRef: { kind: 'spotifyId', id: spotifyInfo.id }
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-    }
-    // ========================================================================
-    // SPOTIFY EPISODE HANDLING - YOUTUBE FALLBACK
-    // ========================================================================
-    // SAFETY: This block is ONLY for episodes, tracks are handled above
-    else if (spotifyInfo.type === 'episode') {
-      console.log(`[Spotify Episode] Processing episode: ${spotifyInfo.id}`);
-      const episodeStartTime = Date.now();
-      
-      try {
-        // 1. Get Spotify access token
-        const accessToken = await getSpotifyAccessToken();
-        if (!accessToken) {
-          console.log('[Spotify Episode] No access token, returning minimal response');
-          return new Response(JSON.stringify({
-            success: true,
-            title: 'Episodio Spotify',
-            platform: 'spotify',
-            type: 'episode',
-            hostname: 'open.spotify.com',
-            contentQuality: 'minimal',
-            gateConfig: { mode: 'timer', minSeconds: 30 },
-            qaSourceRef: { kind: 'spotifyId', id: spotifyInfo.id }
-          }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-        
-        // 2. Fetch episode metadata from Spotify API
-        console.log('[Spotify Episode] Fetching episode metadata...');
-        const episodeResponse = await fetch(`https://api.spotify.com/v1/episodes/${spotifyInfo.id}`, {
-          headers: { 'Authorization': `Bearer ${accessToken}` }
-        });
-        
-        let episodeTitle = 'Episodio Podcast';
-        let showName = '';
-        let episodeImage = '';
-        let showDescription = '';
-        
-        if (episodeResponse.ok) {
-          const episodeData = await episodeResponse.json();
-          episodeTitle = episodeData.name || 'Episodio Podcast';
-          showName = episodeData.show?.name || '';
-          episodeImage = episodeData.images?.[0]?.url || episodeData.show?.images?.[0]?.url || '';
-          showDescription = episodeData.description || '';
-          console.log(`[Spotify Episode] ✅ Metadata: "${episodeTitle}" from "${showName}"`);
-        } else {
-          console.log(`[Spotify Episode] Episode API failed: ${episodeResponse.status}`);
-        }
-        
-        // 3. Search YouTube for matching video (with 5s timeout)
-        let youtubeVideoId: string | null = null;
-        let youtubeTranscript: string | null = null;
-        let youtubeFallback = false;
-        let youtubeFallbackMessage = '';
-        
-        if (showName && episodeTitle) {
-          youtubeVideoId = await searchYouTubeForPodcast(showName, episodeTitle);
-          
-          if (youtubeVideoId) {
-            // 4. Fetch transcript from YouTube (with 5s timeout)
-            youtubeTranscript = await fetchYouTubeTranscriptInternal(youtubeVideoId);
-            
-            if (youtubeTranscript && youtubeTranscript.length > 200) {
-              youtubeFallback = true;
-              youtubeFallbackMessage = `Trascrizione recuperata da YouTube`;
-              console.log(`[Spotify Episode] ✅ YouTube fallback successful: ${youtubeTranscript.length} chars`);
-              
-              // 5. Cache the transcript with spotify_episode_yt source type
-              if (supabase) {
-                const cacheExpiry = new Date();
-                cacheExpiry.setDate(cacheExpiry.getDate() + 7); // 7 days cache
-                
-                await supabase.from('content_cache').upsert({
-                  source_url: normalizedUrl,
-                  source_type: 'spotify_episode_yt',
-                  content_text: youtubeTranscript,
-                  title: `${showName}: ${episodeTitle}`,
-                  meta_image_url: episodeImage,
-                  meta_hostname: 'open.spotify.com',
-                  expires_at: cacheExpiry.toISOString()
-                }, { onConflict: 'source_url' });
-                
-                console.log('[Spotify Episode] Cached YouTube transcript in content_cache');
-              }
-            } else {
-              console.log('[Spotify Episode] YouTube transcript too short or unavailable');
-            }
-          }
-        }
-        
-        const episodeElapsed = Date.now() - episodeStartTime;
-        console.log(`[Spotify Episode] ✅ Complete in ${episodeElapsed}ms (YouTube fallback: ${youtubeFallback})`);
-        
-        // Return response with YouTube fallback info
-        return new Response(JSON.stringify({
-          success: true,
-          title: showName ? `${showName}: ${episodeTitle}` : episodeTitle,
-          summary: showDescription.slice(0, 200) || episodeTitle,
-          image: episodeImage,
-          previewImg: episodeImage,
-          platform: 'spotify',
-          type: 'episode',
-          author: showName || 'Spotify Podcast',
-          hostname: 'open.spotify.com',
-          contentQuality: youtubeFallback ? 'complete' : 'minimal',
-          elapsedMs: episodeElapsed,
-          // YouTube fallback info for UI
-          youtubeFallback,
-          youtubeFallbackMessage,
-          youtubeVideoId,
-          // Gate config - timer for minimal, quiz for complete
-          gateConfig: youtubeFallback
-            ? { mode: 'quiz', minQuestions: 3 }
-            : { mode: 'timer', minSeconds: 30 },
-          // QA source reference - point to YouTube if transcript available
-          qaSourceRef: youtubeFallback && youtubeVideoId
-            ? { kind: 'youtubeId', id: youtubeVideoId, url }
-            : { kind: 'spotifyId', id: spotifyInfo.id }
-        }), {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-        
-      } catch (error) {
-        console.error('[Spotify Episode] Error:', error);
-        
-        return new Response(JSON.stringify({
-          success: true,
-          title: 'Episodio Spotify',
-          platform: 'spotify',
-          type: 'episode',
-          hostname: 'open.spotify.com',
-          contentQuality: 'minimal',
-          gateConfig: { mode: 'timer', minSeconds: 30 },
           qaSourceRef: { kind: 'spotifyId', id: spotifyInfo.id }
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
