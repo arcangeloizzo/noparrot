@@ -483,10 +483,14 @@ Deno.serve(async (req) => {
    // This enables reshare lookup (Strategy 2.5 in generate-qa)
    // ========================================================================
    try {
+     // NOTE: post_qa_questions has no client UPDATE policy; use admin client for linking.
+     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+     const adminSupabase = createClient(supabaseUrl, serviceKey)
+
      // Find quiz by owner_id that was created recently (last 10 minutes) with null post_id
      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-     
-     const { data: pendingQuiz, error: quizLookupErr } = await supabase
+
+     const { data: pendingQuiz, error: quizLookupErr } = await adminSupabase
        .from('post_qa_questions')
        .select('id')
        .eq('owner_id', user.id)
@@ -500,7 +504,7 @@ Deno.serve(async (req) => {
        console.warn(`[publish-post:${reqId}] stage=quiz_link_lookup error`, quizLookupErr.message);
      } else if (pendingQuiz?.id) {
        // Update the quiz with the new post_id
-       const { error: quizUpdateErr } = await supabase
+       const { error: quizUpdateErr } = await adminSupabase
          .from('post_qa_questions')
          .update({ post_id: inserted.id })
          .eq('id', pendingQuiz.id);
