@@ -1,94 +1,109 @@
 
 
-# Piano: YouTube Fallback per Episodi Podcast Spotify
+# Fix: YouTube Fallback per Spotify Episodes - Affidabilità Migliorata
 
-## Contesto
+## Diagnosi
 
-Gli episodi podcast di Spotify non hanno trascrizioni disponibili tramite l'API Spotify. Molti podcast popolari sono pubblicati sia su Spotify che su YouTube, dove i sottotitoli sono spesso disponibili.
+Il sistema funziona correttamente, ma incontra due problemi:
 
-## Clausole di Sicurezza
+1. **Invidious pubblici instabili** - Tutti e 6 i mirror restituiscono errori (403, 404, 502, DNS failures)
+2. **Jina/YouTube bloccati** - YouTube blocca gli scraper automatici con 403 Forbidden
+3. **Podcast non su YouTube** - "Now What?" è esclusivo Spotify/Apple, non ha un canale YouTube
 
-1. **NON toccare il blocco `if (spotifyInfo.type === 'track')`** - Il codice esistente per le tracce musicali rimane intatto
-2. **Timeout rigoroso di 5 secondi** su tutte le chiamate YouTube (ricerca e trascrizione)
+Il comportamento attuale è corretto: ritorna `contentQuality: 'minimal'` quando non trova trascrizione.
 
-## Architettura
+## Soluzione Proposta
+
+### Fase 1: Aggiungere YouTube Data API (Affidabile)
+
+Per garantire ricerche affidabili, usiamo la **YouTube Data API v3** ufficiale come provider principale, con Invidious/Jina come fallback.
+
+| Provider | Affidabilità | Limite | Costo |
+|----------|--------------|--------|-------|
+| YouTube Data API v3 | 99.9% | 10.000 query/giorno | Gratuito |
+| Invidious (fallback) | ~30% | Nessuno | Gratuito |
+| Jina Reader (fallback) | ~50% | Dipende da key | Gratuito/Paid |
+
+### Fase 2: Struttura Ricerca (5s per provider, ~10s max)
 
 ```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                     FLUSSO SPOTIFY EPISODE                          │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  1. URL Spotify Episode                                             │
-│         ↓                                                           │
-│  2. fetch-article-preview: Estrai metadata (title, show_name)       │
-│         ↓                                                           │
-│  3. Cerca su YouTube: "[show_name] [episode_title]"                 │
-│         ↓                                                           │
-│  4. Match trovato?                                                  │
-│      ├── SI → Recupera transcript YouTube (timeout 5s)              │
-│      │         ↓                                                    │
-│      │   Salva in cache con youtubeId associato                     │
-│      │         ↓                                                    │
-│      │   Ritorna qaSourceRef: { kind: 'youtubeId', id: videoId }    │
-│      │                                                              │
-│      └── NO → Ritorna contentQuality: 'minimal'                     │
-│               Messaggio: "Nessuna trascrizione disponibile"         │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                   RICERCA YOUTUBE (Parallelo)                   │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Promise.any([                                                  │
+│    youtubeDataApiSearch(query, 5s timeout),                     │
+│    invidiousSearch(query, 5s timeout)                           │
+│  ])                                                             │
+│                                                                 │
+│  Se entrambi falliscono → Jina Reader (5s timeout finale)       │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-## File da Modificare
+### Fase 3: Modifiche File
 
 | File | Modifica |
 |------|----------|
-| `supabase/functions/fetch-article-preview/index.ts` | Aggiungere `else if (spotifyInfo.type === 'episode')` con YouTube search e transcript retrieval |
-| `src/components/composer/ComposerModal.tsx` | Visualizzare banner feedback YouTube fallback |
+| `supabase/functions/fetch-article-preview/index.ts` | Aggiungere `searchYouTubeWithDataAPI()`, modificare `searchYouTubeForPodcast()` per usare Promise.any |
+| Secrets | Richiedere `YOUTUBE_API_KEY` all'utente |
 
-## Implementazione Tecnica
+### Fase 4: Implementazione Tecnica
 
-### 1. `fetch-article-preview/index.ts`
-
-Dopo il blocco `if (spotifyInfo.type === 'track')` (riga ~1496), aggiungere:
-
-**Helper Function `searchYouTubeForPodcast`:**
-- Usa Invidious API (no API key richiesta)
-- Timeout 5 secondi per istanza
-- Verifica confidenza: almeno 2/3 delle prime parole del podcast devono matchare
-
-**Helper Function `fetchYouTubeTranscriptInternal`:**
-- Chiama `transcribe-youtube` edge function
-- Timeout 5 secondi
-- Usa `SUPABASE_SERVICE_ROLE_KEY` per auth
-
-**Blocco Episode:**
+**Nuova funzione `searchYouTubeWithDataAPI`:**
 ```typescript
-else if (spotifyInfo.type === 'episode') {
-  // 1. Fetch Spotify metadata (title, show name)
-  // 2. Search YouTube with timeout 5s
-  // 3. If match found, fetch transcript with timeout 5s
-  // 4. Cache result and return with youtubeFallback flag
+async function searchYouTubeWithDataAPI(query: string, timeout: number): Promise<string | null> {
+  const YOUTUBE_API_KEY = Deno.env.get('YOUTUBE_API_KEY');
+  if (!YOUTUBE_API_KEY) return null;
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+  
+  const url = `https://www.googleapis.com/youtube/v3/search?` +
+    `part=snippet&type=video&maxResults=3&q=${encodeURIComponent(query)}` +
+    `&key=${YOUTUBE_API_KEY}`;
+  
+  const res = await fetch(url, { signal: controller.signal });
+  clearTimeout(timeoutId);
+  
+  if (!res.ok) return null;
+  const data = await res.json();
+  
+  // Confidence check su primo risultato
+  const video = data.items?.[0];
+  if (video?.id?.videoId) {
+    return video.id.videoId;
+  }
+  return null;
 }
 ```
 
-### 2. `ComposerModal.tsx`
-
-Aggiungere banner quando `urlPreview?.youtubeFallback` è true:
-
-```tsx
-{urlPreview?.youtubeFallback && urlPreview?.youtubeFallbackMessage && (
-  <div className="mx-4 mb-2 p-2 bg-green-500/10 border border-green-500/30 rounded-lg">
-    <p className="text-xs text-green-400 flex items-center gap-2">
-      <Youtube className="h-4 w-4" />
-      {urlPreview.youtubeFallbackMessage}
-    </p>
-  </div>
-)}
+**Modifica `searchYouTubeForPodcast`:**
+```typescript
+async function searchYouTubeForPodcast(showName: string, episodeTitle: string): Promise<string | null> {
+  const query = `${showName} ${episodeTitle}`.trim();
+  
+  // 1. Try YouTube Data API and Invidious in parallel
+  const apiPromise = searchYouTubeWithDataAPI(query, 5000);
+  const invidiousPromise = searchWithInvidious(query, 5000);
+  
+  try {
+    const result = await Promise.any([apiPromise, invidiousPromise]);
+    if (result) return result;
+  } catch {}
+  
+  // 2. Fallback: Jina Reader
+  return searchWithJinaReader(query, 5000);
+}
 ```
 
-## Considerazioni
+### Considerazioni
 
-- **Nessuna API Key Richiesta**: Invidious è un mirror YouTube open-source
-- **Performance**: +3-5 secondi solo per episodi podcast, non per track
-- **Fallback Graceful**: Se YouTube fallisce, comportamento esistente mantenuto
-- **Caching**: Trascrizioni salvate con `source_type: 'spotify_episode_yt'`
+- **Nessun video = comportamento corretto**: Se il podcast non è su YouTube, Intent Mode (30+ parole) si attiva automaticamente
+- **Quota YouTube API**: 10.000 query/giorno gratuite, più che sufficienti
+- **Fallback graceful**: Se l'API key non è configurata, usa solo Invidious/Jina
+
+### Domanda
+
+Vuoi procedere con l'integrazione della YouTube Data API, oppure preferisci mantenere solo Invidious/Jina sapendo che alcuni podcast (come "Now What?") potrebbero non trovare corrispondenza?
 
