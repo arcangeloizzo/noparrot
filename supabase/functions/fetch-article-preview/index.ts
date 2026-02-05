@@ -1755,10 +1755,10 @@ serve(async (req) => {
             gateConfig: youtubeFallback
               ? { mode: 'quiz', minQuestions: 3 }
               : { mode: 'timer', minSeconds: 30 },
-            // QA source reference - point to YouTube if transcript available
+            // QA source reference - point to YouTube if transcript available, otherwise spotifyEpisodeId
             qaSourceRef: youtubeFallback && youtubeVideoId
               ? { kind: 'youtubeId', id: youtubeVideoId, url }
-              : { kind: 'spotifyId', id: spotifyInfo.id }
+              : { kind: 'spotifyEpisodeId', id: spotifyInfo.id, url }
           }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
