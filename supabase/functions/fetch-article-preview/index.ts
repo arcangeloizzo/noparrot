@@ -790,7 +790,8 @@ async function fetchYouTubeTranscriptInternal(youtubeId: string): Promise<string
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
       },
-      body: JSON.stringify({ videoId: youtubeId }),
+      // transcribe-youtube expects { url }, not { videoId }
+      body: JSON.stringify({ url: `https://youtu.be/${youtubeId}` }),
       signal: controller.signal,
     });
     
