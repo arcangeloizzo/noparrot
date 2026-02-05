@@ -1,84 +1,94 @@
 
 
-# Piano: Fix collegamento Quiz → Post per Reshare Carousel
+# Piano: YouTube Fallback per Episodi Podcast Spotify
 
-## Problema identificato
+## Contesto
 
-Il quiz generato per un carousel ha sempre `post_id: NULL` perché:
+Gli episodi podcast di Spotify non hanno trascrizioni disponibili tramite l'API Spotify. Molti podcast popolari sono pubblicati sia su Spotify che su YouTube, dove i sottotitoli sono spesso disponibili.
 
-1. `generate-qa` usa `isPrePublish: true` → crea quiz senza `post_id`
-2. `publish-post` crea il post ma **NON aggiorna** `post_qa_questions.post_id`
-3. Il resharer cerca il quiz per `quoted_post_id` ma non lo trova perché `post_id` è ancora NULL
+## Clausole di Sicurezza
 
-## Soluzione
+1. **NON toccare il blocco `if (spotifyInfo.type === 'track')`** - Il codice esistente per le tracce musicali rimane intatto
+2. **Timeout rigoroso di 5 secondi** su tutte le chiamate YouTube (ricerca e trascrizione)
 
-Aggiungere l'update del `post_id` in `publish-post/index.ts` dopo la creazione del post.
+## Architettura
 
-### Modifica a `supabase/functions/publish-post/index.ts`
-
-Dopo la riga 447 (dopo `stage=insert_ok`), aggiungere:
-
-```typescript
-// ========================================================================
-// LINK QUIZ TO POST: Update post_qa_questions.post_id for gate validation
-// This enables reshare lookup (Strategy 2.5 in generate-qa)
-// ========================================================================
-try {
-  // Find quiz by owner_id that was created recently (last 10 minutes) with null post_id
-  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-  
-  const { data: pendingQuiz, error: quizLookupErr } = await supabase
-    .from('post_qa_questions')
-    .select('id')
-    .eq('owner_id', user.id)
-    .is('post_id', null)
-    .gte('generated_at', tenMinutesAgo)
-    .order('generated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (quizLookupErr) {
-    console.warn(`[publish-post:${reqId}] stage=quiz_link_lookup error`, quizLookupErr.message);
-  } else if (pendingQuiz?.id) {
-    // Update the quiz with the new post_id
-    const { error: quizUpdateErr } = await supabase
-      .from('post_qa_questions')
-      .update({ post_id: inserted.id })
-      .eq('id', pendingQuiz.id);
-
-    if (quizUpdateErr) {
-      console.warn(`[publish-post:${reqId}] stage=quiz_link_update error`, quizUpdateErr.message);
-    } else {
-      console.log(`[publish-post:${reqId}] stage=quiz_link_ok quizId=${pendingQuiz.id}`);
-    }
-  } else {
-    console.log(`[publish-post:${reqId}] stage=quiz_link_skip no pending quiz`);
-  }
-} catch (quizLinkErr) {
-  console.warn(`[publish-post:${reqId}] stage=quiz_link_exception`, quizLinkErr);
-  // Non-blocking: don't fail the publish if quiz linking fails
-}
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│                     FLUSSO SPOTIFY EPISODE                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  1. URL Spotify Episode                                             │
+│         ↓                                                           │
+│  2. fetch-article-preview: Estrai metadata (title, show_name)       │
+│         ↓                                                           │
+│  3. Cerca su YouTube: "[show_name] [episode_title]"                 │
+│         ↓                                                           │
+│  4. Match trovato?                                                  │
+│      ├── SI → Recupera transcript YouTube (timeout 5s)              │
+│      │         ↓                                                    │
+│      │   Salva in cache con youtubeId associato                     │
+│      │         ↓                                                    │
+│      │   Ritorna qaSourceRef: { kind: 'youtubeId', id: videoId }    │
+│      │                                                              │
+│      └── NO → Ritorna contentQuality: 'minimal'                     │
+│               Messaggio: "Nessuna trascrizione disponibile"         │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-## Flusso dopo la fix
-
-| Step | Prima | Dopo |
-|------|-------|------|
-| 1. Autore genera quiz | `post_id: NULL` | `post_id: NULL` |
-| 2. Autore passa test | - | - |
-| 3. Autore pubblica post | `post_id` resta NULL | `post_id` aggiornato con ID post |
-| 4. Resharer cerca quiz | Non trovato! | Trovato via Strategy 2.5 |
-| 5. Resharer passa test | Errore bloccante | Usa quiz originale |
-
-## File da modificare
+## File da Modificare
 
 | File | Modifica |
 |------|----------|
-| `supabase/functions/publish-post/index.ts` | Aggiungere logica per linkare quiz al post dopo insert |
+| `supabase/functions/fetch-article-preview/index.ts` | Aggiungere `else if (spotifyInfo.type === 'episode')` con YouTube search e transcript retrieval |
+| `src/components/composer/ComposerModal.tsx` | Visualizzare banner feedback YouTube fallback |
 
-## Note
+## Implementazione Tecnica
 
-- Il lookup usa `owner_id` + `post_id IS NULL` + `generated_at` recente per trovare il quiz pendente
-- Il collegamento è best-effort: se fallisce, il post viene comunque pubblicato (non bloccante)
-- Risolve il problema per i NUOVI post; quelli già pubblicati senza link rimarranno con `post_id: NULL`
+### 1. `fetch-article-preview/index.ts`
+
+Dopo il blocco `if (spotifyInfo.type === 'track')` (riga ~1496), aggiungere:
+
+**Helper Function `searchYouTubeForPodcast`:**
+- Usa Invidious API (no API key richiesta)
+- Timeout 5 secondi per istanza
+- Verifica confidenza: almeno 2/3 delle prime parole del podcast devono matchare
+
+**Helper Function `fetchYouTubeTranscriptInternal`:**
+- Chiama `transcribe-youtube` edge function
+- Timeout 5 secondi
+- Usa `SUPABASE_SERVICE_ROLE_KEY` per auth
+
+**Blocco Episode:**
+```typescript
+else if (spotifyInfo.type === 'episode') {
+  // 1. Fetch Spotify metadata (title, show name)
+  // 2. Search YouTube with timeout 5s
+  // 3. If match found, fetch transcript with timeout 5s
+  // 4. Cache result and return with youtubeFallback flag
+}
+```
+
+### 2. `ComposerModal.tsx`
+
+Aggiungere banner quando `urlPreview?.youtubeFallback` è true:
+
+```tsx
+{urlPreview?.youtubeFallback && urlPreview?.youtubeFallbackMessage && (
+  <div className="mx-4 mb-2 p-2 bg-green-500/10 border border-green-500/30 rounded-lg">
+    <p className="text-xs text-green-400 flex items-center gap-2">
+      <Youtube className="h-4 w-4" />
+      {urlPreview.youtubeFallbackMessage}
+    </p>
+  </div>
+)}
+```
+
+## Considerazioni
+
+- **Nessuna API Key Richiesta**: Invidious è un mirror YouTube open-source
+- **Performance**: +3-5 secondi solo per episodi podcast, non per track
+- **Fallback Graceful**: Se YouTube fallisce, comportamento esistente mantenuto
+- **Caching**: Trascrizioni salvate con `source_type: 'spotify_episode_yt'`
 
