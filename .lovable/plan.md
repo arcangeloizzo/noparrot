@@ -1,175 +1,239 @@
 
-# Piano: Completamento Light Mode - Adattamento Componenti
+# Piano Completo: Fix Reshare Carousel (Gate + UI)
 
-## Problema identificato
+## Problema
 
-Dagli screenshot emerge che molti componenti hanno colori **hardcoded** che ignorano le variabili CSS del tema:
+Quando un utente ricondivide un post con carousel:
 
-1. **Header** - Icona notifiche `text-white` fissa
-2. **Bottom Navigation** - `text-white`, `text-gray-400` hardcoded
-3. **Profile** - Pill metriche, bottoni con `bg-[#141A1E]`
-4. **ProfileSettingsSheet** - Background `bg-[#0E1419]`, card items `bg-[#141A1E]`
-5. **ComposerModal** - Background `bg-zinc-950`, bordi `border-zinc-800`
-6. **Nebula/CompactNebula** - Background `bg-[#0A0F14]`
-7. **DiaryFilters** - Filtri con `bg-[#1A2127]`
-8. **DiaryEntry** - Card con `bg-[#141A1E]`
-9. **FocusDetailSheet** - Background `bg-[#0E141A]`, testi `text-white`
-10. **LogoHorizontal** - "PARROT" con `fill-white` fisso
-11. **ImmersivePostCard/ImmersiveEditorialCarousel** - Gradienti e overlay dark hardcoded
+1. **Gate rotto**: Il sistema tenta di generare un NUOVO quiz invece di riutilizzare quello dell'autore originale
+2. **UI incompleta**: `QuotedPostCard` non renderizza i media del post quotato
 
-## Strategia di risoluzione
+### Flusso attuale (sbagliato)
 
-### Mappatura colori hardcoded → variabili CSS
+```text
+Utente A pubblica carousel → Passa test OCR → Post salvato con quiz ID
+                                                        ↓
+Utente B ricondivide → generate-qa con isPrePublish:true
+                                                        ↓
+                     ❌ Strategy 2 (post_id) saltata perché isPrePublish=true
+                     ❌ Strategy 1/3 falliscono perché non c'è source_url
+                                                        ↓
+                     Genera NUOVO quiz → OCR < 150 chars → ERRORE
+                                                        ↓
+                     Fail-open: "Test non disponibile. Puoi pubblicare comunque."
+                                                        ↓
+                     Post pubblicato MA carousel non visibile (UI mancante)
+```
 
-| Hardcoded | Variabile CSS corretta |
-|-----------|------------------------|
-| `bg-[#0E141A]`, `bg-[#0E1419]` | `bg-background` |
-| `bg-[#141A1E]`, `bg-[#1A2127]` | `bg-secondary` o `bg-card` |
-| `bg-zinc-950`, `bg-zinc-900` | `bg-background` o `bg-card` |
-| `text-white` (in UI persistente) | `text-foreground` |
-| `text-gray-400` | `text-muted-foreground` |
-| `border-white/10` | `border-border` |
-| `border-zinc-800` | `border-border` |
-| `hover:bg-white/10` | `hover:bg-muted/50` |
+### Flusso corretto (da implementare)
 
-### Componenti immersivi (Feed, Editorial)
+```text
+Utente A pubblica carousel → Passa test OCR → Post salvato con quiz ID
+                                                        ↓
+Utente B ricondivide → Lookup quiz per quoted_post_id
+                                                        ↓
+                     ✅ Trova quiz originale di Utente A
+                                                        ↓
+                     Mostra STESSO test → Utente B passa
+                                                        ↓
+                     Post pubblicato E carousel visibile
+```
 
-Per ImmersivePostCard e ImmersiveEditorialCarousel, i gradienti dark sono **intenzionali** per garantire leggibilità del testo bianco su immagini. Questi componenti restano invariati perchè:
-- Sono "full-screen cinematic" cards con overlays su immagini
-- Il testo deve essere bianco per contrasto con qualsiasi immagine
-- Il fade nero garantisce transizioni fluide tra card
+---
+
+## Parte 1: Fix Logica Gate (Backend + Frontend)
+
+### 1.1 Modificare `generate-qa/index.ts` - Nuova Strategy per Reshare
+
+Aggiungere una **Strategy 2.5**: lookup by `quoted_post_id` quando siamo in un reshare.
+
+**Parametri da aggiungere alla richiesta:**
+- `quotedPostId?: string` - ID del post originale che si sta ricondividendo
+
+**Nuova logica (dopo Strategy 2, prima di Strategy 3):**
+
+```typescript
+// Strategy 2.5: Reshare lookup - find quiz from original post being shared
+if (!existing && quotedPostId) {
+  console.log('[generate-qa] Reshare detected, looking for original post quiz:', quotedPostId);
+  
+  const { data: reshareMatch } = await supabase
+    .from('post_qa_questions')
+    .select('id, questions, content_hash, test_mode, owner_id, post_id')
+    .eq('post_id', quotedPostId)
+    .limit(1)
+    .maybeSingle();
+  
+  if (reshareMatch) {
+    console.log('[generate-qa] ✅ Found RESHARE quiz from original post:', reshareMatch.id);
+    existing = reshareMatch;
+    // Force cache hit - resharer takes same test as original author
+  }
+}
+```
+
+**Rimuovere fail-open per reshare**: Se il quiz originale esiste, deve essere usato. Se non esiste (edge case), allora può scattare il fallback.
+
+### 1.2 Modificare `ComposerModal.tsx` - Passare quotedPostId
+
+Nella funzione `handleQuotedMediaGateFlow` (riga 754), modificare la chiamata a `generateQA`:
+
+```typescript
+const result = await generateQA({
+  contentId: quotedPost?.id || null,
+  quotedPostId: quotedPost?.id, // ← NUOVO: ID del post originale
+  isPrePublish: true,
+  // ... resto invariato
+});
+```
+
+Stessa modifica per `handleReshareTextOnlyGateFlow` (riga 832).
+
+### 1.3 Modificare `src/lib/comprehension-gate.tsx` o hook equivalente
+
+Aggiungere `quotedPostId` ai parametri della funzione `generateQA`:
+
+```typescript
+interface GenerateQAParams {
+  // ... esistenti
+  quotedPostId?: string; // ID del post che si sta ricondividendo
+}
+```
+
+### 1.4 Rimuovere fail-open per reshare
+
+In `ComposerModal.tsx` riga 801-809, modificare il comportamento:
+
+```typescript
+if (result.error || !result.questions) {
+  // Se è un reshare e il quiz originale non esiste, è un bug (non dovrebbe succedere)
+  if (quotedPost?.id) {
+    console.error('[ComposerModal] Reshare quiz lookup failed - this should not happen');
+    toast.error('Impossibile recuperare il test originale. Riprova.');
+    setIsGeneratingQuiz(false);
+    return; // ← NON permettere pubblicazione senza test
+  }
+  
+  // Per post originali (non reshare), mantieni fail-open
+  toast.warning('Test non disponibile. Puoi pubblicare comunque.');
+  await publishPost();
+  return;
+}
+```
+
+---
+
+## Parte 2: Fix UI QuotedPostCard
+
+### 2.1 Estendere interfaccia in `QuotedPostCard.tsx`
+
+```typescript
+interface QuotedPost {
+  id: string;
+  content: string;
+  created_at: string;
+  shared_url?: string | null;
+  shared_title?: string | null;
+  preview_img?: string | null;
+  sources?: string[];
+  is_intent?: boolean;
+  author: {
+    username: string;
+    full_name: string | null;
+    avatar_url: string | null;
+  };
+  // NUOVO
+  media?: Array<{
+    id: string;
+    type: 'image' | 'video';
+    url: string;
+    thumbnail_url?: string | null;
+  }>;
+}
+```
+
+### 2.2 Aggiungere rendering media
+
+Dopo il contenuto testuale, aggiungere gallery compatta:
+
+```tsx
+{/* Media Gallery */}
+{quotedPost.media && quotedPost.media.length > 0 && (
+  <div className="mt-2 rounded-lg overflow-hidden">
+    {quotedPost.media.length === 1 ? (
+      // Singola immagine/video
+      quotedPost.media[0].type === 'video' ? (
+        <video 
+          src={quotedPost.media[0].url}
+          poster={quotedPost.media[0].thumbnail_url || undefined}
+          className="w-full max-h-32 object-cover rounded-lg"
+        />
+      ) : (
+        <img 
+          src={quotedPost.media[0].url}
+          alt=""
+          className="w-full max-h-32 object-cover rounded-lg"
+        />
+      )
+    ) : (
+      // Grid 2x2 per carousel
+      <div className="grid grid-cols-2 gap-1">
+        {quotedPost.media.slice(0, 4).map((m, idx) => (
+          <div key={m.id} className="relative aspect-square rounded-lg overflow-hidden bg-muted">
+            {m.type === 'video' ? (
+              <video 
+                src={m.url}
+                poster={m.thumbnail_url || undefined}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <img 
+                src={m.url}
+                alt=""
+                className="w-full h-full object-cover"
+              />
+            )}
+            {idx === 3 && quotedPost.media!.length > 4 && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                <span className="text-white font-bold text-sm">
+                  +{quotedPost.media!.length - 4}
+                </span>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+```
+
+---
 
 ## File da modificare
 
-### 1. Header.tsx
-- `text-white` → `text-foreground`
-- `hover:bg-white/10` → `hover:bg-muted/50`
+| File | Modifica |
+|------|----------|
+| `supabase/functions/generate-qa/index.ts` | Aggiungere Strategy 2.5 per reshare lookup |
+| `src/lib/comprehension-gate.tsx` | Aggiungere `quotedPostId` ai parametri |
+| `src/components/composer/ComposerModal.tsx` | Passare `quotedPostId` e rimuovere fail-open per reshare |
+| `src/components/feed/QuotedPostCard.tsx` | Aggiungere supporto media e gallery |
 
-### 2. BottomNavigation.tsx
-- `text-white` → `text-foreground`
-- `text-gray-400` → `text-muted-foreground`
-- `ring-white` → `ring-foreground`
-- `ring-white/20` → `ring-border`
+---
 
-### 3. Profile.tsx
-- `bg-[#141A1E]` → `bg-secondary`
-- `border-white/10` → `border-border`
-- `hover:border-white/20` → `hover:border-border/50`
+## Comportamento finale
 
-### 4. ProfileSettingsSheet.tsx
-- `bg-[#0E1419]` → `bg-background`
-- `border-white/10` → `border-border`
-- `bg-[#141A1E]` → `bg-card`
-- `hover:bg-[#1A2127]` → `hover:bg-muted`
-- `hover:bg-white/10` → `hover:bg-muted/50`
+| Scenario | Prima | Dopo |
+|----------|-------|------|
+| Reshare carousel con OCR < 150 | Toast "Test non disponibile", pubblica vuoto | Usa quiz originale, mostra carousel |
+| Reshare post testuale | Genera nuovo quiz (può fallire) | Riutilizza quiz dell'autore originale |
+| Post originale con media scarso | Fail-open (OK) | Invariato (fail-open mantenuto) |
+| QuotedPostCard con media | Non renderizza | Grid 2x2 o singola immagine |
 
-### 5. ComposerModal.tsx
-- `bg-zinc-950` → `bg-background`
-- `bg-zinc-900` → `bg-card`
-- `border-zinc-800` → `border-border`
-- `bg-zinc-800` (avatar fallback) → `bg-muted`
-- `text-zinc-400` → `text-muted-foreground`
+---
 
-### 6. CompactNebula.tsx
-- `bg-[#0A0F14]` → `bg-card`
-- `border-white/[0.08]` → `border-border`
-- `hover:border-white/15` → `hover:border-border/50`
-- `bg-[#0A0F14]/80` (empty state) → `bg-card/80`
+## Note di sicurezza
 
-### 7. DiaryFilters.tsx
-- `bg-[#1A2127]` → `bg-secondary`
-- `hover:bg-[#242B33]` → `hover:bg-muted`
-
-### 8. DiaryEntry.tsx
-- `bg-[#141A1E]` → `bg-card`
-- `hover:bg-[#1A2127]` → `hover:bg-muted`
-
-### 9. FocusDetailSheet.tsx
-- `bg-[#0E141A]` → `bg-background`
-- `border-white/10` → `border-border`
-- `text-white` → `text-foreground`
-- `text-white/70` → `text-muted-foreground`
-- `text-gray-400` → `text-muted-foreground`
-- `text-gray-200` → `text-foreground`
-- `hover:bg-white/10` → `hover:bg-muted/50`
-
-### 10. LogoHorizontal.tsx
-- `fill-white` → `fill-foreground` (con CSS class per supporto tema)
-- Aggiungere classe `text-foreground` e usare `fill-current` per SVG text paths
-
-### 11. index.css (Light Mode specifico)
-Aggiungere regole per componenti specifici in `.light`:
-```css
-.light .liquid-glass-fab-central {
-  background: linear-gradient(135deg, #0A7AFF, #0d6efd);
-  box-shadow: 0 4px 15px rgba(10, 122, 255, 0.3);
-}
-```
-
-## Componenti da NON modificare
-
-I seguenti componenti mantengono gradienti dark perche sono "immersive" con contenuto sopra immagini:
-- `ImmersivePostCard.tsx` - Le card del feed sono volutamente cinematiche
-- `ImmersiveEditorialCarousel.tsx` - Il carousel "Il Punto" mantiene lo stile dark
-- `SpotifyGradientBackground.tsx` - Gradiente specifico per Spotify
-
-## Flusso delle modifiche
-
-```text
-1. Header + BottomNavigation (navigazione)
-   |
-2. Profile + ProfileSettingsSheet (profilo)
-   |
-3. ComposerModal (creazione contenuto)
-   |
-4. CompactNebula + DiaryFilters + DiaryEntry (componenti profilo)
-   |
-5. FocusDetailSheet (dettaglio editoriale)
-   |
-6. LogoHorizontal (branding)
-   |
-7. index.css (regole light specifiche)
-```
-
-## Test di validazione
-
-1. Aprire l'app in Dark Mode → verificare che sia identica a prima
-2. Passare a Light Mode tramite /settings/privacy
-3. Verificare:
-   - Header: icona notifiche visibile (non bianca su bianco)
-   - Bottom Nav: icone e testi visibili
-   - Profile: pill metriche leggibili, Nebula con sfondo chiaro
-   - Settings sheet: sfondo chiaro, card items visibili
-   - Composer: sfondo chiaro, placeholder visibile
-   - Focus detail: titolo e testo visibili
-   - Logo nella header: "PARROT" visibile in entrambi i temi
-
-## Note tecniche
-
-### Gestione SVG fill
-Per `LogoHorizontal.tsx`, il testo "PARROT" usa `fill-white`. Per supportare entrambi i temi:
-
-```tsx
-// Prima
-<path className="fill-white" d="..."/>
-
-// Dopo
-<path className="fill-foreground" d="..."/>
-```
-
-Dove `fill-foreground` è definito in CSS come:
-```css
-.fill-foreground {
-  fill: hsl(var(--foreground));
-}
-```
-
-### Filtri attivi
-I DiaryFilters usano `bg-white text-black` per lo stato attivo. Questo va invertito in light mode:
-```css
-.light .filter-active {
-  @apply bg-foreground text-background;
-}
-```
-
-Oppure usare `bg-primary text-primary-foreground` per consistenza.
+- Il resharer DEVE passare lo stesso test dell'autore originale
+- Non c'è bypass: se il quiz originale non viene trovato, la condivisione viene bloccata
+- Questo garantisce che chi diffonde contenuti abbia la stessa comprensione di chi li ha pubblicati
