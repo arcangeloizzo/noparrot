@@ -12,6 +12,7 @@ import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { useOnlinePresence } from "@/hooks/useOnlinePresence";
 import { useAuth } from "@/contexts/AuthContext";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
+import { ComposerModal } from "@/components/composer/ComposerModal";
 import { getDisplayUsername } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -25,6 +26,7 @@ export default function Messages() {
   const [showNewMessage, setShowNewMessage] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isComposerOpen, setIsComposerOpen] = useState(false);
 
   // Fix: Routing intelligente - verifica thread esistente prima di aprire NewMessageSheet
   const handleStartConversation = async (selectedUserIds: string[]) => {
@@ -184,6 +186,13 @@ export default function Messages() {
         }}
         onProfileClick={() => navigate('/profile')}
         onHomeRefresh={() => {}}
+        onComposerClick={() => setIsComposerOpen(true)}
+      />
+
+      {/* Composer Modal */}
+      <ComposerModal
+        isOpen={isComposerOpen}
+        onClose={() => setIsComposerOpen(false)}
       />
 
       {/* People Picker */}
