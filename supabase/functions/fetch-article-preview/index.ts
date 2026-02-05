@@ -523,6 +523,149 @@ async function fetchSpotifyTrackMetadata(trackId: string, accessToken: string): 
   }
 }
 
+// ============================================================================
+// SPOTIFY EPISODE → YOUTUBE FALLBACK HELPERS
+// ============================================================================
+// For podcast episodes, attempt to find the equivalent YouTube video for transcription
+
+// Invidious instances for YouTube search (no API key required)
+const INVIDIOUS_INSTANCES = [
+  'https://invidious.io.lol',
+  'https://yt.artemislena.eu',
+  'https://invidious.privacyredirect.com',
+];
+
+/**
+ * Search YouTube for a podcast episode using Invidious API
+ * Returns videoId if a confident match is found (2/3 first words match)
+ * @param showName - Podcast show name from Spotify
+ * @param episodeTitle - Episode title from Spotify
+ * @returns YouTube video ID or null
+ */
+async function searchYouTubeForPodcast(showName: string, episodeTitle: string): Promise<string | null> {
+  const query = `${showName} ${episodeTitle}`;
+  console.log(`[Spotify Episode] 🔍 Searching YouTube for: "${query}"`);
+  
+  // Extract first 3 words from episode title for confidence check
+  const titleWords = episodeTitle.toLowerCase().split(/\s+/).filter(w => w.length > 2).slice(0, 3);
+  const minMatchRequired = Math.max(2, Math.ceil(titleWords.length * 0.66));
+  
+  for (const instance of INVIDIOUS_INSTANCES) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout per instance
+    
+    try {
+      const searchUrl = `${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video&sort=relevance`;
+      console.log(`[Spotify Episode] Trying Invidious: ${instance}`);
+      
+      const response = await fetch(searchUrl, {
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        console.log(`[Spotify Episode] Invidious ${instance} returned ${response.status}`);
+        continue;
+      }
+      
+      const results = await response.json();
+      
+      if (!Array.isArray(results) || results.length === 0) {
+        console.log(`[Spotify Episode] No results from ${instance}`);
+        continue;
+      }
+      
+      // Check first 3 results for confidence match
+      for (const video of results.slice(0, 3)) {
+        const videoTitle = (video.title || '').toLowerCase();
+        const matchedWords = titleWords.filter(word => videoTitle.includes(word));
+        
+        console.log(`[Spotify Episode] Checking: "${video.title}" - matched ${matchedWords.length}/${titleWords.length} words`);
+        
+        if (matchedWords.length >= minMatchRequired && video.videoId) {
+          console.log(`[Spotify Episode] ✅ YouTube match found: ${video.videoId} (confidence: ${matchedWords.length}/${titleWords.length})`);
+          return video.videoId;
+        }
+      }
+      
+      console.log(`[Spotify Episode] No confident match from ${instance}`);
+      return null; // Results found but no confident match
+      
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      if (error.name === 'AbortError') {
+        console.log(`[Spotify Episode] Invidious ${instance} timeout (5s)`);
+      } else {
+        console.log(`[Spotify Episode] Invidious ${instance} error:`, error.message);
+      }
+      continue;
+    }
+  }
+  
+  console.log('[Spotify Episode] All Invidious instances failed');
+  return null;
+}
+
+/**
+ * Fetch YouTube transcript via internal transcribe-youtube edge function
+ * Uses service_role key for server-to-server auth
+ * @param youtubeId - YouTube video ID
+ * @returns Transcript text or null
+ */
+async function fetchYouTubeTranscriptInternal(youtubeId: string): Promise<string | null> {
+  const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+  const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+    console.error('[Spotify Episode] Missing SUPABASE env vars for transcript fetch');
+    return null;
+  }
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+  
+  try {
+    console.log(`[Spotify Episode] 📜 Fetching YouTube transcript for: ${youtubeId}`);
+    
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/transcribe-youtube`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify({ videoId: youtubeId }),
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      console.error(`[Spotify Episode] YouTube transcript fetch failed: ${response.status}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    
+    if (data.success && data.transcript) {
+      console.log(`[Spotify Episode] ✅ YouTube transcript fetched: ${data.transcript.length} chars`);
+      return data.transcript;
+    }
+    
+    console.log('[Spotify Episode] No transcript available:', data.error || 'unknown');
+    return null;
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      console.error('[Spotify Episode] YouTube transcript fetch timeout (5s)');
+    } else {
+      console.error('[Spotify Episode] YouTube transcript fetch error:', error);
+    }
+    return null;
+  }
+}
+
 async function fetchSpotifyAudioFeatures(trackId: string, accessToken: string): Promise<{
   energy: number;
   valence: number;
@@ -1488,6 +1631,145 @@ serve(async (req) => {
           hostname: 'open.spotify.com',
           contentQuality: 'minimal',
           gateConfig: { mode: 'timer', minSeconds: 15 },
+          qaSourceRef: { kind: 'spotifyId', id: spotifyInfo.id }
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+    // ========================================================================
+    // SPOTIFY EPISODE HANDLING - YOUTUBE FALLBACK
+    // ========================================================================
+    // SAFETY: This block is ONLY for episodes, tracks are handled above
+    else if (spotifyInfo.type === 'episode') {
+      console.log(`[Spotify Episode] Processing episode: ${spotifyInfo.id}`);
+      const episodeStartTime = Date.now();
+      
+      try {
+        // 1. Get Spotify access token
+        const accessToken = await getSpotifyAccessToken();
+        if (!accessToken) {
+          console.log('[Spotify Episode] No access token, returning minimal response');
+          return new Response(JSON.stringify({
+            success: true,
+            title: 'Episodio Spotify',
+            platform: 'spotify',
+            type: 'episode',
+            hostname: 'open.spotify.com',
+            contentQuality: 'minimal',
+            gateConfig: { mode: 'timer', minSeconds: 30 },
+            qaSourceRef: { kind: 'spotifyId', id: spotifyInfo.id }
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+        
+        // 2. Fetch episode metadata from Spotify API
+        console.log('[Spotify Episode] Fetching episode metadata...');
+        const episodeResponse = await fetch(`https://api.spotify.com/v1/episodes/${spotifyInfo.id}`, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        
+        let episodeTitle = 'Episodio Podcast';
+        let showName = '';
+        let episodeImage = '';
+        let showDescription = '';
+        
+        if (episodeResponse.ok) {
+          const episodeData = await episodeResponse.json();
+          episodeTitle = episodeData.name || 'Episodio Podcast';
+          showName = episodeData.show?.name || '';
+          episodeImage = episodeData.images?.[0]?.url || episodeData.show?.images?.[0]?.url || '';
+          showDescription = episodeData.description || '';
+          console.log(`[Spotify Episode] ✅ Metadata: "${episodeTitle}" from "${showName}"`);
+        } else {
+          console.log(`[Spotify Episode] Episode API failed: ${episodeResponse.status}`);
+        }
+        
+        // 3. Search YouTube for matching video (with 5s timeout)
+        let youtubeVideoId: string | null = null;
+        let youtubeTranscript: string | null = null;
+        let youtubeFallback = false;
+        let youtubeFallbackMessage = '';
+        
+        if (showName && episodeTitle) {
+          youtubeVideoId = await searchYouTubeForPodcast(showName, episodeTitle);
+          
+          if (youtubeVideoId) {
+            // 4. Fetch transcript from YouTube (with 5s timeout)
+            youtubeTranscript = await fetchYouTubeTranscriptInternal(youtubeVideoId);
+            
+            if (youtubeTranscript && youtubeTranscript.length > 200) {
+              youtubeFallback = true;
+              youtubeFallbackMessage = `Trascrizione recuperata da YouTube`;
+              console.log(`[Spotify Episode] ✅ YouTube fallback successful: ${youtubeTranscript.length} chars`);
+              
+              // 5. Cache the transcript with spotify_episode_yt source type
+              if (supabase) {
+                const cacheExpiry = new Date();
+                cacheExpiry.setDate(cacheExpiry.getDate() + 7); // 7 days cache
+                
+                await supabase.from('content_cache').upsert({
+                  source_url: normalizedUrl,
+                  source_type: 'spotify_episode_yt',
+                  content_text: youtubeTranscript,
+                  title: `${showName}: ${episodeTitle}`,
+                  meta_image_url: episodeImage,
+                  meta_hostname: 'open.spotify.com',
+                  expires_at: cacheExpiry.toISOString()
+                }, { onConflict: 'source_url' });
+                
+                console.log('[Spotify Episode] Cached YouTube transcript in content_cache');
+              }
+            } else {
+              console.log('[Spotify Episode] YouTube transcript too short or unavailable');
+            }
+          }
+        }
+        
+        const episodeElapsed = Date.now() - episodeStartTime;
+        console.log(`[Spotify Episode] ✅ Complete in ${episodeElapsed}ms (YouTube fallback: ${youtubeFallback})`);
+        
+        // Return response with YouTube fallback info
+        return new Response(JSON.stringify({
+          success: true,
+          title: showName ? `${showName}: ${episodeTitle}` : episodeTitle,
+          summary: showDescription.slice(0, 200) || episodeTitle,
+          image: episodeImage,
+          previewImg: episodeImage,
+          platform: 'spotify',
+          type: 'episode',
+          author: showName || 'Spotify Podcast',
+          hostname: 'open.spotify.com',
+          contentQuality: youtubeFallback ? 'complete' : 'minimal',
+          elapsedMs: episodeElapsed,
+          // YouTube fallback info for UI
+          youtubeFallback,
+          youtubeFallbackMessage,
+          youtubeVideoId,
+          // Gate config - timer for minimal, quiz for complete
+          gateConfig: youtubeFallback
+            ? { mode: 'quiz', minQuestions: 3 }
+            : { mode: 'timer', minSeconds: 30 },
+          // QA source reference - point to YouTube if transcript available
+          qaSourceRef: youtubeFallback && youtubeVideoId
+            ? { kind: 'youtubeId', id: youtubeVideoId, url }
+            : { kind: 'spotifyId', id: spotifyInfo.id }
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+        
+      } catch (error) {
+        console.error('[Spotify Episode] Error:', error);
+        
+        return new Response(JSON.stringify({
+          success: true,
+          title: 'Episodio Spotify',
+          platform: 'spotify',
+          type: 'episode',
+          hostname: 'open.spotify.com',
+          contentQuality: 'minimal',
+          gateConfig: { mode: 'timer', minSeconds: 30 },
           qaSourceRef: { kind: 'spotifyId', id: spotifyInfo.id }
         }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },

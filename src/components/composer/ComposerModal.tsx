@@ -22,7 +22,7 @@ import { forceUnlockBodyScroll } from "@/lib/bodyScrollLock";
 import { haptics } from "@/lib/haptics";
 import { TiptapEditor, TiptapEditorRef } from "./TiptapEditor";
 import { useVisualViewportOffset } from "@/hooks/useVisualViewportOffset";
-import { Loader2 } from "lucide-react";
+import { Loader2, Youtube } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -1793,6 +1793,16 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                         </p>
                       )}
                     </div>
+                    
+                    {/* YouTube Fallback Banner for Spotify Podcasts */}
+                    {urlPreview.youtubeFallback && urlPreview.youtubeFallbackMessage && (
+                      <div className="mx-3 mb-2.5 p-2 bg-primary/10 border border-primary/30 rounded-lg">
+                        <p className="text-xs text-primary flex items-center gap-2">
+                          <Youtube className="h-4 w-4 flex-shrink-0" />
+                          {urlPreview.youtubeFallbackMessage}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
 
