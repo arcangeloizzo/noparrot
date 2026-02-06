@@ -339,51 +339,46 @@ const ImmersivePostCardInner = ({
   // Comments state - use initialOpenComments for auto-open from notifications
   const [showComments, setShowComments] = useState(initialOpenComments);
   
-  // Adaptive Content Levels: measure overflow and respond proportionally
-  // Level 0: No overflow - default styling
-  // Level 1: Light overflow (<15%) - reduce gaps/padding
-  // Level 2: Medium overflow (15-35%) - reduce typography + media
-  // Level 3: Aggressive overflow (>35%) - maximum compression
+  // Content Density Score: PREDICTIVE system that calculates density BEFORE render
+  // This replaces the reactive overflowLevel system to prevent flickering
+  // Scores: 'low' (≤3), 'medium' (4-6), 'high' (≥7)
   const contentZoneRef = useRef<HTMLDivElement>(null);
-  const [overflowLevel, setOverflowLevel] = useState<0 | 1 | 2 | 3>(0);
   
-  useEffect(() => {
-    const el = contentZoneRef.current;
-    if (!el) return;
+  const contentDensity = useMemo((): 'low' | 'medium' | 'high' => {
+    let score = 0;
     
-    const checkOverflow = () => {
-      const scrollH = el.scrollHeight;
-      const clientH = el.clientHeight;
-      
-      if (scrollH <= clientH + 1) {
-        setOverflowLevel(0); // No overflow
-      } else {
-        const overflowRatio = (scrollH - clientH) / clientH;
-        if (overflowRatio < 0.15) {
-          setOverflowLevel(1); // Light: < 15%
-        } else if (overflowRatio < 0.35) {
-          setOverflowLevel(2); // Medium: 15-35%
-        } else {
-          setOverflowLevel(3); // Aggressive: > 35%
-        }
-      }
-    };
+    // Testo principale
+    if (post.content) {
+      if (post.content.length > 300) score += 3;
+      else if (post.content.length > 150) score += 2;
+      else if (post.content.length > 50) score += 1;
+    }
     
-    // Check on mount and when content changes
-    checkOverflow();
+    // Media
+    const mediaCount = post.media?.length || 0;
+    if (mediaCount > 0) {
+      score += 2;
+      if (mediaCount > 1) score += 1; // Carousel
+    }
     
-    // ResizeObserver for dynamic content (images loading, text changes)
-    const resizeObserver = new ResizeObserver(checkOverflow);
-    resizeObserver.observe(el);
+    // Link con preview (non editoriale)
+    if (post.shared_url && !post.shared_url.startsWith('focus://')) {
+      score += 2;
+    }
     
-    // Also check on window resize
-    window.addEventListener('resize', checkOverflow);
+    // Quoted post (reshare)
+    if (quotedPost) {
+      score += 2;
+      if (quotedPost.content && quotedPost.content.length > 100) score += 1;
+      if (quotedPost.media && quotedPost.media.length > 0) score += 2;
+      if (quotedPost.shared_url) score += 1;
+    }
     
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', checkOverflow);
-    };
-  }, [post.id, post.media?.length, post.content]);
+    // Classificazione
+    if (score <= 3) return 'low';
+    if (score <= 6) return 'medium';
+    return 'high';
+  }, [post.content, post.media, post.shared_url, quotedPost]);
   
   // YouTube embed state
   const [youtubeEmbedActive, setYoutubeEmbedActive] = useState(false);
@@ -1375,26 +1370,23 @@ const ImmersivePostCardInner = ({
             )}
           </div>
 
-          {/* Center Content - Content Zone: justify-start prevents top-clipping, overflow-hidden clips bottom only */}
+          {/* Center Content - Content Zone: predictive density-based layout */}
           <div ref={contentZoneRef} className={cn(
-            "relative z-10 flex-1 flex flex-col justify-start px-2 min-h-0 overflow-hidden",
-            overflowLevel === 0 && "gap-4 py-6",
-            overflowLevel === 1 && "gap-3 py-4",
-            overflowLevel >= 2 && "gap-2 py-3"
+            "relative z-10 flex-1 flex flex-col px-2 min-h-0 overflow-hidden",
+            // Centraggio solo se densità bassa/media
+            contentDensity === 'low' && "justify-center gap-4 py-6",
+            contentDensity === 'medium' && "justify-center gap-3 py-4",
+            contentDensity === 'high' && "justify-start gap-2 py-3"
           )}>
             
             {/* Stack Layout: User comment first - Quote Block style for Intent posts - Adaptive Typography */}
             {useStackLayout && post.content && post.content !== post.shared_title && (
               <div className={cn(
                 "font-normal text-white/90 drop-shadow-md mb-3 sm:mb-4",
-                // Adaptive Typography
-                overflowLevel === 0 && "text-lg leading-snug tracking-wide",
-                overflowLevel === 1 && "text-base leading-snug tracking-wide",
-                overflowLevel >= 2 && "text-sm leading-tight tracking-normal",
-                // Adaptive Line Clamp
-                overflowLevel <= 1 && "line-clamp-6 [@media(min-height:900px)]:line-clamp-8",
-                overflowLevel === 2 && "line-clamp-4",
-                overflowLevel === 3 && "line-clamp-3",
+                // Adaptive Typography based on content density
+                contentDensity === 'low' && "text-lg leading-relaxed line-clamp-8",
+                contentDensity === 'medium' && "text-base leading-snug line-clamp-5",
+                contentDensity === 'high' && "text-sm leading-tight line-clamp-3",
                 // Intent post styling
                 post.is_intent && [
                   "border-l-4 border-primary/60",
@@ -1478,11 +1470,11 @@ const ImmersivePostCardInner = ({
             {/* Pure Text-Only Posts - Immersive editorial-style card with Adaptive Typography */}
             {isTextOnly && post.content && (
               <div className="relative w-full max-w-lg mx-auto">
-                {/* Card container with glassmorphism and urban texture - GPU optimized, Adaptive Padding */}
+                {/* Card container with glassmorphism and urban texture - Adaptive Padding */}
                 <div className={cn(
                   "relative bg-gradient-to-br from-white/[0.08] to-white/[0.02] rounded-3xl border border-white/10 shadow-2xl overflow-hidden",
-                  overflowLevel <= 1 && "p-6 sm:p-8",
-                  overflowLevel >= 2 && "p-4 sm:p-6"
+                  contentDensity !== 'high' && "p-6 sm:p-8",
+                  contentDensity === 'high' && "p-4 sm:p-6"
                 )}>
                   
                   {/* Urban texture overlay - static PNG */}
@@ -1491,14 +1483,15 @@ const ImmersivePostCardInner = ({
                   {/* Decorative quote mark */}
                   <div className="absolute top-4 left-5 text-white/[0.06] text-[80px] font-serif leading-none pointer-events-none select-none">"</div>
                   
-                  {/* Content with Adaptive Typography */}
+                  {/* Content with Adaptive Typography based on density */}
                   <div className="relative z-10">
                     {post.content.length > 400 ? (
                       <>
                         <p className={cn(
                           "font-normal text-white/95 whitespace-pre-wrap",
-                          overflowLevel <= 1 && "text-[17px] sm:text-lg leading-[1.65] tracking-[0.01em]",
-                          overflowLevel >= 2 && "text-sm leading-snug tracking-normal"
+                          contentDensity === 'low' && "text-lg leading-relaxed",
+                          contentDensity === 'medium' && "text-base leading-snug",
+                          contentDensity === 'high' && "text-sm leading-tight"
                         )}>
                           <MentionText content={post.content.slice(0, 400) + '...'} />
                         </p>
@@ -1513,8 +1506,9 @@ const ImmersivePostCardInner = ({
                     ) : (
                       <p className={cn(
                         "font-normal text-white/95 whitespace-pre-wrap",
-                        overflowLevel <= 1 && "text-[17px] sm:text-lg leading-[1.65] tracking-[0.01em]",
-                        overflowLevel >= 2 && "text-sm leading-snug tracking-normal"
+                        contentDensity === 'low' && "text-lg leading-relaxed",
+                        contentDensity === 'medium' && "text-base leading-snug",
+                        contentDensity === 'high' && "text-sm leading-tight"
                       )}>
                         <MentionText content={post.content} />
                       </p>
@@ -1592,10 +1586,9 @@ const ImmersivePostCardInner = ({
                     initialIndex={carouselIndex}
                     onIndexChange={setCarouselIndex}
                     imageMaxHeightClass={
-                      overflowLevel === 0 ? undefined :
-                      overflowLevel === 1 ? undefined :
-                      overflowLevel === 2 ? "max-h-[25vh]" :
-                      "max-h-[20vh]"
+                      contentDensity === 'low' ? undefined :
+                      contentDensity === 'medium' ? "max-h-[28vh]" :
+                      "max-h-[18vh]"
                     }
                   />
                 </div>
@@ -2087,8 +2080,7 @@ const ImmersivePostCardInner = ({
             {quotedPost && (!useStackLayout || quotedPostHasMedia) && (
               <div className={cn(
                 "rounded-xl",
-                overflowLevel <= 1 && "mt-8",
-                overflowLevel >= 2 && "mt-4"
+                contentDensity === 'high' ? "mt-2" : "mt-6"
               )}>
                 {/* Detect if quoted post is an editorial (Il Punto) */}
                 {quotedPost.shared_url?.startsWith('focus://') || quotedPost.author?.username === 'ilpunto' ? (
