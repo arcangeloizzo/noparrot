@@ -1252,8 +1252,8 @@ const ImmersivePostCardInner = ({
         {/* Content Layer - 3-Zone Uniform Layout */}
         <div className="relative z-10 w-full h-full flex flex-col pt-[calc(env(safe-area-inset-top)+3.5rem)] pb-[calc(env(safe-area-inset-bottom)+5rem)]">
           
-          {/* Top Bar - Header Zone (flex-shrink-0: never compress) */}
-          <div className="flex justify-between items-start flex-shrink-0">
+          {/* Top Bar - Header Zone (flex-shrink-0: never compress, z-20 for layering) */}
+          <div className="relative z-20 flex justify-between items-start flex-shrink-0">
             {/* Author */}
             <div 
               className="flex items-center gap-3 cursor-pointer"
@@ -1359,8 +1359,8 @@ const ImmersivePostCardInner = ({
             )}
           </div>
 
-          {/* Center Content - Content Zone (min-h-0: constrain content) */}
-          <div ref={contentZoneRef} className="flex-1 flex flex-col justify-center px-2 min-h-0">
+          {/* Center Content - Content Zone (min-h-0: constrain content, z-10 for layering, py-6 safe zones) */}
+          <div ref={contentZoneRef} className="relative z-10 flex-1 flex flex-col justify-center px-2 py-6 min-h-0 overflow-hidden">
             
             {/* Stack Layout: User comment first - Quote Block style for Intent posts */}
             {useStackLayout && post.content && post.content !== post.shared_title && (
@@ -1549,7 +1549,7 @@ const ImmersivePostCardInner = ({
                     onClick={(_, index) => setSelectedMediaIndex(index)}
                     initialIndex={carouselIndex}
                     onIndexChange={setCarouselIndex}
-                    imageMaxHeightClass={isOverflowing ? "max-h-[25vh]" : undefined}
+                    imageMaxHeightClass={isOverflowing ? "max-h-[20vh]" : undefined}
                   />
                 </div>
               )
@@ -1756,7 +1756,7 @@ const ImmersivePostCardInner = ({
                     <img 
                       src={articlePreview?.image || post.preview_img || `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url!)}/maxresdefault.jpg`}
                       alt=""
-                      className="w-full aspect-video max-h-[25vh] sm:max-h-none object-cover"
+                      className="w-full aspect-video max-h-[20vh] sm:max-h-none object-cover"
                     />
                     
                     {/* Play Button Overlay */}
@@ -2038,7 +2038,7 @@ const ImmersivePostCardInner = ({
 
             {/* Quoted Post - Show for reshares WITHOUT stack layout OR when quoted post has media */}
             {quotedPost && (!useStackLayout || quotedPostHasMedia) && (
-              <div className="mt-4 rounded-xl">
+              <div className="mt-8 rounded-xl">
                 {/* Detect if quoted post is an editorial (Il Punto) */}
                 {quotedPost.shared_url?.startsWith('focus://') || quotedPost.author?.username === 'ilpunto' ? (
                   <QuotedEditorialCard
@@ -2063,8 +2063,10 @@ const ImmersivePostCardInner = ({
 
           </div>
 
-          {/* Bottom Actions - Action Zone (flex-shrink-0: never compress) */}
-          <div className="flex items-center justify-between gap-6 mr-12 sm:mr-16 flex-shrink-0">
+          {/* Bottom Actions - Action Zone (flex-shrink-0: never compress, z-20 for layering) */}
+          {/* Background protection gradient */}
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background/90 to-transparent pointer-events-none z-10" />
+          <div className="relative z-20 flex items-center justify-between gap-6 mr-12 sm:mr-16 flex-shrink-0">
             
             {/* Primary Share Button - Pill shape with consistent height */}
             <button 

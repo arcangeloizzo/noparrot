@@ -103,8 +103,8 @@ export const ImmersiveFocusCard = ({
       {/* Content Layer - 3-Zone Uniform Layout */}
       <div className="relative z-10 w-full h-full flex flex-col pt-[calc(env(safe-area-inset-top)+3.5rem)] pb-[calc(env(safe-area-inset-bottom)+5rem)]">
         
-        {/* Top Bar - Header Zone (flex-shrink-0: never compress) */}
-        <div className="flex flex-col gap-2 flex-shrink-0">
+        {/* Top Bar - Header Zone (flex-shrink-0: never compress, z-20 for layering) */}
+        <div className="relative z-20 flex flex-col gap-2 flex-shrink-0">
           {/* Row 1: Badge tipo + Trust Score (stessa altezza h-8) */}
           <div className="flex justify-between items-center">
             {/* Badge Tipo - compatto su 1 riga */}
@@ -212,8 +212,8 @@ export const ImmersiveFocusCard = ({
           </div>
         </div>
 
-        {/* Center Content - Content Zone (min-h-0: constrain content) */}
-        <div className="flex-1 flex flex-col justify-center px-2 min-h-0">
+        {/* Center Content - Content Zone (min-h-0: constrain content, z-10 for layering, py-6 safe zones) */}
+        <div className="relative z-10 flex-1 flex flex-col justify-center px-2 py-6 min-h-0 overflow-hidden">
           <Quote className="text-white/20 w-12 h-12 rotate-180 mb-4" />
           <h1 className="text-[clamp(1.5rem,5vw,2rem)] font-bold text-white leading-tight mb-4 drop-shadow-xl">
             {title}
@@ -242,8 +242,10 @@ export const ImmersiveFocusCard = ({
           })()}
         </div>
 
-        {/* Bottom Actions - Action Zone (flex-shrink-0: never compress) */}
-        <div className="flex items-center justify-between gap-3 flex-shrink-0">
+        {/* Bottom Actions - Action Zone (flex-shrink-0: never compress, z-20 for layering) */}
+        {/* Background protection gradient */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background/90 to-transparent pointer-events-none z-10" />
+        <div className="relative z-20 flex items-center justify-between gap-3 flex-shrink-0">
           
           {/* Primary Share Button - h-10 px-4 */}
           <button 
