@@ -212,8 +212,8 @@ export const ImmersiveFocusCard = ({
           </div>
         </div>
 
-        {/* Center Content - Content Zone (min-h-0 + overflow-hidden: constrain content) */}
-        <div className="flex-1 flex flex-col justify-start gap-4 px-2 pt-4 min-h-0">
+        {/* Center Content - Content Zone (min-h-0: constrain content) */}
+        <div className="flex-1 flex flex-col justify-center px-2 min-h-0">
           <Quote className="text-white/20 w-12 h-12 rotate-180 mb-4" />
           <h1 className="text-[clamp(1.5rem,5vw,2rem)] font-bold text-white leading-tight mb-4 drop-shadow-xl">
             {title}

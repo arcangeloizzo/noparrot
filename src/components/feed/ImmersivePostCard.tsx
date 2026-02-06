@@ -339,6 +339,36 @@ const ImmersivePostCardInner = ({
   // Comments state - use initialOpenComments for auto-open from notifications
   const [showComments, setShowComments] = useState(initialOpenComments);
   
+  // Overflow detection: measure if content exceeds viewport and resize images only when needed
+  const contentZoneRef = useRef<HTMLDivElement>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  
+  useEffect(() => {
+    const el = contentZoneRef.current;
+    if (!el) return;
+    
+    const checkOverflow = () => {
+      // Content overflows if scrollHeight exceeds clientHeight by more than 1px
+      const overflow = el.scrollHeight > el.clientHeight + 1;
+      setIsOverflowing(overflow);
+    };
+    
+    // Check on mount and when content changes
+    checkOverflow();
+    
+    // ResizeObserver for dynamic content (images loading, text changes)
+    const resizeObserver = new ResizeObserver(checkOverflow);
+    resizeObserver.observe(el);
+    
+    // Also check on window resize
+    window.addEventListener('resize', checkOverflow);
+    
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', checkOverflow);
+    };
+  }, [post.id, post.media?.length, post.content]);
+  
   // YouTube embed state
   const [youtubeEmbedActive, setYoutubeEmbedActive] = useState(false);
   
@@ -1329,8 +1359,8 @@ const ImmersivePostCardInner = ({
             )}
           </div>
 
-          {/* Center Content - Content Zone (min-h-0 + overflow-hidden: constrain content) */}
-          <div className="flex-1 flex flex-col justify-start gap-4 px-2 pt-4 min-h-0">
+          {/* Center Content - Content Zone (min-h-0: constrain content) */}
+          <div ref={contentZoneRef} className="flex-1 flex flex-col justify-center px-2 min-h-0">
             
             {/* Stack Layout: User comment first - Quote Block style for Intent posts */}
             {useStackLayout && post.content && post.content !== post.shared_title && (
@@ -1519,6 +1549,7 @@ const ImmersivePostCardInner = ({
                     onClick={(_, index) => setSelectedMediaIndex(index)}
                     initialIndex={carouselIndex}
                     onIndexChange={setCarouselIndex}
+                    imageMaxHeightClass={isOverflowing ? "max-h-[25vh]" : undefined}
                   />
                 </div>
               )
@@ -2007,7 +2038,7 @@ const ImmersivePostCardInner = ({
 
             {/* Quoted Post - Show for reshares WITHOUT stack layout OR when quoted post has media */}
             {quotedPost && (!useStackLayout || quotedPostHasMedia) && (
-              <div className="mt-4 max-h-[min(35vh,280px)] [@media(min-height:780px)]:max-h-[min(40vh,360px)] overflow-hidden rounded-xl">
+              <div className="mt-4 rounded-xl">
                 {/* Detect if quoted post is an editorial (Il Punto) */}
                 {quotedPost.shared_url?.startsWith('focus://') || quotedPost.author?.username === 'ilpunto' ? (
                   <QuotedEditorialCard
