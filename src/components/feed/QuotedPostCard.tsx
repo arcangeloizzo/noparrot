@@ -1,9 +1,10 @@
-import { memo, useState, useRef, useCallback } from "react";
+import { memo, useState } from "react";
 import { ExternalLink } from "lucide-react";
-import { cn, getDisplayUsername } from "@/lib/utils";
+import { getDisplayUsername } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { normalizeUrl } from "@/lib/url";
+import { MediaGallery } from "@/components/media/MediaGallery";
 import { FullTextModal } from "./FullTextModal";
 
 interface QuotedPost {
@@ -45,138 +46,27 @@ const getHostnameFromUrl = (url: string | undefined): string => {
   }
 };
 
-// Full-width carousel component for quoted posts - mirrors MediaGallery behavior
-interface QuotedMediaCarouselProps {
-  media?: Array<{
-    id: string;
-    type: 'image' | 'video';
-    url: string;
-    thumbnail_url?: string | null;
-  }>;
-  variant: 'intent' | 'standard';
-}
-
-const QuotedMediaCarousel = ({ media, variant }: QuotedMediaCarouselProps) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  
-  const isMultiple = media && media.length > 1;
-
-  const handleScroll = useCallback(() => {
-    if (!scrollRef.current || !isMultiple || !media) return;
-    const slideWidth = scrollRef.current.offsetWidth;
-    const scrollLeft = scrollRef.current.scrollLeft;
-    const newIndex = Math.round(scrollLeft / slideWidth);
-    if (newIndex !== currentIndex && newIndex >= 0 && newIndex < media.length) {
-      setCurrentIndex(newIndex);
-    }
-  }, [currentIndex, isMultiple, media]);
-
+// Media in quoted posts should look identical to original posts.
+// We reuse the main MediaGallery carousel (full-width, swipe, counter, dots)
+// but provide a noop onClick to prevent navigation when interacting with media.
+const QuotedMediaCarousel = ({
+  media,
+  variant,
+}: {
+  media?: QuotedPost["media"];
+  variant: "intent" | "standard";
+}) => {
   if (!media || media.length === 0) return null;
 
-  const handleDotClick = (index: number) => {
-    if (!scrollRef.current) return;
-    const slideWidth = scrollRef.current.offsetWidth;
-    scrollRef.current.scrollTo({
-      left: index * slideWidth,
-      behavior: 'smooth'
-    });
-    setCurrentIndex(index);
-  };
+  // Ensure compatibility with MediaGallery prop types (thumbnail_url: string | undefined)
+  const normalizedMedia = media.map((m) => ({
+    ...m,
+    thumbnail_url: m.thumbnail_url ?? undefined,
+  }));
 
-  const bgClass = variant === 'intent' ? 'bg-black/40' : 'bg-muted';
-  const dotActiveClass = variant === 'intent' ? 'bg-primary' : 'bg-primary';
-  const dotInactiveClass = variant === 'intent' ? 'bg-white/40' : 'bg-muted-foreground/40';
-
-  // Single media
-  if (!isMultiple) {
-    const item = media[0];
-    return (
-      <div className="mt-2 rounded-xl overflow-hidden">
-        {item.type === 'image' ? (
-          <img
-            src={item.url}
-            alt=""
-            className={cn("w-full aspect-auto object-contain rounded-xl", bgClass)}
-            loading="lazy"
-          />
-        ) : (
-          <video
-            src={item.url}
-            poster={item.thumbnail_url || undefined}
-            controls
-            playsInline
-            className="w-full aspect-video bg-black rounded-xl"
-            preload="metadata"
-            onClick={(e) => e.stopPropagation()}
-          />
-        )}
-      </div>
-    );
-  }
-
-  // Multiple media - Full-width carousel
   return (
-    <div className="mt-2 relative">
-      {/* Counter badge */}
-      <div className="absolute top-2 right-2 z-10 bg-black/60 backdrop-blur-sm text-white text-xs font-medium px-2 py-0.5 rounded-full">
-        {currentIndex + 1}/{media.length}
-      </div>
-
-      {/* Carousel container */}
-      <div
-        ref={scrollRef}
-        onScroll={handleScroll}
-        className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none rounded-xl"
-        style={{ 
-          WebkitOverflowScrolling: 'touch',
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none'
-        }}
-      >
-        {media.map((item, idx) => (
-          <div
-            key={item.id}
-            className="flex-shrink-0 w-full snap-center"
-          >
-            {item.type === 'image' ? (
-              <img
-                src={item.url}
-                alt=""
-                className={cn("w-full aspect-auto object-contain rounded-xl", bgClass)}
-                loading={idx <= 1 ? 'eager' : 'lazy'}
-              />
-            ) : (
-              <video
-                src={item.url}
-                poster={item.thumbnail_url || undefined}
-                controls
-                playsInline
-                className="w-full aspect-video bg-black rounded-xl"
-                preload="metadata"
-                onClick={(e) => e.stopPropagation()}
-              />
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Dots indicator */}
-      <div className="flex justify-center gap-1.5 mt-2">
-        {media.map((_, idx) => (
-          <button
-            key={idx}
-            type="button"
-            onClick={(e) => { e.stopPropagation(); handleDotClick(idx); }}
-            className={cn(
-              "w-1.5 h-1.5 rounded-full transition-all duration-200",
-              idx === currentIndex 
-                ? cn(dotActiveClass, "w-3") 
-                : dotInactiveClass
-            )}
-          />
-        ))}
-      </div>
+    <div className={variant === "standard" ? "mt-2" : "mt-2"}>
+      <MediaGallery media={normalizedMedia} onClick={() => {}} />
     </div>
   );
 };
