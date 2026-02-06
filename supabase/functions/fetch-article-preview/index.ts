@@ -286,13 +286,13 @@ async function stealthFirecrawlFetch(url: string): Promise<{
     console.log('[Stealth] ⚠️ No FIRECRAWL_API_KEY, skipping stealth mode');
     return null;
   }
-  
+
   console.log('[Stealth] 🕵️ Activating stealth mode for:', url);
-  
+
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout for stealth
-    
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // Stealth-only: allow slower sites
+
     const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
@@ -303,8 +303,10 @@ async function stealthFirecrawlFetch(url: string): Promise<{
         url,
         formats: ['markdown'],
         onlyMainContent: true,
-        waitFor: 3000,  // Wait 3s for JS rendering + anti-bot bypass
-        timeout: 20000,
+        // STEALTH PARAMS (only on retry)
+        javascript: true,
+        waitFor: 3000,
+        timeout: 25000,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -314,19 +316,23 @@ async function stealthFirecrawlFetch(url: string): Promise<{
       }),
       signal: controller.signal
     });
-    
+
     clearTimeout(timeoutId);
-    
+
     if (!response.ok) {
       console.log('[Stealth] ❌ Firecrawl stealth failed:', response.status);
       return null;
     }
-    
+
     const data = await response.json();
     const markdown = data.data?.markdown || '';
-    
+
     // Check if stealth mode got useful content
-    if (markdown.length > 600 && !isContentInsufficient(markdown)) {
+    if (
+      markdown.length > 600 &&
+      !isBotChallengeContent(markdown) &&
+      !isContentInsufficient(markdown)
+    ) {
       console.log(`[Stealth] ✅ Success: ${markdown.length} chars extracted`);
       return {
         content: markdown,
@@ -334,7 +340,7 @@ async function stealthFirecrawlFetch(url: string): Promise<{
         image: data.data?.metadata?.ogImage || data.data?.metadata?.image
       };
     }
-    
+
     console.log(`[Stealth] ⚠️ Content still insufficient after stealth: ${markdown.length} chars`);
     return null;
   } catch (err) {
@@ -2420,39 +2426,81 @@ serve(async (req) => {
           
           if (fcResponse.ok) {
             const fcData = await fcResponse.json();
-            if (fcData.success && fcData.data?.markdown && fcData.data.markdown.length > 100) {
-              console.log(`[Preview] ✅ Firecrawl success: ${fcData.data.markdown.length} chars`);
+            const markdown = fcData?.data?.markdown as string | undefined;
+
+            if (fcData?.success && markdown && markdown.length > 100) {
+              // IMPORTANT: some domains return Cloudflare / cookie wall HTML as markdown.
+              // If content looks blocked, DO NOT return it—fall through to stealth escalation.
+              const looksBlocked = isBotChallengeContent(markdown) || isContentInsufficient(markdown);
               
-              // Cache content server-side (include image)
-              if (supabase) {
-                await cacheContentServerSide(
-                  supabase,
-                  url,
-                  'article',
-                  fcData.data.markdown,
-                  fcData.data.metadata?.title,
-                  fcData.data.metadata?.ogImage || ''
-                );
+              if (!looksBlocked) {
+                console.log(`[Preview] ✅ Firecrawl success: ${markdown.length} chars`);
+
+                // Cache content server-side (include image)
+                if (supabase) {
+                  await cacheContentServerSide(
+                    supabase,
+                    url,
+                    'article',
+                    markdown,
+                    fcData.data.metadata?.title,
+                    fcData.data.metadata?.ogImage || ''
+                  );
+                }
+
+                // SOURCE-FIRST: Return only metadata
+                return new Response(JSON.stringify({
+                  success: true,
+                  title: fcData.data.metadata?.title || 'Articolo',
+                  summary: fcData.data.metadata?.description || '',
+                  // NO full content to client
+                  image: fcData.data.metadata?.ogImage || '',
+                  previewImg: fcData.data.metadata?.ogImage || '',
+                  platform: 'generic',
+                  type: 'article',
+                  hostname: urlHostname,
+                  contentQuality: 'complete',
+                  iframeAllowed: true,
+                  gateConfig: { mode: 'timer', minSeconds: 15 },
+                  qaSourceRef: { kind: 'url', id: url, url }
+                }), {
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                });
               }
-              
-              // SOURCE-FIRST: Return only metadata
-              return new Response(JSON.stringify({
-                success: true,
-                title: fcData.data.metadata?.title || 'Articolo',
-                summary: fcData.data.metadata?.description || '',
-                // NO full content to client
-                image: fcData.data.metadata?.ogImage || '',
-                previewImg: fcData.data.metadata?.ogImage || '',
-                platform: 'generic',
-                type: 'article',
-                hostname: urlHostname,
-                contentQuality: 'complete',
-                iframeAllowed: true,
-                gateConfig: { mode: 'timer', minSeconds: 15 },
-                qaSourceRef: { kind: 'url', id: url, url }
-              }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              });
+
+              console.log('[Preview] ⚠️ Firecrawl returned blocked/boilerplate content; escalating to stealth...');
+
+              const stealthResult = await stealthFirecrawlFetch(url);
+              if (stealthResult && stealthResult.content.length > 600) {
+                // Cache the stealth-extracted content
+                if (supabase) {
+                  await cacheContentServerSide(
+                    supabase,
+                    url,
+                    'article',
+                    stealthResult.content,
+                    stealthResult.title || fcData.data.metadata?.title || '',
+                    stealthResult.image || fcData.data.metadata?.ogImage || ''
+                  );
+                }
+
+                return new Response(JSON.stringify({
+                  success: true,
+                  title: stealthResult.title || fcData.data.metadata?.title || 'Articolo',
+                  summary: fcData.data.metadata?.description || stealthResult.content.substring(0, 200),
+                  image: stealthResult.image || fcData.data.metadata?.ogImage || '',
+                  previewImg: stealthResult.image || fcData.data.metadata?.ogImage || '',
+                  platform: 'generic',
+                  type: 'article',
+                  hostname: urlHostname,
+                  contentQuality: stealthResult.content.length > 500 ? 'complete' : 'partial',
+                  iframeAllowed: true,
+                  gateConfig: { mode: 'timer', minSeconds: 15 },
+                  qaSourceRef: { kind: 'url', id: url, url }
+                }), {
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                });
+              }
             }
           }
         } catch (fcError) {
