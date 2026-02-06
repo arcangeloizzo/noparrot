@@ -1,195 +1,127 @@
 
+Obiettivo (come richiesto)
+- Tornare subito a `justify-center` nelle card immersive.
+- Rimuovere tutti i `max-h` “calcolati” (quelli con `min(...)` e simili) introdotti di recente.
+- Nuova regola unica: se (e solo se) il contenuto non entra nella viewport, ridimensionare soltanto l’immagine (in modo proporzionale), senza toccare testo/azioni/altri blocchi.
 
-# Piano: Layout Adattivo Definitivo per Card Immersive
+Perché oggi è “un disastro” (razionale tecnico)
+1) `justify-start` + `gap-4` fa partire tutto dall’alto: quando il contenuto è corto, lascia “buchi” sotto; quando è lungo, spinge in basso e aumenta il rischio di sovrapposizioni percepite (specie se qualche area non è realmente “riservata”).
+2) I `max-h-[min(...)]` su MediaGallery sono troppo aggressivi: comprimono immagini anche quando ci sarebbe spazio, perché il vincolo è applicato sempre, non solo quando serve.
+3) Il sistema attuale non “sa” quando sta overflowando: applica regole statiche senza misurare l’altezza realmente disponibile.
 
-## Diagnosi Attuale
+Strategia definitiva (semplice e controllabile)
+A) Revert immediato layout verticale
+- In entrambe le card immersive:
+  - Ripristinare `justify-center` nel wrapper centrale.
+  - Mantenere `min-h-0` (serve a far funzionare bene il flex in altezza).
+  - Non reintrodurre `overflow-hidden` globale sul wrapper centrale (taglia “a forbice”); al massimo lo useremo solo su blocchi specifici che devono restare confinati, ma la richiesta attuale dice “non toccare nient’altro”, quindi lo evitiamo.
 
-Ho analizzato il codice e identificato le cause precise dei problemi:
+B) Eliminare tutti i `max-h` calcolati introdotti
+- In `src/components/media/MediaGallery.tsx`:
+  - Rimuovere:
+    - `max-h-[min(30vh,240px)] ... [@media(...)]:max-h-[min(...)] ...`
+  - Non sostituirli con altri vincoli “sempre attivi”.
+- In `src/components/feed/ImmersivePostCard.tsx`:
+  - Rimuovere la wrapper limitante del quoted:
+    - da `max-h-[min(35vh,280px)] ...` a nessun `max-h` (o, se necessario per sicurezza, un overflow controllato solo quando in overflow; vedi punto C).
+- In `src/components/feed/ImmersiveFocusCard.tsx`:
+  - Non ci sono media, quindi qui la parte “max-h calcolati” non si applica; ci limitiamo al revert di `justify-center`.
 
-### Problemi Strutturali
-1. **Padding Duplicati**: Il container esterno ha `p-6` (24px su tutti i lati) + il Content Layer interno ha `pt-10 pb-20`. Questo **somma 24px + 40px = 64px sopra** e **24px + 80px = 104px sotto**.
-2. **Contenuto Centrato**: Il Content Zone usa `justify-center`, che spinge il contenuto al centro lasciando vuoti sopra e sotto.
-3. **Taglio Brutale**: `overflow-hidden` sul wrapper centrale taglia tutto senza permettere adattamento.
-4. **Media Non Responsivo**: Le immagini hanno `max-h-[45vh]` fisso che non si adatta agli schermi piccoli.
+C) Implementare la regola “se overflow, riduci solo l’immagine” con una misura reale (no euristiche)
+Questa è la parte cruciale per evitare regressioni “random”.
 
-### File Interessati
-- `src/components/feed/ImmersivePostCard.tsx` (linee 1150, 1223, 1333)
-- `src/components/feed/ImmersiveFocusCard.tsx` (linee 85, 104, 216)
-- `src/components/media/MediaGallery.tsx` (linee 87, 142)
+1) Aggiungere una rilevazione overflow nel “Content Zone” della card (ImmersivePostCard)
+- Inserire un ref sul Content Zone (il div `flex-1 ...`).
+- Misurare se il content overflowa:
+  - condizione: `el.scrollHeight > el.clientHeight + 1`
+- Aggiornare una state boolean `isOverflowing`.
+- Usare un `ResizeObserver` + listener su `window.resize` per aggiornare in modo affidabile:
+  - quando cambia viewport
+  - quando cambiano contenuti (es. immagini caricate, preview, font)
 
----
+2) Quando `isOverflowing === true`, applicare un vincolo SOLO alle immagini (non al testo, non alle azioni)
+- Questo vincolo deve essere:
+  - proporzionale (non crop): restiamo su `object-contain`
+  - “solo se serve”: attivo solo in overflow
+- Implementazione pratica:
+  - Estendere `MediaGallery` per accettare una prop opzionale, per esempio:
+    - `imageMaxHeightClass?: string`
+  - Dentro `MediaGallery`, l’`img` userà:
+    - classi base (w-full, object-contain, bg-black/40, ecc.)
+    - + `imageMaxHeightClass` se presente
+  - In `ImmersivePostCard`, passare:
+    - `imageMaxHeightClass={isOverflowing ? "max-h-[25vh]" : undefined}`
+  - Nota: `max-h-[25vh]` è coerente con la regola d’oro che avevi indicato (“su schermi piccoli l’immagine deve ridursi max-h-[25vh]”), ma qui lo applichiamo solo in overflow, quindi su Pro Max non verrà “castrato” se c’è spazio.
 
-## Soluzione: Layout Adattivo con Budget Proporzionale
+3) Coprire anche i casi “media-only post” (dove non passa da MediaGallery)
+Nel file `ImmersivePostCard.tsx` ci sono immagini/video “media-only” con altezze fisse:
+- immagini: `className="w-full h-[32vh] sm:h-[44vh] object-cover"`
+- video thumb: `h-[28vh] sm:h-[38vh] object-cover"`
+Questi possono causare overflow senza passare da MediaGallery.
+Adeguamento minimale rispettando la regola “tocca solo l’immagine”:
+- Quando `isOverflowing`:
+  - sostituire l’altezza fissa con un vincolo max-height + `object-contain` (per non croppare)
+  - esempio: `max-h-[25vh] object-contain` in overflow, altrimenti mantenere comportamento attuale (se vuoi mantenere “hero crop” quando c’è spazio).
+Questo è l’unico punto dove “tocchiamo” lo styling dell’immagine, non il resto.
 
-### Principio
-Invece di tagliare, **redistribuiamo proporzionalmente** lo spazio tra header, contenuto e action bar usando:
-- Padding calcolati con `env(safe-area-inset-*)` per gli spazi di sistema
-- `justify-start` con `gap` controllato invece di `justify-center`
-- Budget di altezza responsivi per media (più piccoli su schermi bassi)
-- Font fluidi con `clamp()` e `line-clamp` dinamici per altezza viewport
+4) QuotedPostCard / media nel quoted
+`QuotedPostCard` usa `MediaGallery`, quindi eredita automaticamente il comportamento se:
+- Propaghiamo `imageMaxHeightClass` anche dentro `QuotedMediaCarousel` (piccola modifica):
+  - `QuotedMediaCarousel` accetta `imageMaxHeightClass?: string`
+  - `QuotedPostCard` lo passa in base al contesto
+Scelta semplice (per non complicare troppo):
+- In `ImmersivePostCard`, quando renderizzi il blocco quoted, passiamo al componente quoted (o al wrapper che lo contiene) una prop “overflowBudget” che scende fino a MediaGallery.
+- Se non vogliamo toccare le prop chain adesso: alternativa pragmatic:
+  - applicare la logica overflow solo alla MediaGallery del post principale (che è quella che in genere rompe la viewport)
+  - e rimuovere il max-h dal wrapper quoted (così non tronca “a forbice”); il quoted ha già troncamento testo a 280 char + “Mostra tutto”, quindi rimane gestibile.
+Io consiglio la prima (propagarla) solo se vediamo overflow ricorrente proprio per media nel quoted.
 
----
+D) Tornare a `justify-center` anche in ImmersiveFocusCard (uniformità richiesta)
+- In `src/components/feed/ImmersiveFocusCard.tsx`:
+  - cambiare il Content Zone da `justify-start` a `justify-center`
+  - mantenere `gap-4` (non fa danni) oppure ridurlo a `gap-3` se “respira” troppo; ma la tua richiesta dice “immediatamente”, quindi: solo revert a center, niente micro-tuning.
 
-## Modifiche Dettagliate
+File coinvolti (con modifiche previste)
+1) `src/components/feed/ImmersivePostCard.tsx`
+- Content Zone: `justify-start` -> `justify-center`
+- Rimuovere `max-h-[min(...)]` dal wrapper quoted (linee ~2009-2031)
+- Aggiungere overflow detection (ref + state + ResizeObserver)
+- Passare `imageMaxHeightClass` a `MediaGallery` quando `isOverflowing`
+- Gestire anche immagini/video “media-only” ridimensionando solo l’immagine in overflow
 
-### 1. ImmersivePostCard.tsx
+2) `src/components/feed/ImmersiveFocusCard.tsx`
+- Content Zone: `justify-start` -> `justify-center`
 
-**A) Container Esterno (linea ~1150)**
-Rimuovere il padding verticale esterno, mantenere solo quello orizzontale:
-```tsx
-// DA:
-className="h-[100dvh] w-full snap-start relative flex flex-col p-6 overflow-hidden"
+3) `src/components/media/MediaGallery.tsx`
+- Rimuovere tutti i `max-h-[min(...)]` dagli `img`
+- Aggiungere prop `imageMaxHeightClass?: string` e applicarla agli `img` quando presente
 
-// A:
-className="h-[100dvh] w-full snap-start relative flex flex-col px-4 overflow-hidden"
-```
+4) (Opzionale, solo se serve) `src/components/feed/QuotedPostCard.tsx`
+- Se vogliamo budget anche sul media quoted: far passare `imageMaxHeightClass` fino al `MediaGallery` nel quoted carousel
+- Altrimenti: nessuna modifica, dopo aver rimosso il max-h wrapper in ImmersivePostCard
 
-**B) Content Layer (linea ~1223)**
-Usare padding calcolati basati sulle safe area + altezze fisse di header/navbar:
-```tsx
-// DA:
-className="relative z-10 w-full h-full flex flex-col pt-10 pb-20 sm:pb-24"
+Criteri di accettazione (test pratici)
+1) iPhone Pro Max (viewport alta):
+- Post con media: l’immagine non deve essere rimpicciolita se non c’è overflow.
+- Il contenuto deve risultare centrato verticalmente (come richiesto).
+2) iPhone mini / viewport bassa:
+- Se un post “non entra”, l’unica cosa che cambia è l’immagine che si riduce (max-h ~25vh) mantenendo `object-contain`.
+- Le azioni restano sempre cliccabili e visibili.
+3) Nessun `max-h-[min(...)]` rimasto nel codice (MediaGallery e wrapper quoted ripuliti).
+4) Nessun taglio brutale via `overflow-hidden` sul wrapper centrale.
 
-// A:
-className="relative z-10 w-full h-full flex flex-col pt-[calc(env(safe-area-inset-top)+3.5rem)] pb-[calc(env(safe-area-inset-bottom)+5rem)]"
-```
-- `3.5rem` = 56px per l'header dell'app
-- `5rem` = 80px per navbar (64px) + margine di sicurezza
+Nota importante (per evitare un altro giro di caos)
+Con questa strategia non stiamo più “indovinando” layout via regole statiche: misuriamo davvero quando c’è overflow e interveniamo solo sulla parte che hai autorizzato (immagine). Questo elimina sia:
+- il caso “ho tantissimo spazio ma tutto è compresso”
+- sia il caso “alcuni post si sovrappongono” (perché in overflow l’immagine si riduce e libera spazio)
 
-**C) Content Zone (linea ~1333)**
-Passare da `justify-center` a `justify-start` e rimuovere `overflow-hidden`:
-```tsx
-// DA:
-className="flex-1 flex flex-col justify-center px-2 pt-2 sm:pt-2 min-h-0 overflow-hidden"
+Sequenza di implementazione (rapida, a rischio basso)
+1) Revert `justify-center` (PostCard + FocusCard)
+2) Ripulire MediaGallery dai max-h calcolati + aggiungere prop `imageMaxHeightClass`
+3) Implementare overflow detection in ImmersivePostCard e collegarla a MediaGallery
+4) Rimuovere max-h calcolato dal wrapper quoted
+5) Verifica su 3 casi: (a) post corto con media (b) post lungo con media (c) reshare con quoted + media
 
-// A:
-className="flex-1 flex flex-col justify-start gap-4 px-2 pt-4 min-h-0"
-```
-
-**D) Testo Principale - Font Fluido (linea ~1338)**
-Usare `clamp()` per font-size e `line-clamp` dinamico per altezza:
-```tsx
-// DA:
-className="text-base sm:text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-3 sm:mb-4 line-clamp-4"
-
-// A:
-className="text-[clamp(1rem,3.5vw,1.25rem)] font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-3 sm:mb-4 line-clamp-4 [@media(min-height:780px)]:line-clamp-6 [@media(min-height:900px)]:line-clamp-8"
-```
-
-**E) Quoted Post Wrapper (linea ~2009)**
-Aggiungere budget responsivo invece di taglio fisso:
-```tsx
-// DA:
-className="mt-4 max-h-[40vh] overflow-hidden rounded-xl"
-
-// A:
-className="mt-4 max-h-[min(35vh,280px)] [@media(min-height:780px)]:max-h-[min(40vh,360px)] overflow-hidden rounded-xl"
-```
-
-### 2. ImmersiveFocusCard.tsx
-
-**A) Container Esterno (linea ~85)**
-```tsx
-// DA:
-className="h-[100dvh] w-full snap-start relative flex flex-col p-6 overflow-hidden cursor-pointer"
-
-// A:
-className="h-[100dvh] w-full snap-start relative flex flex-col px-4 overflow-hidden cursor-pointer"
-```
-
-**B) Content Layer (linea ~104)**
-```tsx
-// DA:
-className="relative z-10 w-full h-full flex flex-col pt-10 pb-20 sm:pb-24"
-
-// A:
-className="relative z-10 w-full h-full flex flex-col pt-[calc(env(safe-area-inset-top)+3.5rem)] pb-[calc(env(safe-area-inset-bottom)+5rem)]"
-```
-
-**C) Content Zone (linea ~216)**
-```tsx
-// DA:
-className="flex-1 flex flex-col justify-center px-2 min-h-0 overflow-hidden"
-
-// A:
-className="flex-1 flex flex-col justify-start gap-4 px-2 pt-4 min-h-0"
-```
-
-**D) Titolo Focus - Font Fluido (linea ~218)**
-```tsx
-// DA:
-className="text-3xl font-bold text-white leading-tight mb-4 drop-shadow-xl"
-
-// A:
-className="text-[clamp(1.5rem,5vw,2rem)] font-bold text-white leading-tight mb-4 drop-shadow-xl"
-```
-
-**E) Summary Focus - Line Clamp Dinamico (linea ~221)**
-```tsx
-// DA:
-className="text-lg text-white/80 leading-relaxed line-clamp-4 mb-6"
-
-// A:
-className="text-[clamp(1rem,3.5vw,1.125rem)] text-white/80 leading-relaxed line-clamp-4 [@media(min-height:780px)]:line-clamp-6 mb-6"
-```
-
-### 3. MediaGallery.tsx
-
-**A) Immagine Singola (linea ~87)**
-Budget responsivo con cap in pixel:
-```tsx
-// DA:
-className="w-full aspect-auto max-h-[45vh] object-contain bg-black/40"
-
-// A:
-className="w-full aspect-auto max-h-[min(30vh,240px)] [@media(min-height:780px)]:max-h-[min(40vh,360px)] [@media(min-height:900px)]:max-h-[min(45vh,420px)] object-contain bg-black/40"
-```
-
-**B) Immagini Carousel (linea ~142)**
-Stessa logica:
-```tsx
-// DA:
-className="w-full aspect-auto max-h-[45vh] object-contain bg-black/40"
-
-// A:
-className="w-full aspect-auto max-h-[min(30vh,240px)] [@media(min-height:780px)]:max-h-[min(40vh,360px)] [@media(min-height:900px)]:max-h-[min(45vh,420px)] object-contain bg-black/40"
-```
-
----
-
-## Comportamento Atteso
-
-| Viewport | Comportamento |
-|----------|---------------|
-| **iPhone Mini** (812px) | Media: max 30vh (~244px). Testo: 4 righe. Font: 16px. Tutto visibile. |
-| **iPhone Pro** (844px) | Media: max 40vh (~338px). Testo: 6 righe. Font: ~18px. |
-| **iPhone Pro Max** (926px+) | Media: max 45vh (~417px). Testo: 8 righe. Font: 20px. Più contenuto. |
-
-### Checklist Visiva
-- Profilo autore appena sotto il safe area top (niente gap 64px)
-- Action bar appena sopra il safe area bottom (niente gap 104px)
-- Contenuto parte dall'alto verso il basso (non centrato)
-- Testo lungo si adatta con line-clamp + ellissi (no taglio brutale)
-- Media si ridimensiona su schermi piccoli (non schiaccia tutto)
-- Quoted post ha altezza limitata ma con bordi arrotondati (no taglio secco)
-
----
-
-## Dettagli Tecnici
-
-### Perché `env(safe-area-inset-*)`
-Questi valori CSS dinamici sono forniti dal browser e rappresentano esattamente lo spazio occupato da notch, Dynamic Island, e home indicator. Usandoli nei `calc()`, il layout si adatta automaticamente a ogni dispositivo.
-
-### Perché `justify-start` con `gap`
-Con `justify-center`, quando c'è poco contenuto viene spinto al centro creando vuoti sopra e sotto. Con `justify-start` + `gap-4`, il contenuto parte dall'alto e ha spaziatura uniforme tra elementi.
-
-### Perché `clamp()` per i font
-`clamp(min, preferred, max)` crea font fluidi che scalano con il viewport:
-- `text-[clamp(1rem,3.5vw,1.25rem)]` = min 16px, scala con 3.5% della larghezza, max 20px
-
-### Perché media query `min-height` invece di `sm`
-I breakpoint Tailwind come `sm:` sono basati sulla **larghezza**. Ma il problema è l'**altezza** del viewport. Le media query arbitrarie `[@media(min-height:780px)]` permettono di reagire alla dimensione verticale.
-
-### Perché `min()` nei `max-h`
-`max-h-[min(30vh,240px)]` significa: "il minore tra 30% dell'altezza viewport e 240px". Questo previene che su schermi molto alti le immagini diventino enormi, e su schermi molto piccoli garantisce un'altezza minima ragionevole.
-
+Rollback safety
+- Le modifiche saranno tutte localizzate a 2 componenti + MediaGallery.
+- Se qualcosa non torna, possiamo disattivare l’overflow detection lasciando solo justify-center e la rimozione dei max-h calcolati, senza toccare il resto del feed.
