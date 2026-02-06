@@ -812,9 +812,8 @@ serve(async (req) => {
                       url: cacheUrlForRetry,
                       formats: ['markdown'],
                       onlyMainContent: true,
-                      // STEALTH PARAMS
-                      javascript: true,
-                      waitFor: 3000,
+                      // STEALTH PARAMS: longer wait for anti-bot bypass
+                      waitFor: 5000,
                       timeout: 25000,
                       headers: {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
