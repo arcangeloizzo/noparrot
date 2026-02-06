@@ -1,109 +1,160 @@
 
-# Piano: Fix Visualizzazione Media nei Post Ricondivisi
+# Piano: Layout Uniforme per Card Immersive del Feed
 
 ## Problema Identificato
+Le card hanno padding e posizionamenti **inconsistenti**:
 
-Quando un utente ricondivide un post con **immagini o carousel** (senza URL esterna), i media non vengono visualizzati nel feed. Questo accade perché:
+| Card | Padding Top | Padding Bottom | Problema |
+|------|-------------|----------------|----------|
+| **ImmersivePostCard** | `pt-14` | `pb-28 sm:pb-32` | Content `flex-1` cresce senza limiti |
+| **ImmersiveFocusCard** | `pt-14` | `pb-24` | Meno padding in basso |
 
-1. La logica `useStackLayout` si attiva quando il commento del post citato ha < 30 parole
-2. In modalità stack, viene mostrato solo `ReshareContextStack` che non include i media
-3. Il `QuotedPostCard` (che supporta la visualizzazione dei media) viene saltato
+Quando il contenuto cresce, i pulsanti finiscono "schiacciati" sulla navbar o fuori schermo. Inoltre, l'utente percepisce inconsistenza visiva tra i tipi di card.
 
-### Esempi Concreti dal Database
-- Post con carousel di 6 immagini e contenuto vuoto → `useStackLayout = true` → nessun media visibile
-- Post con 1 immagine e commento corto → `useStackLayout = true` → nessun media visibile
-
-## Analisi del Codice
-
-Il problema è nella logica di ImmersivePostCard.tsx:
+## Soluzione: Layout Uniforme a 3 Zone
 
 ```text
-useStackLayout = !isQuotedIntentPost && (isReshareWithShortComment || isReshareWithSource)
-```
-
-Dove:
-- `isReshareWithShortComment` = commento quoted post < 30 parole
-- `isReshareWithSource` = quoted post ha una URL
-
-Quando `useStackLayout = true`, viene mostrato `ReshareContextStack` invece di `QuotedPostCard`, perdendo i media.
-
-## Soluzione
-
-Aggiungere una nuova condizione che forza la visualizzazione del `QuotedPostCard` quando il post citato ha media, indipendentemente dalla lunghezza del commento.
-
-### Modifiche a ImmersivePostCard.tsx
-
-Aggiungere un flag per rilevare se il quoted post ha media:
-
-```typescript
-const quotedPostHasMedia = quotedPost?.media && quotedPost.media.length > 0;
-```
-
-Modificare la visualizzazione del QuotedPostCard per mostrarlo ANCHE quando il quoted post ha media:
-
-```typescript
-// Quoted Post - Show for:
-// 1. Reshares WITHOUT source and without stack layout (pure comment reshares)
-// 2. Reshares WITH MEDIA (always show to display images/carousel)
-{quotedPost && (!useStackLayout || quotedPostHasMedia) && (
-  <div className="mt-4">
-    {/* ...existing rendering logic... */}
-  </div>
-)}
-```
-
-### Modifiche a ReshareContextStack
-
-Per evitare duplicazione quando viene mostrato sia lo stack che il QuotedPostCard, si può:
-
-**Opzione A**: Mostrare lo stack SOLO per il contesto della catena, e il `QuotedPostCard` per il post originale con i media
-  - Pro: Mantiene la visualizzazione della catena di reshare
-  - Contro: Può sembrare ridondante
-
-**Opzione B (consigliata)**: Non mostrare lo stack quando il quoted post ha media (mostra solo QuotedPostCard)
-  - Pro: Layout più pulito, i media sono chiari
-  - Contro: Si perde la visualizzazione della catena per questi casi
-
-### Implementazione Opzione B
-
-```typescript
-// Linea 1363 - condizione per ReshareContextStack
-{quotedPost && contextStack.length > 0 && !isQuotedIntentPost && !quotedPostHasMedia && (
-  <ReshareContextStack stack={contextStack} />
-)}
-
-// Linea 2001 - condizione per QuotedPostCard
-{quotedPost && (!useStackLayout || quotedPostHasMedia) && (
-  // ...existing QuotedPostCard rendering
-)}
+┌─────────────────────────┐  ← pt-16 (safe area + status bar)
+│     HEADER ZONE         │  flex-shrink-0 (non si comprime mai)
+│  [Avatar] [Name] [Time] │
+├─────────────────────────┤
+│                         │
+│     CONTENT ZONE        │  flex-1 + overflow-hidden
+│   (max-h limitato)      │  Il contenuto si tronca con line-clamp
+│   (no scroll interno)   │
+│                         │
+├─────────────────────────┤
+│     ACTION ZONE         │  flex-shrink-0 (non si comprime mai)
+│ [Condividi] [❤️] [💬] [🔖]│
+└─────────────────────────┘  ← pb-28 sm:pb-32 (navbar + safe area)
 ```
 
 ## File da Modificare
 
-| File | Modifica |
-|------|----------|
-| `src/components/feed/ImmersivePostCard.tsx` | Aggiungere flag `quotedPostHasMedia` e modificare condizioni di rendering |
+### 1. `src/components/feed/ImmersivePostCard.tsx`
 
-## Flusso Corretto Dopo il Fix
+**A) Content Layer (linea ~1223)**
+Uniformare padding top:
+```tsx
+// DA:
+<div className="relative z-10 w-full h-full flex flex-col justify-between pt-14 pb-28 sm:pb-32">
 
-```text
-PRIMA (BUG)                         DOPO (FIX)
-                                    
-Reshare di post con immagine:       Reshare di post con immagine:
-1. useStackLayout = true            1. quotedPostHasMedia = true
-2. Mostra ReshareContextStack       2. Mostra QuotedPostCard con media
-3. Nessun media visibile            3. Immagine/carousel visibile
+// A:
+<div className="relative z-10 w-full h-full flex flex-col pt-16 pb-28 sm:pb-32">
+```
+Rimuoviamo `justify-between` perché useremo `flex-shrink-0` sulle zone fisse.
 
-Reshare di post solo testo:         Reshare di post solo testo:
-1. useStackLayout = true            1. useStackLayout = true (invariato)
-2. Mostra ReshareContextStack       2. Mostra ReshareContextStack
-3. Corretto (nessun media)          3. Corretto (invariato)
+**B) Top Bar (linea ~1226)**
+Aggiungere `flex-shrink-0` per evitare compressione:
+```tsx
+<div className="flex justify-between items-start flex-shrink-0">
 ```
 
-## Test di Verifica
+**C) Center Content (linea ~1333)**
+Aggiungere `overflow-hidden` per impedire che straripi:
+```tsx
+// DA:
+<div className="flex-1 flex flex-col justify-center px-2 pt-2 sm:pt-2">
 
-1. **Reshare post con singola immagine**: L'immagine deve essere visibile nel feed
-2. **Reshare post con carousel**: Il carousel deve essere visibile con navigazione
-3. **Reshare post con URL**: Comportamento invariato (stack layout per URL)
-4. **Reshare post solo testo**: Comportamento invariato (stack layout se < 30 parole)
-5. **Reshare di Intent post**: Comportamento invariato (no stack, QuotedPostCard con layout intent)
+// A:
+<div className="flex-1 flex flex-col justify-center px-2 pt-2 sm:pt-2 overflow-hidden">
+```
+
+**D) Rimuovere spacer flessibile (linea ~2036)**
+Eliminare completamente:
+```tsx
+<div className="min-h-4 sm:min-h-0 flex-shrink-0" />
+```
+
+**E) Action Bar (linea ~2039)**
+Aggiungere `flex-shrink-0`:
+```tsx
+// DA:
+<div className="flex items-center justify-between gap-6 mr-12 sm:mr-16">
+
+// A:
+<div className="flex items-center justify-between gap-6 mr-12 sm:mr-16 flex-shrink-0">
+```
+
+### 2. `src/components/feed/ImmersiveFocusCard.tsx`
+
+**A) Content Layer (linea ~104)**
+Uniformare padding per coerenza visiva:
+```tsx
+// DA:
+<div className="relative z-10 w-full h-full flex flex-col justify-between pt-14 pb-24">
+
+// A:
+<div className="relative z-10 w-full h-full flex flex-col pt-16 pb-28 sm:pb-32">
+```
+
+**B) Top Bar (linea ~107)**
+Aggiungere `flex-shrink-0`:
+```tsx
+// DA:
+<div className="flex flex-col gap-2">
+
+// A:
+<div className="flex flex-col gap-2 flex-shrink-0">
+```
+
+**C) Center Content (linea ~216)**
+Aggiungere `overflow-hidden`:
+```tsx
+// DA:
+<div className="flex-1 flex flex-col justify-center px-2">
+
+// A:
+<div className="flex-1 flex flex-col justify-center px-2 overflow-hidden">
+```
+
+**D) Action Bar (linea ~246)**
+Aggiungere `flex-shrink-0`:
+```tsx
+// DA:
+<div className="flex items-center justify-between gap-3">
+
+// A:
+<div className="flex items-center justify-between gap-3 flex-shrink-0">
+```
+
+### 3. `src/components/feed/QuotedPostCard.tsx`
+
+Limitare altezza massima del container per i quoted post ricondivisi:
+```tsx
+// Wrapper del MediaGallery interno, aggiungere max-h
+<div className="max-h-[30vh] overflow-hidden rounded-xl">
+  <MediaGallery ... />
+</div>
+```
+
+### 4. `src/components/media/MediaGallery.tsx`
+
+Limitare altezza massima delle immagini `aspect-auto` per evitare che crescano troppo:
+```tsx
+// DA:
+className="w-full aspect-auto object-contain bg-black/40"
+
+// A:
+className="w-full aspect-auto max-h-[45vh] object-contain bg-black/40"
+```
+
+## Comportamento Atteso
+
+| Scenario | Prima | Dopo |
+|----------|-------|------|
+| Post con molto contenuto | Action bar schiacciata/fuori viewport | Action bar sempre a distanza fissa dal bottom |
+| FocusCard | `pb-24` (meno spazio) | `pb-28 sm:pb-32` (uniforme con PostCard) |
+| Qualsiasi card | Inconsistenza visiva tra tipi | Layout uniforme su tutte le card |
+| iPhone 12/13 mini | Bottoni sulla navbar | Spazio costante tra azioni e navbar |
+
+## Dettagli Tecnici
+
+### Perché `flex-shrink-0`
+Nelle colonne flex, gli elementi possono comprimersi quando lo spazio è insufficiente. Con `flex-shrink-0`, header e action bar **non si comprimono mai**, costringendo il contenuto centrale ad adattarsi.
+
+### Perché `overflow-hidden` senza scroll
+Il contenuto che eccede viene troncato visivamente. I testi già usano `line-clamp-2/4`, quindi il troncamento è già gestito elegantemente. Gli elementi media verranno limitati con `max-h`.
+
+### Nessuno scroll nidificato
+Lo scroll del feed rimane l'unico scroll verticale. Nessun conflitto con lo snap-scroll.
