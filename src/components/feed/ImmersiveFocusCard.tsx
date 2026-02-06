@@ -65,6 +65,44 @@ export const ImmersiveFocusCard = ({
   // Suppress card click for a brief moment after dialog closes
   const suppressUntilRef = React.useRef(0);
   
+  // Adaptive Content Levels: measure overflow and respond proportionally
+  const contentZoneRef = React.useRef<HTMLDivElement>(null);
+  const [overflowLevel, setOverflowLevel] = React.useState<0 | 1 | 2 | 3>(0);
+  
+  React.useEffect(() => {
+    const el = contentZoneRef.current;
+    if (!el) return;
+    
+    const checkOverflow = () => {
+      const scrollH = el.scrollHeight;
+      const clientH = el.clientHeight;
+      
+      if (scrollH <= clientH + 1) {
+        setOverflowLevel(0);
+      } else {
+        const overflowRatio = (scrollH - clientH) / clientH;
+        if (overflowRatio < 0.15) {
+          setOverflowLevel(1);
+        } else if (overflowRatio < 0.35) {
+          setOverflowLevel(2);
+        } else {
+          setOverflowLevel(3);
+        }
+      }
+    };
+    
+    checkOverflow();
+    
+    const resizeObserver = new ResizeObserver(checkOverflow);
+    resizeObserver.observe(el);
+    window.addEventListener('resize', checkOverflow);
+    
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', checkOverflow);
+    };
+  }, [focusId, title, summary]);
+  
   const handleDialogChange = (open: boolean) => {
     if (!open) {
       // When dialog closes, suppress card clicks for 400ms
@@ -212,13 +250,31 @@ export const ImmersiveFocusCard = ({
           </div>
         </div>
 
-        {/* Center Content - Content Zone (min-h-0: constrain content, z-10 for layering, py-6 safe zones) */}
-        <div className="relative z-10 flex-1 flex flex-col justify-center px-2 py-6 min-h-0 overflow-hidden">
+        {/* Center Content - Content Zone with Adaptive Layout */}
+        <div ref={contentZoneRef} className={cn(
+          "relative z-10 flex-1 flex flex-col justify-center px-2 min-h-0 overflow-hidden",
+          overflowLevel === 0 && "gap-4 py-6",
+          overflowLevel === 1 && "gap-3 py-4",
+          overflowLevel >= 2 && "gap-2 py-3"
+        )}>
           <Quote className="text-white/20 w-12 h-12 rotate-180 mb-4" />
-          <h1 className="text-[clamp(1.5rem,5vw,2rem)] font-bold text-white leading-tight mb-4 drop-shadow-xl">
+          
+          {/* Adaptive Title */}
+          <h1 className={cn(
+            "font-bold text-white leading-tight mb-4 drop-shadow-xl",
+            overflowLevel <= 1 && "text-3xl",
+            overflowLevel >= 2 && "text-2xl"
+          )}>
             {title}
           </h1>
-          <p className="text-[clamp(1rem,3.5vw,1.125rem)] text-white/80 leading-relaxed line-clamp-4 [@media(min-height:780px)]:line-clamp-6 mb-6">
+          
+          {/* Adaptive Summary */}
+          <p className={cn(
+            "text-white/80 mb-6",
+            overflowLevel === 0 && "text-lg leading-relaxed line-clamp-6",
+            overflowLevel === 1 && "text-base leading-relaxed line-clamp-5",
+            overflowLevel >= 2 && "text-sm leading-snug line-clamp-4"
+          )}>
             {summary.replace(/\[SOURCE:[\d,\s]+\]/g, '')}
           </p>
           
