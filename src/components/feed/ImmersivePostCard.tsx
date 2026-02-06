@@ -1220,7 +1220,7 @@ const ImmersivePostCardInner = ({
         )}
 
         {/* Content Layer - 3-Zone Uniform Layout */}
-        <div className="relative z-10 w-full h-full flex flex-col pt-16 pb-28 sm:pb-32">
+        <div className="relative z-10 w-full h-full flex flex-col pt-14 pb-24 sm:pb-28">
           
           {/* Top Bar - Header Zone (flex-shrink-0: never compress) */}
           <div className="flex justify-between items-start flex-shrink-0">
@@ -1329,13 +1329,13 @@ const ImmersivePostCardInner = ({
             )}
           </div>
 
-          {/* Center Content - Content Zone (overflow-hidden: truncate, don't push actions) */}
-          <div className="flex-1 flex flex-col justify-center px-2 pt-2 sm:pt-2 overflow-hidden">
+          {/* Center Content - Content Zone (min-h-0: allow flex shrink without hard clip) */}
+          <div className="flex-1 flex flex-col justify-center px-2 pt-2 sm:pt-2 min-h-0">
             
             {/* Stack Layout: User comment first - Quote Block style for Intent posts */}
             {useStackLayout && post.content && post.content !== post.shared_title && (
               <div className={cn(
-                "text-base sm:text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-3 sm:mb-4",
+                "text-base sm:text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-3 sm:mb-4 line-clamp-4",
                 post.is_intent && [
                   "border-l-4 border-primary/60",
                   "bg-white/5",
