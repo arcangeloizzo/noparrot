@@ -65,43 +65,24 @@ export const ImmersiveFocusCard = ({
   // Suppress card click for a brief moment after dialog closes
   const suppressUntilRef = React.useRef(0);
   
-  // Adaptive Content Levels: measure overflow and respond proportionally
+  // Content Density Score: PREDICTIVE system that calculates density BEFORE render
   const contentZoneRef = React.useRef<HTMLDivElement>(null);
-  const [overflowLevel, setOverflowLevel] = React.useState<0 | 1 | 2 | 3>(0);
   
-  React.useEffect(() => {
-    const el = contentZoneRef.current;
-    if (!el) return;
+  const contentDensity = React.useMemo((): 'low' | 'medium' | 'high' => {
+    let score = 0;
     
-    const checkOverflow = () => {
-      const scrollH = el.scrollHeight;
-      const clientH = el.clientHeight;
-      
-      if (scrollH <= clientH + 1) {
-        setOverflowLevel(0);
-      } else {
-        const overflowRatio = (scrollH - clientH) / clientH;
-        if (overflowRatio < 0.15) {
-          setOverflowLevel(1);
-        } else if (overflowRatio < 0.35) {
-          setOverflowLevel(2);
-        } else {
-          setOverflowLevel(3);
-        }
-      }
-    };
+    if (title.length > 100) score += 2;
+    else if (title.length > 50) score += 1;
     
-    checkOverflow();
+    if (summary.length > 300) score += 2;
+    else if (summary.length > 150) score += 1;
     
-    const resizeObserver = new ResizeObserver(checkOverflow);
-    resizeObserver.observe(el);
-    window.addEventListener('resize', checkOverflow);
+    if (sources.length > 3) score += 1;
     
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', checkOverflow);
-    };
-  }, [focusId, title, summary]);
+    if (score <= 2) return 'low';
+    if (score <= 4) return 'medium';
+    return 'high';
+  }, [title, summary, sources]);
   
   const handleDialogChange = (open: boolean) => {
     if (!open) {
@@ -250,20 +231,21 @@ export const ImmersiveFocusCard = ({
           </div>
         </div>
 
-        {/* Center Content - Content Zone: justify-start prevents top-clipping */}
+        {/* Center Content - Content Zone: predictive density-based layout */}
         <div ref={contentZoneRef} className={cn(
-          "relative z-10 flex-1 flex flex-col justify-start px-2 min-h-0 overflow-hidden",
-          overflowLevel === 0 && "gap-4 py-6",
-          overflowLevel === 1 && "gap-3 py-4",
-          overflowLevel >= 2 && "gap-2 py-3"
+          "relative z-10 flex-1 flex flex-col px-2 min-h-0 overflow-hidden",
+          // Centraggio solo se densità bassa/media
+          contentDensity === 'low' && "justify-center gap-4 py-6",
+          contentDensity === 'medium' && "justify-center gap-3 py-4",
+          contentDensity === 'high' && "justify-start gap-2 py-3"
         )}>
           <Quote className="text-white/20 w-12 h-12 rotate-180 mb-4" />
           
           {/* Adaptive Title */}
           <h1 className={cn(
             "font-bold text-white leading-tight mb-4 drop-shadow-xl",
-            overflowLevel <= 1 && "text-3xl",
-            overflowLevel >= 2 && "text-2xl"
+            contentDensity !== 'high' && "text-3xl",
+            contentDensity === 'high' && "text-2xl"
           )}>
             {title}
           </h1>
@@ -271,9 +253,9 @@ export const ImmersiveFocusCard = ({
           {/* Adaptive Summary */}
           <p className={cn(
             "text-white/80 mb-6",
-            overflowLevel === 0 && "text-lg leading-relaxed line-clamp-6",
-            overflowLevel === 1 && "text-base leading-relaxed line-clamp-5",
-            overflowLevel >= 2 && "text-sm leading-snug line-clamp-4"
+            contentDensity === 'low' && "text-lg leading-relaxed line-clamp-8",
+            contentDensity === 'medium' && "text-base leading-relaxed line-clamp-5",
+            contentDensity === 'high' && "text-sm leading-snug line-clamp-3"
           )}>
             {summary.replace(/\[SOURCE:[\d,\s]+\]/g, '')}
           </p>
