@@ -1073,7 +1073,8 @@ const ImmersivePostCardInner = ({
         setGateStep('idle');
 
         if (shareAction === 'feed') {
-          onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [] });
+          // [FIX] Aggiungi _gatePassed per evitare doppio test nel Composer
+          onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [], _gatePassed: true });
         } else if (shareAction === 'friend') {
           setShowPeoplePicker(true);
         }
