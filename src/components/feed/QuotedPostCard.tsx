@@ -173,7 +173,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate }: Quo
               </div>
             )}
 
-            {/* Media Gallery (Intent layout) */}
+            {/* Media Carousel (Intent layout) */}
             {quotedPost.media && quotedPost.media.length > 0 && (
               <div className="mt-2 rounded-lg overflow-hidden">
                 {quotedPost.media.length === 1 ? (
@@ -191,31 +191,41 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate }: Quo
                     />
                   )
                 ) : (
-                  <div className="grid grid-cols-2 gap-1">
-                    {quotedPost.media.slice(0, 4).map((m, idx) => (
-                      <div key={m.id} className="relative aspect-square rounded-lg overflow-hidden bg-white/10">
-                        {m.type === 'video' ? (
-                          <video 
-                            src={m.url}
-                            poster={m.thumbnail_url || undefined}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <img 
-                            src={m.url}
-                            alt=""
-                            className="w-full h-full object-cover"
-                          />
-                        )}
-                        {idx === 3 && quotedPost.media!.length > 4 && (
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                            <span className="text-white font-bold text-sm">
-                              +{quotedPost.media!.length - 4}
-                            </span>
-                          </div>
+                  /* Horizontal carousel for multiple media */
+                  <div className="relative">
+                    <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2">
+                      {quotedPost.media.map((m, idx) => (
+                        <div 
+                          key={m.id} 
+                          className="flex-shrink-0 w-28 h-28 rounded-lg overflow-hidden bg-white/10 snap-start"
+                        >
+                          {m.type === 'video' ? (
+                            <video 
+                              src={m.url}
+                              poster={m.thumbnail_url || undefined}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <img 
+                              src={m.url}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {/* Carousel indicator */}
+                    {quotedPost.media.length > 2 && (
+                      <div className="flex justify-center gap-1 mt-1">
+                        {quotedPost.media.slice(0, Math.min(quotedPost.media.length, 6)).map((_, idx) => (
+                          <div key={idx} className="w-1 h-1 rounded-full bg-white/40" />
+                        ))}
+                        {quotedPost.media.length > 6 && (
+                          <span className="text-white/40 text-[10px] ml-1">+{quotedPost.media.length - 6}</span>
                         )}
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
               </div>
@@ -306,7 +316,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate }: Quo
               </div>
             )}
 
-            {/* Media Gallery (Standard layout) */}
+            {/* Media Carousel (Standard layout) */}
             {quotedPost.media && quotedPost.media.length > 0 && (
               <div className="mt-2 rounded-lg overflow-hidden">
                 {quotedPost.media.length === 1 ? (
@@ -324,31 +334,41 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate }: Quo
                     />
                   )
                 ) : (
-                  <div className="grid grid-cols-2 gap-1">
-                    {quotedPost.media.slice(0, 4).map((m, idx) => (
-                      <div key={m.id} className="relative aspect-square rounded-lg overflow-hidden bg-muted">
-                        {m.type === 'video' ? (
-                          <video 
-                            src={m.url}
-                            poster={m.thumbnail_url || undefined}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <img 
-                            src={m.url}
-                            alt=""
-                            className="w-full h-full object-cover"
-                          />
-                        )}
-                        {idx === 3 && quotedPost.media!.length > 4 && (
-                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                            <span className="text-white font-bold text-sm">
-                              +{quotedPost.media!.length - 4}
-                            </span>
-                          </div>
+                  /* Horizontal carousel for multiple media */
+                  <div className="relative">
+                    <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory scrollbar-hide pb-2">
+                      {quotedPost.media.map((m, idx) => (
+                        <div 
+                          key={m.id} 
+                          className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden bg-muted snap-start"
+                        >
+                          {m.type === 'video' ? (
+                            <video 
+                              src={m.url}
+                              poster={m.thumbnail_url || undefined}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <img 
+                              src={m.url}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    {/* Carousel indicator */}
+                    {quotedPost.media.length > 2 && (
+                      <div className="flex justify-center gap-1 mt-1">
+                        {quotedPost.media.slice(0, Math.min(quotedPost.media.length, 6)).map((_, idx) => (
+                          <div key={idx} className="w-1 h-1 rounded-full bg-muted-foreground/40" />
+                        ))}
+                        {quotedPost.media.length > 6 && (
+                          <span className="text-muted-foreground text-[10px] ml-1">+{quotedPost.media.length - 6}</span>
                         )}
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
               </div>
