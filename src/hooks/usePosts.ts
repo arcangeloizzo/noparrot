@@ -78,6 +78,8 @@ export interface Post {
   }>;
   shares_count?: number;
   is_intent?: boolean;
+  /** Flag interno - gate superato nel feed prima di aprire il composer */
+  _gatePassed?: boolean;
 }
 
 export const usePosts = () => {
