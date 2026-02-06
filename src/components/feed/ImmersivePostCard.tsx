@@ -480,7 +480,12 @@ const ImmersivePostCardInner = ({
   // Long press handlers for like button with drag-to-select
   const likeButtonHandlers = useLongPress({
     onLongPress: () => setShowReactionPicker(true),
-    onTap: () => handleHeart(undefined, 'heart'),
+    onTap: () => {
+      // If user has an existing reaction, tap should toggle it off (pass same type)
+      // Otherwise, add a heart reaction
+      const existingType = post.user_reactions?.myReactionType;
+      handleHeart(undefined, existingType || 'heart');
+    },
     onMove: (x, y) => setDragPosition({ x, y }),
     onRelease: () => setDragPosition(null),
   });
