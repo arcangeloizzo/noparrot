@@ -1147,7 +1147,7 @@ const ImmersivePostCardInner = ({
   return (
     <>
       <div 
-        className="h-[100dvh] w-full snap-start relative flex flex-col p-6 overflow-hidden"
+        className="h-[100dvh] w-full snap-start relative flex flex-col px-4 overflow-hidden"
         onClick={handleDoubleTap}
       >
         {/* Background Layer */}
@@ -1220,7 +1220,7 @@ const ImmersivePostCardInner = ({
         )}
 
         {/* Content Layer - 3-Zone Uniform Layout */}
-        <div className="relative z-10 w-full h-full flex flex-col pt-10 pb-20 sm:pb-24">
+        <div className="relative z-10 w-full h-full flex flex-col pt-[calc(env(safe-area-inset-top)+3.5rem)] pb-[calc(env(safe-area-inset-bottom)+5rem)]">
           
           {/* Top Bar - Header Zone (flex-shrink-0: never compress) */}
           <div className="flex justify-between items-start flex-shrink-0">
@@ -1330,12 +1330,12 @@ const ImmersivePostCardInner = ({
           </div>
 
           {/* Center Content - Content Zone (min-h-0 + overflow-hidden: constrain content) */}
-          <div className="flex-1 flex flex-col justify-center px-2 pt-2 sm:pt-2 min-h-0 overflow-hidden">
+          <div className="flex-1 flex flex-col justify-start gap-4 px-2 pt-4 min-h-0">
             
             {/* Stack Layout: User comment first - Quote Block style for Intent posts */}
             {useStackLayout && post.content && post.content !== post.shared_title && (
               <div className={cn(
-                "text-base sm:text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-3 sm:mb-4 line-clamp-4",
+                "text-[clamp(1rem,3.5vw,1.25rem)] font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-3 sm:mb-4 line-clamp-4 [@media(min-height:780px)]:line-clamp-6 [@media(min-height:900px)]:line-clamp-8",
                 post.is_intent && [
                   "border-l-4 border-primary/60",
                   "bg-white/5",
@@ -2007,7 +2007,7 @@ const ImmersivePostCardInner = ({
 
             {/* Quoted Post - Show for reshares WITHOUT stack layout OR when quoted post has media */}
             {quotedPost && (!useStackLayout || quotedPostHasMedia) && (
-              <div className="mt-4 max-h-[40vh] overflow-hidden rounded-xl">
+              <div className="mt-4 max-h-[min(35vh,280px)] [@media(min-height:780px)]:max-h-[min(40vh,360px)] overflow-hidden rounded-xl">
                 {/* Detect if quoted post is an editorial (Il Punto) */}
                 {quotedPost.shared_url?.startsWith('focus://') || quotedPost.author?.username === 'ilpunto' ? (
                   <QuotedEditorialCard

@@ -84,7 +84,7 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange }
             <img
               src={item.url}
               alt=""
-              className="w-full aspect-auto max-h-[45vh] object-contain bg-black/40"
+              className="w-full aspect-auto max-h-[min(30vh,240px)] [@media(min-height:780px)]:max-h-[min(40vh,360px)] [@media(min-height:900px)]:max-h-[min(45vh,420px)] object-contain bg-black/40"
               loading="lazy"
             />
           ) : (
@@ -139,7 +139,7 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange }
               <img
                 src={item.url}
                 alt=""
-                className="w-full aspect-auto max-h-[45vh] object-contain bg-black/40"
+                className="w-full aspect-auto max-h-[min(30vh,240px)] [@media(min-height:780px)]:max-h-[min(40vh,360px)] [@media(min-height:900px)]:max-h-[min(45vh,420px)] object-contain bg-black/40"
                 loading={idx <= 1 ? 'eager' : 'lazy'}
               />
             ) : (
