@@ -741,13 +741,13 @@ serve(async (req) => {
                 }
               }
               
-              // STEP 2: Try Firecrawl if Jina failed and we have API key
+              // STEP 2: Try Firecrawl with STEALTH MODE if Jina failed
               const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
               if (cacheUrlForRetry && FIRECRAWL_API_KEY && (!serverSideContent || serverSideContent.length < 300)) {
-                console.log(`[generate-qa] 🔥 Trying Firecrawl as backup...`);
+                console.log(`[generate-qa] 🕵️ Trying Firecrawl STEALTH mode as backup...`);
                 try {
                   const controller = new AbortController();
-                  const timeoutId = setTimeout(() => controller.abort(), 12000);
+                  const timeoutId = setTimeout(() => controller.abort(), 25000); // Longer timeout for stealth
                   
                   const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
                     method: 'POST',
@@ -759,7 +759,13 @@ serve(async (req) => {
                       url: cacheUrlForRetry,
                       formats: ['markdown'],
                       onlyMainContent: true,
-                      waitFor: 2000
+                      waitFor: 3000,  // STEALTH: Wait 3s for JS render + anti-bot bypass
+                      timeout: 20000,
+                      headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                        'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7'
+                      }
                     }),
                     signal: controller.signal
                   });
@@ -777,10 +783,10 @@ serve(async (req) => {
                     
                     if (markdown.length > (serverSideContent?.length || 0)) {
                       serverSideContent = markdown;
-                      contentSource = isLinkedInUrl ? 'firecrawl_linkedin' : 'firecrawl';
-                      console.log(`[generate-qa] ✅ Firecrawl success: ${serverSideContent.length} chars`);
+                      contentSource = isLinkedInUrl ? 'firecrawl_stealth_linkedin' : 'firecrawl_stealth';
+                      console.log(`[generate-qa] ✅ Firecrawl STEALTH success: ${serverSideContent.length} chars`);
                       
-                      // Cache for future use
+                      // Cache for future use (7 days for stealth results)
                       const expiresAt = new Date();
                       expiresAt.setDate(expiresAt.getDate() + 7);
                       await supabase.from('content_cache').upsert({
@@ -791,9 +797,15 @@ serve(async (req) => {
                         expires_at: expiresAt.toISOString()
                       }, { onConflict: 'source_url' });
                     }
+                  } else {
+                    console.log(`[generate-qa] ⚠️ Firecrawl stealth returned ${firecrawlResponse.status}`);
                   }
                 } catch (fcErr) {
-                  console.log('[generate-qa] Firecrawl failed/timeout');
+                  if (fcErr instanceof Error && fcErr.name === 'AbortError') {
+                    console.log('[generate-qa] ⏱️ Firecrawl stealth timeout');
+                  } else {
+                    console.log('[generate-qa] Firecrawl stealth failed:', fcErr);
+                  }
                 }
               }
               

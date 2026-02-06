@@ -237,6 +237,116 @@ function isBotChallengeContent(content: string): boolean {
   return false;
 }
 
+// ============================================================================
+// STEALTH ESCALATION LOGIC - Retry blocked sites with aggressive parameters
+// ============================================================================
+
+/**
+ * Detects if extracted content is insufficient or just boilerplate/cookie walls
+ */
+function isContentInsufficient(text: string | undefined): boolean {
+  if (!text || text.length < 600) return true;
+  
+  const lower = text.toLowerCase();
+  const boilerplateMarkers = [
+    'cookie policy',
+    'accept all',
+    'privacy settings',
+    'cookie settings',
+    'manage preferences',
+    'necessary cookies',
+    'reject all',
+    'we use cookies',
+    'utilizziamo i cookie',
+    'informativa cookie',
+    'accetta tutti',
+    'rifiuta tutti',
+  ];
+  
+  // If 3+ boilerplate markers found, content is likely just cookie/privacy walls
+  const markerMatches = boilerplateMarkers.filter(m => lower.includes(m)).length;
+  if (markerMatches >= 3) {
+    console.log(`[Stealth] ⚠️ Content looks like boilerplate (${markerMatches} markers)`);
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Stealth mode Firecrawl fetch with JS rendering and User-Agent spoofing
+ */
+async function stealthFirecrawlFetch(url: string): Promise<{
+  content: string;
+  title?: string;
+  image?: string;
+} | null> {
+  const FIRECRAWL_API_KEY = Deno.env.get('FIRECRAWL_API_KEY');
+  if (!FIRECRAWL_API_KEY) {
+    console.log('[Stealth] ⚠️ No FIRECRAWL_API_KEY, skipping stealth mode');
+    return null;
+  }
+  
+  console.log('[Stealth] 🕵️ Activating stealth mode for:', url);
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout for stealth
+    
+    const response = await fetch('https://api.firecrawl.dev/v1/scrape', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${FIRECRAWL_API_KEY}`
+      },
+      body: JSON.stringify({
+        url,
+        formats: ['markdown'],
+        onlyMainContent: true,
+        waitFor: 3000,  // Wait 3s for JS rendering + anti-bot bypass
+        timeout: 20000,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
+          'Cache-Control': 'no-cache'
+        }
+      }),
+      signal: controller.signal
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (!response.ok) {
+      console.log('[Stealth] ❌ Firecrawl stealth failed:', response.status);
+      return null;
+    }
+    
+    const data = await response.json();
+    const markdown = data.data?.markdown || '';
+    
+    // Check if stealth mode got useful content
+    if (markdown.length > 600 && !isContentInsufficient(markdown)) {
+      console.log(`[Stealth] ✅ Success: ${markdown.length} chars extracted`);
+      return {
+        content: markdown,
+        title: data.data?.metadata?.title,
+        image: data.data?.metadata?.ogImage || data.data?.metadata?.image
+      };
+    }
+    
+    console.log(`[Stealth] ⚠️ Content still insufficient after stealth: ${markdown.length} chars`);
+    return null;
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      console.log('[Stealth] ⏱️ Timeout during stealth fetch');
+    } else {
+      console.error('[Stealth] Error:', err);
+    }
+    return null;
+  }
+}
+
 function isLinkedInAuthWallContent(content: string): boolean {
   const lower = content.toLowerCase();
   const markers = [
@@ -2432,10 +2542,48 @@ serve(async (req) => {
       console.error('[Preview] Direct fetch failed:', fetchError);
     }
     
-    // Check for bot challenge
+    // Check for bot challenge - try stealth escalation before giving up
     if (fetchSuccess && isBotChallengeContent(html)) {
-      console.log(`[Preview] 🚫 Bot challenge detected for ${urlHostname}`);
+      console.log(`[Preview] 🚫 Bot challenge detected for ${urlHostname}, trying stealth escalation...`);
       
+      // STEALTH ESCALATION for bot-protected sites
+      const stealthResult = await stealthFirecrawlFetch(url);
+      
+      if (stealthResult && stealthResult.content.length > 600) {
+        console.log(`[Preview] ✅ Stealth bypassed bot challenge: ${stealthResult.content.length} chars`);
+        
+        // Cache the stealth-extracted content
+        if (supabase) {
+          await cacheContentServerSide(
+            supabase,
+            url,
+            'article',
+            stealthResult.content,
+            stealthResult.title || '',
+            stealthResult.image || ''
+          );
+        }
+        
+        // Return success with stealth content
+        return new Response(JSON.stringify({
+          success: true,
+          title: stealthResult.title || 'Articolo',
+          summary: stealthResult.content.substring(0, 200),
+          image: stealthResult.image || '',
+          previewImg: stealthResult.image || '',
+          platform: 'generic',
+          type: 'article',
+          hostname: urlHostname,
+          contentQuality: stealthResult.content.length > 500 ? 'complete' : 'partial',
+          iframeAllowed: true,
+          gateConfig: { mode: 'timer', minSeconds: 15 },
+          qaSourceRef: { kind: 'url', id: url, url }
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      // Stealth failed - return blocked status
       const blockedTitleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
       let blockedTitle = blockedTitleMatch ? extractTextFromHtml(blockedTitleMatch[1]) : '';
       const blockedDescMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i);
@@ -2465,6 +2613,52 @@ serve(async (req) => {
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
+    }
+    
+    // ========================================================================
+    // STEALTH ESCALATION for failed direct fetch (403, timeout, etc.)
+    // ========================================================================
+    if (!fetchSuccess || html.length < 1000) {
+      console.log(`[Preview] ⚠️ Direct fetch failed or insufficient, trying stealth escalation...`);
+      
+      const stealthResult = await stealthFirecrawlFetch(url);
+      
+      if (stealthResult && stealthResult.content.length > 600) {
+        console.log(`[Preview] ✅ Stealth recovered content: ${stealthResult.content.length} chars`);
+        
+        // Cache the stealth-extracted content
+        if (supabase) {
+          await cacheContentServerSide(
+            supabase,
+            url,
+            'article',
+            stealthResult.content,
+            stealthResult.title || '',
+            stealthResult.image || ''
+          );
+        }
+        
+        // Return success with stealth content
+        return new Response(JSON.stringify({
+          success: true,
+          title: stealthResult.title || 'Articolo',
+          summary: stealthResult.content.substring(0, 200),
+          image: stealthResult.image || '',
+          previewImg: stealthResult.image || '',
+          platform: 'generic',
+          type: 'article',
+          hostname: urlHostname,
+          contentQuality: stealthResult.content.length > 500 ? 'complete' : 'partial',
+          iframeAllowed: true,
+          gateConfig: { mode: 'timer', minSeconds: 15 },
+          qaSourceRef: { kind: 'url', id: url, url }
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      
+      // Stealth also failed - continue to OpenGraph fallback
+      console.log(`[Preview] ⚠️ Stealth escalation failed, falling back to OpenGraph`);
     }
     
     // Extract metadata from HTML
@@ -2521,16 +2715,54 @@ serve(async (req) => {
         articleContent = paragraphs.join('\n\n');
       }
       
-      // Cache content server-side (include image URL)
-      if (articleContent && supabase) {
-        await cacheContentServerSide(
-          supabase,
-          url,
-          'article',
-          articleContent,
-          title,
-          image
-        );
+      // ========================================================================
+      // STEALTH ESCALATION: If content is insufficient, try aggressive scraping
+      // ========================================================================
+      const extractedContent = articleContent || jsonLdData?.content || '';
+      
+      if (isContentInsufficient(extractedContent)) {
+        console.log(`[Preview] ⚠️ Content insufficient (${extractedContent.length} chars), trying stealth escalation...`);
+        
+        const stealthResult = await stealthFirecrawlFetch(url);
+        
+        if (stealthResult && stealthResult.content.length > 600) {
+          // Update content with stealth result
+          articleContent = stealthResult.content;
+          if (stealthResult.title && stealthResult.title.length > title.length) {
+            title = stealthResult.title;
+          }
+          if (stealthResult.image && !image) {
+            image = stealthResult.image;
+          }
+          
+          // Cache the stealth-extracted content
+          if (supabase) {
+            await cacheContentServerSide(
+              supabase,
+              url,
+              'article',
+              articleContent,
+              title,
+              image
+            );
+          }
+          
+          console.log(`[Preview] ✅ Stealth escalation successful: ${articleContent.length} chars`);
+        } else {
+          console.log(`[Preview] ⚠️ Stealth escalation failed, using original content`);
+        }
+      } else {
+        // Cache content server-side (include image URL) - normal path
+        if (articleContent && supabase) {
+          await cacheContentServerSide(
+            supabase,
+            url,
+            'article',
+            articleContent,
+            title,
+            image
+          );
+        }
       }
       
       const hasGoodContent = articleContent.length > 150 || (title && image);
