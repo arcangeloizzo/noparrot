@@ -82,7 +82,7 @@ export const ImmersiveFocusCard = ({
 
   return (
     <div 
-      className="h-[100dvh] w-full snap-start relative flex flex-col p-6 overflow-hidden cursor-pointer"
+      className="h-[100dvh] w-full snap-start relative flex flex-col px-4 overflow-hidden cursor-pointer"
       onClick={handleCardClick}
     >
       
@@ -101,7 +101,7 @@ export const ImmersiveFocusCard = ({
       )}
 
       {/* Content Layer - 3-Zone Uniform Layout */}
-      <div className="relative z-10 w-full h-full flex flex-col pt-10 pb-20 sm:pb-24">
+      <div className="relative z-10 w-full h-full flex flex-col pt-[calc(env(safe-area-inset-top)+3.5rem)] pb-[calc(env(safe-area-inset-bottom)+5rem)]">
         
         {/* Top Bar - Header Zone (flex-shrink-0: never compress) */}
         <div className="flex flex-col gap-2 flex-shrink-0">
@@ -213,12 +213,12 @@ export const ImmersiveFocusCard = ({
         </div>
 
         {/* Center Content - Content Zone (min-h-0 + overflow-hidden: constrain content) */}
-        <div className="flex-1 flex flex-col justify-center px-2 min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col justify-start gap-4 px-2 pt-4 min-h-0">
           <Quote className="text-white/20 w-12 h-12 rotate-180 mb-4" />
-          <h1 className="text-3xl font-bold text-white leading-tight mb-4 drop-shadow-xl">
+          <h1 className="text-[clamp(1.5rem,5vw,2rem)] font-bold text-white leading-tight mb-4 drop-shadow-xl">
             {title}
           </h1>
-          <p className="text-lg text-white/80 leading-relaxed line-clamp-4 mb-6">
+          <p className="text-[clamp(1rem,3.5vw,1.125rem)] text-white/80 leading-relaxed line-clamp-4 [@media(min-height:780px)]:line-clamp-6 mb-6">
             {summary.replace(/\[SOURCE:[\d,\s]+\]/g, '')}
           </p>
           
