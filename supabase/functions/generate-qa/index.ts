@@ -160,11 +160,64 @@ function validateContentQuality(text: string): ContentValidation {
   }
   
   return { isValid: true, metadataRatio };
+
+}
+
+// ============================================================================
+// BOT / COOKIE WALL DETECTION (avoid generating quizzes from challenge pages)
+// ============================================================================
+function isBotChallengeContent(content: string): boolean {
+  const lowerContent = (content || '').toLowerCase();
+  const challengeMarkers = [
+    'checking your browser',
+    'verifica connessione',
+    'verify you are human',
+    'just a moment',
+    'cloudflare',
+    'challenges.cloudflare.com',
+    'cf-challenge',
+    'turnstile',
+    'enable javascript and cookies',
+    'please wait while we verify',
+    'browser check',
+    'ddos protection',
+    'ray id:',
+    'attention required',
+    'one more step',
+  ];
+
+  const matchCount = challengeMarkers.filter(marker => lowerContent.includes(marker)).length;
+  return matchCount >= 2;
+}
+
+function isContentInsufficientForQuiz(text: string | undefined): boolean {
+  if (!text || text.length < 600) return true;
+  if (isBotChallengeContent(text)) return true;
+
+  const lower = text.toLowerCase();
+  const boilerplateMarkers = [
+    'cookie policy',
+    'accept all',
+    'privacy settings',
+    'cookie settings',
+    'manage preferences',
+    'necessary cookies',
+    'reject all',
+    'we use cookies',
+    'utilizziamo i cookie',
+    'informativa cookie',
+    'accetta tutti',
+    'rifiuta tutti',
+  ];
+
+  const markerMatches = boilerplateMarkers.filter(m => lower.includes(m)).length;
+  return markerMatches >= 3;
 }
 
 // ============================================================================
 // POST-GENERATION QUALITY CHECK - Detect generic/metadata-based questions
 // ============================================================================
+
 interface QuestionValidation {
   isValid: boolean;
   reason?: 'generic_questions' | 'metadata_questions' | 'platform_questions';
@@ -747,8 +800,8 @@ serve(async (req) => {
                 console.log(`[generate-qa] 🕵️ Trying Firecrawl STEALTH mode as backup...`);
                 try {
                   const controller = new AbortController();
-                  const timeoutId = setTimeout(() => controller.abort(), 25000); // Longer timeout for stealth
-                  
+                  const timeoutId = setTimeout(() => controller.abort(), 30000); // Longer timeout for stealth
+
                   const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
                     method: 'POST',
                     headers: {
@@ -759,8 +812,10 @@ serve(async (req) => {
                       url: cacheUrlForRetry,
                       formats: ['markdown'],
                       onlyMainContent: true,
-                      waitFor: 3000,  // STEALTH: Wait 3s for JS render + anti-bot bypass
-                      timeout: 20000,
+                      // STEALTH PARAMS
+                      javascript: true,
+                      waitFor: 3000,
+                      timeout: 25000,
                       headers: {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -770,22 +825,23 @@ serve(async (req) => {
                     signal: controller.signal
                   });
                   clearTimeout(timeoutId);
-                  
+
                   if (firecrawlResponse.ok) {
                     const firecrawlData = await firecrawlResponse.json();
                     let markdown = firecrawlData.data?.markdown || '';
-                    
+
                     // Apply LinkedIn cleaning to Firecrawl content too
                     const isLinkedInUrl = cacheUrlForRetry?.toLowerCase().includes('linkedin.com');
                     if (isLinkedInUrl && markdown) {
                       markdown = cleanLinkedInContent(markdown);
                     }
-                    
-                    if (markdown.length > (serverSideContent?.length || 0)) {
+
+                    // Never accept bot-challenge/cookie-wall pages as quiz source
+                    if (!isContentInsufficientForQuiz(markdown) && markdown.length > (serverSideContent?.length || 0)) {
                       serverSideContent = markdown;
                       contentSource = isLinkedInUrl ? 'firecrawl_stealth_linkedin' : 'firecrawl_stealth';
                       console.log(`[generate-qa] ✅ Firecrawl STEALTH success: ${serverSideContent.length} chars`);
-                      
+
                       // Cache for future use (7 days for stealth results)
                       const expiresAt = new Date();
                       expiresAt.setDate(expiresAt.getDate() + 7);
@@ -796,6 +852,8 @@ serve(async (req) => {
                         title: firecrawlData.data?.metadata?.title || title || null,
                         expires_at: expiresAt.toISOString()
                       }, { onConflict: 'source_url' });
+                    } else {
+                      console.log('[generate-qa] ⚠️ Firecrawl stealth returned blocked/boilerplate content; ignoring');
                     }
                   } else {
                     console.log(`[generate-qa] ⚠️ Firecrawl stealth returned ${firecrawlResponse.status}`);
