@@ -1,5 +1,14 @@
 
-# Piano: Logica di Escalation Stealth per Scraping
+# Piano: Logica di Escalation Stealth per Scraping ✅ IMPLEMENTATO
+
+> **Status**: Implementato e deployato
+> **Data**: 2026-02-06
+> 
+> **Risultati Test**:
+> - ✅ HDblog: 1081 chars estratti con successo (contentQuality: complete)
+> - ⚠️ Forbes: Stealth attivato ma contenuto < 600 chars (paywall molto aggressivo)
+>   - Forbes rimane un caso limite - il loro paywall è troppo aggressivo anche per Firecrawl stealth
+>   - L'app gestisce gracefully con contentQuality: "minimal" + iframe fallback
 
 ## Panoramica
 
