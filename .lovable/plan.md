@@ -1,144 +1,109 @@
 
-# Piano: Fix Bug Double-Test su Reshare di Post con Immagini/Carousel
+# Piano: Fix Visualizzazione Media nei Post Ricondivisi
 
 ## Problema Identificato
 
-Quando un utente condivide un post con immagini o carousel:
-1. **Nel Feed**: Clicca "Condividi" → Reader si apre → Supera il quiz
-2. **Composer si apre**: Ma il quiz viene richiesto UNA SECONDA VOLTA!
-3. **Per carousel con testo >30 parole**: Il secondo tentativo fallisce con errore "Testo insufficiente" perche il sistema cerca di rigenerare il quiz senza i dati originali
+Quando un utente ricondivide un post con **immagini o carousel** (senza URL esterna), i media non vengono visualizzati nel feed. Questo accade perché:
 
-### Causa Radice
-Quando il quiz viene superato nel feed, `onQuoteShare?.({ ...post })` passa il post al composer SENZA indicare che il gate e gia stato superato. Il `ComposerModal` quindi:
-- Rileva `quotedPost` con media/testo
-- Calcola `gateStatus.requiresGate = true`  
-- Al click su "Pubblica", richiede il test una seconda volta
+1. La logica `useStackLayout` si attiva quando il commento del post citato ha < 30 parole
+2. In modalità stack, viene mostrato solo `ReshareContextStack` che non include i media
+3. Il `QuotedPostCard` (che supporta la visualizzazione dei media) viene saltato
+
+### Esempi Concreti dal Database
+- Post con carousel di 6 immagini e contenuto vuoto → `useStackLayout = true` → nessun media visibile
+- Post con 1 immagine e commento corto → `useStackLayout = true` → nessun media visibile
+
+## Analisi del Codice
+
+Il problema è nella logica di ImmersivePostCard.tsx:
+
+```text
+useStackLayout = !isQuotedIntentPost && (isReshareWithShortComment || isReshareWithSource)
+```
+
+Dove:
+- `isReshareWithShortComment` = commento quoted post < 30 parole
+- `isReshareWithSource` = quoted post ha una URL
+
+Quando `useStackLayout = true`, viene mostrato `ReshareContextStack` invece di `QuotedPostCard`, perdendo i media.
 
 ## Soluzione
 
-Aggiungere un flag `_gatePassed: true` al post quando il quiz viene superato, e modificare il ComposerModal per riconoscere questo flag e saltare completamente il gate.
+Aggiungere una nuova condizione che forza la visualizzazione del `QuotedPostCard` quando il post citato ha media, indipendentemente dalla lunghezza del commento.
 
-## Modifiche Tecniche
+### Modifiche a ImmersivePostCard.tsx
 
-### 1. ImmersivePostCard.tsx
-
-Quando il quiz viene passato, includere il flag `_gatePassed` nel post:
+Aggiungere un flag per rilevare se il quoted post ha media:
 
 ```typescript
-// Riga ~1075-1076
-if (passed) {
-  // ...existing code...
-  if (shareAction === 'feed') {
-    onQuoteShare?.({ 
-      ...post, 
-      _originalSources: Array.isArray(post.sources) ? post.sources : [],
-      _gatePassed: true  // <-- NUOVO FLAG
-    });
-  }
-}
+const quotedPostHasMedia = quotedPost?.media && quotedPost.media.length > 0;
 ```
 
-### 2. FeedCardAdapt.tsx
-
-Stesso fix per la versione non-immersiva:
+Modificare la visualizzazione del QuotedPostCard per mostrarlo ANCHE quando il quoted post ha media:
 
 ```typescript
-// Riga ~649
-if (shareAction === 'feed') {
-  onQuoteShare?.({
-    ...post,
-    _originalSources: Array.isArray(post.sources) ? post.sources : [],
-    _gatePassed: true  // <-- NUOVO FLAG
-  });
-}
+// Quoted Post - Show for:
+// 1. Reshares WITHOUT source and without stack layout (pure comment reshares)
+// 2. Reshares WITH MEDIA (always show to display images/carousel)
+{quotedPost && (!useStackLayout || quotedPostHasMedia) && (
+  <div className="mt-4">
+    {/* ...existing rendering logic... */}
+  </div>
+)}
 ```
 
-### 3. ComposerModal.tsx
+### Modifiche a ReshareContextStack
 
-#### a) Aggiornare `gateStatus` per riconoscere `_gatePassed`
+Per evitare duplicazione quando viene mostrato sia lo stack che il QuotedPostCard, si può:
+
+**Opzione A**: Mostrare lo stack SOLO per il contesto della catena, e il `QuotedPostCard` per il post originale con i media
+  - Pro: Mantiene la visualizzazione della catena di reshare
+  - Contro: Può sembrare ridondante
+
+**Opzione B (consigliata)**: Non mostrare lo stack quando il quoted post ha media (mostra solo QuotedPostCard)
+  - Pro: Layout più pulito, i media sono chiari
+  - Contro: Si perde la visualizzazione della catena per questi casi
+
+### Implementazione Opzione B
 
 ```typescript
-// Riga ~243 - All'inizio del calcolo gateStatus
-const gateStatus = (() => {
-  // BYPASS: Se il gate e gia stato passato nel feed, skip
-  if (quotedPost?._gatePassed) {
-    return { label: 'Gate gia superato', requiresGate: false };
-  }
-  
-  // ...existing logic...
-})();
+// Linea 1363 - condizione per ReshareContextStack
+{quotedPost && contextStack.length > 0 && !isQuotedIntentPost && !quotedPostHasMedia && (
+  <ReshareContextStack stack={contextStack} />
+)}
+
+// Linea 2001 - condizione per QuotedPostCard
+{quotedPost && (!useStackLayout || quotedPostHasMedia) && (
+  // ...existing QuotedPostCard rendering
+)}
 ```
 
-#### b) Aggiornare `handlePublish` per saltare il gate se `_gatePassed`
+## File da Modificare
 
-```typescript
-// Riga ~600 (inizio branch reshare)
-// [FIX] Se gate gia passato nel feed, pubblica direttamente
-if (quotedPost && quotedPost._gatePassed) {
-  console.log('[Composer] Gate already passed in feed, publishing directly');
-  addBreadcrumb('reshare_gate_bypassed', { gatePassed: true });
-  await publishPost();
-  return;
-}
-```
-
-### 4. Tipi TypeScript (opzionale ma consigliato)
-
-Estendere l'interfaccia Post per includere i nuovi flag interni:
-
-```typescript
-// In usePosts.ts o dove e definita l'interfaccia Post
-interface Post {
-  // ...existing fields...
-  _gatePassed?: boolean;    // Flag interno - gate superato nel feed
-  _originalSources?: string[]; // Flag interno - fonti originali
-}
-```
+| File | Modifica |
+|------|----------|
+| `src/components/feed/ImmersivePostCard.tsx` | Aggiungere flag `quotedPostHasMedia` e modificare condizioni di rendering |
 
 ## Flusso Corretto Dopo il Fix
 
 ```text
 PRIMA (BUG)                         DOPO (FIX)
                                     
-1. Click Condividi                  1. Click Condividi
-2. Reader si apre                   2. Reader si apre
-3. Quiz                             3. Quiz
-4. Supera quiz                      4. Supera quiz
-5. Composer si apre                 5. Composer si apre (con _gatePassed=true)
-6. ❌ Richiede quiz ANCORA          6. ✅ Click Pubblica
-7. Errore/Doppio test               7. ✅ Post pubblicato senza secondo quiz
+Reshare di post con immagine:       Reshare di post con immagine:
+1. useStackLayout = true            1. quotedPostHasMedia = true
+2. Mostra ReshareContextStack       2. Mostra QuotedPostCard con media
+3. Nessun media visibile            3. Immagine/carousel visibile
+
+Reshare di post solo testo:         Reshare di post solo testo:
+1. useStackLayout = true            1. useStackLayout = true (invariato)
+2. Mostra ReshareContextStack       2. Mostra ReshareContextStack
+3. Corretto (nessun media)          3. Corretto (invariato)
 ```
 
 ## Test di Verifica
 
-1. **Post con singola immagine**:
-   - Condividi → Reader → Quiz → Supera → Composer → Pubblica → Nessun secondo quiz
-
-2. **Post con carousel (2+ immagini)**:
-   - Stesso flusso, nessun errore "Testo insufficiente"
-
-3. **Post con testo >120 parole senza media**:
-   - Stesso flusso, nessun doppio quiz
-
-4. **Reshare di Intent post**:
-   - Gate bypassato se gia superato
-
-5. **Post senza gate richiesto** (≤30 parole, no media OCR):
-   - Comportamento invariato (no gate in entrambi i punti)
-
-## File da Modificare
-
-| File | Modifica |
-|------|----------|
-| `src/components/feed/ImmersivePostCard.tsx` | Aggiungere `_gatePassed: true` in `handleQuizSubmit` |
-| `src/components/feed/FeedCardAdapt.tsx` | Aggiungere `_gatePassed: true` in `handleQuizSubmit` |
-| `src/components/composer/ComposerModal.tsx` | Riconoscere `_gatePassed` e bypassare gate |
-
-## Note di Sicurezza
-
-- Il flag `_gatePassed` e un flag client-side temporaneo usato solo durante il flusso di navigazione
-- La validazione del quiz rimane server-side tramite `submit-qa`
-- Non introduce vulnerabilita perche:
-  - Il quiz deve comunque essere superato nel feed
-  - Il server ha gia registrato il superamento
-  - Il flag viene perso al refresh/navigazione (comportamento desiderato)
+1. **Reshare post con singola immagine**: L'immagine deve essere visibile nel feed
+2. **Reshare post con carousel**: Il carousel deve essere visibile con navigazione
+3. **Reshare post con URL**: Comportamento invariato (stack layout per URL)
+4. **Reshare post solo testo**: Comportamento invariato (stack layout se < 30 parole)
+5. **Reshare di Intent post**: Comportamento invariato (no stack, QuotedPostCard con layout intent)
