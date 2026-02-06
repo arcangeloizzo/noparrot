@@ -1220,7 +1220,7 @@ const ImmersivePostCardInner = ({
         )}
 
         {/* Content Layer - 3-Zone Uniform Layout */}
-        <div className="relative z-10 w-full h-full flex flex-col pt-14 pb-24 sm:pb-28">
+        <div className="relative z-10 w-full h-full flex flex-col pt-10 pb-20 sm:pb-24">
           
           {/* Top Bar - Header Zone (flex-shrink-0: never compress) */}
           <div className="flex justify-between items-start flex-shrink-0">
@@ -1329,8 +1329,8 @@ const ImmersivePostCardInner = ({
             )}
           </div>
 
-          {/* Center Content - Content Zone (min-h-0: allow flex shrink without hard clip) */}
-          <div className="flex-1 flex flex-col justify-center px-2 pt-2 sm:pt-2 min-h-0">
+          {/* Center Content - Content Zone (min-h-0 + overflow-hidden: constrain content) */}
+          <div className="flex-1 flex flex-col justify-center px-2 pt-2 sm:pt-2 min-h-0 overflow-hidden">
             
             {/* Stack Layout: User comment first - Quote Block style for Intent posts */}
             {useStackLayout && post.content && post.content !== post.shared_title && (
@@ -2007,7 +2007,7 @@ const ImmersivePostCardInner = ({
 
             {/* Quoted Post - Show for reshares WITHOUT stack layout OR when quoted post has media */}
             {quotedPost && (!useStackLayout || quotedPostHasMedia) && (
-              <div className="mt-4">
+              <div className="mt-4 max-h-[40vh] overflow-hidden rounded-xl">
                 {/* Detect if quoted post is an editorial (Il Punto) */}
                 {quotedPost.shared_url?.startsWith('focus://') || quotedPost.author?.username === 'ilpunto' ? (
                   <QuotedEditorialCard

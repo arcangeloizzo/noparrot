@@ -101,7 +101,7 @@ export const ImmersiveFocusCard = ({
       )}
 
       {/* Content Layer - 3-Zone Uniform Layout */}
-      <div className="relative z-10 w-full h-full flex flex-col pt-14 pb-24 sm:pb-28">
+      <div className="relative z-10 w-full h-full flex flex-col pt-10 pb-20 sm:pb-24">
         
         {/* Top Bar - Header Zone (flex-shrink-0: never compress) */}
         <div className="flex flex-col gap-2 flex-shrink-0">
@@ -212,8 +212,8 @@ export const ImmersiveFocusCard = ({
           </div>
         </div>
 
-        {/* Center Content - Content Zone (min-h-0: allow flex shrink without hard clip) */}
-        <div className="flex-1 flex flex-col justify-center px-2 min-h-0">
+        {/* Center Content - Content Zone (min-h-0 + overflow-hidden: constrain content) */}
+        <div className="flex-1 flex flex-col justify-center px-2 min-h-0 overflow-hidden">
           <Quote className="text-white/20 w-12 h-12 rotate-180 mb-4" />
           <h1 className="text-3xl font-bold text-white leading-tight mb-4 drop-shadow-xl">
             {title}
