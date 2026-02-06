@@ -100,11 +100,11 @@ export const ImmersiveFocusCard = ({
         <div className="absolute inset-0 bg-gradient-to-b from-[#1F3347] to-[#0E141A] z-0" />
       )}
 
-      {/* Content Layer */}
-      <div className="relative z-10 w-full h-full flex flex-col justify-between pt-14 pb-24">
+      {/* Content Layer - 3-Zone Uniform Layout */}
+      <div className="relative z-10 w-full h-full flex flex-col pt-16 pb-28 sm:pb-32">
         
-        {/* Top Bar */}
-        <div className="flex flex-col gap-2">
+        {/* Top Bar - Header Zone (flex-shrink-0: never compress) */}
+        <div className="flex flex-col gap-2 flex-shrink-0">
           {/* Row 1: Badge tipo + Trust Score (stessa altezza h-8) */}
           <div className="flex justify-between items-center">
             {/* Badge Tipo - compatto su 1 riga */}
@@ -212,8 +212,8 @@ export const ImmersiveFocusCard = ({
           </div>
         </div>
 
-        {/* Center Content */}
-        <div className="flex-1 flex flex-col justify-center px-2">
+        {/* Center Content - Content Zone (overflow-hidden: truncate, don't push actions) */}
+        <div className="flex-1 flex flex-col justify-center px-2 overflow-hidden">
           <Quote className="text-white/20 w-12 h-12 rotate-180 mb-4" />
           <h1 className="text-3xl font-bold text-white leading-tight mb-4 drop-shadow-xl">
             {title}
@@ -242,8 +242,8 @@ export const ImmersiveFocusCard = ({
           })()}
         </div>
 
-        {/* Bottom Actions - Aligned heights h-10 */}
-        <div className="flex items-center justify-between gap-3">
+        {/* Bottom Actions - Action Zone (flex-shrink-0: never compress) */}
+        <div className="flex items-center justify-between gap-3 flex-shrink-0">
           
           {/* Primary Share Button - h-10 px-4 */}
           <button 

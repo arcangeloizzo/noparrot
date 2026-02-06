@@ -1219,11 +1219,11 @@ const ImmersivePostCardInner = ({
           </div>
         )}
 
-        {/* Content Layer */}
-        <div className="relative z-10 w-full h-full flex flex-col justify-between pt-14 pb-28 sm:pb-32">
+        {/* Content Layer - 3-Zone Uniform Layout */}
+        <div className="relative z-10 w-full h-full flex flex-col pt-16 pb-28 sm:pb-32">
           
-          {/* Top Bar */}
-          <div className="flex justify-between items-start">
+          {/* Top Bar - Header Zone (flex-shrink-0: never compress) */}
+          <div className="flex justify-between items-start flex-shrink-0">
             {/* Author */}
             <div 
               className="flex items-center gap-3 cursor-pointer"
@@ -1329,8 +1329,8 @@ const ImmersivePostCardInner = ({
             )}
           </div>
 
-          {/* Center Content */}
-          <div className="flex-1 flex flex-col justify-center px-2 pt-2 sm:pt-2">
+          {/* Center Content - Content Zone (overflow-hidden: truncate, don't push actions) */}
+          <div className="flex-1 flex flex-col justify-center px-2 pt-2 sm:pt-2 overflow-hidden">
             
             {/* Stack Layout: User comment first - Quote Block style for Intent posts */}
             {useStackLayout && post.content && post.content !== post.shared_title && (
@@ -2032,11 +2032,8 @@ const ImmersivePostCardInner = ({
 
           </div>
 
-          {/* Flexible spacer with minimum gap for small screens */}
-          <div className="min-h-4 sm:min-h-0 flex-shrink-0" />
-
-          {/* Bottom Actions - Single horizontal axis alignment */}
-          <div className="flex items-center justify-between gap-6 mr-12 sm:mr-16">
+          {/* Bottom Actions - Action Zone (flex-shrink-0: never compress) */}
+          <div className="flex items-center justify-between gap-6 mr-12 sm:mr-16 flex-shrink-0">
             
             {/* Primary Share Button - Pill shape with consistent height */}
             <button 
