@@ -1375,9 +1375,9 @@ const ImmersivePostCardInner = ({
             )}
           </div>
 
-          {/* Center Content - Content Zone with Adaptive Layout */}
+          {/* Center Content - Content Zone: justify-start prevents top-clipping, overflow-hidden clips bottom only */}
           <div ref={contentZoneRef} className={cn(
-            "relative z-10 flex-1 flex flex-col justify-center px-2 min-h-0 overflow-hidden",
+            "relative z-10 flex-1 flex flex-col justify-start px-2 min-h-0 overflow-hidden",
             overflowLevel === 0 && "gap-4 py-6",
             overflowLevel === 1 && "gap-3 py-4",
             overflowLevel >= 2 && "gap-2 py-3"
