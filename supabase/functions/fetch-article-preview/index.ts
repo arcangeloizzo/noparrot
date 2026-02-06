@@ -303,10 +303,9 @@ async function stealthFirecrawlFetch(url: string): Promise<{
         url,
         formats: ['markdown'],
         onlyMainContent: true,
-        // STEALTH PARAMS (only on retry)
-        javascript: true,
+        // STEALTH PARAMS: moderate wait for anti-bot bypass
         waitFor: 3000,
-        timeout: 25000,
+        timeout: 20000,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -328,11 +327,10 @@ async function stealthFirecrawlFetch(url: string): Promise<{
     const markdown = data.data?.markdown || '';
 
     // Check if stealth mode got useful content
-    if (
-      markdown.length > 600 &&
-      !isBotChallengeContent(markdown) &&
-      !isContentInsufficient(markdown)
-    ) {
+    const isBotChallenge = isBotChallengeContent(markdown);
+    const isInsufficient = isContentInsufficient(markdown);
+    
+    if (markdown.length > 600 && !isBotChallenge && !isInsufficient) {
       console.log(`[Stealth] ✅ Success: ${markdown.length} chars extracted`);
       return {
         content: markdown,
@@ -341,7 +339,11 @@ async function stealthFirecrawlFetch(url: string): Promise<{
       };
     }
 
-    console.log(`[Stealth] ⚠️ Content still insufficient after stealth: ${markdown.length} chars`);
+    // Detailed logging for debugging
+    console.log(`[Stealth] ⚠️ Content rejected: ${markdown.length} chars, botChallenge=${isBotChallenge}, insufficient=${isInsufficient}`);
+    if (markdown.length > 0) {
+      console.log(`[Stealth] First 200 chars: ${markdown.substring(0, 200).replace(/\n/g, ' ')}`);
+    }
     return null;
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
