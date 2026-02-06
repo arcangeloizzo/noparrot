@@ -1128,6 +1128,9 @@ const ImmersivePostCardInner = ({
   // BUT NOT for Intent posts - show QuotedPostCard with text-first layout instead
   const useStackLayout = !isQuotedIntentPost && (isReshareWithShortComment || isReshareWithSource);
   
+  // [FIX] Detect if quoted post has media - force show QuotedPostCard for media posts
+  const quotedPostHasMedia = quotedPost?.media && quotedPost.media.length > 0;
+  
   // Deep chain source preview is now handled by useArticlePreview hook via urlToPreview
   
   // Fetch context stack for ALL reshares (show chain for any reshare)
@@ -1359,8 +1362,8 @@ const ImmersivePostCardInner = ({
               </div>
             )}
 
-            {/* Stack Layout: show context stack (reshare chain) for ALL reshares except Intent posts */}
-            {quotedPost && contextStack.length > 0 && !isQuotedIntentPost && (
+            {/* Stack Layout: show context stack (reshare chain) for ALL reshares except Intent posts and posts with media */}
+            {quotedPost && contextStack.length > 0 && !isQuotedIntentPost && !quotedPostHasMedia && (
               <ReshareContextStack stack={contextStack} />
             )}
 
@@ -1997,8 +2000,8 @@ const ImmersivePostCardInner = ({
               )
             )}
 
-            {/* Quoted Post - Only for reshares WITHOUT source (pure comment reshares) */}
-            {quotedPost && !useStackLayout && (
+            {/* Quoted Post - Show for reshares WITHOUT stack layout OR when quoted post has media */}
+            {quotedPost && (!useStackLayout || quotedPostHasMedia) && (
               <div className="mt-4">
                 {/* Detect if quoted post is an editorial (Il Punto) */}
                 {quotedPost.shared_url?.startsWith('focus://') || quotedPost.author?.username === 'ilpunto' ? (
