@@ -267,7 +267,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate }: Quo
                 }}
               >
             {quotedPost.preview_img && (
-              <div className="max-h-[20vh] w-full overflow-hidden bg-muted">
+              <div className="max-h-[18vh] w-full overflow-hidden bg-muted">
                 <img 
                   src={quotedPost.preview_img}
                   alt={quotedPost.shared_title || ''}
