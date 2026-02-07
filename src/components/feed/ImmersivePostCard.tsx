@@ -1225,12 +1225,10 @@ const ImmersivePostCardInner = ({
         {/* Content Layer - deterministic 3-zone CSS Grid layout */}
         <div className="relative z-10 w-full h-full grid grid-rows-[auto_1fr_auto] overflow-hidden">
           
-          {/* ZONE 1: Header (App Header + Author Profile) */}
+          {/* ZONE 1: Header Spacer + Author Profile */}
           <div className="pt-[env(safe-area-inset-top)] flex flex-col gap-2">
-            {/* App Header Row: Logo centered */}
-            <div className="flex items-center justify-center h-10">
-              <Logo variant="icon" size="sm" className="h-6 w-6" />
-            </div>
+            {/* Spacer for fixed app header (Logo + Notifications) - no content, just height */}
+            <div className="h-14" aria-hidden="true" />
             
             {/* Author Profile Row */}
             <div className="flex justify-between items-start">
