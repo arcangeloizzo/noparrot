@@ -1973,6 +1973,11 @@ const ImmersivePostCardInner = ({
                         hideOverlay={true}
                         platform={articlePreview?.platform}
                         hostname={getHostnameFromUrl(post.shared_url)}
+                        maxHeightClass={
+                          contentDensity === 'low' ? undefined :
+                          contentDensity === 'medium' ? "max-h-[24vh]" :
+                          "max-h-[18vh]"
+                        }
                       />
                     )}
                     
