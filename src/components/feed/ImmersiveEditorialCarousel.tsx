@@ -515,7 +515,7 @@ const EditorialSlideInner = ({
       <div className="h-full flex flex-col justify-center py-4">
         
         {/* Main Content Area - Editorial Edition Layout */}
-        <div className="flex flex-col relative overflow-hidden">
+        <div className="flex flex-col relative">
           {/* FOCUS Background Texture - Semantic element */}
           <span 
             className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10rem] sm:text-[14rem] font-black text-white pointer-events-none select-none z-0"
