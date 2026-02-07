@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useMemo, memo } from "react";
 import { perfStore } from "@/lib/perfStore";
 import { useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play } from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Bell } from "lucide-react";
 import { useDominantColors } from "@/hooks/useDominantColors";
 import { useCachedTrustScore } from "@/hooks/useCachedTrustScore";
 import { useArticlePreview } from "@/hooks/useArticlePreview";
@@ -25,6 +25,7 @@ import { it } from "date-fns/locale";
 import { CategoryChip } from "@/components/ui/category-chip";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
+import { LogoHorizontal } from "@/components/ui/LogoHorizontal";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1225,8 +1226,21 @@ const ImmersivePostCardInner = ({
         {/* Content Layer - deterministic 3-zone CSS Grid layout */}
         <div className="relative z-10 w-full h-full grid grid-rows-[auto_1fr_auto] overflow-hidden">
           
-          <div className="pt-[env(safe-area-inset-top)] flex flex-col gap-2">
-            {/* Author Profile Row */}
+          {/* ZONE 1: Header (App Header + Author Profile) - stacked vertically, no absolute positioning */}
+          <div className="pt-[env(safe-area-inset-top)] px-4 flex flex-col gap-3">
+            {/* App Header Row: Logo centered, notifications on right - INLINE, not fixed */}
+            <div className="flex items-center justify-center h-14 relative">
+              <LogoHorizontal className="h-7" />
+              {/* Notification icon on right (absolute within this row only) */}
+              <Link
+                to="/notifications"
+                className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center justify-center w-10 h-10 rounded-full hover:bg-white/10 transition-colors"
+              >
+                <Bell className="h-5 w-5 text-foreground" />
+              </Link>
+            </div>
+            
+            {/* Author Profile Row - in normal document flow, NOT overlapping header */}
             <div className="flex justify-between items-start">
               {/* Author */}
               <div 
