@@ -399,27 +399,69 @@ export const useToggleReaction = () => {
         });
       }
       
-      // Also update single post query (for /post/:id route)
+      // Also update single post query (for /post/:id route) - usa stessa logica di ['posts']
       queryClient.setQueryData(['post', postId], (old: Post | undefined) => {
         if (!old) return old;
-        const wasActive = reactionType === 'heart' 
-          ? old.user_reactions.has_hearted 
-          : old.user_reactions.has_bookmarked;
         
-        return {
-          ...old,
-          reactions: {
-            ...old.reactions,
-            hearts: reactionType === 'heart' 
-              ? old.reactions.hearts + (wasActive ? -1 : 1)
-              : old.reactions.hearts
-          },
-          user_reactions: {
-            ...old.user_reactions,
-            has_hearted: reactionType === 'heart' ? !wasActive : old.user_reactions.has_hearted,
-            has_bookmarked: reactionType === 'bookmark' ? !wasActive : old.user_reactions.has_bookmarked
+        const isBookmark = reactionType === 'bookmark';
+        const currentReaction = old.user_reactions.myReactionType;
+        const isSameReaction = currentReaction === reactionType;
+        
+        if (isBookmark) {
+          return {
+            ...old,
+            user_reactions: {
+              ...old.user_reactions,
+              has_bookmarked: !old.user_reactions.has_bookmarked
+            }
+          };
+        }
+        
+        // Calculate new byType counts
+        const newByType = { ...old.reactions.byType };
+        let newHeartsCount = old.reactions.hearts;
+        
+        if (isSameReaction) {
+          // Toggle off: remove current reaction
+          newByType[reactionType] = Math.max(0, (newByType[reactionType] || 0) - 1);
+          newHeartsCount = Math.max(0, newHeartsCount - 1);
+          
+          return {
+            ...old,
+            reactions: {
+              ...old.reactions,
+              hearts: newHeartsCount,
+              byType: newByType,
+            },
+            user_reactions: {
+              ...old.user_reactions,
+              has_hearted: false,
+              myReactionType: null
+            }
+          };
+        } else {
+          // Add or switch
+          if (currentReaction) {
+            newByType[currentReaction] = Math.max(0, (newByType[currentReaction] || 0) - 1);
+          } else {
+            newHeartsCount += 1;
           }
-        };
+          newByType[reactionType] = (newByType[reactionType] || 0) + 1;
+          
+          return {
+            ...old,
+            reactions: {
+              ...old.reactions,
+              hearts: newHeartsCount,
+              byType: newByType,
+            },
+            user_reactions: {
+              ...old.user_reactions,
+              has_hearted: true,
+              myReactionType: reactionType as 'heart' | 'laugh' | 'wow' | 'sad' | 'fire'
+            }
+          };
+        }
       });
       
       // 4. Return context for rollback
@@ -444,6 +486,8 @@ export const useToggleReaction = () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['saved-posts'] });
       queryClient.invalidateQueries({ queryKey: ['post', variables.postId] });
+      // Invalida post-reactors per sincronizzare il drawer delle reazioni
+      queryClient.invalidateQueries({ queryKey: ['post-reactors', variables.postId] });
     }
   });
 };

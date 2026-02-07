@@ -85,6 +85,11 @@ export const useLongPress = ({
       end();
     },
     onTouchMove: (e: React.TouchEvent) => {
+      // Previeni scroll quando long press è attivo
+      if (isLongPressRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
       const touch = e.touches[0];
       move(touch.clientX, touch.clientY);
     },
