@@ -339,9 +339,6 @@ const ImmersivePostCardInner = ({
   // Comments state - use initialOpenComments for auto-open from notifications
   const [showComments, setShowComments] = useState(initialOpenComments);
   
-  // Layout is deterministic via CSS Grid (header / content / footer).
-  // NOTE: previous heuristic-based systems (Content Density / ResizeObserver) are intentionally removed.
-  
   // YouTube embed state
   const [youtubeEmbedActive, setYoutubeEmbedActive] = useState(false);
   
@@ -483,12 +480,7 @@ const ImmersivePostCardInner = ({
   // Long press handlers for like button with drag-to-select
   const likeButtonHandlers = useLongPress({
     onLongPress: () => setShowReactionPicker(true),
-    onTap: () => {
-      // If user has an existing reaction, tap should toggle it off (pass same type)
-      // Otherwise, add a heart reaction
-      const existingType = post.user_reactions?.myReactionType;
-      handleHeart(undefined, existingType || 'heart');
-    },
+    onTap: () => handleHeart(undefined, 'heart'),
     onMove: (x, y) => setDragPosition({ x, y }),
     onRelease: () => setDragPosition(null),
   });
@@ -1081,8 +1073,7 @@ const ImmersivePostCardInner = ({
         setGateStep('idle');
 
         if (shareAction === 'feed') {
-          // [FIX] Aggiungi _gatePassed per evitare doppio test nel Composer
-          onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [], _gatePassed: true });
+          onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [] });
         } else if (shareAction === 'friend') {
           setShowPeoplePicker(true);
         }
@@ -1136,9 +1127,6 @@ const ImmersivePostCardInner = ({
   // BUT NOT for Intent posts - show QuotedPostCard with text-first layout instead
   const useStackLayout = !isQuotedIntentPost && (isReshareWithShortComment || isReshareWithSource);
   
-  // [FIX] Detect if quoted post has media - force show QuotedPostCard for media posts
-  const quotedPostHasMedia = quotedPost?.media && quotedPost.media.length > 0;
-  
   // Deep chain source preview is now handled by useArticlePreview hook via urlToPreview
   
   // Fetch context stack for ALL reshares (show chain for any reshare)
@@ -1150,7 +1138,7 @@ const ImmersivePostCardInner = ({
   return (
     <>
       <div 
-        className="h-[100dvh] w-full snap-start relative flex flex-col px-4 overflow-hidden"
+        className="h-[100dvh] w-full snap-start relative flex flex-col p-6 overflow-hidden"
         onClick={handleDoubleTap}
       >
         {/* Background Layer */}
@@ -1222,128 +1210,123 @@ const ImmersivePostCardInner = ({
           </div>
         )}
 
-        {/* Content Layer - deterministic 3-zone CSS Grid layout */}
-        <div className="relative z-10 w-full h-full grid grid-rows-[auto_1fr_auto] overflow-hidden">
+        {/* Content Layer */}
+        <div className="relative z-10 w-full h-full flex flex-col justify-between pt-14 pb-28 sm:pb-32">
           
-          {/* ZONE 1: Header Spacer + Author Profile */}
-          <div className="pt-[env(safe-area-inset-top)] flex flex-col gap-2">
-            {/* Spacer for fixed app header (Logo + Notifications) - no content, just height */}
-            <div className="h-14" aria-hidden="true" />
-            
-            {/* Author Profile Row */}
-            <div className="flex justify-between items-start">
-              {/* Author */}
-              <div 
-                className="flex items-center gap-3 cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigate(`/profile/${post.author.id}`);
-                }}
-              >
-                <div className="w-10 h-10 rounded-full border border-white/20 bg-white/10 overflow-hidden shadow-lg">
-                  {getAvatarContent()}
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-white font-bold text-sm drop-shadow-md">
-                    {post.author.full_name || getDisplayUsername(post.author.username)}
-                  </span>
-                  <span className="text-white/60 text-xs">{timeAgo}</span>
-                </div>
+          {/* Top Bar */}
+          <div className="flex justify-between items-start">
+            {/* Author */}
+            <div 
+              className="flex items-center gap-3 cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/profile/${post.author.id}`);
+              }}
+            >
+              <div className="w-10 h-10 rounded-full border border-white/20 bg-white/10 overflow-hidden shadow-lg">
+                {getAvatarContent()}
               </div>
-
-              {/* Right side: Badge + Menu */}
-              <div className="flex items-center gap-2">
-                {/* PULSE Badge for Spotify / Trust Score / Category */}
-                {hasLink && isSpotify && articlePreview?.popularity !== undefined ? (
-                  <PulseBadge popularity={articlePreview.popularity} size="sm" />
-                ) : hasLink && (post.is_intent || (post as any).verified_by === 'user_intent') && !post.shared_url?.startsWith('focus://') ? (
-                  <UnanalyzableBadge />
-                ) : hasLink && displayTrustScore && !post.shared_url?.startsWith('focus://') ? (
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <button 
-                        onClick={(e) => e.stopPropagation()}
-                        className={cn(
-                          "flex items-center gap-1.5 bg-black/30 border border-white/10 px-3 py-1.5 rounded-full cursor-pointer hover:bg-black/40 transition-colors shadow-xl",
-                          displayTrustScore.band === 'ALTO' && "text-emerald-400",
-                          displayTrustScore.band === 'MEDIO' && "text-amber-400",
-                          displayTrustScore.band === 'BASSO' && "text-red-400"
-                        )}
-                      >
-                        <ShieldCheck className="w-4 h-4" />
-                        <span className="text-[10px] font-bold tracking-wider uppercase">
-                          TRUST {displayTrustScore.band}
-                        </span>
-                      </button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Trust Score</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 text-sm text-muted-foreground">
-                        <p>
-                          Il Trust Score indica il livello di affidabilità delle fonti citate, 
-                          <strong className="text-foreground"> non la verità o la qualità del contenuto</strong>.
-                        </p>
-                        <p>È calcolato automaticamente e può contenere errori.</p>
-                        {displayTrustScore.reasons && displayTrustScore.reasons.length > 0 && (
-                          <div className="pt-3 border-t border-border">
-                            <p className="font-medium text-foreground mb-2">Perché questo punteggio:</p>
-                            <ul className="space-y-1.5">
-                              {displayTrustScore.reasons.map((reason: string, i: number) => (
-                                <li key={i} className="flex items-start gap-2">
-                                  <span className="text-primary mt-0.5">•</span>
-                                  <span>{reason}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-                        <p className="text-xs pt-2 border-t border-border text-muted-foreground">
-                          Valuta la qualità delle fonti e la coerenza col contenuto. Non è fact-checking.
-                        </p>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                ) : null}
-
-                {/* Menu */}
-                {isOwnPost && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <button className="p-2 rounded-full bg-black/20 hover:bg-white/10 transition-colors">
-                        <MoreHorizontal className="w-4 h-4 text-white" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
-                      <DropdownMenuItem 
-                        onClick={(e) => { 
-                          e.stopPropagation(); 
-                          deletePost.mutate(post.id, {
-                            onSuccess: () => { toast({ title: 'Post eliminato' }); onRemove?.(post.id); },
-                            onError: () => { toast({ title: 'Errore', variant: 'destructive' }); }
-                          });
-                        }}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Elimina post
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
+              <div className="flex flex-col">
+                <span className="text-white font-bold text-sm drop-shadow-md">
+                  {post.author.full_name || getDisplayUsername(post.author.username)}
+                </span>
+                <span className="text-white/60 text-xs">{timeAgo}</span>
               </div>
             </div>
+
+            {/* PULSE Badge for Spotify / Trust Score / Category - Hide Trust Score for editorial shares (shown in card) */}
+            {hasLink && isSpotify && articlePreview?.popularity !== undefined ? (
+              <PulseBadge 
+                popularity={articlePreview.popularity} 
+                size="sm" 
+              />
+            ) : hasLink && (post.is_intent || (post as any).verified_by === 'user_intent') && !post.shared_url?.startsWith('focus://') ? (
+              <UnanalyzableBadge />
+            ) : hasLink && displayTrustScore && !post.shared_url?.startsWith('focus://') ? (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <button 
+                    onClick={(e) => e.stopPropagation()}
+                    className={cn(
+                      "flex items-center gap-1.5 bg-black/30 border border-white/10 px-3 py-1.5 rounded-full cursor-pointer hover:bg-black/40 transition-colors shadow-xl",
+                      displayTrustScore.band === 'ALTO' && "text-emerald-400",
+                      displayTrustScore.band === 'MEDIO' && "text-amber-400",
+                      displayTrustScore.band === 'BASSO' && "text-red-400"
+                    )}
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    <span className="text-[10px] font-bold tracking-wider uppercase">
+                      TRUST {displayTrustScore.band}
+                    </span>
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Trust Score</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 text-sm text-muted-foreground">
+                    <p>
+                      Il Trust Score indica il livello di affidabilità delle fonti citate, 
+                      <strong className="text-foreground"> non la verità o la qualità del contenuto</strong>.
+                    </p>
+                    <p>È calcolato automaticamente e può contenere errori.</p>
+                    
+                    {displayTrustScore.reasons && displayTrustScore.reasons.length > 0 && (
+                      <div className="pt-3 border-t border-border">
+                        <p className="font-medium text-foreground mb-2">Perché questo punteggio:</p>
+                        <ul className="space-y-1.5">
+                          {displayTrustScore.reasons.map((reason: string, i: number) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <span className="text-primary mt-0.5">•</span>
+                              <span>{reason}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    
+                    <p className="text-xs pt-2 border-t border-border text-muted-foreground">
+                      Valuta la qualità delle fonti e la coerenza col contenuto. Non è fact-checking.
+                    </p>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            ) : null}
+
+            {/* Menu */}
+            {isOwnPost && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <button className="p-2 rounded-full bg-black/20 hover:bg-white/10 transition-colors">
+                    <MoreHorizontal className="w-4 h-4 text-white" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem 
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      deletePost.mutate(post.id, {
+                        onSuccess: () => { toast({ title: 'Post eliminato' }); onRemove?.(post.id); },
+                        onError: () => { toast({ title: 'Errore', variant: 'destructive' }); }
+                      });
+                    }}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Elimina post
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
 
-          {/* ZONE 2: Content (flexible, can shrink) */}
-          <div className="min-h-0 overflow-hidden flex flex-col justify-center py-4 gap-4">
+          {/* Center Content */}
+          <div className="flex-1 flex flex-col justify-center px-2 pt-2 sm:pt-2">
             
             {/* Stack Layout: User comment first - Quote Block style for Intent posts */}
             {useStackLayout && post.content && post.content !== post.shared_title && (
               <div className={cn(
-                "font-normal text-white/90 drop-shadow-md mb-3 sm:mb-4 text-base leading-snug line-clamp-5",
-                // Intent post styling
+                "text-base sm:text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-3 sm:mb-4",
                 post.is_intent && [
                   "border-l-4 border-primary/60",
                   "bg-white/5",
@@ -1375,8 +1358,8 @@ const ImmersivePostCardInner = ({
               </div>
             )}
 
-            {/* Stack Layout: show context stack (reshare chain) for ALL reshares except Intent posts and posts with media */}
-            {quotedPost && contextStack.length > 0 && !isQuotedIntentPost && !quotedPostHasMedia && (
+            {/* Stack Layout: show context stack (reshare chain) for ALL reshares except Intent posts */}
+            {quotedPost && contextStack.length > 0 && !isQuotedIntentPost && (
               <ReshareContextStack stack={contextStack} />
             )}
 
@@ -1423,13 +1406,11 @@ const ImmersivePostCardInner = ({
               )
             )}
 
-            {/* Pure Text-Only Posts - Immersive editorial-style card with Adaptive Typography */}
+            {/* Pure Text-Only Posts - Immersive editorial-style card */}
             {isTextOnly && post.content && (
               <div className="relative w-full max-w-lg mx-auto">
-                {/* Card container with glassmorphism and urban texture - Adaptive Padding */}
-                <div className={cn(
-                  "relative bg-gradient-to-br from-white/[0.08] to-white/[0.02] rounded-3xl border border-white/10 shadow-2xl overflow-hidden p-6 sm:p-8"
-                )}>
+                {/* Card container with glassmorphism and urban texture - GPU optimized */}
+                <div className="relative bg-gradient-to-br from-white/[0.08] to-white/[0.02] rounded-3xl p-6 sm:p-8 border border-white/10 shadow-2xl overflow-hidden">
                   
                   {/* Urban texture overlay - static PNG */}
                   <div className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay rounded-3xl urban-noise-overlay" />
@@ -1437,13 +1418,11 @@ const ImmersivePostCardInner = ({
                   {/* Decorative quote mark */}
                   <div className="absolute top-4 left-5 text-white/[0.06] text-[80px] font-serif leading-none pointer-events-none select-none">"</div>
                   
-                  {/* Content with Adaptive Typography based on density */}
+                  {/* Content */}
                   <div className="relative z-10">
                     {post.content.length > 400 ? (
                       <>
-                        <p className={cn(
-                          "font-normal text-white/95 whitespace-pre-wrap text-base leading-snug"
-                        )}>
+                        <p className="text-[17px] sm:text-lg font-normal text-white/95 leading-[1.65] tracking-[0.01em] whitespace-pre-wrap">
                           <MentionText content={post.content.slice(0, 400) + '...'} />
                         </p>
                         <button
@@ -1455,9 +1434,7 @@ const ImmersivePostCardInner = ({
                         </button>
                       </>
                     ) : (
-                      <p className={cn(
-                        "font-normal text-white/95 whitespace-pre-wrap text-base leading-snug"
-                      )}>
+                      <p className="text-[17px] sm:text-lg font-normal text-white/95 leading-[1.65] tracking-[0.01em] whitespace-pre-wrap">
                         <MentionText content={post.content} />
                       </p>
                     )}
@@ -1486,7 +1463,7 @@ const ImmersivePostCardInner = ({
             {/* Framed Media Window for media-only posts */}
             {isMediaOnlyPost && post.media && post.media.length > 0 && (
               post.media.length === 1 ? (
-                /* Single media: deterministic height with clamp */
+                /* Single media: comportamento esistente */
                 <button
                   role="button"
                   aria-label={isVideoMedia ? "Riproduci video" : "Apri immagine"}
@@ -1494,14 +1471,14 @@ const ImmersivePostCardInner = ({
                     e.stopPropagation();
                     setSelectedMediaIndex(0);
                   }}
-                  className="relative w-full max-w-[88%] mx-auto rounded-2xl overflow-hidden shadow-2xl border border-white/10 active:scale-[0.98] transition-transform mb-4"
+                  className="relative w-full max-w-[88%] mx-auto rounded-2xl overflow-hidden shadow-2xl border border-white/10 active:scale-[0.98] transition-transform mb-6"
                 >
                   {isVideoMedia ? (
                     <>
                       <img 
                         src={post.media?.[0]?.thumbnail_url || mediaUrl} 
                         alt="" 
-                        className="w-full h-[clamp(180px,32vh,320px)] object-cover"
+                        className="w-full h-[28vh] sm:h-[38vh] object-cover"
                       />
                       {/* Play icon overlay */}
                       <div className="absolute inset-0 flex items-center justify-center bg-black/20">
@@ -1515,7 +1492,7 @@ const ImmersivePostCardInner = ({
                       <img 
                         src={mediaUrl} 
                         alt="" 
-                        className="w-full h-[clamp(180px,36vh,360px)] object-cover"
+                        className="w-full h-[32vh] sm:h-[44vh] object-cover"
                       />
                       {/* Expand pill with label */}
                       <div className="absolute bottom-3 right-3 bg-black/80 px-3 py-1.5 rounded-full flex items-center gap-1.5">
@@ -1526,14 +1503,13 @@ const ImmersivePostCardInner = ({
                   )}
                 </button>
               ) : (
-                /* Multi-media: usa MediaGallery con carousel - Adaptive Image Height */
-                <div className="w-full max-w-[88%] mx-auto mb-4">
+                /* Multi-media: usa MediaGallery con carousel */
+                <div className="w-full max-w-[88%] mx-auto mb-6">
                   <MediaGallery
                     media={post.media}
                     onClick={(_, index) => setSelectedMediaIndex(index)}
                     initialIndex={carouselIndex}
                     onIndexChange={setCarouselIndex}
-                    imageMaxHeightClass="max-h-[clamp(180px,32vh,320px)]"
                   />
                 </div>
               )
@@ -1740,7 +1716,7 @@ const ImmersivePostCardInner = ({
                     <img 
                       src={articlePreview?.image || post.preview_img || `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url!)}/maxresdefault.jpg`}
                       alt=""
-                      className="w-full aspect-video max-h-[20vh] sm:max-h-none object-cover"
+                      className="w-full aspect-video max-h-[25vh] sm:max-h-none object-cover"
                     />
                     
                     {/* Play Button Overlay */}
@@ -1865,7 +1841,7 @@ const ImmersivePostCardInner = ({
             ) : hasLink && !isReshareWithShortComment && (
               /* ===== HARDENING 2: Fixed-height container + skeleton for link preview ===== */
               /* Intent posts hide the image, so remove min-height to keep action bar visible */
-              <div className={cn("min-h-[280px] max-h-[clamp(180px,32vh,320px)] overflow-hidden", post.is_intent && "min-h-0")}>
+              <div className={cn("min-h-[280px]", post.is_intent && "min-h-0")}>
                 {isWaitingForPreview && !post.shared_title && !post.preview_img ? (
                   /* Skeleton while loading preview data */
                   <div className="space-y-4 animate-pulse">
@@ -1901,7 +1877,6 @@ const ImmersivePostCardInner = ({
                         hideOverlay={true}
                         platform={articlePreview?.platform}
                         hostname={getHostnameFromUrl(post.shared_url)}
-                        maxHeightClass="max-h-[clamp(180px,32vh,320px)]"
                       />
                     )}
                     
@@ -1996,7 +1971,6 @@ const ImmersivePostCardInner = ({
                       trustScore={displayTrustScore}
                       platform={articlePreview?.platform}
                       hostname={getHostnameFromUrl(finalSourceUrl)}
-                      maxHeightClass="max-h-[clamp(180px,32vh,320px)]"
                     />
                   )}
                   
@@ -2022,9 +1996,9 @@ const ImmersivePostCardInner = ({
               )
             )}
 
-            {/* Quoted Post - Show for reshares WITHOUT stack layout OR when quoted post has media */}
-            {quotedPost && (!useStackLayout || quotedPostHasMedia) && (
-              <div className="rounded-xl mt-6">
+            {/* Quoted Post - Only for reshares WITHOUT source (pure comment reshares) */}
+            {quotedPost && !useStackLayout && (
+              <div className="mt-4">
                 {/* Detect if quoted post is an editorial (Il Punto) */}
                 {quotedPost.shared_url?.startsWith('focus://') || quotedPost.author?.username === 'ilpunto' ? (
                   <QuotedEditorialCard
@@ -2049,103 +2023,109 @@ const ImmersivePostCardInner = ({
 
           </div>
 
-          {/* ZONE 3: Footer (actions always visible and padded above bottom navbar) */}
-          <div className="pt-3 pb-[calc(env(safe-area-inset-bottom)+80px)]">
-              <div className="flex items-center justify-between gap-6 mr-12 sm:mr-16">
-                
-                {/* Primary Share Button - Pill shape with consistent height */}
+          {/* Flexible spacer with minimum gap for small screens */}
+          <div className="min-h-4 sm:min-h-0 flex-shrink-0" />
+
+          {/* Bottom Actions - Single horizontal axis alignment */}
+          <div className="flex items-center justify-between gap-6 mr-12 sm:mr-16">
+            
+            {/* Primary Share Button - Pill shape with consistent height */}
+            <button 
+              onClick={(e) => {
+                e.stopPropagation();
+                haptics.light();
+                handleShareClick(e);
+              }}
+              className="h-11 px-5 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-full shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+            >
+              <Logo variant="icon" size="sm" className="h-5 w-5" />
+              <span className="text-sm font-semibold leading-none">Condividi</span>
+              {(post.shares_count ?? 0) > 0 && (
+                <span className="text-xs opacity-70">({post.shares_count})</span>
+              )}
+            </button>
+
+            {/* Action Icons - Uniform w-6 h-6, aligned on same axis */}
+            <div 
+              className="flex items-center gap-4 h-11 action-bar-zone"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
+            >
+              
+              {/* Like with long press for reaction picker */}
+              <div className="relative flex items-center justify-center gap-1.5 h-full">
                 <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    haptics.light();
-                    handleShareClick(e);
-                  }}
-                  className="h-11 px-5 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-full shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                  ref={likeButtonRef}
+                  className="flex items-center justify-center h-full select-none"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                  {...likeButtonHandlers}
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <Logo variant="icon" size="sm" className="h-5 w-5" />
-                  <span className="text-sm font-semibold leading-none">Condividi</span>
-                  {(post.shares_count ?? 0) > 0 && (
-                    <span className="text-xs opacity-70">({post.shares_count})</span>
+                  {/* Dynamic icon: show emoji if non-heart reaction, otherwise Heart icon */}
+                  {post.user_reactions?.myReactionType && post.user_reactions.myReactionType !== 'heart' ? (
+                    <span className="text-xl transition-transform active:scale-90">
+                      {reactionToEmoji(post.user_reactions.myReactionType)}
+                    </span>
+                  ) : (
+                    <Heart 
+                      className={cn(
+                        "w-6 h-6 transition-transform active:scale-90",
+                        post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white"
+                      )}
+                      fill={post.user_reactions?.has_hearted ? "currentColor" : "none"}
+                    />
                   )}
                 </button>
-
-                {/* Action Icons */}
-                <div 
-                  className="flex items-center gap-4 h-11 action-bar-zone"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                {/* Count - clickable to open reactions drawer, select-none prevents text selection on long-press */}
+                <button
+                  className="text-sm font-bold text-white hover:text-white/80 transition-colors select-none ml-1.5"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if ((post.reactions?.hearts || 0) > 0) {
+                      setShowReactionsSheet(true);
+                    }
+                  }}
                 >
-                  {/* Like with long press for reaction picker */}
-                  <div className="relative flex items-center justify-center gap-1.5 h-full">
-                    <button 
-                      ref={likeButtonRef}
-                      className="flex items-center justify-center h-full select-none"
-                      style={{ WebkitTapHighlightColor: 'transparent' }}
-                      {...likeButtonHandlers}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {post.user_reactions?.myReactionType && post.user_reactions.myReactionType !== 'heart' ? (
-                        <span className="text-xl transition-transform active:scale-90">
-                          {reactionToEmoji(post.user_reactions.myReactionType)}
-                        </span>
-                      ) : (
-                        <Heart 
-                          className={cn(
-                            "w-6 h-6 transition-transform active:scale-90",
-                            post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white"
-                          )}
-                          fill={post.user_reactions?.has_hearted ? "currentColor" : "none"}
-                        />
-                      )}
-                    </button>
-                    <button
-                      className="text-sm font-bold text-white hover:text-white/80 transition-colors select-none ml-1.5"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if ((post.reactions?.hearts || 0) > 0) {
-                          setShowReactionsSheet(true);
-                        }
-                      }}
-                    >
-                      {post.reactions?.hearts || 0}
-                    </button>
-                    
-                    <ReactionPicker
-                      isOpen={showReactionPicker}
-                      onClose={() => setShowReactionPicker(false)}
-                      onSelect={(type) => {
-                        handleHeart(undefined, type);
-                        setShowReactionPicker(false);
-                      }}
-                      triggerRef={likeButtonRef}
-                      dragPosition={dragPosition}
-                      onDragRelease={() => setDragPosition(null)}
-                    />
-                  </div>
-
-                  {/* Comments */}
-                  <button 
-                    className="flex items-center justify-center gap-1.5 h-full select-none"
-                    onClick={(e) => { e.stopPropagation(); haptics.light(); setShowComments(true); }}
-                  >
-                    <MessageCircle className="w-6 h-6 text-white transition-transform active:scale-90" />
-                    <span className="text-sm font-bold text-white select-none">{post.reactions?.comments || 0}</span>
-                  </button>
-
-                  {/* Bookmark */}
-                  <button 
-                    className="flex items-center justify-center h-full"
-                    onClick={handleBookmark}
-                  >
-                    <Bookmark 
-                      className={cn("w-6 h-6 transition-transform active:scale-90", post.user_reactions.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
-                      fill={post.user_reactions.has_bookmarked ? "currentColor" : "none"}
-                    />
-                  </button>
-                </div>
+                  {post.reactions?.hearts || 0}
+                </button>
+                
+                <ReactionPicker
+                  isOpen={showReactionPicker}
+                  onClose={() => setShowReactionPicker(false)}
+                  onSelect={(type) => {
+                    handleHeart(undefined, type);
+                    setShowReactionPicker(false);
+                  }}
+                  triggerRef={likeButtonRef}
+                  dragPosition={dragPosition}
+                  onDragRelease={() => setDragPosition(null)}
+                />
               </div>
+
+              {/* Comments - select-none prevents text selection on long-press */}
+              <button 
+                className="flex items-center justify-center gap-1.5 h-full select-none"
+                onClick={(e) => { e.stopPropagation(); haptics.light(); setShowComments(true); }}
+              >
+                <MessageCircle className="w-6 h-6 text-white transition-transform active:scale-90" />
+                <span className="text-sm font-bold text-white select-none">{post.reactions?.comments || 0}</span>
+              </button>
+
+              {/* Bookmark */}
+              <button 
+                className="flex items-center justify-center h-full"
+                onClick={handleBookmark}
+              >
+                <Bookmark 
+                  className={cn("w-6 h-6 transition-transform active:scale-90", post.user_reactions.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
+                  fill={post.user_reactions.has_bookmarked ? "currentColor" : "none"}
+                />
+              </button>
+
             </div>
           </div>
+
         </div>
+      </div>
 
       {/* Reader Modal */}
       {showReader && readerSource && (

@@ -646,11 +646,9 @@ export const FeedCard = ({
 
         // Esegui l'azione scelta dall'utente
         if (shareAction === 'feed') {
-          // [FIX] Aggiungi _gatePassed per evitare doppio test nel Composer
           onQuoteShare?.({
             ...post,
-            _originalSources: Array.isArray(post.sources) ? post.sources : [],
-            _gatePassed: true
+            _originalSources: Array.isArray(post.sources) ? post.sources : []
           });
         } else if (shareAction === 'friend') {
           setShowPeoplePicker(true);

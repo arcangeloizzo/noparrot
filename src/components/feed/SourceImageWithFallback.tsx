@@ -20,8 +20,6 @@ interface SourceImageWithFallbackProps {
   platform?: 'spotify' | 'youtube' | 'twitter' | 'linkedin' | 'tiktok' | 'threads' | string;
   /** Hostname for fallback display */
   hostname?: string;
-  /** Max height class for density-based sizing (e.g., "max-h-[18vh]") */
-  maxHeightClass?: string;
 }
 
 // Platform-specific gradient colors
@@ -86,7 +84,6 @@ export function SourceImageWithFallback({
   hideOverlay = false,
   platform,
   hostname,
-  maxHeightClass,
 }: SourceImageWithFallbackProps) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
@@ -135,10 +132,7 @@ export function SourceImageWithFallback({
     const gradientClass = platformGradients[detectedPlatform] || platformGradients.default;
     
     return (
-      <div className={cn(
-        "relative mb-2 sm:mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-xl aspect-[1.91/1]",
-        maxHeightClass || "max-h-[22vh] sm:max-h-none"
-      )}>
+      <div className="relative mb-2 sm:mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-xl aspect-[1.91/1] max-h-[20vh] sm:max-h-none">
         {/* Gradient Background */}
         <div className={cn(
           "absolute inset-0 bg-gradient-to-br",
@@ -173,10 +167,7 @@ export function SourceImageWithFallback({
   }
 
   return (
-    <div className={cn(
-      "relative mb-2 sm:mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-xl",
-      maxHeightClass || "h-32 sm:h-48"
-    )}>
+    <div className="relative mb-2 sm:mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-xl h-32 sm:h-48">
       {/* Skeleton overlay while loading */}
       {!loaded && (
         <Skeleton className="absolute inset-0 bg-white/5" />

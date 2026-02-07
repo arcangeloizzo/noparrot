@@ -65,25 +65,6 @@ export const ImmersiveFocusCard = ({
   // Suppress card click for a brief moment after dialog closes
   const suppressUntilRef = React.useRef(0);
   
-  // Content Density Score: PREDICTIVE system that calculates density BEFORE render
-  const contentZoneRef = React.useRef<HTMLDivElement>(null);
-  
-  const contentDensity = React.useMemo((): 'low' | 'medium' | 'high' => {
-    let score = 0;
-    
-    if (title.length > 100) score += 2;
-    else if (title.length > 50) score += 1;
-    
-    if (summary.length > 300) score += 2;
-    else if (summary.length > 150) score += 1;
-    
-    if (sources.length > 3) score += 1;
-    
-    if (score <= 2) return 'low';
-    if (score <= 4) return 'medium';
-    return 'high';
-  }, [title, summary, sources]);
-  
   const handleDialogChange = (open: boolean) => {
     if (!open) {
       // When dialog closes, suppress card clicks for 400ms
@@ -101,7 +82,7 @@ export const ImmersiveFocusCard = ({
 
   return (
     <div 
-      className="h-[100dvh] w-full snap-start relative flex flex-col px-4 overflow-hidden cursor-pointer"
+      className="h-[100dvh] w-full snap-start relative flex flex-col p-6 overflow-hidden cursor-pointer"
       onClick={handleCardClick}
     >
       
@@ -119,11 +100,11 @@ export const ImmersiveFocusCard = ({
         <div className="absolute inset-0 bg-gradient-to-b from-[#1F3347] to-[#0E141A] z-0" />
       )}
 
-      {/* Content Layer - 3-Zone Uniform Layout */}
-      <div className="relative z-10 w-full h-full flex flex-col pt-[calc(env(safe-area-inset-top)+3.5rem)] pb-[calc(env(safe-area-inset-bottom)+5rem)]">
+      {/* Content Layer */}
+      <div className="relative z-10 w-full h-full flex flex-col justify-between pt-14 pb-24">
         
-        {/* Top Bar - Header Zone (flex-shrink-0: never compress, z-20 for layering) */}
-        <div className="relative z-20 flex flex-col gap-2 flex-shrink-0">
+        {/* Top Bar */}
+        <div className="flex flex-col gap-2">
           {/* Row 1: Badge tipo + Trust Score (stessa altezza h-8) */}
           <div className="flex justify-between items-center">
             {/* Badge Tipo - compatto su 1 riga */}
@@ -231,32 +212,13 @@ export const ImmersiveFocusCard = ({
           </div>
         </div>
 
-        {/* Center Content - Content Zone: predictive density-based layout */}
-        <div ref={contentZoneRef} className={cn(
-          "relative z-10 flex-1 flex flex-col px-2 min-h-0 overflow-hidden",
-          // Centraggio solo se densità bassa/media
-          contentDensity === 'low' && "justify-center gap-4 py-6",
-          contentDensity === 'medium' && "justify-center gap-3 py-4",
-          contentDensity === 'high' && "justify-start gap-2 py-3"
-        )}>
+        {/* Center Content */}
+        <div className="flex-1 flex flex-col justify-center px-2">
           <Quote className="text-white/20 w-12 h-12 rotate-180 mb-4" />
-          
-          {/* Adaptive Title */}
-          <h1 className={cn(
-            "font-bold text-white leading-tight mb-4 drop-shadow-xl",
-            contentDensity !== 'high' && "text-3xl",
-            contentDensity === 'high' && "text-2xl"
-          )}>
+          <h1 className="text-3xl font-bold text-white leading-tight mb-4 drop-shadow-xl">
             {title}
           </h1>
-          
-          {/* Adaptive Summary */}
-          <p className={cn(
-            "text-white/80 mb-6",
-            contentDensity === 'low' && "text-lg leading-relaxed line-clamp-8",
-            contentDensity === 'medium' && "text-base leading-relaxed line-clamp-5",
-            contentDensity === 'high' && "text-sm leading-snug line-clamp-3"
-          )}>
+          <p className="text-lg text-white/80 leading-relaxed line-clamp-4 mb-6">
             {summary.replace(/\[SOURCE:[\d,\s]+\]/g, '')}
           </p>
           
@@ -280,10 +242,8 @@ export const ImmersiveFocusCard = ({
           })()}
         </div>
 
-        {/* Bottom Actions - Action Zone (flex-shrink-0: never compress, z-20 for layering) */}
-        {/* Background protection gradient */}
-        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background/90 to-transparent pointer-events-none z-10" />
-        <div className="relative z-20 flex items-center justify-between gap-3 flex-shrink-0">
+        {/* Bottom Actions - Aligned heights h-10 */}
+        <div className="flex items-center justify-between gap-3">
           
           {/* Primary Share Button - h-10 px-4 */}
           <button 

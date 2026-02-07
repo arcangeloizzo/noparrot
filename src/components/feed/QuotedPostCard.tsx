@@ -1,10 +1,9 @@
 import { memo, useState } from "react";
 import { ExternalLink } from "lucide-react";
-import { getDisplayUsername } from "@/lib/utils";
+import { cn, getDisplayUsername } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { normalizeUrl } from "@/lib/url";
-import { MediaGallery } from "@/components/media/MediaGallery";
 import { FullTextModal } from "./FullTextModal";
 
 interface QuotedPost {
@@ -44,35 +43,6 @@ const getHostnameFromUrl = (url: string | undefined): string => {
   } catch {
     return 'Fonte';
   }
-};
-
-// Media in quoted posts should be compact to save space.
-// We reuse the main MediaGallery carousel but with height constraints.
-const QuotedMediaCarousel = ({
-  media,
-  variant,
-}: {
-  media?: QuotedPost["media"];
-  variant: "intent" | "standard";
-}) => {
-  if (!media || media.length === 0) return null;
-
-  // Ensure compatibility with MediaGallery prop types (thumbnail_url: string | undefined)
-  const normalizedMedia = media.map((m) => ({
-    ...m,
-    thumbnail_url: m.thumbnail_url ?? undefined,
-  }));
-
-  return (
-    <div className={variant === "standard" ? "mt-2" : "mt-2"}>
-      {/* Constrain media height in quoted posts to max 18vh */}
-      <MediaGallery 
-        media={normalizedMedia} 
-        onClick={() => {}} 
-        imageMaxHeightClass="max-h-[18vh]"
-      />
-    </div>
-  );
 };
 
 const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate }: QuotedPostCardProps) => {
@@ -203,8 +173,53 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate }: Quo
               </div>
             )}
 
-            {/* Media Carousel - Full-width like original post */}
-            <QuotedMediaCarousel media={quotedPost.media} variant="intent" />
+            {/* Media Gallery (Intent layout) */}
+            {quotedPost.media && quotedPost.media.length > 0 && (
+              <div className="mt-2 rounded-lg overflow-hidden">
+                {quotedPost.media.length === 1 ? (
+                  quotedPost.media[0].type === 'video' ? (
+                    <video 
+                      src={quotedPost.media[0].url}
+                      poster={quotedPost.media[0].thumbnail_url || undefined}
+                      className="w-full max-h-32 object-cover rounded-lg"
+                    />
+                  ) : (
+                    <img 
+                      src={quotedPost.media[0].url}
+                      alt=""
+                      className="w-full max-h-32 object-cover rounded-lg"
+                    />
+                  )
+                ) : (
+                  <div className="grid grid-cols-2 gap-1">
+                    {quotedPost.media.slice(0, 4).map((m, idx) => (
+                      <div key={m.id} className="relative aspect-square rounded-lg overflow-hidden bg-white/10">
+                        {m.type === 'video' ? (
+                          <video 
+                            src={m.url}
+                            poster={m.thumbnail_url || undefined}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <img 
+                            src={m.url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                        {idx === 3 && quotedPost.media!.length > 4 && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <span className="text-white font-bold text-sm">
+                              +{quotedPost.media!.length - 4}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         {fullTextModal}
@@ -270,15 +285,15 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate }: Quo
                   window.open(quotedPost.shared_url!, '_blank', 'noopener,noreferrer');
                 }}
               >
-            {quotedPost.preview_img && (
-              <div className="max-h-[18vh] w-full overflow-hidden bg-muted">
-                <img 
-                  src={quotedPost.preview_img}
-                  alt={quotedPost.shared_title || ''}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            )}
+                {quotedPost.preview_img && (
+                  <div className="aspect-video w-full overflow-hidden bg-muted">
+                    <img 
+                      src={quotedPost.preview_img}
+                      alt={quotedPost.shared_title || ''}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
                 <div className="p-2">
                   <div className="flex items-center gap-1 text-xs text-muted-foreground mb-0.5">
                     <span>{getHostnameFromUrl(quotedPost.shared_url)}</span>
@@ -291,8 +306,53 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate }: Quo
               </div>
             )}
 
-            {/* Media Carousel - Full-width like original post */}
-            <QuotedMediaCarousel media={quotedPost.media} variant="standard" />
+            {/* Media Gallery (Standard layout) */}
+            {quotedPost.media && quotedPost.media.length > 0 && (
+              <div className="mt-2 rounded-lg overflow-hidden">
+                {quotedPost.media.length === 1 ? (
+                  quotedPost.media[0].type === 'video' ? (
+                    <video 
+                      src={quotedPost.media[0].url}
+                      poster={quotedPost.media[0].thumbnail_url || undefined}
+                      className="w-full max-h-32 object-cover rounded-lg"
+                    />
+                  ) : (
+                    <img 
+                      src={quotedPost.media[0].url}
+                      alt=""
+                      className="w-full max-h-32 object-cover rounded-lg"
+                    />
+                  )
+                ) : (
+                  <div className="grid grid-cols-2 gap-1">
+                    {quotedPost.media.slice(0, 4).map((m, idx) => (
+                      <div key={m.id} className="relative aspect-square rounded-lg overflow-hidden bg-muted">
+                        {m.type === 'video' ? (
+                          <video 
+                            src={m.url}
+                            poster={m.thumbnail_url || undefined}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <img 
+                            src={m.url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        )}
+                        {idx === 3 && quotedPost.media!.length > 4 && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <span className="text-white font-bold text-sm">
+                              +{quotedPost.media!.length - 4}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -78,8 +78,6 @@ export interface Post {
   }>;
   shares_count?: number;
   is_intent?: boolean;
-  /** Flag interno - gate superato nel feed prima di aprire il composer */
-  _gatePassed?: boolean;
 }
 
 export const usePosts = () => {
@@ -585,18 +583,6 @@ export const useQuotedPost = (quotedPostId: string | null) => {
             username,
             full_name,
             avatar_url
-          ),
-          post_media!post_media_post_id_fkey (
-            order_idx,
-            media:media_id (
-              id,
-              url,
-              type,
-              mime,
-              width,
-              height,
-              thumbnail_url
-            )
           )
         `)
         .eq('id', quotedPostId)
@@ -606,15 +592,7 @@ export const useQuotedPost = (quotedPostId: string | null) => {
         console.error('Error fetching quoted post:', error);
         return null;
       }
-      
-      // Transform post_media to flat media array
-      return {
-        ...data,
-        media: (data.post_media || [])
-          .sort((a: any, b: any) => a.order_idx - b.order_idx)
-          .map((pm: any) => pm.media)
-          .filter(Boolean)
-      };
+      return data;
     },
     enabled: !!quotedPostId
   });

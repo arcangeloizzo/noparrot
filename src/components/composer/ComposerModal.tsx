@@ -241,11 +241,6 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   // Gate status indicator (real-time feedback)
   // Character-based gate applies ONLY to reshares (quotedPost), not free text
   const gateStatus = (() => {
-    // [FIX] BYPASS: Se il gate è già stato passato nel feed, skip
-    if ((quotedPost as any)?._gatePassed) {
-      return { label: 'Gate già superato', requiresGate: false };
-    }
-    
     // Gate attivo se c'è un URL
     if (detectedUrl) {
       return { label: 'Gate attivo', requiresGate: true };
@@ -470,14 +465,6 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const handlePublish = async () => {
     // Allow publish if user has text, media, a detected URL, or a quoted post (reshare)
     if (!user || (!content.trim() && !detectedUrl && uploadedMedia.length === 0 && !quotedPost)) return;
-    
-    // [FIX] Se gate già passato nel feed, pubblica direttamente senza secondo test
-    if (quotedPost && (quotedPost as any)._gatePassed) {
-      console.log('[Composer] Gate already passed in feed, publishing directly');
-      addBreadcrumb('reshare_gate_bypassed', { gatePassed: true });
-      await publishPost();
-      return;
-    }
     
     addBreadcrumb('publish_attempt', { hasUrl: !!detectedUrl, hasMediaOCR: !!mediaWithExtractedText, isIOS });
     

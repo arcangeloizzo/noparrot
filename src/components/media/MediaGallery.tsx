@@ -16,11 +16,9 @@ interface MediaGalleryProps {
   onClick?: (media: Media, index: number) => void;
   initialIndex?: number;
   onIndexChange?: (index: number) => void;
-  /** Optional max-height class for images (e.g., "max-h-[25vh]") - only applied when overflow is detected */
-  imageMaxHeightClass?: string;
 }
 
-export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, imageMaxHeightClass }: MediaGalleryProps) => {
+export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange }: MediaGalleryProps) => {
   if (!media || media.length === 0) return null;
 
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -86,10 +84,7 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
             <img
               src={item.url}
               alt=""
-              className={cn(
-                "w-full aspect-auto object-contain bg-black/40",
-                imageMaxHeightClass
-              )}
+              className="w-full aspect-auto object-contain bg-black/40"
               loading="lazy"
             />
           ) : (
@@ -144,10 +139,7 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
               <img
                 src={item.url}
                 alt=""
-                className={cn(
-                  "w-full aspect-auto object-contain bg-black/40",
-                  imageMaxHeightClass
-                )}
+                className="w-full aspect-auto object-contain bg-black/40"
                 loading={idx <= 1 ? 'eager' : 'lazy'}
               />
             ) : (
