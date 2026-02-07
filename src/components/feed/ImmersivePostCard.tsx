@@ -1371,12 +1371,15 @@ const ImmersivePostCardInner = ({
           </div>
 
           {/* Center Content - Content Zone: predictive density-based layout */}
+          {/* CRITICAL: pt-20 protects content from absolute-positioned header on high density */}
           <div ref={contentZoneRef} className={cn(
-            "relative z-10 flex-1 flex flex-col px-2 min-h-0 overflow-hidden",
-            // Centraggio solo se densità bassa/media
+            "relative z-10 flex-1 flex flex-col px-3 min-h-0 overflow-hidden",
+            // Low density: centered, spacious
             contentDensity === 'low' && "justify-center gap-4 py-6",
+            // Medium density: centered, tighter
             contentDensity === 'medium' && "justify-center gap-3 py-4",
-            contentDensity === 'high' && "justify-start gap-2 py-3"
+            // High density: top-anchored with header protection padding
+            contentDensity === 'high' && "justify-start gap-2 pt-20 pb-4"
           )}>
             
             {/* Stack Layout: User comment first - Quote Block style for Intent posts - Adaptive Typography */}
@@ -1535,10 +1538,10 @@ const ImmersivePostCardInner = ({
               </div>
             )}
 
-            {/* Framed Media Window for media-only posts */}
+            {/* Framed Media Window for media-only posts - Adaptive sizing based on density */}
             {isMediaOnlyPost && post.media && post.media.length > 0 && (
               post.media.length === 1 ? (
-                /* Single media: comportamento esistente */
+                /* Single media: adaptive height based on density */
                 <button
                   role="button"
                   aria-label={isVideoMedia ? "Riproduci video" : "Apri immagine"}
@@ -1546,14 +1549,22 @@ const ImmersivePostCardInner = ({
                     e.stopPropagation();
                     setSelectedMediaIndex(0);
                   }}
-                  className="relative w-full max-w-[88%] mx-auto rounded-2xl overflow-hidden shadow-2xl border border-white/10 active:scale-[0.98] transition-transform mb-6"
+                  className={cn(
+                    "relative w-full max-w-[88%] mx-auto rounded-2xl overflow-hidden shadow-2xl border border-white/10 active:scale-[0.98] transition-transform mb-4",
+                    contentDensity === 'high' && "max-h-[25vh]"
+                  )}
                 >
                   {isVideoMedia ? (
                     <>
                       <img 
                         src={post.media?.[0]?.thumbnail_url || mediaUrl} 
                         alt="" 
-                        className="w-full h-[28vh] sm:h-[38vh] object-cover"
+                        className={cn(
+                          "w-full object-cover",
+                          contentDensity === 'low' && "h-[28vh] sm:h-[38vh]",
+                          contentDensity === 'medium' && "h-[24vh] sm:h-[32vh]",
+                          contentDensity === 'high' && "h-[18vh] sm:h-[22vh]"
+                        )}
                       />
                       {/* Play icon overlay */}
                       <div className="absolute inset-0 flex items-center justify-center bg-black/20">
@@ -1567,7 +1578,12 @@ const ImmersivePostCardInner = ({
                       <img 
                         src={mediaUrl} 
                         alt="" 
-                        className="w-full h-[32vh] sm:h-[44vh] object-cover"
+                        className={cn(
+                          "w-full object-cover",
+                          contentDensity === 'low' && "h-[32vh] sm:h-[44vh]",
+                          contentDensity === 'medium' && "h-[26vh] sm:h-[34vh]",
+                          contentDensity === 'high' && "h-[18vh] sm:h-[22vh]"
+                        )}
                       />
                       {/* Expand pill with label */}
                       <div className="absolute bottom-3 right-3 bg-black/80 px-3 py-1.5 rounded-full flex items-center gap-1.5">
@@ -1579,7 +1595,7 @@ const ImmersivePostCardInner = ({
                 </button>
               ) : (
                 /* Multi-media: usa MediaGallery con carousel - Adaptive Image Height */
-                <div className="w-full max-w-[88%] mx-auto mb-6">
+                <div className="w-full max-w-[88%] mx-auto mb-4">
                   <MediaGallery
                     media={post.media}
                     onClick={(_, index) => setSelectedMediaIndex(index)}
@@ -1587,7 +1603,7 @@ const ImmersivePostCardInner = ({
                     onIndexChange={setCarouselIndex}
                     imageMaxHeightClass={
                       contentDensity === 'low' ? undefined :
-                      contentDensity === 'medium' ? "max-h-[28vh]" :
+                      contentDensity === 'medium' ? "max-h-[26vh]" :
                       "max-h-[18vh]"
                     }
                   />
@@ -1957,6 +1973,11 @@ const ImmersivePostCardInner = ({
                         hideOverlay={true}
                         platform={articlePreview?.platform}
                         hostname={getHostnameFromUrl(post.shared_url)}
+                        maxHeightClass={
+                          contentDensity === 'low' ? undefined :
+                          contentDensity === 'medium' ? "max-h-[24vh]" :
+                          "max-h-[18vh]"
+                        }
                       />
                     )}
                     
@@ -2051,6 +2072,11 @@ const ImmersivePostCardInner = ({
                       trustScore={displayTrustScore}
                       platform={articlePreview?.platform}
                       hostname={getHostnameFromUrl(finalSourceUrl)}
+                      maxHeightClass={
+                        contentDensity === 'low' ? undefined :
+                        contentDensity === 'medium' ? "max-h-[24vh]" :
+                        "max-h-[18vh]"
+                      }
                     />
                   )}
                   
