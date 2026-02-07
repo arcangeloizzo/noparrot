@@ -1222,119 +1222,124 @@ const ImmersivePostCardInner = ({
           </div>
         )}
 
-        {/* Content Layer - deterministic 3-zone layout (Header / Content / Footer) */}
-        <div className="relative z-10 w-full h-full">
-          <div className="h-full w-full grid grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden">
-            {/* Header row */}
-            <div className="pt-[calc(env(safe-area-inset-top)+0.75rem)] flex justify-between items-start">
-            {/* Author */}
-            <div 
-              className="flex items-center gap-3 cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/profile/${post.author.id}`);
-              }}
-            >
-              <div className="w-10 h-10 rounded-full border border-white/20 bg-white/10 overflow-hidden shadow-lg">
-                {getAvatarContent()}
+        {/* Content Layer - deterministic 3-zone CSS Grid layout */}
+        <div className="relative z-10 w-full h-full grid grid-rows-[auto_1fr_auto] overflow-hidden">
+          
+          {/* ZONE 1: Header (App Header + Author Profile) */}
+          <div className="pt-[env(safe-area-inset-top)] flex flex-col gap-2">
+            {/* App Header Row: Logo centered */}
+            <div className="flex items-center justify-center h-10">
+              <Logo variant="icon" size="sm" className="h-6 w-6" />
+            </div>
+            
+            {/* Author Profile Row */}
+            <div className="flex justify-between items-start">
+              {/* Author */}
+              <div 
+                className="flex items-center gap-3 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/profile/${post.author.id}`);
+                }}
+              >
+                <div className="w-10 h-10 rounded-full border border-white/20 bg-white/10 overflow-hidden shadow-lg">
+                  {getAvatarContent()}
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-white font-bold text-sm drop-shadow-md">
+                    {post.author.full_name || getDisplayUsername(post.author.username)}
+                  </span>
+                  <span className="text-white/60 text-xs">{timeAgo}</span>
+                </div>
               </div>
-              <div className="flex flex-col">
-                <span className="text-white font-bold text-sm drop-shadow-md">
-                  {post.author.full_name || getDisplayUsername(post.author.username)}
-                </span>
-                <span className="text-white/60 text-xs">{timeAgo}</span>
+
+              {/* Right side: Badge + Menu */}
+              <div className="flex items-center gap-2">
+                {/* PULSE Badge for Spotify / Trust Score / Category */}
+                {hasLink && isSpotify && articlePreview?.popularity !== undefined ? (
+                  <PulseBadge popularity={articlePreview.popularity} size="sm" />
+                ) : hasLink && (post.is_intent || (post as any).verified_by === 'user_intent') && !post.shared_url?.startsWith('focus://') ? (
+                  <UnanalyzableBadge />
+                ) : hasLink && displayTrustScore && !post.shared_url?.startsWith('focus://') ? (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <button 
+                        onClick={(e) => e.stopPropagation()}
+                        className={cn(
+                          "flex items-center gap-1.5 bg-black/30 border border-white/10 px-3 py-1.5 rounded-full cursor-pointer hover:bg-black/40 transition-colors shadow-xl",
+                          displayTrustScore.band === 'ALTO' && "text-emerald-400",
+                          displayTrustScore.band === 'MEDIO' && "text-amber-400",
+                          displayTrustScore.band === 'BASSO' && "text-red-400"
+                        )}
+                      >
+                        <ShieldCheck className="w-4 h-4" />
+                        <span className="text-[10px] font-bold tracking-wider uppercase">
+                          TRUST {displayTrustScore.band}
+                        </span>
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Trust Score</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 text-sm text-muted-foreground">
+                        <p>
+                          Il Trust Score indica il livello di affidabilità delle fonti citate, 
+                          <strong className="text-foreground"> non la verità o la qualità del contenuto</strong>.
+                        </p>
+                        <p>È calcolato automaticamente e può contenere errori.</p>
+                        {displayTrustScore.reasons && displayTrustScore.reasons.length > 0 && (
+                          <div className="pt-3 border-t border-border">
+                            <p className="font-medium text-foreground mb-2">Perché questo punteggio:</p>
+                            <ul className="space-y-1.5">
+                              {displayTrustScore.reasons.map((reason: string, i: number) => (
+                                <li key={i} className="flex items-start gap-2">
+                                  <span className="text-primary mt-0.5">•</span>
+                                  <span>{reason}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        <p className="text-xs pt-2 border-t border-border text-muted-foreground">
+                          Valuta la qualità delle fonti e la coerenza col contenuto. Non è fact-checking.
+                        </p>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                ) : null}
+
+                {/* Menu */}
+                {isOwnPost && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <button className="p-2 rounded-full bg-black/20 hover:bg-white/10 transition-colors">
+                        <MoreHorizontal className="w-4 h-4 text-white" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48">
+                      <DropdownMenuItem 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          deletePost.mutate(post.id, {
+                            onSuccess: () => { toast({ title: 'Post eliminato' }); onRemove?.(post.id); },
+                            onError: () => { toast({ title: 'Errore', variant: 'destructive' }); }
+                          });
+                        }}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Elimina post
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
             </div>
-
-            {/* PULSE Badge for Spotify / Trust Score / Category - Hide Trust Score for editorial shares (shown in card) */}
-            {hasLink && isSpotify && articlePreview?.popularity !== undefined ? (
-              <PulseBadge 
-                popularity={articlePreview.popularity} 
-                size="sm" 
-              />
-            ) : hasLink && (post.is_intent || (post as any).verified_by === 'user_intent') && !post.shared_url?.startsWith('focus://') ? (
-              <UnanalyzableBadge />
-            ) : hasLink && displayTrustScore && !post.shared_url?.startsWith('focus://') ? (
-              <Dialog>
-                <DialogTrigger asChild>
-                  <button 
-                    onClick={(e) => e.stopPropagation()}
-                    className={cn(
-                      "flex items-center gap-1.5 bg-black/30 border border-white/10 px-3 py-1.5 rounded-full cursor-pointer hover:bg-black/40 transition-colors shadow-xl",
-                      displayTrustScore.band === 'ALTO' && "text-emerald-400",
-                      displayTrustScore.band === 'MEDIO' && "text-amber-400",
-                      displayTrustScore.band === 'BASSO' && "text-red-400"
-                    )}
-                  >
-                    <ShieldCheck className="w-4 h-4" />
-                    <span className="text-[10px] font-bold tracking-wider uppercase">
-                      TRUST {displayTrustScore.band}
-                    </span>
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Trust Score</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 text-sm text-muted-foreground">
-                    <p>
-                      Il Trust Score indica il livello di affidabilità delle fonti citate, 
-                      <strong className="text-foreground"> non la verità o la qualità del contenuto</strong>.
-                    </p>
-                    <p>È calcolato automaticamente e può contenere errori.</p>
-                    
-                    {displayTrustScore.reasons && displayTrustScore.reasons.length > 0 && (
-                      <div className="pt-3 border-t border-border">
-                        <p className="font-medium text-foreground mb-2">Perché questo punteggio:</p>
-                        <ul className="space-y-1.5">
-                          {displayTrustScore.reasons.map((reason: string, i: number) => (
-                            <li key={i} className="flex items-start gap-2">
-                              <span className="text-primary mt-0.5">•</span>
-                              <span>{reason}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                    
-                    <p className="text-xs pt-2 border-t border-border text-muted-foreground">
-                      Valuta la qualità delle fonti e la coerenza col contenuto. Non è fact-checking.
-                    </p>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            ) : null}
-
-            {/* Menu */}
-            {isOwnPost && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <button className="p-2 rounded-full bg-black/20 hover:bg-white/10 transition-colors">
-                    <MoreHorizontal className="w-4 h-4 text-white" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem 
-                    onClick={(e) => { 
-                      e.stopPropagation(); 
-                      deletePost.mutate(post.id, {
-                        onSuccess: () => { toast({ title: 'Post eliminato' }); onRemove?.(post.id); },
-                        onError: () => { toast({ title: 'Errore', variant: 'destructive' }); }
-                      });
-                    }}
-                    className="text-destructive focus:text-destructive"
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Elimina post
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
           </div>
 
-            {/* Content row */}
-            <div className="min-h-0 overflow-hidden">
-              <div className="min-h-0 overflow-hidden flex flex-col gap-4 py-4">
+          {/* ZONE 2: Content (flexible, can shrink) */}
+          <div className="min-h-0 overflow-hidden flex flex-col justify-center py-4 gap-4">
             
             {/* Stack Layout: User comment first - Quote Block style for Intent posts */}
             {useStackLayout && post.content && post.content !== post.shared_title && (
@@ -2044,11 +2049,10 @@ const ImmersivePostCardInner = ({
               </div>
             )}
 
-              </div>
-            </div>
+          </div>
 
-            {/* Footer row - actions always visible and padded above bottom navbar */}
-            <div className="pt-3 pb-[calc(env(safe-area-inset-bottom)+88px)]">
+          {/* ZONE 3: Footer (actions always visible and padded above bottom navbar) */}
+          <div className="pt-3 pb-[calc(env(safe-area-inset-bottom)+80px)]">
               <div className="flex items-center justify-between gap-6 mr-12 sm:mr-16">
                 
                 {/* Primary Share Button - Pill shape with consistent height */}
@@ -2144,7 +2148,6 @@ const ImmersivePostCardInner = ({
             </div>
           </div>
         </div>
-      </div>
 
       {/* Reader Modal */}
       {showReader && readerSource && (
