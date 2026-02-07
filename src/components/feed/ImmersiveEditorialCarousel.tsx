@@ -609,7 +609,7 @@ const EditorialSlideInner = ({
             </button>
 
             {/* Action Bar - Aligned with ImmersivePostCard */}
-            <div className="flex items-center justify-between gap-6 mr-12 sm:mr-16">
+            <div className="flex items-center justify-between gap-6">
               {/* Primary Share Button - Pill shape with consistent height */}
               <button 
                 onClick={(e) => {
