@@ -480,10 +480,27 @@ const ImmersivePostCardInner = ({
   // Long press handlers for like button with drag-to-select
   const likeButtonHandlers = useLongPress({
     onLongPress: () => setShowReactionPicker(true),
-    onTap: () => handleHeart(undefined, 'heart'),
+    onTap: () => {
+      // Se esiste una reaction, usala per il toggle (rimuove)
+      // Altrimenti usa 'heart' per aggiungere un nuovo like
+      const currentType = post.user_reactions?.myReactionType || 'heart';
+      handleHeart(undefined, currentType);
+    },
     onMove: (x, y) => setDragPosition({ x, y }),
     onRelease: () => setDragPosition(null),
   });
+  
+  // Blocca scroll del feed quando il reaction picker è aperto
+  useEffect(() => {
+    if (showReactionPicker) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+      return () => {
+        document.body.style.overflow = '';
+        document.body.style.touchAction = '';
+      };
+    }
+  }, [showReactionPicker]);
 
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
   

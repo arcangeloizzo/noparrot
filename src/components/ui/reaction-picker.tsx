@@ -297,13 +297,20 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
           
           {isOpen && createPortal(
             <>
-              {/* Invisible shield - in drag mode, let events pass through */}
+            {/* Invisible shield - intercetta TUTTI gli eventi touch per bloccare scroll */}
               <div 
-                className={cn("fixed inset-0 z-[9998]", dragPosition !== undefined && "pointer-events-none")}
+                className="fixed inset-0 z-[9998]"
+                style={{ touchAction: 'none' }}
                 onClick={handleShieldInteraction}
+                onTouchStart={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onTouchMove={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
                 onTouchEnd={handleShieldInteraction}
-                onTouchStart={(e) => e.stopPropagation()}
-                onTouchMove={(e) => e.stopPropagation()}
               />
               
               {/* Actual picker - pointer-events-auto ensures clickability above shield */}
@@ -317,7 +324,7 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
                   "max-w-[calc(100vw-24px)]",
                   className
                 )}
-                style={positionStyle}
+                style={{ ...positionStyle, touchAction: 'none' }}
               >
                 {REACTIONS.map((reaction, index) => renderEmojiButton(reaction, index))}
               </div>
@@ -333,13 +340,20 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
 
     return createPortal(
       <>
-        {/* Invisible shield - in drag mode, let events pass through */}
+        {/* Invisible shield - intercetta TUTTI gli eventi touch per bloccare scroll */}
         <div 
-          className={cn("fixed inset-0 z-[9998]", dragPosition !== undefined && "pointer-events-none")}
+          className="fixed inset-0 z-[9998]"
+          style={{ touchAction: 'none' }}
           onClick={handleShieldInteraction}
+          onTouchStart={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onTouchMove={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
           onTouchEnd={handleShieldInteraction}
-          onTouchStart={(e) => e.stopPropagation()}
-          onTouchMove={(e) => e.stopPropagation()}
         />
         
         {/* Actual picker - pointer-events-auto ensures clickability above shield */}
@@ -353,7 +367,7 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
             "max-w-[calc(100vw-24px)]",
             className
           )}
-          style={positionStyle}
+          style={{ ...positionStyle, touchAction: 'none' }}
         >
           {REACTIONS.map((reaction, index) => renderEmojiButton(reaction, index))}
         </div>
