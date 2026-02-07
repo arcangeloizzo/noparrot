@@ -2072,6 +2072,11 @@ const ImmersivePostCardInner = ({
                       trustScore={displayTrustScore}
                       platform={articlePreview?.platform}
                       hostname={getHostnameFromUrl(finalSourceUrl)}
+                      maxHeightClass={
+                        contentDensity === 'low' ? undefined :
+                        contentDensity === 'medium' ? "max-h-[24vh]" :
+                        "max-h-[18vh]"
+                      }
                     />
                   )}
                   
