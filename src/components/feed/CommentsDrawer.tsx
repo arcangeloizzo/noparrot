@@ -518,6 +518,14 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                     value={newComment}
                     onChange={handleTextChange}
                     onFocus={() => {
+                      // [UX FIX] Bypass gate choice if user is the post author
+                      // Author doesn't need to pass gate on their own content
+                      if (user?.id === post.author?.id) {
+                        console.log('[CommentsDrawer] Bypassing gate choice - user is author');
+                        setSelectedCommentType('informed');
+                        return;
+                      }
+                      
                       if (postHasSource && selectedCommentType === null && !showCommentTypeChoice) {
                         setShowCommentTypeChoice(true);
                         textareaRef.current?.blur();
@@ -609,7 +617,8 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
         </DrawerContent>
       </Drawer>
 
-      {/* Choice UI - Dialog with immersive style */}
+      {/* Choice UI - Dialog with immersive style - Skip if user is author */}
+      {user?.id !== post.author?.id && (
       <Dialog open={showCommentTypeChoice} onOpenChange={setShowCommentTypeChoice}>
         <DialogContent className="sm:max-w-md bg-[#0E1419] border border-white/10 rounded-3xl">
           <DialogHeader>
@@ -795,6 +804,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
           </div>
         </DialogContent>
       </Dialog>
+      )}
 
       {viewerMedia && (
         <MediaViewer

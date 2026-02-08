@@ -25,6 +25,8 @@ export interface Post {
   quoted_post_id: string | null;
   category: string | null;
   _originalSources?: string[];
+  /** Flag to bypass gate - set when quiz was already passed in Feed Reader */
+  _gatePassed?: boolean;
   quoted_post?: {
     id: string;
     content: string;

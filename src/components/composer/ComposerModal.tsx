@@ -241,6 +241,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   // Gate status indicator (real-time feedback)
   // Character-based gate applies ONLY to reshares (quotedPost), not free text
   const gateStatus = (() => {
+    // [FIX] Gate already passed in Feed Reader - bypass
+    if (quotedPost?._gatePassed === true) {
+      return { label: 'Quiz già superato', requiresGate: false };
+    }
+    
     // Gate attivo se c'è un URL
     if (detectedUrl) {
       return { label: 'Gate attivo', requiresGate: true };
@@ -467,6 +472,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     if (!user || (!content.trim() && !detectedUrl && uploadedMedia.length === 0 && !quotedPost)) return;
     
     addBreadcrumb('publish_attempt', { hasUrl: !!detectedUrl, hasMediaOCR: !!mediaWithExtractedText, isIOS });
+    
+    // [FIX] BYPASS GATE if user already passed quiz in Feed Reader
+    if (quotedPost?._gatePassed === true) {
+      console.log('[Composer] Gate bypass - quiz already passed in Feed Reader');
+      addBreadcrumb('gate_bypass', { reason: '_gatePassed' });
+      await publishPost();
+      return;
+    }
     
     console.log('[Composer] handlePublish called:', { 
       detectedUrl, 
