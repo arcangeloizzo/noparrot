@@ -1388,19 +1388,19 @@ const ImmersivePostCardInner = ({
               {/* User Text - Skip for intent posts (already rendered above) */}
               {!useStackLayout && shouldShowUserText && !post.is_intent && (
                 post.content.length > 400 ? (
-                  <div className="mb-6">
-                    <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md">
-                      <MentionText content={post.content.slice(0, 400) + '...'} />
+                  <div className="mb-4 flex-shrink-0">
+                    <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md line-clamp-3">
+                      <MentionText content={post.content} />
                     </h2>
                     <button
                       onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                      className="mt-2 text-sm text-primary font-semibold hover:underline"
+                      className="mt-1 text-sm text-primary font-semibold hover:underline"
                     >
                       Mostra tutto
                     </button>
                   </div>
                 ) : (
-                  <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-6">
+                  <h2 className="text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-4 line-clamp-4 flex-shrink-0">
                     <MentionText content={post.content} />
                   </h2>
                 )

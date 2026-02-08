@@ -240,7 +240,7 @@ export const ImmersiveEditorialCarousel = ({
       <div className="absolute inset-0 z-[3] pointer-events-none cinematic-fade-overlay" />
 
       {/* Content Layer */}
-      <div className="relative z-10 w-full h-full flex flex-col pt-[calc(env(safe-area-inset-top)+100px)] pb-[calc(130px+env(safe-area-inset-bottom))]">
+      <div className="relative z-10 w-full h-full flex flex-col">
 
         {/* Carousel Container */}
         <div

@@ -103,8 +103,8 @@ export const ImmersiveFocusCard = ({
       {/* Content Layer */}
       <div className="relative z-10 w-full h-full flex flex-col">
 
-        {/* Top Bar */}
-        <div className="flex flex-col gap-2 flex-shrink-0 pt-[calc(env(safe-area-inset-top)+100px)] px-5 z-20">
+        {/* Top Bar (Rail 1) */}
+        <div className="flex flex-col gap-2 flex-shrink-0 pt-14 px-5 pb-2 z-20">
           {/* Row 1: Badge tipo + Trust Score (stessa altezza h-8) */}
           <div className="flex justify-between items-center">
             {/* Badge Tipo - compatto su 1 riga */}
@@ -212,11 +212,11 @@ export const ImmersiveFocusCard = ({
           </div>
         </div>
 
-        {/* Center Content */}
-        <div className="flex-1 min-h-0 relative flex flex-col px-4 overflow-y-auto no-scrollbar justify-center">
+        {/* Center Content (Rail 2) */}
+        <div className="flex-1 min-h-0 relative flex flex-col px-4 overflow-hidden justify-center">
           <div className="w-full flex flex-col max-h-full">
             <Quote className="text-white/20 w-8 h-8 sm:w-12 sm:h-12 rotate-180 mb-2 sm:mb-4 flex-shrink-0" />
-            <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight mb-2 sm:mb-4 drop-shadow-xl flex-shrink-0">
+            <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight mb-2 sm:mb-4 drop-shadow-xl flex-shrink-0 line-clamp-3">
               {title}
             </h1>
             <p className="text-base sm:text-lg text-white/80 leading-relaxed line-clamp-5 sm:line-clamp-6 mb-3 sm:mb-6 flex-shrink min-h-0">
@@ -231,7 +231,7 @@ export const ImmersiveFocusCard = ({
               );
               const shortestSource = sortedByLength[0];
               return (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-shrink-0">
                   <button className="inline-flex items-center px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full text-xs text-white/80 font-medium border border-white/10 max-w-[180px]">
                     <span className="truncate">
                       {shortestSource?.name?.toLowerCase() || 'fonti'}
@@ -244,8 +244,8 @@ export const ImmersiveFocusCard = ({
           </div>
         </div>
 
-        {/* Bottom Actions - Aligned heights h-10 */}
-        <div className="flex items-center justify-between gap-3 flex-shrink-0 px-5 pb-[calc(130px+env(safe-area-inset-bottom))] pt-4 z-20">
+        {/* Bottom Actions (Rail 3) */}
+        <div className="flex items-center justify-between gap-3 flex-shrink-0 px-5 pb-8 sm:pb-10 pt-2 z-20">
 
           {/* Primary Share Button - h-10 px-4 */}
           <button
