@@ -1,183 +1,225 @@
 
-# Piano: Risoluzione Bug Enhanced Reactions
+# Piano: Fix Comprehension Gate + Bypass Autore Originale
 
-## Problemi Identificati
+## Obiettivo
+1. Eliminare il **doppio quiz** (Feed Reader → Composer) passando un flag `_gatePassed: true`
+2. **Bypassare il gate per l'autore originale** (chi ha scritto il post non deve fare quiz sul proprio contenuto)
+3. Fixare il build error di `generate-vapid-keys`
 
-### Problema 1: Rimozione Enhanced Reaction Richiede Due Click
-**Sintomo**: Quando un utente ha una reaction enhanced (es. 🔥) e clicca sul cuore, l'icona non diventa vuota immediatamente ma si comporta come un click normale (cambiando la reaction a "heart"), richiedendo un secondo click per rimuoverla.
-
-**Causa Root**: In `ImmersivePostCard.tsx` riga 483, il tap handler chiama sempre `handleHeart(undefined, 'heart')`:
-```typescript
-onTap: () => handleHeart(undefined, 'heart'),
-```
-Questo significa che quando l'utente ha una reaction enhanced (es. `fire`) e tocca il pulsante, invece di rimuovere la reaction, il codice sta effettivamente chiamando un **switch** da `fire` a `heart`.
-
-**Soluzione**: Il tap handler deve verificare `myReactionType` corrente e chiamare `handleHeart` con lo stesso tipo per triggerare la rimozione:
-```typescript
-onTap: () => {
-  const currentType = post.user_reactions?.myReactionType || 'heart';
-  handleHeart(undefined, currentType);
-}
-```
-
-### Problema 2: Scroll del Feed Durante Selezione Emoji
-**Sintomo**: Quando il picker e aperto e l'utente muove il dito per selezionare un'emoji, il feed sottostante scrolla.
-
-**Causa Root**: Il reaction picker usa `pointer-events-none` sullo shield in drag mode (riga 302 e 338 di `reaction-picker.tsx`), permettendo ai touch events di propagarsi al feed sottostante. Inoltre, il `touchmove` non viene gestito per bloccare lo scroll del container.
-
-**Soluzione**:
-1. Rimuovere `pointer-events-none` dallo shield in drag mode
-2. Aggiungere `touch-action: none` sul picker per prevenire lo scroll
-3. Bloccare lo scroll del feed quando il picker e aperto usando `overflow: hidden` sul body o container
-
-### Problema 3: Conteggio Duplicato Like / Utenti Multipli nel Drawer
-**Sintomo**: A volte dopo aver selezionato una reaction enhanced e provato a rimuoverla, il sistema conta 2 like e nel drawer si vede lo stesso utente piu volte.
-
-**Causa Root**: Il database ha vincoli corretti e non ci sono duplicati effettivi. Il problema e nell'**optimistic update** in `usePosts.ts`:
-- Il codice non invalida correttamente la query `post-reactors` dopo una mutation
-- L'optimistic update aggiorna `byType` ma non tiene conto di tutte le cache key coinvolte
-- Potenziale race condition quando si fa switch tra reaction types
-
-**Soluzione**:
-1. Invalidare `['post-reactors', postId]` in `onSettled` della mutation
-2. Migliorare l'optimistic update per gestire correttamente lo switch tra reaction types
-3. Assicurarsi che `onError` faccia rollback completo
+---
 
 ## Modifiche Tecniche
 
-### File 1: `src/components/feed/ImmersivePostCard.tsx`
+### 1. TypeScript: Aggiungere `_gatePassed` all'interfaccia Post
 
-**Modifica 1**: Fix tap handler per rimuovere reaction corrente (righe 481-486)
+**File**: `src/hooks/usePosts.ts` (linea 27)
+
+```typescript
+export interface Post {
+  // ... campi esistenti ...
+  _originalSources?: string[];
+  /** Flag to bypass gate - set when quiz was already passed in Feed Reader */
+  _gatePassed?: boolean;  // <-- NUOVO CAMPO OPZIONALE
+  quoted_post?: { ... };
+  // ...
+}
+```
+
+---
+
+### 2. ImmersivePostCard: Passare `_gatePassed: true` dopo quiz superato
+
+**File**: `src/components/feed/ImmersivePostCard.tsx` (linee 1092-1093)
 
 ```typescript
 // PRIMA
-const likeButtonHandlers = useLongPress({
-  onLongPress: () => setShowReactionPicker(true),
-  onTap: () => handleHeart(undefined, 'heart'),
-  onMove: (x, y) => setDragPosition({ x, y }),
-  onRelease: () => setDragPosition(null),
-});
+if (shareAction === 'feed') {
+  onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [] });
+}
 
 // DOPO
-const likeButtonHandlers = useLongPress({
-  onLongPress: () => setShowReactionPicker(true),
-  onTap: () => {
-    // Se esiste una reaction, usala per il toggle (rimuove)
-    // Altrimenti usa 'heart' per aggiungere un nuovo like
-    const currentType = post.user_reactions?.myReactionType || 'heart';
-    handleHeart(undefined, currentType);
-  },
-  onMove: (x, y) => setDragPosition({ x, y }),
-  onRelease: () => setDragPosition(null),
-});
+if (shareAction === 'feed') {
+  onQuoteShare?.({ 
+    ...post, 
+    _originalSources: Array.isArray(post.sources) ? post.sources : [],
+    _gatePassed: true  // Bypass gate nel Composer
+  });
+}
 ```
 
-**Modifica 2**: Bloccare scroll quando picker e aperto (aggiungere useEffect)
+Stessa modifica per tutti gli altri punti dove viene chiamato `onQuoteShare` dopo quiz superato:
+- Linea 931 (Intent post insufficient context)
+- Linea 1008 (External source insufficient - fail-open)
+- Linea 643 (goDirectlyToGateForPost)
+
+---
+
+### 3. ImmersivePostCard: Bypass Gate per Autore Originale (Share)
+
+**File**: `src/components/feed/ImmersivePostCard.tsx`
+
+Aggiungere controllo all'inizio di `startComprehensionGate` (linea ~659):
 
 ```typescript
-// Blocca scroll del feed quando il reaction picker e aperto
-useEffect(() => {
-  if (showReactionPicker) {
-    document.body.style.overflow = 'hidden';
-    document.body.style.touchAction = 'none';
-    return () => {
-      document.body.style.overflow = '';
-      document.body.style.touchAction = '';
-    };
+const startComprehensionGate = async () => {
+  if (!user) return;
+
+  // [UX FIX] Bypass gate se l'utente corrente è l'autore del post
+  // Non ha senso testare qualcuno sul proprio contenuto
+  if (user.id === post.author.id) {
+    console.log('[Gate] Bypassing gate - user is post author');
+    addBreadcrumb('gate_bypass', { reason: 'author_is_user' });
+    onQuoteShare?.({ 
+      ...post, 
+      _originalSources: Array.isArray(post.sources) ? post.sources : [],
+      _gatePassed: true 
+    });
+    toast({ title: 'Post pronto per la condivisione' });
+    return;
   }
-}, [showReactionPicker]);
+
+  // ... resto della logica esistente ...
+};
 ```
 
-### File 2: `src/components/ui/reaction-picker.tsx`
+Stessa logica per `goDirectlyToGateForPost` e `handleShareAction`:
 
-**Modifica 1**: Rimuovere `pointer-events-none` dallo shield e aggiungere touch-action (righe 300-307 e 336-343)
+```typescript
+const handleShareAction = async (action: 'feed' | 'friend') => {
+  // Bypass immediato se sono l'autore
+  if (user?.id === post.author.id) {
+    if (action === 'feed') {
+      onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [], _gatePassed: true });
+    } else {
+      setShowPeoplePicker(true);
+    }
+    return;
+  }
+  // ... resto logica esistente ...
+};
+```
+
+---
+
+### 4. CommentsDrawer: Bypass Gate per Autore Originale (Commenti)
+
+**File**: `src/components/feed/CommentsDrawer.tsx`
+
+Modificare la logica di scelta commento (linea ~521):
+
+```typescript
+onFocus={() => {
+  // [UX FIX] Se l'utente è l'autore del post, nessun gate necessario
+  if (user?.id === post.author?.id) {
+    console.log('[CommentsDrawer] Bypassing gate choice - user is author');
+    // Salta la scelta, va diretto a "informed" senza quiz
+    setSelectedCommentType('informed');
+    return;
+  }
+  
+  if (postHasSource && selectedCommentType === null && !showCommentTypeChoice) {
+    setShowCommentTypeChoice(true);
+    textareaRef.current?.blur();
+  }
+}}
+```
+
+E nella Dialog "Come vuoi entrare nella conversazione?", nasconderla se l'utente è l'autore:
+
+```typescript
+{/* Choice UI - Skip if user is author */}
+{user?.id !== post.author?.id && (
+  <Dialog open={showCommentTypeChoice} onOpenChange={setShowCommentTypeChoice}>
+    {/* ... contenuto esistente ... */}
+  </Dialog>
+)}
+```
+
+---
+
+### 5. ComposerModal: Bypass Gate quando `_gatePassed` è presente
+
+**File**: `src/components/composer/ComposerModal.tsx`
+
+**5a. Aggiornare `gateStatus`** (linea ~243):
+
+```typescript
+const gateStatus = (() => {
+  // [FIX] Gate già superato nel Feed Reader
+  if (quotedPost?._gatePassed === true) {
+    return { label: 'Quiz già superato', requiresGate: false };
+  }
+
+  // Gate attivo se c'è un URL
+  if (detectedUrl) {
+    return { label: 'Gate attivo', requiresGate: true };
+  }
+  
+  // ... resto logica esistente ...
+})();
+```
+
+**5b. Aggiornare `handlePublish`** (linea ~465):
+
+```typescript
+const handlePublish = async () => {
+  if (!user || (!content.trim() && !detectedUrl && uploadedMedia.length === 0 && !quotedPost)) return;
+  
+  addBreadcrumb('publish_attempt', { hasUrl: !!detectedUrl, hasMediaOCR: !!mediaWithExtractedText, isIOS });
+  
+  // [FIX] BYPASS GATE se l'utente ha già superato il quiz nel Feed Reader
+  if (quotedPost?._gatePassed === true) {
+    console.log('[Composer] Gate bypass - quiz already passed in Feed Reader');
+    addBreadcrumb('gate_bypass', { reason: '_gatePassed' });
+    await publishPost();
+    return;
+  }
+
+  // ... resto logica esistente ...
+};
+```
+
+---
+
+### 6. Fix Build Error: generate-vapid-keys
+
+**File**: `supabase/functions/generate-vapid-keys/index.ts`
+
+Il problema è che Deno non trova il modulo npm. Dobbiamo usare l'import ESM corretto:
 
 ```typescript
 // PRIMA
-<div 
-  className={cn("fixed inset-0 z-[9998]", dragPosition !== undefined && "pointer-events-none")}
-  onClick={handleShieldInteraction}
-  ...
-/>
+import webpush from "npm:web-push@3.6.7";
 
-// DOPO - Lo shield deve SEMPRE intercettare gli eventi touch
-<div 
-  className="fixed inset-0 z-[9998]"
-  style={{ touchAction: 'none' }}
-  onClick={handleShieldInteraction}
-  onTouchStart={(e) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }}
-  onTouchMove={(e) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }}
-  onTouchEnd={handleShieldInteraction}
-/>
+// DOPO - usa esm.sh per compatibilità Deno
+import webpush from "https://esm.sh/web-push@3.6.7";
 ```
 
-**Modifica 2**: Aggiungere touch-action: none al container del picker (righe 311-321 e 345-358)
+---
 
-```typescript
-<div
-  ref={containerRef}
-  className={cn(...)}
-  style={{
-    ...positionStyle,
-    touchAction: 'none',  // Previene scroll durante drag
-  }}
->
-```
+## Riepilogo Modifiche per File
 
-### File 3: `src/hooks/usePosts.ts`
+| File | Modifiche |
+|------|-----------|
+| `src/hooks/usePosts.ts` | Aggiungere `_gatePassed?: boolean` all'interfaccia Post |
+| `src/components/feed/ImmersivePostCard.tsx` | 1. Passare `_gatePassed: true` dopo quiz<br/>2. Bypass gate se `user.id === post.author.id` |
+| `src/components/feed/CommentsDrawer.tsx` | Bypass scelta commento se `user.id === post.author.id` |
+| `src/components/composer/ComposerModal.tsx` | 1. Bypass gateStatus se `quotedPost._gatePassed`<br/>2. Bypass handlePublish se `quotedPost._gatePassed` |
+| `supabase/functions/generate-vapid-keys/index.ts` | Cambiare import a esm.sh |
 
-**Modifica 1**: Invalidare query `post-reactors` in onSettled (dopo riga ~450)
-
-```typescript
-onSettled: (data, error, { postId }) => {
-  // Sempre invalida post-reactors per sincronizzare il drawer delle reazioni
-  queryClient.invalidateQueries({ queryKey: ['post-reactors', postId] });
-},
-```
-
-**Modifica 2**: Fix optimistic update per single post query (righe 403-420)
-
-Il codice attuale non gestisce correttamente il passaggio tra reaction types per la query `['post', postId]`. Deve usare la stessa logica dell'update per `['posts', user.id]`.
-
-### File 4: `src/hooks/useLongPress.ts`
-
-**Modifica**: Prevenire propagazione scroll durante long press (righe 87-89)
-
-```typescript
-onTouchMove: (e: React.TouchEvent) => {
-  // Previeni scroll quando long press e attivo
-  if (isLongPressRef.current) {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-  const touch = e.touches[0];
-  move(touch.clientX, touch.clientY);
-},
-```
-
-## Ordine di Implementazione
-
-1. **Fix tap handler** in `ImmersivePostCard.tsx` - risolve il problema principale della rimozione
-2. **Fix scroll blocking** in `useLongPress.ts` e `reaction-picker.tsx` - risolve lo scroll durante drag
-3. **Fix invalidation** in `usePosts.ts` - risolve i conteggi duplicati nel drawer
-4. **Aggiungi body scroll lock** in `ImmersivePostCard.tsx` - protezione aggiuntiva
+---
 
 ## Test Cases
 
-1. **Rimozione enhanced reaction**:
-   - Aggiungi reaction 🔥 → clicca cuore → icona deve diventare vuota (non cambiare a ❤️)
-   - Aggiungi reaction 😂 → clicca cuore → icona deve diventare vuota
-   
-2. **Scroll blocking**:
-   - Long press cuore → picker si apre → muovi dito per selezionare emoji → feed NON deve scrollare
+1. **Bypass autore - Share**:
+   - Crea un post con link → clicca Condividi sul TUO post → deve bypassare il gate e aprire il Composer
 
-3. **Conteggio corretto**:
-   - Aggiungi reaction → apri drawer → verifica 1 solo utente
-   - Cambia reaction → apri drawer → verifica 1 solo utente (non 2)
-   - Rimuovi reaction → conteggio deve decrementare di 1
+2. **Bypass autore - Commenti**:
+   - Sul TUO post con link → clicca per commentare → non deve apparire la scelta "spontaneo/consapevole"
+
+3. **Doppio quiz fix**:
+   - Condividi post di ALTRO utente con OCR → passa quiz nel Reader → Composer si apre → clicca Pubblica → NON deve chiedere un secondo quiz
+
+4. **Gate normale funziona ancora**:
+   - Condividi post di ALTRO utente con link → quiz deve apparire
+   - Dopo aver passato il quiz → Composer bypassa il secondo gate
