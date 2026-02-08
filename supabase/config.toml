@@ -1,0 +1,73 @@
+project_id = "nwmpstvoutkjshhhtmrk"
+
+[functions.generate-qa]
+verify_jwt = false
+
+[functions.validate-answers]
+verify_jwt = false
+
+[functions.get-qa]
+verify_jwt = false
+
+[functions.submit-qa]
+verify_jwt = false
+
+[functions.fetch-article-preview]
+verify_jwt = true
+
+[functions.evaluate-trust-score]
+verify_jwt = true
+
+[functions.transcribe-youtube]
+verify_jwt = false
+
+[functions.test-supadata]
+verify_jwt = false
+
+[functions.classify-content]
+verify_jwt = true
+
+[functions.backfill-categories]
+verify_jwt = false
+
+[functions.fetch-daily-focus]
+verify_jwt = false
+
+[functions.fetch-interest-focus]
+verify_jwt = false
+
+[functions.generate-trending-summary]
+verify_jwt = false
+
+[functions.send-push-notification]
+verify_jwt = false
+
+[functions.generate-vapid-keys]
+verify_jwt = false
+
+[functions.fetch-lyrics]
+verify_jwt = true
+
+[functions.cleanup-expired-cache]
+verify_jwt = false
+
+[functions.get-trust-score]
+verify_jwt = false
+
+[functions.publish-post]
+verify_jwt = false
+
+[functions.export-user-data]
+verify_jwt = false
+
+[functions.seed-data]
+verify_jwt = false
+
+[functions.assign-post-topic]
+verify_jwt = false
+
+[functions.get-trending-topics]
+verify_jwt = false
+
+[functions.extract-media-text]
+verify_jwt = false
