@@ -554,6 +554,21 @@ const ImmersivePostCardInner = ({
 
   const handleShareToFeed = async () => {
     setShareAction('feed');
+    
+    // [UX FIX] Bypass gate if current user is the post author
+    // No point testing someone on their own content
+    if (user?.id === post.author.id) {
+      console.log('[Gate] Bypassing gate - user is post author');
+      addBreadcrumb('gate_bypass', { reason: 'author_is_user' });
+      onQuoteShare?.({ 
+        ...post, 
+        _originalSources: Array.isArray(post.sources) ? post.sources : [],
+        _gatePassed: true 
+      });
+      toast({ title: 'Post pronto per la condivisione' });
+      return;
+    }
+    
     const userText = post.content;
     const userWordCount = getWordCount(userText);
 
@@ -566,7 +581,7 @@ const ImmersivePostCardInner = ({
     const questionCount = getQuestionCountWithoutSource(userWordCount);
 
     if (questionCount === 0) {
-      onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [] });
+      onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [], _gatePassed: true });
       toast({ title: 'Post pronto per la condivisione', description: 'Aggiungi un tuo commento' });
     } else {
       toast({ title: 'Lettura richiesta', description: `Leggi il post per condividerlo` });
@@ -576,6 +591,15 @@ const ImmersivePostCardInner = ({
 
   const handleShareToFriend = async () => {
     setShareAction('friend');
+    
+    // [UX FIX] Bypass gate if current user is the post author
+    if (user?.id === post.author.id) {
+      console.log('[Gate] Bypassing gate for friend share - user is post author');
+      addBreadcrumb('gate_bypass', { reason: 'author_is_user_friend' });
+      setShowPeoplePicker(true);
+      return;
+    }
+    
     const userText = post.content;
     const userWordCount = getWordCount(userText);
 
@@ -622,7 +646,7 @@ const ImmersivePostCardInner = ({
 
     // If no questions needed, go straight to composer
     if (questionCount === 0) {
-      onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [] });
+      onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [], _gatePassed: true });
       toast({ title: 'Post pronto per la condivisione', description: 'Aggiungi un tuo commento' });
       return;
     }
@@ -640,7 +664,7 @@ const ImmersivePostCardInner = ({
 
       if (result.insufficient_context) {
         toast({ title: 'Contenuto troppo breve', description: 'Puoi comunque condividere questo post' });
-        onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [] });
+        onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [], _gatePassed: true });
         return;
       }
 
@@ -658,6 +682,23 @@ const ImmersivePostCardInner = ({
 
   const startComprehensionGate = async () => {
     if (!user) return;
+
+    // [UX FIX] Bypass gate if current user is the post author
+    if (user.id === post.author.id) {
+      console.log('[Gate] Bypassing startComprehensionGate - user is post author');
+      addBreadcrumb('gate_bypass', { reason: 'author_is_user_gate' });
+      if (shareAction === 'feed') {
+        onQuoteShare?.({ 
+          ...post, 
+          _originalSources: Array.isArray(post.sources) ? post.sources : [],
+          _gatePassed: true 
+        });
+      } else {
+        setShowPeoplePicker(true);
+      }
+      toast({ title: 'Post pronto per la condivisione' });
+      return;
+    }
 
     // On-demand deep lookup: garantisce di avere la fonte anche se hook non ha finito
     let resolvedSourceUrl = finalSourceUrl;
@@ -754,7 +795,7 @@ const ImmersivePostCardInner = ({
         // Use < 30 instead of <= 30 because 30 words is the minimum threshold
         if (userWordCount < 30) {
           // Fallback for edge cases - shouldn't happen for valid Intent posts
-          onQuoteShare?.(post);
+          onQuoteShare?.({ ...post, _gatePassed: true });
           toast({ title: 'Post pronto per la condivisione' });
           return;
         }
@@ -928,7 +969,7 @@ const ImmersivePostCardInner = ({
         if (result.insufficient_context) {
           toast({ title: 'Contenuto troppo breve', description: 'Post pronto per la condivisione' });
           await closeReaderSafely();
-          onQuoteShare?.(post);
+          onQuoteShare?.({ ...post, _gatePassed: true });
           return;
         }
 
@@ -1005,7 +1046,7 @@ const ImmersivePostCardInner = ({
           });
         }
         await closeReaderSafely();
-        onQuoteShare?.(post);
+        onQuoteShare?.({ ...post, _gatePassed: true });
         return;
       }
 
@@ -1090,7 +1131,7 @@ const ImmersivePostCardInner = ({
         setGateStep('idle');
 
         if (shareAction === 'feed') {
-          onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [] });
+          onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [], _gatePassed: true });
         } else if (shareAction === 'friend') {
           setShowPeoplePicker(true);
         }
