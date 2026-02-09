@@ -17,9 +17,10 @@ interface MediaGalleryProps {
   initialIndex?: number;
   onIndexChange?: (index: number) => void;
   className?: string; // Allow custom styling/constraints from parent
+  fillHeight?: boolean; // New prop to force height filling
 }
 
-export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, className }: MediaGalleryProps) => {
+export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, className, fillHeight }: MediaGalleryProps) => {
   if (!media || media.length === 0) return null;
 
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -73,11 +74,12 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
   if (!isMultiple) {
     const item = media[0];
     return (
-      <div className="mt-3">
+      <div className={cn("mt-3", fillHeight && "h-full mt-0")}>
         <div
           className={cn(
             "relative rounded-2xl overflow-hidden bg-muted",
-            onClick && "cursor-pointer"
+            onClick && "cursor-pointer",
+            fillHeight && "h-full"
           )}
           onClick={(e) => handleMediaClick(e, item, 0)}
         >
@@ -85,17 +87,20 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
             <img
               src={item.url}
               alt=""
-              className="w-full aspect-auto object-contain bg-black/40"
+              className={cn(
+                "w-full bg-black/40",
+                fillHeight ? "h-full object-contain" : "aspect-auto object-contain"
+              )}
               loading="lazy"
             />
           ) : (
-            <div className="relative">
+            <div className={cn("relative", fillHeight ? "h-full w-full bg-black" : "aspect-video")}>
               <video
                 src={item.url}
                 poster={item.thumbnail_url}
                 controls
                 playsInline
-                className="w-full aspect-video bg-black"
+                className={cn("w-full", fillHeight ? "h-full object-contain" : "aspect-video bg-black")}
                 preload="metadata"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -110,7 +115,7 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
 
   // Multiple media: Carousel
   return (
-    <div className={cn("mt-3 relative", className)}>
+    <div className={cn("mt-3 relative", className, fillHeight && "h-full mt-0 flex flex-col")}>
       {/* Counter badge */}
       <div className="absolute top-2 right-2 z-10 bg-black/60 backdrop-blur-sm text-white text-xs font-medium px-2 py-1 rounded-full">
         {currentIndex + 1}/{media.length}
@@ -120,7 +125,10 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none rounded-2xl"
+        className={cn(
+          "flex overflow-x-auto snap-x snap-mandatory scrollbar-none rounded-2xl",
+          fillHeight && "flex-1 min-h-0 w-full"
+        )}
         style={{
           WebkitOverflowScrolling: 'touch',
           scrollbarWidth: 'none',
@@ -132,7 +140,8 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
             key={item.id}
             className={cn(
               "flex-shrink-0 w-full snap-center",
-              onClick && "cursor-pointer"
+              onClick && "cursor-pointer",
+              fillHeight && "h-full flex items-center justify-center bg-black/20"
             )}
             onClick={(e) => handleMediaClick(e, item, idx)}
           >
@@ -140,11 +149,14 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
               <img
                 src={item.url}
                 alt=""
-                className="w-full aspect-auto object-contain bg-black/40"
+                className={cn(
+                  "w-full bg-black/40",
+                  fillHeight ? "h-full object-contain" : "aspect-auto object-contain"
+                )}
                 loading={idx <= 1 ? 'eager' : 'lazy'}
               />
             ) : (
-              <div className="relative aspect-video bg-black">
+              <div className={cn("relative bg-black", fillHeight ? "h-full w-full" : "aspect-video")}>
                 <video
                   src={item.url}
                   poster={item.thumbnail_url}
@@ -163,17 +175,20 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
       </div>
 
       {/* Dots indicator */}
-      <div className="flex justify-center gap-1.5 mt-2">
+      <div className={cn(
+        "flex justify-center gap-1.5",
+        fillHeight ? "shrink-0 py-2" : "mt-2"
+      )}>
         {media.map((_, idx) => (
           <button
             key={idx}
             type="button"
             onClick={() => handleDotClick(idx)}
             className={cn(
-              "w-2 h-2 rounded-full transition-all duration-200",
+              "w-2 h-2 rounded-full transition-all duration-200 shadow-sm",
               idx === currentIndex
-                ? "bg-primary w-4"
-                : "bg-muted-foreground/40 hover:bg-muted-foreground/60"
+                ? "bg-white w-4 scale-110"
+                : "bg-white/40 hover:bg-white/60 backdrop-blur-[1px]"
             )}
             aria-label={`Vai a media ${idx + 1}`}
           />

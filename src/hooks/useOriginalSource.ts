@@ -7,6 +7,13 @@ interface OriginalSource {
   image: string | null;
   authorUsername: string;
   authorFullName: string | null;
+  authorAvatar?: string | null;
+  media?: Array<{
+    id: string;
+    type: 'image' | 'video';
+    url: string;
+    thumbnail_url?: string | null;
+  }>;
 }
 
 interface AncestorPost {
@@ -47,7 +54,17 @@ export function useOriginalSource(quotedPostId: string | null) {
             quoted_post_id,
             author:public_profiles!author_id (
               username,
-              full_name
+              full_name,
+              avatar_url
+            ),
+            post_media!post_media_post_id_fkey (
+              order_idx,
+              media:media_id (
+                id,
+                type,
+                url,
+                thumbnail_url
+              )
             )
           `)
           .eq('id', currentId)
@@ -55,16 +72,22 @@ export function useOriginalSource(quotedPostId: string | null) {
 
         if (error || !data) break;
 
-        const post = data as unknown as AncestorPost;
+        const post: any = data;
+        const media = (post.post_media || [])
+          .sort((a: any, b: any) => a.order_idx - b.order_idx)
+          .map((pm: any) => pm.media)
+          .filter(Boolean);
 
-        // Found a post with a source URL
-        if (post.shared_url) {
+        // Found a post with a source URL OR media
+        if (post.shared_url || media.length > 0) {
           return {
             url: post.shared_url,
             title: post.shared_title,
             image: post.preview_img,
             authorUsername: post.author.username,
             authorFullName: post.author.full_name,
+            authorAvatar: post.author.avatar_url,
+            media: media
           };
         }
 

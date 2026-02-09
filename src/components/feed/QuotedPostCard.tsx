@@ -162,18 +162,26 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
             </div>
 
             {/* SECONDARIO: Link card compatta (se presente) */}
+            {/* SECONDARIO: Link card ricca ma senza immagine (stile Intent) */}
             {quotedPost.shared_url && (
               <div
-                className="flex items-center gap-2 p-2 bg-white/10 rounded-lg cursor-pointer hover:bg-white/15 transition-colors"
+                className="mt-3 bg-white/5 rounded-xl border border-white/10 overflow-hidden cursor-pointer hover:bg-white/10 transition-colors"
                 onClick={(e) => {
                   e.stopPropagation();
                   window.open(quotedPost.shared_url!, '_blank', 'noopener,noreferrer');
                 }}
               >
-                <ExternalLink className="w-4 h-4 text-white/60 flex-shrink-0" />
-                <span className="text-xs text-white/60 truncate">
-                  {getHostnameFromUrl(quotedPost.shared_url)}
-                </span>
+                <div className="p-3">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className="text-[10px] uppercase tracking-widest text-white/50 font-bold">
+                      {getHostnameFromUrl(quotedPost.shared_url)}
+                    </span>
+                    <ExternalLink className="w-3 h-3 text-white/40" />
+                  </div>
+                  <h3 className="text-white font-medium text-sm leading-snug line-clamp-2">
+                    {quotedPost.shared_title || quotedPost.shared_url}
+                  </h3>
+                </div>
               </div>
             )}
 

@@ -284,24 +284,28 @@ export const ImmersiveEditorialCarousel = ({
           </div>
         </div>
 
-        {/* Pagination Dots */}
-        {items.length > 1 && (
-          <div className="flex items-center justify-center gap-2 py-4">
+      </div>
+
+      {/* Pagination Dots - Overlay on bottom - FIXED POSITION */}
+      {items.length > 1 && (
+        <div className="absolute bottom-24 left-0 right-0 z-50 flex justify-center pb-[env(safe-area-inset-bottom)] pointer-events-none">
+          <div className="flex items-center gap-2 p-1.5 rounded-full bg-black/40 backdrop-blur-md shadow-lg border border-white/10 pointer-events-auto">
             {items.map((_, index) => (
               <button
                 key={index}
                 onClick={() => emblaApi?.scrollTo(index)}
                 className={cn(
-                  "w-2 h-2 rounded-full transition-all duration-300",
+                  "h-1.5 rounded-full transition-all duration-300 shadow-sm",
                   index === selectedIndex
                     ? "bg-white w-6"
-                    : "bg-white/30 hover:bg-white/50"
+                    : "bg-white/40 w-1.5 hover:bg-white/70"
                 )}
+                aria-label={`Vai alla slide ${index + 1}`}
               />
             ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Info Dialog - Legal disclaimer */}
       <Dialog

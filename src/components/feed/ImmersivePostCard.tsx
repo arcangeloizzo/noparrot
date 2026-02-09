@@ -445,6 +445,7 @@ const ImmersivePostCardInner = ({
   const finalSourceUrl = effectiveSharedUrl || originalSource?.url;
   const finalSourceTitle = effectiveSharedTitle || originalSource?.title;
   const finalSourceImage = effectivePreviewImg || originalSource?.image;
+  const finalSourceMedia = post.media?.length ? post.media : (quotedPost?.media?.length ? quotedPost.media : originalSource?.media);
 
   // For reshares: lookup cached trust score directly from DB (zero AI calls)
   // Use finalSourceUrl which includes deep chain sources
@@ -554,21 +555,21 @@ const ImmersivePostCardInner = ({
 
   const handleShareToFeed = async () => {
     setShareAction('feed');
-    
+
     // [UX FIX] Bypass gate if current user is the post author
     // No point testing someone on their own content
     if (user?.id === post.author.id) {
       console.log('[Gate] Bypassing gate - user is post author');
       addBreadcrumb('gate_bypass', { reason: 'author_is_user' });
-      onQuoteShare?.({ 
-        ...post, 
+      onQuoteShare?.({
+        ...post,
         _originalSources: Array.isArray(post.sources) ? post.sources : [],
-        _gatePassed: true 
+        _gatePassed: true
       });
       toast({ title: 'Post pronto per la condivisione' });
       return;
     }
-    
+
     const userText = post.content;
     const userWordCount = getWordCount(userText);
 
@@ -591,7 +592,7 @@ const ImmersivePostCardInner = ({
 
   const handleShareToFriend = async () => {
     setShareAction('friend');
-    
+
     // [UX FIX] Bypass gate if current user is the post author
     if (user?.id === post.author.id) {
       console.log('[Gate] Bypassing gate for friend share - user is post author');
@@ -599,7 +600,7 @@ const ImmersivePostCardInner = ({
       setShowPeoplePicker(true);
       return;
     }
-    
+
     const userText = post.content;
     const userWordCount = getWordCount(userText);
 
@@ -688,10 +689,10 @@ const ImmersivePostCardInner = ({
       console.log('[Gate] Bypassing startComprehensionGate - user is post author');
       addBreadcrumb('gate_bypass', { reason: 'author_is_user_gate' });
       if (shareAction === 'feed') {
-        onQuoteShare?.({ 
-          ...post, 
+        onQuoteShare?.({
+          ...post,
           _originalSources: Array.isArray(post.sources) ? post.sources : [],
-          _gatePassed: true 
+          _gatePassed: true
         });
       } else {
         setShowPeoplePicker(true);
@@ -1154,19 +1155,19 @@ const ImmersivePostCardInner = ({
   };
 
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: it });
-  const hasMedia = post.media && post.media.length > 0;
+  const hasMedia = (post.media && post.media.length > 0) || (quotedPost?.media && quotedPost.media.length > 0);
   const hasLink = !!post.shared_url;
   const isSpotify = articlePreview?.platform === 'spotify';
   const isTwitter = articlePreview?.platform === 'twitter' || detectPlatformFromUrl(post.shared_url || '') === 'twitter';
   const isLinkedIn = articlePreview?.platform === 'linkedin' || detectPlatformFromUrl(post.shared_url || '') === 'linkedin';
   const isYoutube = articlePreview?.platform === 'youtube' ||
     (post.shared_url?.includes('youtube.com') || post.shared_url?.includes('youtu.be'));
-  const isMediaOnlyPost = hasMedia && !hasLink && !quotedPost;
-  const mediaUrl = post.media?.[0]?.url;
-  const isVideoMedia = post.media?.[0]?.type === 'video';
-  const backgroundImage = !isMediaOnlyPost ? (articlePreview?.image || post.preview_img || (hasMedia && post.media?.[0]?.url)) : undefined;
-  // Exclude quotedPost from text-only to prevent quote marks on reshares
-  const isTextOnly = !hasMedia && !hasLink && !quotedPost;
+  const isMediaOnlyPost = hasMedia && !hasLink;
+  const mediaUrl = post.media?.[0]?.url || quotedPost?.media?.[0]?.url;
+  const isVideoMedia = post.media?.[0]?.type === 'video' || quotedPost?.media?.[0]?.type === 'video';
+  const backgroundImage = !isMediaOnlyPost ? (articlePreview?.image || post.preview_img || (hasMedia && (post.media?.[0]?.url || quotedPost?.media?.[0]?.url))) : undefined;
+  // Ensure text-only really means NO media and NO link in either post
+  const isTextOnly = !hasMedia && !hasLink && !quotedPost?.shared_url;
   const isIntentPost = !!post.is_intent;
   const articleTitle = articlePreview?.title || post.shared_title || '';
   // Show user text ONLY if it's genuinely different from title AND extracted content
@@ -1183,7 +1184,8 @@ const ImmersivePostCardInner = ({
 
   // Use stack layout for: short comments OR reshares with source (any comment length)
   // BUT NOT for Intent posts - show QuotedPostCard with text-first layout instead
-  const useStackLayout = !isQuotedIntentPost && (isReshareWithShortComment || isReshareWithSource);
+  // Use stack layout for ALL reshares (except Intent posts which have their own special layout)
+  const useStackLayout = !!quotedPost && !isQuotedIntentPost;
 
   // Deep chain source preview is now handled by useArticlePreview hook via urlToPreview
 
@@ -1385,16 +1387,9 @@ const ImmersivePostCardInner = ({
           <div className="flex-1 min-h-0 relative flex flex-col px-4 overflow-hidden">
             <div className="w-full my-auto flex flex-col max-h-full">
 
-              {/* Stack Layout: User comment first - Quote Block style for Intent posts */}
+              {/* Stack Layout: User comment first - Plain text for standard */}
               {useStackLayout && post.content && post.content !== post.shared_title && (
-                <div className={cn(
-                  "text-base sm:text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-2",
-                  post.is_intent ? [
-                    "border-l-4 border-primary/60",
-                    "bg-white/5",
-                    "px-4 py-3 rounded-r-lg max-h-[60%]" // Intent posts can be taller
-                  ] : "line-clamp-3 sm:line-clamp-6 max-h-[25vh] overflow-hidden"
-                )}>
+                <div className="text-base sm:text-lg font-normal text-white/90 leading-snug tracking-wide drop-shadow-md mb-4 px-1">
                   {post.content.length > 400 ? (
                     <>
                       <MentionText content={post.content.slice(0, 400) + '...'} />
@@ -1468,8 +1463,8 @@ const ImmersivePostCardInner = ({
                 )
               )}
 
-              {/* Pure Text-Only Posts - Immersive editorial-style card */}
-              {isTextOnly && post.content && (
+              {/* Pure Text-Only Posts - Immersive editorial-style card - Hide if using stack layout */}
+              {!useStackLayout && isTextOnly && post.content && (
                 <div className="relative w-full max-w-lg mx-auto">
                   {/* Card container with glassmorphism and urban texture - GPU optimized */}
                   <div className="relative bg-gradient-to-br from-white/[0.08] to-white/[0.02] rounded-3xl p-6 sm:p-8 border border-white/10 shadow-2xl overflow-hidden">
@@ -1506,7 +1501,7 @@ const ImmersivePostCardInner = ({
               )}
 
               {/* User Text for media-only posts - ABOVE the media */}
-              {isMediaOnlyPost && post.content && (
+              {!useStackLayout && isMediaOnlyPost && post.content && (
                 <div className="mb-6">
                   <h2 className="text-xl font-medium text-white leading-snug tracking-wide drop-shadow-lg">
                     <MentionText content={post.content.length > 200 ? post.content.slice(0, 200) + '...' : post.content} />
@@ -1522,8 +1517,8 @@ const ImmersivePostCardInner = ({
                 </div>
               )}
 
-              {/* Framed Media Window for media-only posts */}
-              {isMediaOnlyPost && post.media && post.media.length > 0 && (
+              {/* Framed Media Window for media-only posts - Hide if using stack layout */}
+              {!useStackLayout && isMediaOnlyPost && post.media && post.media.length > 0 && (
                 post.media.length === 1 ? (
                   /* Single media: flexible adaptive layout */
                   <button
@@ -1579,7 +1574,7 @@ const ImmersivePostCardInner = ({
               )}
 
               {/* Twitter/X Card - Unified glassmorphic container */}
-              {hasLink && isTwitter && !isReshareWithShortComment ? (
+              {hasLink && isTwitter ? (
                 <div className="flex-1 min-h-0 flex flex-col justify-center w-full max-w-md mx-auto px-1">
                   {/* Unified Twitter Card - Author + Content in one container */}
                   <div
@@ -1670,7 +1665,7 @@ const ImmersivePostCardInner = ({
                     <span className="text-xs uppercase tracking-wider">Apri su X</span>
                   </button>
                 </div>
-              ) : hasLink && isLinkedIn && !isReshareWithShortComment ? (
+              ) : hasLink && isLinkedIn ? (
                 /* LinkedIn Card - Professional styling */
                 <div className="w-full max-w-md mx-auto mt-2 sm:mt-6 flex-shrink min-h-0 flex flex-col justify-center">
                   {/* Unified LinkedIn Card */}
@@ -1765,7 +1760,7 @@ const ImmersivePostCardInner = ({
                     <span className="text-xs uppercase tracking-wider">Apri su LinkedIn</span>
                   </button>
                 </div>
-              ) : hasLink && isYoutube && !isReshareWithShortComment ? (
+              ) : hasLink && isYoutube ? (
                 /* YouTube Video Card - Tap to play */
                 <div className="w-full max-w-md mx-auto mt-4">
                   {!youtubeEmbedActive ? (
@@ -1901,7 +1896,7 @@ const ImmersivePostCardInner = ({
                   }}
                   trustScore={{ band: 'ALTO', score: 90 }}
                 />
-              ) : hasLink && !isReshareWithShortComment && (
+              ) : hasLink && (
                 <div className={cn("flex-1 min-h-0 flex flex-col justify-start pt-4 w-full", post.is_intent && "min-h-0")}>
                   {isWaitingForPreview && !post.shared_title && !post.preview_img ? (
                     /* Skeleton while loading preview data */
@@ -1990,76 +1985,107 @@ const ImmersivePostCardInner = ({
                 </div>
               )}
 
-              {/* Stack Layout: Source Preview LAST (uses deep chain source) */}
-              {useStackLayout && finalSourceUrl && (
-                finalSourceUrl.startsWith('focus://') ? (
-                  /* Editorial source in stack - internal navigation, Trust Score always ALTO */
-                  <QuotedEditorialCard
-                    title={finalSourceTitle || 'Il Punto'}
-                    summary={(() => {
-                      // Priority: article_content > editorialSummary (fetched from DB)
-                      const raw = post.article_content || '';
-                      const cleaned = raw.replace(/\[SOURCE:[\d,\s]+\]/g, '').trim();
-                      if (cleaned.length > 20) {
-                        return cleaned.substring(0, 260).trim() + '…';
-                      }
-                      if (editorialSummary) {
-                        return editorialSummary.substring(0, 260).trim() + '…';
-                      }
-                      return undefined;
-                    })()}
-                    onClick={() => {
-                      const focusId = finalSourceUrl.replace('focus://daily/', '');
-                      if (focusId) {
-                        navigate(`/?focus=${focusId}`);
-                      }
-                    }}
-                    trustScore={{ band: 'ALTO', score: 90 }}
-                  />
-                ) : (
-                  /* External source - open in browser */
-                  <div
-                    className="cursor-pointer active:scale-[0.98] transition-transform mt-4"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.open(finalSourceUrl, '_blank', 'noopener,noreferrer');
-                    }}
-                  >
-                    {/* Source Image - Hide for Intent posts (show only background color) */}
-                    {!post.is_intent && (
-                      <SourceImageWithFallback
-                        src={articlePreview?.image || finalSourceImage}
-                        sharedUrl={finalSourceUrl}
-                        isIntent={post.is_intent}
-                        trustScore={displayTrustScore}
-                        platform={articlePreview?.platform}
-                        hostname={getHostnameFromUrl(finalSourceUrl)}
-                      />
-                    )}
-
-                    {/* Source Title */}
-                    <h1 className="text-lg font-semibold text-white leading-tight mb-1 drop-shadow-xl">
-                      {articlePreview?.title || finalSourceTitle || getHostnameFromUrl(finalSourceUrl)}
-                    </h1>
-                    <div className={cn(
-                      "flex items-center text-white/60",
-                      post.is_intent ? "gap-1" : "gap-2"
-                    )}>
-                      <ExternalLink className={cn(
-                        post.is_intent ? "w-2.5 h-2.5" : "w-3 h-3"
-                      )} />
-                      <span className={cn(
-                        "uppercase tracking-widest",
-                        post.is_intent ? "text-[10px]" : "text-xs"
-                      )}>
-                        {getHostnameFromUrl(finalSourceUrl)}
-                      </span>
+              {/* Stack Layout: Source Preview LAST (Media OR Link) - Only show ONE source at bottom */}
+              {useStackLayout && (finalSourceUrl || (finalSourceMedia && finalSourceMedia.length > 0)) && (
+                <div className="mt-4 flex-1 min-h-[15rem] flex flex-col justify-end">
+                  {finalSourceUrl?.startsWith('focus://') ? (
+                    /* Editorial source */
+                    <QuotedEditorialCard
+                      title={finalSourceTitle || 'Il Punto'}
+                      summary={(() => {
+                        const raw = post.article_content || '';
+                        const cleaned = raw.replace(/\[SOURCE:[\d,\s]+\]/g, '').trim();
+                        if (cleaned.length > 20) return cleaned.substring(0, 260).trim() + '…';
+                        if (editorialSummary) return editorialSummary.substring(0, 260).trim() + '…';
+                        return undefined;
+                      })()}
+                      onClick={() => {
+                        const focusId = finalSourceUrl.replace('focus://daily/', '');
+                        if (focusId) navigate(`/?focus=${focusId}`);
+                      }}
+                      trustScore={{ band: 'ALTO', score: 90 }}
+                    />
+                  ) : finalSourceMedia && finalSourceMedia.length > 0 ? (
+                    /* Media Source (Video/Gallery) */
+                    finalSourceMedia.length === 1 ? (
+                      /* Single media: fill available space */
+                      <button
+                        role="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedMediaIndex(0);
+                        }}
+                        className="relative w-full h-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
+                      >
+                        {finalSourceMedia[0].type === 'video' ? (
+                          <>
+                            <img
+                              src={finalSourceMedia[0].thumbnail_url || finalSourceMedia[0].url}
+                              alt=""
+                              className="w-full h-full object-contain bg-black/20"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                              <div className="bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-xl">
+                                <Play className="w-6 h-6 text-black fill-black" />
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <img
+                            src={finalSourceMedia[0].url}
+                            alt=""
+                            className="w-full h-full object-contain bg-black/20"
+                          />
+                        )}
+                      </button>
+                    ) : (
+                      /* Gallery: fill available space */
+                      <div className="w-full h-full">
+                        <MediaGallery
+                          media={finalSourceMedia}
+                          onClick={(_, index) => setSelectedMediaIndex(index)}
+                          initialIndex={0}
+                          onIndexChange={() => { }}
+                          className="h-full w-full object-contain rounded-2xl border border-white/10"
+                          fillHeight={true}
+                        />
+                      </div>
+                    )
+                  ) : (
+                    /* Link Source */
+                    <div
+                      className="cursor-pointer active:scale-[0.98] transition-transform"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(finalSourceUrl!, '_blank', 'noopener,noreferrer');
+                      }}
+                    >
+                      {!post.is_intent && (
+                        <SourceImageWithFallback
+                          src={articlePreview?.image || finalSourceImage}
+                          sharedUrl={finalSourceUrl}
+                          isIntent={post.is_intent}
+                          trustScore={displayTrustScore}
+                          platform={articlePreview?.platform}
+                          hostname={getHostnameFromUrl(finalSourceUrl)}
+                          className="rounded-xl max-h-[30vh] w-full object-cover mb-2"
+                        />
+                      )}
+                      <h1 className="text-base font-semibold text-white leading-tight mb-1 drop-shadow-xl line-clamp-2">
+                        {articlePreview?.title || finalSourceTitle || getHostnameFromUrl(finalSourceUrl)}
+                      </h1>
+                      <div className={cn("flex items-center text-white/60", post.is_intent ? "gap-1" : "gap-2")}>
+                        <ExternalLink className={cn(post.is_intent ? "w-2.5 h-2.5" : "w-3 h-3")} />
+                        <span className={cn("uppercase tracking-widest", post.is_intent ? "text-[10px]" : "text-xs")}>
+                          {getHostnameFromUrl(finalSourceUrl)}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                )
+                  )}
+                </div>
               )}
 
-              {/* Quoted Post - Only for reshares WITHOUT source (pure comment reshares) */}
+              {/* Quoted Post - Only for reshares WITHOUT source (pure comment reshares) - OR Intent posts */}
               {quotedPost && !useStackLayout && (
                 <div className="mt-4">
                   {/* Detect if quoted post is an editorial (Il Punto) */}
@@ -2084,6 +2110,8 @@ const ImmersivePostCardInner = ({
                   )}
                 </div>
               )}
+
+
 
             </div>
           </div>
@@ -2239,10 +2267,10 @@ const ImmersivePostCardInner = ({
 
       {/* Media Viewer */}
       {
-        selectedMediaIndex !== null && post.media && (
+        selectedMediaIndex !== null && finalSourceMedia && (
           <div className="fixed inset-0 z-[10080]">
             <MediaViewer
-              media={post.media}
+              media={finalSourceMedia}
               initialIndex={selectedMediaIndex}
               onClose={(finalIndex) => {
                 if (finalIndex !== undefined) {

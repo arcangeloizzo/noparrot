@@ -182,7 +182,7 @@ export const usePosts = () => {
           .filter(Boolean),
         reactions: {
           // Conta TUTTE le reazioni non-bookmark (heart, laugh, wow, sad, fire)
-          hearts: post.reactions?.filter((r: any) => 
+          hearts: post.reactions?.filter((r: any) =>
             r.reaction_type && r.reaction_type !== 'bookmark'
           ).length || 0,
           comments: post.comments?.[0]?.count || 0,
@@ -194,13 +194,13 @@ export const usePosts = () => {
           }, {} as Record<string, number>),
         },
         user_reactions: {
-          has_hearted: post.reactions?.some((r: any) => 
+          has_hearted: post.reactions?.some((r: any) =>
             r.reaction_type !== 'bookmark' && r.user_id === user?.id
           ) || false,
-          has_bookmarked: post.reactions?.some((r: any) => 
+          has_bookmarked: post.reactions?.some((r: any) =>
             r.reaction_type === 'bookmark' && r.user_id === user?.id
           ) || false,
-          myReactionType: post.reactions?.find((r: any) => 
+          myReactionType: post.reactions?.find((r: any) =>
             r.reaction_type !== 'bookmark' && r.user_id === user?.id
           )?.reaction_type || null
         },
@@ -290,7 +290,7 @@ export const useToggleReaction = () => {
             .select('category')
             .eq('id', postId)
             .single();
-          
+
           if (postData?.category) {
             await updateCognitiveDensityWeighted(user.id, postData.category, 'LIKE');
           }
@@ -298,31 +298,31 @@ export const useToggleReaction = () => {
         return { action: 'added' as const };
       }
     },
-    
+
     // ===== OPTIMISTIC UI: Instant feedback, rollback on error =====
     onMutate: async ({ postId, reactionType }) => {
       if (!user) return;
-      
+
       // 1. Cancel in-flight queries to avoid race conditions
       await queryClient.cancelQueries({ queryKey: ['posts'] });
       await queryClient.cancelQueries({ queryKey: ['saved-posts'] });
       await queryClient.cancelQueries({ queryKey: ['post', postId] });
-      
+
       // 2. Snapshot previous state for rollback
       const previousPosts = queryClient.getQueryData(['posts', user.id]);
       const previousSaved = queryClient.getQueryData(['saved-posts', user.id]);
       const previousPost = queryClient.getQueryData(['post', postId]);
-      
+
       // 3. Optimistically update cache immediately
       queryClient.setQueryData(['posts', user.id], (old: Post[] | undefined) => {
         if (!old) return old;
         return old.map(post => {
           if (post.id !== postId) return post;
-          
+
           const isBookmark = reactionType === 'bookmark';
           const currentReaction = post.user_reactions.myReactionType;
           const isSameReaction = currentReaction === reactionType;
-          
+
           if (isBookmark) {
             return {
               ...post,
@@ -332,16 +332,16 @@ export const useToggleReaction = () => {
               }
             };
           }
-          
+
           // Calculate new byType counts
           const newByType = { ...post.reactions.byType };
           let newHeartsCount = post.reactions.hearts;
-          
+
           if (isSameReaction) {
             // Toggle off: remove current reaction
             newByType[reactionType] = Math.max(0, (newByType[reactionType] || 0) - 1);
             newHeartsCount = Math.max(0, newHeartsCount - 1);
-            
+
             return {
               ...post,
               reactions: {
@@ -366,7 +366,7 @@ export const useToggleReaction = () => {
             }
             // Increment new reaction count
             newByType[reactionType] = (newByType[reactionType] || 0) + 1;
-            
+
             return {
               ...post,
               reactions: {
@@ -383,7 +383,7 @@ export const useToggleReaction = () => {
           }
         });
       });
-      
+
       // Also update saved-posts if it's a bookmark toggle
       if (reactionType === 'bookmark') {
         queryClient.setQueryData(['saved-posts', user.id], (old: Post[] | undefined) => {
@@ -400,15 +400,15 @@ export const useToggleReaction = () => {
           });
         });
       }
-      
+
       // Also update single post query (for /post/:id route) - usa stessa logica di ['posts']
       queryClient.setQueryData(['post', postId], (old: Post | undefined) => {
         if (!old) return old;
-        
+
         const isBookmark = reactionType === 'bookmark';
         const currentReaction = old.user_reactions.myReactionType;
         const isSameReaction = currentReaction === reactionType;
-        
+
         if (isBookmark) {
           return {
             ...old,
@@ -418,16 +418,16 @@ export const useToggleReaction = () => {
             }
           };
         }
-        
+
         // Calculate new byType counts
         const newByType = { ...old.reactions.byType };
         let newHeartsCount = old.reactions.hearts;
-        
+
         if (isSameReaction) {
           // Toggle off: remove current reaction
           newByType[reactionType] = Math.max(0, (newByType[reactionType] || 0) - 1);
           newHeartsCount = Math.max(0, newHeartsCount - 1);
-          
+
           return {
             ...old,
             reactions: {
@@ -449,7 +449,7 @@ export const useToggleReaction = () => {
             newHeartsCount += 1;
           }
           newByType[reactionType] = (newByType[reactionType] || 0) + 1;
-          
+
           return {
             ...old,
             reactions: {
@@ -465,11 +465,11 @@ export const useToggleReaction = () => {
           };
         }
       });
-      
+
       // 4. Return context for rollback
       return { previousPosts, previousSaved, previousPost };
     },
-    
+
     // Rollback on error
     onError: (_err, variables, context) => {
       if (context?.previousPosts) {
@@ -482,7 +482,7 @@ export const useToggleReaction = () => {
         queryClient.setQueryData(['post', variables.postId], context.previousPost);
       }
     },
-    
+
     // Background sync for consistency (no blocking)
     onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
@@ -614,7 +614,7 @@ export const useQuotedPost = (quotedPostId: string | null) => {
     queryKey: ['quoted-post', quotedPostId],
     queryFn: async () => {
       if (!quotedPostId) return null;
-      
+
       const { data, error } = await supabase
         .from('posts')
         .select(`
@@ -629,16 +629,36 @@ export const useQuotedPost = (quotedPostId: string | null) => {
             username,
             full_name,
             avatar_url
+          ),
+          post_media!post_media_post_id_fkey (
+            order_idx,
+            media:media_id (
+              id,
+              type,
+              url,
+              thumbnail_url,
+              extracted_status,
+              extracted_text,
+              extracted_kind
+            )
           )
         `)
         .eq('id', quotedPostId)
         .single();
-      
+
       if (error) {
         console.error('Error fetching quoted post:', error);
         return null;
       }
-      return data;
+
+      const post = data as any;
+      return {
+        ...post,
+        media: (post.post_media || [])
+          .sort((a: any, b: any) => a.order_idx - b.order_idx)
+          .map((pm: any) => pm.media)
+          .filter(Boolean)
+      };
     },
     enabled: !!quotedPostId
   });
