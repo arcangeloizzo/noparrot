@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { TOASTS } from "@/constants/toast-messages";
+import { AnalysisOverlay } from "@/components/ui/AnalysisOverlay";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { MediaActionBar } from "./MediaActionBar";
 import { MediaPreviewTray } from "@/components/media/MediaPreviewTray";
@@ -54,7 +56,7 @@ const URL_REGEX = /(https?:\/\/[^\s]+)/g;
 const sanitizeUrl = (rawUrl: string): string => {
   // Remove trailing punctuation that often gets captured by regex
   let url = rawUrl.replace(/[)\]},;:!?.…]+$/, '');
-  
+
   // Unwrap common tracking/redirect wrappers
   try {
     const parsed = new URL(url);
@@ -84,7 +86,7 @@ const sanitizeUrl = (rawUrl: string): string => {
         // Keep only canonical path (improves metadata extraction)
         url = `${ig.origin}${ig.pathname}`;
       }
-    } catch {}
+    } catch { }
 
     // t.co (Twitter shortlinks) - keep as is, backend resolves
     // bit.ly, tinyurl, etc - keep as is, backend resolves
@@ -114,39 +116,40 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const [quizData, setQuizData] = useState<any>(null);
   const [quizPassed, setQuizPassed] = useState(false);
   const [intentMode, setIntentMode] = useState(false);
+  const [showAnalysisOverlay, setShowAnalysisOverlay] = useState(false);
   // [NEW] Persistent transcription state - tracks which media is being transcribed
   // This remains true until polling confirms done/failed from DB
   const [transcribingMediaId, setTranscribingMediaId] = useState<string | null>(null);
   const editorRef = useRef<TiptapEditorRef>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  
+
   // iOS keyboard offset using Visual Viewport API
   const keyboardOffset = useVisualViewportOffset(isOpen && isIOS);
-  
+
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, reorderMedia, isUploading, isBatchExtracting, requestTranscription, requestOCR, refreshMediaStatus, requestBatchExtraction, getAggregatedExtractedText } = useMediaUpload();
 
   // Polling for media extraction status
   useEffect(() => {
     const pendingMedia = uploadedMedia.filter(m => m.extracted_status === 'pending');
     if (pendingMedia.length === 0) return;
-    
+
     const interval = setInterval(() => {
       pendingMedia.forEach(m => refreshMediaStatus(m.id));
     }, 2000); // Poll ogni 2 secondi
-    
+
     return () => clearInterval(interval);
   }, [uploadedMedia, refreshMediaStatus]);
 
   // [NEW] Reset transcribingMediaId when transcription completes (done/failed)
   useEffect(() => {
     if (!transcribingMediaId) return;
-    
+
     const media = uploadedMedia.find(m => m.id === transcribingMediaId);
     if (!media) {
       setTranscribingMediaId(null);
       return;
     }
-    
+
     if (media.extracted_status === 'done') {
       toast.success('Trascrizione completata!');
       setTranscribingMediaId(null);
@@ -159,16 +162,16 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   // [NEW] Handler per trascrizione video - persistent state until DB confirms
   const handleRequestTranscription = async (mediaId: string) => {
     if (transcribingMediaId) return; // Prevent if already transcribing any media
-    
+
     setTranscribingMediaId(mediaId);
     toast.info('Trascrizione avviata...', { duration: 3000 });
-    
+
     const result = await requestTranscription(mediaId);
-    
+
     if (!result.success) {
       // Immediate failure - reset state and show detailed error
       setTranscribingMediaId(null);
-      
+
       const errorMessages: Record<string, string> = {
         'video_too_long': 'Video troppo lungo (max 3 minuti)',
         'file_too_large': 'File troppo pesante per la trascrizione',
@@ -178,7 +181,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         'invalid_media': 'Media non valido',
         'db_error': 'Errore di connessione. Riprova.'
       };
-      
+
       const message = errorMessages[result.errorCode || ''] || result.error || 'Impossibile avviare la trascrizione';
       toast.error(message);
     }
@@ -204,33 +207,33 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const intentWordCount = getWordCount(textWithoutUrl);
   const intentWordsMet = !intentMode || intentWordCount >= 30;
   const hasPendingExtraction = uploadedMedia.some(m => m.extracted_status === 'pending');
-  
+
   // [NEW] Track pending transcription separately for UX feedback
-  const hasPendingTranscription = uploadedMedia.some(m => 
+  const hasPendingTranscription = uploadedMedia.some(m =>
     m.extracted_status === 'pending' && m.extracted_kind === 'transcript'
   );
-  
+
   // [NEW] Combined flag: local transcribingMediaId OR DB pending state
   // This ensures UI stays locked even during the initial DB update window
   const isTranscriptionInProgress = !!transcribingMediaId || hasPendingTranscription;
-  
+
   // [NEW] Block publish during transcription
   const canPublish = !hasPendingExtraction && !transcribingMediaId && (content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!quotedPost) && intentWordsMet;
   const isLoading = isPublishing || isGeneratingQuiz || isFinalizingPublish;
-  
+
   // Note: Toast on transcription completion is now handled by the transcribingMediaId reset effect above
 
   // Find media with extracted text (OCR/transcription) sufficient for gate (>120 chars)
-  const mediaWithExtractedText = uploadedMedia.find(m => 
-    m.extracted_status === 'done' && 
-    m.extracted_text && 
+  const mediaWithExtractedText = uploadedMedia.find(m =>
+    m.extracted_status === 'done' &&
+    m.extracted_text &&
     m.extracted_text.length > 120
   );
 
   // [FIX] Check if quotedPost has media with OCR/transcription (for reshares)
-  const quotedPostMediaWithExtractedText = quotedPost?.media?.find((m: any) => 
-    m.extracted_status === 'done' && 
-    m.extracted_text && 
+  const quotedPostMediaWithExtractedText = quotedPost?.media?.find((m: any) =>
+    m.extracted_status === 'done' &&
+    m.extracted_text &&
     m.extracted_text.length > 120
   );
 
@@ -245,43 +248,43 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     if (quotedPost?._gatePassed === true) {
       return { label: 'Quiz già superato', requiresGate: false };
     }
-    
+
     // Gate attivo se c'è un URL
     if (detectedUrl) {
       return { label: 'Gate attivo', requiresGate: true };
     }
-    
+
     // [FIX] Check media gate logic for DIRECT UPLOADS (new media, not reshare)
     // REGOLA D'ORO: L'autore non fa mai il test sul proprio commento
     // Usa getMediaGateForComposer che ignora wordCount e testa SOLO sull'OCR
     if (uploadedMedia.length > 0 && !quotedPost) {
       const hasExtracted = !!mediaWithExtractedText;
       const mediaGate = getMediaGateForComposer(hasExtracted);
-      
+
       if (mediaGate.gateRequired) {
         // Per upload diretti con OCR, sempre SOURCE_ONLY (3 domande sul media)
         const activeMedia = mediaWithExtractedText;
-        return { 
-          label: activeMedia?.extracted_kind === 'ocr' 
-            ? 'Gate OCR attivo' 
-            : 'Gate trascrizione attivo', 
-          requiresGate: true 
+        return {
+          label: activeMedia?.extracted_kind === 'ocr'
+            ? 'Gate OCR attivo'
+            : 'Gate trascrizione attivo',
+          requiresGate: true
         };
       }
       // Media senza OCR o commento qualsiasi: nessun gate per l'autore
       return { label: 'Nessun gate', requiresGate: false };
     }
-    
+
     // [FIX] Gate per reshare di post con media OCR/trascrizione
     // Usa le parole del POST ORIGINALE (quotedPost.content), NON il commento del resharer
     if (quotedPostMediaWithExtractedText) {
       const mediaGate = getMediaTestMode(quotedPostWordCount, true);
       if (mediaGate.testMode === 'SOURCE_ONLY') {
-        return { 
-          label: quotedPostMediaWithExtractedText?.extracted_kind === 'ocr' 
-            ? 'Gate OCR (fonte)' 
-            : 'Gate trascrizione (fonte)', 
-          requiresGate: true 
+        return {
+          label: quotedPostMediaWithExtractedText?.extracted_kind === 'ocr'
+            ? 'Gate OCR (fonte)'
+            : 'Gate trascrizione (fonte)',
+          requiresGate: true
         };
       } else if (mediaGate.testMode === 'MIXED') {
         return { label: 'Gate mixed (fonte)', requiresGate: true };
@@ -289,7 +292,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         return { label: 'Gate completo (fonte)', requiresGate: true };
       }
     }
-    
+
     // [FIX] Gate per reshare di post TEXT-ONLY (senza media, senza URL nel post originale)
     // L'utente che ricondivide fa il test sul TESTO del POST ORIGINALE
     // Il commento che scrive nel composer NON viene MAI usato per il gate
@@ -303,7 +306,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       // Post originale ≤30 parole: nessun gate
       return { label: 'Nessun gate', requiresGate: false };
     }
-    
+
     // Nessun gate per testo libero senza URL
     return { label: 'Nessun gate', requiresGate: false };
   })();
@@ -344,7 +347,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const applyFormatting = (format: 'bold' | 'italic' | 'underline') => {
     haptics.light();
     if (!editorRef.current) return;
-    
+
     switch (format) {
       case 'bold':
         editorRef.current.toggleBold();
@@ -363,13 +366,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     if (urls && urls.length > 0) {
       const rawUrl = urls[0];
       const sanitizedUrl = sanitizeUrl(rawUrl);
-      
-      console.log('[Composer] URL detected:', { 
-        rawUrl, 
-        sanitizedUrl, 
+
+      console.log('[Composer] URL detected:', {
+        rawUrl,
+        sanitizedUrl,
         hostname: (() => { try { return new URL(sanitizedUrl).hostname; } catch { return 'invalid'; } })()
       });
-      
+
       if (sanitizedUrl !== detectedUrl) {
         setDetectedUrl(sanitizedUrl);
         loadPreview(sanitizedUrl);
@@ -385,25 +388,25 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     setIsPreviewLoading(true);
     setUrlPreview(null);
     setIntentMode(false); // Reset intent mode on new URL
-    
+
     try {
       const host = new URL(url).hostname.toLowerCase();
       console.log('[Composer] URL hostname:', host);
-      
+
       // For blocked platforms, we now fetch from edge function to get OpenGraph metadata
       // The edge function will return success=false but with metadata for the preview card
 
       // Fetch preview - main operation
       const preview = await fetchArticlePreview(url);
       console.log('[Composer] fetchArticlePreview result:', { success: preview?.success, error: preview?.error, contentQuality: preview?.contentQuality });
-      
+
       // Check if content is blocked or minimal - activate Intent Mode
       if (!preview.success || preview.contentQuality === 'blocked' || preview.contentQuality === 'minimal') {
         console.log('[Composer] Intent mode activated - content not analyzable:', preview.error || preview.contentQuality);
         setIntentMode(true);
-        setUrlPreview({ 
-          url, 
-          platform: preview.platform || 'intent', 
+        setUrlPreview({
+          url,
+          platform: preview.platform || 'intent',
           contentQuality: preview.contentQuality || 'blocked',
           // Use metadata from OpenGraph if available, fallback to generic title
           title: preview.title || 'Contenuto non analizzabile',
@@ -415,18 +418,18 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         setIsPreviewLoading(false);
         return;
       }
-      
+
       // Success - set preview IMMEDIATELY (don't block on classification)
       // FIX: Ensure qaSourceRef is always present for generateQA
       const buildQaSourceRef = (url: string, platform?: string) => {
         if (preview.qaSourceRef) return preview.qaSourceRef;
-        
+
         try {
           const urlObj = new URL(url);
           const host = urlObj.hostname.toLowerCase();
-          
+
           if (platform === 'youtube' || host.includes('youtube') || host.includes('youtu.be')) {
-            const videoId = host.includes('youtu.be') 
+            const videoId = host.includes('youtu.be')
               ? urlObj.pathname.slice(1).split('?')[0]
               : urlObj.searchParams.get('v');
             if (videoId) return { kind: 'youtubeId' as const, id: videoId, url };
@@ -439,15 +442,15 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
             const tweetMatch = url.match(/status\/(\d+)/);
             if (tweetMatch) return { kind: 'tweetId' as const, id: tweetMatch[1], url };
           }
-        } catch {}
-        
+        } catch { }
+
         return { kind: 'url' as const, id: url, url };
       };
-      
+
       const qaSourceRef = buildQaSourceRef(url, preview.platform);
       setUrlPreview({ url, ...preview, qaSourceRef });
       setIsPreviewLoading(false); // Show preview now
-      
+
       // Classification in background - non-blocking
       classifyContent({
         text: content,
@@ -456,7 +459,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       }).then(setContentCategory).catch((err) => {
         console.warn('[Composer] Classification failed (non-blocking):', err);
       });
-      
+
       return; // Early return since we already set loading=false
     } catch (error) {
       console.error('[Composer] Error loading preview:', error);
@@ -470,9 +473,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const handlePublish = async () => {
     // Allow publish if user has text, media, a detected URL, or a quoted post (reshare)
     if (!user || (!content.trim() && !detectedUrl && uploadedMedia.length === 0 && !quotedPost)) return;
-    
+
     addBreadcrumb('publish_attempt', { hasUrl: !!detectedUrl, hasMediaOCR: !!mediaWithExtractedText, isIOS });
-    
+
     // [FIX] BYPASS GATE if user already passed quiz in Feed Reader
     if (quotedPost?._gatePassed === true) {
       console.log('[Composer] Gate bypass - quiz already passed in Feed Reader');
@@ -480,10 +483,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       await publishPost();
       return;
     }
-    
-    console.log('[Composer] handlePublish called:', { 
-      detectedUrl, 
-      isPreviewLoading, 
+
+    console.log('[Composer] handlePublish called:', {
+      detectedUrl,
+      isPreviewLoading,
       urlPreviewSuccess: urlPreview?.success,
       urlPreviewError: urlPreview?.error,
       hasMediaOCR: !!mediaWithExtractedText,
@@ -530,15 +533,15 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     // L'autore non fa MAI il test sul proprio commento, solo sull'OCR/trascrizione
     if (uploadedMedia.length > 0 && !quotedPost) {
       // Check for any media with extracted text (single or multi-media)
-      const mediaWithText = uploadedMedia.filter(m => 
-        m.extracted_status === 'done' && 
-        m.extracted_text && 
+      const mediaWithText = uploadedMedia.filter(m =>
+        m.extracted_status === 'done' &&
+        m.extracted_text &&
         m.extracted_text.length > 50 // Lower threshold for carousel aggregation
       );
       const hasExtracted = mediaWithText.length > 0;
       const mediaGate = getMediaGateForComposer(hasExtracted);
-      
-      console.log('[Composer] Direct media gate (author):', { 
+
+      console.log('[Composer] Direct media gate (author):', {
         hasExtracted,
         mediaWithTextCount: mediaWithText.length,
         gateRequired: mediaGate.gateRequired,
@@ -546,35 +549,35 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         questionCount: mediaGate.questionCount,
         note: 'Author wordCount ignored per Golden Rule'
       });
-      
+
       if (mediaGate.gateRequired) {
         // For multi-media, use aggregated text; for single, use single media
         if (mediaWithText.length > 1) {
           // Multi-media: generate quiz on aggregated text
           const aggregatedText = getAggregatedExtractedText();
-          
-          addBreadcrumb('multi_media_gate_start', { 
+
+          addBreadcrumb('multi_media_gate_start', {
             mediaCount: mediaWithText.length,
             aggregatedTextLength: aggregatedText.length,
             testMode: 'SOURCE_ONLY',
             questionCount: 3
           });
-          
+
           await handleAggregatedMediaGateFlow(aggregatedText);
           return;
         } else {
           // Single media with extracted text
           const targetMedia = mediaWithText[0];
-          
-          addBreadcrumb('media_gate_start', { 
+
+          addBreadcrumb('media_gate_start', {
             mediaId: targetMedia.id,
             kind: targetMedia.extracted_kind || 'ocr',
             testMode: 'SOURCE_ONLY',
             questionCount: 3
           });
-          
+
           await handleMediaGateFlow(
-            targetMedia, 
+            targetMedia,
             'SOURCE_ONLY',
             3
           );
@@ -588,20 +591,20 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     // Use quotedPostWordCount (SOURCE content), NOT wordCount (resharer's comment)
     if (quotedPostMediaWithExtractedText && quotedPost) {
       const mediaGate = getMediaTestMode(quotedPostWordCount, true); // Use SOURCE word count
-      
-      console.log('[Composer] Reshare media gate evaluation:', { 
+
+      console.log('[Composer] Reshare media gate evaluation:', {
         quotedPostWordCount, // Log source word count, not user's
         testMode: mediaGate.testMode,
         questionCount: mediaGate.questionCount
       });
-      
-      addBreadcrumb('reshare_media_gate_start', { 
+
+      addBreadcrumb('reshare_media_gate_start', {
         mediaId: quotedPostMediaWithExtractedText.id,
         kind: quotedPostMediaWithExtractedText.extracted_kind,
         testMode: mediaGate.testMode,
         questionCount: mediaGate.questionCount
       });
-      
+
       await handleQuotedMediaGateFlow(
         quotedPostMediaWithExtractedText,
         mediaGate.testMode as 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY',
@@ -609,18 +612,18 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       );
       return;
     }
-    
+
     // [FIX] Branch for reshare of text-only posts (no media, no URL in original)
     // Gate based on ORIGINAL post content (source), NEVER on resharer's comment
     if (quotedPost && !quotedPostMediaWithExtractedText && !detectedUrl) {
       if (quotedPostWordCount > 30) {
         console.log('[Composer] Reshare text-only gate, source words:', quotedPostWordCount);
-        
-        addBreadcrumb('reshare_textonly_gate_start', { 
+
+        addBreadcrumb('reshare_textonly_gate_start', {
           quotedPostWordCount,
           questionCount: quotedPostWordCount > 120 ? 3 : 1
         });
-        
+
         // Generate quiz directly on the quoted post's content
         await handleReshareTextOnlyGateFlow(quotedPostWordCount > 120 ? 3 : 1);
         return;
@@ -634,21 +637,22 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     // [EXISTING] Fallback: no gate required
     await publishPost();
   };
-  
+
   // [NEW] Handle media gate flow (OCR/transcription) - similar to handleIOSQuizOnlyFlow
   const handleMediaGateFlow = async (
-    media: typeof uploadedMedia[0], 
+    media: typeof uploadedMedia[0],
     overrideTestMode?: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY',
     overrideQuestionCount?: 1 | 3
   ) => {
     if (isGeneratingQuiz) return;
-    
+
     try {
       setIsGeneratingQuiz(true);
       addBreadcrumb('media_generating_quiz', { testMode: overrideTestMode, questionCount: overrideQuestionCount });
-      
-      toast.loading('Stiamo mettendo a fuoco ciò che conta…');
-      
+
+      // [UX CHANGE] Use overlay instead of toast
+      setShowAnalysisOverlay(true);
+
       const result = await generateQA({
         contentId: null,
         isPrePublish: true,
@@ -659,21 +663,20 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         testMode: overrideTestMode || 'SOURCE_ONLY',
         questionCount: overrideQuestionCount || 3,
       });
-      
-      toast.dismiss();
-      addBreadcrumb('media_qa_generated', { 
-        hasQuestions: !!result.questions, 
+
+      setShowAnalysisOverlay(false);
+      addBreadcrumb('media_qa_generated', {
+        hasQuestions: !!result.questions,
         error: result.error,
         pending: result.pending
       });
-      
-      // Handle pending (extraction still in progress)
+
       if (result.pending) {
         toast.info('Estrazione testo in corso, riprova tra qualche secondo...');
         setIsGeneratingQuiz(false);
         return;
       }
-      
+
       if (result.insufficient_context) {
         // Text insufficient: fallback to Intent Gate
         console.log('[Composer] Media text insufficient, activating intent mode');
@@ -682,7 +685,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         setIsGeneratingQuiz(false);
         return;
       }
-      
+
       if (result.error || !result.questions) {
         // [NEW] Allow publish without test when quiz generation fails
         console.error('[ComposerModal] Media quiz generation failed:', result.error);
@@ -692,7 +695,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         await publishPost(); // Proceed without gate
         return;
       }
-      
+
       // Show quiz
       setQuizData({
         qaId: result.qaId,
@@ -701,27 +704,27 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       });
       setShowQuiz(true);
       addBreadcrumb('media_quiz_mount');
-      
+
     } catch (error) {
       console.error('[ComposerModal] Media gate flow error:', error);
-      toast.dismiss();
+      // toast.dismiss();
       toast.error('Errore durante la generazione del quiz. Riprova.');
       addBreadcrumb('media_gate_error', { error: String(error) });
     } finally {
       setIsGeneratingQuiz(false);
+      setShowAnalysisOverlay(false);
     }
   };
 
   // [NEW] Handle multi-media gate with aggregated text
   const handleAggregatedMediaGateFlow = async (aggregatedText: string) => {
-    if (isGeneratingQuiz) return;
-    
     try {
       setIsGeneratingQuiz(true);
       addBreadcrumb('aggregated_media_generating_quiz', { textLength: aggregatedText.length });
-      
-      toast.loading('Stiamo mettendo a fuoco ciò che conta…');
-      
+
+      // [UX CHANGE] Use overlay instead of toast
+      setShowAnalysisOverlay(true);
+
       const result = await generateQA({
         contentId: null,
         isPrePublish: true,
@@ -732,13 +735,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         testMode: 'SOURCE_ONLY',
         questionCount: 3,
       });
-      
-      toast.dismiss();
-      addBreadcrumb('aggregated_media_qa_generated', { 
-        hasQuestions: !!result.questions, 
+
+      setShowAnalysisOverlay(false);
+      addBreadcrumb('aggregated_media_qa_generated', {
+        hasQuestions: !!result.questions,
         error: result.error
       });
-      
+
       if (result.insufficient_context) {
         console.log('[Composer] Aggregated media text insufficient');
         toast.warning('Testo estratto insufficiente. Puoi pubblicare comunque.', { duration: 5000 });
@@ -746,7 +749,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         await publishPost();
         return;
       }
-      
+
       if (result.error || !result.questions) {
         console.error('[ComposerModal] Aggregated media quiz generation failed:', result.error);
         toast.warning('Test non disponibile. Puoi pubblicare comunque.', { duration: 5000 });
@@ -755,7 +758,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         await publishPost();
         return;
       }
-      
+
       setQuizData({
         qaId: result.qaId,
         questions: result.questions,
@@ -763,17 +766,18 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       });
       setShowQuiz(true);
       addBreadcrumb('aggregated_media_quiz_mount');
-      
+
     } catch (error) {
       console.error('[ComposerModal] Aggregated media gate flow error:', error);
-      toast.dismiss();
+      // toast.dismiss();
       toast.error('Errore durante la generazione del quiz. Riprova.');
       addBreadcrumb('aggregated_media_gate_error', { error: String(error) });
     } finally {
       setIsGeneratingQuiz(false);
+      setShowAnalysisOverlay(false);
     }
   };
-  
+
   // [FIX] Handle reshare of post with media OCR/transcription
   const handleQuotedMediaGateFlow = async (
     media: any,
@@ -781,13 +785,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     overrideQuestionCount?: 1 | 3
   ) => {
     if (isGeneratingQuiz) return;
-    
+
     try {
       setIsGeneratingQuiz(true);
       addBreadcrumb('reshare_media_generating_quiz', { testMode: overrideTestMode, questionCount: overrideQuestionCount });
-      
-      toast.loading('Stiamo mettendo a fuoco ciò che conta…');
-      
+
+      // [UX CHANGE] Use overlay instead of toast
+      setShowAnalysisOverlay(true);
+
       const result = await generateQA({
         contentId: quotedPost?.id || null,
         isPrePublish: true,
@@ -799,21 +804,21 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         questionCount: overrideQuestionCount || 3,
         quotedPostId: quotedPost?.id, // Reshare: reuse original quiz if exists
       });
-      
-      toast.dismiss();
-      addBreadcrumb('reshare_media_qa_generated', { 
-        hasQuestions: !!result.questions, 
+
+      setShowAnalysisOverlay(false);
+      addBreadcrumb('reshare_media_qa_generated', {
+        hasQuestions: !!result.questions,
         error: result.error,
         pending: result.pending
       });
-      
+
       // Handle pending (extraction still in progress - should not happen for reshare)
       if (result.pending) {
         toast.info('Estrazione testo in corso, riprova tra qualche secondo...');
         setIsGeneratingQuiz(false);
         return;
       }
-      
+
       if (result.insufficient_context) {
         // Text insufficient: fallback to Intent Gate
         console.log('[Composer] Reshare media text insufficient, activating intent mode');
@@ -822,7 +827,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         setIsGeneratingQuiz(false);
         return;
       }
-      
+
       if (result.error || !result.questions) {
         // [FIX] Block publish if reshare quiz lookup failed - this should not happen
         console.error('[ComposerModal] Reshare media quiz lookup/generation failed:', result.error);
@@ -831,7 +836,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         addBreadcrumb('reshare_media_quiz_failed_blocked');
         return;
       }
-      
+
       // Show quiz
       setQuizData({
         qaId: result.qaId,
@@ -840,14 +845,15 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       });
       setShowQuiz(true);
       addBreadcrumb('reshare_media_quiz_mount');
-      
+
     } catch (error) {
       console.error('[ComposerModal] Reshare media gate flow error:', error);
-      toast.dismiss();
+      // toast.dismiss();
       toast.error('Errore durante la generazione del quiz. Riprova.');
       addBreadcrumb('reshare_media_gate_error', { error: String(error) });
     } finally {
       setIsGeneratingQuiz(false);
+      setShowAnalysisOverlay(false);
     }
   };
 
@@ -855,13 +861,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   // The resharer is tested on the SOURCE (quotedPost.content), not their own comment
   const handleReshareTextOnlyGateFlow = async (questionCount: 1 | 3) => {
     if (isGeneratingQuiz || !quotedPost || !user) return;
-    
+
     try {
       setIsGeneratingQuiz(true);
       addBreadcrumb('reshare_textonly_generating_quiz', { questionCount });
-      
-      toast.loading('Stiamo mettendo a fuoco ciò che conta…');
-      
+
+      // [UX CHANGE] Use overlay instead of toast
+      setShowAnalysisOverlay(true);
+
       const result = await generateQA({
         contentId: quotedPost.id,
         isPrePublish: true,
@@ -874,13 +881,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         questionCount,
         quotedPostId: quotedPost.id, // Reshare: reuse original quiz if exists
       });
-      
-      toast.dismiss();
-      addBreadcrumb('reshare_textonly_qa_generated', { 
-        hasQuestions: !!result.questions, 
-        error: result.error 
+
+      setShowAnalysisOverlay(false);
+      addBreadcrumb('reshare_textonly_qa_generated', {
+        hasQuestions: !!result.questions,
+        error: result.error
       });
-      
+
       if (result.insufficient_context) {
         // Should not happen since we already checked >30 words
         console.log('[Composer] Reshare text-only insufficient context');
@@ -888,7 +895,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         setIsGeneratingQuiz(false);
         return;
       }
-      
+
       if (result.error || !result.questions) {
         // [FIX] Block publish if reshare quiz lookup failed - this should not happen
         console.error('[ComposerModal] Reshare text-only quiz lookup/generation failed:', result.error);
@@ -897,7 +904,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         addBreadcrumb('reshare_textonly_quiz_failed_blocked');
         return;
       }
-      
+
       // Show quiz - user will be tested on the original post's content
       setQuizData({
         qaId: result.qaId,
@@ -906,25 +913,26 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       });
       setShowQuiz(true);
       addBreadcrumb('reshare_textonly_quiz_mount');
-      
+
     } catch (error) {
       console.error('[ComposerModal] Reshare text-only gate flow error:', error);
-      toast.dismiss();
+      // toast.dismiss();
       toast.error('Errore durante la generazione del quiz. Riprova.');
       addBreadcrumb('reshare_textonly_gate_error', { error: String(error) });
     } finally {
       setIsGeneratingQuiz(false);
+      setShowAnalysisOverlay(false);
     }
   };
 
   // FIXED: Uses qaSourceRef instead of full-text summary, blocks publish on failure
   const handleIOSQuizOnlyFlow = async () => {
     if (isGeneratingQuiz || !urlPreview || !user) return;
-    
+
     try {
       setIsGeneratingQuiz(true);
       addBreadcrumb('ios_generating_quiz');
-      
+
       // Check if qaSourceRef is available (required for source-first)
       if (!urlPreview.qaSourceRef) {
         console.error('[ComposerModal] iOS: Missing qaSourceRef');
@@ -932,22 +940,23 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         setIsGeneratingQuiz(false);
         return;
       }
-      
+
       // Share originale (nessun quotedPost) → sempre SOURCE_ONLY
       // Il commento dell'utente è suo, non ha senso testarlo su ciò che ha scritto lui
       // Reshare (quotedPost presente) → valuta il commento dell'autore ORIGINALE
       const isReshare = !!quotedPost;
       let testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY';
-      
+
       if (isReshare && quotedPost.content) {
         const originalAuthorWordCount = getWordCount(quotedPost.content);
         testMode = getTestModeWithSource(originalAuthorWordCount);
       } else {
         testMode = 'SOURCE_ONLY';
       }
-      
-      toast.loading('Stiamo mettendo a fuoco ciò che conta…');
-      
+
+      // [UX CHANGE] Use overlay instead of toast
+      setShowAnalysisOverlay(true);
+
       const result = await generateQA({
         contentId: null,
         isPrePublish: true,
@@ -957,10 +966,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         userText: content,
         testMode: testMode,
       });
-      
-      toast.dismiss();
+
+      setShowAnalysisOverlay(false);
       addBreadcrumb('ios_qa_generated', { hasQuestions: !!result.questions, error: result.error, error_code: result.error_code });
-      
+
       // NEW: Handle validation errors with retry UI
       if (result.error_code) {
         addBreadcrumb('ios_validation_error', { code: result.error_code });
@@ -980,14 +989,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         setIsGeneratingQuiz(false);
         return;
       }
-      
+
       if (result.insufficient_context) {
         toast.error('Contenuto insufficiente per generare il test');
         addBreadcrumb('ios_insufficient');
         setIsGeneratingQuiz(false);
         return; // DO NOT publish - block
       }
-      
+
       if (result.error || !result.questions) {
         console.error('[ComposerModal] iOS Quiz generation failed:', result.error);
         toast.error('Errore generazione quiz. Riprova.');
@@ -995,7 +1004,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         setIsGeneratingQuiz(false);
         return; // DO NOT publish - block
       }
-      
+
       // Show quiz directly (no reader) - include qaId
       addBreadcrumb('ios_quiz_mount');
       setQuizData({
@@ -1004,39 +1013,43 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         sourceUrl: detectedUrl || '',
       });
       setShowQuiz(true);
-      
+
     } catch (error) {
       console.error('[ComposerModal] iOS quiz flow error:', error);
-      toast.dismiss();
+      // toast.dismiss();
       toast.error('Errore durante la generazione del quiz. Riprova.');
       addBreadcrumb('ios_quiz_flow_error', { error: String(error) });
       // DO NOT publish on error - gate is mandatory
     } finally {
       setIsGeneratingQuiz(false);
+      setShowAnalysisOverlay(false);
     }
   };
 
   // NEW: Handler for retry with cache invalidation
   const handleRetryWithCacheClear = async () => {
     if (!urlPreview?.qaSourceRef || !user) return;
-    
+
     try {
       addBreadcrumb('quiz_closed', { via: 'retry_start' });
       setShowQuiz(false);
       setQuizData(null);
       setIsGeneratingQuiz(true);
-      toast.loading('Riprovo l\'analisi con dati freschi…');
-      
+
+      // [UX CHANGE] Use overlay instead of toast
+      setShowAnalysisOverlay(true);
+      // toast.loading('Riprovo l\'analisi con dati freschi…');
+
       const isReshare = !!quotedPost;
       let testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY';
-      
+
       if (isReshare && quotedPost?.content) {
         const originalAuthorWordCount = getWordCount(quotedPost.content);
         testMode = getTestModeWithSource(originalAuthorWordCount);
       } else {
         testMode = 'SOURCE_ONLY';
       }
-      
+
       const result = await generateQA({
         contentId: null,
         isPrePublish: true,
@@ -1047,46 +1060,47 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         testMode: testMode,
         forceRefresh: true, // KEY: Clear cache before retry
       });
-      
-      toast.dismiss();
-      
+
+      setShowAnalysisOverlay(false);
+      // toast.dismiss();
+
       // Handle same error again → Fallback to Intent Mode
       if (result.error_code) {
         toast.dismiss();
         console.log('[ComposerModal] Second retry failed, activating Intent Mode');
         addBreadcrumb('retry_fallback_intent', { code: result.error_code });
-        
+
         // Close quiz modal and clean state
         addBreadcrumb('quiz_closed', { via: 'retry_fallback' });
         setShowQuiz(false);
         setQuizData(null);
         setIsGeneratingQuiz(false);
-        
+
         // Activate Intent Mode
         setIntentMode(true);
-        
+
         // Show friendly message
         toast.info('Contenuto non analizzabile. Aggiungi almeno 30 parole per condividere.');
-        
+
         return;
       }
-      
+
       if (result.error || !result.questions) {
         toast.dismiss();
         console.log('[ComposerModal] Second retry error, activating Intent Mode');
         addBreadcrumb('retry_error_intent', { error: result.error });
-        
+
         addBreadcrumb('quiz_closed', { via: 'retry_error' });
         setShowQuiz(false);
         setQuizData(null);
         setIsGeneratingQuiz(false);
-        
+
         setIntentMode(true);
         toast.info('Contenuto non analizzabile. Aggiungi almeno 30 parole per condividere.');
-        
+
         return;
       }
-      
+
       // Success! Show quiz
       addBreadcrumb('retry_quiz_success');
       setQuizData({
@@ -1095,13 +1109,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         sourceUrl: detectedUrl || urlPreview?.url || '',
       });
       setShowQuiz(true);
-      
+
     } catch (error) {
-      toast.dismiss();
+      // toast.dismiss();
       toast.error('Errore durante il retry. Riprova più tardi.');
       addBreadcrumb('retry_error', { error: String(error) });
     } finally {
       setIsGeneratingQuiz(false);
+      setShowAnalysisOverlay(false);
     }
   };
 
@@ -1112,13 +1127,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     setShowReader(false);
     await new Promise((resolve) => setTimeout(resolve, 50));
     setReaderClosing(false);
-    
+
     // Reset URL state when user closes without completing (allows new URL detection)
     if (!preserveUrlState) {
       setDetectedUrl(null);
       setUrlPreview(null);
     }
-    
+
     addBreadcrumb('reader_closed');
   };
 
@@ -1148,7 +1163,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       // Reshare (quotedPost presente) → valuta il commento dell'autore ORIGINALE
       const isReshare = !!quotedPost;
       let testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY';
-      
+
       if (isReshare && quotedPost.content) {
         const originalAuthorWordCount = getWordCount(quotedPost.content);
         testMode = getTestModeWithSource(originalAuthorWordCount);
@@ -1156,7 +1171,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         testMode = 'SOURCE_ONLY';
       }
 
-      toast.loading('Stiamo mettendo a fuoco ciò che conta…');
+      // [UX CHANGE] Use overlay instead of toast
+      setShowAnalysisOverlay(true);
+      // toast.loading('Stiamo mettendo a fuoco ciò che conta…');
 
       const result = await generateQA({
         contentId: null,
@@ -1168,8 +1185,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         testMode: testMode,
       });
 
-      toast.dismiss();
-      
+      setShowAnalysisOverlay(false);
+      // toast.dismiss();
+
       // NEW: Handle validation errors with retry UI
       if (result.error_code) {
         addBreadcrumb('reader_validation_error', { code: result.error_code });
@@ -1202,8 +1220,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       const hasQuestions = Array.isArray(result.questions) && result.questions.length > 0;
 
       if (result.error || !hasQuestions) {
-        console.error('[ComposerModal] Quiz generation failed:', { 
-          error: result.error, 
+        console.error('[ComposerModal] Quiz generation failed:', {
+          error: result.error,
           hasQuestions
         });
         addBreadcrumb('quiz_unavailable');
@@ -1268,7 +1286,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       // Use ONLY server verdict - no client override
       const passed = !!data.passed;
       setQuizPassed(passed);
-      
+
       return data;
     } catch (error) {
       console.error('Error validating quiz:', error);
@@ -1281,11 +1299,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     if (!user) return;
 
     setIsPublishing(true);
-    
+
     // Mark publish flow started in localStorage for crash diagnostics
     localStorage.setItem('publish_flow_step', 'publish_started');
     localStorage.setItem('publish_flow_at', String(Date.now()));
-    
+
     try {
       addBreadcrumb('publish_start', { hasUrl: !!detectedUrl, hasMedia: uploadedMedia.length > 0 });
 
@@ -1299,10 +1317,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       // For reshares (quoted post) or media-only posts we allow an empty commentary.
       const strippedText = snapshotContent.replace(URL_REGEX, '').trim();
       const mediaIdsSnapshot = snapshotUploadedMedia.map((m) => m.id);
-      
+
       // Detect if quoting an editorial
-      const isQuotingEditorial = quotedPost?.shared_url?.startsWith('focus://') || 
-                                  quotedPost?.author?.username === 'ilpunto';
+      const isQuotingEditorial = quotedPost?.shared_url?.startsWith('focus://') ||
+        quotedPost?.author?.username === 'ilpunto';
 
       // FIX: For editorials with missing data, we need to fetch from the original source
       // The quotedPost might not have article_content populated (legacy posts)
@@ -1312,12 +1330,12 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         article_content: quotedPost?.article_content,
         preview_img: quotedPost?.preview_img,
       };
-      
+
       if (isQuotingEditorial && (!editorialData.article_content || !editorialData.shared_title)) {
         console.log('[Composer] Editorial missing data, will rely on backend to fetch');
-        addBreadcrumb('editorial_missing_data', { 
-          hasTitle: !!editorialData.shared_title, 
-          hasContent: !!editorialData.article_content 
+        addBreadcrumb('editorial_missing_data', {
+          hasTitle: !!editorialData.shared_title,
+          hasContent: !!editorialData.article_content
         });
       }
       const allowEmptyCommentary = !!quotedPost || mediaIdsSnapshot.length > 0;
@@ -1378,7 +1396,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
           sharedTitle: snapshotPreview.title || null,
           previewImg: snapshotPreview.image || snapshotPreview.previewImg || null,
         } : {};
-        
+
         const { data, error: fnError } = await supabase.functions.invoke('publish-post', {
           body: {
             content: cleanContent,
@@ -1440,7 +1458,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
             preview_img: snapshotPreview.image || snapshotPreview.previewImg || null,
             is_intent: true,
           } : {};
-          
+
           const { data: directInsert, error: directErr } = await supabase
             .from('posts')
             .insert({
@@ -1502,17 +1520,17 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       // IMPORTANT: avoid heavy immediate refetch on iOS (can trigger Safari reload).
       // Instead, push an optimistic post into cache so it appears immediately, then refetch later.
       addBreadcrumb('publish_finalize');
-      
+
       // Mark publish flow success in localStorage
       localStorage.setItem('publish_flow_step', 'publish_success');
       localStorage.setItem('publish_flow_at', String(Date.now()));
-      
+
       haptics.success();
       toast.success(wasIdempotent ? 'Post già pubblicato.' : 'Condiviso.');
 
       if (postId) {
         addBreadcrumb('publish_optimistic_cache', { postId });
-        
+
         const optimisticPost = {
           id: postId,
           author: {
@@ -1557,7 +1575,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
           if (list.some((p: any) => p?.id === postId)) return list;
           return [optimisticPost, ...list];
         });
-        
+
         // 2) Specific ['posts', user.id] key used by Feed
         queryClient.setQueryData(['posts', user.id], (old: any) => {
           const list = Array.isArray(old) ? old : [];
@@ -1580,7 +1598,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
           queryClient.setQueriesData({ queryKey: ['posts'] }, bump);
           queryClient.setQueryData(['posts', user.id], bump);
         }
-        
+
         // ===== HARDENING 3: Notify parent about new post for scroll-to =====
         if (postId) {
           onPublishSuccess?.(postId);
@@ -1614,7 +1632,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
             }, 160);
           });
         }
-        
+
         // Clear localStorage markers after successful close
         localStorage.removeItem('publish_flow_step');
         localStorage.removeItem('publish_flow_at');
@@ -1628,7 +1646,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
 
         // Note: component may unmount right after onClose(); setting state after that is OK to skip.
         // We still try to clear overlay when possible (non-modal close paths).
-        try { setIsFinalizingPublish(false); } catch {}
+        try { setIsFinalizingPublish(false); } catch { }
       }, closeDelay);
     } catch (error) {
       console.error('[Publish] Unexpected error:', error);
@@ -1646,8 +1664,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
 
   if (!isOpen) return null;
 
-  const initials = profile?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase() || 
-                   profile?.username?.substring(0, 2).toUpperCase() || 'U';
+  const initials = profile?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase() ||
+    profile?.username?.substring(0, 2).toUpperCase() || 'U';
 
   return (
     <>
@@ -1668,14 +1686,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       */}
       <div className="absolute inset-0 z-50 flex flex-col h-[100dvh]">
         {/* Backdrop - desktop only */}
-        <div 
-          className="hidden md:block absolute inset-0 bg-black/60" 
-          onClick={onClose} 
+        <div
+          className="hidden md:block absolute inset-0 bg-black/60"
+          onClick={onClose}
         />
-        
+
         {/* Container: full-screen mobile, centered modal desktop */}
         {/* Uses 100dvh (Dynamic Viewport Height) which resizes with virtual keyboard */}
-        <div 
+        <div
           className={cn(
             "relative flex flex-col w-full",
             // Mobile: full dynamic viewport height, keyboard will resize this
@@ -1708,7 +1726,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
               >
                 Annulla
               </Button>
-              
+
               <Button
                 onClick={handlePublish}
                 disabled={!canPublish || isLoading || isPreviewLoading || isTranscriptionInProgress}
@@ -1737,7 +1755,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                     {initials}
                   </AvatarFallback>
                 </Avatar>
-                
+
                 <div className="flex-1 min-w-0">
                   <TiptapEditor
                     ref={editorRef}
@@ -1750,7 +1768,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                   />
                 </div>
               </div>
-              
+
               {/* Content previews area */}
               <div className="px-4 py-3 space-y-3">
                 {/* Intent Mode Indicator - word counter */}
@@ -1772,7 +1790,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                     </div>
                   </div>
                 )}
-                
+
                 {/* Gate status indicator - subtle */}
                 {(detectedUrl || quotedPost || mediaWithExtractedText || quotedPostMediaWithExtractedText) && !intentMode && gateStatus.requiresGate && (
                   <div className="flex items-center gap-1.5 text-xs text-emerald-500">
@@ -1786,7 +1804,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                   <div className="border border-border rounded-xl overflow-hidden bg-card">
                     {urlPreview.image && (
                       <div className="aspect-[2/1] w-full overflow-hidden">
-                        <img 
+                        <img
                           src={urlPreview.image}
                           alt={urlPreview.title || ''}
                           className="w-full h-full object-cover"
@@ -1806,7 +1824,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                         </p>
                       )}
                     </div>
-                    
+
                     {/* YouTube Fallback Banner for Spotify Podcasts */}
                     {urlPreview.youtubeFallback && urlPreview.youtubeFallbackMessage && (
                       <div className="mx-3 mb-2.5 p-2 bg-primary/10 border border-primary/30 rounded-lg">
@@ -1827,9 +1845,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                       variant="composer"
                     />
                   ) : (
-                    <QuotedPostCard 
-                      quotedPost={quotedPost} 
-                      parentSources={[]} 
+                    <QuotedPostCard
+                      quotedPost={quotedPost}
+                      parentSources={[]}
                     />
                   )
                 )}
@@ -1847,7 +1865,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                     isBatchExtracting={isBatchExtracting}
                   />
                 )}
-                
+
                 {isUploading && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
@@ -1938,13 +1956,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                 localStorage.setItem('publish_flow_step', 'quiz_passed');
                 localStorage.setItem('publish_flow_at', String(Date.now()));
                 addBreadcrumb('quiz_passed_marker_set');
-                
+
                 // iOS: Skip the full-screen overlay entirely to prevent crash
                 // Non-iOS: Use the overlay for visual feedback
                 if (isIOS) {
                   // iOS path: NO overlay, just toast + very delayed publish
                   addBreadcrumb('quiz_passed_ios_no_overlay');
-                  
+
                   // Wait for quiz unmount + deferred scroll unlock to fully settle
                   requestAnimationFrame(() => {
                     const publishDelay = 800; // longer delay for full DOM settle
@@ -2030,6 +2048,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <AnalysisOverlay isVisible={showAnalysisOverlay} message="Analisi in corso..." />
     </>
   );
 }

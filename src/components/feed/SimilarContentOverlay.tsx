@@ -3,8 +3,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { FeedCard } from "./FeedCardAdapt";
-import { Post } from "@/hooks/usePosts";
-import { usePosts } from "@/hooks/usePosts";
+import { Post, usePosts } from "@/hooks/usePosts";
 
 interface SimilarContentOverlayProps {
   isOpen: boolean;
@@ -15,7 +14,7 @@ interface SimilarContentOverlayProps {
 export const SimilarContentOverlay = ({ isOpen, onClose, originalPost }: SimilarContentOverlayProps) => {
   const { data: allPosts = [] } = usePosts();
   const [showUnverifiedSources, setShowUnverifiedSources] = useState(false);
-  
+
   if (!isOpen) return null;
 
   // Generate similar posts from database
@@ -23,15 +22,15 @@ export const SimilarContentOverlay = ({ isOpen, onClose, originalPost }: Similar
     .filter(post => post.id !== originalPost.id && post.topic_tag === originalPost.topic_tag)
     .slice(0, 6);
 
-  const filteredPosts = showUnverifiedSources 
-    ? similarPosts 
+  const filteredPosts = showUnverifiedSources
+    ? similarPosts
     : similarPosts.filter(post => post.sources.length > 0);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       {/* Backdrop blur */}
       <div className="absolute inset-0 backdrop-blur-sm" onClick={onClose} />
-      
+
       {/* Overlay content */}
       <div className="bg-light-gray rounded-3xl w-[90vw] h-[84vh] relative overflow-hidden">
         {/* Header */}
@@ -49,7 +48,7 @@ export const SimilarContentOverlay = ({ isOpen, onClose, originalPost }: Similar
               <X className="h-4 w-4" />
             </Button>
           </div>
-          
+
           {/* Toggle */}
           <div className="flex items-center justify-between">
             <span className="text-sm text-dark-blue/70">
@@ -66,7 +65,7 @@ export const SimilarContentOverlay = ({ isOpen, onClose, originalPost }: Similar
         <div className="p-4 overflow-y-auto h-full pb-20">
           <div className="space-y-3">
             {filteredPosts.map((post, index) => (
-              <div 
+              <div
                 key={post.id}
                 className="mb-4"
               >
@@ -75,7 +74,7 @@ export const SimilarContentOverlay = ({ isOpen, onClose, originalPost }: Similar
                 />
               </div>
             ))}
-            
+
             {filteredPosts.length === 0 && (
               <div className="text-center py-8">
                 <p className="text-dark-blue/60 text-sm">

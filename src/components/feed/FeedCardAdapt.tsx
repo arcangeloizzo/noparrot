@@ -32,13 +32,17 @@ import { CommentsDrawer } from "./CommentsDrawer";
 
 // Share Components
 import { ShareSheet } from "@/components/share/ShareSheet";
+// Removed duplicate imports
+import { toast } from "sonner";
+import { TOASTS } from "@/constants/toast-messages";
 import { PeoplePicker } from "@/components/share/PeoplePicker";
 
 // Hooks & Utils
 import { Post, useQuotedPost, useDeletePost } from "@/hooks/usePosts";
 import { useToggleReaction } from "@/hooks/usePosts";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "@/hooks/use-toast";
+import { detectPlatformFromUrl } from "@/components/media/utils/mediaUtils";
+import { AnalysisOverlay } from "@/components/ui/AnalysisOverlay";
 import { cn, getDisplayUsername } from "@/lib/utils";
 import { fetchTrustScore } from "@/lib/comprehension-gate";
 import { generateQA, fetchArticlePreview } from "@/lib/ai-helpers";
@@ -67,8 +71,8 @@ const getHostnameFromUrl = (url: string | undefined): string => {
   }
 };
 
-export const FeedCard = ({ 
-  post, 
+export const FeedCard = ({
+  post,
   onOpenReader,
   onRemove,
   onQuoteShare
@@ -82,16 +86,17 @@ export const FeedCard = ({
   const createThread = useCreateThread();
   const sendMessage = useSendMessage();
   const isOwnPost = user?.id === post.author.id;
-  
+
   // Article preview state
   const [articlePreview, setArticlePreview] = useState<any>(null);
-  
+
   // Remove swipe gesture states - no longer needed
-  
+
   // Gate states
   const [showReader, setShowReader] = useState(false);
   const [readerClosing, setReaderClosing] = useState(false);
   const [readerLoading, setReaderLoading] = useState(false);
+  const [showAnalysisOverlay, setShowAnalysisOverlay] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [readerSource, setReaderSource] = useState<any>(null);
@@ -99,13 +104,17 @@ export const FeedCard = ({
   const [gateStep, setGateStep] = useState<string>('idle');
   // Comments state
   const [showComments, setShowComments] = useState(false);
-  
+
   // Share states
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showPeoplePicker, setShowPeoplePicker] = useState(false);
+  // Derived state
+  const finalSourceUrl = post.shared_url || (Array.isArray(post.sources) && post.sources.length > 0 ? post.sources[0].url : null);
+
+  // State
   const [shareAction, setShareAction] = useState<'feed' | 'friend' | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
-  
+
   // Trust Score state
   const [trustScore, setTrustScore] = useState<{
     band: 'BASSO' | 'MEDIO' | 'ALTO';
@@ -132,11 +141,11 @@ export const FeedCard = ({
         const nextPreview = preview
           ? { ...(preview as any), platform }
           : {
-              platform,
-              title: post.shared_title || getHostnameFromUrl(post.shared_url),
-              description: '',
-              image: post.preview_img || '',
-            };
+            platform,
+            title: post.shared_title || getHostnameFromUrl(post.shared_url),
+            description: '',
+            image: post.preview_img || '',
+          };
 
         setArticlePreview(nextPreview);
       } catch (error) {
@@ -159,7 +168,7 @@ export const FeedCard = ({
         setTrustScore(null);
         return;
       }
-      
+
       setLoadingTrustScore(true);
       try {
         const result = await fetchTrustScore({
@@ -179,7 +188,7 @@ export const FeedCard = ({
         setLoadingTrustScore(false);
       }
     };
-    
+
     loadTrustScore();
   }, [post.shared_url, post.content]);
 
@@ -190,7 +199,7 @@ export const FeedCard = ({
 
   // Double tap to like
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
-  
+
   const { handleTap: handleDoubleTap } = useDoubleTap({
     onDoubleTap: () => {
       // Only like if not already liked
@@ -210,18 +219,18 @@ export const FeedCard = ({
   const getAvatarContent = () => {
     if (post.author.avatar_url) {
       return (
-        <img 
+        <img
           src={post.author.avatar_url}
           alt={post.author.full_name || post.author.username}
           className="w-full h-full object-cover"
         />
       );
     }
-    
+
     const initial = (post.author.full_name || post.author.username).charAt(0).toUpperCase();
     const bgColors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500', 'bg-yellow-500'];
     const colorIndex = post.author.username.charCodeAt(0) % bgColors.length;
-    
+
     return (
       <div className={`${bgColors[colorIndex]} w-full h-full flex items-center justify-center text-white font-bold text-lg`}>
         {initial}
@@ -231,85 +240,139 @@ export const FeedCard = ({
 
   // Swipe functions removed - using button instead
 
-  // Share button handler - MOSTRA PRIMA LO SHEET
+  // Share handlers
   const handleShareClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    
     if (!user) {
-      toast({
-        title: 'Accedi per condividere',
-        description: 'Devi essere autenticato',
-        variant: 'destructive'
+      toast.warning(TOASTS.AUTH_REQUIRED.description, {
+        action: TOASTS.AUTH_REQUIRED.action
       });
       return;
     }
-
-    // Mostra ShareSheet per far scegliere all'utente
     setShowShareSheet(true);
   };
 
-  // Handler per condivisione nel feed
   const handleShareToFeed = async () => {
     setShareAction('feed');
-    
+
+    // [UX FIX] Bypass gate if current user is the post author
+    if (user?.id === post.author.id) {
+      console.log('[Gate] Bypassing gate - user is post author');
+      addBreadcrumb('gate_bypass', { reason: 'author_is_user' });
+      onQuoteShare?.({
+        ...post,
+        _originalSources: Array.isArray(post.sources) ? post.sources : [],
+        _gatePassed: true
+      });
+      toast.success(TOASTS.SHARE_READY.description);
+      return;
+    }
+
     const userText = post.content;
     const userWordCount = getWordCount(userText);
-    
-    // CASO 1: Post CON fonte esterna
-    if (post.shared_url) {
+
+    if (finalSourceUrl) {
       await startComprehensionGate();
       return;
     }
 
-    // CASO 2: Post SENZA fonte (contenuto originale)
     const questionCount = getQuestionCountWithoutSource(userWordCount);
-    
+
     if (questionCount === 0) {
-      // Nessun gate richiesto (≤50 parole)
-      onQuoteShare?.({
-        ...post,
-        _originalSources: Array.isArray(post.sources) ? post.sources : []
-      });
-      toast({
-        title: 'Post pronto per la condivisione',
-        description: 'Aggiungi un tuo commento'
-      });
+      onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [], _gatePassed: true });
+      toast.success(TOASTS.SHARE_READY.description);
     } else {
-      // Gate richiesto (1 o 3 domande)
-      toast({
-        title: 'Lettura richiesta',
-        description: `Leggi il post per condividerlo (${questionCount} ${questionCount === 1 ? 'domanda' : 'domande'})`
-      });
-      await startComprehensionGateForPost();
+      // [UX CHANGE] Use overlay instead of toast
+      setShowAnalysisOverlay(true);
+
+      try {
+        const result = await generateQA({
+          contentId: post.id,
+          title: post.author.full_name || post.author.username,
+          summary: userText,
+          userText: userText || '',
+          questionCount,
+        });
+
+        // Hide overlay
+        setShowAnalysisOverlay(false);
+
+        if (result.insufficient_context) {
+          toast.info(TOASTS.GATE_INSUFFICIENT_CONTENT.description);
+          onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [], _gatePassed: true });
+          return;
+        }
+
+        if (!result || result.error || !result.questions?.length) {
+          toast.error(result?.error || TOASTS.ERROR_GENERIC.description);
+          return;
+        }
+
+        setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}` });
+        setShowQuiz(true);
+      } catch (error) {
+        setShowAnalysisOverlay(false);
+        toast.error(TOASTS.ERROR_GENERIC.description);
+      }
     }
   };
 
-  // Handler per condivisione con amico
   const handleShareToFriend = async () => {
     setShareAction('friend');
-    
+
+    // [UX FIX] Bypass gate if current user is the post author
+    if (user?.id === post.author.id) {
+      console.log('[Gate] Bypassing gate for friend share - user is post author');
+      addBreadcrumb('gate_bypass', { reason: 'author_is_user_friend' });
+      setShowPeoplePicker(true);
+      return;
+    }
+
     const userText = post.content;
     const userWordCount = getWordCount(userText);
-    
-    // CASO 1: Post CON fonte esterna
-    if (post.shared_url) {
+
+    if (finalSourceUrl) {
       await startComprehensionGate();
       return;
     }
 
-    // CASO 2: Post SENZA fonte (contenuto originale)
     const questionCount = getQuestionCountWithoutSource(userWordCount);
-    
+
     if (questionCount === 0) {
-      // Nessun gate richiesto (≤50 parole)
       setShowPeoplePicker(true);
     } else {
-      // Gate richiesto (1 o 3 domande)
-      toast({
-        title: 'Lettura richiesta',
-        description: `Leggi il post per condividerlo (${questionCount} ${questionCount === 1 ? 'domanda' : 'domande'})`
-      });
-      await startComprehensionGateForPost();
+      // [UX CHANGE] Use overlay instead of toast
+      setShowAnalysisOverlay(true);
+
+      try {
+        const result = await generateQA({
+          contentId: post.id,
+          title: post.author.full_name || post.author.username,
+          summary: userText,
+          userText: userText || '',
+          questionCount,
+        });
+
+        // Hide overlay
+        setShowAnalysisOverlay(false);
+
+        if (result.insufficient_context) {
+          toast.info(TOASTS.GATE_INSUFFICIENT_CONTENT.description);
+          setShowPeoplePicker(true); // Allow sharing even with insufficient content
+          return;
+        }
+
+        if (!result || result.error || !result.questions?.length) {
+          toast.error(result?.error || TOASTS.ERROR_GENERIC.description);
+          return;
+        }
+
+        setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}` });
+        setShowQuiz(true);
+      } catch (error) {
+        setShowAnalysisOverlay(false);
+        toast.error(TOASTS.ERROR_GENERIC.description);
+      }
     }
   };
 
@@ -375,12 +438,12 @@ export const FeedCard = ({
 
     // Fetch article preview
     const preview = await fetchArticlePreview(post.shared_url);
-    
+
     // Get hostname for fallback title
     let hostname = '';
     try {
       hostname = new URL(post.shared_url).hostname.replace('www.', '');
-    } catch {}
+    } catch { }
 
     // GRACEFUL FALLBACK: Open reader even if preview fails
     // IMPORTANT: Spread preview FIRST so our defaults take precedence when preview fields are null/undefined
@@ -403,7 +466,7 @@ export const FeedCard = ({
       contentQuality: preview?.contentQuality || 'minimal',
     });
     setShowReader(true);
-    
+
     // Informational toast if using fallback
     if (!preview) {
       toast({
@@ -418,13 +481,13 @@ export const FeedCard = ({
   // NOTA: NON rimuovere iframes dal DOM manualmente - lascia che React gestisca l'unmount
   const closeReaderSafely = async () => {
     setReaderClosing(true);
-    
+
     try {
       // Solo ferma il caricamento degli iframe, NON rimuoverli dal DOM
       // React li rimuoverà naturalmente quando setShowReader(false) viene chiamato
       const gateRoot = document.querySelector('[data-reader-gate-root="true"]') as HTMLElement | null;
       const iframes = (gateRoot ? gateRoot.querySelectorAll('iframe') : document.querySelectorAll('iframe'));
-      
+
       iframes.forEach((iframe) => {
         try {
           (iframe as HTMLIFrameElement).src = 'about:blank';
@@ -436,7 +499,7 @@ export const FeedCard = ({
     } catch (e) {
       console.warn('[Gate] Error during iframe cleanup:', e);
     }
-    
+
     await new Promise((resolve) => setTimeout(resolve, 50));
     setShowReader(false);
     setReaderClosing(false);
@@ -458,26 +521,26 @@ export const FeedCard = ({
       const isOriginalPost = readerSource.isOriginalPost;
       const userText = post.content;
       const userWordCount = getWordCount(userText);
-      
+
       let testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY' | undefined;
       let questionCount: 1 | 3 | undefined;
-      
+
       if (isOriginalPost) {
         questionCount = getQuestionCountWithoutSource(userWordCount) as 1 | 3;
       } else {
         testMode = getTestModeWithSource(userWordCount);
       }
-      
+
       toast({
         title: 'Stiamo mettendo a fuoco ciò che conta…',
-        description: isOriginalPost 
+        description: isOriginalPost
           ? `Sto creando le domande giuste per capire davvero…`
           : `Sto selezionando i punti che contano…`
       });
 
       const fullContent = readerSource.content || readerSource.summary || readerSource.excerpt || post.content;
-      
-      console.log('[Gate] Generating QA with params:', { 
+
+      console.log('[Gate] Generating QA with params:', {
         fullContentLength: fullContent.length,
         userWordCount,
         testMode,
@@ -499,8 +562,8 @@ export const FeedCard = ({
         questionCount,
       });
 
-      console.log('[Gate] generateQA result', { 
-        hasQuestions: !!result?.questions, 
+      console.log('[Gate] generateQA result', {
+        hasQuestions: !!result?.questions,
         questionCount: result?.questions?.length,
         error: result?.error,
         insufficient_context: result?.insufficient_context
@@ -573,6 +636,28 @@ export const FeedCard = ({
       setReaderClosing(true);
       await new Promise((resolve) => setTimeout(resolve, 50));
 
+      // On-demand deep lookup: garantisce di avere la fonte anche se hook non ha finito
+      let resolvedSourceUrl = sourceUrl; // Use the sourceUrl derived from readerSource
+      let resolvedArticleContent: string | undefined;
+
+      if (!resolvedSourceUrl && post.quoted_post_id) {
+        // Use overlay for loading source
+        setShowAnalysisOverlay(true);
+        const deepSource = await resolveOriginalSourceOnDemand(post.quoted_post_id);
+        setShowAnalysisOverlay(false);
+
+        if (deepSource?.url) {
+          resolvedSourceUrl = deepSource.url;
+          resolvedArticleContent = deepSource.articleContent || undefined;
+        }
+      }
+
+      if (!resolvedSourceUrl) {
+        // Nessuna fonte trovata nella catena - fail-closed: non permettiamo share
+        toast.error('Impossibile trovare la fonte');
+        setShareAction(null);
+        return;
+      }
       setGateStep('reader:unmount');
       setShowReader(false);
       setReaderLoading(false);
@@ -604,7 +689,7 @@ export const FeedCard = ({
 
     try {
       console.log('Quiz submitted:', { answers, postId: post.id, sourceUrl: quizData.sourceUrl });
-      
+
       // SECURITY HARDENED: Use qaId for deterministic server-side validation
       const { data, error } = await supabase.functions.invoke('submit-qa', {
         body: {
@@ -625,7 +710,7 @@ export const FeedCard = ({
 
       // SECURITY HARDENED: Server is the ONLY source of truth - no client-side overrides
       const passed = data.passed;
-      
+
       console.log('Quiz result details:', {
         score: data.score,
         total: data.total,
@@ -633,7 +718,7 @@ export const FeedCard = ({
         percentage: ((data.score / data.total) * 100).toFixed(0) + '%',
         passed
       });
-      
+
       if (passed) {
         toast({
           title: 'Possiamo procedere.',
@@ -669,7 +754,7 @@ export const FeedCard = ({
         setGateStep('idle');
         // NON aprire il composer
       }
-      
+
       return data;
     } catch (error) {
       console.error('Error validating quiz:', error);
@@ -685,7 +770,7 @@ export const FeedCard = ({
 
   const timeAgo = formatDistanceToNow(new Date(post.created_at), {
     addSuffix: true,
-    locale: it 
+    locale: it
   });
 
   // Deduplicazione fonti
@@ -693,7 +778,7 @@ export const FeedCard = ({
 
   return (
     <>
-      <article 
+      <article
         className="feed-card-base p-5 overflow-hidden relative"
         onClick={handleDoubleTap}
       >
@@ -703,27 +788,27 @@ export const FeedCard = ({
             <Heart className="w-20 h-20 text-brand-pink fill-brand-pink animate-scale-in drop-shadow-lg" />
           </div>
         )}
-        
+
         <div className="flex gap-3">
           {/* Avatar circolare a sinistra */}
-          <div 
+          <div
             className="flex-shrink-0 cursor-pointer transition-opacity hover:opacity-80"
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/profile/${post.author.id}`);
             }}
           >
-          <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-border/20">
-            {getAvatarContent()}
+            <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-border/20">
+              {getAvatarContent()}
+            </div>
           </div>
-          </div>
-          
+
           {/* Content a destra */}
           <div className="flex-1 min-w-0">
             {/* Header: Nome utente e timestamp - clean */}
             <div className="flex items-center gap-2 mb-2">
-              <div 
-                className="flex-1 min-w-0 cursor-pointer" 
+              <div
+                className="flex-1 min-w-0 cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation();
                   navigate(`/profile/${post.author.id}`);
@@ -744,9 +829,9 @@ export const FeedCard = ({
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
                         deletePost.mutate(post.id, {
                           onSuccess: () => {
                             toast({ title: 'Post eliminato' });
@@ -772,7 +857,7 @@ export const FeedCard = ({
               {post.content.length > 300 && !isExpanded ? (
                 <>
                   <MentionText content={post.content.slice(0, 300) + '...'} />
-                  <button 
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setIsExpanded(true);
@@ -796,7 +881,7 @@ export const FeedCard = ({
 
             {/* Media Gallery */}
             {post.media && post.media.length > 0 && (
-              <MediaGallery 
+              <MediaGallery
                 media={post.media}
                 onClick={(_, index) => {
                   setSelectedMediaIndex(index);
@@ -806,15 +891,15 @@ export const FeedCard = ({
 
             {/* Quoted Post */}
             {quotedPost && (
-              <QuotedPostCard 
-                quotedPost={quotedPost} 
-                parentSources={post.shared_url ? [post.shared_url, ...(post.sources || [])] : (post.sources || [])} 
+              <QuotedPostCard
+                quotedPost={quotedPost}
+                parentSources={post.shared_url ? [post.shared_url, ...(post.sources || [])] : (post.sources || [])}
               />
             )}
 
             {/* Rich Link Preview Card - Liquid Glass Nested Panel */}
             {post.shared_url && (
-              <div 
+              <div
                 className="mb-3 liquid-glass-nested overflow-hidden hover:bg-[rgba(255,255,255,0.06)] transition-all duration-200 cursor-pointer group"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -824,7 +909,7 @@ export const FeedCard = ({
                 {/* Image preview - 16:9 aspect ratio */}
                 <div className="relative w-full aspect-[16/9] bg-gradient-to-br from-gray-900 to-gray-800">
                   {(articlePreview?.image || articlePreview?.previewImg || post.preview_img) ? (
-                    <img 
+                    <img
                       src={articlePreview?.image || articlePreview?.previewImg || post.preview_img}
                       alt={articlePreview?.title || post.shared_title || ''}
                       className="w-full h-full object-cover opacity-80"
@@ -836,7 +921,7 @@ export const FeedCard = ({
                   )}
                   {/* Overlay gradient per leggibilità */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                  
+
                   {/* Trust Badge overlay in basso a destra */}
                   {trustScore && (
                     <div className="absolute bottom-2 right-2 z-10">
@@ -846,9 +931,9 @@ export const FeedCard = ({
                           e.preventDefault();
                           if (trustScore.reasons && trustScore.reasons.length > 0) {
                             const rect = e.currentTarget.getBoundingClientRect();
-                            setTooltipPosition({ 
-                              top: rect.bottom + 8, 
-                              left: rect.left 
+                            setTooltipPosition({
+                              top: rect.bottom + 8,
+                              left: rect.left
                             });
                             setShowTrustTooltip(!showTrustTooltip);
                           }
@@ -869,7 +954,7 @@ export const FeedCard = ({
                     </div>
                   )}
                 </div>
-                
+
                 {/* Metadata below image */}
                 <div className="p-3 space-y-1">
                   <h4 className="font-semibold text-sm text-white line-clamp-2">
@@ -907,14 +992,14 @@ export const FeedCard = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-6">
                 {/* Like */}
-                <button 
+                <button
                   className={cn(
                     "reaction-btn-heart",
                     post.user_reactions.has_hearted && "liked"
                   )}
                   onClick={handleHeart}
                 >
-                  <Heart 
+                  <Heart
                     className="w-5 h-5 transition-all"
                     fill={post.user_reactions.has_hearted ? "currentColor" : "none"}
                     strokeWidth={post.user_reactions.has_hearted ? 0 : 2}
@@ -923,7 +1008,7 @@ export const FeedCard = ({
                 </button>
 
                 {/* Comments - Always Outline */}
-                <button 
+                <button
                   className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-gray-400 hover:text-white transition-all group"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -937,12 +1022,12 @@ export const FeedCard = ({
                 </button>
 
                 {/* Share - Always Outline */}
-                <button 
+                <button
                   className="flex items-center gap-1.5 px-2 py-1.5 rounded-full text-gray-400 hover:text-white transition-all group"
                   onClick={handleShareClick}
                   title="Condividi"
                 >
-                  <img 
+                  <img
                     src="/lovable-uploads/f6970c06-9fd9-4430-b863-07384bbb05ce.png"
                     alt="Condividi"
                     className="w-[18px] h-[18px] opacity-60 group-hover:opacity-100 group-hover:icon-glow"
@@ -951,11 +1036,11 @@ export const FeedCard = ({
               </div>
 
               {/* Bookmark - Always Outline, Right Side */}
-              <button 
+              <button
                 className={cn(
                   "flex items-center px-2 py-1.5 rounded-full transition-all",
-                  post.user_reactions.has_bookmarked 
-                    ? "text-blue-400" 
+                  post.user_reactions.has_bookmarked
+                    ? "text-blue-400"
                     : "text-gray-400 hover:text-white"
                 )}
                 onClick={handleBookmark}
@@ -1069,10 +1154,10 @@ export const FeedCard = ({
             try {
               // Crea o recupera il thread con questo utente
               const threadResult = await createThread.mutateAsync([userId]);
-              
+
               if (threadResult?.thread_id) {
                 // Invia il messaggio
-                const shareMessage = post.shared_url 
+                const shareMessage = post.shared_url
                   ? `${post.content}\n\n${post.shared_url}`
                   : post.content;
 
@@ -1095,12 +1180,9 @@ export const FeedCard = ({
               console.warn('[FeedCardAdapt] Failed to increment shares count:', e);
             }
           }
-          
-          toast({
-            title: 'Messaggio inviato',
-            description: `Post condiviso con ${userIds.length} ${userIds.length === 1 ? 'amico' : 'amici'}`
-          });
-          
+
+          toast.success(`Messaggio inviato a ${userIds.length} ${userIds.length === 1 ? 'amico' : 'amici'}`);
+
           setShowPeoplePicker(false);
           setShareAction(null);
         }}
@@ -1140,11 +1222,11 @@ export const FeedCard = ({
         <CommentsDrawer
           post={post}
           isOpen={showComments}
-          onClose={() => setShowComments(false)}
-          mode="view"
+          onClose={() => setShowReactionsSheet(false)}
+          postId={post.id}
         />
       )}
-
+      <AnalysisOverlay isVisible={showAnalysisOverlay} message="Analisi in corso..." />
     </>
   );
 };

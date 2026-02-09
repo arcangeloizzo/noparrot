@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { CGProvider } from "@/lib/comprehension-gate";
-import { OnboardingFlow } from "./OnboardingFlow";
+// import { OnboardingFlow } from "./OnboardingFlow";
 import { Feed } from "./Feed";
 import { AuthPage } from "@/components/auth/AuthPage";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,10 +11,10 @@ import { checkForRecentCrash, clearBreadcrumbs, addBreadcrumb, clearPendingPubli
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 // Stable policy object - prevents CGProvider re-renders
-const FEED_POLICY = { 
-  minReadSeconds: 10, 
-  minScrollRatio: 0.8, 
-  passingRule: ">=2_of_3" 
+const FEED_POLICY = {
+  minReadSeconds: 10,
+  minScrollRatio: 0.8,
+  passingRule: ">=2_of_3"
 } as const;
 
 const Index = () => {
@@ -45,28 +45,28 @@ const Index = () => {
       console.warn('[Index] Detected recent crash, breadcrumbs:', breadcrumbs);
       const last = breadcrumbs[breadcrumbs.length - 1];
       const lastEvent = last?.event || '(non disponibile)';
-      
+
       // SESSION GUARD: Suppress false positives more aggressively
       // Only show "Sessione precedente interrotta" if there's HIGH CONFIDENCE of a real problem:
       // 1. Stale scroll lock (body was locked, indicating interrupted modal/overlay)
       // 2. Pending publish that didn't complete (publish_started or quiz_passed)
       // 3. Actual error events (not system events like visibility changes)
-      const isSystemEvent = lastEvent.startsWith('sys_') || 
-                            lastEvent === 'app_hidden' || 
-                            lastEvent === 'app_visible' ||
-                            lastEvent === 'session_guard_' ||
-                            lastEvent.startsWith('session_');
+      const isSystemEvent = lastEvent.startsWith('sys_') ||
+        lastEvent === 'app_hidden' ||
+        lastEvent === 'app_visible' ||
+        lastEvent === 'session_guard_' ||
+        lastEvent.startsWith('session_');
       const hasPendingPublish = localStorage.getItem('publish_flow_step') === 'publish_started' ||
-                                localStorage.getItem('publish_flow_step') === 'quiz_passed';
+        localStorage.getItem('publish_flow_step') === 'quiz_passed';
       const hasRealProblem = hadStaleLock || hasPendingPublish;
-      
+
       // Detect legitimate share navigation (quiz completed + navigation to composer)
       // This prevents false positives when resharing from /post/:id
       const lastEvents = breadcrumbs.slice(-5).map(b => b.event);
-      const isLegitimateShareNavigation = 
-        lastEvents.includes('quiz_closed') && 
+      const isLegitimateShareNavigation =
+        lastEvents.includes('quiz_closed') &&
         lastEvents.includes('share_navigation_to_composer');
-      
+
       // Only show toast if there's a high-confidence real problem AND it's not a legitimate navigation
       if (hasRealProblem && !isSystemEvent && !isLegitimateShareNavigation) {
         toast.info(`Sessione precedente interrotta. Ultimo evento: ${lastEvent}.`, { duration: 5000 });
@@ -114,7 +114,7 @@ const Index = () => {
 
     const pending = getPendingPublish();
     const publishStep = localStorage.getItem('publish_flow_step');
-    
+
     if (!pending) {
       // No pending publish data - clear any stale markers
       if (publishStep) {
@@ -177,9 +177,9 @@ const Index = () => {
                       idempotencyKey: pending.idempotencyKey,
                     },
                   });
-                  
+
                   toast.dismiss(retryToast);
-                  
+
                   if (retryError) {
                     console.error('[Index] Recovery publish error:', retryError);
                     addBreadcrumb('recovery_publish_error', { error: String(retryError) });
@@ -257,6 +257,7 @@ const Index = () => {
   // Autenticato → mostra feed
   return (
     <CGProvider policy={FEED_POLICY}>
+      {/* <div className="p-10 text-white">FEED DISABLED</div> */}
       <Feed />
     </CGProvider>
   );

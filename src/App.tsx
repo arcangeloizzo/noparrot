@@ -10,6 +10,8 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AppErrorBoundary } from "@/components/debug/AppErrorBoundary";
 import { AppLifecycleHandler } from "@/components/AppLifecycleHandler";
 import Index from "./pages/Index";
+// ...
+// <Route path="/" element={<div>Refactor Debug Header</div>} />
 import AuthPage from "./pages/AuthPage";
 import Profile from "./pages/Profile";
 import ProfileEdit from "./pages/ProfileEdit";

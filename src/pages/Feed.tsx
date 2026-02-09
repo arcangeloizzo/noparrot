@@ -43,31 +43,31 @@ export const Feed = () => {
   const { data: dbPosts = [], isLoading, refetch } = usePosts();
   const queryClient = useQueryClient();
   const feedContainerRef = useRef<ImmersiveFeedContainerRef>(null);
-  
+
   // State for force refresh - passed to hooks
   const [refreshNonce, setRefreshNonce] = useState(0);
-  
+
   // Sliding Window: track active index for virtualization
   // Initialize from sessionStorage to avoid white screen on refresh
   const [activeIndex, setActiveIndex] = useState(() => {
     const saved = sessionStorage.getItem('feed-active-index');
     return saved ? parseInt(saved, 10) : 0;
   });
-  
+
   // ===== HARDENING 3: Post-publish scroll state =====
   const [pendingScrollToPostId, setPendingScrollToPostId] = useState<string | null>(null);
-  
+
   // Handler for publish success - schedules scroll to new post
   const handlePublishSuccess = useCallback((newPostId: string) => {
     console.log('[Feed] Post published, scheduling scroll to:', newPostId);
     setPendingScrollToPostId(newPostId);
   }, []);
-  
+
   // Fetch real Daily Focus items (now returns { items, totalCount }) with refreshNonce
   const { data: dailyFocusData, isLoading: loadingDaily } = useDailyFocus(refreshNonce);
   const dailyFocusItems = dailyFocusData?.items || [];
   const dailyFocusTotalCount = dailyFocusData?.totalCount || dailyFocusItems.length;
-  
+
   const [showComposer, setShowComposer] = useState(false);
 
   // Prefetch article previews for first 5 posts on mount
@@ -75,12 +75,12 @@ export const Feed = () => {
   useEffect(() => {
     if (hasPrefetchedRef.current || dbPosts.length === 0) return;
     hasPrefetchedRef.current = true;
-    
+
     const urlsToPrefetch = dbPosts
       .slice(0, 5)
       .map(p => p.shared_url)
       .filter(Boolean);
-    
+
     if (urlsToPrefetch.length > 0) {
       prefetchArticlePreviews(queryClient, urlsToPrefetch);
     }
@@ -102,14 +102,14 @@ export const Feed = () => {
   const handleActiveIndexChange = useCallback((index: number) => {
     // Use atomic sync utility
     syncActiveIndex(index);
-    
+
     // Prefetch next card's optimized image using ref
     const nextItem = mixedFeedRef.current[index + 1];
     if (nextItem?.type === 'post' && nextItem.data.preview_img) {
       const img = new Image();
       img.src = getOptimizedImageUrl(nextItem.data.preview_img) || nextItem.data.preview_img;
     }
-    
+
     // Trigger perf tracking for scroll action
     perfStore.startAction('scroll');
     requestAnimationFrame(() => {
@@ -135,22 +135,21 @@ export const Feed = () => {
   const handleHomeRefresh = () => {
     // 1) Hard sync activeIndex a 0 PRIMA dello scroll (atomic state update)
     syncActiveIndex(0);
-    
+
     // 2) Scroll SOLO il container (NO window.scrollTo - rispetta virtualization)
     if (feedContainerRef.current) {
       feedContainerRef.current.scrollToIndex(0);
     }
-    
+
     // 3) Incrementa nonce per forzare refresh delle query
     setRefreshNonce(prev => prev + 1);
-    
+
     // 4) Invalida le query per refreshare i dati
     queryClient.invalidateQueries({ queryKey: ['posts'] });
     queryClient.invalidateQueries({ queryKey: ['daily-focus'] });
-    
+
     // Haptic feedback + visual confirmation
     haptics.light();
-    sonnerToast.success('Feed aggiornato');
   };
   const [showSimilarContent, setShowSimilarContent] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -174,21 +173,21 @@ export const Feed = () => {
   // Build mixed feed: Daily Focus Carousel + User Posts
   const mixedFeed = useMemo(() => {
     const items: Array<{ type: 'daily-carousel' | 'post'; data: any; id: string }> = [];
-    
+
     // 1. Daily Focus Carousel always at top (array of items)
     if (dailyFocusItems.length > 0) {
-      items.push({ 
-        type: 'daily-carousel', 
-        data: dailyFocusItems, 
-        id: 'daily-carousel-' + dailyFocusItems[0].id 
+      items.push({
+        type: 'daily-carousel',
+        data: dailyFocusItems,
+        id: 'daily-carousel-' + dailyFocusItems[0].id
       });
     }
-    
+
     // 2. User posts
     dbPosts.forEach((post) => {
       items.push({ type: 'post', data: post, id: post.id });
     });
-    
+
     return items;
   }, [dailyFocusItems, dbPosts]);
 
@@ -198,7 +197,7 @@ export const Feed = () => {
   // ===== HARDENING 2: Dynamic prefetch for upcoming items =====
   useEffect(() => {
     if (mixedFeed.length === 0) return;
-    
+
     const candidates = [activeIndex + 1, activeIndex + 2, activeIndex + 3]
       .map(i => mixedFeedRef.current[i])
       .filter(item => item?.type === 'post')
@@ -215,12 +214,12 @@ export const Feed = () => {
     // Attendi che i dati siano caricati
     if (isLoading || loadingDaily || !mixedFeed.length) return;
     if (hasRestoredScrollRef.current) return;
-    
+
     const savedIndex = sessionStorage.getItem('feed-active-index');
     if (savedIndex) {
       const index = parseInt(savedIndex);
       hasRestoredScrollRef.current = true;
-      
+
       // Triplo RAF + timeout per garantire che il DOM sia pronto su iOS
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -237,19 +236,19 @@ export const Feed = () => {
   // ===== HARDENING 3: Bounded retry loop for post-publish scroll =====
   useEffect(() => {
     if (!pendingScrollToPostId) return;
-    
+
     let attempts = 0;
     const maxAttempts = 10; // ~2s total (10 * 200ms)
     const intervalMs = 200;
     let timeoutId: ReturnType<typeof setTimeout>;
-    
+
     const tryScroll = () => {
       attempts++;
-      
+
       const idx = mixedFeed.findIndex(
         item => item.type === 'post' && item.data.id === pendingScrollToPostId
       );
-      
+
       if (idx !== -1) {
         console.log(`[Feed] Found post at index ${idx}, scrolling...`);
         syncActiveIndex(idx);
@@ -259,7 +258,7 @@ export const Feed = () => {
         setPendingScrollToPostId(null);
         return;
       }
-      
+
       if (attempts < maxAttempts) {
         timeoutId = setTimeout(tryScroll, intervalMs);
       } else {
@@ -267,9 +266,9 @@ export const Feed = () => {
         setPendingScrollToPostId(null);
       }
     };
-    
+
     tryScroll();
-    
+
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
     };
@@ -279,16 +278,16 @@ export const Feed = () => {
   useEffect(() => {
     const focusId = searchParams.get('focus');
     if (!focusId || loadingDaily) return;
-    
+
     // Find the focus item in current data
     const focusItem = dailyFocusItems.find(item => item.id === focusId);
-    
+
     if (focusItem) {
       const clickedIndex = dailyFocusItems.findIndex(d => d.id === focusId);
       const editorialNumber = dailyFocusTotalCount - clickedIndex;
       setSelectedFocus({ type: 'daily', data: focusItem, editorialNumber });
       setFocusDetailOpen(true);
-      
+
       // Clear the URL parameter
       setSearchParams({}, { replace: true });
     } else {
@@ -299,24 +298,24 @@ export const Feed = () => {
           .select('*')
           .eq('id', focusId)
           .single();
-        
+
         if (!error && fetchedFocus) {
           // Calculate editorial number by counting items newer than this one
           const { count } = await supabase
             .from('daily_focus')
             .select('*', { count: 'exact', head: true })
             .gte('created_at', fetchedFocus.created_at);
-          
+
           const editorialNumber = dailyFocusTotalCount - (count || 1) + 1;
-          
-          setSelectedFocus({ 
-            type: 'daily', 
-            data: fetchedFocus as unknown as DailyFocus, 
-            editorialNumber 
+
+          setSelectedFocus({
+            type: 'daily',
+            data: fetchedFocus as unknown as DailyFocus,
+            editorialNumber
           });
           setFocusDetailOpen(true);
         }
-        
+
         // Clear the URL parameter
         setSearchParams({}, { replace: true });
       })();
@@ -374,7 +373,7 @@ export const Feed = () => {
       sonnerToast.info(perfStore.getState().enabled ? 'Perf overlay ON' : 'Perf overlay OFF');
     }, 2000);
   }, [user?.email]);
-  
+
   const handleHeaderPressEnd = useCallback(() => {
     if (longPressRef.current) clearTimeout(longPressRef.current);
   }, []);
@@ -392,9 +391,9 @@ export const Feed = () => {
     <>
       {/* Perf Overlay - only visible when enabled */}
       <PerfOverlay />
-      
+
       {/* Immersive transparent header with notifications + long-press for perf toggle */}
-      <div 
+      <div
         onTouchStart={handleHeaderPressStart}
         onTouchEnd={handleHeaderPressEnd}
         onMouseDown={handleHeaderPressStart}
@@ -403,7 +402,7 @@ export const Feed = () => {
       >
         <Header variant="immersive" />
       </div>
-      
+
       <ImmersiveFeedContainer ref={feedContainerRef} onRefresh={async () => { await refetch(); }} onActiveIndexChange={handleActiveIndexChange}>
         {/* Sliding Window Virtualization: only mount heavy components in window */}
         {mixedFeed.map((item, feedIndex) => {
@@ -479,7 +478,7 @@ export const Feed = () => {
             </div>
           );
         })}
-        
+
         {/* Empty state */}
         {mixedFeed.length === 0 && (
           <div className="h-[100dvh] w-full snap-start flex items-center justify-center">
@@ -491,8 +490,8 @@ export const Feed = () => {
         )}
       </ImmersiveFeedContainer>
 
-      <BottomNavigation 
-        activeTab="home" 
+      <BottomNavigation
+        activeTab="home"
         onTabChange={handleTabChange}
         onHomeRefresh={handleHomeRefresh}
         onComposerClick={handleCreatePost}

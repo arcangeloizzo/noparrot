@@ -60,7 +60,10 @@ import { PeoplePicker } from "@/components/share/PeoplePicker";
 import { Post, useQuotedPost, useDeletePost } from "@/hooks/usePosts";
 import { useToggleReaction } from "@/hooks/usePosts";
 import { useAuth } from "@/contexts/AuthContext";
-import { toast } from "@/hooks/use-toast";
+// Removed use-toast
+import { toast } from "sonner";
+import { TOASTS } from "@/constants/toast-messages";
+import { AnalysisOverlay } from "@/components/ui/AnalysisOverlay";
 import { cn, getDisplayUsername } from "@/lib/utils";
 import { fetchTrustScore } from "@/lib/comprehension-gate";
 import { generateQA, fetchArticlePreview } from "@/lib/ai-helpers";
@@ -333,6 +336,7 @@ const ImmersivePostCardInner = ({
   const [showReader, setShowReader] = useState(false);
   const [readerClosing, setReaderClosing] = useState(false);
   const [readerLoading, setReaderLoading] = useState(false);
+  const [showAnalysisOverlay, setShowAnalysisOverlay] = useState(false);
   const [showQuiz, setShowQuiz] = useState(false);
   const [readerSource, setReaderSource] = useState<any>(null);
   const [quizData, setQuizData] = useState<any>(null);
@@ -550,7 +554,9 @@ const ImmersivePostCardInner = ({
   const handleShareClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user) {
-      toast({ title: 'Accedi per condividere', description: 'Devi essere autenticato', variant: 'destructive' });
+      toast.warning(TOASTS.AUTH_REQUIRED.description, {
+        action: TOASTS.AUTH_REQUIRED.action
+      });
       return;
     }
     setShowShareSheet(true);
@@ -569,7 +575,7 @@ const ImmersivePostCardInner = ({
         _originalSources: Array.isArray(post.sources) ? post.sources : [],
         _gatePassed: true
       });
-      toast({ title: 'Post pronto per la condivisione' });
+      toast.success(TOASTS.SHARE_READY.description);
       return;
     }
 
@@ -586,9 +592,9 @@ const ImmersivePostCardInner = ({
 
     if (questionCount === 0) {
       onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [], _gatePassed: true });
-      toast({ title: 'Post pronto per la condivisione', description: 'Aggiungi un tuo commento' });
+      toast.success(TOASTS.SHARE_READY.description);
     } else {
-      toast({ title: 'Lettura richiesta', description: `Leggi il post per condividerlo` });
+      toast.info(TOASTS.READ_REQUIRED.description);
       await startComprehensionGateForPost();
     }
   };
@@ -618,7 +624,7 @@ const ImmersivePostCardInner = ({
     if (questionCount === 0) {
       setShowPeoplePicker(true);
     } else {
-      toast({ title: 'Lettura richiesta', description: `Leggi il post per condividerlo` });
+      toast.info(TOASTS.READ_REQUIRED.description);
       await startComprehensionGateForPost();
     }
   };
@@ -651,11 +657,12 @@ const ImmersivePostCardInner = ({
     // If no questions needed, go straight to composer
     if (questionCount === 0) {
       onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [], _gatePassed: true });
-      toast({ title: 'Post pronto per la condivisione', description: 'Aggiungi un tuo commento' });
+      toast.success(TOASTS.SHARE_READY.description);
       return;
     }
 
-    toast({ title: 'Stiamo mettendo a fuoco ciò che conta…' });
+    // [UX CHANGE] Use overlay instead of toast
+    setShowAnalysisOverlay(true);
 
     try {
       const result = await generateQA({
@@ -666,21 +673,25 @@ const ImmersivePostCardInner = ({
         questionCount,
       });
 
+      // Hide overlay
+      setShowAnalysisOverlay(false);
+
       if (result.insufficient_context) {
-        toast({ title: 'Contenuto troppo breve', description: 'Puoi comunque condividere questo post' });
+        toast.info(TOASTS.GATE_INSUFFICIENT_CONTENT.description);
         onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [], _gatePassed: true });
         return;
       }
 
       if (!result || result.error || !result.questions?.length) {
-        toast({ title: 'Errore', description: result?.error || 'Quiz non valido', variant: 'destructive' });
+        toast.error(result?.error || TOASTS.ERROR_GENERIC.description);
         return;
       }
 
       setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}` });
       setShowQuiz(true);
     } catch (error) {
-      toast({ title: 'Errore', description: 'Si è verificato un errore. Riprova.', variant: 'destructive' });
+      setShowAnalysisOverlay(false);
+      toast.error(TOASTS.ERROR_GENERIC.description);
     }
   };
 
@@ -700,7 +711,7 @@ const ImmersivePostCardInner = ({
       } else {
         setShowPeoplePicker(true);
       }
-      toast({ title: 'Post pronto per la condivisione' });
+      toast.success(TOASTS.SHARE_READY.description);
       return;
     }
 
@@ -709,8 +720,11 @@ const ImmersivePostCardInner = ({
     let resolvedArticleContent: string | undefined;
 
     if (!resolvedSourceUrl && post.quoted_post_id) {
-      toast({ title: 'Caricamento fonte originale...' });
+      // Use overlay for loading source
+      setShowAnalysisOverlay(true);
       const deepSource = await resolveOriginalSourceOnDemand(post.quoted_post_id);
+      setShowAnalysisOverlay(false);
+
       if (deepSource?.url) {
         resolvedSourceUrl = deepSource.url;
         resolvedArticleContent = deepSource.articleContent || undefined;
@@ -719,11 +733,7 @@ const ImmersivePostCardInner = ({
 
     if (!resolvedSourceUrl) {
       // Nessuna fonte trovata nella catena - fail-closed: non permettiamo share
-      toast({
-        title: 'Impossibile trovare la fonte',
-        description: 'Non è possibile condividere questo contenuto.',
-        variant: 'destructive'
-      });
+      toast.error('Impossibile trovare la fonte');
       setShareAction(null);
       return;
     }
@@ -753,10 +763,7 @@ const ImmersivePostCardInner = ({
       }
 
       if (!editorialContent || editorialContent.length < 50) {
-        toast({
-          title: 'Contenuto editoriale non disponibile',
-          variant: 'destructive'
-        });
+        toast.error('Contenuto editoriale non disponibile');
         setShareAction(null);
         return;
       }
@@ -924,72 +931,22 @@ const ImmersivePostCardInner = ({
     try {
       // Check contenuto minimo per fonti esterne (non Intent, non OriginalPost)
       const isEditorial = readerSource.isEditorial || readerSource.url?.startsWith('editorial://');
+
       if (!readerSource.isOriginalPost && !readerSource.isIntentPost && !isEditorial) {
         const hasContent = readerSource.content || readerSource.summary || readerSource.articleContent;
         const platform = readerSource.platform;
 
         // Platforms with rich metadata: let backend decide even if content is empty
         const platformsWithMetadata = ['spotify', 'youtube', 'tiktok', 'twitter'];
-        const hasRichMetadata = platformsWithMetadata.includes(platform || '') &&
-          (readerSource.title || readerSource.description);
+        const hasRichMetadata = platformsWithMetadata.includes(platform || '');
 
-        // Block ONLY if:
-        // - Not a platform with rich metadata
-        // - AND doesn't have sufficient content
-        if (!hasRichMetadata && (!hasContent || hasContent.length < 50)) {
-          console.log('[Gate] Content too short and no rich metadata, blocking share');
-          toast({
-            title: 'Contenuto non disponibile',
-            description: 'Apri la fonte originale per leggerla.',
-            variant: 'destructive'
-          });
-          return;  // Finally will cleanup
-        }
-      }
-
-      // Handle Intent Post completion - use saved questionCount
-      if (readerSource.isIntentPost) {
-        const userText = readerSource.content || '';
-        const questionCount = readerSource.questionCount;
-
-        console.log('[Gate] Intent post - generating quiz', { userTextLength: userText.length, questionCount });
-        toast({ title: 'Stiamo mettendo a fuoco ciò che conta…' });
-
-        const result = await generateQA({
-          contentId: post.id,
-          title: readerSource.title,
-          summary: userText,
-          userText: userText,
-          questionCount,
-        });
-
-        console.log('[Gate] Intent post generateQA result:', {
-          hasError: !!result.error,
-          insufficient: result.insufficient_context,
-          questionCount: result.questions?.length,
-          qaId: result.qaId?.substring(0, 8)
-        });
-
-        if (result.insufficient_context) {
-          toast({ title: 'Contenuto troppo breve', description: 'Post pronto per la condivisione' });
-          await closeReaderSafely();
-          onQuoteShare?.({ ...post, _gatePassed: true });
+        if (!hasContent && !hasRichMetadata) {
+          console.log('[Gate] Content missing and not a rich metadata platform');
+          toast.error(TOASTS.GATE_INSUFFICIENT_CONTENT.description);
+          setReaderLoading(false);
+          clearTimeout(timeoutId);
           return;
         }
-
-        if (!result || result.error || !result.questions?.length) {
-          console.error('[Gate] Intent quiz invalid:', result?.error);
-          toast({ title: 'Errore', description: result?.error || 'Quiz non valido', variant: 'destructive' });
-          return;
-        }
-
-        setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}` });
-        setShowQuiz(true);
-
-        await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
-        setShowReader(false);
-        setReaderSource(null);
-        return;
       }
 
       const isOriginalPost = readerSource.isOriginalPost;
@@ -1001,113 +958,132 @@ const ImmersivePostCardInner = ({
 
       if (isOriginalPost) {
         questionCount = getQuestionCountWithoutSource(userWordCount) as 1 | 3;
-      } else if (isEditorial) {
-        testMode = 'SOURCE_ONLY';
-        questionCount = 3;
       } else {
         testMode = getTestModeWithSource(userWordCount);
       }
 
-      console.log('[Gate] Generating quiz', { isOriginalPost, isEditorial, testMode, questionCount, userWordCount });
-      toast({ title: 'Stiamo mettendo a fuoco ciò che conta…' });
+      console.log('[Gate] Generating QA with params:', {
+        userWordCount,
+        testMode,
+        questionCount,
+        isOriginalPost,
+        qaSourceRef: readerSource.qaSourceRef
+      });
 
-      const fullContent = readerSource.content || readerSource.summary || readerSource.excerpt || post.content;
-
-      // Per contenuti editoriali, usare legacy mode con summary e isPrePublish: true
-      // per evitare FK violation (daily_focus.id non esiste in posts)
+      // 2️⃣ GENERA QA MENTRE IL READER È ANCORA APERTO
       const result = await generateQA({
-        contentId: isEditorial ? null : post.id,  // null per editorial → evita FK error
-        isPrePublish: isEditorial ? true : undefined,  // forza post_id = null nel backend
+        contentId: post.id,
         title: readerSource.title,
-        // Per editorial, passare summary (legacy mode) invece di qaSourceRef
-        summary: isEditorial ? readerSource.articleContent : (isOriginalPost ? fullContent : undefined),
-        qaSourceRef: (!isOriginalPost && !isEditorial) ? readerSource.qaSourceRef : undefined,
+        summary: isOriginalPost ? (readerSource.content || post.content) : undefined, // Only for original posts
+        qaSourceRef: !isOriginalPost ? readerSource.qaSourceRef : undefined,
         userText: userText || '',
         sourceUrl: isOriginalPost ? undefined : readerSource.url,
         testMode,
         questionCount,
       });
 
-      console.log('[Gate] GenerateQA result:', {
-        hasError: !!result.error,
-        insufficient: result.insufficient_context,
-        questionCount: result.questions?.length,
-        qaId: result.qaId?.substring(0, 8)
+      clearTimeout(timeoutId);
+
+      console.log('[Gate] generateQA result', {
+        hasQuestions: !!result?.questions,
+        questionCount: result?.questions?.length,
+        error: result?.error,
+        insufficient_context: result?.insufficient_context
       });
 
+      // 3️⃣ GESTISCI ERRORI PRIMA DI CHIUDERE
       if (result.insufficient_context) {
-        // FAIL-OPEN: permettiamo la condivisione con warning per tutte le fonti
-        if (isOriginalPost) {
-          // Post originale troppo breve - ok, può condividere
-          console.log('[Gate] Original post insufficient - allowing share');
-          toast({ title: 'Contenuto troppo breve', description: 'Puoi condividere questo post' });
-        } else {
-          // Fonte esterna non valutabile - ALLOW con warning (Fail-Open policy)
-          console.warn('[Gate] External source insufficient - allowing share with warning (fail-open)');
-          toast({
-            title: 'Impossibile generare il quiz',
-            description: 'Condivisione consentita senza verifica.'
-          });
-        }
+        toast.info(TOASTS.GATE_INSUFFICIENT_CONTENT.description);
         await closeReaderSafely();
-        onQuoteShare?.({ ...post, _gatePassed: true });
+        onQuoteShare?.(post);
         return;
       }
 
-      if (!result || result.error || !result.questions?.length) {
-        console.error('[Gate] Quiz generation failed:', result?.error);
-        toast({ title: 'Errore', description: result?.error || 'Quiz non valido', variant: 'destructive' });
-        return;
+      if (!result) {
+        console.error('[Gate] generateQA returned null/undefined');
+        toast.error('Risposta non valida dal server');
+        setReaderLoading(false);
+        return; // Reader resta aperto
       }
 
+      if (result.error) {
+        console.error('[Gate] generateQA error:', result.error);
+        toast.error(result.error);
+        setReaderLoading(false);
+        return; // Reader resta aperto
+      }
+
+      if (!result.questions || !Array.isArray(result.questions) || result.questions.length === 0) {
+        console.error('[Gate] Invalid questions array:', result.questions);
+        toast.error('Quiz non valido, riprova');
+        setReaderLoading(false);
+        return; // Reader resta aperto
+      }
+
+      const invalidQuestion = result.questions.find(q => !q.id || !q.stem || !q.choices);
+      if (invalidQuestion) {
+        console.error('[Gate] Invalid question format:', invalidQuestion);
+        toast.error('Formato domanda non valido');
+        setReaderLoading(false);
+        return; // Reader resta aperto
+      }
+
+      // 4️⃣ SALVA sourceUrl PRIMA di chiudere
       const sourceUrl = readerSource.url || '';
+
+      console.log('[Gate] Quiz generated, transitioning...', {
+        questionCount: result.questions.length,
+        sourceUrl,
+      });
+
+      // 5️⃣ OVERLAY APPROACH (iOS-safe): monta il quiz SOPRA al reader, poi chiudi il reader
       setGateStep('quiz:mount');
-      // Include qaId for server-side validation
-      console.log('[Gate] Setting quiz data, qaId:', result.qaId);
-      setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl });
+
+      setQuizData({
+        qaId: result.qaId, // Server-generated qaId for secure validation
+        questions: result.questions,
+        sourceUrl,
+      });
       setShowQuiz(true);
 
+      // STEP B: aspetta 1 frame per garantire che il quiz sia renderizzato
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
+      // STEP C: ora possiamo chiudere il reader in sicurezza (dietro al quiz)
       setGateStep('reader:closing');
       setReaderClosing(true);
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       setGateStep('reader:unmount');
       setShowReader(false);
+      setReaderLoading(false);
       setReaderSource(null);
+
+      // STEP D: reset closing + stato finale
+      setReaderClosing(false);
       setGateStep('quiz:shown');
 
+      console.log('[Gate] Quiz mounted successfully');
     } catch (error) {
       setGateStep('error');
-      console.error('[Gate] handleReaderComplete exception:', error);
-      toast({ title: 'Errore', description: 'Si è verificato un errore. Riprova.', variant: 'destructive' });
-    } finally {
-      // ALWAYS cleanup - prevents infinite spinner
-      clearTimeout(timeoutId);
+      console.error('[Gate] Error in handleReaderComplete:', error);
+      toast.error(TOASTS.ERROR_GENERIC.description);
       setReaderLoading(false);
       setReaderClosing(false);
-      console.log('[Gate] handleReaderComplete finished, cleanup done');
+      clearTimeout(timeoutId);
     }
   };
 
   const handleQuizSubmit = async (answers: Record<string, string>) => {
     if (!user || !quizData) return { passed: false, score: 0, total: 0, wrongIndexes: [] };
 
-    // FORENSIC LOG: Before submit-qa call
-    console.log('[ImmersivePostCard] handleQuizSubmit called:', {
-      qaId: quizData.qaId,
-      postId: post.id,
-      sourceUrl: quizData.sourceUrl,
-      answerCount: Object.keys(answers).length,
-      answerKeys: Object.keys(answers),
-    });
-
     try {
-      // SECURITY HARDENED: Include qaId for server-side validation
+      console.log('Quiz submitted:', { answers, postId: post.id, sourceUrl: quizData.sourceUrl });
+
+      // SECURITY HARDENED: Use qaId for deterministic server-side validation
       const { data, error } = await supabase.functions.invoke('submit-qa', {
         body: {
-          qaId: quizData.qaId,
+          qaId: quizData.qaId, // Server-generated qaId
           postId: post.id,
           sourceUrl: quizData.sourceUrl,
           answers,
@@ -1115,43 +1091,58 @@ const ImmersivePostCardInner = ({
         }
       });
 
-      // FORENSIC LOG: After submit-qa call
-      console.log('[ImmersivePostCard] submit-qa response:', { data, error });
+      console.log('Quiz validation response:', { data, error });
 
-      if (error || !data) {
-        console.error('[ImmersivePostCard] submit-qa failed:', error);
-        toast({ title: 'Errore', description: 'Errore durante la validazione', variant: 'destructive' });
-        return { passed: false, score: 0, total: 0, wrongIndexes: [] };
+      if (error) {
+        console.error('Quiz validation error:', error);
+        throw error;
       }
 
-      // Use ONLY server verdict - no client override
-      const passed = !!data.passed;
+      // SECURITY HARDENED: Server is the ONLY source of truth - no client-side overrides
+      const passed = data.passed;
+
+      console.log('Quiz result details:', {
+        score: data.score,
+        total: data.total,
+        errors: data.total - data.score,
+        percentage: ((data.score / data.total) * 100).toFixed(0) + '%',
+        passed
+      });
 
       if (passed) {
-        toast({ title: 'Possiamo procedere.', description: 'Hai messo a fuoco.' });
+        toast.success(TOASTS.GATE_PASSED.description);
         addBreadcrumb('quiz_closed', { via: 'passed' });
         setShowQuiz(false);
         setQuizData(null);
         setGateStep('idle');
 
+        // Esegui l'azione scelta dall'utente
         if (shareAction === 'feed') {
-          onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [], _gatePassed: true });
+          onQuoteShare?.({
+            ...post,
+            _originalSources: Array.isArray(post.sources) ? post.sources : []
+          });
         } else if (shareAction === 'friend') {
           setShowPeoplePicker(true);
         }
+
+        // Reset share action
         setShareAction(null);
       } else {
-        toast({ title: "Serve ancora un po' di chiarezza.", description: 'Rileggi il contenuto e riprova.' });
+        console.warn('Test failed, NOT opening composer');
+        toast.warning(TOASTS.GATE_FAILED.description);
         addBreadcrumb('quiz_closed', { via: 'failed' });
         setShowQuiz(false);
         setQuizData(null);
         setShareAction(null);
         setGateStep('idle');
+        // NON aprire il composer
       }
 
       return data;
-    } catch {
-      toast({ title: 'Errore', description: 'Errore durante la validazione', variant: 'destructive' });
+    } catch (error) {
+      console.error('Error validating quiz:', error);
+      toast.error(TOASTS.ERROR_GENERIC.description);
       addBreadcrumb('quiz_closed', { via: 'error' });
       return { passed: false, score: 0, total: 0, wrongIndexes: [] };
     }
@@ -1370,8 +1361,13 @@ const ImmersivePostCardInner = ({
                     onClick={(e) => {
                       e.stopPropagation();
                       deletePost.mutate(post.id, {
-                        onSuccess: () => { toast({ title: 'Post eliminato' }); onRemove?.(post.id); },
-                        onError: () => { toast({ title: 'Errore', variant: 'destructive' }); }
+                        onSuccess: () => {
+                          toast.success('Post eliminato');
+                          onRemove?.(post.id);
+                        },
+                        onError: () => {
+                          toast.error(TOASTS.ERROR_GENERIC.description);
+                        }
                       });
                     }}
                     className="text-destructive focus:text-destructive"
@@ -2436,6 +2432,8 @@ const ImmersivePostCardInner = ({
         onClose={() => setShowReactionsSheet(false)}
         postId={post.id}
       />
+      {/* Analysis Overlay */}
+      <AnalysisOverlay isVisible={showAnalysisOverlay} message="Analisi in corso..." />
     </>
   );
 };
