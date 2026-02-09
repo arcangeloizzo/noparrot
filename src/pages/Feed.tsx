@@ -457,7 +457,8 @@ export const Feed = () => {
                         sources: focusItem.sources?.map((s: any) => s.url).filter(Boolean) || [],
                         quoted_post_id: null,
                         category: focusItem.category || null,
-                        reactions: focusItem.reactions || { likes: 0, comments: 0, shares: 0 }
+                        reactions: focusItem.reactions || { likes: 0, comments: 0, shares: 0 },
+                        _gatePassed: true // Quiz already passed in editorial reader
                       } as unknown as Post);
                       setShowComposer(true);
                     }}
