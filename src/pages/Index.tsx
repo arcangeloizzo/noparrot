@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { CGProvider } from "@/lib/comprehension-gate";
-// import { OnboardingFlow } from "./OnboardingFlow";
+import { OnboardingFlow } from "./OnboardingFlow";
 import { Feed } from "./Feed";
 import { AuthPage } from "@/components/auth/AuthPage";
 import { useAuth } from "@/contexts/AuthContext";
