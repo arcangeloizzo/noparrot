@@ -2,7 +2,9 @@ import { useState, useEffect, useRef, useMemo, memo } from "react";
 import { perfStore } from "@/lib/perfStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play } from "lucide-react";
+import { AnimatedHeart } from "@/components/ui/animated-heart";
 import { useDominantColors } from "@/hooks/useDominantColors";
 import { useCachedTrustScore } from "@/hooks/useCachedTrustScore";
 import { useArticlePreview } from "@/hooks/useArticlePreview";
@@ -510,6 +512,7 @@ const ImmersivePostCardInner = ({
       if (!post.user_reactions?.has_hearted) {
         handleHeart();
         setShowHeartAnimation(true);
+        // AnimatedHeart handles its own exit via AnimatePresence, but we keep state sync
         setTimeout(() => setShowHeartAnimation(false), 800);
       }
     }
@@ -1264,11 +1267,10 @@ const ImmersivePostCardInner = ({
         />
 
         {/* Heart animation */}
-        {showHeartAnimation && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-            <Heart className="w-24 h-24 text-red-500 fill-red-500 animate-scale-in drop-shadow-lg" />
-          </div>
-        )}
+        <AnimatedHeart
+          isVisible={showHeartAnimation}
+          onAnimationComplete={() => setShowHeartAnimation(false)}
+        />
 
         {/* Content Layer */}
         <div className="relative z-10 w-full h-full flex flex-col">
@@ -2123,20 +2125,22 @@ const ImmersivePostCardInner = ({
           <div className="flex items-center justify-between gap-6 px-5 pb-[calc(4rem+env(safe-area-inset-bottom)+12px)] pt-2 flex-shrink-0 z-50">
 
             {/* Primary Share Button - Pill shape with consistent height */}
-            <button
+            {/* Primary Share Button - Pill shape with consistent height */}
+            <motion.button
+              whileTap={{ scale: 0.95 }}
               onClick={(e) => {
                 e.stopPropagation();
                 haptics.light();
                 handleShareClick(e);
               }}
-              className="h-11 px-5 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-full shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              className="h-11 px-5 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-full shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all"
             >
               <Logo variant="icon" size="sm" className="h-5 w-5" />
               <span className="text-sm font-semibold leading-none">Condividi</span>
               {(post.shares_count ?? 0) > 0 && (
                 <span className="text-xs opacity-70">({post.shares_count})</span>
               )}
-            </button>
+            </motion.button>
 
             {/* Action Icons - Uniform w-6 h-6, aligned on same axis */}
             <div
@@ -2146,7 +2150,8 @@ const ImmersivePostCardInner = ({
 
               {/* Like with long press for reaction picker */}
               <div className="relative flex items-center justify-center gap-1.5 h-full">
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.85 }}
                   ref={likeButtonRef}
                   className="flex items-center justify-center h-full select-none"
                   style={{ WebkitTapHighlightColor: 'transparent' }}
@@ -2155,19 +2160,19 @@ const ImmersivePostCardInner = ({
                 >
                   {/* Dynamic icon: show emoji if non-heart reaction, otherwise Heart icon */}
                   {post.user_reactions?.myReactionType && post.user_reactions.myReactionType !== 'heart' ? (
-                    <span className="text-xl transition-transform active:scale-90">
+                    <span className="text-xl">
                       {reactionToEmoji(post.user_reactions.myReactionType)}
                     </span>
                   ) : (
                     <Heart
                       className={cn(
-                        "w-6 h-6 transition-transform active:scale-90",
+                        "w-6 h-6",
                         post.user_reactions?.has_hearted ? "text-red-500 fill-red-500" : "text-white"
                       )}
                       fill={post.user_reactions?.has_hearted ? "currentColor" : "none"}
                     />
                   )}
-                </button>
+                </motion.button>
                 {/* Count - clickable to open reactions drawer, select-none prevents text selection on long-press */}
                 <button
                   className="text-sm font-bold text-white hover:text-white/80 transition-colors select-none ml-1.5"
@@ -2195,24 +2200,27 @@ const ImmersivePostCardInner = ({
               </div>
 
               {/* Comments - select-none prevents text selection on long-press */}
-              <button
+              {/* Comments - select-none prevents text selection on long-press */}
+              <motion.button
+                whileTap={{ scale: 0.85 }}
                 className="flex items-center justify-center gap-1.5 h-full select-none"
                 onClick={(e) => { e.stopPropagation(); haptics.light(); setShowComments(true); }}
               >
-                <MessageCircle className="w-6 h-6 text-white transition-transform active:scale-90" />
+                <MessageCircle className="w-6 h-6 text-white" />
                 <span className="text-sm font-bold text-white select-none">{post.reactions?.comments || 0}</span>
-              </button>
+              </motion.button>
 
               {/* Bookmark */}
-              <button
+              <motion.button
+                whileTap={{ scale: 0.85 }}
                 className="flex items-center justify-center h-full"
                 onClick={handleBookmark}
               >
                 <Bookmark
-                  className={cn("w-6 h-6 transition-transform active:scale-90", post.user_reactions.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
+                  className={cn("w-6 h-6", post.user_reactions.has_bookmarked ? "text-blue-400 fill-blue-400" : "text-white")}
                   fill={post.user_reactions.has_bookmarked ? "currentColor" : "none"}
                 />
-              </button>
+              </motion.button>
 
             </div>
           </div>

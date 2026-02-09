@@ -1,6 +1,27 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
 import { Play } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { useState, useRef, useEffect, useCallback } from 'react';
+
+// Smooth image loading component
+const FadeInImage = ({ src, alt, className, loading = 'lazy' }: { src: string; alt: string; className?: string; loading?: 'lazy' | 'eager' }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  return (
+    <div className={cn("relative overflow-hidden bg-white/5", className)}>
+      <motion.img
+        src={src}
+        alt={alt}
+        className="w-full h-full object-cover"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: isLoaded ? 1 : 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        onLoad={() => setIsLoaded(true)}
+        loading={loading}
+      />
+    </div>
+  );
+};
 
 interface Media {
   id: string;
@@ -84,12 +105,12 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
           onClick={(e) => handleMediaClick(e, item, 0)}
         >
           {item.type === 'image' ? (
-            <img
+            <FadeInImage
               src={item.url}
               alt=""
               className={cn(
                 "w-full bg-black/40",
-                fillHeight ? "h-full object-contain" : "aspect-auto object-contain"
+                fillHeight ? "h-full" : "aspect-auto"
               )}
               loading="lazy"
             />
@@ -146,12 +167,12 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
             onClick={(e) => handleMediaClick(e, item, idx)}
           >
             {item.type === 'image' ? (
-              <img
+              <FadeInImage
                 src={item.url}
                 alt=""
                 className={cn(
                   "w-full bg-black/40",
-                  fillHeight ? "h-full object-contain" : "aspect-auto object-contain"
+                  fillHeight ? "h-full" : "aspect-auto"
                 )}
                 loading={idx <= 1 ? 'eager' : 'lazy'}
               />

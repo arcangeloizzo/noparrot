@@ -24,8 +24,8 @@ export interface ImmersiveFeedContainerRef {
   scrollToIndex: (index: number) => void;
 }
 
-export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, ImmersiveFeedContainerProps>(({ 
-  children, 
+export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, ImmersiveFeedContainerProps>(({
+  children,
   onRefresh,
   onActiveIndexChange
 }, ref) => {
@@ -35,10 +35,10 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   const pullDistance = useRef<number>(0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const lastReportedIndex = useRef<number>(-1);
-  
+
   // RAF throttle ref for scroll handler
   const rafId = useRef<number | null>(null);
-  
+
   // Track active index in state for context
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -73,7 +73,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   const handleScroll = useCallback(() => {
     // Skip if already have a RAF scheduled
     if (rafId.current !== null) return;
-    
+
     rafId.current = requestAnimationFrame(() => {
       const currentIndex = calculateActiveIndex();
       if (currentIndex !== lastReportedIndex.current) {
@@ -114,9 +114,9 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
 
   return (
     <FeedContext.Provider value={{ activeIndex }}>
-      <div 
-        ref={containerRef}
-        className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory no-scrollbar overscroll-none bg-background"
+      <div
+        ref={containerRef} // touch-action-pan-y allows vertical scroll but prevents browser gestures like back/forward
+        className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory no-scrollbar overscroll-y-contain bg-background"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -128,9 +128,9 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
           </div>
         )}
-        
+
         {children}
-        
+
         {/* Bottom gradient fade for navbar */}
         <div className="fixed bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-background to-transparent z-40 pointer-events-none" />
       </div>
