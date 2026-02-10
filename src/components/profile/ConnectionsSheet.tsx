@@ -51,20 +51,25 @@ export const ConnectionsSheet = ({
     const { data: followers = [], isLoading: loadingFollowers } = useQuery({
         queryKey: ["connections-followers", userId],
         queryFn: async () => {
-            const { data, error } = await supabase
+            // 1. Fetch relations first
+            const { data: relations, error: relError } = await supabase
                 .from("followers")
-                .select(`
-          follower:profiles!followers_follower_id_fkey(
-            id, username, full_name, avatar_url, bio
-          )
-        `)
+                .select("follower_id")
                 .eq("following_id", userId);
 
-            if (error) throw error;
-            // Filter out any null followers (e.g. deleted users)
-            return (data || [])
-                .map(d => d.follower)
-                .filter(Boolean) as unknown as UserProfilePreview[];
+            if (relError) throw relError;
+            if (!relations?.length) return [];
+
+            const ids = relations.map(r => r.follower_id);
+
+            // 2. Fetch public profiles
+            const { data: profiles, error: profError } = await supabase
+                .from("public_profiles")
+                .select("id, username, full_name, avatar_url, bio")
+                .in("id", ids);
+
+            if (profError) throw profError;
+            return profiles as UserProfilePreview[];
         },
         enabled: open && !!userId,
     });
@@ -72,20 +77,25 @@ export const ConnectionsSheet = ({
     const { data: following = [], isLoading: loadingFollowing } = useQuery({
         queryKey: ["connections-following", userId],
         queryFn: async () => {
-            const { data, error } = await supabase
+            // 1. Fetch relations first
+            const { data: relations, error: relError } = await supabase
                 .from("followers")
-                .select(`
-          following:profiles!followers_following_id_fkey(
-            id, username, full_name, avatar_url, bio
-          )
-        `)
+                .select("following_id")
                 .eq("follower_id", userId);
 
-            if (error) throw error;
-            // Filter out any null following (e.g. deleted users)
-            return (data || [])
-                .map(d => d.following)
-                .filter(Boolean) as unknown as UserProfilePreview[];
+            if (relError) throw relError;
+            if (!relations?.length) return [];
+
+            const ids = relations.map(r => r.following_id);
+
+            // 2. Fetch public profiles
+            const { data: profiles, error: profError } = await supabase
+                .from("public_profiles")
+                .select("id, username, full_name, avatar_url, bio")
+                .in("id", ids);
+
+            if (profError) throw profError;
+            return profiles as UserProfilePreview[];
         },
         enabled: open && !!userId,
     });
@@ -150,6 +160,7 @@ export const ConnectionsSheet = ({
         <Sheet open={open} onOpenChange={onOpenChange}>
             <SheetContent
                 side="bottom"
+                hideClose={true}
                 className="h-[85vh] rounded-t-3xl px-0 pb-0 bg-background border-t border-white/10"
             >
                 <SheetHeader className="px-6 pb-2 pt-4 border-b border-white/5 space-y-4">
