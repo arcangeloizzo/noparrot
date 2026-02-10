@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,6 +8,7 @@ import { ArrowLeft } from "lucide-react";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { CompactNebula } from "@/components/profile/CompactNebula";
 import { NebulaExpandedSheet } from "@/components/profile/NebulaExpandedSheet";
+import { ConnectionsSheet } from "@/components/profile/ConnectionsSheet";
 import { DiaryEntry, DiaryEntryData, DiaryEntryType } from "@/components/profile/DiaryEntry";
 import { DiaryFilters, DiaryFilterType } from "@/components/profile/DiaryFilters";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,9 +22,17 @@ export const UserProfile = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  
+
   const [showNebulaExpanded, setShowNebulaExpanded] = useState(false);
   const [diaryFilter, setDiaryFilter] = useState<DiaryFilterType>('all');
+
+  // Connections Sheet State
+  const [showConnections, setShowConnections] = useState(false);
+  const [connectionsTab, setConnectionsTab] = useState<"followers" | "following">("followers");
+
+  // Refs for scrolling
+  const nebulaRef = useRef<HTMLDivElement>(null);
+  const diaryRef = useRef<HTMLDivElement>(null);
 
   // Use public_profiles view for other users to avoid exposing sensitive data
   // (date_of_birth, cognitive_tracking_enabled, cognitive_density are not exposed)
@@ -35,7 +44,7 @@ export const UserProfile = () => {
         .select("id, username, full_name, avatar_url, bio, created_at")
         .eq("id", userId)
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -197,7 +206,7 @@ export const UserProfile = () => {
   const toggleFollowMutation = useMutation({
     mutationFn: async () => {
       if (!currentUser || !userId) throw new Error("Not authenticated");
-      
+
       if (isFollowing) {
         await supabase
           .from("followers")
@@ -234,6 +243,17 @@ export const UserProfile = () => {
       .slice(0, 2);
   };
 
+  const scrollToSection = (ref: React.RefObject<HTMLDivElement>) => {
+    if (ref.current) {
+      ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const openFollowers = () => {
+    setConnectionsTab("followers"); // On public profile, show who follows them
+    setShowConnections(true);
+  };
+
   if (!userId) {
     navigate('/');
     return null;
@@ -255,9 +275,9 @@ export const UserProfile = () => {
   const cognitiveDensity = cognitiveDensityData || {};
   const totalPaths = Object.values(cognitiveDensity).reduce((sum, val) => sum + val, 0);
   const activeTopics = Object.values(cognitiveDensity).filter(val => val > 0).length;
-  
+
   const displayName = profile?.full_name?.trim() && !profile.full_name.includes('@') && profile.full_name.includes(' ')
-    ? profile.full_name 
+    ? profile.full_name
     : getDisplayUsername(profile?.username || '');
 
   return (
@@ -266,10 +286,10 @@ export const UserProfile = () => {
         {/* Header - Back Button, Avatar, Name, Bio, Follow Button */}
         <div className="px-6 pt-6 pb-4">
           {/* Back Button */}
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => navigate(-1)} 
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(-1)}
             className="mb-4 -ml-2"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -299,7 +319,7 @@ export const UserProfile = () => {
                   {profile.bio}
                 </p>
               )}
-              
+
               {/* Follow Button inline */}
               {currentUser && (
                 <Button
@@ -315,33 +335,67 @@ export const UserProfile = () => {
             </div>
           </div>
 
-          {/* Metrics Pills */}
-          <div className="flex gap-2 mt-4 flex-wrap">
-            <div className="px-3 py-1 bg-[#141A1E] rounded-full text-xs">
-              <span className="font-bold text-foreground">{Math.round(totalPaths)}</span>
-              <span className="text-muted-foreground ml-1">percorsi</span>
-            </div>
-            <div className="px-3 py-1 bg-[#141A1E] rounded-full text-xs">
-              <span className="font-bold text-foreground">{activeTopics}</span>
-              <span className="text-muted-foreground ml-1">ambiti</span>
-            </div>
-            <div className="px-3 py-1 bg-[#141A1E] rounded-full text-xs">
-              <span className="font-bold text-foreground">{stats?.followers || 0}</span>
-              <span className="text-muted-foreground ml-1">follower</span>
-            </div>
+          {/* Metrics - New Hierarchy */}
+          <div className="flex justify-around items-center mt-6 w-full px-2">
+
+            {/* Cose comprese -> Scroll to Diary */}
+            <button
+              onClick={() => scrollToSection(diaryRef)}
+              className="flex flex-col items-center group"
+            >
+              <span className="text-xl font-bold text-foreground group-active:scale-95 transition-transform">
+                {Math.round(totalPaths)}
+              </span>
+              <span className="text-xs text-muted-foreground/80 font-medium lowercase">
+                cose comprese
+              </span>
+            </button>
+
+            {/* Vertical Divider */}
+            <div className="h-8 w-[1px] bg-border/50" />
+
+            {/* Ambiti esplorati -> Scroll to Nebula */}
+            <button
+              onClick={() => scrollToSection(nebulaRef)}
+              className="flex flex-col items-center group"
+            >
+              <span className="text-xl font-bold text-foreground group-active:scale-95 transition-transform">
+                {activeTopics}
+              </span>
+              <span className="text-xs text-muted-foreground/80 font-medium lowercase">
+                ambiti esplorati
+              </span>
+            </button>
+
+            {/* Vertical Divider */}
+            <div className="h-8 w-[1px] bg-border/50" />
+
+            {/* Follower -> Open Connections */}
+            <button
+              onClick={openFollowers}
+              className="flex flex-col items-center group"
+            >
+              <span className="text-xl font-bold text-foreground group-active:scale-95 transition-transform">
+                {stats?.followers || 0}
+              </span>
+              <span className="text-xs text-muted-foreground/80 font-medium lowercase">
+                follower
+              </span>
+            </button>
+
           </div>
         </div>
 
         {/* Compact Cognitive Nebula (expandable) */}
-        <div className="px-4 mb-4">
-          <CompactNebula 
-            data={cognitiveDensity} 
-            onClick={() => setShowNebulaExpanded(true)} 
+        <div ref={nebulaRef} className="px-4 mb-4 scroll-mt-20">
+          <CompactNebula
+            data={cognitiveDensity}
+            onClick={() => setShowNebulaExpanded(true)}
           />
         </div>
 
         {/* Cognitive Diary */}
-        <div className="px-4 pb-6">
+        <div ref={diaryRef} className="px-4 pb-6 scroll-mt-20">
           <div className="mb-3">
             <h3 className="text-base font-semibold">Diario Cognitivo</h3>
             <p className="text-xs text-muted-foreground">
@@ -364,7 +418,7 @@ export const UserProfile = () => {
           ) : filteredEntries.length > 0 ? (
             <div className="space-y-2">
               {filteredEntries.map((entry, index) => (
-                <div 
+                <div
                   key={entry.id}
                   className="animate-fade-in"
                   style={{ animationDelay: `${index * 30}ms` }}
@@ -376,7 +430,7 @@ export const UserProfile = () => {
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <p className="text-sm">
-                {diaryFilter === 'all' 
+                {diaryFilter === 'all'
                   ? 'Nessun contenuto nel diario.'
                   : 'Nessun contenuto per questo filtro.'}
               </p>
@@ -392,8 +446,18 @@ export const UserProfile = () => {
         cognitiveDensity={cognitiveDensity}
       />
 
-      <BottomNavigation 
-        activeTab="" 
+      {/* Connections Sheet */}
+      {userId && (
+        <ConnectionsSheet
+          open={showConnections}
+          onOpenChange={setShowConnections}
+          userId={userId}
+          defaultTab={connectionsTab}
+        />
+      )}
+
+      <BottomNavigation
+        activeTab=""
         onTabChange={(tab) => {
           if (tab === 'home') navigate('/');
           else if (tab === 'search') navigate('/search');

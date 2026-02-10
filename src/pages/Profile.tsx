@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -7,6 +7,7 @@ import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { DiaryEntry, DiaryEntryData, DiaryEntryType } from "@/components/profile/DiaryEntry";
 import { DiaryFilters, DiaryFilterType } from "@/components/profile/DiaryFilters";
 import { ProfileSettingsSheet } from "@/components/profile/ProfileSettingsSheet";
+import { ConnectionsSheet } from "@/components/profile/ConnectionsSheet";
 import { CompactNebula } from "@/components/profile/CompactNebula";
 import { NebulaExpandedSheet } from "@/components/profile/NebulaExpandedSheet";
 import { getDisplayUsername } from "@/lib/utils";
@@ -22,6 +23,14 @@ export const Profile = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showNebulaExpanded, setShowNebulaExpanded] = useState(false);
 
+  // Connections Sheet State
+  const [showConnections, setShowConnections] = useState(false);
+  const [connectionsTab, setConnectionsTab] = useState<"followers" | "following">("following");
+
+  // Refs for scrolling
+  const nebulaRef = useRef<HTMLDivElement>(null);
+  const diaryRef = useRef<HTMLDivElement>(null);
+
   const { data: profile, isLoading, error } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => {
@@ -31,7 +40,7 @@ export const Profile = () => {
         .select("*")
         .eq("id", user.id)
         .single();
-      
+
       if (error) throw error;
       return data;
     },
@@ -44,7 +53,7 @@ export const Profile = () => {
       if (profile && user?.id) {
         const density = profile.cognitive_density as Record<string, number> | null;
         const isEmpty = !density || Object.keys(density).length === 0;
-        
+
         if (isEmpty) {
           const result = await recalculateCognitiveDensityFromPosts(user.id);
           if (result && Object.keys(result).length > 0) {
@@ -66,6 +75,8 @@ export const Profile = () => {
         supabase.from("followers").select("id", { count: "exact" }).eq("following_id", user.id),
         supabase.from("posts").select("id", { count: "exact" }).eq("author_id", user.id),
       ]);
+
+      console.log('Stats Debug:', { following: followingRes.count, followers: followersRes.count, posts: postsRes.count, error: followingRes.error || followersRes.error || postsRes.error });
 
       const cognitiveDensity = (profile?.cognitive_density as Record<string, number>) || {};
       const activeTopics = Object.values(cognitiveDensity).filter(val => val > 0).length;
@@ -152,6 +163,7 @@ export const Profile = () => {
           category: g.posts.category,
           type: 'gated' as DiaryEntryType,
           passed_gate: true,
+          passed_gate: true,
         }));
 
       // Merge and deduplicate
@@ -188,6 +200,17 @@ export const Profile = () => {
       .join("")
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const scrollToSection = (ref: React.RefObject<HTMLDivElement>) => {
+    if (ref.current) {
+      ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const openConnections = () => {
+    setConnectionsTab("following"); // On personal profile, usually interested in who I follow
+    setShowConnections(true);
   };
 
   if (error) {
@@ -240,7 +263,7 @@ export const Profile = () => {
             <div className="flex-1 min-w-0 pt-1">
               <h1 className="text-xl font-bold truncate">
                 {profile?.full_name?.trim() && !profile.full_name.includes('@') && profile.full_name.includes(' ')
-                  ? profile.full_name 
+                  ? profile.full_name
                   : getDisplayUsername(profile?.username || '')}
               </h1>
               {profile?.bio && (
@@ -269,33 +292,67 @@ export const Profile = () => {
             </div>
           </div>
 
-          {/* Metrics Pills */}
-          <div className="flex gap-2 mt-4 flex-wrap">
-            <div className="px-3 py-1 bg-secondary rounded-full text-xs">
-              <span className="font-bold text-foreground">{Math.round(totalPaths)}</span>
-              <span className="text-muted-foreground ml-1">percorsi</span>
-            </div>
-            <div className="px-3 py-1 bg-secondary rounded-full text-xs">
-              <span className="font-bold text-foreground">{activeTopics}</span>
-              <span className="text-muted-foreground ml-1">ambiti</span>
-            </div>
-            <div className="px-3 py-1 bg-secondary rounded-full text-xs">
-              <span className="font-bold text-foreground">{stats?.following || 0}</span>
-              <span className="text-muted-foreground ml-1">conn.</span>
-            </div>
+          {/* Metrics - New Hierarchy */}
+          <div className="flex justify-around items-center mt-6 w-full px-2">
+
+            {/* Cose comprese -> Scroll to Diary */}
+            <button
+              onClick={() => scrollToSection(diaryRef)}
+              className="flex flex-col items-center group"
+            >
+              <span className="text-xl font-bold text-foreground group-active:scale-95 transition-transform">
+                {Math.round(totalPaths)}
+              </span>
+              <span className="text-xs text-muted-foreground/80 font-medium lowercase">
+                cose comprese
+              </span>
+            </button>
+
+            {/* Vertical Divider */}
+            <div className="h-8 w-[1px] bg-border/50" />
+
+            {/* Ambiti esplorati -> Scroll to Nebula */}
+            <button
+              onClick={() => scrollToSection(nebulaRef)}
+              className="flex flex-col items-center group"
+            >
+              <span className="text-xl font-bold text-foreground group-active:scale-95 transition-transform">
+                {activeTopics}
+              </span>
+              <span className="text-xs text-muted-foreground/80 font-medium lowercase">
+                ambiti esplorati
+              </span>
+            </button>
+
+            {/* Vertical Divider */}
+            <div className="h-8 w-[1px] bg-border/50" />
+
+            {/* Persone seguite -> Open Connections */}
+            <button
+              onClick={openConnections}
+              className="flex flex-col items-center group"
+            >
+              <span className="text-xl font-bold text-foreground group-active:scale-95 transition-transform">
+                {stats?.following || 0}
+              </span>
+              <span className="text-xs text-muted-foreground/80 font-medium lowercase">
+                persone seguite
+              </span>
+            </button>
+
           </div>
         </div>
 
         {/* Compact Cognitive Nebula (expandable) */}
-        <div className="px-4 mb-4">
-          <CompactNebula 
-            data={cognitiveDensity} 
-            onClick={() => setShowNebulaExpanded(true)} 
+        <div ref={nebulaRef} className="px-4 mb-4 scroll-mt-20">
+          <CompactNebula
+            data={cognitiveDensity}
+            onClick={() => setShowNebulaExpanded(true)}
           />
         </div>
 
         {/* Cognitive Diary */}
-        <div className="px-4 pb-6">
+        <div ref={diaryRef} className="px-4 pb-6 scroll-mt-20">
           <div className="mb-3">
             <h3 className="text-base font-semibold">Diario Cognitivo</h3>
             <p className="text-xs text-muted-foreground">
@@ -318,7 +375,7 @@ export const Profile = () => {
           ) : filteredEntries.length > 0 ? (
             <div className="space-y-2">
               {filteredEntries.map((entry, index) => (
-                <div 
+                <div
                   key={entry.id}
                   className="animate-fade-in"
                   style={{ animationDelay: `${index * 30}ms` }}
@@ -330,7 +387,7 @@ export const Profile = () => {
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <p className="text-sm">
-                {diaryFilter === 'all' 
+                {diaryFilter === 'all'
                   ? 'Nessun contenuto nel tuo diario. Inizia a creare o condividere!'
                   : 'Nessun contenuto per questo filtro.'}
               </p>
@@ -340,25 +397,36 @@ export const Profile = () => {
       </div>
 
       {/* Settings Bottom Sheet */}
-      <ProfileSettingsSheet 
-        open={showSettings} 
-        onOpenChange={setShowSettings} 
+      <ProfileSettingsSheet
+        open={showSettings}
+        onOpenChange={setShowSettings}
       />
 
+      {/* Connections Sheet */}
+      {user?.id && (
+        <ConnectionsSheet
+          open={showConnections}
+          onOpenChange={setShowConnections}
+          userId={user.id}
+          defaultTab={connectionsTab}
+        />
+      )}
+
       {/* Nebula Expanded Sheet */}
+
       <NebulaExpandedSheet
         open={showNebulaExpanded}
         onOpenChange={setShowNebulaExpanded}
         cognitiveDensity={cognitiveDensity}
       />
 
-      <BottomNavigation 
-        activeTab="profile" 
+      <BottomNavigation
+        activeTab="profile"
         onTabChange={(tab) => {
           if (tab === 'home') navigate('/');
           else if (tab === 'search') navigate('/search');
         }}
-        onProfileClick={() => {}} // Already on profile
+        onProfileClick={() => { }} // Already on profile
       />
     </div>
   );
