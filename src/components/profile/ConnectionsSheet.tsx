@@ -4,11 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-    Sheet,
-    SheetContent,
-    SheetHeader,
-    SheetTitle,
-} from "@/components/ui/sheet";
+    Drawer,
+    DrawerContent,
+    DrawerHeader,
+    DrawerTitle,
+} from "@/components/ui/drawer";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -157,15 +157,11 @@ export const ConnectionsSheet = ({
     };
 
     return (
-        <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent
-                side="bottom"
-                hideClose={true}
-                className="h-[85vh] rounded-t-3xl px-0 pb-0 bg-background border-t border-white/10"
-            >
-                <SheetHeader className="px-6 pb-2 pt-4 border-b border-white/5 space-y-4">
+        <Drawer open={open} onOpenChange={onOpenChange}>
+            <DrawerContent className="h-[85vh] rounded-t-3xl px-0 pb-0 bg-background border-t border-white/10 outline-none">
+                <DrawerHeader className="px-6 pb-2 pt-4 border-b border-white/5 space-y-4 text-left">
                     <div className="flex items-center justify-between">
-                        <SheetTitle className="text-lg font-bold">Connessioni</SheetTitle>
+                        <DrawerTitle className="text-lg font-bold">Connessioni</DrawerTitle>
                         <button
                             onClick={() => onOpenChange(false)}
                             className="p-2 rounded-full hover:bg-muted/50 transition-colors"
@@ -194,7 +190,7 @@ export const ConnectionsSheet = ({
                             </TabsTrigger>
                         </TabsList>
                     </Tabs>
-                </SheetHeader>
+                </DrawerHeader>
 
                 <ScrollArea className="h-full px-6 bg-background">
                     {activeTab === "following" ? (
@@ -212,7 +208,7 @@ export const ConnectionsSheet = ({
                     )}
                     <div className="h-20" /> {/* Bottom padding for safe area */}
                 </ScrollArea>
-            </SheetContent>
-        </Sheet>
+            </DrawerContent>
+        </Drawer>
     );
 };
