@@ -283,21 +283,21 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
           <div className="flex-1 min-w-0">
             {/* Header */}
             <div className="flex items-center gap-1 mb-1">
-              <span className="font-semibold text-slate-900 dark:text-foreground text-xs">
+              <span className="font-semibold text-slate-900 dark:text-white text-xs">
                 {safeAuthor.full_name || getDisplayUsername(safeAuthor.username)}
               </span>
-              <span className="text-slate-500 dark:text-muted-foreground text-xs">
+              <span className="text-slate-500 dark:text-gray-400 text-xs">
                 @{getDisplayUsername(safeAuthor.username)}
               </span>
-              <span className="text-slate-400 dark:text-muted-foreground text-xs">·</span>
-              <span className="text-slate-500 dark:text-muted-foreground text-xs">
+              <span className="text-slate-400 dark:text-gray-400 text-xs">·</span>
+              <span className="text-slate-500 dark:text-gray-400 text-xs">
                 {timeAgo}
               </span>
             </div>
 
             {/* Truncated Comment */}
             <div className="mb-2">
-              <div className="text-slate-900 dark:text-foreground text-xs leading-normal whitespace-pre-wrap line-clamp-3 sm:line-clamp-4 break-words font-medium">
+              <div className="text-slate-900 dark:text-white/90 text-xs leading-normal whitespace-pre-wrap line-clamp-3 sm:line-clamp-4 break-words font-medium">
                 {truncatedContent}
               </div>
               {needsTruncation && (

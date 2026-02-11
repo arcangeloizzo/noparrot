@@ -1396,7 +1396,7 @@ const ImmersivePostCardInner = ({
 
               {/* Stack Layout: User comment first - Plain text for standard */}
               {useStackLayout && post.content && post.content !== post.shared_title && (
-                <div className="text-base sm:text-lg font-normal text-slate-600 dark:text-immersive-foreground leading-snug tracking-wide drop-shadow-none dark:drop-shadow-md mb-4 px-1">
+                <div className="text-base sm:text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide drop-shadow-none dark:drop-shadow-md mb-4 px-1">
                   {post.content.length > 400 ? (
                     <>
                       <MentionText content={post.content.slice(0, 400) + '...'} />
@@ -1416,7 +1416,7 @@ const ImmersivePostCardInner = ({
               {/* Intent Post (non-stack): Quote Block style for posts with is_intent flag */}
               {!useStackLayout && post.is_intent && post.content && (
                 <div className="border-l-4 border-primary/60 bg-card/10 px-3 sm:px-4 py-2 sm:py-3 rounded-r-lg mb-4 sm:mb-6">
-                  <p className="text-base sm:text-lg font-normal text-slate-600 dark:text-immersive-foreground leading-snug tracking-wide drop-shadow-md">
+                  <p className="text-base sm:text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide drop-shadow-md">
                     <MentionText content={post.content} />
                   </p>
                 </div>
@@ -1453,7 +1453,7 @@ const ImmersivePostCardInner = ({
               {!useStackLayout && quotedPost && !hasLink && post.content && (
                 post.content.length > 400 ? (
                   <div className="mb-6">
-                    <h2 className="text-lg font-normal text-slate-600 dark:text-immersive-foreground leading-snug tracking-wide drop-shadow-md">
+                    <h2 className="text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide drop-shadow-md">
                       <MentionText content={post.content.slice(0, 400) + '...'} />
                     </h2>
                     <button
@@ -1464,7 +1464,7 @@ const ImmersivePostCardInner = ({
                     </button>
                   </div>
                 ) : (
-                  <h2 className="text-lg font-normal text-immersive-foreground leading-snug tracking-wide drop-shadow-md mb-6">
+                  <h2 className="text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide drop-shadow-md mb-6">
                     <MentionText content={post.content} />
                   </h2>
                 )
