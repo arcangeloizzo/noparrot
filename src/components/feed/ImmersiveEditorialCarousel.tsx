@@ -223,7 +223,8 @@ export const ImmersiveEditorialCarousel = ({
   return (
     <div className="h-[100dvh] w-full snap-start relative flex flex-col overflow-hidden">
       {/* Editorial Background - Deep urban gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-[#0A0F14] via-[#121A23] to-[#0A0F14] z-0" />
+      {/* Editorial Background - Deep urban gradient */}
+      <div className="absolute inset-0 bg-immersive z-0" />
 
       {/* Urban concrete texture - GPU-friendly static PNG */}
       <div className="absolute inset-0 z-[1] opacity-[0.06] pointer-events-none mix-blend-overlay urban-noise-overlay" />
@@ -232,7 +233,8 @@ export const ImmersiveEditorialCarousel = ({
       <div
         className="absolute inset-0 z-[2] pointer-events-none"
         style={{
-          background: 'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.5) 100%)'
+          background: 'radial-gradient(ellipse at center, transparent 40%, var(--immersive-muted) 100%)',
+          opacity: 0.5
         }}
       />
 
@@ -289,7 +291,7 @@ export const ImmersiveEditorialCarousel = ({
       {/* Pagination Dots - Overlay on bottom - FIXED POSITION */}
       {items.length > 1 && (
         <div className="absolute bottom-24 left-0 right-0 z-50 flex justify-center pb-[env(safe-area-inset-bottom)] pointer-events-none">
-          <div className="flex items-center gap-2 p-1.5 rounded-full bg-black/40 backdrop-blur-md shadow-lg border border-white/10 pointer-events-auto">
+          <div className="flex items-center gap-2 p-1.5 rounded-full bg-white/90 dark:bg-black/40 backdrop-blur-md shadow-sm dark:shadow-lg border border-slate-200 dark:border-white/10 pointer-events-auto">
             {items.map((_, index) => (
               <button
                 key={index}
@@ -297,8 +299,8 @@ export const ImmersiveEditorialCarousel = ({
                 className={cn(
                   "h-1.5 rounded-full transition-all duration-300 shadow-sm",
                   index === selectedIndex
-                    ? "bg-white w-6"
-                    : "bg-white/40 w-1.5 hover:bg-white/70"
+                    ? "bg-slate-900 dark:bg-white w-6"
+                    : "bg-slate-300 dark:bg-white/40 w-1.5 hover:bg-slate-400 dark:hover:bg-white/60"
                 )}
                 aria-label={`Vai alla slide ${index + 1}`}
               />
@@ -527,7 +529,8 @@ const EditorialSlideInner = ({
               opacity: 0.03,
               fontFamily: "'Impact', 'Arial Black', sans-serif",
               letterSpacing: '-0.05em',
-              WebkitTextStroke: '1px rgba(255,255,255,0.02)'
+              WebkitTextStroke: '1px rgba(255,255,255,0.02)',
+              color: 'var(--immersive-fg)'
             }}
           >
             FOCUS
@@ -535,7 +538,7 @@ const EditorialSlideInner = ({
 
           {/* Soft glow vignette behind headline */}
           <div className="absolute inset-0 flex items-start justify-center pointer-events-none">
-            <div className="w-[80%] h-[200px] bg-[#0A7AFF]/5 rounded-full blur-3xl mt-8" />
+            <div className="w-[80%] h-[200px] bg-noparrot-blue/5 rounded-full blur-3xl mt-8" />
           </div>
 
           {/* Content */}
@@ -543,15 +546,15 @@ const EditorialSlideInner = ({
             {/* Header Tecnico - AI Synthesis + Timestamp */}
             <div className="flex items-center gap-3 mb-4">
               {/* Badge AI Synthesis */}
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-immersive-foreground/5 border border-immersive-border">
                 <Sparkles className="w-3 h-3 text-purple-400" />
-                <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-white/70">
+                <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-purple-700 dark:text-white/70">
                   AI SYNTHESIS
                 </span>
               </div>
 
               {/* Timestamp Completo */}
-              <span className="text-xs font-mono text-zinc-400 tracking-wide">
+              <span className="text-xs font-mono text-slate-500 dark:text-gray-400 tracking-wide">
                 {formatFullTimestamp(item.created_at)}
               </span>
 
@@ -561,41 +564,42 @@ const EditorialSlideInner = ({
                   e.stopPropagation();
                   onOpenInfoDialog();
                 }}
-                className="hover:text-white/80 transition-colors"
+                className="hover:text-immersive-foreground/80 transition-colors"
               >
-                <Info className="w-3.5 h-3.5 text-white/40" />
+                <Info className="w-3.5 h-3.5 text-immersive-foreground/40" />
               </button>
             </div>
 
             {/* Source Attribution - Sopra il titolo */}
             {item.sources?.length > 0 && (
               <div className="flex items-center gap-1.5 mb-2">
-                <span className="text-xs text-[#0A7AFF] font-medium">
+                <span className="text-xs text-noparrot-blue font-medium">
                   Analisi basata su:
                 </span>
                 <button
                   onClick={(e) => { e.stopPropagation(); onOpenSources?.(); }}
-                  className="text-xs text-white/80 font-semibold hover:text-white transition-colors"
+                  className="text-xs text-slate-700 dark:text-immersive-foreground/80 font-semibold hover:text-black dark:hover:text-immersive-foreground transition-colors"
                 >
-                  <span className="underline decoration-white/30 underline-offset-2">
+                  <span className="underline decoration-immersive-foreground/30 underline-offset-2">
                     {(item.sources[0] as any)?.name || 'Fonti'}
                   </span>
                   {item.sources.length > 1 && (
-                    <span className="text-white/50 ml-1">+ {item.sources.length - 1} fonti</span>
+                    <span className="text-immersive-foreground/50 ml-1">+ {item.sources.length - 1} fonti</span>
                   )}
                 </button>
               </div>
             )}
 
             {/* Headline - Elemento più leggibile, max 2 righe */}
-            <h1 className="text-xl sm:text-3xl font-bold text-white leading-tight mb-3 drop-shadow-xl line-clamp-2">
+            <h1 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-immersive-foreground leading-tight mb-3 drop-shadow-sm dark:drop-shadow-xl line-clamp-2">
               {item.title}
             </h1>
 
             {/* Abstract/Lead - Preview della notizia con "Leggi tutto" inline */}
-            <p className="text-base sm:text-lg text-white/70 leading-relaxed mb-5 line-clamp-5 sm:line-clamp-none">
+            {/* Abstract/Lead - Preview della notizia con "Leggi tutto" inline */}
+            <p className="text-base sm:text-lg text-slate-600 dark:text-immersive-foreground/70 leading-relaxed mb-5 line-clamp-5 sm:line-clamp-none">
               {item.summary.replace(/\[SOURCE:[\d,\s]+\]/g, "").substring(0, 260).trim()}
-              <span className="text-white font-bold"> …Leggi tutto</span>
+              <span className="text-slate-900 dark:text-immersive-foreground font-bold cursor-pointer hover:underline"> …Leggi tutto</span>
             </p>
 
             {/* CTA Gateway - Apre SourcesDrawer */}
@@ -604,10 +608,10 @@ const EditorialSlideInner = ({
                 e.stopPropagation();
                 onOpenSources?.();
               }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition-all mb-5"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-immersive-border/60 hover:border-immersive-border bg-transparent hover:bg-immersive-foreground/5 transition-all mb-5 group"
             >
-              <Layers className="w-4 h-4 text-white/70" />
-              <span className="text-sm font-medium text-white">
+              <Layers className="w-4 h-4 text-immersive-muted group-hover:text-immersive-foreground transition-colors" />
+              <span className="text-sm font-medium text-slate-600 dark:text-immersive-foreground/80 group-hover:text-slate-900 dark:group-hover:text-immersive-foreground transition-colors">
                 Vedi le <strong>{item.sources?.length || 0}</strong> fonti consultate
               </span>
             </button>
@@ -620,7 +624,7 @@ const EditorialSlideInner = ({
                   e.stopPropagation();
                   onShare?.();
                 }}
-                className="h-11 px-5 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-full shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                className="h-11 px-5 bg-blue-50 hover:bg-blue-100 dark:bg-white dark:hover:bg-gray-200 text-blue-600 dark:text-[#1F3347] font-bold rounded-full shadow-sm dark:shadow-md border border-blue-100 dark:border-transparent flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
               >
                 <Logo variant="icon" size="sm" className="h-5 w-5" />
                 <span className="text-sm font-semibold leading-none">Condividi</span>
@@ -631,7 +635,7 @@ const EditorialSlideInner = ({
 
               {/* Action Icons - Uniform w-6 h-6, aligned on same axis */}
               <div
-                className="flex items-center gap-4 h-11 action-bar-zone"
+                className="flex items-center gap-4 h-11 action-bar-zone bg-slate-100 px-4 rounded-full shadow-sm border border-slate-200 dark:bg-transparent dark:px-0 dark:rounded-none dark:shadow-none dark:border-none transition-all"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
 
@@ -653,7 +657,7 @@ const EditorialSlideInner = ({
                       <Heart
                         className={cn(
                           "w-6 h-6 transition-transform active:scale-90",
-                          reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-white"
+                          reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-slate-700 dark:text-immersive-foreground"
                         )}
                         fill={reactionsData?.likedByMe ? "currentColor" : "none"}
                       />
@@ -661,7 +665,7 @@ const EditorialSlideInner = ({
                   </button>
                   {/* Count - clickable to open reactions drawer, select-none prevents text selection */}
                   <button
-                    className="text-sm font-bold text-white hover:text-white/80 transition-colors select-none"
+                    className="text-sm font-bold text-slate-700 dark:text-immersive-foreground hover:text-black dark:hover:text-immersive-foreground/80 transition-colors select-none"
                     onClick={(e) => {
                       e.stopPropagation();
                       const likesCount = reactionsData?.likes ?? item.reactions?.likes ?? 0;
@@ -707,8 +711,8 @@ const EditorialSlideInner = ({
                     onComment?.(item);
                   }}
                 >
-                  <MessageCircle className="w-6 h-6 text-white transition-transform active:scale-90" />
-                  <span className="text-sm font-bold text-white select-none">
+                  <MessageCircle className="w-6 h-6 text-slate-700 dark:text-immersive-foreground transition-transform active:scale-90" />
+                  <span className="text-sm font-bold text-slate-700 dark:text-immersive-foreground select-none">
                     {item.reactions?.comments ?? 0}
                   </span>
                 </button>
@@ -725,7 +729,7 @@ const EditorialSlideInner = ({
                   <Bookmark
                     className={cn(
                       "w-6 h-6 transition-transform active:scale-90",
-                      isBookmarked ? "text-blue-400 fill-blue-400" : "text-white"
+                      isBookmarked ? "text-blue-400 fill-blue-400" : "text-slate-700 dark:text-immersive-foreground"
                     )}
                   />
                 </button>

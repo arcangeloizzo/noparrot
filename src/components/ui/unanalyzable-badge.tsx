@@ -15,7 +15,7 @@ interface UnanalyzableBadgeProps {
 
 export function UnanalyzableBadge({ className }: UnanalyzableBadgeProps) {
   const [open, setOpen] = useState(false);
-  
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -23,7 +23,7 @@ export function UnanalyzableBadge({ className }: UnanalyzableBadgeProps) {
           className={cn(
             "px-2.5 py-1.5 rounded-full flex items-center gap-1.5",
             "bg-zinc-800/80 border border-zinc-700",
-            "text-muted-foreground backdrop-blur-sm",
+            "text-white/90 backdrop-blur-sm",
             "hover:bg-zinc-700/80 transition-colors",
             className
           )}
@@ -40,7 +40,7 @@ export function UnanalyzableBadge({ className }: UnanalyzableBadgeProps) {
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         {/* Custom close button */}
-        <button 
+        <button
           onClick={() => setOpen(false)}
           className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100 ring-offset-background transition-opacity focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           aria-label="Chiudi"
