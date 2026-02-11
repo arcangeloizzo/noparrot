@@ -1361,7 +1361,7 @@ const ImmersivePostCardInner = ({
             {isOwnPost && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <button className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-black/20 dark:hover:bg-white/10 transition-colors text-slate-900 dark:text-immersive-foreground">
+                  <button className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-black/20 dark:hover:bg-white/10 transition-colors text-slate-900 dark:text-white">
                     <MoreHorizontal className="w-4 h-4" />
                   </button>
                 </DropdownMenuTrigger>
@@ -1432,7 +1432,7 @@ const ImmersivePostCardInner = ({
               {!useStackLayout && shouldShowUserText && !post.is_intent && (
                 post.content.length > 400 ? (
                   <div className="mb-4 flex-shrink-0">
-                    <h2 className="text-lg font-normal text-slate-600 dark:text-immersive-foreground leading-snug tracking-wide drop-shadow-md line-clamp-3">
+                    <h2 className="text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide drop-shadow-md line-clamp-3">
                       <MentionText content={post.content} />
                     </h2>
                     <button
@@ -1443,7 +1443,7 @@ const ImmersivePostCardInner = ({
                     </button>
                   </div>
                 ) : (
-                  <h2 className="text-lg font-normal text-slate-600 dark:text-immersive-foreground leading-snug tracking-wide drop-shadow-none dark:drop-shadow-md mb-4 line-clamp-4 flex-shrink-0">
+                  <h2 className="text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide drop-shadow-none dark:drop-shadow-md mb-4 line-clamp-4 flex-shrink-0">
                     <MentionText content={post.content} />
                   </h2>
                 )

@@ -591,7 +591,7 @@ const EditorialSlideInner = ({
             )}
 
             {/* Headline - Elemento più leggibile, max 2 righe */}
-            <h1 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-immersive-foreground leading-tight mb-3 drop-shadow-sm dark:drop-shadow-xl line-clamp-2">
+            <h1 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white leading-tight mb-3 drop-shadow-sm dark:drop-shadow-xl line-clamp-2">
               {item.title}
             </h1>
 
