@@ -16,9 +16,8 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /* ==========================
- * CONFIG
+ * CONFIG (Trust Score uses Supabase Edge Functions, not external API)
  * ========================== */
-const TRUST_API_BASE = import.meta.env.VITE_TRUST_API_BASE || "http://localhost:8787";
 
 /* ==========================
  * ENHANCED TYPES
