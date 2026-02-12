@@ -109,7 +109,7 @@ export const FeedCard = ({
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showPeoplePicker, setShowPeoplePicker] = useState(false);
   // Derived state
-  const finalSourceUrl = post.shared_url || (Array.isArray(post.sources) && post.sources.length > 0 ? post.sources[0].url : null);
+  const finalSourceUrl = post.shared_url || (Array.isArray(post.sources) && post.sources.length > 0 ? (post.sources[0] as any)?.url : null);
 
   // State
   const [shareAction, setShareAction] = useState<'feed' | 'friend' | null>(null);
@@ -420,10 +420,7 @@ export const FeedCard = ({
         host.includes('fb.com') ||
         host.includes('fb.watch')
       ) {
-        toast({
-          title: 'Link non supportato',
-          description: 'Instagram e Facebook non sono supportati. Apro il link nel browser.',
-        });
+        toast.info('Link non supportato — Instagram e Facebook non sono supportati. Apro il link nel browser.');
         window.open(post.shared_url, '_blank', 'noopener,noreferrer');
         return;
       }
@@ -431,10 +428,7 @@ export const FeedCard = ({
       // ignore
     }
 
-    toast({
-      title: 'Caricamento contenuto...',
-      description: 'Preparazione del Comprehension Gate'
-    });
+    toast.info('Caricamento contenuto...');
 
     // Fetch article preview
     const preview = await fetchArticlePreview(post.shared_url);
@@ -469,11 +463,7 @@ export const FeedCard = ({
 
     // Informational toast if using fallback
     if (!preview) {
-      toast({
-        title: 'Contenuto limitato',
-        description: 'Alcuni dettagli potrebbero non essere disponibili',
-        variant: 'default'
-      });
+      toast.info('Contenuto limitato — Alcuni dettagli potrebbero non essere disponibili');
     }
   };
 
@@ -531,12 +521,9 @@ export const FeedCard = ({
         testMode = getTestModeWithSource(userWordCount);
       }
 
-      toast({
-        title: 'Stiamo mettendo a fuoco ciò che conta…',
-        description: isOriginalPost
-          ? `Sto creando le domande giuste per capire davvero…`
-          : `Sto selezionando i punti che contano…`
-      });
+      toast.info(isOriginalPost
+        ? 'Sto creando le domande giuste per capire davvero…'
+        : 'Sto selezionando i punti che contano…');
 
       const fullContent = readerSource.content || readerSource.summary || readerSource.excerpt || post.content;
 
@@ -571,10 +558,7 @@ export const FeedCard = ({
 
       // 3️⃣ GESTISCI ERRORI PRIMA DI CHIUDERE
       if (result.insufficient_context) {
-        toast({
-          title: 'Contenuto troppo breve',
-          description: 'Puoi comunque condividere questo post',
-        });
+        toast.info('Contenuto troppo breve — Puoi comunque condividere questo post');
         await closeReaderSafely();
         onQuoteShare?.(post);
         return;
@@ -582,21 +566,21 @@ export const FeedCard = ({
 
       if (!result) {
         console.error('[Gate] generateQA returned null/undefined');
-        toast({ title: 'Errore', description: 'Risposta non valida dal server', variant: 'destructive' });
+        toast.error('Risposta non valida dal server');
         setReaderLoading(false);
         return; // Reader resta aperto
       }
 
       if (result.error) {
         console.error('[Gate] generateQA error:', result.error);
-        toast({ title: 'Errore', description: result.error, variant: 'destructive' });
+        toast.error(result.error);
         setReaderLoading(false);
         return; // Reader resta aperto
       }
 
       if (!result.questions || !Array.isArray(result.questions) || result.questions.length === 0) {
         console.error('[Gate] Invalid questions array:', result.questions);
-        toast({ title: 'Errore', description: 'Quiz non valido, riprova', variant: 'destructive' });
+        toast.error('Quiz non valido, riprova');
         setReaderLoading(false);
         return; // Reader resta aperto
       }
@@ -604,7 +588,7 @@ export const FeedCard = ({
       const invalidQuestion = result.questions.find(q => !q.id || !q.stem || !q.choices);
       if (invalidQuestion) {
         console.error('[Gate] Invalid question format:', invalidQuestion);
-        toast({ title: 'Errore', description: 'Formato domanda non valido', variant: 'destructive' });
+        toast.error('Formato domanda non valido');
         setReaderLoading(false);
         return; // Reader resta aperto
       }
@@ -641,15 +625,26 @@ export const FeedCard = ({
       let resolvedArticleContent: string | undefined;
 
       if (!resolvedSourceUrl && post.quoted_post_id) {
-        // Use overlay for loading source
+        // Deep lookup to resolve original source
         setShowAnalysisOverlay(true);
-        const deepSource = await resolveOriginalSourceOnDemand(post.quoted_post_id);
-        setShowAnalysisOverlay(false);
-
-        if (deepSource?.url) {
-          resolvedSourceUrl = deepSource.url;
-          resolvedArticleContent = deepSource.articleContent || undefined;
+        let currentId: string | null = post.quoted_post_id;
+        let depth = 0;
+        while (currentId && depth < 10) {
+          const { data, error } = await supabase
+            .from('posts')
+            .select('id, shared_url, shared_title, preview_img, quoted_post_id, article_content')
+            .eq('id', currentId)
+            .single();
+          if (error || !data) break;
+          if (data.shared_url) {
+            resolvedSourceUrl = data.shared_url;
+            resolvedArticleContent = data.article_content || undefined;
+            break;
+          }
+          currentId = data.quoted_post_id;
+          depth++;
         }
+        setShowAnalysisOverlay(false);
       }
 
       if (!resolvedSourceUrl) {
@@ -673,11 +668,7 @@ export const FeedCard = ({
     } catch (error) {
       setGateStep('error');
       console.error('[Gate] Error in handleReaderComplete:', error);
-      toast({
-        title: 'Errore',
-        description: 'Si è verificato un errore. Riprova.',
-        variant: 'destructive'
-      });
+      toast.error('Si è verificato un errore. Riprova.');
       setReaderLoading(false);
       setReaderClosing(false);
       // Reader resta aperto, utente può chiudere manualmente o riprovare
@@ -720,10 +711,7 @@ export const FeedCard = ({
       });
 
       if (passed) {
-        toast({
-          title: 'Possiamo procedere.',
-          description: 'Hai messo a fuoco.'
-        });
+        toast.success('Possiamo procedere. Hai messo a fuoco.');
         addBreadcrumb('quiz_closed', { via: 'passed' });
         setShowQuiz(false);
         setQuizData(null);
@@ -743,10 +731,7 @@ export const FeedCard = ({
         setShareAction(null);
       } else {
         console.warn('Test failed, NOT opening composer');
-        toast({
-          title: "Serve ancora un po' di chiarezza.",
-          description: 'Rileggi il contenuto e riprova.'
-        });
+        toast.info("Serve ancora un po' di chiarezza. Rileggi il contenuto e riprova.");
         addBreadcrumb('quiz_closed', { via: 'failed' });
         setShowQuiz(false);
         setQuizData(null);
@@ -758,11 +743,7 @@ export const FeedCard = ({
       return data;
     } catch (error) {
       console.error('Error validating quiz:', error);
-      toast({
-        title: 'Errore',
-        description: 'Errore durante la validazione',
-        variant: 'destructive'
-      });
+      toast.error('Errore durante la validazione');
       addBreadcrumb('quiz_closed', { via: 'error' });
       return { passed: false, score: 0, total: 0, wrongIndexes: [] };
     }
@@ -834,11 +815,11 @@ export const FeedCard = ({
                         e.stopPropagation();
                         deletePost.mutate(post.id, {
                           onSuccess: () => {
-                            toast({ title: 'Post eliminato' });
+                            toast.success('Post eliminato');
                             onRemove?.();
                           },
                           onError: () => {
-                            toast({ title: 'Errore', description: 'Impossibile eliminare il post', variant: 'destructive' });
+                            toast.error('Impossibile eliminare il post');
                           }
                         });
                       }}
@@ -1222,8 +1203,8 @@ export const FeedCard = ({
         <CommentsDrawer
           post={post}
           isOpen={showComments}
-          onClose={() => setShowReactionsSheet(false)}
-          postId={post.id}
+          onClose={() => setShowComments(false)}
+          mode="view"
         />
       )}
       <AnalysisOverlay isVisible={showAnalysisOverlay} message="Analisi in corso..." />

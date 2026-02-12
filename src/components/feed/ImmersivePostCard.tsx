@@ -807,7 +807,7 @@ const ImmersivePostCardInner = ({
         if (userWordCount < 30) {
           // Fallback for edge cases - shouldn't happen for valid Intent posts
           onQuoteShare?.({ ...post, _gatePassed: true });
-          toast({ title: 'Post pronto per la condivisione' });
+          toast.info('Post pronto per la condivisione');
           return;
         }
 
@@ -833,13 +833,13 @@ const ImmersivePostCardInner = ({
 
       // For non-Intent posts with blocked platform links, show toast and open externally
       if (isBlockedPlatform) {
-        toast({ title: 'Link non supportato nel Reader', description: 'Instagram e Facebook non sono supportati. Apertura in nuova scheda.' });
+        toast.info('Link non supportato nel Reader — Instagram e Facebook non sono supportati. Apertura in nuova scheda.');
         window.open(resolvedSourceUrl, '_blank', 'noopener,noreferrer');
         return;
       }
     } catch { }
 
-    toast({ title: 'Caricamento contenuto...', description: 'Preparazione del Comprehension Gate' });
+    toast.info('Caricamento contenuto...');
 
     const preview = await fetchArticlePreview(resolvedSourceUrl);
     let hostname = '';
@@ -918,11 +918,7 @@ const ImmersivePostCardInner = ({
     // Safety timeout - 30 seconds max
     const timeoutId = setTimeout(() => {
       console.error('[Gate] TIMEOUT: Quiz generation exceeded 30 seconds');
-      toast({
-        title: 'Timeout',
-        description: 'La generazione del quiz ha impiegato troppo tempo. Riprova.',
-        variant: 'destructive'
-      });
+      toast.error('La generazione del quiz ha impiegato troppo tempo. Riprova.');
       setReaderLoading(false);
       setReaderClosing(false);
       setGateStep('idle');
@@ -2357,10 +2353,7 @@ const ImmersivePostCardInner = ({
           } catch (e) {
             console.warn('[ImmersivePostCard] Failed to increment shares count:', e);
           }
-          toast({
-            title: 'Messaggio inviato',
-            description: `Post condiviso con ${userIds.length} ${userIds.length === 1 ? 'amico' : 'amici'}`
-          });
+          toast.success(`Post condiviso con ${userIds.length} ${userIds.length === 1 ? 'amico' : 'amici'}`);
           setShowPeoplePicker(false);
           setShareAction(null);
         }}

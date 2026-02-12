@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Camera, Plus, Bold, Italic, Underline } from 'lucide-react';
+import { Camera, Plus, Bold, Italic, Underline, BarChart3, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -7,15 +7,15 @@ import { haptics } from '@/lib/haptics';
 interface MediaActionBarProps {
   onFilesSelected: (files: File[], type: 'image' | 'video') => void;
   disabled?: boolean;
-  /** Maximum total media items (images + videos combined) */
   maxTotalMedia?: number;
-  /** Current number of uploaded media items */
   currentMediaCount?: number;
   characterCount?: number;
   maxCharacters?: number;
   onFormat?: (format: 'bold' | 'italic' | 'underline') => void;
-  /** Keyboard offset in pixels (for iOS positioning) */
   keyboardOffset?: number;
+  onGenerateInfographic?: () => void;
+  infographicEnabled?: boolean;
+  isGeneratingInfographic?: boolean;
 }
 
 export const MediaActionBar = ({ 
@@ -26,7 +26,10 @@ export const MediaActionBar = ({
   characterCount = 0,
   maxCharacters = 3000,
   onFormat,
-  keyboardOffset = 0
+  keyboardOffset = 0,
+  onGenerateInfographic,
+  infographicEnabled = false,
+  isGeneratingInfographic = false
 }: MediaActionBarProps) => {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
@@ -136,8 +139,30 @@ export const MediaActionBar = ({
         </button>
       </div>
 
-      {/* Right: Media Group + Counter */}
+      {/* Right: Infographic + Media Group + Counter */}
       <div className="flex items-center gap-0.5">
+        {/* Infographic: AI generation */}
+        {onGenerateInfographic && (
+          <button
+            type="button"
+            onClick={() => {
+              if (!infographicEnabled || isGeneratingInfographic) return;
+              haptics.light();
+              onGenerateInfographic();
+            }}
+            disabled={!infographicEnabled || isGeneratingInfographic || disabled}
+            className={iconButtonClass}
+            aria-label="Genera infografica"
+            title={infographicEnabled ? 'Genera infografica AI' : 'Scrivi almeno 50 parole per generare un\'infografica'}
+          >
+            {isGeneratingInfographic ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <BarChart3 className="w-5 h-5" strokeWidth={1.5} />
+            )}
+          </button>
+        )}
+
         {/* Camera: direct capture - opens camera directly */}
         <button
           type="button"

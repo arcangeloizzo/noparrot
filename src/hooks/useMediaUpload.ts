@@ -405,6 +405,16 @@ export const useMediaUpload = () => {
     }
   }, [uploadedMedia, isBatchExtracting]);
 
+  // Add externally-created media (e.g. AI-generated infographic)
+  const addExternalMedia = (media: { id: string; type: 'image' | 'video'; url: string }) => {
+    setUploadedMedia(prev => [...prev, {
+      ...media,
+      order_idx: prev.length,
+      extracted_status: 'idle' as const,
+      extracted_kind: null
+    }]);
+  };
+
   return {
     uploadMedia,
     uploadedMedia,
@@ -417,6 +427,7 @@ export const useMediaUpload = () => {
     requestOCR,
     refreshMediaStatus,
     requestBatchExtraction,
-    getAggregatedExtractedText
+    getAggregatedExtractedText,
+    addExternalMedia
   };
 };
