@@ -597,9 +597,9 @@ const EditorialSlideInner = ({
 
             {/* Abstract/Lead - Preview della notizia con "Leggi tutto" inline */}
             {/* Abstract/Lead - Preview della notizia con "Leggi tutto" inline */}
-            <p className="text-base sm:text-lg text-slate-600 dark:text-immersive-foreground/70 leading-relaxed mb-5 line-clamp-5 sm:line-clamp-none">
+            <p className="text-base sm:text-lg text-slate-600 dark:text-white/80 leading-relaxed mb-5 line-clamp-5 sm:line-clamp-none">
               {item.summary.replace(/\[SOURCE:[\d,\s]+\]/g, "").substring(0, 260).trim()}
-              <span className="text-slate-900 dark:text-immersive-foreground font-bold cursor-pointer hover:underline"> …Leggi tutto</span>
+              <span className="text-slate-900 dark:text-white font-bold cursor-pointer hover:underline"> …Leggi tutto</span>
             </p>
 
             {/* CTA Gateway - Apre SourcesDrawer */}
