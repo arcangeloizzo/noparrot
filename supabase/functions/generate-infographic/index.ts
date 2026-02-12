@@ -84,7 +84,7 @@ ${truncatedText}`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/nano-banana-pro',
+        model: 'google/gemini-2.5-flash-image',
         messages: [{ role: 'user', content: systemPrompt }],
         modalities: ['image', 'text']
       }),
