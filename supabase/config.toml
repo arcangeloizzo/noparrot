@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.extract-media-text]
 verify_jwt = false
+
+[functions.generate-infographic]
+verify_jwt = false

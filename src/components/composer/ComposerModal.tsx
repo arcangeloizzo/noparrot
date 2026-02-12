@@ -126,7 +126,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   // iOS keyboard offset using Visual Viewport API
   const keyboardOffset = useVisualViewportOffset(isOpen && isIOS);
 
-  const { uploadMedia, uploadedMedia, removeMedia, clearMedia, reorderMedia, isUploading, isBatchExtracting, requestTranscription, requestOCR, refreshMediaStatus, requestBatchExtraction, getAggregatedExtractedText } = useMediaUpload();
+  const { uploadMedia, uploadedMedia, removeMedia, clearMedia, reorderMedia, isUploading, isBatchExtracting, requestTranscription, requestOCR, refreshMediaStatus, requestBatchExtraction, getAggregatedExtractedText, addExternalMedia } = useMediaUpload();
+  const [isGeneratingInfographic, setIsGeneratingInfographic] = useState(false);
 
   // Polling for media extraction status
   useEffect(() => {
@@ -197,6 +198,34 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       }
     } catch (error) {
       toast.error('Errore durante l\'estrazione del testo');
+    }
+  };
+
+  // Infographic AI generation handler
+  const handleGenerateInfographic = async () => {
+    if (isGeneratingInfographic || wordCount < 50) return;
+    try {
+      setIsGeneratingInfographic(true);
+      setShowAnalysisOverlay(true);
+      const isDark = document.documentElement.classList.contains('dark');
+      const { data, error } = await supabase.functions.invoke('generate-infographic', {
+        body: { text: content, theme: isDark ? 'dark' : 'light' }
+      });
+      if (error) throw new Error('Errore di rete');
+      if (data?.error) {
+        if (data.status === 429) toast.error('Troppi tentativi, riprova tra poco');
+        else if (data.status === 402) toast.error('Crediti AI esauriti');
+        else toast.error(data.error);
+        return;
+      }
+      addExternalMedia({ id: data.mediaId, type: 'image', url: data.url });
+      toast.success('Infografica generata!');
+    } catch (err) {
+      console.error('[Composer] Infographic error:', err);
+      toast.error("Impossibile generare l'infografica. Riprova.");
+    } finally {
+      setIsGeneratingInfographic(false);
+      setShowAnalysisOverlay(false);
     }
   };
 
@@ -1887,6 +1916,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                 maxCharacters={3000}
                 onFormat={applyFormatting}
                 keyboardOffset={keyboardOffset}
+                onGenerateInfographic={handleGenerateInfographic}
+                infographicEnabled={wordCount >= 50}
+                isGeneratingInfographic={isGeneratingInfographic}
               />
             </div>
           </div>
@@ -2048,7 +2080,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <AnalysisOverlay isVisible={showAnalysisOverlay} message="Analisi in corso..." />
+      <AnalysisOverlay isVisible={showAnalysisOverlay} message={isGeneratingInfographic ? "Sintetizzando i concetti chiave in un'infografica..." : "Analisi in corso..."} />
     </>
   );
 }

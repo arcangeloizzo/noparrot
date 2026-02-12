@@ -163,7 +163,6 @@ export const Profile = () => {
           category: g.posts.category,
           type: 'gated' as DiaryEntryType,
           passed_gate: true,
-          passed_gate: true,
         }));
 
       // Merge and deduplicate
