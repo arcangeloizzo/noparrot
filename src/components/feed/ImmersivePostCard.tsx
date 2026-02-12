@@ -1633,7 +1633,7 @@ const ImmersivePostCardInner = ({
 
                     {/* Tweet Text - cleaned and clamped - Flexible */}
                     <div className="flex-shrink-0 min-h-0 overflow-hidden mb-4">
-                      <p className="text-white text-base leading-relaxed line-clamp-4">
+                      <p className="text-slate-900 dark:text-white text-base leading-relaxed line-clamp-4">
                         {(articlePreview?.content || articlePreview?.summary || post.content || '')
                           .replace(/https?:\/\/t\.co\/\w+/g, '')
                           .replace(/https?:\/\/[^\s]+/g, '')

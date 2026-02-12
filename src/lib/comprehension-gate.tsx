@@ -28,31 +28,31 @@ type GatingPolicy = {
   passingRule?: "all_correct" | ">=2_of_3";
 };
 
-type ContentDescriptor = { 
-  id: string; 
-  title?: string; 
-  text?: string; 
+type ContentDescriptor = {
+  id: string;
+  title?: string;
+  text?: string;
   url?: string;
 };
 
 type QuizChoice = { id: string; text: string };
 
-type QuizQuestion = { 
-  id: string; 
-  stem: string; 
-  choices: QuizChoice[]; 
+type QuizQuestion = {
+  id: string;
+  stem: string;
+  choices: QuizChoice[];
   // correctId removed - answers validated server-side only
 };
 
-type QuizPayload = { 
-  id: string; 
-  questions: QuizQuestion[]; 
+type QuizPayload = {
+  id: string;
+  questions: QuizQuestion[];
 };
 
-type QuizResult = { 
-  passed: boolean; 
-  score: number; 
-  attestation?: string; 
+type QuizResult = {
+  passed: boolean;
+  score: number;
+  attestation?: string;
 };
 
 type TrustScoreResult = {
@@ -74,15 +74,15 @@ type CGContextValue = {
 /* ==========================
  * TRUST SCORE API
  * ========================== */
-export async function fetchTrustScore({ 
-  postText, 
-  sources, 
+export async function fetchTrustScore({
+  postText,
+  sources,
   userMeta,
   authorUsername,
   isVerified
-}: { 
-  postText: string; 
-  sources: string[]; 
+}: {
+  postText: string;
+  sources: string[];
   userMeta?: any;
   authorUsername?: string;
   isVerified?: boolean;
@@ -95,7 +95,7 @@ export async function fetchTrustScore({
     authorUsername,
     isVerified
   });
-  
+
   try {
     const sourceUrl = sources[0];
     if (!sourceUrl) {
@@ -104,7 +104,7 @@ export async function fetchTrustScore({
     }
 
     const { supabase } = await import("@/integrations/supabase/client");
-    
+
     console.log('[TrustScore] Invoking edge function...');
     const { data, error } = await supabase.functions.invoke('evaluate-trust-score', {
       body: {
@@ -133,12 +133,12 @@ export async function fetchTrustScore({
       band: data.band,
       score: data.score,
       reasons: data.reasons || [],
-      color: data.band === 'ALTO' ? 'hsl(var(--success))' : 
-             data.band === 'MEDIO' ? 'hsl(var(--warning))' : 
-             'hsl(var(--destructive))',
+      color: data.band === 'ALTO' ? 'hsl(var(--success))' :
+        data.band === 'MEDIO' ? 'hsl(var(--warning))' :
+          'hsl(var(--destructive))',
       hasSources: true
     };
-    
+
     console.log('[TrustScore] Returning result:', result);
     return result;
   } catch (error) {
@@ -160,8 +160,8 @@ async function apiCreateOrGetQuiz(_content: ContentDescriptor): Promise<QuizPayl
 }
 
 async function apiSubmitAnswers(
-  _quizId: string, 
-  _answers: Record<string, string>, 
+  _quizId: string,
+  _answers: Record<string, string>,
   _rule: GatingPolicy["passingRule"]
 ): Promise<QuizResult> {
   // DEPRECATED: This mock function should not be used
@@ -330,13 +330,13 @@ const QuizModal = {
 
               {/* Footer */}
               <div className="p-4 flex items-center justify-end gap-3 border-t border-gray-700">
-                <button 
-                  onClick={onClose} 
+                <button
+                  onClick={onClose}
                   className="px-4 py-2 rounded-xl border border-gray-600 text-gray-300 hover:bg-gray-800 transition-colors"
                 >
                   Annulla
                 </button>
-                <button 
+                <button
                   onClick={onSubmit}
                   disabled={!allAnswered}
                   className={cn(
