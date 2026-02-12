@@ -23,27 +23,28 @@ interface MediaPreviewTrayProps {
   onReorder?: (fromIndex: number, toIndex: number) => void;
   isTranscribing?: boolean;
   isBatchExtracting?: boolean;
+  onMediaClick?: (url: string, type: 'image' | 'video') => void;
 }
 
 // Hook to generate poster thumbnail from video - uses local file to avoid CORS
 const useVideoThumbnail = (videoUrl: string, type: 'image' | 'video', file?: File) => {
   const [poster, setPoster] = useState<string | null>(null);
-  
+
   useEffect(() => {
     if (type !== 'video') return;
-    
+
     // Prefer local file to avoid CORS issues with canvas
     const isLocalFile = !!file;
     const videoSrc = file ? URL.createObjectURL(file) : videoUrl;
-    
+
     const video = document.createElement('video');
     video.preload = 'auto';
     video.muted = true;
     video.playsInline = true;
-    
+
     let hasSeekCompleted = false;
     let cleanedUp = false;
-    
+
     const cleanup = () => {
       if (cleanedUp) return;
       cleanedUp = true;
@@ -51,25 +52,25 @@ const useVideoThumbnail = (videoUrl: string, type: 'image' | 'video', file?: Fil
       video.src = '';
       if (isLocalFile) URL.revokeObjectURL(videoSrc);
     };
-    
+
     const timeout = setTimeout(() => {
       if (!hasSeekCompleted) {
         console.warn('[VideoThumbnail] Timeout - could not generate thumbnail');
         cleanup();
       }
     }, 5000);
-    
+
     video.onloadeddata = () => {
       if (!hasSeekCompleted && !cleanedUp) {
         video.currentTime = Math.min(0.5, video.duration || 0.5);
       }
     };
-    
+
     video.onseeked = () => {
       if (hasSeekCompleted || cleanedUp) return;
       hasSeekCompleted = true;
       clearTimeout(timeout);
-      
+
       try {
         const canvas = document.createElement('canvas');
         canvas.width = video.videoWidth || 320;
@@ -88,22 +89,22 @@ const useVideoThumbnail = (videoUrl: string, type: 'image' | 'video', file?: Fil
         cleanup();
       }
     };
-    
+
     video.onerror = () => {
       console.warn('[VideoThumbnail] Failed to load video for thumbnail');
       clearTimeout(timeout);
       cleanup();
     };
-    
+
     video.src = videoSrc;
     video.load();
-    
+
     return () => {
       clearTimeout(timeout);
       cleanup();
     };
   }, [videoUrl, type, file]);
-  
+
   return poster;
 };
 
@@ -121,7 +122,8 @@ const MediaItem = ({
   onDragStart,
   onDragOver,
   onDragEnd,
-  onDrop
+  onDrop,
+  onClick
 }: {
   item: MediaPreview;
   index: number;
@@ -137,25 +139,26 @@ const MediaItem = ({
   onDragOver?: (e: DragEvent<HTMLDivElement>) => void;
   onDragEnd?: () => void;
   onDrop?: (e: DragEvent<HTMLDivElement>) => void;
+  onClick?: () => void;
 }) => {
   const isVideo = item.type === 'video';
   const isImage = item.type === 'image';
-  
+
   // Video transcription conditions
-  const canTranscribe = isVideo && 
-    (item.extracted_status === 'idle' || item.extracted_status === 'failed') && 
+  const canTranscribe = isVideo &&
+    (item.extracted_status === 'idle' || item.extracted_status === 'failed') &&
     onRequestTranscription &&
     (!item.duration_sec || item.duration_sec <= 180) &&
     !isTranscribing &&
     !isBatchExtracting;
   const isTooLong = isVideo && item.duration_sec && item.duration_sec > 180;
-  
+
   // Image OCR conditions
-  const canOCR = isImage && 
-    (item.extracted_status === 'idle' || item.extracted_status === 'failed') && 
+  const canOCR = isImage &&
+    (item.extracted_status === 'idle' || item.extracted_status === 'failed') &&
     onRequestOCR &&
     !isBatchExtracting;
-  
+
   const isPending = item.extracted_status === 'pending' || (isTranscribing && item.extracted_kind === 'transcript');
   const isDone = item.extracted_status === 'done';
   const isFailed = item.extracted_status === 'failed';
@@ -163,12 +166,12 @@ const MediaItem = ({
   const videoPoster = useVideoThumbnail(item.url, item.type, item.file);
 
   // Layout classes based on compact mode
-  const containerClasses = isCompact 
+  const containerClasses = isCompact
     ? "relative w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden bg-muted"
     : "relative w-full aspect-video rounded-xl overflow-hidden bg-muted";
 
   return (
-    <div 
+    <div
       className={cn(
         containerClasses,
         isDragging && "opacity-50 scale-95",
@@ -180,19 +183,20 @@ const MediaItem = ({
       onDragOver={onDragOver}
       onDragEnd={onDragEnd}
       onDrop={onDrop}
+      onClick={onClick}
     >
       {/* Media content */}
       {item.type === 'image' ? (
-        <img 
-          src={item.url} 
-          alt="" 
-          className="w-full h-full object-cover pointer-events-none" 
+        <img
+          src={item.url}
+          alt=""
+          className="w-full h-full object-cover pointer-events-none"
           draggable={false}
         />
       ) : (
         <div className="w-full h-full relative">
-          <video 
-            src={item.url} 
+          <video
+            src={item.url}
             className="w-full h-full object-cover pointer-events-none"
             poster={videoPoster || undefined}
             preload="metadata"
@@ -218,7 +222,7 @@ const MediaItem = ({
           <GripVertical className="w-3 h-3 text-white/70" />
         </div>
       )}
-      
+
       {/* Remove button */}
       <Button
         type="button"
@@ -291,13 +295,13 @@ const MediaItem = ({
           )}
         </div>
       )}
-      
+
       {/* Success badge - compact shows checkmark only */}
       {isDone && (
         <div className={cn(
           "absolute bg-emerald-500/90 backdrop-blur-sm text-white rounded-full flex items-center z-10",
-          isCompact 
-            ? "bottom-1 left-1 p-1" 
+          isCompact
+            ? "bottom-1 left-1 p-1"
             : "bottom-2 left-2 text-xs px-2 py-1 gap-1.5"
         )}>
           {isCompact ? (
@@ -314,13 +318,13 @@ const MediaItem = ({
           )}
         </div>
       )}
-      
+
       {/* Failed badge */}
       {isFailed && (
         <div className={cn(
           "absolute bg-red-500/90 backdrop-blur-sm text-white rounded-full flex items-center z-10",
-          isCompact 
-            ? "bottom-1 left-1 p-1" 
+          isCompact
+            ? "bottom-1 left-1 p-1"
             : "bottom-2 left-2 text-xs px-2 py-1 gap-1.5"
         )}>
           {isCompact ? (
@@ -337,43 +341,45 @@ const MediaItem = ({
   );
 };
 
-export const MediaPreviewTray = ({ 
-  media, 
-  onRemove, 
+
+export const MediaPreviewTray = ({
+  media,
+  onRemove,
   onRequestTranscription,
   onRequestOCR,
   onRequestBatchExtraction,
   onReorder,
   isTranscribing,
-  isBatchExtracting = false
+  isBatchExtracting = false,
+  onMediaClick
 }: MediaPreviewTrayProps) => {
   if (media.length === 0) return null;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  
+
   const isSingleMedia = media.length === 1;
   const isMultiMedia = media.length > 2;
   const hasPendingTranscription = media.some(m => m.extracted_status === 'pending' && m.extracted_kind === 'transcript');
   const hasPendingOCR = media.some(m => m.extracted_status === 'pending' && m.extracted_kind === 'ocr');
   const hasPendingAny = media.some(m => m.extracted_status === 'pending');
-  
+
   // Count extractable media (images for OCR, videos ≤3min for transcription)
-  const extractableImages = media.filter(m => 
-    m.type === 'image' && 
+  const extractableImages = media.filter(m =>
+    m.type === 'image' &&
     (m.extracted_status === 'idle' || m.extracted_status === 'failed')
   );
-  const extractableVideos = media.filter(m => 
-    m.type === 'video' && 
+  const extractableVideos = media.filter(m =>
+    m.type === 'video' &&
     (m.extracted_status === 'idle' || m.extracted_status === 'failed') &&
     (!m.duration_sec || m.duration_sec <= 180)
   );
-  const canBatchExtract = (extractableImages.length + extractableVideos.length) > 0 && 
-    onRequestBatchExtraction && 
-    !isBatchExtracting && 
+  const canBatchExtract = (extractableImages.length + extractableVideos.length) > 0 &&
+    onRequestBatchExtraction &&
+    !isBatchExtracting &&
     !hasPendingAny;
-  
+
   // Count completed extractions
   const completedCount = media.filter(m => m.extracted_status === 'done').length;
   const totalExtractable = extractableImages.length + extractableVideos.length + completedCount;
@@ -402,11 +408,11 @@ export const MediaPreviewTray = ({
   const handleDrop = (e: DragEvent<HTMLDivElement>, toIndex: number) => {
     e.preventDefault();
     const fromIndex = draggedIndex;
-    
+
     if (fromIndex !== null && fromIndex !== toIndex && onReorder) {
       onReorder(fromIndex, toIndex);
     }
-    
+
     setDraggedIndex(null);
     setDragOverIndex(null);
   };
@@ -424,10 +430,11 @@ export const MediaPreviewTray = ({
           isTranscribing={isTranscribing}
           isCompact={false}
           isBatchExtracting={isBatchExtracting}
+          onClick={() => onMediaClick?.(media[0].url, media[0].type)}
         />
       ) : isMultiMedia ? (
         /* Multi-media (>2): Horizontal scroll layout with drag & drop */
-        <div 
+        <div
           ref={scrollRef}
           className="flex gap-2 overflow-x-auto pb-2 scrollbar-none"
           style={{ WebkitOverflowScrolling: 'touch' }}
@@ -449,6 +456,7 @@ export const MediaPreviewTray = ({
               onDragOver={(e) => handleDragOver(e, index)}
               onDragEnd={handleDragEnd}
               onDrop={(e) => handleDrop(e, index)}
+              onClick={() => onMediaClick?.(item.url, item.type)}
             />
           ))}
         </div>
@@ -466,18 +474,19 @@ export const MediaPreviewTray = ({
               isTranscribing={isTranscribing}
               isCompact={false}
               isBatchExtracting={isBatchExtracting}
+              onClick={() => onMediaClick?.(item.url, item.type)}
             />
           ))}
         </div>
       )}
-      
+
       {/* Drag hint for multi-media */}
       {media.length > 2 && (
         <p className="text-xs text-muted-foreground text-center">
           Trascina per riordinare
         </p>
       )}
-      
+
       {/* Batch extraction button for multi-media */}
       {media.length > 1 && canBatchExtract && (
         <Button
@@ -495,7 +504,7 @@ export const MediaPreviewTray = ({
           </span>
         </Button>
       )}
-      
+
       {/* Progress indicator during batch extraction */}
       {isBatchExtracting && hasPendingAny && (
         <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 rounded-lg px-3 py-2.5">
@@ -510,14 +519,14 @@ export const MediaPreviewTray = ({
           </div>
         </div>
       )}
-      
+
       {/* Single media pending status */}
       {!isBatchExtracting && hasPendingAny && (
         <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 rounded-lg px-3 py-2.5">
           <Loader2 className="w-5 h-5 animate-spin text-primary flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <span className="text-sm font-medium text-primary">
-              {hasPendingTranscription 
+              {hasPendingTranscription
                 ? 'Trascrizione video in corso...'
                 : 'Estrazione testo in corso...'}
             </span>
@@ -527,7 +536,7 @@ export const MediaPreviewTray = ({
           </div>
         </div>
       )}
-      
+
       {/* Success indicator showing total extracted text */}
       {!hasPendingAny && extractedMediaWithText.length > 0 && (
         <div className="flex items-center gap-2 text-emerald-400 text-xs">

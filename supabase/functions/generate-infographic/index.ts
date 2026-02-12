@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Image, decode } from "https://deno.land/x/imagescript@1.2.9/mod.ts";
+import { LOGO_BASE64 } from "./logo.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -48,23 +50,22 @@ serve(async (req) => {
     const truncatedText = text.slice(0, 5000);
 
     const paletteInstruction = theme === 'dark'
-      ? 'Neon su sfondo scuro (#0a0a0a), alto contrasto, accenti ciano e magenta'
-      : 'Deep Blue (#1e3a5f) e Slate (#64748b) su sfondo chiaro (#f8fafc), elegante e professionale';
+      ? 'Neon Minimal: Sfondo nero assoluto (#000000), testo bianco brillante, accenti ciano neon.'
+      : 'Clean Modern: Sfondo bianco (#ffffff), testo nero, accenti blu scuro.';
 
-    const systemPrompt = `Agisci come un Expert Visual Content Strategist e Information Designer.
-Il tuo compito è tradurre l'analisi testuale fornita in un'infografica minimalista ad alto impatto.
-Estetica: Premium Tech, pulita, moderna.
-Linee Guida:
-- Analisi Semantica: identifica 3 pilastri chiave nel testo.
-- Layout: Verticale, con titolo d'impatto in alto, 3 sezioni iconografiche con icone minimali e testo sintetico, e un grafico di sintesi finale in basso.
-- Palette: ${paletteInstruction}
-- Tipografia: Sans-serif moderna (come Helvetica o Inter), numeri grandi e bold per dati chiave.
-- Dimensioni: Ottimizzata per mobile (formato verticale 9:16).
-- NO watermark, NO logo, NO testo "infografica" nel titolo.
+    const systemPrompt = `Sei un esperto di Visual Communication.
+Il tuo compito è creare un POSTER DIGITALE MINIMALISTA.
+IMPORTANTE: Il testo deve essere PERFETTO, senza errori ortografici.
 
-Genera SOLO l'immagine dell'infografica, senza alcun testo di accompagnamento.
+REGOLE CRITICHE:
+1. POCHISSIMO TESTO: Massimo 5-6 parole per punto.
+2. TITOLI GRANDI E LEGGIBILI.
+3. VISUAL PRIMACY: Usa icone e numeri grandi.
+4. STILE: "${paletteInstruction}"
 
-Dati di Input (Testo del Creator):
+Genera SOLO l'immagine.
+
+TESTO:
 ${truncatedText}`;
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -75,74 +76,113 @@ ${truncatedText}`;
       });
     }
 
-    console.log('[Infographic] Generating for user:', userId, 'theme:', theme);
+    console.log('[Infographic] Generating with Google Imagen 3 (Revert Request) for user:', userId);
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    // Revert to Google Imagen 3 via Lovable
+    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/images/generations', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-image',
-        messages: [{ role: 'user', content: systemPrompt }],
-        modalities: ['image', 'text']
+        model: 'google/imagen-3',
+        prompt: systemPrompt,
+        size: "1024x1792",
+        n: 1
       }),
-      signal: AbortSignal.timeout(90000) // 90s timeout
+      signal: AbortSignal.timeout(90000)
     });
 
     if (!aiResponse.ok) {
       const status = aiResponse.status;
       const errorText = await aiResponse.text();
       console.error('[Infographic] AI error:', status, errorText);
-
-      if (status === 429) {
-        return new Response(JSON.stringify({ error: 'Rate limit superato, riprova tra poco', status: 429 }), {
-          status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-      if (status === 402) {
-        return new Response(JSON.stringify({ error: 'Crediti AI esauriti', status: 402 }), {
-          status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-      return new Response(JSON.stringify({ error: 'Impossibile generare l\'infografica' }), {
+      return new Response(JSON.stringify({ error: `Errore AI (${status}): ${errorText}` }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
     const data = await aiResponse.json();
-    const imageData = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    const imageData = data.data?.[0]?.url;
 
     if (!imageData) {
-      console.error('[Infographic] No image in response');
-      return new Response(JSON.stringify({ error: 'Impossibile generare l\'infografica' }), {
+      console.error('[Infographic] No image URL in response');
+      return new Response(JSON.stringify({ error: 'Nessuna immagine generata' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    // Extract base64
-    const base64Match = imageData.match(/^data:image\/(\w+);base64,(.+)$/);
-    if (!base64Match) {
-      console.error('[Infographic] Invalid base64 format');
-      return new Response(JSON.stringify({ error: 'Formato immagine non valido' }), {
+    // Download image
+    let binaryData;
+    let finalFormat = 'png';
+    let watermarkStatus = 'skipped';
+
+    try {
+      const imgResp = await fetch(imageData);
+      const imgBuffer = await imgResp.arrayBuffer();
+      binaryData = new Uint8Array(imgBuffer);
+    } catch (e: any) {
+      console.error('[Infographic] Failed to download generated image:', e);
+      return new Response(JSON.stringify({ error: 'Errore download immagine' }), {
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    const imageFormat = base64Match[1];
-    const base64Data = base64Match[2];
-    const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+    let finalBuffer = binaryData;
+
+    // --- Watermark Processing ---
+    try {
+      console.log('[Infographic] Processing watermark...');
+      const infograph = await decode(binaryData);
+
+      // Decode logo
+      const cleanLogoBase64 = LOGO_BASE64.replace(/[^a-zA-Z0-9+/=]/g, '');
+      const logoBinary = Uint8Array.from(atob(cleanLogoBase64), c => c.charCodeAt(0));
+      const logo = await decode(logoBinary);
+
+      // Resize logo to 20% width (standard visibility)
+      const targetLogoWidth = Math.max(150, Math.round(infograph.width * 0.20));
+      logo.resize(targetLogoWidth, Image.RESIZE_AUTO);
+
+      // Create a white background container for the logo to ensure visibility
+      // Padding of 20px around the logo
+      const bgPadding = 20;
+      const bgWidth = logo.width + (bgPadding * 2);
+      const bgHeight = logo.height + (bgPadding * 2);
+
+      // Create white background with 90% opacity
+      const logoBackground = new Image(bgWidth, bgHeight);
+      logoBackground.fill(0xFFFFFFE6); // White, High Opacity
+
+      // Composite logo onto white background (centered)
+      logoBackground.composite(logo, bgPadding, bgPadding);
+
+      // Position: Top-Right with 5% padding
+      const padding = Math.round(infograph.width * 0.05);
+      const x = infograph.width - logoBackground.width - padding;
+      const y = padding;
+
+      // Composite the background (with logo) onto the infographic
+      infograph.composite(logoBackground, x, y);
+
+      finalBuffer = await infograph.encode();
+      watermarkStatus = 'success (with background)';
+      console.log('[Infographic] Watermark applied with background');
+    } catch (err: any) {
+      console.error('[Infographic] Watermark error:', err);
+      watermarkStatus = `failed: ${err.message}`;
+    }
 
     // Upload to storage using service role for reliability
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const adminClient = createClient(supabaseUrl, serviceKey);
 
-    const fileName = `${userId}/infographic-${Date.now()}.${imageFormat}`;
+    const fileName = `${userId}/infographic-${Date.now()}.${finalFormat}`;
     const { error: uploadError } = await adminClient.storage
       .from('user-media')
-      .upload(fileName, binaryData, {
-        contentType: `image/${imageFormat}`,
+      .upload(fileName, finalBuffer, {
+        contentType: `image/${finalFormat}`,
         upsert: false
       });
 
@@ -165,7 +205,7 @@ ${truncatedText}`;
       .insert({
         owner_id: userId,
         type: 'image',
-        mime: `image/${imageFormat}`,
+        mime: `image/${finalFormat}`,
         url: publicUrl,
         extracted_status: 'idle',
         extracted_kind: null
@@ -183,7 +223,11 @@ ${truncatedText}`;
     console.log('[Infographic] Success - mediaId:', mediaData.id);
 
     return new Response(JSON.stringify({ mediaId: mediaData.id, url: publicUrl }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json',
+        'X-Debug-Watermark': watermarkStatus
+      }
     });
 
   } catch (error: any) {

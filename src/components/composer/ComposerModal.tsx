@@ -11,6 +11,7 @@ import { MediaPreviewTray } from "@/components/media/MediaPreviewTray";
 import { fetchArticlePreview, classifyContent, generateQA } from "@/lib/ai-helpers";
 import { QuotedPostCard } from "@/components/feed/QuotedPostCard";
 import { QuotedEditorialCard } from "@/components/feed/QuotedEditorialCard";
+import { MediaPreviewModal } from "@/components/media/MediaPreviewModal";
 import { SourceReaderGate } from "./SourceReaderGate";
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { getWordCount, getTestModeWithSource, getMediaTestMode, getMediaGateForComposer } from '@/lib/gate-utils';
@@ -122,12 +123,19 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const [transcribingMediaId, setTranscribingMediaId] = useState<string | null>(null);
   const editorRef = useRef<TiptapEditorRef>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [previewMediaUrl, setPreviewMediaUrl] = useState<string | null>(null);
+  const [previewMediaType, setPreviewMediaType] = useState<'image' | 'video' | null>(null);
 
   // iOS keyboard offset using Visual Viewport API
   const keyboardOffset = useVisualViewportOffset(isOpen && isIOS);
 
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, reorderMedia, isUploading, isBatchExtracting, requestTranscription, requestOCR, refreshMediaStatus, requestBatchExtraction, getAggregatedExtractedText, addExternalMedia } = useMediaUpload();
   const [isGeneratingInfographic, setIsGeneratingInfographic] = useState(false);
+
+  const handleMediaPreview = (url: string, type: 'image' | 'video') => {
+    setPreviewMediaUrl(url);
+    setPreviewMediaType(type);
+  };
 
   // Polling for media extraction status
   useEffect(() => {
@@ -1892,6 +1900,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                     onRequestBatchExtraction={requestBatchExtraction}
                     isTranscribing={isTranscriptionInProgress}
                     isBatchExtracting={isBatchExtracting}
+                    onMediaClick={handleMediaPreview}
                   />
                 )}
 
@@ -2081,6 +2090,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         </AlertDialogContent>
       </AlertDialog>
       <AnalysisOverlay isVisible={showAnalysisOverlay} message={isGeneratingInfographic ? "Sintetizzando i concetti chiave in un'infografica..." : "Analisi in corso..."} />
+
+      <MediaPreviewModal
+        isOpen={!!previewMediaUrl}
+        onClose={() => setPreviewMediaUrl(null)}
+        mediaUrl={previewMediaUrl}
+        mediaType={previewMediaType}
+      />
     </>
   );
 }
