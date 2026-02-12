@@ -10,12 +10,15 @@ import { Button } from "@/components/ui/button";
 import { useNotifications } from "@/hooks/useNotifications";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export const DesktopHeader = () => {
     const { user } = useAuth();
     const { data: profile } = useCurrentProfile();
     const { theme, setTheme } = useTheme();
     const { data: notifications = [] } = useNotifications();
+    const navigate = useNavigate();
+    const [searchValue, setSearchValue] = useState("");
 
     // Track unread notifications (same logic as mobile header)
     const [lastViewedAt, setLastViewedAt] = useState<string | null>(
@@ -67,7 +70,11 @@ export const DesktopHeader = () => {
                 <div className="flex-1 max-w-[600px]">
                     {/* Wrapping SearchBar to constrain width and center it */}
                     <div className="relative">
-                        <SearchBar />
+                        <SearchBar
+                            value={searchValue}
+                            onChange={setSearchValue}
+                            onSearch={(q) => { navigate(`/search?q=${encodeURIComponent(q)}`); setSearchValue(""); }}
+                        />
                     </div>
                 </div>
 

@@ -19,22 +19,27 @@ webpush.setVapidDetails(
   VAPID_PRIVATE_KEY
 );
 
-// Validate that request comes from internal source (DB trigger or service role)
-function isInternalRequest(req: Request): boolean {
-  const authHeader = req.headers.get('authorization') || '';
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+// Validate authorization: service role key OR valid user JWT
+async function validateAuth(req: Request, supabaseClient: any): Promise<{ isServiceRole: true } | { isServiceRole: false; userId: string } | null> {
+  const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
+  if (!authHeader) return null;
+
+  const token = authHeader.replace('Bearer ', '');
   
-  if (authHeader.includes(supabaseServiceKey) && supabaseServiceKey.length > 20) {
-    return true;
+  // 1. Check if it's the SERVICE_ROLE_KEY (internal DB trigger / server-to-server)
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+  if (serviceKey.length > 20 && token === serviceKey) {
+    return { isServiceRole: true };
   }
-  
-  const origin = req.headers.get('origin') || '';
-  const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
-  if (origin && supabaseUrl && origin.includes(new URL(supabaseUrl).hostname)) {
-    return true;
+
+  // 2. Check if it's a valid user JWT
+  try {
+    const { data, error } = await supabaseClient.auth.getUser(token);
+    if (error || !data?.user) return null;
+    return { isServiceRole: false, userId: data.user.id };
+  } catch {
+    return null;
   }
-  
-  return false;
 }
 
 // Input validation for notification types
@@ -107,13 +112,36 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Security: Validate request comes from internal source
-    if (!isInternalRequest(req)) {
-      console.warn('[Push] ⚠️ Request from non-internal source - proceeding with caution');
+    // Security: Validate authorization (service role or authenticated user)
+    const authContext = await validateAuth(req, supabase);
+    if (!authContext) {
+      console.warn('[Push] ❌ Unauthorized request rejected');
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const body = await req.json();
     console.log('[Push] Received request:', JSON.stringify(body));
+
+    // Only service role can send editorial/admin notifications
+    if ((body.type === 'editorial' || body.type === 'admin') && !authContext.isServiceRole) {
+      return new Response(JSON.stringify({ error: 'Forbidden: elevated permissions required' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Prevent user impersonation on message notifications
+    if (body.type === 'message' && !authContext.isServiceRole) {
+      if (body.sender_id !== (authContext as { userId: string }).userId) {
+        return new Response(JSON.stringify({ error: 'Forbidden: cannot impersonate sender' }), {
+          status: 403,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
     
     // Input validation
     if (!body.type || !validateNotificationType(body.type)) {

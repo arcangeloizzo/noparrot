@@ -68,9 +68,8 @@ export const DesktopComposer = ({ quotedPost, onClearQuote, onPublishSuccess }: 
 
             toast.success("Post pubblicato con successo!");
             setContent("");
-            if (editorRef.current) {
-                editorRef.current.clear?.();
-            }
+            // Reset editor by re-setting content
+            editorRef.current?.focus?.();
             clearMedia();
             onClearQuote?.();
 
@@ -146,12 +145,8 @@ export const DesktopComposer = ({ quotedPost, onClearQuote, onPublishSuccess }: 
 
                     <div className="flex items-center justify-between pt-2 border-t border-border/40">
                         <MediaActionBar
-                            onUpload={uploadMedia}
-                            isUploading={isUploading}
+                            onFilesSelected={(files, type) => uploadMedia(files, type)}
                             disabled={isPublishing}
-                            // Simplified props for desktop
-                            showMicrophone={false}
-                            showCamera={false}
                         />
 
                         <Button
