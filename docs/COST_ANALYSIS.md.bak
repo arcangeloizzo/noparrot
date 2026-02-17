@@ -1,0 +1,86 @@
+# Analisi Costi & Scalabilità - NoParrot
+
+Questa analisi stima i costi operativi (OpEx) e la scalabilità dell'infrastruttura attuale (Supabase + Lovable AI) per tre scenari di utenza.
+
+## 1. Modello di Costo
+
+### Componenti Principali
+1. **Supabase (Backend)**:
+   - **Database**: Storage dati utente e contenuti.
+   - **Edge Functions**: Invocazioni per ogni operazione AI.
+   - **Storage**: Hosting immagini (Infografiche, Avatar).
+2. **AI (via Lovable Gateway)**:
+   - **Fixed Costs**: Analisi Daily Focus (indipendente dal numero utenti, dipendente dal numero notizie).
+   - **Variable Costs**: Trust Score on-demand, Generazione Infografiche, Q&A Quiz.
+
+### Assunzioni di Utilizzo (Per Utente Attivo/Giorno)
+- **Daily Focus**: Lettura passiva (costo AI ~0, costo DB basso).
+- **Infografiche**: 0.5 generazioni/utente/giorno (costo alto: Imagen 3).
+- **Q&A**: 1 quiz/utente/giorno (costo medio: Gemini Flash Lite + Scraping).
+- **Trust Score**: 2 URL/utente/giorno (costo basso: Gemini Flash Lite, alto cache hit rate).
+
+---
+
+## 2. Scenari di Scalabilità
+
+### Scenario A: 1,000 Utenti (Early Stage)
+*Fase di lancio, community ristretta.*
+
+| Voce di Costo | Dettaglio | Stima Mensile |
+| :--- | :--- | :--- |
+| **Supabase** | Pro Plan (Base) | **$25** |
+| **AI - Daily Focus** | ~50 topic/giorno (Gemini Flash) | ~$10 |
+| **AI - Infografiche** | ~500 img/giorno (mix free/paid models) | ~$30 |
+| **AI - Q&A/Trust** | Basso volume, alto caching | ~$10 |
+| **TOTALE** | | **~$75 / mese** |
+
+**Verdetto Scalabilità**: L'architettura attuale regge perfettamente senza modifiche.
+
+---
+
+### Scenario B: 10,000 Utenti (Growth)
+*Fase di crescita, inizio trazione virale.*
+
+| Voce di Costo | Dettaglio | Stima Mensile |
+| :--- | :--- | :--- |
+| **Supabase** | Pro Plan + Compute Add-on (Small) | **$50** |
+| **Storage & Bandwidth** | Egress dati + Storage immagini | ~$20 |
+| **AI - Daily Focus** | Costo fisso (invariato) | ~$10 |
+| **AI - Infografiche** | ~2,000 img/giorno (necessita quote limits) | ~$200 |
+| **AI - Q&A/Trust** | ~5,000 quiz/giorno | ~$50 |
+| **TOTALE** | | **~$330 / mese** |
+
+**Verdetto Scalabilità**: Regge, ma serve **rate limiting** sulle infografiche (es. max 3/giorno per utente free) per evitare esplosione costi.
+
+---
+
+### Scenario C: 100,000 Utenti (Scale)
+*Mass adoption, feature su store o media nazionali.*
+
+| Voce di Costo | Dettaglio | Stima Mensile |
+| :--- | :--- | :--- |
+| **Supabase** | Team Plan/Enterprise (Dedicated) | **$599+** |
+| **Edge Functions** | Oltre 50M invocazioni/mese | ~$100 (extra) |
+| **AI - Infografiche** | ~20,000 img/giorno (Strict Limits/Paywall) | ~$1,500+ |
+| **AI - Q&A** | High concurrency (caching aggressivo necessario) | ~$300 |
+| **TOTALE** | | **~$2,500+ / mese** |
+
+**Verdetto Scalabilità**:
+- **Criticità Backend**: Le Edge Functions potrebbero andare in timeout con alta concorrenza. Necessario passare a container dedicati (es. Fly.io/AWS) per i task lunghi (`daily-focus`).
+- **Criticità Costi**: Il modello "free-for-all" sulle infografiche diventa insostenibile. Necessario piano **Premium** per coprire i costi di generazione immagini.
+
+---
+
+## 3. Strategie di Ottimizzazione Costi
+1. **Aggressive Caching**:
+   - `trust_scores`: Aumentare TTL da 7 a 30 giorni.
+   - `public_profiles`: Cache a livello CDN.
+2. **Tiering Utenti**:
+   - **Free**: Max 1 infografica/giorno, Trust Score illimitato (costa poco).
+   - **Pro**: Infografiche illimitate, Q&A su qualsiasi URL.
+3. **Batch Processing**:
+   - Spostare `fetch-daily-focus` su un cron job notturno unico invece che on-demand.
+
+## 4. Conclusioni
+L'attuale piattaforma è **estremamente efficiente** per i primi due scenari (fino a 10-20k utenti) grazie all'architettura serverless.
+Il vero bottleneck economico è la **Generazione Immagini (Imagen 3)**. Se il prodotto diventa virale per le infografiche, il costo scalerà linearmente con gli utenti, richiedendo una monetizzazione rapida.

@@ -857,8 +857,8 @@ const ImmersivePostCardInner = ({
         if (videoId) return { kind: 'youtubeId' as const, id: videoId, url };
       }
       if (platform === 'spotify' || hostname.includes('spotify')) {
-        const spotifyMatch = url.match(/track\/([a-zA-Z0-9]+)/);
-        if (spotifyMatch) return { kind: 'spotifyId' as const, id: spotifyMatch[1], url };
+        const spotifyMatch = url.match(/(track|episode|show)\/([a-zA-Z0-9]+)/);
+        if (spotifyMatch) return { kind: 'spotifyId' as const, id: spotifyMatch[2], url };
       }
       if (platform === 'twitter' || hostname.includes('twitter') || hostname.includes('x.com')) {
         const tweetMatch = url.match(/status\/(\d+)/);
@@ -1004,6 +1004,25 @@ const ImmersivePostCardInner = ({
 
       if (result.error) {
         console.error('[Gate] generateQA error:', result.error);
+
+        // [HARDENING] Spotify/YouTube Fallback Strategy
+        // If transcript fails, allow intent mode fallback
+        const isSpotify = readerSource.platform === 'spotify' || readerSource.url?.includes('spotify') || false;
+
+        if (isSpotify || result.error?.toLowerCase().includes('transcript') || result.error?.toLowerCase().includes('trascrizione')) {
+          console.log('[Gate] Quiz failed, activating fallback to Intent Mode');
+          toast.warning('Trascrizione non disponibile. Aggiungi la tua opinione (30 parole) per condividere.');
+
+          await closeReaderSafely();
+          // Pass specific flags to Composer to enforce Intent Mode
+          onQuoteShare?.({
+            ...post,
+            _gatePassed: true,
+            _forceIntentMode: true
+          });
+          return;
+        }
+
         toast.error(result.error);
         setReaderLoading(false);
         return; // Reader resta aperto

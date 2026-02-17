@@ -92,7 +92,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const spotifyIframeRef = useRef<HTMLIFrameElement>(null);
   const youtubeIframeRef = useRef<HTMLIFrameElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  
+
   // Iframe loading state for generic articles
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [iframeFailed, setIframeFailed] = useState(false);
@@ -177,7 +177,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       safeSetTimeout(initTwitterWidget, 200);
     };
     script.onerror = () => setIsRenderingTwitter(false);
-    
+
     document.body.appendChild(script);
 
     return () => {
@@ -218,12 +218,12 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       if (spotifyIframeRef.current) {
         try {
           spotifyIframeRef.current.src = 'about:blank';
-        } catch (e) {}
+        } catch (e) { }
       }
       if (youtubeIframeRef.current) {
         try {
           youtubeIframeRef.current.src = 'about:blank';
-        } catch (e) {}
+        } catch (e) { }
       }
     };
   }, []);
@@ -239,18 +239,18 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   // Iframe timeout for generic articles (5 seconds)
   useEffect(() => {
     if (!isOpen) return;
-    if (source.platform === 'youtube' || source.platform === 'spotify' || 
-        source.platform === 'twitter' || source.platform === 'tiktok') return;
+    if (source.platform === 'youtube' || source.platform === 'spotify' ||
+      source.platform === 'twitter' || source.platform === 'tiktok') return;
     if (source.contentQuality === 'blocked') return;
     if (iframeLoaded || iframeFailed) return;
-    
+
     const timeout = safeSetTimeout(() => {
       if (!iframeLoaded) {
         console.log('[SourceReaderGate] Iframe timeout - falling back to preview card');
         setIframeFailed(true);
       }
     }, 5000);
-    
+
     return () => clearTimeout(timeout);
   }, [isOpen, iframeLoaded, iframeFailed, source.platform, source.contentQuality, safeSetTimeout]);
 
@@ -280,12 +280,12 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   const isReady = true;
 
   // Check if content needs full-height layout (iframe for generic articles)
-  const isFullHeightContent = !isBlocked && 
-    source.platform !== 'youtube' && 
-    source.platform !== 'spotify' && 
-    source.platform !== 'twitter' && 
-    source.platform !== 'tiktok' && 
-    source.iframeAllowed !== false && 
+  const isFullHeightContent = !isBlocked &&
+    source.platform !== 'youtube' &&
+    source.platform !== 'spotify' &&
+    source.platform !== 'twitter' &&
+    source.platform !== 'tiktok' &&
+    source.iframeAllowed !== false &&
     !iframeFailed;
 
   const handleComplete = () => {
@@ -299,11 +299,11 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       articleId: source.url,
       finalReadRatio: 1
     });
-    
+
     try {
       (window as any).__np_last_gate_event = { event: 'reader_complete_clicked', at: Date.now(), url: source.url };
-    } catch {}
-    
+    } catch { }
+
     onComplete();
   };
 
@@ -328,15 +328,15 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       const authorFullName = (source as any).authorFullName;
       const authorUsername = (source as any).author;
       const authorAvatar = (source as any).authorAvatar;
-      
+
       return (
         <div className="max-w-2xl mx-auto space-y-4">
           {/* Post Header - with actual author info */}
           <div className="flex items-center gap-3 p-4 bg-card border border-border rounded-lg">
             {authorAvatar ? (
-              <img 
-                src={authorAvatar} 
-                alt="" 
+              <img
+                src={authorAvatar}
+                alt=""
                 className="w-10 h-10 rounded-full object-cover border border-white/20"
               />
             ) : (
@@ -353,7 +353,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           </div>
 
           {/* Full Post Content - scrollable */}
-          <div 
+          <div
             ref={scrollContainerRef}
             className="bg-card border border-border rounded-lg p-5 max-h-[55vh] overflow-y-auto"
             style={{ WebkitOverflowScrolling: 'touch' }}
@@ -383,7 +383,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           </div>
 
           {/* Full Editorial Content - scrollable */}
-          <div 
+          <div
             ref={scrollContainerRef}
             className="bg-card border border-border rounded-lg p-5 max-h-[55vh] overflow-y-auto"
             style={{ WebkitOverflowScrolling: 'touch' }}
@@ -400,7 +400,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     if (source.platform === 'youtube' && source.embedHtml && !isClosing) {
       const iframeSrc = extractIframeSrc(source.embedHtml);
       const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
-      
+
       return (
         <div className="max-w-2xl mx-auto space-y-4">
           {/* YouTube Embed - Works on all platforms including iOS */}
@@ -429,7 +429,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               )}
             </div>
           </div>
-          
+
         </div>
       );
     }
@@ -563,10 +563,10 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     // LinkedIn - preview card only (no text display per copyright policy, iframe blocked by LinkedIn)
     if (source.platform === 'linkedin' && !isClosing) {
       const authorName = (source as any).author_name || source.author;
-      const authorInitials = authorName 
+      const authorInitials = authorName
         ? authorName.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
         : 'LI';
-      
+
       return (
         <div className="max-w-2xl mx-auto space-y-4">
           {/* LinkedIn Header */}
@@ -585,9 +585,9 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
             <div className="p-4 bg-card border border-border rounded-lg">
               <div className="flex items-start gap-4">
                 {source.image && (
-                  <img 
-                    src={source.image} 
-                    alt="" 
+                  <img
+                    src={source.image}
+                    alt=""
                     className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
                   />
                 )}
@@ -608,9 +608,9 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
             <p className="text-sm text-muted-foreground mb-4">
               Leggi il post su LinkedIn prima di procedere
             </p>
-            <Button 
-              variant="outline" 
-              onClick={openSource} 
+            <Button
+              variant="outline"
+              onClick={openSource}
               className="gap-2 border-[#0A66C2]/30 text-[#0A66C2] hover:bg-[#0A66C2]/10"
             >
               <ExternalLink className="h-4 w-4" />
@@ -643,7 +643,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 rounded-full border border-white/20 overflow-hidden bg-[#15202B]">
                   {(source as any).author_avatar ? (
-                    <img 
+                    <img
                       src={(source as any).author_avatar}
                       alt=""
                       className="w-full h-full object-cover"
@@ -661,7 +661,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                     </p>
                     {(source as any).is_verified && (
                       <svg className="w-4 h-4 text-[#1DA1F2] flex-shrink-0" viewBox="0 0 22 22" fill="currentColor">
-                        <path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z"/>
+                        <path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z" />
                       </svg>
                     )}
                   </div>
@@ -673,23 +673,23 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                   <span className="text-black font-bold text-xs">𝕏</span>
                 </div>
               </div>
-              
+
               {/* Short summary only, no full tweet text */}
               {source.summary && (
                 <p className="text-white text-base leading-relaxed mb-4">
                   {source.summary}
                 </p>
               )}
-              
+
               {source.image && (
                 <div className="rounded-xl overflow-hidden mb-4">
                   <img src={source.image} alt="" className="w-full h-48 object-cover" />
                 </div>
               )}
-              
-              <Button 
-                variant="outline" 
-                onClick={openSource} 
+
+              <Button
+                variant="outline"
+                onClick={openSource}
                 className="w-full gap-2 bg-white/10 border-white/20 text-white hover:bg-white/20"
               >
                 <ExternalLink className="h-4 w-4" />
@@ -702,7 +702,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
               {(() => {
                 const iframeSrc = extractIframeSrc(source.embedHtml!);
                 const isValidSrc = iframeSrc && validateEmbedDomain(iframeSrc);
-                
+
                 if (isValidSrc) {
                   return (
                     <iframe
@@ -715,7 +715,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                     />
                   );
                 }
-                
+
                 // Fallback: CTA if iframe extraction fails
                 return (
                   <div className="p-4 bg-muted/30 rounded-lg border border-border">
@@ -759,7 +759,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
                   Questo sito utilizza protezioni anti-bot che impediscono la lettura automatica del contenuto.
                   Per leggere l'articolo, aprilo direttamente nel browser.
                 </p>
-                <Button 
+                <Button
                   onClick={openSource}
                   className="gap-2 bg-warning text-warning-foreground hover:bg-warning/90"
                 >
@@ -773,9 +773,9 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           <div className="p-4 bg-card border border-border rounded-lg">
             <div className="flex items-center gap-3">
               {source.image && (
-                <img 
-                  src={source.image} 
-                  alt="" 
+                <img
+                  src={source.image}
+                  alt=""
                   className="w-16 h-16 rounded-lg object-cover flex-shrink-0"
                 />
               )}
@@ -802,7 +802,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     // Generic article - SOURCE-FIRST: Attempt iframe with fallback
     // If iframeAllowed and not failed, try to show iframe
     const showIframe = source.iframeAllowed !== false && !iframeFailed;
-    
+
     if (showIframe) {
       return (
         <div className="flex flex-col flex-1 h-full gap-3">
@@ -810,9 +810,9 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           <div className="p-3 bg-card border border-border rounded-lg flex-shrink-0">
             <div className="flex items-center gap-3">
               {source.image && (
-                <img 
-                  src={source.image} 
-                  alt="" 
+                <img
+                  src={source.image}
+                  alt=""
                   className="w-10 h-10 rounded-lg object-cover flex-shrink-0"
                 />
               )}
@@ -831,10 +831,10 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           </div>
 
           {/* Iframe container - expands to fill remaining space with proper scroll handling */}
-          <div 
+          <div
             className="relative flex-1 min-h-0 rounded-xl border border-border overflow-hidden bg-muted/30"
-            style={{ 
-              overflowY: 'auto', 
+            style={{
+              overflowY: 'auto',
               WebkitOverflowScrolling: 'touch',
               touchAction: 'pan-y'
             }}
@@ -868,7 +868,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
         </div>
       );
     }
-    
+
     // Fallback: Preview card when iframe fails or not allowed
     return (
       <div className="max-w-2xl mx-auto space-y-4">
@@ -876,9 +876,9 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
         <div className="p-4 bg-card border border-border rounded-lg">
           <div className="flex items-start gap-4">
             {source.image && (
-              <img 
-                src={source.image} 
-                alt="" 
+              <img
+                src={source.image}
+                alt=""
                 className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
               />
             )}
@@ -942,7 +942,7 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
   };
 
   return (
-    <div 
+    <div
       ref={rootRef}
       data-reader-gate-root="true"
       className="fixed inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center z-[9999] animate-fade-in"
@@ -976,15 +976,15 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
             {source.contentQuality && (
               <div className={cn(
                 "px-2.5 py-1 rounded-full text-xs font-medium",
-                source.contentQuality === 'complete' 
+                source.contentQuality === 'complete'
                   ? "bg-trust-high/15 text-trust-high"
                   : source.contentQuality === 'blocked'
                     ? "bg-warning/15 text-warning"
                     : "bg-muted text-muted-foreground"
               )}>
-                {source.contentQuality === 'complete' ? '✓ Completo' : 
-                 source.contentQuality === 'blocked' ? '🛡️ Protetto' : 
-                 '⚠ Parziale'}
+                {source.contentQuality === 'complete' ? '✓ Completo' :
+                  source.contentQuality === 'blocked' ? '🛡️ Protetto' :
+                    '⚠ Parziale'}
               </div>
             )}
             <span className="text-xs text-muted-foreground truncate flex-1">
@@ -998,16 +998,16 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
           ref={scrollContainerRef}
           className={cn(
             "flex-1 overflow-x-hidden overscroll-contain",
-            isFullHeightContent 
-              ? "flex flex-col" 
+            isFullHeightContent
+              ? "flex flex-col"
               : "overflow-y-auto"
           )}
           style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
         >
           <div className={cn(
             "max-w-full overflow-hidden",
-            isFullHeightContent 
-              ? "flex-1 flex flex-col px-4 py-3" 
+            isFullHeightContent
+              ? "flex-1 flex flex-col px-4 py-3"
               : "px-5 py-6 space-y-5"
           )}>
             {isClosing ? (
@@ -1028,15 +1028,15 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
             Puoi rivedere la fonte in qualsiasi momento.
           </p>
           <div className="flex gap-3">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={openSource}
               className="flex-1 gap-2 h-12 rounded-2xl"
             >
               <ExternalLink className="h-4 w-4" />
               Apri la fonte
             </Button>
-            <Button 
+            <Button
               onClick={handleComplete}
               disabled={isLoading}
               className="flex-1 gap-2 h-12 rounded-2xl bg-primary text-primary-foreground hover:bg-primary/90"

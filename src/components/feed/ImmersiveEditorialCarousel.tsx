@@ -37,7 +37,7 @@ interface ImmersiveEditorialCarouselProps {
   onShareComplete?: (item: DailyFocus) => void;
 }
 
-export const ImmersiveEditorialCarousel = ({
+const ImmersiveEditorialCarouselInner = ({
   items,
   totalCount,
   onItemClick,
@@ -56,7 +56,6 @@ export const ImmersiveEditorialCarousel = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const activeItem = items[selectedIndex];
 
-  // Reactions for active item
   const { user } = useAuth();
   const { data: reactionsData } = useFocusReactions(activeItem?.id || "", "daily");
   const toggleReaction = useToggleFocusReaction();
@@ -434,6 +433,8 @@ export const ImmersiveEditorialCarousel = ({
     </div>
   );
 };
+
+export const ImmersiveEditorialCarousel = memo(ImmersiveEditorialCarouselInner);
 
 // Format full timestamp: "14 GEN 2026 · 08:30"
 const formatFullTimestamp = (createdAt?: string): string => {

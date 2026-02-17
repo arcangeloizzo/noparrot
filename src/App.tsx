@@ -32,7 +32,7 @@ import { Search } from "./pages/Search";
 import { Saved } from "./pages/Saved";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+// queryClient moved below with config
 
 // Listener per messaggi dal Service Worker (per navigazione push notification su iOS)
 function ServiceWorkerNavigationHandler() {
@@ -59,6 +59,42 @@ function ServiceWorkerNavigationHandler() {
   return null;
 }
 
+// [HARDENING] Component for navigation recovery
+// Fixes white screen issues when returning from background or external browser
+function NavigationRecovery() {
+  useEffect(() => {
+    // Check if we are in a "lost" state (empty path or similar)
+    if (window.location.pathname === 'blank' || window.location.href.includes('about:blank')) {
+      console.warn('[NavigationRecovery] Detected blank state, recovering to home');
+      window.location.replace('/');
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[App] App resumed');
+        // Force redraw if needed or check vital state
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+  return null;
+}
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // [HARDENING] Disable aggressive refetching on window focus
+      // This prevents "random" state resets when switching apps or closing control center
+      refetchOnWindowFocus: false,
+      retry: 1,
+      staleTime: 5 * 60 * 1000, // 5 minutes defaults
+    },
+  },
+});
+
 const App = () => (
   <AppErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -71,6 +107,7 @@ const App = () => (
           <TooltipProvider>
             <Sonner />
             <ServiceWorkerNavigationHandler />
+            <NavigationRecovery />
             <AppLifecycleHandler />
             <BrowserRouter>
               <Routes>

@@ -335,35 +335,86 @@ export const Feed = () => {
 
   // Pull-to-refresh is now handled by ImmersiveFeedContainer
 
-  const handleCreatePost = () => {
+  // Stabilized Handlers
+  const handleCreatePost = useCallback(() => {
     setQuotedPost(null);
     setShowComposer(true);
-  };
+  }, []);
 
-  const handleQuoteShare = (post: Post & { _originalSources?: string[] }) => {
+  const handleQuoteShare = useCallback((post: Post & { _originalSources?: string[] }) => {
     setQuotedPost(post);
     setShowComposer(true);
-  };
-  const handleLogoClick = () => {
+  }, []);
+
+  const handleLogoClick = useCallback(() => {
     localStorage.removeItem("noparrot-onboarded");
     window.location.reload();
-  };
+  }, []);
 
-  const handleShowSimilarContent = (post: Post) => {
+  const handleShowSimilarContent = useCallback((post: Post) => {
     setSelectedPost(post);
     setShowSimilarContent(true);
-  };
+  }, []);
 
-  const handleCloseSimilarContent = () => {
+  const handleCloseSimilarContent = useCallback(() => {
     setShowSimilarContent(false);
     setSelectedPost(null);
-  };
+  }, []);
 
-  const handleRemovePost = (postId: string) => {
-    // Post removed via database
-  };
+  const handleRemovePost = useCallback((postId: string) => {
+    // Post removed via database or optimistic update
+    queryClient.setQueryData(['posts'], (old: Post[] | undefined) =>
+      old ? old.filter(p => p.id !== postId) : []
+    );
+  }, [queryClient]);
 
-  // Long-press on header to toggle perf overlay (for allowed users)
+  // Carousel Handlers
+  const handleCarouselItemClick = useCallback((focusItem: DailyFocus) => {
+    // Need current dailyFocusItems and totalCount
+    // Accessing via closure - ensure dependencies are correct
+    // dailyFocusItems is from hook, need to be careful
+    // Better to pass data directly from the item if possible, but calculating editorialNumber requires list context
+    // We will trust the closure here since dailyFocusItems changes infrequently
+    const clickedIndex = dailyFocusItems.findIndex(d => d.id === focusItem.id);
+    const editorialNumber = dailyFocusTotalCount - clickedIndex;
+    setSelectedFocus({ type: 'daily', data: focusItem, editorialNumber });
+    setFocusDetailOpen(true);
+  }, [dailyFocusItems, dailyFocusTotalCount]);
+
+  const handleCarouselComment = useCallback((focusItem: DailyFocus) => {
+    setSelectedFocusForComments({ type: 'daily', data: focusItem });
+    setFocusCommentsOpen(true);
+  }, []);
+
+  const handleCarouselShareComplete = useCallback((focusItem: DailyFocus) => {
+    setQuotedPost({
+      id: focusItem.id,
+      content: focusItem.summary,
+      author_id: 'system',
+      created_at: focusItem.created_at || new Date().toISOString(),
+      author: {
+        id: 'system',
+        username: 'Il Punto',
+        full_name: 'Il Punto',
+        avatar_url: null
+      },
+      topic_tag: null,
+      shared_title: focusItem.title,
+      shared_url: `focus://daily/${focusItem.id}`,
+      preview_img: focusItem.image_url,
+      full_article: null,
+      article_content: focusItem.deep_content,
+      trust_level: focusItem.trust_score,
+      stance: null,
+      sources: focusItem.sources?.map((s: any) => s.url).filter(Boolean) || [],
+      quoted_post_id: null,
+      category: focusItem.category || null,
+      reactions: focusItem.reactions || { likes: 0, comments: 0, shares: 0 },
+      _gatePassed: true // Quiz already passed in editorial reader
+    } as unknown as Post);
+    setShowComposer(true);
+  }, []);
+
   const longPressRef = useRef<NodeJS.Timeout | null>(null);
   const handleHeaderPressStart = useCallback(() => {
     if (!isEmailAllowed(user?.email)) return;
@@ -423,44 +474,9 @@ export const Feed = () => {
                     key={item.id}
                     items={item.data as DailyFocus[]}
                     totalCount={dailyFocusTotalCount}
-                    onItemClick={(focusItem) => {
-                      const clickedIndex = dailyFocusItems.findIndex(d => d.id === focusItem.id);
-                      const editorialNumber = dailyFocusTotalCount - clickedIndex;
-                      setSelectedFocus({ type: 'daily', data: focusItem, editorialNumber });
-                      setFocusDetailOpen(true);
-                    }}
-                    onComment={(focusItem) => {
-                      setSelectedFocusForComments({ type: 'daily', data: focusItem });
-                      setFocusCommentsOpen(true);
-                    }}
-                    onShareComplete={(focusItem) => {
-                      setQuotedPost({
-                        id: focusItem.id,
-                        content: focusItem.summary,
-                        author_id: 'system',
-                        created_at: focusItem.created_at || new Date().toISOString(),
-                        author: {
-                          id: 'system',
-                          username: 'Il Punto',
-                          full_name: 'Il Punto',
-                          avatar_url: null
-                        },
-                        topic_tag: null,
-                        shared_title: focusItem.title,
-                        shared_url: `focus://daily/${focusItem.id}`,
-                        preview_img: focusItem.image_url,
-                        full_article: null,
-                        article_content: focusItem.deep_content,
-                        trust_level: focusItem.trust_score,
-                        stance: null,
-                        sources: focusItem.sources?.map((s: any) => s.url).filter(Boolean) || [],
-                        quoted_post_id: null,
-                        category: focusItem.category || null,
-                        reactions: focusItem.reactions || { likes: 0, comments: 0, shares: 0 },
-                        _gatePassed: true // Quiz already passed in editorial reader
-                      } as unknown as Post);
-                      setShowComposer(true);
-                    }}
+                    onItemClick={handleCarouselItemClick}
+                    onComment={handleCarouselComment}
+                    onShareComplete={handleCarouselShareComplete}
                   />
                 ) : (
                   <ImmersivePostCard
