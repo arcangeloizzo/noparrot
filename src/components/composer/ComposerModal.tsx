@@ -1527,9 +1527,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       const strippedText = snapshotContent.replace(URL_REGEX, '').trim();
       const mediaIdsSnapshot = snapshotUploadedMedia.map((m) => m.id);
 
-      // Detect if quoting an editorial
-      const isQuotingEditorial = quotedPost?.shared_url?.startsWith('focus://') ||
-        quotedPost?.author?.username === 'ilpunto';
+      // Detect if directly quoting the editorial system user (Il Punto)
+      // If quoting a USER who shared an editorial, we do NOT want to flatten (chain: Me -> User -> Editorial)
+      const isQuotingEditorial = quotedPost?.author?.username === 'ilpunto' ||
+        quotedPost?.author?.username === 'Il Punto' ||
+        quotedPost?.author?.id === 'system';
 
       // FIX: For editorials with missing data, we need to fetch from the original source
       // The quotedPost might not have article_content populated (legacy posts)

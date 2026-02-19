@@ -1,12 +1,15 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react";
 
+import { cn } from "@/lib/utils";
+
 interface AnalysisOverlayProps {
     isVisible: boolean;
     message?: string;
+    className?: string;
 }
 
-export const AnalysisOverlay = ({ isVisible, message = "Analisi in corso..." }: AnalysisOverlayProps) => {
+export const AnalysisOverlay = ({ isVisible, message = "Analisi in corso...", className }: AnalysisOverlayProps) => {
     return (
         <AnimatePresence>
             {isVisible && (
@@ -14,7 +17,10 @@ export const AnalysisOverlay = ({ isVisible, message = "Analisi in corso..." }: 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm"
+                    className={cn(
+                        "fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm",
+                        className
+                    )}
                 >
                     <div className="relative">
                         {/* Pulsing rings effect */}

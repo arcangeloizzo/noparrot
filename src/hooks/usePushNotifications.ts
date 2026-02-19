@@ -33,12 +33,12 @@ export const usePushNotifications = () => {
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [isSupported, setIsSupported] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
-  
+
   // iOS/PWA detection
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const isPWA = typeof window !== 'undefined' && 
-    (window.matchMedia('(display-mode: standalone)').matches || 
-     (window.navigator as any).standalone === true);
+  const isPWA = typeof window !== 'undefined' &&
+    (window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true);
   const iOSVersion = isIOS ? parseIOSVersion(navigator.userAgent) : null;
 
   useEffect(() => {
@@ -46,13 +46,13 @@ export const usePushNotifications = () => {
     const hasServiceWorker = 'serviceWorker' in navigator;
     const hasPushManager = 'PushManager' in window;
     const supported = hasNotification && hasServiceWorker && hasPushManager;
-    
+
     console.log('[usePushNotifications] Browser support check:', {
       hasNotification, hasServiceWorker, hasPushManager, supported, isIOS, isPWA, iOSVersion
     });
-    
+
     setIsSupported(supported);
-    
+
     if (hasNotification) {
       setPermission(Notification.permission);
     }
@@ -64,44 +64,44 @@ export const usePushNotifications = () => {
 
   const checkExistingSubscription = async () => {
     if (!user) return;
-    
+
     try {
       const registration = await navigator.serviceWorker.ready;
       const browserSubscription = await (registration as any).pushManager.getSubscription();
-      
+
       const { data: dbSubscription, error } = await supabase
         .from('push_subscriptions')
         .select('id, endpoint')
         .eq('user_id', user.id)
         .maybeSingle();
-      
+
       if (error) {
         console.error('[Push] Error checking DB subscription:', error);
         setIsSubscribed(false);
         return;
       }
-      
+
       if (!browserSubscription) {
         setIsSubscribed(false);
         return;
       }
-      
+
       if (dbSubscription && browserSubscription.endpoint !== dbSubscription.endpoint) {
         console.log('[Push] ⚠️ Domain change detected! Forcing re-sync...');
         const success = await subscribeToPush();
         console.log('[Push] Re-sync result:', success);
         return;
       }
-      
+
       if (!dbSubscription) {
         const success = await subscribeToPush();
         console.log('[Push] Auto-registration result:', success);
         return;
       }
-      
+
       console.log('[Push] Subscription found and matches DB ✓');
       setIsSubscribed(true);
-      
+
     } catch (error) {
       console.error('[Push] Error checking subscription:', error);
       setIsSubscribed(false);
@@ -141,28 +141,20 @@ export const usePushNotifications = () => {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js');
       await navigator.serviceWorker.ready;
-      
+
       const pm = (registration as any).pushManager;
 
-      const existingSubscription = await pm.getSubscription();
-      if (existingSubscription) {
-        await existingSubscription.unsubscribe();
-      }
+      // Check if already subscribed in browser
+      let subscription = await pm.getSubscription();
 
-      const { error: deleteError } = await supabase
-        .from('push_subscriptions')
-        .delete()
-        .eq('user_id', user.id);
-      
-      if (deleteError) {
-        console.warn('[Push] Error deleting old subscriptions:', deleteError);
+      // If not, subscribe new
+      if (!subscription) {
+        const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+        subscription = await pm.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: applicationServerKey.buffer as ArrayBuffer
+        });
       }
-
-      const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-      const subscription = await pm.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: applicationServerKey.buffer as ArrayBuffer
-      });
 
       const subscriptionJson = subscription.toJSON();
       const endpoint = subscription.endpoint;
@@ -174,18 +166,46 @@ export const usePushNotifications = () => {
         return false;
       }
 
-      const { error } = await supabase
+      // [FIX] Multi-device support: Do NOT delete all user subscriptions.
+      // Check if THIS SPECIFIC endpoint already exists in DB.
+      const { data: existingDbSub } = await supabase
         .from('push_subscriptions')
-        .upsert({
-          user_id: user.id,
-          endpoint,
-          p256dh,
-          auth,
-        }, { onConflict: 'user_id' });
+        .select('id')
+        .eq('endpoint', endpoint)
+        .maybeSingle();
 
-      if (error) {
-        console.error('[Push] Error saving subscription:', error);
-        return false;
+      if (existingDbSub) {
+        // Update existing (e.g. if user_id changed or keys refreshed)
+        const { error } = await supabase
+          .from('push_subscriptions')
+          .update({
+            user_id: user.id,
+            p256dh,
+            auth,
+            // Update timestamp to keep it fresh
+            created_at: new Date().toISOString()
+          })
+          .eq('id', existingDbSub.id);
+
+        if (error) {
+          console.error('[Push] Error updating subscription:', error);
+          return false;
+        }
+      } else {
+        // Insert new subscription
+        const { error } = await supabase
+          .from('push_subscriptions')
+          .insert({
+            user_id: user.id,
+            endpoint,
+            p256dh,
+            auth,
+          });
+
+        if (error) {
+          console.error('[Push] Error inserting subscription:', error);
+          return false;
+        }
       }
 
       setIsSubscribed(true);
@@ -202,7 +222,7 @@ export const usePushNotifications = () => {
     try {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await (registration as any).pushManager.getSubscription();
-      
+
       if (subscription) {
         await subscription.unsubscribe();
         await supabase
