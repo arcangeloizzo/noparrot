@@ -171,7 +171,7 @@ Rispondi SOLO con il nome della categoria, nient'altro.`;
   } catch (error) {
     console.error('Error in classify-content:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Unknown error' }),
+      JSON.stringify({ error: (error as Error).message || 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

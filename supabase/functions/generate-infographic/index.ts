@@ -152,19 +152,19 @@ ${truncatedText}`;
       const bgHeight = logo.height + (bgPadding * 2);
 
       // Create white background with 90% opacity
-      const logoBackground = new Image(bgWidth, bgHeight);
+      const logoBackground = new Image(bgWidth, bgHeight) as any;
       logoBackground.fill(0xFFFFFFE6); // White, High Opacity
 
       // Composite logo onto white background (centered)
       logoBackground.composite(logo, bgPadding, bgPadding);
-
+      
       // Position: Top-Right with 5% padding
-      const padding = Math.round(infograph.width * 0.05);
-      const x = infograph.width - logoBackground.width - padding;
+      const padding = Math.round((infograph as any).width * 0.05);
+      const x = (infograph as any).width - logoBackground.width - padding;
       const y = padding;
 
       // Composite the background (with logo) onto the infographic
-      infograph.composite(logoBackground, x, y);
+      (infograph as any).composite(logoBackground, x, y);
 
       finalBuffer = await infograph.encode();
       watermarkStatus = 'success (with background)';

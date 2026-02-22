@@ -645,6 +645,7 @@ const ImmersivePostCardInner = ({
     setShowReader(true);
   };
 
+  const goDirectlyToGateForPost = async () => {
   // Direct gate for text-only posts when already read (bypasses reader)
   if (!user) return;
 
