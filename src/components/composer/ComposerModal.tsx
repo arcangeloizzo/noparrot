@@ -142,7 +142,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       setContent(restoredContent);
       // Tiptap might need manual update if initialized
       if (editorRef.current) {
-        editorRef.current?.commands.setContent(restoredContent);
+        editorRef.current?.setContent(restoredContent);
       }
       if (restoredUrl) {
         setDetectedUrl(restoredUrl);

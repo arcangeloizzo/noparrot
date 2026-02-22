@@ -20,6 +20,7 @@ export interface TiptapEditorRef {
   getText: () => string;
   isEmpty: () => boolean;
   getCharCount: () => number;
+  setContent: (content: string) => void;
 }
 
 interface TiptapEditorProps {
@@ -304,6 +305,9 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
       // Count actual characters for limit, but markdown for storage
       const markdown = editor ? toMarkdown(editor.getJSON()) : '';
       return markdown.length;
+    },
+    setContent: (content: string) => {
+      editor?.commands.setContent(content);
     },
   }), [editor]);
   
