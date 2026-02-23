@@ -66,8 +66,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false,
-        error: error.message,
-        stack: error.stack 
+        error: (error as Error).message,
+        stack: (error as Error).stack 
       }, null, 2),
       { 
         status: 200,

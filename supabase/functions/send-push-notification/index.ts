@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import webpush from "https://esm.sh/web-push@3.6.7";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,30 +8,288 @@ const corsHeaders = {
 
 // VAPID Configuration
 const VAPID_PUBLIC_KEY = 'BBZe7cI-AdlX4-6YWLqaI6qbwIsi9JZ-c2zQT2Ay5DdMFFtlUIIad_JpRkecMOJRqJpwxx-UeEQ8Axst9t9I9Gk';
-const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY')!;
-const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT')!;
 
-// Configure web-push with VAPID details
-webpush.setVapidDetails(
-  VAPID_SUBJECT,
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY
-);
+// ============= NATIVE WEB PUSH IMPLEMENTATION =============
 
-// Validate authorization: service role key OR valid user JWT
+function base64UrlEncode(data: Uint8Array): string {
+  let binary = '';
+  for (const byte of data) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function base64UrlDecode(str: string): Uint8Array {
+  let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (base64.length % 4) base64 += '=';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+function concatUint8(...arrays: Uint8Array[]): Uint8Array {
+  const totalLength = arrays.reduce((sum, a) => sum + a.length, 0);
+  const result = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const arr of arrays) {
+    result.set(arr, offset);
+    offset += arr.length;
+  }
+  return result;
+}
+
+async function importVapidPrivateKey(base64UrlPrivateKey: string): Promise<CryptoKey> {
+  const rawPrivateKey = base64UrlDecode(base64UrlPrivateKey);
+  // Build PKCS8 wrapper for raw 32-byte EC private key
+  // This is the standard DER encoding for P-256 private key
+  const pkcs8Header = new Uint8Array([
+    0x30, 0x81, 0x87, 0x02, 0x01, 0x00, 0x30, 0x13,
+    0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02,
+    0x01, 0x06, 0x08, 0x2a, 0x86, 0x48, 0xce, 0x3d,
+    0x03, 0x01, 0x07, 0x04, 0x6d, 0x30, 0x6b, 0x02,
+    0x01, 0x01, 0x04, 0x20,
+  ]);
+  const pkcs8Footer = new Uint8Array([
+    0xa1, 0x44, 0x03, 0x42, 0x00,
+  ]);
+  const publicKeyBytes = base64UrlDecode(VAPID_PUBLIC_KEY);
+  const pkcs8 = concatUint8(pkcs8Header, rawPrivateKey, pkcs8Footer, publicKeyBytes);
+
+  return crypto.subtle.importKey(
+    'pkcs8',
+    pkcs8,
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false,
+    ['sign']
+  );
+}
+
+async function createVapidJwt(audience: string, subject: string, privateKey: CryptoKey): Promise<string> {
+  const header = { typ: 'JWT', alg: 'ES256' };
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    aud: audience,
+    exp: now + 12 * 3600, // 12 hours
+    sub: subject,
+  };
+
+  const encoder = new TextEncoder();
+  const headerB64 = base64UrlEncode(encoder.encode(JSON.stringify(header)));
+  const payloadB64 = base64UrlEncode(encoder.encode(JSON.stringify(payload)));
+  const unsignedToken = `${headerB64}.${payloadB64}`;
+
+  const signature = await crypto.subtle.sign(
+    { name: 'ECDSA', hash: 'SHA-256' },
+    privateKey,
+    encoder.encode(unsignedToken)
+  );
+
+  // Convert DER signature to raw r||s format for JWT
+  const derSig = new Uint8Array(signature);
+  const rawSig = derToRaw(derSig);
+
+  return `${unsignedToken}.${base64UrlEncode(rawSig)}`;
+}
+
+function derToRaw(der: Uint8Array): Uint8Array {
+  // DER format: 0x30 <len> 0x02 <rLen> <r> 0x02 <sLen> <s>
+  if (der[0] !== 0x30) return der; // Already raw?
+
+  let offset = 2; // Skip 0x30 and total length
+
+  // Parse r
+  if (der[offset] !== 0x02) return der;
+  offset++;
+  const rLen = der[offset]; offset++;
+  let r = der.slice(offset, offset + rLen); offset += rLen;
+
+  // Parse s
+  if (der[offset] !== 0x02) return der;
+  offset++;
+  const sLen = der[offset]; offset++;
+  let s = der.slice(offset, offset + sLen);
+
+  // Remove leading zero padding and pad to 32 bytes
+  if (r.length > 32) r = r.slice(r.length - 32);
+  if (s.length > 32) s = s.slice(s.length - 32);
+
+  const raw = new Uint8Array(64);
+  raw.set(r, 32 - r.length);
+  raw.set(s, 64 - s.length);
+  return raw;
+}
+
+// ============= WEB PUSH ENCRYPTION (RFC 8291) =============
+
+async function encryptPayload(
+  payload: string,
+  p256dhKey: string,
+  authSecret: string
+): Promise<{ encrypted: Uint8Array; localPublicKey: Uint8Array }> {
+  const encoder = new TextEncoder();
+  const plaintext = encoder.encode(payload);
+
+  // Import subscriber's public key
+  const subscriberPubBytes = base64UrlDecode(p256dhKey);
+  const subscriberKey = await crypto.subtle.importKey(
+    'raw',
+    subscriberPubBytes,
+    { name: 'ECDH', namedCurve: 'P-256' },
+    false,
+    []
+  );
+
+  // Generate ephemeral key pair
+  const localKeyPair = await crypto.subtle.generateKey(
+    { name: 'ECDH', namedCurve: 'P-256' },
+    true,
+    ['deriveBits']
+  );
+
+  // Export local public key
+  const localPubRaw = new Uint8Array(
+    await crypto.subtle.exportKey('raw', localKeyPair.publicKey)
+  );
+
+  // ECDH shared secret
+  const sharedSecret = new Uint8Array(
+    await crypto.subtle.deriveBits(
+      { name: 'ECDH', public: subscriberKey },
+      localKeyPair.privateKey,
+      256
+    )
+  );
+
+  // Auth secret
+  const authBytes = base64UrlDecode(authSecret);
+
+  // HKDF to derive IKM (RFC 8291 Section 3.3)
+  const authInfo = concatUint8(
+    encoder.encode('WebPush: info\0'),
+    subscriberPubBytes,
+    localPubRaw
+  );
+
+  const ikm = await hkdfDerive(authBytes, sharedSecret, authInfo, 32);
+
+  // Derive content encryption key and nonce
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const cekInfo = encoder.encode('Content-Encoding: aes128gcm\0');
+  const nonceInfo = encoder.encode('Content-Encoding: nonce\0');
+
+  const cek = await hkdfDerive(salt, ikm, cekInfo, 16);
+  const nonce = await hkdfDerive(salt, ikm, nonceInfo, 12);
+
+  // Pad plaintext (RFC 8188): add 1 byte delimiter + optional padding
+  const paddedPlaintext = concatUint8(plaintext, new Uint8Array([2])); // \x02 = final record
+
+  // AES-128-GCM encrypt
+  const key = await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt']);
+  const ciphertext = new Uint8Array(
+    await crypto.subtle.encrypt(
+      { name: 'AES-GCM', iv: nonce },
+      key,
+      paddedPlaintext
+    )
+  );
+
+  // Build aes128gcm content coding header (RFC 8188)
+  const recordSize = new Uint8Array(4);
+  new DataView(recordSize.buffer).setUint32(0, paddedPlaintext.length + 16); // +16 for tag
+  const idLen = new Uint8Array([65]); // key ID length = 65 (public key)
+
+  const header = concatUint8(salt, recordSize, idLen, localPubRaw);
+  const encrypted = concatUint8(header, ciphertext);
+
+  return { encrypted, localPublicKey: localPubRaw };
+}
+
+async function hkdfDerive(
+  salt: Uint8Array,
+  ikm: Uint8Array,
+  info: Uint8Array,
+  length: number
+): Promise<Uint8Array> {
+  const key = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'HKDF', hash: 'SHA-256', salt, info },
+    key,
+    length * 8
+  );
+  return new Uint8Array(bits);
+}
+
+// ============= SEND PUSH NOTIFICATION =============
+
+async function sendPushNotification(
+  subscription: { endpoint: string; p256dh: string; auth: string },
+  payload: object
+): Promise<boolean> {
+  try {
+    const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY')!;
+    const vapidSubject = Deno.env.get('VAPID_SUBJECT')!;
+
+    // Get audience from endpoint
+    const endpointUrl = new URL(subscription.endpoint);
+    const audience = `${endpointUrl.protocol}//${endpointUrl.host}`;
+
+    // Import VAPID key and create JWT
+    const privateKey = await importVapidPrivateKey(vapidPrivateKey);
+    const jwt = await createVapidJwt(audience, vapidSubject, privateKey);
+
+    // Encrypt payload
+    const payloadStr = JSON.stringify(payload);
+    const { encrypted } = await encryptPayload(
+      payloadStr,
+      subscription.p256dh,
+      subscription.auth
+    );
+
+    console.log(`[Push] Sending to: ${subscription.endpoint.slice(0, 60)}...`);
+
+    const response = await fetch(subscription.endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `vapid t=${jwt}, k=${VAPID_PUBLIC_KEY}`,
+        'Content-Encoding': 'aes128gcm',
+        'Content-Type': 'application/octet-stream',
+        'TTL': '86400',
+        'Urgency': 'high',
+      },
+      body: encrypted,
+    });
+
+    if (response.status === 201 || response.status === 200) {
+      console.log(`[Push] Successfully sent to ${subscription.endpoint.slice(0, 50)}...`);
+      return true;
+    }
+
+    console.error(`[Push] Failed: ${response.status} - ${await response.text()}`);
+
+    // 403, 404, 410 = subscription is invalid, should be deleted
+    if (response.status === 403 || response.status === 404 || response.status === 410) {
+      return false;
+    }
+    // Keep subscription on other errors (network issues, etc.)
+    return true;
+  } catch (error: any) {
+    console.error(`[Push] Error: ${error.message}`);
+    return true; // Keep subscription on unexpected errors
+  }
+}
+
+// ============= AUTH & VALIDATION (unchanged) =============
+
 async function validateAuth(req: Request, supabaseClient: any): Promise<{ isServiceRole: true } | { isServiceRole: false; userId: string } | null> {
   const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
   if (!authHeader) return null;
 
   const token = authHeader.replace('Bearer ', '');
 
-  // 1. Check if it's the SERVICE_ROLE_KEY (internal DB trigger / server-to-server)
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
   if (serviceKey.length > 20 && token === serviceKey) {
     return { isServiceRole: true };
   }
 
-  // 2. Check if it's a valid user JWT
   try {
     const { data, error } = await supabaseClient.auth.getUser(token);
     if (error || !data?.user) return null;
@@ -42,7 +299,6 @@ async function validateAuth(req: Request, supabaseClient: any): Promise<{ isServ
   }
 }
 
-// Input validation for notification types
 function validateNotificationType(type: string): boolean {
   const validTypes = ['notification', 'message', 'editorial', 'admin'];
   return validTypes.includes(type);
@@ -54,7 +310,6 @@ function validateUUID(id: string | undefined | null): boolean {
   return uuidRegex.test(id);
 }
 
-// Map notification type to profile preference field
 const notificationTypeToField: Record<string, string> = {
   'like': 'notifications_likes_enabled',
   'comment': 'notifications_comments_enabled',
@@ -64,43 +319,7 @@ const notificationTypeToField: Record<string, string> = {
   'message_like': 'notifications_likes_enabled',
 };
 
-async function sendPushNotification(
-  subscription: { endpoint: string; p256dh: string; auth: string },
-  payload: object
-): Promise<boolean> {
-  try {
-    const pushSubscription = {
-      endpoint: subscription.endpoint,
-      keys: {
-        p256dh: subscription.p256dh,
-        auth: subscription.auth,
-      }
-    };
-
-    console.log(`[Push] Sending to: ${subscription.endpoint.slice(0, 60)}...`);
-
-    await webpush.sendNotification(
-      pushSubscription,
-      JSON.stringify(payload),
-      {
-        TTL: 86400,
-        urgency: 'high'
-      }
-    );
-
-    console.log(`[Push] Successfully sent to ${subscription.endpoint.slice(0, 50)}...`);
-    return true;
-  } catch (error: any) {
-    console.error(`[Push] Failed: ${error.statusCode || 'unknown'} - ${error.body || error.message}`);
-
-    // 403, 404, 410 = subscription is invalid, should be deleted
-    if (error.statusCode === 403 || error.statusCode === 404 || error.statusCode === 410) {
-      return false;
-    }
-    // Keep subscription on other errors (network issues, etc.)
-    return true;
-  }
-}
+// ============= MAIN HANDLER (business logic unchanged) =============
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -112,7 +331,6 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Security: Validate authorization (service role or authenticated user)
     const authContext = await validateAuth(req, supabase);
     if (!authContext) {
       console.warn('[Push] ❌ Unauthorized request rejected');
@@ -125,7 +343,6 @@ serve(async (req) => {
     const body = await req.json();
     console.log('[Push] Received request:', JSON.stringify(body));
 
-    // Only service role can send editorial/admin notifications
     if ((body.type === 'editorial' || body.type === 'admin') && !authContext.isServiceRole) {
       return new Response(JSON.stringify({ error: 'Forbidden: elevated permissions required' }), {
         status: 403,
@@ -133,7 +350,6 @@ serve(async (req) => {
       });
     }
 
-    // Prevent user impersonation on message notifications
     if (body.type === 'message' && !authContext.isServiceRole) {
       if (body.sender_id !== (authContext as { userId: string }).userId) {
         return new Response(JSON.stringify({ error: 'Forbidden: cannot impersonate sender' }), {
@@ -143,7 +359,6 @@ serve(async (req) => {
       }
     }
 
-    // Input validation
     if (!body.type || !validateNotificationType(body.type)) {
       console.error('[Push] Invalid notification type:', body.type);
       return new Response(JSON.stringify({ error: 'Invalid notification type' }), {
@@ -152,25 +367,21 @@ serve(async (req) => {
       });
     }
 
-    // Validate UUIDs based on notification type
     if (body.type === 'notification') {
       if (!validateUUID(body.user_id)) {
         return new Response(JSON.stringify({ error: 'Invalid user_id' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       if (body.actor_id && !validateUUID(body.actor_id)) {
         return new Response(JSON.stringify({ error: 'Invalid actor_id' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
     } else if (body.type === 'message') {
       if (!validateUUID(body.thread_id) || !validateUUID(body.sender_id)) {
         return new Response(JSON.stringify({ error: 'Invalid thread_id or sender_id' }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
     }
@@ -179,7 +390,6 @@ serve(async (req) => {
     let notificationPayload: object;
 
     if (body.type === 'notification') {
-      // Check user notification preferences BEFORE sending
       const notificationType = body.notification_type;
       const preferenceField = notificationTypeToField[notificationType];
 
@@ -192,7 +402,7 @@ serve(async (req) => {
 
         if (profileError) {
           console.error('[Push] Error fetching user preferences:', profileError);
-        } else if (profile && profile[preferenceField] === false) {
+        } else if (profile && (profile as any)[preferenceField] === false) {
           console.log(`[Push] User ${body.user_id} has disabled ${notificationType} notifications - skipping`);
           return new Response(JSON.stringify({ success: true, sent: 0, reason: 'disabled_by_user' }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -202,7 +412,6 @@ serve(async (req) => {
 
       targetUserIds = [body.user_id];
 
-      // Get actor info
       const { data: actor } = await supabase
         .from('profiles')
         .select('full_name, username, avatar_url')
@@ -245,14 +454,12 @@ serve(async (req) => {
           break;
         case 'message_like':
           title = `${actorName} ha messo like al tuo messaggio`;
-          // Fetch thread_id from message
           if (body.message_id) {
             const { data: msg } = await supabase
               .from('messages')
               .select('thread_id')
               .eq('id', body.message_id)
               .single();
-
             url = msg?.thread_id
               ? `/messages/${msg.thread_id}?scrollTo=${body.message_id}`
               : '/messages';
@@ -274,25 +481,22 @@ serve(async (req) => {
       };
 
     } else if (body.type === 'message') {
-      // DM notification - check user preference first
       const { data: participants } = await supabase
         .from('thread_participants')
         .select('user_id')
         .eq('thread_id', body.thread_id)
         .neq('user_id', body.sender_id);
 
-      const potentialUserIds = participants?.map(p => p.user_id) || [];
+      const potentialUserIds = participants?.map((p: any) => p.user_id) || [];
 
-      // Check message notification preferences for each user
       if (potentialUserIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, notifications_messages_enabled')
           .in('id', potentialUserIds);
 
-        // Filter to only users who have messages enabled (or default true)
-        targetUserIds = potentialUserIds.filter(userId => {
-          const profile = profiles?.find(p => p.id === userId);
+        targetUserIds = potentialUserIds.filter((userId: string) => {
+          const profile = profiles?.find((p: any) => p.id === userId);
           return profile?.notifications_messages_enabled !== false;
         });
 
@@ -302,7 +506,6 @@ serve(async (req) => {
         }
       }
 
-      // Get sender info
       const { data: sender } = await supabase
         .from('profiles')
         .select('full_name, username, avatar_url')
@@ -328,13 +531,12 @@ serve(async (req) => {
       };
 
     } else if (body.type === 'editorial') {
-      // Editorial notification - broadcast only to users who have it enabled
       const { data: enabledProfiles } = await supabase
         .from('profiles')
         .select('id')
         .eq('editorial_notifications_enabled', true);
 
-      const enabledUserIds = enabledProfiles?.map(p => p.id) || [];
+      const enabledUserIds = enabledProfiles?.map((p: any) => p.id) || [];
 
       if (enabledUserIds.length === 0) {
         console.log('[Push] No users have editorial notifications enabled');
@@ -348,9 +550,9 @@ serve(async (req) => {
         .select('user_id')
         .in('user_id', enabledUserIds);
 
-      targetUserIds = [...new Set(userSubscriptions?.map(s => s.user_id) || [])];
+      targetUserIds = [...new Set(userSubscriptions?.map((s: any) => s.user_id) || [])];
 
-      console.log(`[Push] Editorial broadcast to ${targetUserIds.length} users (${enabledUserIds.length} enabled, ${userSubscriptions?.length || 0} subscriptions)`);
+      console.log(`[Push] Editorial broadcast to ${targetUserIds.length} users`);
 
       notificationPayload = {
         title: '◉ Il Punto',
@@ -365,16 +567,14 @@ serve(async (req) => {
       };
 
     } else if (body.type === 'admin' && body.notification_type === 'new_user') {
-      // Admin notification for new user registration
       console.log('[Push] Processing admin new_user notification');
 
-      // Get all admin user IDs
       const { data: adminRoles } = await supabase
         .from('user_roles')
         .select('user_id')
         .eq('role', 'admin');
 
-      const adminUserIds = adminRoles?.map(r => r.user_id) || [];
+      const adminUserIds = adminRoles?.map((r: any) => r.user_id) || [];
 
       if (adminUserIds.length === 0) {
         console.log('[Push] No admins found');
@@ -383,7 +583,6 @@ serve(async (req) => {
         });
       }
 
-      // Get new user info
       const { data: actorProfile } = await supabase
         .from('profiles')
         .select('full_name, username')
@@ -422,7 +621,6 @@ serve(async (req) => {
       });
     }
 
-    // Get all push subscriptions for target users
     const { data: subscriptions, error: subError } = await supabase
       .from('push_subscriptions')
       .select('*')
@@ -442,15 +640,13 @@ serve(async (req) => {
       });
     }
 
-    // Send push to all subscriptions
     const results = await Promise.all(
-      subscriptions.map(async (sub) => {
+      subscriptions.map(async (sub: any) => {
         const success = await sendPushNotification(
           { endpoint: sub.endpoint, p256dh: sub.p256dh, auth: sub.auth },
           notificationPayload
         );
 
-        // Delete invalid subscriptions
         if (!success) {
           await supabase
             .from('push_subscriptions')
