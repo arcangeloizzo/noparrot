@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 // VAPID Configuration
-const VAPID_PUBLIC_KEY = 'BHf7SidEhOQGopDhgv8lWvuuKrpcPP9xZMVqeRfEOtwUWnkjO9e2ieTOwmaHgk96x8OsFeiHb8BWa7NbO72BXe4';
+const VAPID_PUBLIC_KEY = 'BBZe7cI-AdlX4-6YWLqaI6qbwIsi9JZ-c2zQT2Ay5DdMFFtlUIIad_JpRkecMOJRqJpwxx-UeEQ8Axst9t9I9Gk';
 const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY')!;
 const VAPID_SUBJECT = Deno.env.get('VAPID_SUBJECT')!;
 
