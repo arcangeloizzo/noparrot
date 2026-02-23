@@ -523,7 +523,7 @@ async function findValidNewsItem(
     
     // 1. HARD DEDUP: event_fingerprint
     const fingerprint = generateEventFingerprint(mainTitle, pubDate);
-    const fingerprintMatch = recentEditorials?.find(e => e.event_fingerprint === fingerprint);
+    const fingerprintMatch = recentEditorials?.find((e: any) => e.event_fingerprint === fingerprint);
     
     if (fingerprintMatch) {
       console.log(`[Dedup] SKIP (fingerprint match): ${mainTitle.substring(0, 50)}...`);
@@ -544,13 +544,13 @@ async function findValidNewsItem(
       
       const { topic_cluster, angle_tag } = await classifyTopicAndAngle(mainTitle);
       
-      const sameClusterRecent = recentEditorials?.filter(e => 
+      const sameClusterRecent = recentEditorials?.filter((e: any) => 
         e.topic_cluster === topic_cluster
       ) || [];
       
       if (sameClusterRecent.length > 0) {
         // Check if angle is different
-        const sameAngle = sameClusterRecent.find(e => e.angle_tag === angle_tag);
+        const sameAngle = sameClusterRecent.find((e: any) => e.angle_tag === angle_tag);
         if (sameAngle) {
           console.log(`[Dedup] SKIP (same cluster "${topic_cluster}" + angle "${angle_tag}"): ${mainTitle.substring(0, 50)}...`);
           continue;
@@ -558,7 +558,7 @@ async function findValidNewsItem(
         
         // Check 24h quota (max 2 per cluster)
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-        const clusterCount24h = sameClusterRecent.filter(e => 
+        const clusterCount24h = sameClusterRecent.filter((e: any) => 
           new Date(e.created_at) > new Date(twentyFourHoursAgo)
         ).length;
         
@@ -684,7 +684,7 @@ async function synthesizeWithAI(
   }
   
   // Build recent context to avoid duplicates
-  const recentContext = recentEditorials?.slice(0, 5).map(e => 
+  const recentContext = recentEditorials?.slice(0, 5).map((e: any) => 
     `- "${e.title}" (${e.topic_cluster || '?'}/${e.angle_tag || '?'})`
   ).join('\n') || 'Nessuno';
   
