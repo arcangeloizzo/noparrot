@@ -36,14 +36,14 @@ export default function SettingsPrivacy() {
   const { toggleTracking } = useCognitiveTracking();
   const { exportData, isExporting } = useExportUserData();
   const { toggle: toggleNotification } = useNotificationPreferences();
-  const { 
-    permission, 
-    isSupported, 
-    isSubscribed, 
-    requestPermission, 
+  const {
+    permission,
+    isSupported,
+    isSubscribed,
+    requestPermission,
     forceSync,
     isIOS,
-    isPWA 
+    isPWA
   } = usePushNotifications();
 
   const handleDeleteAccount = async () => {
@@ -166,7 +166,7 @@ export default function SettingsPrivacy() {
               <h2 className="text-lg font-semibold">Profilo cognitivo</h2>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              NoParrot costruisce una mappa dei tuoi interessi in base alle tue interazioni 
+              NoParrot costruisce una mappa dei tuoi interessi in base alle tue interazioni
               consapevoli (letture, commenti, condivisioni).
             </p>
             <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border mb-3">
@@ -200,7 +200,7 @@ export default function SettingsPrivacy() {
               <Bell className="w-5 h-5 text-amber-400" />
               <h2 className="text-lg font-semibold">Notifiche</h2>
             </div>
-            
+
             {/* Push Status */}
             <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border mb-4">
               <div className="space-y-1 flex-1 mr-4">
@@ -222,10 +222,30 @@ export default function SettingsPrivacy() {
                 </Button>
               )}
               {(pushStatus.status === 'active' || pushStatus.status === 'permission-granted') && (
-                <Button size="sm" variant="outline" onClick={handleForceSync}>
-                  <RefreshCw className="w-4 h-4 mr-1" />
-                  Sincronizza
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
+                    onClick={() => {
+                      if (!user) return;
+                      toast.info("Vai alla schermata Home del telefono. La notifica arriverà tra 5 secondi...", { duration: 5000 });
+                      setTimeout(async () => {
+                        await supabase.from('notifications').insert({
+                          user_id: user.id,
+                          actor_id: user.id,
+                          type: 'like'
+                        });
+                      }, 5000);
+                    }}
+                  >
+                    Test Notifica
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleForceSync}>
+                    <RefreshCw className="w-4 h-4 mr-1" />
+                    Sinc
+                  </Button>
+                </div>
               )}
             </div>
 
@@ -237,7 +257,7 @@ export default function SettingsPrivacy() {
               {notificationPrefs.map((pref) => {
                 const Icon = pref.icon;
                 return (
-                  <div 
+                  <div
                     key={pref.field}
                     className="flex items-center justify-between p-3 bg-muted/20 rounded-lg border border-border/50"
                   >
@@ -271,7 +291,7 @@ export default function SettingsPrivacy() {
               <h2 className="text-lg font-semibold">Esporta i tuoi dati</h2>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Scarica una copia di tutti i tuoi dati: profilo, post, commenti, 
+              Scarica una copia di tutti i tuoi dati: profilo, post, commenti,
               preferenze e mappa cognitiva in formato JSON.
             </p>
             <Button
@@ -294,22 +314,20 @@ export default function SettingsPrivacy() {
               Gli annunci su NoParrot sono mostrati in base al tema dei contenuti che leggi.
               Puoi scegliere se riceverne di più pertinenti in base ai tuoi interessi.
             </p>
-            <div className={`flex items-center justify-between p-3 rounded-lg border ${
-              profile?.cognitive_tracking_enabled === false 
-                ? "bg-muted/10 border-muted" 
+            <div className={`flex items-center justify-between p-3 rounded-lg border ${profile?.cognitive_tracking_enabled === false
+                ? "bg-muted/10 border-muted"
                 : "bg-muted/30 border-border"
-            }`}>
+              }`}>
               <div className="space-y-1 flex-1 mr-4">
-                <Label 
-                  htmlFor="ads-personalization" 
-                  className={`text-sm font-medium ${
-                    profile?.cognitive_tracking_enabled === false ? "text-muted-foreground" : "cursor-pointer"
-                  }`}
+                <Label
+                  htmlFor="ads-personalization"
+                  className={`text-sm font-medium ${profile?.cognitive_tracking_enabled === false ? "text-muted-foreground" : "cursor-pointer"
+                    }`}
                 >
                   Annunci basati sui miei interessi
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  {profile?.cognitive_tracking_enabled === false 
+                  {profile?.cognitive_tracking_enabled === false
                     ? "Per attivare gli annunci personalizzati, devi prima attivare il profilo cognitivo."
                     : "Se disattivato, vedrai solo annunci legati al tema della conversazione."
                   }
