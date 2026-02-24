@@ -1,70 +1,69 @@
 
-# Fix Edge Function Build Errors + Push Notification Crash
+# Fix Push Notifications - 3 Problemi Critici
 
-## Problema principale
-La Edge Function `send-push-notification` crasha all'avvio con un errore fatale:
-```
-TypeError: Object prototype may only be an Object or null: undefined
-    at https://esm.sh/jws@4.0.1/es2022/jws.mjs
-```
+## Problemi identificati
 
-La libreria `web-push` (via esm.sh) dipende da moduli Node.js (`jws`, `crypto`) incompatibili con Deno. **Non basta fare re-deploy** -- il codice va riscritto.
+### 1. Nessun trigger collegato alle tabelle
+Le funzioni `trigger_push_notification()`, `trigger_push_message()`, e `notify_admins_new_user()` esistono nel database, ma **non c'e nessun trigger** che le attivi. Quando qualcuno mette un like o invia un messaggio, nessuno chiama la Edge Function.
 
-## Soluzione: Riscrivere send-push-notification con Web Crypto API native
+### 2. `app.settings.service_role_key` non configurato
+I trigger usano `current_setting('app.settings.service_role_key', true)` per costruire l'header Authorization, ma questa variabile non e impostata nel database. Il risultato e che l'header `Authorization` contiene `Bearer null`, e la Edge Function risponde con 401.
 
-Sostituire completamente l'import di `web-push` con un'implementazione nativa che usa:
-- **Web Crypto API** (nativa in Deno) per firmare i JWT VAPID
-- **Fetch API** per inviare le push notification direttamente agli endpoint
+### 3. Le subscriptions funzionano
+Ci sono 2 push subscriptions attive nel database (entrambe endpoint Apple Push). Il frontend funziona correttamente.
 
-L'approccio usa:
-1. Firma VAPID JWT con ECDSA P-256 via `crypto.subtle`
-2. Encryption del payload con ECDH + AES-128-GCM (standard Web Push RFC 8291)
-3. Invio diretto via `fetch()` agli endpoint push
+## Piano di fix
 
-## Fix aggiuntivi: 11 errori TypeScript nelle altre Edge Functions
+### Migrazione SQL unica che:
 
-### 1. `cleanup-expired-cache/index.ts` (riga 123)
-- `error` is of type `unknown` -- aggiungere cast `(error as Error).message`
+**A) Crea i trigger mancanti:**
+- `trigger_push_on_notification` su tabella `notifications` (AFTER INSERT) -- chiama `trigger_push_notification()`
+- `trigger_push_on_message` su tabella `messages` (AFTER INSERT) -- chiama `trigger_push_message()`
+- `trigger_admin_on_new_profile` su tabella `profiles` (AFTER INSERT) -- chiama `notify_admins_new_user()`
 
-### 2. `fetch-daily-focus/index.ts` (righe 526, 547, 553, 561)
-- Parameter `e` implicitly has `any` type -- aggiungere tipo esplicito `(e: any)`
+**B) Riscrive le 3 funzioni trigger** per usare il secret `SUPABASE_SERVICE_ROLE_KEY` direttamente tramite `pg_net` headers, senza dipendere da `app.settings.service_role_key`:
+- Legge la chiave dal vault o la hardcoda nell'header come costante di configurazione interna
+- In alternativa, usa `current_setting('supabase.service_role_key')` che e il setting nativo di Supabase
 
-### 3. `generate-infographic/index.ts` (riga 169)
-- `Uint8Array<ArrayBufferLike>` non assegnabile -- cast con `as Uint8Array`
+**Approccio concreto per l'auth header:** Poiche `app.settings.service_role_key` non e impostato e non possiamo modificare `postgresql.conf` da qui, le funzioni trigger useranno un approccio alternativo:
+- Lettura del secret dalla tabella `vault.decrypted_secrets` (se disponibile)
+- Oppure: impostazione di `app.settings.service_role_key` tramite `ALTER DATABASE` -- non permesso
+- Soluzione migliore: Riscrivere i trigger per passare il service_role_key come costante nella funzione stessa (sicuro perche le funzioni sono SECURITY DEFINER e non accessibili agli utenti)
 
-### 4. `get-trust-score/index.ts` (riga 128)
-- `error` is of type `unknown` -- aggiungere cast `(error as Error).message`
+### Nessuna modifica al codice frontend o alla Edge Function
+Il frontend e la Edge Function `send-push-notification` sono corretti. Il problema e interamente lato database.
 
-### 5. `publish-post/index.ts` (riga 589)
-- Type mismatch su `supabase` client -- aggiungere cast `as any`
+## Dettagli tecnici
 
-### 6. `send-push-notification/index.ts` (riga 195)
-- Index expression not of type `number` -- aggiungere cast `(profile as any)[preferenceField]`
-
-### 7. `test-supadata/index.ts` (righe 69-70)
-- `error` is of type `unknown` -- aggiungere cast `(error as Error)`
-
-## Dettagli tecnici: Implementazione Web Push nativa
+La migrazione SQL fara:
 
 ```text
-+----------------------------------+
-| send-push-notification/index.ts  |
-+----------------------------------+
-| 1. Import crypto.subtle (native) |
-| 2. generateVapidHeaders()        |
-|    - Create JWT with ES256       |
-|    - Sign with VAPID private key |
-| 3. encryptPayload()              |
-|    - ECDH key agreement          |
-|    - AES-128-GCM encryption      |
-|    - RFC 8291 framing            |
-| 4. fetch(endpoint, encrypted)    |
-+----------------------------------+
+1. CREATE TRIGGER trigger_push_on_notification
+   AFTER INSERT ON notifications
+   FOR EACH ROW EXECUTE FUNCTION trigger_push_notification()
+
+2. CREATE TRIGGER trigger_push_on_message  
+   AFTER INSERT ON messages
+   FOR EACH ROW EXECUTE FUNCTION trigger_push_message()
+
+3. CREATE TRIGGER trigger_admin_on_new_profile
+   AFTER INSERT ON profiles
+   FOR EACH ROW EXECUTE FUNCTION notify_admins_new_user()
+
+4. ALTER le 3 funzioni per leggere il service_role_key 
+   dalla tabella vault.decrypted_secrets invece di 
+   current_setting('app.settings.service_role_key')
 ```
 
-L'implementazione mantiene tutte le funzionalita esistenti (auth validation, notification preferences, subscription cleanup) -- cambia solo il layer di invio push.
+Il flusso corretto dopo il fix:
 
-## Sequenza di implementazione
-1. Fix dei 6 file con errori TypeScript minori (in parallelo)
-2. Riscrittura completa di `send-push-notification/index.ts` con Web Crypto
-3. Deploy automatico di tutte le funzioni
+```text
+Utente mette Like
+  -> INSERT in notifications
+    -> trigger_push_on_notification fires
+      -> trigger_push_notification() legge service_role_key dal vault
+        -> pg_net.http_post con Authorization: Bearer <key>
+          -> Edge Function send-push-notification
+            -> Encrypts + sends push to Apple endpoint
+              -> Notifica arriva sul dispositivo
+```
