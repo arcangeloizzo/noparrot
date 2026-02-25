@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-internal-secret',
 };
 
 // VAPID Configuration
@@ -280,6 +280,15 @@ async function sendPushNotification(
 // ============= AUTH & VALIDATION (unchanged) =============
 
 async function validateAuth(req: Request, supabaseClient: any): Promise<{ isServiceRole: true } | { isServiceRole: false; userId: string } | null> {
+  // 1. Check x-internal-secret header (for database triggers)
+  const internalSecret = req.headers.get('x-internal-secret') || '';
+  const expectedSecret = Deno.env.get('PUSH_INTERNAL_SECRET') || '';
+  if (expectedSecret.length > 10 && internalSecret === expectedSecret) {
+    console.log('[Push] Authenticated via internal secret (trigger)');
+    return { isServiceRole: true };
+  }
+
+  // 2. Check Bearer token (service role key or user JWT)
   const authHeader = req.headers.get('authorization') || req.headers.get('Authorization') || '';
   if (!authHeader) return null;
 
