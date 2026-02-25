@@ -1,69 +1,95 @@
 
-# Fix Push Notifications - 3 Problemi Critici
 
-## Problemi identificati
+# Fix Push Notifications - Nuovo Approccio Architetturale
 
-### 1. Nessun trigger collegato alle tabelle
-Le funzioni `trigger_push_notification()`, `trigger_push_message()`, e `notify_admins_new_user()` esistono nel database, ma **non c'e nessun trigger** che le attivi. Quando qualcuno mette un like o invia un messaggio, nessuno chiama la Edge Function.
+## Problema di fondo
 
-### 2. `app.settings.service_role_key` non configurato
-I trigger usano `current_setting('app.settings.service_role_key', true)` per costruire l'header Authorization, ma questa variabile non e impostata nel database. Il risultato e che l'header `Authorization` contiene `Bearer null`, e la Edge Function risponde con 401.
+I tentativi precedenti fallivano per due motivi:
+1. I trigger database non persistono dopo le migrazioni
+2. Le funzioni trigger leggevano la `SUPABASE_SERVICE_ROLE_KEY` da `vault.decrypted_secrets`, ma il vault è vuoto. In Lovable Cloud i secrets sono disponibili solo come variabili d'ambiente nelle Edge Function, non nel vault Postgres.
 
-### 3. Le subscriptions funzionano
-Ci sono 2 push subscriptions attive nel database (entrambe endpoint Apple Push). Il frontend funziona correttamente.
+I log confermano: ogni volta che un trigger tentava di inviare una push, falliva silenziosamente con `"SUPABASE_SERVICE_ROLE_KEY not found in vault"`.
 
-## Piano di fix
+## Soluzione: Internal Webhook Secret
 
-### Migrazione SQL unica che:
+Approccio a "shared secret" che bypassa il vault:
 
-**A) Crea i trigger mancanti:**
-- `trigger_push_on_notification` su tabella `notifications` (AFTER INSERT) -- chiama `trigger_push_notification()`
-- `trigger_push_on_message` su tabella `messages` (AFTER INSERT) -- chiama `trigger_push_message()`
-- `trigger_admin_on_new_profile` su tabella `profiles` (AFTER INSERT) -- chiama `notify_admins_new_user()`
-
-**B) Riscrive le 3 funzioni trigger** per usare il secret `SUPABASE_SERVICE_ROLE_KEY` direttamente tramite `pg_net` headers, senza dipendere da `app.settings.service_role_key`:
-- Legge la chiave dal vault o la hardcoda nell'header come costante di configurazione interna
-- In alternativa, usa `current_setting('supabase.service_role_key')` che e il setting nativo di Supabase
-
-**Approccio concreto per l'auth header:** Poiche `app.settings.service_role_key` non e impostato e non possiamo modificare `postgresql.conf` da qui, le funzioni trigger useranno un approccio alternativo:
-- Lettura del secret dalla tabella `vault.decrypted_secrets` (se disponibile)
-- Oppure: impostazione di `app.settings.service_role_key` tramite `ALTER DATABASE` -- non permesso
-- Soluzione migliore: Riscrivere i trigger per passare il service_role_key come costante nella funzione stessa (sicuro perche le funzioni sono SECURITY DEFINER e non accessibili agli utenti)
-
-### Nessuna modifica al codice frontend o alla Edge Function
-Il frontend e la Edge Function `send-push-notification` sono corretti. Il problema e interamente lato database.
+1. **Generare un secret interno** (`PUSH_INTERNAL_SECRET`) - un UUID casuale
+2. **Salvarlo come secret** della Edge Function (variabile d'ambiente Deno)
+3. **Hardcodarlo nelle funzioni trigger** (sicuro perché sono `SECURITY DEFINER`, il codice sorgente non è visibile agli utenti normali)
+4. **Modificare la Edge Function** `send-push-notification` per accettare questo secret come metodo di autenticazione alternativo (header `x-internal-secret`)
+5. **Ricreare i 3 trigger** sulla stessa migrazione
 
 ## Dettagli tecnici
 
-La migrazione SQL fara:
+### A) Nuovo secret
+- Genero un UUID random come `PUSH_INTERNAL_SECRET`
+- Lo aggiungo come secret tramite tool `add_secret`
+- Lo inserisco come costante nelle funzioni trigger
+
+### B) Modifica Edge Function `send-push-notification`
+Aggiungere nella funzione `validateAuth()` un terzo percorso di autenticazione:
 
 ```text
-1. CREATE TRIGGER trigger_push_on_notification
-   AFTER INSERT ON notifications
-   FOR EACH ROW EXECUTE FUNCTION trigger_push_notification()
-
-2. CREATE TRIGGER trigger_push_on_message  
-   AFTER INSERT ON messages
-   FOR EACH ROW EXECUTE FUNCTION trigger_push_message()
-
-3. CREATE TRIGGER trigger_admin_on_new_profile
-   AFTER INSERT ON profiles
-   FOR EACH ROW EXECUTE FUNCTION notify_admins_new_user()
-
-4. ALTER le 3 funzioni per leggere il service_role_key 
-   dalla tabella vault.decrypted_secrets invece di 
-   current_setting('app.settings.service_role_key')
+validateAuth():
+  1. Check Bearer == SUPABASE_SERVICE_ROLE_KEY → isServiceRole: true
+  2. Check x-internal-secret == PUSH_INTERNAL_SECRET → isServiceRole: true  ← NUOVO
+  3. Check JWT utente → isServiceRole: false, userId
+  4. null (401)
 ```
 
-Il flusso corretto dopo il fix:
+### C) Riscrittura funzioni trigger
+Le 3 funzioni (`trigger_push_notification`, `trigger_push_message`, `notify_admins_new_user`) useranno:
+
+```text
+PERFORM net.http_post(
+  url := '...send-push-notification',
+  headers := jsonb_build_object(
+    'Content-Type', 'application/json',
+    'x-internal-secret', '<PUSH_INTERNAL_SECRET_UUID>'
+  ),
+  body := payload
+);
+```
+
+Niente più dipendenza dal vault.
+
+### D) Creazione trigger (nella stessa migrazione)
+
+```text
+CREATE TRIGGER trigger_push_on_notification
+  AFTER INSERT ON public.notifications
+  FOR EACH ROW EXECUTE FUNCTION trigger_push_notification();
+
+CREATE TRIGGER trigger_push_on_message
+  AFTER INSERT ON public.messages
+  FOR EACH ROW EXECUTE FUNCTION trigger_push_message();
+
+CREATE TRIGGER trigger_admin_on_new_profile
+  AFTER INSERT ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION notify_admins_new_user();
+```
+
+## Flusso risultante
 
 ```text
 Utente mette Like
-  -> INSERT in notifications
-    -> trigger_push_on_notification fires
-      -> trigger_push_notification() legge service_role_key dal vault
-        -> pg_net.http_post con Authorization: Bearer <key>
-          -> Edge Function send-push-notification
-            -> Encrypts + sends push to Apple endpoint
-              -> Notifica arriva sul dispositivo
+  → INSERT in notifications (via notify_new_reaction)
+    → trigger_push_on_notification fires
+      → trigger_push_notification() usa PUSH_INTERNAL_SECRET hardcoded
+        → pg_net.http_post con header x-internal-secret
+          → Edge Function valida il secret
+            → Encrypts + sends push to Apple endpoint
+              → Notifica arriva sul dispositivo
 ```
+
+## Passi di implementazione
+
+1. Chiedere all'utente di inserire il `PUSH_INTERNAL_SECRET` (UUID generato)
+2. Modificare `supabase/functions/send-push-notification/index.ts` per accettare `x-internal-secret`
+3. Creare migrazione SQL con: riscrittura delle 3 funzioni + creazione dei 3 trigger
+4. Deploy della Edge Function
+
+## Nessuna modifica al frontend
+Il frontend e il meccanismo di subscription rimangono invariati.
+
