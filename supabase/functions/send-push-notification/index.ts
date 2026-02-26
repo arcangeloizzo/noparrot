@@ -263,13 +263,15 @@ async function sendPushNotification(
       return true;
     }
 
-    console.error(`[Push] Failed: ${response.status} - ${await response.text()}`);
+    const responseText = await response.text();
+    console.error(`[Push] Failed: ${response.status} - ${responseText}`);
 
-    // 403, 404, 410 = subscription is invalid, should be deleted
-    if (response.status === 403 || response.status === 404 || response.status === 410) {
+    // 400 (VapidPkHashMismatch), 403, 404, 410 = subscription is invalid/stale, should be deleted
+    if (response.status === 400 || response.status === 403 || response.status === 404 || response.status === 410) {
+      console.log(`[Push] Marking subscription for cleanup (status ${response.status}): ${subscription.endpoint.slice(0, 50)}...`);
       return false;
     }
-    // Keep subscription on other errors (network issues, etc.)
+    // Keep subscription on other errors (network issues, server errors, etc.)
     return true;
   } catch (error: any) {
     console.error(`[Push] Error: ${error.message}`);

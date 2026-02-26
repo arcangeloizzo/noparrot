@@ -69,6 +69,42 @@ export const usePushNotifications = () => {
       const registration = await navigator.serviceWorker.ready;
       const browserSubscription = await (registration as any).pushManager.getSubscription();
 
+      // VAPID key mismatch detection: if the browser subscription was created
+      // with a different applicationServerKey, force re-subscribe
+      if (browserSubscription) {
+        try {
+          const currentKeyBytes = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+          const existingKeyBytes = new Uint8Array(browserSubscription.options?.applicationServerKey || []);
+          
+          if (existingKeyBytes.length > 0 && currentKeyBytes.length === existingKeyBytes.length) {
+            let mismatch = false;
+            for (let i = 0; i < currentKeyBytes.length; i++) {
+              if (currentKeyBytes[i] !== existingKeyBytes[i]) {
+                mismatch = true;
+                break;
+              }
+            }
+            if (mismatch) {
+              console.log('[Push] ⚠️ VAPID key mismatch detected! Forcing re-subscribe...');
+              // Unsubscribe from browser
+              await browserSubscription.unsubscribe();
+              // Delete stale DB record
+              await supabase
+                .from('push_subscriptions')
+                .delete()
+                .eq('user_id', user.id)
+                .eq('endpoint', browserSubscription.endpoint);
+              // Re-subscribe with correct key
+              const success = await subscribeToPush();
+              console.log('[Push] VAPID key re-subscribe result:', success);
+              return;
+            }
+          }
+        } catch (keyCheckErr) {
+          console.warn('[Push] Could not compare VAPID keys:', keyCheckErr);
+        }
+      }
+
       const { data: dbSubscription, error } = await supabase
         .from('push_subscriptions')
         .select('id, endpoint')
