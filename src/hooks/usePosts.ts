@@ -116,6 +116,15 @@ export const usePosts = () => {
             full_name,
             avatar_url
           ),
+          post_type,
+          voice_posts (
+            id,
+            audio_url,
+            duration_seconds,
+            waveform_data,
+            transcript,
+            transcript_status
+          ),
           questions (*),
           reactions (
             reaction_type,
@@ -145,6 +154,15 @@ export const usePosts = () => {
             shared_url,
             shared_title,
             preview_img,
+            post_type,
+            voice_posts (
+              id,
+              audio_url,
+              duration_seconds,
+              waveform_data,
+              transcript,
+              transcript_status
+            ),
             is_intent,
             author:public_profiles!author_id (
               username,
@@ -193,6 +211,8 @@ export const usePosts = () => {
         } : null,
         shares_count: post.shares_count ?? 0,
         is_intent: post.is_intent ?? false,
+        post_type: post.post_type || 'standard',
+        voice_post: post.voice_posts?.[0] || null,
         media: (post.post_media || [])
           .sort((a: any, b: any) => a.order_idx - b.order_idx)
           .map((pm: any) => pm.media)
@@ -598,6 +618,8 @@ export const useSavedPosts = () => {
           created_at: post.created_at,
           quoted_post_id: post.quoted_post_id,
           category: post.category || null,
+          post_type: post.post_type || 'standard',
+          voice_post: post.voice_posts?.[0] || null,
           quoted_post: null,
           media: (post.post_media || [])
             .sort((a: any, b: any) => a.order_idx - b.order_idx)
@@ -641,6 +663,15 @@ export const useQuotedPost = (quotedPostId: string | null) => {
           shared_url,
           shared_title,
           preview_img,
+          post_type,
+          voice_posts (
+            id,
+            audio_url,
+            duration_seconds,
+            waveform_data,
+            transcript,
+            transcript_status
+          ),
           is_intent,
           author:public_profiles!author_id (
             username,
