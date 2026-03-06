@@ -1616,6 +1616,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       let postId: string | undefined;
       let wasIdempotent = false;
       let usedFallback = false;
+      let uploadedAudioPath: string | null = null;
 
       // Use isQuotingEditorial already defined above
 
@@ -1641,6 +1642,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
             });
 
           if (uploadErr) throw uploadErr;
+          uploadedAudioPath = uploadData.path;
 
           // Invoke publish function with Voice/Challenge specific args
           const finalPostType = isChallengeResponse ? 'voice' : (overridePostType || postType);
@@ -1737,11 +1739,15 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
             is_intent: true,
           } : {};
 
+          // Determine post type for fallback
+          const fallbackPostType = voicePostData ? (overridePostType || postType || 'voice') : 'standard';
+
           const { data: directInsert, error: directErr } = await supabase
             .from('posts')
             .insert({
               content: cleanContent.substring(0, 5000),
               author_id: user.id,
+              post_type: fallbackPostType,
               shared_url: isQuotingEditorial ? editorialData.shared_url : (snapshotDetectedUrl || null),
               shared_title: isQuotingEditorial ? editorialData.shared_title : (intentMetadataFallback.shared_title || null),
               preview_img: isQuotingEditorial ? editorialData.preview_img : (intentMetadataFallback.preview_img || null),
@@ -1769,6 +1775,25 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
           postId = directInsert.id;
           usedFallback = true;
           addBreadcrumb('publish_fallback_success', { postId });
+
+          // Create voice_posts record in fallback path
+          if (voicePostData && postId) {
+            // uploadData.path was set when audio was uploaded before the edge function call
+            const audioPath = uploadedAudioPath || `${user.id}/${Date.now()}.webm`;
+
+            const { error: vpErr } = await supabase.from('voice_posts').insert({
+              post_id: postId,
+              audio_url: audioPath,
+              duration_seconds: voicePostData.durationSec,
+              waveform_data: voicePostData.waveformData,
+              transcript_status: 'pending',
+            });
+            if (vpErr) {
+              console.warn('[Publish] Fallback voice_posts insert failed:', vpErr);
+            } else {
+              console.log('[Publish] Fallback voice_posts record created for post:', postId);
+            }
+          }
 
           // Link media in fallback path (best effort)
           if (mediaIdsSnapshot.length > 0) {

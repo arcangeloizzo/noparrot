@@ -27,6 +27,7 @@ import { it } from "date-fns/locale";
 import { CategoryChip } from "@/components/ui/category-chip";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
+import { VoicePlayer } from "@/components/media/VoicePlayer";
 import {
   DropdownMenu,
   DropdownMenuContent,
