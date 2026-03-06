@@ -91,7 +91,7 @@ function isValidUuid(id: string | null | undefined): boolean {
 // ========================================================================
 
 async function classifyAndUpdatePost(
-  supabase: ReturnType<typeof createClient>,
+  supabase: any,
   postId: string,
   content: string,
   reqId: string

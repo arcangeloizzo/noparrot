@@ -166,7 +166,7 @@ ${truncatedText}`;
       // Composite the background (with logo) onto the infographic
       (infograph as any).composite(logoBackground, x, y);
 
-      finalBuffer = await infograph.encode() as Uint8Array;
+      finalBuffer = new Uint8Array(await infograph.encode() as ArrayBuffer);
       watermarkStatus = 'success (with background)';
       console.log('[Infographic] Watermark applied with background');
     } catch (err: any) {
