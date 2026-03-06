@@ -97,6 +97,22 @@ export interface Post {
   }>;
   shares_count?: number;
   is_intent?: boolean;
+  challenge?: {
+    id: string;
+    thesis: string;
+    duration_hours: number;
+    status: string;
+    expires_at: string;
+    votes_for: number;
+    votes_against: number;
+    voice_post?: {
+      audio_url: string;
+      duration_seconds: number;
+      waveform_data: number[];
+      transcript?: string;
+      transcript_status?: string;
+    } | null;
+  } | null;
 }
 
 export const usePosts = () => {
