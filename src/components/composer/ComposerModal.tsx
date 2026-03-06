@@ -2002,7 +2002,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         IMPORTANT (iOS): `position: fixed` containers often don't resize with the virtual keyboard.
         Using `absolute` + `100dvh` lets `interactive-widget=resizes-content` push the whole layout up.
       */}
-      <div className="absolute inset-0 z-50 flex flex-col h-[100dvh]">
+      <div
+        className="absolute inset-x-0 top-0 z-50 flex flex-col"
+        style={{ height: viewportHeight ? `${viewportHeight}px` : '100dvh' }}
+      >
         {/* Backdrop - desktop only */}
         <div
           className="hidden md:block absolute inset-0 bg-black/60"
@@ -2012,18 +2015,15 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         {/* Container: full-screen mobile, centered modal desktop */}
         <div
           className={cn(
-            "relative flex flex-col w-full",
-            // Mobile: use dvh as fallback; iOS uses inline style for visual viewport
-            !viewportHeight && "h-[100dvh]",
+            "relative flex flex-col w-full h-full",
             // Desktop: centered modal with max height
             "md:h-auto md:max-h-[85vh] md:w-full md:max-w-xl md:mx-auto md:my-8 md:rounded-2xl",
             "bg-background md:bg-card",
             "border-0 md:border md:border-border",
             "animate-scale-in"
           )}
-          style={viewportHeight ? { height: `${viewportHeight}px` } : undefined}
         >
-          {/* Inner flex container - toolbar will be pushed up by keyboard */}
+          {/* Inner flex container */}
           <div className="flex flex-col h-full">
             {/* Minimal Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
