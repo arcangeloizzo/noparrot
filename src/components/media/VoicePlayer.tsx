@@ -18,6 +18,10 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
   transcript,
   transcriptStatus
 }) => {
+  // Construct full public URL if audioUrl is just a storage path
+  const fullAudioUrl = audioUrl.startsWith('http')
+    ? audioUrl
+    : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/voice-audio/${audioUrl}`;
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [playbackRate, setPlaybackRate] = useState(1);
@@ -94,7 +98,7 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
     <div className="flex flex-col gap-2 bg-secondary/30 backdrop-blur-sm border border-white/10 rounded-2xl p-3 w-full max-w-sm">
       <audio
         ref={audioRef}
-        src={audioUrl}
+        src={fullAudioUrl}
         onTimeUpdate={handleTimeUpdate}
         onEnded={handleEnded}
         onPause={() => setIsPlaying(false)}

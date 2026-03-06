@@ -3,7 +3,7 @@ import { perfStore } from "@/lib/perfStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Mic } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Mic, Zap } from "lucide-react";
 import { AnimatedHeart } from "@/components/ui/animated-heart";
 import { useDominantColors } from "@/hooks/useDominantColors";
 import { useCachedTrustScore } from "@/hooks/useCachedTrustScore";
@@ -1272,8 +1272,10 @@ const ImmersivePostCardInner = ({
   const isVideoMedia = post.media?.[0]?.type === 'video' || quotedPost?.media?.[0]?.type === 'video';
   const backgroundImage = !isMediaOnlyPost ? (articlePreview?.image || post.preview_img || (hasMedia && (post.media?.[0]?.url || quotedPost?.media?.[0]?.url))) : undefined;
   const isVoicePost = post.post_type === 'voice';
+  const isChallengePost = post.post_type === 'challenge';
+  const isAudioPost = isVoicePost || isChallengePost;
   // Ensure text-only really means NO media and NO link in either post
-  const isTextOnly = !hasMedia && !hasLink && !quotedPost?.shared_url && !isVoicePost;
+  const isTextOnly = !hasMedia && !hasLink && !quotedPost?.shared_url && !isAudioPost;
   const isIntentPost = !!post.is_intent;
   const articleTitle = articlePreview?.title || post.shared_title || '';
   // Show user text ONLY if it's genuinely different from title AND extracted content
@@ -1507,12 +1509,16 @@ const ImmersivePostCardInner = ({
             <div className="w-full my-auto flex flex-col max-h-full">
 
 
-              {/* Voice Post Body */}
-              {!useStackLayout && isVoicePost && post.voice_post && (
+              {/* Voice / Challenge Post Body */}
+              {!useStackLayout && isAudioPost && post.voice_post && (
                 <div className="relative w-full max-w-lg mx-auto mb-4">
                   <div className="bg-card/90 backdrop-blur-sm rounded-3xl p-4 sm:p-6 shadow-xl border border-border mt-2">
-                    <h3 className="text-sm font-bold text-primary mb-3 flex items-center gap-2">
-                      <Mic className="h-4 w-4" /> Pensiero Vocale
+                    <h3 className={cn("text-sm font-bold mb-3 flex items-center gap-2", isChallengePost ? "text-destructive" : "text-primary")}>
+                      {isChallengePost ? (
+                        <><Zap className="h-4 w-4" /> Challenge</>
+                      ) : (
+                        <><Mic className="h-4 w-4" /> Pensiero Vocale</>
+                      )}
                     </h3>
                     <VoicePlayer
                       audioUrl={post.voice_post.audio_url}
