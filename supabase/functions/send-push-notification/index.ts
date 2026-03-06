@@ -56,7 +56,7 @@ async function importVapidPrivateKey(base64UrlPrivateKey: string): Promise<Crypt
 
   return crypto.subtle.importKey(
     'pkcs8',
-    pkcs8,
+    (pkcs8 as Uint8Array<ArrayBuffer>).buffer,
     { name: 'ECDSA', namedCurve: 'P-256' },
     false,
     ['sign']
@@ -132,7 +132,7 @@ async function encryptPayload(
   const subscriberPubBytes = base64UrlDecode(p256dhKey);
   const subscriberKey = await crypto.subtle.importKey(
     'raw',
-    subscriberPubBytes,
+    (subscriberPubBytes as Uint8Array<ArrayBuffer>).buffer,
     { name: 'ECDH', namedCurve: 'P-256' },
     false,
     []
@@ -183,10 +183,10 @@ async function encryptPayload(
   const paddedPlaintext = concatUint8(plaintext, new Uint8Array([2])); // \x02 = final record
 
   // AES-128-GCM encrypt
-  const key = await crypto.subtle.importKey('raw', cek, 'AES-GCM', false, ['encrypt']);
+  const key = await crypto.subtle.importKey('raw', (cek as Uint8Array<ArrayBuffer>).buffer, 'AES-GCM', false, ['encrypt']);
   const ciphertext = new Uint8Array(
     await crypto.subtle.encrypt(
-      { name: 'AES-GCM', iv: nonce },
+      { name: 'AES-GCM', iv: (nonce as Uint8Array<ArrayBuffer>).buffer },
       key,
       paddedPlaintext
     )
@@ -209,9 +209,9 @@ async function hkdfDerive(
   info: Uint8Array,
   length: number
 ): Promise<Uint8Array> {
-  const key = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, ['deriveBits']);
+  const key = await crypto.subtle.importKey('raw', (ikm as Uint8Array<ArrayBuffer>).buffer, 'HKDF', false, ['deriveBits']);
   const bits = await crypto.subtle.deriveBits(
-    { name: 'HKDF', hash: 'SHA-256', salt, info },
+    { name: 'HKDF', hash: 'SHA-256', salt: (salt as Uint8Array<ArrayBuffer>).buffer, info: (info as Uint8Array<ArrayBuffer>).buffer },
     key,
     length * 8
   );
@@ -255,7 +255,7 @@ async function sendPushNotification(
         'TTL': '86400',
         'Urgency': 'high',
       },
-      body: encrypted,
+      body: (encrypted as Uint8Array<ArrayBuffer>).buffer,
     });
 
     if (response.status === 201 || response.status === 200) {
