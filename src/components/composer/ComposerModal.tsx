@@ -2232,7 +2232,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                   characterCount={content.length}
                   maxCharacters={3000}
                   onFormat={applyFormatting}
-                  keyboardOffset={keyboardOffset}
+                  keyboardOffset={0}
                   onGenerateInfographic={handleGenerateInfographic}
                   infographicEnabled={wordCount >= 50}
                   isGeneratingInfographic={isGeneratingInfographic}
