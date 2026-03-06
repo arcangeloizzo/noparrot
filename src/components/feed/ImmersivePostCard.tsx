@@ -1524,22 +1524,19 @@ const ImmersivePostCardInner = ({
               {/* Voice / Challenge Post Body */}
               {!useStackLayout && isAudioPost && post.voice_post && (
                 <div className="relative w-full max-w-lg mx-auto mb-4">
-                  <div className="bg-card/90 backdrop-blur-sm rounded-3xl p-4 sm:p-6 shadow-xl border border-border mt-2">
-                    <h3 className={cn("text-sm font-bold mb-3 flex items-center gap-2", isChallengePost ? "text-destructive" : "text-primary")}>
-                      {isChallengePost ? (
-                        <><Zap className="h-4 w-4" /> Challenge</>
-                      ) : (
-                        <><Mic className="h-4 w-4" /> Pensiero Vocale</>
-                      )}
-                    </h3>
-                    <VoicePlayer
-                      audioUrl={post.voice_post.audio_url}
-                      durationSeconds={post.voice_post.duration_seconds}
-                      waveformData={post.voice_post.waveform_data}
-                      transcript={post.voice_post.transcript}
-                      transcriptStatus={post.voice_post.transcript_status as any}
-                    />
-                  </div>
+                  {/* Post content as title for voice posts */}
+                  {!isChallengePost && post.content && (
+                    <p className="text-base font-bold text-foreground leading-snug mb-3 px-1 drop-shadow-md">
+                      <MentionText content={post.content.length > 200 ? post.content.slice(0, 200) + '...' : post.content} />
+                    </p>
+                  )}
+                  <VoicePlayer
+                    audioUrl={post.voice_post.audio_url}
+                    durationSeconds={post.voice_post.duration_seconds}
+                    waveformData={post.voice_post.waveform_data}
+                    transcript={post.voice_post.transcript}
+                    transcriptStatus={post.voice_post.transcript_status as any}
+                  />
                 </div>
               )}
 
