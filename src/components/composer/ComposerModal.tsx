@@ -2220,26 +2220,25 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                   </div>
                 </>
               )}
+            </div>
 
-              {/* Toolbar: NOT fixed - part of flex flow, keyboard pushes it up */}
-              {/* On iOS, we also apply a transform offset from visualViewport API */}
-              <div className="flex-shrink-0">
-                <MediaActionBar
-                  onFilesSelected={handleMediaSelect}
-                  disabled={isUploading || isLoading || showVoiceRecorder}
-                  onMicClick={() => setShowVoiceRecorder(true)}
-                  isVoiceRecordingEnabled={!isChallengeResponse}
-                  maxTotalMedia={10}
-                  currentMediaCount={uploadedMedia.length}
-                  characterCount={content.length}
-                  maxCharacters={3000}
-                  onFormat={applyFormatting}
-                  keyboardOffset={0}
-                  onGenerateInfographic={handleGenerateInfographic}
-                  infographicEnabled={wordCount >= 50}
-                  isGeneratingInfographic={isGeneratingInfographic}
-                />
-              </div>
+            {/* Toolbar: pinned at bottom, outside scrollable area */}
+            <div className="flex-shrink-0">
+              <MediaActionBar
+                onFilesSelected={handleMediaSelect}
+                disabled={isUploading || isLoading || showVoiceRecorder}
+                onMicClick={() => setShowVoiceRecorder(true)}
+                isVoiceRecordingEnabled={!isChallengeResponse}
+                maxTotalMedia={10}
+                currentMediaCount={uploadedMedia.length}
+                characterCount={content.length}
+                maxCharacters={3000}
+                onFormat={applyFormatting}
+                keyboardOffset={0}
+                onGenerateInfographic={handleGenerateInfographic}
+                infographicEnabled={wordCount >= 50}
+                isGeneratingInfographic={isGeneratingInfographic}
+              />
             </div>
           </div>
         </div>
