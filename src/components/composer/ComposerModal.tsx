@@ -1651,13 +1651,20 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
             body: {
               content: cleanContent || undefined, // Maybe empty for voice only
               postType: finalPostType,
+              // Voice data in the nested format expected by the edge function
+              voiceData: {
+                audioUrl: uploadData.path,
+                durationSeconds: voicePostData.durationSec,
+                waveform: voicePostData.waveformData || null,
+              },
+              // Challenge data in nested format
+              challengeData: (finalPostType === 'challenge') ? {
+                thesis: overrideChallengeData?.thesis ?? challengeData?.thesis ?? '',
+                durationHours: overrideChallengeData?.duration_hours ?? challengeData?.duration_hours ?? 48,
+              } : undefined,
+              // Challenge response fields
               challengeStance: isChallengeResponse ? challengeStance : undefined,
               parentChallengeId: isChallengeResponse ? quotedPost?.id : undefined,
-              challengeThesis: overrideChallengeData?.thesis ?? challengeData?.thesis,
-              challengeDuration: overrideChallengeData?.duration_hours ?? challengeData?.duration_hours,
-              audioUrl: uploadData.path,
-              audioDuration: voicePostData.durationSec,
-              waveformData: voicePostData.waveformData,
               // regular fields...
               sharedUrl: isQuotingEditorial ? editorialData.shared_url : (snapshotDetectedUrl || null),
               sharedTitle: isQuotingEditorial ? editorialData.shared_title : (intentMetadata.sharedTitle || null),
