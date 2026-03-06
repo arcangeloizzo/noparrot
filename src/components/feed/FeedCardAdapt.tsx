@@ -862,9 +862,14 @@ export const FeedCard = ({
                   navigate(`/profile/${post.author.id}`);
                 }}
               >
-                <span className="font-semibold text-[15px] text-white truncate">
+              <span className="font-semibold text-[15px] text-foreground truncate">
                   {post.author.full_name || getDisplayUsername(post.author.username)}
                 </span>
+                {isVoicePost && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-yellow/10 text-brand-yellow text-[10px] font-bold uppercase tracking-wider">
+                    <Mic className="h-2.5 w-2.5" /> Voice
+                  </span>
+                )}
               </div>
               <span className="text-[13px] text-gray-400 flex-shrink-0">
                 {timeAgo}
