@@ -862,9 +862,14 @@ export const FeedCard = ({
                   navigate(`/profile/${post.author.id}`);
                 }}
               >
-                <span className="font-semibold text-[15px] text-white truncate">
+              <span className="font-semibold text-[15px] text-foreground truncate">
                   {post.author.full_name || getDisplayUsername(post.author.username)}
                 </span>
+                {isVoicePost && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-yellow/10 text-brand-yellow text-[10px] font-bold uppercase tracking-wider">
+                    <Mic className="h-2.5 w-2.5" /> Voice
+                  </span>
+                )}
               </div>
               <span className="text-[13px] text-gray-400 flex-shrink-0">
                 {timeAgo}
@@ -904,18 +909,19 @@ export const FeedCard = ({
             {/* Voice Post Body */}
             {isVoicePost && post.voice_post && (
               <div className="relative w-full mb-3">
-                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-white/10">
-                   <h3 className="text-sm font-bold text-primary mb-3 flex items-center gap-2">
-                     <Mic className="h-4 w-4" /> Pensiero Vocale
-                   </h3>
-                   <VoicePlayer 
-                     audioUrl={post.voice_post.audio_url}
-                     durationSeconds={post.voice_post.duration_seconds}
-                     waveformData={post.voice_post.waveform_data}
-                     transcript={post.voice_post.transcript}
-                     transcriptStatus={post.voice_post.transcript_status as any}
-                   />
-                </div>
+                {/* Post content as audio title */}
+                {post.content && (
+                  <p className="text-[15px] font-bold text-foreground leading-snug mb-3">
+                    <MentionText content={post.content.length > 200 ? post.content.slice(0, 200) + '...' : post.content} />
+                  </p>
+                )}
+                <VoicePlayer 
+                  audioUrl={post.voice_post.audio_url}
+                  durationSeconds={post.voice_post.duration_seconds}
+                  waveformData={post.voice_post.waveform_data}
+                  transcript={post.voice_post.transcript}
+                  transcriptStatus={post.voice_post.transcript_status as any}
+                />
               </div>
             )}
             

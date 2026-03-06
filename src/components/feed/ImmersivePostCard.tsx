@@ -1405,9 +1405,21 @@ const ImmersivePostCardInner = ({
                 {getAvatarContent()}
               </div>
               <div className="flex flex-col">
-                <span className="text-slate-900 dark:text-white font-bold text-sm drop-shadow-none dark:drop-shadow-md">
-                  {post.author.full_name || getDisplayUsername(post.author.username)}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-slate-900 dark:text-white font-bold text-sm drop-shadow-none dark:drop-shadow-md">
+                    {post.author.full_name || getDisplayUsername(post.author.username)}
+                  </span>
+                  {isAudioPost && !isChallengePost && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-yellow/15 text-brand-yellow text-[9px] font-bold uppercase tracking-wider">
+                      <Mic className="h-2.5 w-2.5" /> Voice
+                    </span>
+                  )}
+                  {isChallengePost && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-pink/15 text-brand-pink text-[9px] font-bold uppercase tracking-wider">
+                      <Zap className="h-2.5 w-2.5 fill-current" /> Challenge
+                    </span>
+                  )}
+                </div>
                 <span className="text-slate-500 dark:text-gray-400 text-xs">{timeAgo}</span>
               </div>
             </div>
@@ -1512,22 +1524,19 @@ const ImmersivePostCardInner = ({
               {/* Voice / Challenge Post Body */}
               {!useStackLayout && isAudioPost && post.voice_post && (
                 <div className="relative w-full max-w-lg mx-auto mb-4">
-                  <div className="bg-card/90 backdrop-blur-sm rounded-3xl p-4 sm:p-6 shadow-xl border border-border mt-2">
-                    <h3 className={cn("text-sm font-bold mb-3 flex items-center gap-2", isChallengePost ? "text-destructive" : "text-primary")}>
-                      {isChallengePost ? (
-                        <><Zap className="h-4 w-4" /> Challenge</>
-                      ) : (
-                        <><Mic className="h-4 w-4" /> Pensiero Vocale</>
-                      )}
-                    </h3>
-                    <VoicePlayer
-                      audioUrl={post.voice_post.audio_url}
-                      durationSeconds={post.voice_post.duration_seconds}
-                      waveformData={post.voice_post.waveform_data}
-                      transcript={post.voice_post.transcript}
-                      transcriptStatus={post.voice_post.transcript_status as any}
-                    />
-                  </div>
+                  {/* Post content as title for voice posts */}
+                  {!isChallengePost && post.content && (
+                    <p className="text-base font-bold text-foreground leading-snug mb-3 px-1 drop-shadow-md">
+                      <MentionText content={post.content.length > 200 ? post.content.slice(0, 200) + '...' : post.content} />
+                    </p>
+                  )}
+                  <VoicePlayer
+                    audioUrl={post.voice_post.audio_url}
+                    durationSeconds={post.voice_post.duration_seconds}
+                    waveformData={post.voice_post.waveform_data}
+                    transcript={post.voice_post.transcript}
+                    transcriptStatus={post.voice_post.transcript_status as any}
+                  />
                 </div>
               )}
 
