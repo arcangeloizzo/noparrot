@@ -757,7 +757,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         sharedUrl: quotedPost.shared_url
       });
 
-      await handleReshareLinkGateFlow(quotedPost, testMode);
+      await handleReshareLinkGateFlow(quotedPost, testMode, overridePostType, overrideChallengeData);
       return;
     }
 
@@ -768,7 +768,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   // [NEW] Handle reshare link gate flow
   const handleReshareLinkGateFlow = async (
     quoted: any,
-    testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY'
+    testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY',
+    overridePostType?: 'voice' | 'challenge' | 'standard',
+    overrideChallengeData?: { thesis: string; duration_hours: number }
   ) => {
     if (isGeneratingQuiz) return;
 
@@ -2030,7 +2032,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
               </Button>
 
               <Button
-                onClick={handlePublish}
+                onClick={() => handlePublish()}
                 disabled={!canPublish || isLoading || isPreviewLoading || isTranscriptionInProgress}
                 className={cn(
                   "px-5 py-1.5 h-auto rounded-full font-semibold text-sm",

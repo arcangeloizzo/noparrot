@@ -774,7 +774,7 @@ export const FeedCard = ({
          return;
       }
       
-      const transcriptText = challengeData.voice_post?.transcript || challengeData.voicePost?.transcript || post.content;
+      const transcriptText = challengeData.voice_post?.transcript || (challengeData as any).voicePost?.transcript || post.content;
       const wordCount = getWordCount(transcriptText);
       const questionCount = getQuestionCountWithoutSource(wordCount);
 
