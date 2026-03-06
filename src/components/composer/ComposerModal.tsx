@@ -137,8 +137,22 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const [previewMediaUrl, setPreviewMediaUrl] = useState<string | null>(null);
   const [previewMediaType, setPreviewMediaType] = useState<'image' | 'video' | null>(null);
 
-  // iOS keyboard offset using Visual Viewport API
-  const keyboardOffset = useVisualViewportOffset(isOpen && isIOS);
+  // iOS keyboard: track visual viewport height to resize container
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+  
+  useEffect(() => {
+    if (!isOpen || !isIOS) {
+      setViewportHeight(null);
+      return;
+    }
+    const vv = window.visualViewport;
+    if (!vv) return;
+    
+    const update = () => setViewportHeight(vv.height);
+    update();
+    vv.addEventListener('resize', update);
+    return () => vv.removeEventListener('resize', update);
+  }, [isOpen]);
 
   const { uploadMedia, uploadedMedia, removeMedia, clearMedia, reorderMedia, isUploading, isBatchExtracting, requestTranscription, requestOCR, refreshMediaStatus, requestBatchExtraction, getAggregatedExtractedText, addExternalMedia } = useMediaUpload();
   const [isGeneratingInfographic, setIsGeneratingInfographic] = useState(false);
@@ -1996,18 +2010,18 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         />
 
         {/* Container: full-screen mobile, centered modal desktop */}
-        {/* Uses 100dvh (Dynamic Viewport Height) which resizes with virtual keyboard */}
         <div
           className={cn(
             "relative flex flex-col w-full",
-            // Mobile: full dynamic viewport height, keyboard will resize this
-            "h-[100dvh]",
+            // Mobile: use dvh as fallback; iOS uses inline style for visual viewport
+            !viewportHeight && "h-[100dvh]",
             // Desktop: centered modal with max height
             "md:h-auto md:max-h-[85vh] md:w-full md:max-w-xl md:mx-auto md:my-8 md:rounded-2xl",
             "bg-background md:bg-card",
             "border-0 md:border md:border-border",
             "animate-scale-in"
           )}
+          style={viewportHeight ? { height: `${viewportHeight}px` } : undefined}
         >
           {/* Inner flex container - toolbar will be pushed up by keyboard */}
           <div className="flex flex-col h-full">
