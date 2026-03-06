@@ -19,8 +19,11 @@ import { QuizModal } from "@/components/ui/quiz-modal";
 // Feed Components
 import { PostTestActionsModal } from "./PostTestActionsModal";
 import { QuotedPostCard } from "./QuotedPostCard";
+import { ChallengeCard } from "./ChallengeCard";
 import { PostHeader } from "./PostHeader";
 import { MentionText } from "./MentionText";
+import { VoicePlayer } from "@/components/media/VoicePlayer";
+import { Mic } from "lucide-react";
 
 // Media Components
 import { MediaGallery } from "@/components/media/MediaGallery";
@@ -86,6 +89,7 @@ export const FeedCard = ({
   const createThread = useCreateThread();
   const sendMessage = useSendMessage();
   const isOwnPost = user?.id === post.author.id;
+  const isVoicePost = post.post_type === 'voice';
 
   // Article preview state
   const [articlePreview, setArticlePreview] = useState<any>(null);
@@ -718,7 +722,9 @@ export const FeedCard = ({
         setGateStep('idle');
 
         // Esegui l'azione scelta dall'utente
-        if (shareAction === 'feed') {
+        if (quizData.onChallengeRespond) {
+            onQuoteShare?.({ ...post, _challengeResponse: true } as any);
+        } else if (shareAction === 'feed') {
           onQuoteShare?.({
             ...post,
             _originalSources: Array.isArray(post.sources) ? post.sources : []
@@ -756,6 +762,67 @@ export const FeedCard = ({
 
   // Deduplicazione fonti
   const displaySources = uniqueSources(post.sources || []);
+
+  if (post.post_type === 'challenge' || post.challenge) {
+    // Determine the actual challenge data (might be inside post.challenge or mapped differently)
+    const challengeData = post.challenge || post;
+
+    const handleChallengeRespond = async () => {
+      // 1. Bypass se è l'autore
+      if (user?.id === post.author.id) {
+         toast.error("Non puoi rispondere alla tua stessa challenge");
+         return;
+      }
+      
+      const transcriptText = challengeData.voice_post?.transcript || challengeData.voicePost?.transcript || post.content;
+      const wordCount = getWordCount(transcriptText);
+      const questionCount = getQuestionCountWithoutSource(wordCount);
+
+      if (questionCount === 0) {
+        // Nessun testo sufficiente, bypass
+        onQuoteShare?.({ ...post, _challengeResponse: true } as any);
+        return;
+      }
+      
+      // Setup gate logic just like share
+      setShowAnalysisOverlay(true);
+      try {
+        const result = await generateQA({
+          contentId: post.id,
+          title: post.author.full_name || post.author.username,
+          summary: transcriptText,
+          userText: transcriptText || '',
+          questionCount,
+        });
+        
+        setShowAnalysisOverlay(false);
+        if (result.insufficient_context) {
+           toast.info("Trascrizione non sufficiente per il test, apro il composer.");
+           onQuoteShare?.({ ...post, _challengeResponse: true } as any);
+           return;
+        }
+        
+        if (!result || result.error || !result.questions?.length) {
+          toast.error(result?.error || "Errore generic");
+          return;
+        }
+
+        setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}`, onChallengeRespond: true });
+        setShowQuiz(true);
+      } catch(e) {
+        setShowAnalysisOverlay(false);
+        toast.error("Errore generico");
+      }
+    };
+
+    return (
+      <ChallengeCard 
+         challenge={challengeData as any} 
+         onPostAction={() => {}} 
+         onRespond={handleChallengeRespond} 
+      />
+    );
+  }
 
   return (
     <>
@@ -833,6 +900,25 @@ export const FeedCard = ({
               )}
             </div>
 
+            
+            {/* Voice Post Body */}
+            {isVoicePost && post.voice_post && (
+              <div className="relative w-full mb-3">
+                <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-white/10">
+                   <h3 className="text-sm font-bold text-primary mb-3 flex items-center gap-2">
+                     <Mic className="h-4 w-4" /> Pensiero Vocale
+                   </h3>
+                   <VoicePlayer 
+                     audioUrl={post.voice_post.audio_url}
+                     durationSeconds={post.voice_post.duration_seconds}
+                     waveformData={post.voice_post.waveform_data}
+                     transcript={post.voice_post.transcript}
+                     transcriptStatus={post.voice_post.transcript_status as any}
+                   />
+                </div>
+              </div>
+            )}
+            
             {/* User Comment - Interlinea rilassata */}
             <div className="text-[15px] leading-relaxed text-gray-100 mb-3 whitespace-pre-wrap break-words">
               {post.content.length > 300 && !isExpanded ? (

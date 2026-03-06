@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Camera, Plus, Bold, Italic, Underline, BarChart3, Loader2 } from 'lucide-react';
+import { Camera, Plus, Bold, Italic, Underline, BarChart3, Loader2, Mic } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -16,10 +16,12 @@ interface MediaActionBarProps {
   onGenerateInfographic?: () => void;
   infographicEnabled?: boolean;
   isGeneratingInfographic?: boolean;
+  onMicClick?: () => void;
+  isVoiceRecordingEnabled?: boolean;
 }
 
-export const MediaActionBar = ({ 
-  onFilesSelected, 
+export const MediaActionBar = ({
+  onFilesSelected,
   disabled = false,
   maxTotalMedia = 10,
   currentMediaCount = 0,
@@ -29,7 +31,9 @@ export const MediaActionBar = ({
   keyboardOffset = 0,
   onGenerateInfographic,
   infographicEnabled = false,
-  isGeneratingInfographic = false
+  isGeneratingInfographic = false,
+  onMicClick,
+  isVoiceRecordingEnabled = true
 }: MediaActionBarProps) => {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
@@ -55,7 +59,7 @@ export const MediaActionBar = ({
     for (const file of filesToUpload) {
       const isVideo = file.type.startsWith('video/');
       const maxSize = isVideo ? 100 * 1024 * 1024 : 25 * 1024 * 1024;
-      
+
       if (file.size > maxSize) {
         toast.error(`${file.name}: troppo grande (max ${isVideo ? '100MB' : '25MB'})`);
         continue;
@@ -68,7 +72,7 @@ export const MediaActionBar = ({
     // Separate images and videos for callback
     const images = validFiles.filter(f => f.type.startsWith('image/'));
     const videos = validFiles.filter(f => f.type.startsWith('video/'));
-    
+
     if (images.length > 0) onFilesSelected(images, 'image');
     if (videos.length > 0) onFilesSelected(videos, 'video');
   };
@@ -102,9 +106,9 @@ export const MediaActionBar = ({
   );
 
   return (
-    <div 
+    <div
       className="bg-card border-t border-border px-4 py-2.5 flex items-center justify-between relative"
-      style={{ 
+      style={{
         paddingBottom: 'max(env(safe-area-inset-bottom, 10px), 10px)',
         // Apply keyboard offset transform for iOS
         transform: keyboardOffset > 0 ? `translateY(-${keyboardOffset}px)` : undefined,
@@ -163,6 +167,22 @@ export const MediaActionBar = ({
           </button>
         )}
 
+        {/* Mic: open Voice Recorder */}
+        {onMicClick && isVoiceRecordingEnabled && (
+          <button
+            type="button"
+            onClick={() => {
+              haptics.light();
+              onMicClick();
+            }}
+            disabled={disabled}
+            className={iconButtonClass}
+            aria-label="Registra audio"
+          >
+            <Mic className="w-5 h-5" strokeWidth={1.5} />
+          </button>
+        )}
+
         {/* Camera: direct capture - opens camera directly */}
         <button
           type="button"
@@ -176,7 +196,7 @@ export const MediaActionBar = ({
         >
           <Camera className="w-5 h-5" strokeWidth={1.5} />
         </button>
-        
+
         {/* Plus: opens native iOS action sheet */}
         <button
           type="button"
@@ -204,7 +224,7 @@ export const MediaActionBar = ({
       </div>
 
       {/* Hidden inputs */}
-      
+
       {/* Camera: direct capture with environment camera */}
       <input
         ref={cameraInputRef}
@@ -214,7 +234,7 @@ export const MediaActionBar = ({
         onChange={handleCameraChange}
         className="hidden"
       />
-      
+
       {/* Media picker: shows native iOS action sheet (Libreria foto, Scatta foto, Scegli file) */}
       <input
         ref={mediaInputRef}

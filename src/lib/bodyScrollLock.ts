@@ -24,9 +24,9 @@ let usedPositionFixed = false;
 // Track if a deferred unlock is in progress (iOS quiz)
 let deferredUnlockInFlight = false;
 
-const isIOS = typeof navigator !== 'undefined' && 
+const isIOS = typeof navigator !== 'undefined' &&
   (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
-   (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1));
+    (navigator.platform === 'MacIntel' && (navigator as any).maxTouchPoints > 1));
 
 /**
  * Lock body scrolling
@@ -39,7 +39,7 @@ export function lockBodyScroll(owner: 'reader' | 'quiz'): boolean {
     console.log(`[bodyScrollLock] Already locked by ${owner}`);
     return true;
   }
-  
+
   // If locked by different owner, allow quiz to take over from reader
   if (currentOwner !== null && currentOwner !== owner) {
     if (owner === 'quiz') {
@@ -50,7 +50,7 @@ export function lockBodyScroll(owner: 'reader' | 'quiz'): boolean {
       return false;
     }
   }
-  
+
   // Save current state only if not already saved
   if (!savedBodyStyles) {
     savedScrollY = window.scrollY;
@@ -62,14 +62,14 @@ export function lockBodyScroll(owner: 'reader' | 'quiz'): boolean {
       touchAction: document.body.style.touchAction,
     };
   }
-  
+
   currentOwner = owner;
-  
+
   // Apply lock styles
   document.body.classList.add(`${owner}-open`);
   document.body.style.overflow = 'hidden';
   document.body.style.touchAction = 'none';
-  
+
   // iOS-specific: use position fixed ONLY for reader, NOT for quiz
   // Quiz on iOS caused crashes due to scroll restore during DOM transition
   if (isIOS && owner === 'reader') {
@@ -90,7 +90,7 @@ export function lockBodyScroll(owner: 'reader' | 'quiz'): boolean {
     document.body.style.top = `-${savedScrollY}px`;
     usedPositionFixed = true;
   }
-  
+
   console.log(`[bodyScrollLock] Locked by ${owner}, usedFixed=${usedPositionFixed}`);
   return true;
 }
@@ -106,7 +106,7 @@ export function unlockBodyScroll(owner: 'reader' | 'quiz'): boolean {
     console.log(`[bodyScrollLock] Cannot unlock: owned by ${currentOwner}, not ${owner}`);
     return false;
   }
-  
+
   // iOS quiz: DEFER EVERYTHING (class + styles) together to avoid crash during DOM transition
   // This ensures cleanupStaleScrollLocks() can find the class if the deferred unlock is interrupted
   if (isIOS && owner === 'quiz') {
@@ -116,21 +116,21 @@ export function unlockBodyScroll(owner: 'reader' | 'quiz'): boolean {
       addBreadcrumb('quiz_unlock_deferred_skipped_reentry');
       return true;
     }
-    
+
     deferredUnlockInFlight = true;
     addBreadcrumb('quiz_unlock_deferred_inflight');
     console.log(`[bodyScrollLock] iOS quiz: deferring unlock (class + styles) to avoid crash`);
-    
+
     // Capture state before deferring - DO NOT clear state yet
     const stylesToRestore = savedBodyStyles;
-    
+
     // Defer BOTH class removal AND style restoration together
     // State will only be cleared AFTER this completes
     requestAnimationFrame(() => {
       setTimeout(() => {
         // Remove class here, not earlier - this way cleanupStaleScrollLocks can find it if interrupted
         document.body.classList.remove('quiz-open');
-        
+
         if (stylesToRestore) {
           document.body.style.overflow = stylesToRestore.overflow;
           document.body.style.position = stylesToRestore.position;
@@ -138,29 +138,29 @@ export function unlockBodyScroll(owner: 'reader' | 'quiz'): boolean {
           document.body.style.top = stylesToRestore.top;
           document.body.style.touchAction = stylesToRestore.touchAction;
         }
-        
+
         // NOW clear internal state - only after actual unlock is done
         savedBodyStyles = null;
         savedScrollY = 0;
         currentOwner = null;
         usedPositionFixed = false;
         deferredUnlockInFlight = false;
-        
+
         addBreadcrumb('quiz_unlock_deferred_finalize');
         console.log(`[bodyScrollLock] iOS quiz: deferred unlock complete`);
       }, 120);
     });
-    
+
     return true;
   }
-  
+
   // Non-iOS or reader: immediate unlock
   document.body.classList.remove('reader-open', 'quiz-open');
-  
+
   // Capture values before clearing state
   const scrollToRestore = savedScrollY;
   const shouldRestoreScroll = usedPositionFixed && scrollToRestore > 0;
-  
+
   // Restore styles immediately
   if (savedBodyStyles) {
     document.body.style.overflow = savedBodyStyles.overflow;
@@ -168,15 +168,15 @@ export function unlockBodyScroll(owner: 'reader' | 'quiz'): boolean {
     document.body.style.width = savedBodyStyles.width;
     document.body.style.top = savedBodyStyles.top;
     document.body.style.touchAction = savedBodyStyles.touchAction;
-    
+
     savedBodyStyles = null;
     savedScrollY = 0;
   }
-  
+
   currentOwner = null;
   usedPositionFixed = false;
   console.log(`[bodyScrollLock] Unlocked by ${owner}`);
-  
+
   // Only restore scroll if we used position:fixed
   if (shouldRestoreScroll) {
     if (isIOS) {
@@ -198,7 +198,7 @@ export function unlockBodyScroll(owner: 'reader' | 'quiz'): boolean {
       window.scrollTo(0, scrollToRestore);
     }
   }
-  
+
   return true;
 }
 
@@ -212,19 +212,27 @@ export function forceUnlockBodyScroll(): void {
   document.body.style.width = '';
   document.body.style.top = '';
   document.body.style.touchAction = '';
-  
+
+  // Force clean up any Radix UI / react-remove-scroll style tags that might have been left behind
+  try {
+    const radixStyleTags = document.querySelectorAll('style[data-radix-scroll-prevent]');
+    radixStyleTags.forEach(tag => tag.remove());
+  } catch (e) {
+    console.warn('[bodyScrollLock] Error removing Radix style tags:', e);
+  }
+
   // Capture before clearing
   const scrollToRestore = savedScrollY;
   const shouldRestoreScroll = usedPositionFixed && scrollToRestore > 0;
-  
+
   savedBodyStyles = null;
   savedScrollY = 0;
   currentOwner = null;
   usedPositionFixed = false;
   deferredUnlockInFlight = false; // Also reset deferred flag
-  
+
   console.log(`[bodyScrollLock] Force unlocked`);
-  
+
   // Only restore scroll if we used position:fixed
   if (shouldRestoreScroll) {
     if (isIOS) {
@@ -250,11 +258,11 @@ export function transferLock(from: 'reader' | 'quiz', to: 'reader' | 'quiz'): bo
     console.log(`[bodyScrollLock] Cannot transfer: owned by ${currentOwner}, not ${from}`);
     return false;
   }
-  
+
   // Update class
   document.body.classList.remove(`${from}-open`);
   document.body.classList.add(`${to}-open`);
-  
+
   // On iOS, if transferring TO quiz, we need to remove position:fixed
   // because quiz doesn't use it (to avoid crash)
   if (isIOS && to === 'quiz' && usedPositionFixed) {
@@ -265,7 +273,7 @@ export function transferLock(from: 'reader' | 'quiz', to: 'reader' | 'quiz'): bo
     console.log(`[bodyScrollLock] iOS: removed position:fixed during transfer to quiz`);
     addBreadcrumb('transfer_removed_fixed_ios');
   }
-  
+
   currentOwner = to;
   console.log(`[bodyScrollLock] Transferred from ${from} to ${to}`);
   return true;
@@ -292,14 +300,17 @@ export function getCurrentLockOwner(): LockOwner {
 export function cleanupStaleScrollLocks(): boolean {
   const hasReaderClass = document.body.classList.contains('reader-open');
   const hasQuizClass = document.body.classList.contains('quiz-open');
-  
+
   // Also check for stale inline styles that block scrolling (may remain after interrupted deferred unlock)
   const hasBlockingOverflow = document.body.style.overflow === 'hidden';
   const hasBlockingTouchAction = document.body.style.touchAction === 'none';
   const hasStaleInlineStyles = hasBlockingOverflow || hasBlockingTouchAction;
-  
-  if (hasReaderClass || hasQuizClass || hasStaleInlineStyles) {
-    console.warn('[BodyScrollLock] Found stale scroll lock on startup (classes:', hasReaderClass || hasQuizClass, 'styles:', hasStaleInlineStyles, '), cleaning up');
+
+  // Check for Radix UI style tags
+  const hasRadixStyleTags = document.querySelectorAll('style[data-radix-scroll-prevent]').length > 0;
+
+  if (hasReaderClass || hasQuizClass || hasStaleInlineStyles || hasRadixStyleTags) {
+    console.warn('[BodyScrollLock] Found stale scroll lock on startup (classes:', hasReaderClass || hasQuizClass, 'styles:', hasStaleInlineStyles, 'radixTags:', hasRadixStyleTags, '), cleaning up');
     forceUnlockBodyScroll();
     return true;
   }

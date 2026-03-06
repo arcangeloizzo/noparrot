@@ -24,20 +24,20 @@ const CATEGORIES = [
  */
 function sanitizeContent(input: string): string {
   if (!input || typeof input !== 'string') return '';
-  
+
   // Remove script tags and their content
   let clean = input.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-  
+
   // Remove event handlers (onclick, onerror, etc.)
   clean = clean.replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '');
   clean = clean.replace(/\s*on\w+\s*=\s*[^\s>]*/gi, '');
-  
+
   // Remove javascript: protocol
   clean = clean.replace(/javascript\s*:/gi, '');
-  
+
   // Remove data: protocol (potential XSS vector)
   clean = clean.replace(/data\s*:/gi, 'data-blocked:');
-  
+
   return clean.trim();
 }
 
@@ -59,22 +59,22 @@ function isValidUrlProtocol(url: string): boolean {
  */
 function sanitizeUrl(url: string | null | undefined): string | null {
   if (!url || typeof url !== 'string') return null;
-  
+
   const trimmed = url.trim();
   if (trimmed.length === 0 || trimmed.length > 2000) return null;
-  
+
   // Block dangerous protocols
   const lowerUrl = trimmed.toLowerCase();
-  if (lowerUrl.startsWith('javascript:') || 
-      lowerUrl.startsWith('data:') || 
-      lowerUrl.startsWith('vbscript:') ||
-      lowerUrl.startsWith('file:')) {
+  if (lowerUrl.startsWith('javascript:') ||
+    lowerUrl.startsWith('data:') ||
+    lowerUrl.startsWith('vbscript:') ||
+    lowerUrl.startsWith('file:')) {
     return null;
   }
-  
+
   // Validate it's a proper URL with allowed protocol
   if (!isValidUrlProtocol(trimmed)) return null;
-  
+
   return trimmed;
 }
 
@@ -132,9 +132,9 @@ Rispondi con UNA SOLA PAROLA: la categoria più appropriata.`;
 
     const data = await response.json();
     const rawCategory = data.choices?.[0]?.message?.content?.trim();
-    
+
     // Match to valid category
-    const category = CATEGORIES.find(c => 
+    const category = CATEGORIES.find(c =>
       c.toLowerCase() === rawCategory?.toLowerCase()
     );
 
@@ -167,6 +167,16 @@ type PublishPostBody = {
   mediaIds?: string[]
   idempotencyKey?: string | null
   isIntent?: boolean
+  postType?: 'standard' | 'voice' | 'challenge'
+  voiceData?: {
+    audioUrl: string
+    durationSeconds: number
+    waveform: number[] | null
+  }
+  challengeData?: {
+    thesis: string
+    durationHours: number
+  }
 }
 
 Deno.serve(async (req) => {
@@ -206,10 +216,10 @@ Deno.serve(async (req) => {
     const rawContent = typeof body.content === 'string' ? body.content : ''
     const content = rawContent.trim()
 
-    // Allow empty content ONLY for reshares, link-only posts, or media-only posts.
+    // Allow empty content ONLY for reshares, link-only posts, media-only posts, OR voice/challenge posts.
     // This prevents "ghost" text-only posts, while letting users share without adding a comment.
     const mediaCount = Array.isArray(body.mediaIds) ? body.mediaIds.filter(Boolean).length : 0
-    const allowEmpty = !!body.quotedPostId || !!body.sharedUrl || mediaCount > 0
+    const allowEmpty = !!body.quotedPostId || !!body.sharedUrl || mediaCount > 0 || body.postType === 'voice' || body.postType === 'challenge'
     if (!content && !allowEmpty) {
       console.error(`[publish-post:${reqId}] stage=validate empty content`)
       return new Response(JSON.stringify({ error: 'content_required', stage: 'validate' }), {
@@ -277,7 +287,7 @@ Deno.serve(async (req) => {
 
       if (reserveErr) {
         console.log(`[publish-post:${reqId}] stage=reserve conflict code=${reserveErr.code}`, reserveErr.message)
-        
+
         const { data: raceCheck } = await supabase
           .from('publish_idempotency')
           .select('post_id')
@@ -297,10 +307,10 @@ Deno.serve(async (req) => {
             }
           )
         }
-        
+
         // Key exists but no post_id yet - another request is in progress
         await new Promise(r => setTimeout(r, 500))
-        
+
         const { data: retryCheck } = await supabase
           .from('publish_idempotency')
           .select('post_id')
@@ -320,7 +330,7 @@ Deno.serve(async (req) => {
             }
           )
         }
-        
+
         console.warn(`[publish-post:${reqId}] stage=idempotency_race_unresolved proceeding anyway`)
       } else {
         console.log(`[publish-post:${reqId}] stage=reserve_ok key reserved`)
@@ -331,16 +341,16 @@ Deno.serve(async (req) => {
     const sanitizedContent = sanitizeContent(finalContent).substring(0, 5000);
     let sanitizedSharedUrl = sanitizeUrl(body.sharedUrl);
     let sanitizedPreviewImg = sanitizeUrl(body.previewImg);
-    let sanitizedTitle = body.sharedTitle 
-      ? sanitizeContent(String(body.sharedTitle)).substring(0, 500) 
+    let sanitizedTitle = body.sharedTitle
+      ? sanitizeContent(String(body.sharedTitle)).substring(0, 500)
       : null;
-    let sanitizedArticle = body.articleContent 
-      ? sanitizeContent(String(body.articleContent)).substring(0, 10000) 
+    let sanitizedArticle = body.articleContent
+      ? sanitizeContent(String(body.articleContent)).substring(0, 10000)
       : null;
-    
+
     // Validate quotedPostId is a valid UUID if provided
-    const validQuotedPostId = body.quotedPostId && isValidUuid(body.quotedPostId) 
-      ? body.quotedPostId 
+    const validQuotedPostId = body.quotedPostId && isValidUuid(body.quotedPostId)
+      ? body.quotedPostId
       : null;
 
     // ========================================================================
@@ -348,33 +358,33 @@ Deno.serve(async (req) => {
     // CRITICAL: Check body.sharedUrl FIRST, before sanitizeUrl() blocks non-http protocols!
     // ========================================================================
     const rawSharedUrl = body.sharedUrl || '';
-    const isEditorialUrl = rawSharedUrl.startsWith('focus://daily/') || 
-                           rawSharedUrl.startsWith('focus://') ||
-                           rawSharedUrl.startsWith('editorial://');
-    
+    const isEditorialUrl = rawSharedUrl.startsWith('focus://daily/') ||
+      rawSharedUrl.startsWith('focus://') ||
+      rawSharedUrl.startsWith('editorial://');
+
     if (isEditorialUrl) {
       console.log(`[publish-post:${reqId}] stage=editorial_detected url=${rawSharedUrl.slice(0, 50)}`);
-      
+
       // For focus:// URLs, bypass sanitizeUrl (which blocks non-http) 
       sanitizedSharedUrl = rawSharedUrl;
-      
+
       // Extract focus ID and fetch content if missing
       if (!sanitizedArticle || !sanitizedTitle) {
         const focusId = rawSharedUrl
           .replace('focus://daily/', '')
           .replace('focus://', '')
           .replace('editorial://', '');
-        
+
         if (focusId) {
           console.log(`[publish-post:${reqId}] stage=editorial_fetch focusId=${focusId}`);
-          
+
           try {
             const { data: focusData, error: focusErr } = await supabase
               .from('daily_focus')
               .select('title, summary, deep_content, image_url')
               .eq('id', focusId)
               .maybeSingle();
-            
+
             if (focusErr) {
               console.warn(`[publish-post:${reqId}] stage=editorial_fetch_error`, focusErr.message);
             } else if (focusData) {
@@ -413,9 +423,10 @@ Deno.serve(async (req) => {
       quoted_post_id: validQuotedPostId,
       category: null as string | null,
       is_intent: body.isIntent || false,
+      post_type: body.postType || 'standard',
     }
 
-    console.log(`[publish-post:${reqId}] stage=insert_start contentLen=${insertPayload.content.length}`)
+    console.log(`[publish-post:${reqId}] stage=insert_start contentLen=${insertPayload.content.length} type=${insertPayload.post_type}`)
 
     const { data: inserted, error: insertErr } = await supabase
       .from('posts')
@@ -425,11 +436,11 @@ Deno.serve(async (req) => {
 
     if (insertErr) {
       console.error(`[publish-post:${reqId}] stage=insert_error`, insertErr.code, insertErr.message)
-      return new Response(JSON.stringify({ 
-        error: 'insert_failed', 
+      return new Response(JSON.stringify({
+        error: 'insert_failed',
         stage: 'insert',
         code: insertErr.code,
-        details: insertErr.message 
+        details: insertErr.message
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -461,6 +472,68 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ========================================================================
+    // VOICE & CHALLENGE CREATION logic
+    // ========================================================================
+    if (insertPayload.post_type === 'voice' || insertPayload.post_type === 'challenge') {
+      if (!body.voiceData?.audioUrl) {
+        console.error(`[publish-post:${reqId}] msg=missing_voice_data`);
+      } else {
+        const { data: voicePost, error: voiceErr } = await supabase
+          .from('voice_posts')
+          .insert({
+            post_id: inserted.id,
+            audio_url: body.voiceData.audioUrl,
+            duration_seconds: body.voiceData.durationSeconds,
+            waveform_data: body.voiceData.waveform || null,
+          })
+          .select('id')
+          .single();
+
+        if (voiceErr) {
+          console.error(`[publish-post:${reqId}] stage=voice_insert_error msg="${voiceErr.message}"`);
+        } else {
+          console.log(`[publish-post:${reqId}] stage=voice_insert_ok voiceId=${voicePost.id}`);
+
+          // Trigger Transcribe Audio Edge Function ASYNC
+          try {
+            fetch(`${supabaseUrl}/functions/v1/transcribe-audio`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${supabaseAnonKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ voicePostId: voicePost.id })
+            }).catch(e => console.warn(`[publish-post:${reqId}] transcribe call error (async):`, e));
+          } catch (e) {
+            console.warn(`[publish-post:${reqId}] transcribe invoke failed:`, e);
+          }
+
+          // Generate Challenge if post_type is 'challenge'
+          if (insertPayload.post_type === 'challenge' && body.challengeData) {
+            const expDate = new Date();
+            expDate.setHours(expDate.getHours() + body.challengeData.durationHours);
+
+            const { error: challengeErr } = await supabase
+              .from('challenges')
+              .insert({
+                post_id: inserted.id,
+                voice_post_id: voicePost.id,
+                thesis: body.challengeData.thesis.substring(0, 140),
+                duration_hours: body.challengeData.durationHours,
+                expires_at: expDate.toISOString(),
+              });
+
+            if (challengeErr) {
+              console.error(`[publish-post:${reqId}] stage=challenge_insert_error msg="${challengeErr.message}"`);
+            } else {
+              console.log(`[publish-post:${reqId}] stage=challenge_insert_ok`);
+            }
+          }
+        }
+      }
+    }
+
     // Link media (best-effort; never block publish)
     const mediaIds = Array.isArray(body.mediaIds) ? body.mediaIds.filter(Boolean) : []
     if (mediaIds.length > 0) {
@@ -478,49 +551,49 @@ Deno.serve(async (req) => {
       }
     }
 
-   // ========================================================================
-   // LINK QUIZ TO POST: Update post_qa_questions.post_id for gate validation
-   // This enables reshare lookup (Strategy 2.5 in generate-qa)
-   // ========================================================================
-   try {
-     // NOTE: post_qa_questions has no client UPDATE policy; use admin client for linking.
-     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-     const adminSupabase = createClient(supabaseUrl, serviceKey)
+    // ========================================================================
+    // LINK QUIZ TO POST: Update post_qa_questions.post_id for gate validation
+    // This enables reshare lookup (Strategy 2.5 in generate-qa)
+    // ========================================================================
+    try {
+      // NOTE: post_qa_questions has no client UPDATE policy; use admin client for linking.
+      const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      const adminSupabase = createClient(supabaseUrl, serviceKey)
 
-     // Find quiz by owner_id that was created recently (last 10 minutes) with null post_id
-     const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      // Find quiz by owner_id that was created recently (last 10 minutes) with null post_id
+      const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
 
-     const { data: pendingQuiz, error: quizLookupErr } = await adminSupabase
-       .from('post_qa_questions')
-       .select('id')
-       .eq('owner_id', user.id)
-       .is('post_id', null)
-       .gte('generated_at', tenMinutesAgo)
-       .order('generated_at', { ascending: false })
-       .limit(1)
-       .maybeSingle();
+      const { data: pendingQuiz, error: quizLookupErr } = await adminSupabase
+        .from('post_qa_questions')
+        .select('id')
+        .eq('owner_id', user.id)
+        .is('post_id', null)
+        .gte('generated_at', tenMinutesAgo)
+        .order('generated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-     if (quizLookupErr) {
-       console.warn(`[publish-post:${reqId}] stage=quiz_link_lookup error`, quizLookupErr.message);
-     } else if (pendingQuiz?.id) {
-       // Update the quiz with the new post_id
-       const { error: quizUpdateErr } = await adminSupabase
-         .from('post_qa_questions')
-         .update({ post_id: inserted.id })
-         .eq('id', pendingQuiz.id);
+      if (quizLookupErr) {
+        console.warn(`[publish-post:${reqId}] stage=quiz_link_lookup error`, quizLookupErr.message);
+      } else if (pendingQuiz?.id) {
+        // Update the quiz with the new post_id
+        const { error: quizUpdateErr } = await adminSupabase
+          .from('post_qa_questions')
+          .update({ post_id: inserted.id })
+          .eq('id', pendingQuiz.id);
 
-       if (quizUpdateErr) {
-         console.warn(`[publish-post:${reqId}] stage=quiz_link_update error`, quizUpdateErr.message);
-       } else {
-         console.log(`[publish-post:${reqId}] stage=quiz_link_ok quizId=${pendingQuiz.id}`);
-       }
-     } else {
-       console.log(`[publish-post:${reqId}] stage=quiz_link_skip no pending quiz`);
-     }
-   } catch (quizLinkErr) {
-     console.warn(`[publish-post:${reqId}] stage=quiz_link_exception`, quizLinkErr);
-     // Non-blocking: don't fail the publish if quiz linking fails
-   }
+        if (quizUpdateErr) {
+          console.warn(`[publish-post:${reqId}] stage=quiz_link_update error`, quizUpdateErr.message);
+        } else {
+          console.log(`[publish-post:${reqId}] stage=quiz_link_ok quizId=${pendingQuiz.id}`);
+        }
+      } else {
+        console.log(`[publish-post:${reqId}] stage=quiz_link_skip no pending quiz`);
+      }
+    } catch (quizLinkErr) {
+      console.warn(`[publish-post:${reqId}] stage=quiz_link_exception`, quizLinkErr);
+      // Non-blocking: don't fail the publish if quiz linking fails
+    }
 
     // NOTE: Share count increment is handled by database trigger 'increment_shares_on_reshare'
     // triggered automatically on INSERT when quoted_post_id is set
@@ -533,7 +606,7 @@ Deno.serve(async (req) => {
     if (insertPayload.shared_url && !insertPayload.shared_title && !insertPayload.preview_img) {
       try {
         console.log(`[publish-post:${reqId}] stage=preview_fetch starting for ${insertPayload.shared_url}`);
-        
+
         const previewResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-article-preview`, {
           method: 'POST',
           headers: {
@@ -542,28 +615,28 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({ url: insertPayload.shared_url }),
         });
-        
+
         if (previewResponse.ok) {
           const preview = await previewResponse.json();
-          
+
           // Extract hostname from URL
           let extractedHostname = '';
           try {
             extractedHostname = new URL(insertPayload.shared_url).hostname.replace(/^www\./, '');
-          } catch {}
-          
+          } catch { }
+
           const updatePayload: Record<string, unknown> = {
             shared_title: preview.title || null,
             preview_img: preview.image || preview.previewImg || null,
             hostname: extractedHostname || preview.hostname || null,
             preview_fetched_at: new Date().toISOString()
           };
-          
+
           const { error: updateErr } = await supabase
             .from('posts')
             .update(updatePayload)
             .eq('id', inserted.id);
-          
+
           if (updateErr) {
             console.warn(`[publish-post:${reqId}] stage=preview_update_error`, updateErr.message);
           } else {
@@ -587,7 +660,7 @@ Deno.serve(async (req) => {
     if (contentToClassify.length > 20) {
       // Fire and forget - don't await
       classifyAndUpdatePost(supabase, inserted.id, contentToClassify, reqId);
-      
+
       // Also assign semantic topic for trending (non-blocking)
       fetch(`${supabaseUrl}/functions/v1/assign-post-topic`, {
         method: 'POST',

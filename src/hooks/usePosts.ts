@@ -24,6 +24,15 @@ export interface Post {
   created_at: string;
   quoted_post_id: string | null;
   category: string | null;
+  post_type?: string;
+  voice_post_id?: string | null;
+  voice_post?: {
+    audio_url: string;
+    duration_seconds: number;
+    waveform_data: number[];
+    transcript?: string;
+    transcript_status?: string;
+  } | null;
   _originalSources?: string[];
   /** Flag to bypass gate - set when quiz was already passed in Feed Reader */
   _gatePassed?: boolean;
@@ -34,6 +43,14 @@ export interface Post {
     shared_url?: string | null;
     shared_title?: string | null;
     preview_img?: string | null;
+    post_type?: string;
+    voice_post?: {
+      audio_url: string;
+      duration_seconds: number;
+      waveform_data: number[];
+      transcript?: string;
+      transcript_status?: string;
+    } | null;
     is_intent?: boolean;
     author: {
       username: string;

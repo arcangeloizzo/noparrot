@@ -11,6 +11,8 @@ import { MediaPreviewTray } from "@/components/media/MediaPreviewTray";
 import { fetchArticlePreview, classifyContent, generateQA } from "@/lib/ai-helpers";
 import { QuotedPostCard } from "@/components/feed/QuotedPostCard";
 import { QuotedEditorialCard } from "@/components/feed/QuotedEditorialCard";
+import { VoiceRecorder } from "./VoiceRecorder";
+import { PostTypeChooser } from "./PostTypeChooser";
 import { MediaPreviewModal } from "@/components/media/MediaPreviewModal";
 import { SourceReaderGate } from "./SourceReaderGate";
 import { QuizModal } from "@/components/ui/quiz-modal";
@@ -106,6 +108,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const queryClient = useQueryClient();
   const [content, setContent] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
+  const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
+  const [voicePostData, setVoicePostData] = useState<{ audioBlob: Blob; durationSec: number; waveformData: number[] } | null>(null);
+  const [postType, setPostType] = useState<'standard' | 'voice' | 'challenge'>('standard');
+  const [challengeData, setChallengeData] = useState<{ thesis: string; duration_hours: number } | null>(null);
+  const [showPostTypeChooser, setShowPostTypeChooser] = useState(false);
+  const [challengeStance, setChallengeStance] = useState<'agree' | 'disagree' | null>(null);
+  const isChallengeResponse = quotedPost?.post_type === 'challenge';
+
   const [isFinalizingPublish, setIsFinalizingPublish] = useState(false);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [detectedUrl, setDetectedUrl] = useState<string | null>(null);
@@ -549,17 +559,20 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     }
   };
 
-  const handlePublish = async () => {
-    // Allow publish if user has text, media, a detected URL, or a quoted post (reshare)
-    if (!user || (!content.trim() && !detectedUrl && uploadedMedia.length === 0 && !quotedPost)) return;
+  const handlePublish = async (
+    overridePostType?: 'voice' | 'challenge' | 'standard',
+    overrideChallengeData?: { thesis: string; duration_hours: number }
+  ) => {
+    // Allow publish if user has text, media, a detected URL, a quoted post (reshare), or a voice recording
+    if (!user || (!content.trim() && !detectedUrl && uploadedMedia.length === 0 && !quotedPost && !voicePostData)) return;
 
-    addBreadcrumb('publish_attempt', { hasUrl: !!detectedUrl, hasMediaOCR: !!mediaWithExtractedText, isIOS });
+    addBreadcrumb('publish_attempt', { hasUrl: !!detectedUrl, hasMediaOCR: !!mediaWithExtractedText, isIOS, overridePostType });
 
     // [FIX] BYPASS GATE if user already passed quiz in Feed Reader
     if (quotedPost?._gatePassed === true) {
       console.log('[Composer] Gate bypass - quiz already passed in Feed Reader');
       addBreadcrumb('gate_bypass', { reason: '_gatePassed' });
-      await publishPost();
+      await publishPost(false, overridePostType, overrideChallengeData);
       return;
     }
 
@@ -569,7 +582,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       urlPreviewSuccess: urlPreview?.success,
       urlPreviewError: urlPreview?.error,
       hasMediaOCR: !!mediaWithExtractedText,
-      isIOS
+      isIOS,
+      overridePostType
     });
 
     // [EXISTING] Branch for URL-based content
@@ -588,7 +602,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         }
         console.log('[Composer] Intent mode publish - skipping reader/quiz');
         addBreadcrumb('intent_mode_publish');
-        await publishPost(true); // Pass isIntent flag
+        await publishPost(true, overridePostType, overrideChallengeData); // Pass isIntent flag
         return;
       }
 
@@ -709,7 +723,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       }
       // ≤30 words in original post: no gate, publish directly
       console.log('[Composer] Reshare text-only, no gate needed (source ≤30 words)');
-      await publishPost();
+      await publishPost(false, overridePostType, overrideChallengeData);
       return;
     }
 
@@ -748,7 +762,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     }
 
     // [EXISTING] Fallback: no gate required
-    await publishPost();
+    await publishPost(false, overridePostType, overrideChallengeData);
   };
 
   // [NEW] Handle reshare link gate flow
@@ -791,14 +805,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       if (result.insufficient_context) {
         toast.info(TOASTS.GATE_INSUFFICIENT_CONTENT.description);
         // Fallback: allow publish
-        await publishPost();
+        await publishPost(false, overridePostType, overrideChallengeData);
         return;
       }
 
       if (result.error || !result.questions) {
         console.error('[ComposerModal] Link gate generation failed:', result.error);
         toast.warning('Test non disponibile. Puoi pubblicare comunque.');
-        await publishPost();
+        await publishPost(false, overridePostType, overrideChallengeData);
         return;
       }
 
@@ -1504,7 +1518,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     }
   };
 
-  const publishPost = async (isIntentPost = false) => {
+  const publishPost = async (
+    isIntentPost = false,
+    overridePostType?: 'voice' | 'challenge' | 'standard',
+    overrideChallengeData?: { thesis: string; duration_hours: number }
+  ) => {
     if (!user) return;
 
     setIsPublishing(true);
@@ -1535,7 +1553,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
 
       // FIX: For editorials with missing data, we need to fetch from the original source
       // The quotedPost might not have article_content populated (legacy posts)
-      let editorialData = {
+      const editorialData = {
         shared_url: quotedPost?.shared_url,
         shared_title: quotedPost?.shared_title,
         article_content: quotedPost?.article_content,
@@ -1608,20 +1626,69 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
           previewImg: snapshotPreview.image || snapshotPreview.previewImg || null,
         } : {};
 
-        const { data, error: fnError } = await supabase.functions.invoke('publish-post', {
-          body: {
-            content: cleanContent,
-            // For editorials: embed metadata directly, don't use quoted_post_id
-            sharedUrl: isQuotingEditorial ? editorialData.shared_url : (snapshotDetectedUrl || null),
-            sharedTitle: isQuotingEditorial ? editorialData.shared_title : (intentMetadata.sharedTitle || null),
-            previewImg: isQuotingEditorial ? editorialData.preview_img : (intentMetadata.previewImg || null),
-            articleContent: isQuotingEditorial ? editorialData.article_content : null,
-            quotedPostId: isQuotingEditorial ? null : (quotedPost?.id || null),
-            mediaIds: mediaIdsSnapshot,
-            idempotencyKey,
-            isIntent: isIntentPost, // Intent Gate flag
-          },
-        });
+        let data: any;
+        let fnError: any;
+
+        if (voicePostData) {
+          // Upload audio
+          const formData = new FormData();
+          formData.append('file', voicePostData.audioBlob, `audio-${Date.now()}.webm`);
+
+          const { data: uploadData, error: uploadErr } = await supabase.storage
+            .from('voice-audio')
+            .upload(`${user.id}/${Date.now()}.webm`, voicePostData.audioBlob, {
+              contentType: voicePostData.audioBlob.type,
+            });
+
+          if (uploadErr) throw uploadErr;
+
+          // Invoke publish function with Voice/Challenge specific args
+          const finalPostType = isChallengeResponse ? 'voice' : (overridePostType || postType);
+
+          const invokeResult = await supabase.functions.invoke('publish-post', {
+            body: {
+              content: cleanContent || undefined, // Maybe empty for voice only
+              postType: finalPostType,
+              challengeStance: isChallengeResponse ? challengeStance : undefined,
+              parentChallengeId: isChallengeResponse ? quotedPost?.id : undefined,
+              challengeThesis: overrideChallengeData?.thesis ?? challengeData?.thesis,
+              challengeDuration: overrideChallengeData?.duration_hours ?? challengeData?.duration_hours,
+              audioUrl: uploadData.path,
+              audioDuration: voicePostData.durationSec,
+              waveformData: voicePostData.waveformData,
+              // regular fields...
+              sharedUrl: isQuotingEditorial ? editorialData.shared_url : (snapshotDetectedUrl || null),
+              sharedTitle: isQuotingEditorial ? editorialData.shared_title : (intentMetadata.sharedTitle || null),
+              previewImg: isQuotingEditorial ? editorialData.preview_img : (intentMetadata.previewImg || null),
+              articleContent: isQuotingEditorial ? editorialData.article_content : null,
+              quotedPostId: isQuotingEditorial ? null : (quotedPost?.id || null),
+              mediaIds: mediaIdsSnapshot,
+              idempotencyKey,
+              isIntent: isIntentPost,
+            }
+          });
+
+          data = invokeResult.data;
+          fnError = invokeResult.error;
+        } else {
+          const invokeResult = await supabase.functions.invoke('publish-post', {
+            body: {
+              content: cleanContent,
+              // For editorials: embed metadata directly, don't use quoted_post_id
+              sharedUrl: isQuotingEditorial ? editorialData.shared_url : (snapshotDetectedUrl || null),
+              sharedTitle: isQuotingEditorial ? editorialData.shared_title : (intentMetadata.sharedTitle || null),
+              previewImg: isQuotingEditorial ? editorialData.preview_img : (intentMetadata.previewImg || null),
+              articleContent: isQuotingEditorial ? editorialData.article_content : null,
+              quotedPostId: isQuotingEditorial ? null : (quotedPost?.id || null),
+              mediaIds: mediaIdsSnapshot,
+              idempotencyKey,
+              isIntent: isIntentPost, // Intent Gate flag
+            },
+          });
+
+          data = invokeResult.data;
+          fnError = invokeResult.error;
+        }
 
         if (fnError) {
           // Log detailed error info
@@ -1828,24 +1895,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         resetAllState();
         onClose();
 
-        // iOS: if something left the body locked (Radix/Dialog + quiz lock interplay), force-unlock AFTER close
-        // Keep this lightweight and conditional to avoid unnecessary style churn.
-        if (isIOS) {
-          requestAnimationFrame(() => {
-            window.setTimeout(() => {
-              const needsUnlock =
-                document.body.classList.contains('quiz-open') ||
-                document.body.classList.contains('reader-open') ||
-                document.body.style.overflow === 'hidden' ||
-                document.body.style.touchAction === 'none';
-
-              if (needsUnlock) {
-                addBreadcrumb('post_publish_force_unlock_body');
-                forceUnlockBodyScroll();
-              }
-            }, 160);
-          });
-        }
+        // If something left the body locked (Radix/Dialog + quiz lock interplay), force-unlock AFTER close
+        setTimeout(() => {
+          addBreadcrumb('post_publish_force_unlock_body');
+          forceUnlockBodyScroll();
+          document.body.style.pointerEvents = '';
+          document.body.removeAttribute('data-scroll-locked');
+        }, 300);
 
         // Clear localStorage markers after successful close
         localStorage.removeItem('publish_flow_step');
@@ -1961,253 +2017,272 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
 
             {/* Scrollable Content Area */}
             <div className="flex-1 overflow-y-auto">
-              {/* Avatar + Textarea inline (X-style) */}
-              <div className="flex gap-3 px-4 pt-4">
-                <Avatar className="w-10 h-10 flex-shrink-0">
-                  <AvatarImage src={profile?.avatar_url || undefined} className="object-cover" />
-                  <AvatarFallback className="bg-muted text-muted-foreground text-sm font-medium">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-
-                <div className="flex-1 min-w-0">
-                  <TiptapEditor
-                    ref={editorRef}
-                    initialContent=""
-                    onChange={handleEditorChange}
-                    placeholder="Cosa sta succedendo?"
-                    maxLength={3000}
-                    disabled={isLoading}
-                    editorClassName="min-h-[120px]"
+              {/* Voice / Challenge Flow */}
+              {showPostTypeChooser && voicePostData ? (
+                <PostTypeChooser
+                  onBackToRecorder={() => setShowPostTypeChooser(false)}
+                  onSelectType={(type, challengeDataParam) => {
+                    setPostType(type);
+                    if (type === 'challenge' && challengeDataParam) {
+                      setChallengeData({ thesis: challengeDataParam.thesis, duration_hours: challengeDataParam.durationHours });
+                    }
+                    // Pass the parameters directly into handlePublish to bypass stale React state
+                    let mappedData = undefined;
+                    if (challengeDataParam) {
+                      mappedData = { thesis: challengeDataParam.thesis, duration_hours: challengeDataParam.durationHours };
+                    }
+                    handlePublish(type, mappedData); // execute publish
+                  }}
+                  audioDuration={voicePostData.durationSec}
+                />
+              ) : showVoiceRecorder ? (
+                <div className="flex justify-center p-6 border-b border-border/50 bg-secondary/10">
+                  <VoiceRecorder
+                    onRecordingComplete={(audioBlob, durationSec, formData) => {
+                      setVoicePostData({ audioBlob, durationSec, waveformData: formData });
+                      if (isChallengeResponse) {
+                        // Direct publish for challenge response
+                        setPostType('voice');
+                        handlePublish('voice');
+                      } else {
+                        setShowPostTypeChooser(true);
+                      }
+                    }}
+                    onCancel={() => {
+                      setShowVoiceRecorder(false);
+                      setChallengeStance(null);
+                      setVoicePostData(null);
+                    }}
                   />
                 </div>
-              </div>
+              ) : (
+                <>
+                  {/* Avatar + Textarea inline (X-style) */}
+                  <div className="flex gap-3 px-4 pt-4">
+                    <Avatar className="w-10 h-10 flex-shrink-0">
+                      <AvatarImage src={profile?.avatar_url || undefined} className="object-cover" />
+                      <AvatarFallback className="bg-muted text-muted-foreground text-sm font-medium">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
 
-              {/* Content previews area */}
-              <div className="px-4 py-3 space-y-3">
-                {/* Intent Mode Indicator - word counter */}
-                {intentMode && (
-                  <div className="bg-secondary border border-border rounded-xl p-3">
-                    <p className="text-sm text-muted-foreground mb-2">
-                      Questo contenuto non è leggibile dal sistema. Per condividerlo, aggiungi il tuo punto di vista.
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <span className={cn(
-                        "text-sm font-medium tabular-nums",
-                        intentWordCount >= 30 ? "text-emerald-500" : "text-muted-foreground"
-                      )}>
-                        {intentWordCount}/30 parole
-                      </span>
-                      {intentWordCount >= 30 && (
-                        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white text-xs">✓</span>
-                      )}
+                    <div className="flex-1 min-w-0">
+                      <TiptapEditor
+                        ref={editorRef}
+                        initialContent=""
+                        onChange={handleEditorChange}
+                        placeholder="Cosa sta succedendo?"
+                        maxLength={3000}
+                        disabled={isLoading}
+                        editorClassName="min-h-[120px]"
+                      />
                     </div>
                   </div>
-                )}
 
-                {/* Gate status indicator - subtle */}
-                {(detectedUrl || quotedPost || mediaWithExtractedText || quotedPostMediaWithExtractedText) && !intentMode && gateStatus.requiresGate && (
-                  <div className="flex items-center gap-1.5 text-xs text-emerald-500">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    <span>Comprensione richiesta</span>
-                  </div>
-                )}
+                  {/* Content previews area */}
+                  <div className="px-4 py-3 space-y-3">
+                    {/* Intent Mode Indicator - word counter */}
+                    {intentMode && (
+                      <div className="bg-secondary border border-border rounded-xl p-3">
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Questo contenuto non è leggibile dal sistema. Per condividerlo, aggiungi il tuo punto di vista.
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <span className={cn(
+                            "text-sm font-medium tabular-nums",
+                            intentWordCount >= 30 ? "text-emerald-500" : "text-muted-foreground"
+                          )}>
+                            {intentWordCount}/30 parole
+                          </span>
+                          {intentWordCount >= 30 && (
+                            <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-white text-xs">✓</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
-                {/* URL Preview - Minimal */}
-                {urlPreview && (
-                  <div className="border border-border rounded-xl overflow-hidden bg-card">
-                    {urlPreview.image && (
-                      <div className="aspect-[2/1] w-full overflow-hidden">
-                        <img
-                          src={urlPreview.image}
-                          alt={urlPreview.title || ''}
-                          className="w-full h-full object-cover"
+                    {/* Gate status indicator - subtle */}
+                    {(detectedUrl || quotedPost || mediaWithExtractedText || quotedPostMediaWithExtractedText) && !intentMode && gateStatus.requiresGate && (
+                      <div className="flex items-center gap-1.5 text-xs text-emerald-500">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        <span>Comprensione richiesta</span>
+                      </div>
+                    )}
+
+                    {/* URL Preview - Minimal */}
+                    {urlPreview && (
+                      <div className="border border-border rounded-xl overflow-hidden bg-card">
+                        {urlPreview.image && (
+                          <div className="aspect-[2/1] w-full overflow-hidden">
+                            <img
+                              src={urlPreview.image}
+                              alt={urlPreview.title || ''}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                        <div className="px-3 py-2.5">
+                          <p className="text-xs text-muted-foreground mb-0.5">
+                            {urlPreview.domain || (urlPreview.url ? (() => { try { return new URL(urlPreview.url).hostname; } catch { return ''; } })() : '')}
+                          </p>
+                          <p className="text-sm font-medium text-foreground line-clamp-2">
+                            {urlPreview.title}
+                          </p>
+                          {urlPreview.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                              {urlPreview.description}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* YouTube Fallback Banner for Spotify Podcasts */}
+                        {urlPreview.youtubeFallback && urlPreview.youtubeFallbackMessage && (
+                          <div className="mx-3 mb-2.5 p-2 bg-primary/10 border border-primary/30 rounded-lg">
+                            <p className="text-xs text-primary flex items-center gap-2">
+                              <Youtube className="h-4 w-4 flex-shrink-0" />
+                              {urlPreview.youtubeFallbackMessage}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Quoted Post - Editorial vs Regular */}
+                    {quotedPost && (
+                      quotedPost.shared_url?.startsWith('focus://') || quotedPost.author?.username === 'ilpunto' ? (
+                        <QuotedEditorialCard
+                          title={quotedPost.shared_title || quotedPost.content}
+                          variant="composer"
                         />
-                      </div>
+                      ) : (
+                        <QuotedPostCard
+                          quotedPost={quotedPost}
+                          parentSources={[]}
+                        />
+                      )
                     )}
-                    <div className="px-3 py-2.5">
-                      <p className="text-xs text-muted-foreground mb-0.5">
-                        {urlPreview.domain || (urlPreview.url ? (() => { try { return new URL(urlPreview.url).hostname; } catch { return ''; } })() : '')}
-                      </p>
-                      <p className="text-sm font-medium text-foreground line-clamp-2">
-                        {urlPreview.title}
-                      </p>
-                      {urlPreview.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                          {urlPreview.description}
-                        </p>
-                      )}
-                    </div>
 
-                    {/* YouTube Fallback Banner for Spotify Podcasts */}
-                    {urlPreview.youtubeFallback && urlPreview.youtubeFallbackMessage && (
-                      <div className="mx-3 mb-2.5 p-2 bg-primary/10 border border-primary/30 rounded-lg">
-                        <p className="text-xs text-primary flex items-center gap-2">
-                          <Youtube className="h-4 w-4 flex-shrink-0" />
-                          {urlPreview.youtubeFallbackMessage}
-                        </p>
+                    {/* Media Preview */}
+                    {uploadedMedia.length > 0 && (
+                      <MediaPreviewTray
+                        media={uploadedMedia}
+                        onRemove={removeMedia}
+                        onReorder={reorderMedia}
+                        onRequestTranscription={handleRequestTranscription}
+                        onRequestOCR={handleRequestOCR}
+                        onRequestBatchExtraction={requestBatchExtraction}
+                        isTranscribing={isTranscriptionInProgress}
+                        isBatchExtracting={isBatchExtracting}
+                        onMediaClick={handleMediaPreview}
+                      />
+                    )}
+
+                    {isUploading && (
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        Caricamento media...
                       </div>
                     )}
                   </div>
-                )}
+                </>
+              )}
 
-                {/* Quoted Post - Editorial vs Regular */}
-                {quotedPost && (
-                  quotedPost.shared_url?.startsWith('focus://') || quotedPost.author?.username === 'ilpunto' ? (
-                    <QuotedEditorialCard
-                      title={quotedPost.shared_title || quotedPost.content}
-                      variant="composer"
-                    />
-                  ) : (
-                    <QuotedPostCard
-                      quotedPost={quotedPost}
-                      parentSources={[]}
-                    />
-                  )
-                )}
-
-                {/* Media Preview */}
-                {uploadedMedia.length > 0 && (
-                  <MediaPreviewTray
-                    media={uploadedMedia}
-                    onRemove={removeMedia}
-                    onReorder={reorderMedia}
-                    onRequestTranscription={handleRequestTranscription}
-                    onRequestOCR={handleRequestOCR}
-                    onRequestBatchExtraction={requestBatchExtraction}
-                    isTranscribing={isTranscriptionInProgress}
-                    isBatchExtracting={isBatchExtracting}
-                    onMediaClick={handleMediaPreview}
-                  />
-                )}
-
-                {isUploading && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    Caricamento media...
-                  </div>
-                )}
+              {/* Toolbar: NOT fixed - part of flex flow, keyboard pushes it up */}
+              {/* On iOS, we also apply a transform offset from visualViewport API */}
+              <div className="flex-shrink-0">
+                <MediaActionBar
+                  onFilesSelected={handleMediaSelect}
+                  disabled={isUploading || isLoading || showVoiceRecorder}
+                  onMicClick={() => setShowVoiceRecorder(true)}
+                  isVoiceRecordingEnabled={!isChallengeResponse}
+                  maxTotalMedia={10}
+                  currentMediaCount={uploadedMedia.length}
+                  characterCount={content.length}
+                  maxCharacters={3000}
+                  onFormat={applyFormatting}
+                  keyboardOffset={keyboardOffset}
+                  onGenerateInfographic={handleGenerateInfographic}
+                  infographicEnabled={wordCount >= 50}
+                  isGeneratingInfographic={isGeneratingInfographic}
+                />
               </div>
-            </div>
-
-            {/* Toolbar: NOT fixed - part of flex flow, keyboard pushes it up */}
-            {/* On iOS, we also apply a transform offset from visualViewport API */}
-            <div className="flex-shrink-0">
-              <MediaActionBar
-                onFilesSelected={handleMediaSelect}
-                disabled={isUploading || isLoading}
-                maxTotalMedia={10}
-                currentMediaCount={uploadedMedia.length}
-                characterCount={content.length}
-                maxCharacters={3000}
-                onFormat={applyFormatting}
-                keyboardOffset={keyboardOffset}
-                onGenerateInfographic={handleGenerateInfographic}
-                infographicEnabled={wordCount >= 50}
-                isGeneratingInfographic={isGeneratingInfographic}
-              />
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Reader Gate */}
-      {showReader && urlPreview && (
-        <SourceReaderGate
-          isOpen={showReader}
-          isClosing={readerClosing}
-          onClose={() => {
-            void closeReaderSafely(false);
-          }}
-          source={urlPreview}
-          onComplete={handleReaderComplete}
-        />
-      )}
+        {/* Reader Gate */}
+        {showReader && urlPreview && (
+          <SourceReaderGate
+            isOpen={showReader}
+            isClosing={readerClosing}
+            onClose={() => {
+              void closeReaderSafely(false);
+            }}
+            source={urlPreview}
+            onComplete={handleReaderComplete}
+          />
+        )}
 
-      {/* Quiz Modal - permissive render: let QuizModal show error state if questions invalid */}
-      {showQuiz && quizData && (
-        <div className="fixed inset-0 z-[10060]">
-          <QuizModal
-            questions={Array.isArray(quizData.questions) ? quizData.questions : []}
-            qaId={quizData.qaId}
-            onSubmit={handleQuizSubmit}
-            onCancel={() => {
-              // If there's a custom onCancel in quizData (for error state), use it
-              if (quizData.onCancel) {
-                quizData.onCancel();
-              } else {
-                // User cancelled DURING quiz (before completing)
-                addBreadcrumb('quiz_cancel_during');
-                addBreadcrumb('quiz_closed', { via: 'cancelled' });
-                forceUnlockBodyScroll(); // Ensure scroll is released
+        {/* Quiz Modal - permissive render: let QuizModal show error state if questions invalid */}
+        {showQuiz && quizData && (
+          <div className="fixed inset-0 z-[10060]">
+            <QuizModal
+              questions={Array.isArray(quizData.questions) ? quizData.questions : []}
+              qaId={quizData.qaId}
+              onSubmit={handleQuizSubmit}
+              onCancel={() => {
+                // If there's a custom onCancel in quizData (for error state), use it
+                if (quizData.onCancel) {
+                  quizData.onCancel();
+                } else {
+                  // User cancelled DURING quiz (before completing)
+                  addBreadcrumb('quiz_cancel_during');
+                  addBreadcrumb('quiz_closed', { via: 'cancelled' });
+                  forceUnlockBodyScroll(); // Ensure scroll is released
+                  setShowQuiz(false);
+                  setQuizData(null);
+                  setQuizPassed(false);
+                  // Return to composer - user can try again
+                }
+              }}
+              onComplete={(passed) => {
+                // Quiz finished (pass or fail)
+                // FIX iOS Safari crash: NO full-screen overlay on iOS after quiz
+                // Just use toast feedback and start publish directly
+                addBreadcrumb('quiz_complete_handler', { passed, isIOS });
+
+                // iOS: Do NOT call forceUnlockBodyScroll here - let QuizModal's deferred unlock handle it
+                // This avoids "style churn" during the critical unmount phase
+                if (!isIOS) {
+                  forceUnlockBodyScroll();
+                } else {
+                  addBreadcrumb('composer_quiz_complete_no_force_unlock_ios');
+                }
+
+                // STEP 1: Add explicit quiz_closed breadcrumb before unmount
+                addBreadcrumb('quiz_closed', { via: passed ? 'passed' : 'failed' });
+                // STEP 2: Immediately unmount Quiz UI to reduce memory - NOTHING ELSE
                 setShowQuiz(false);
                 setQuizData(null);
                 setQuizPassed(false);
-                // Return to composer - user can try again
-              }
-            }}
-            onComplete={(passed) => {
-              // Quiz finished (pass or fail)
-              // FIX iOS Safari crash: NO full-screen overlay on iOS after quiz
-              // Just use toast feedback and start publish directly
-              addBreadcrumb('quiz_complete_handler', { passed, isIOS });
+                addBreadcrumb('quiz_unmount_requested');
 
-              // iOS: Do NOT call forceUnlockBodyScroll here - let QuizModal's deferred unlock handle it
-              // This avoids "style churn" during the critical unmount phase
-              if (!isIOS) {
-                forceUnlockBodyScroll();
-              } else {
-                addBreadcrumb('composer_quiz_complete_no_force_unlock_ios');
-              }
+                if (passed) {
+                  // Save quiz_passed marker BEFORE any async operations
+                  // This enables recovery if iOS crashes before publish completes
+                  localStorage.setItem('publish_flow_step', 'quiz_passed');
+                  localStorage.setItem('publish_flow_at', String(Date.now()));
+                  addBreadcrumb('quiz_passed_marker_set');
 
-              // STEP 1: Add explicit quiz_closed breadcrumb before unmount
-              addBreadcrumb('quiz_closed', { via: passed ? 'passed' : 'failed' });
-              // STEP 2: Immediately unmount Quiz UI to reduce memory - NOTHING ELSE
-              setShowQuiz(false);
-              setQuizData(null);
-              setQuizPassed(false);
-              addBreadcrumb('quiz_unmount_requested');
+                  // iOS: Skip the full-screen overlay entirely to prevent crash
+                  // Non-iOS: Use the overlay for visual feedback
+                  if (isIOS) {
+                    // iOS path: NO overlay, just toast + very delayed publish
+                    addBreadcrumb('quiz_passed_ios_no_overlay');
 
-              if (passed) {
-                // Save quiz_passed marker BEFORE any async operations
-                // This enables recovery if iOS crashes before publish completes
-                localStorage.setItem('publish_flow_step', 'quiz_passed');
-                localStorage.setItem('publish_flow_at', String(Date.now()));
-                addBreadcrumb('quiz_passed_marker_set');
-
-                // iOS: Skip the full-screen overlay entirely to prevent crash
-                // Non-iOS: Use the overlay for visual feedback
-                if (isIOS) {
-                  // iOS path: NO overlay, just toast + very delayed publish
-                  addBreadcrumb('quiz_passed_ios_no_overlay');
-
-                  // Wait for quiz unmount + deferred scroll unlock to fully settle
-                  requestAnimationFrame(() => {
-                    const publishDelay = 800; // longer delay for full DOM settle
-                    window.setTimeout(() => {
-                      addBreadcrumb('publish_after_quiz_start');
-                      const loadingId = toast.loading('Pubblicazione…');
-                      publishPost()
-                        .then(() => {
-                          // publishPost handles close + refresh
-                        })
-                        .catch((e) => {
-                          console.error('[ComposerModal] publishPost error:', e);
-                          addBreadcrumb('publish_error', { error: String(e) });
-                          toast.error('Errore pubblicazione');
-                        })
-                        .finally(() => {
-                          toast.dismiss(loadingId);
-                        });
-                    }, publishDelay);
-                  });
-                } else {
-                  // Non-iOS path: show overlay then publish
-                  requestAnimationFrame(() => {
-                    window.setTimeout(() => {
-                      addBreadcrumb('quiz_unmounted_overlay_show');
-                      setIsFinalizingPublish(true);
-
+                    // Wait for quiz unmount + deferred scroll unlock to fully settle
+                    requestAnimationFrame(() => {
+                      const publishDelay = 800; // longer delay for full DOM settle
                       window.setTimeout(() => {
                         addBreadcrumb('publish_after_quiz_start');
                         const loadingId = toast.loading('Pubblicazione…');
@@ -2219,61 +2294,86 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                             console.error('[ComposerModal] publishPost error:', e);
                             addBreadcrumb('publish_error', { error: String(e) });
                             toast.error('Errore pubblicazione');
-                            setIsFinalizingPublish(false);
                           })
                           .finally(() => {
                             toast.dismiss(loadingId);
                           });
-                      }, 120);
-                    }, 50);
-                  });
+                      }, publishDelay);
+                    });
+                  } else {
+                    // Non-iOS path: show overlay then publish
+                    requestAnimationFrame(() => {
+                      window.setTimeout(() => {
+                        addBreadcrumb('quiz_unmounted_overlay_show');
+                        setIsFinalizingPublish(true);
+
+                        window.setTimeout(() => {
+                          addBreadcrumb('publish_after_quiz_start');
+                          const loadingId = toast.loading('Pubblicazione…');
+                          publishPost()
+                            .then(() => {
+                              // publishPost handles close + refresh
+                            })
+                            .catch((e) => {
+                              console.error('[ComposerModal] publishPost error:', e);
+                              addBreadcrumb('publish_error', { error: String(e) });
+                              toast.error('Errore pubblicazione');
+                              setIsFinalizingPublish(false);
+                            })
+                            .finally(() => {
+                              toast.dismiss(loadingId);
+                            });
+                        }, 120);
+                      }, 50);
+                    });
+                  }
+                } else {
+                  // Failed - already closed quiz above, just show message
+                  toast.info('Puoi riprovare quando vuoi.');
+                  addBreadcrumb('quiz_failed_return_to_composer');
                 }
-              } else {
-                // Failed - already closed quiz above, just show message
-                toast.info('Puoi riprovare quando vuoi.');
-                addBreadcrumb('quiz_failed_return_to_composer');
-              }
-            }}
-            provider="Comprehension Gate"
-            postCategory={contentCategory}
-            // CRITICAL: Pass error state props from quizData
-            errorState={quizData.errorState}
-            onRetry={quizData.onRetry}
-          />
-        </div>
-      )}
-
-      {/* Cancel Confirmation Dialog */}
-      <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
-        <AlertDialogContent className="max-w-[90vw] rounded-xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Annullare il post?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Il contenuto che hai scritto verrà eliminato.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Continua a modificare</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                resetAllState();
-                onClose();
               }}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              Elimina bozza
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <AnalysisOverlay isVisible={showAnalysisOverlay} message={isGeneratingInfographic ? "Sintetizzando i concetti chiave in un'infografica..." : "Analisi in corso..."} />
+              provider="Comprehension Gate"
+              postCategory={contentCategory}
+              // CRITICAL: Pass error state props from quizData
+              errorState={quizData.errorState}
+              onRetry={quizData.onRetry}
+            />
+          </div>
+        )}
 
-      <MediaPreviewModal
-        isOpen={!!previewMediaUrl}
-        onClose={() => setPreviewMediaUrl(null)}
-        mediaUrl={previewMediaUrl}
-        mediaType={previewMediaType}
-      />
+        {/* Cancel Confirmation Dialog */}
+        <AlertDialog open={showCancelConfirm} onOpenChange={setShowCancelConfirm}>
+          <AlertDialogContent className="max-w-[90vw] rounded-xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Annullare il post?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Il contenuto che hai scritto verrà eliminato.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Continua a modificare</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  resetAllState();
+                  onClose();
+                }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Elimina bozza
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <AnalysisOverlay isVisible={showAnalysisOverlay} message={isGeneratingInfographic ? "Sintetizzando i concetti chiave in un'infografica..." : "Analisi in corso..."} />
+
+        <MediaPreviewModal
+          isOpen={!!previewMediaUrl}
+          onClose={() => setPreviewMediaUrl(null)}
+          mediaUrl={previewMediaUrl}
+          mediaType={previewMediaType}
+        />
+      </div>
     </>
   );
 }
