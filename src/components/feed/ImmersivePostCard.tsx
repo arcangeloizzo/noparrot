@@ -4,7 +4,7 @@ import { perfStore } from "@/lib/perfStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Mic, Zap } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap } from "lucide-react";
 import { AnimatedHeart } from "@/components/ui/animated-heart";
 import { useDominantColors } from "@/hooks/useDominantColors";
 import { useCachedTrustScore } from "@/hooks/useCachedTrustScore";
@@ -29,6 +29,13 @@ import { CategoryChip } from "@/components/ui/category-chip";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { VoicePlayer } from "@/components/media/VoicePlayer";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1289,7 +1296,7 @@ const ImmersivePostCardInner = ({
   const isAudioPost = isVoicePost || isChallengePost;
   const challengeIdForResponses = isChallengePost ? post.challenge?.id || null : null;
   const { responses: challengeResponses, userVote, voteForResponse } = useChallengeResponses(challengeIdForResponses);
-  const [showChallengeResponses, setShowChallengeResponses] = useState(false);
+  const [challengeDrawerOpen, setChallengeDrawerOpen] = useState(false);
 
   // Challenge countdown
   const challengeExpiresAt = isChallengePost ? post.challenge?.expires_at : null;
@@ -1653,98 +1660,118 @@ const ImmersivePostCardInner = ({
                       />
                     </div>
                   </div>
-                  {/* Polarization mini-bar */}
-                  <div className="mt-3 px-1">
-                    <div className="flex items-end justify-between mb-1">
-                      <span style={{ fontSize: 12, fontWeight: 800, color: '#0A7AFF' }}>{Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%</span>
-                      <span style={{ fontSize: 12, fontWeight: 800, color: '#FFD464' }}>{Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%</span>
-                    </div>
-                    <div className="flex overflow-hidden" style={{ height: 4, borderRadius: 2 }}>
-                      <div style={{ width: `${Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #0A7AFF, #0A7AFFCC)' }} />
-                      <div style={{ width: `${Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #FFD464CC, #FFD464)' }} />
-                    </div>
+                   {/* Polarization bar */}
+                   <div className="mt-4 px-1">
+                     <div className="flex items-end justify-between mb-1.5">
+                       <span style={{ fontSize: 14, fontWeight: 900, color: '#3B9FFF', textShadow: '0 0 8px rgba(59,159,255,0.4)' }}>
+                         {Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}% A favore
+                       </span>
+                       <span style={{ fontSize: 14, fontWeight: 900, color: '#FFD464', textShadow: '0 0 8px rgba(255,212,100,0.4)' }}>
+                         Contro {Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%
+                       </span>
+                     </div>
+                     <div className="flex overflow-hidden" style={{ height: 8, borderRadius: 4 }}>
+                       <div style={{ width: `${Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #3B9FFF, #3B9FFFCC)', borderRadius: '4px 0 0 4px' }} />
+                       <div style={{ width: `${Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #FFD464CC, #FFD464)', borderRadius: '0 4px 4px 0' }} />
+                     </div>
                    </div>
 
-                  {/* Challenge Responses Section */}
-                  {challengeResponses.length > 0 && (
-                    <div className="mt-3">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowChallengeResponses(!showChallengeResponses);
-                        }}
-                        className="flex items-center gap-1.5 text-xs font-semibold text-white/70 hover:text-white/90 transition-colors"
-                      >
-                        <Mic className="w-3.5 h-3.5" />
-                        {showChallengeResponses ? 'Nascondi' : `Vedi ${challengeResponses.length}`} rispost{challengeResponses.length === 1 ? 'a' : 'e'}
-                      </button>
-                      {showChallengeResponses && (
-                        <div className="mt-2 space-y-2">
-                          {challengeResponses.map((resp) => (
-                            <div
-                              key={resp.id}
-                              className="rounded-xl p-3"
-                              style={{
-                                background: 'rgba(255,255,255,0.06)',
-                                border: '1px solid rgba(255,255,255,0.08)',
-                              }}
-                            >
-                              <div className="flex items-center gap-2 mb-2">
-                                <Avatar className="w-6 h-6">
-                                  <AvatarImage src={resp.user.avatar_url || undefined} />
-                                  <AvatarFallback className="text-[10px] bg-muted">
-                                    {(resp.user.full_name || resp.user.username).charAt(0).toUpperCase()}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <span className="text-xs font-semibold text-white/90">
-                                  {resp.user.full_name || resp.user.username}
-                                </span>
-                                <span
-                                  className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full"
-                                  style={{
-                                    background: resp.stance === 'for' ? 'rgba(10,122,255,0.2)' : 'rgba(255,212,100,0.2)',
-                                    color: resp.stance === 'for' ? '#0A7AFF' : '#FFD464',
-                                  }}
-                                >
-                                  {resp.stance === 'for' ? 'A favore' : 'Contro'}
-                                </span>
-                              </div>
-                              <VoicePlayer
-                                audioUrl={resp.voice_post.audio_url}
-                                durationSeconds={resp.voice_post.duration_seconds}
-                                waveformData={resp.voice_post.waveform_data}
-                                transcript={resp.voice_post.transcript}
-                                transcriptStatus={resp.voice_post.transcript_status as any}
-                                accentColor={resp.stance === 'for' ? '#0A7AFF' : '#FFD464'}
-                              />
-                              <div className="flex items-center justify-between mt-2">
-                                <span className="text-[10px] text-white/50">
-                                  {resp.argument_votes} vot{resp.argument_votes === 1 ? 'o' : 'i'}
-                                </span>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (!userVote) voteForResponse(resp.id);
-                                  }}
-                                  disabled={!!userVote}
-                                  className={cn(
-                                    "text-[10px] font-semibold px-2 py-1 rounded-full transition-all",
-                                    userVote?.challenge_response_id === resp.id
-                                      ? "bg-primary/20 text-primary"
-                                      : userVote
-                                        ? "bg-white/5 text-white/30 cursor-not-allowed"
-                                        : "bg-white/10 text-white/70 hover:bg-white/20"
-                                  )}
-                                >
-                                  {userVote?.challenge_response_id === resp.id ? '✓ Votato' : '🏆 Miglior argomento'}
-                                </button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                   {/* Challenge Responses Button + Drawer */}
+                   {challengeResponses.length > 0 && (
+                     <div className="mt-4">
+                       <button
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           setChallengeDrawerOpen(true);
+                         }}
+                         className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-full text-sm font-bold text-white/90 hover:text-white transition-all"
+                         style={{
+                           background: 'rgba(255,255,255,0.1)',
+                           backdropFilter: 'blur(12px)',
+                           border: '1px solid rgba(255,255,255,0.15)',
+                         }}
+                       >
+                         <Zap className="w-4 h-4" style={{ color: '#E41E52' }} />
+                         Vedi {challengeResponses.length} rispost{challengeResponses.length === 1 ? 'a' : 'e'}
+                       </button>
+
+                       <Drawer open={challengeDrawerOpen} onOpenChange={setChallengeDrawerOpen}>
+                         <DrawerContent className="max-h-[85vh]">
+                           <DrawerHeader>
+                             <DrawerTitle className="flex items-center justify-center gap-2">
+                               <Zap className="w-5 h-5" style={{ color: '#E41E52' }} />
+                               {challengeResponses.length} rispost{challengeResponses.length === 1 ? 'a' : 'e'} alla challenge
+                             </DrawerTitle>
+                           </DrawerHeader>
+                           <ScrollArea className="flex-1 overflow-auto px-4 pb-6" style={{ maxHeight: 'calc(85vh - 80px)' }}>
+                             <div className="space-y-3">
+                               {challengeResponses.map((resp) => (
+                                 <div
+                                   key={resp.id}
+                                   className="rounded-xl p-4"
+                                   style={{
+                                     background: 'hsl(var(--muted) / 0.5)',
+                                     border: '1px solid hsl(var(--border))',
+                                   }}
+                                 >
+                                   <div className="flex items-center gap-2 mb-3">
+                                     <Avatar className="w-7 h-7">
+                                       <AvatarImage src={resp.user.avatar_url || undefined} />
+                                       <AvatarFallback className="text-[10px] bg-muted">
+                                         {(resp.user.full_name || resp.user.username).charAt(0).toUpperCase()}
+                                       </AvatarFallback>
+                                     </Avatar>
+                                     <span className="text-sm font-semibold text-foreground">
+                                       {resp.user.full_name || resp.user.username}
+                                     </span>
+                                     <span
+                                       className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ml-auto"
+                                       style={{
+                                         background: resp.stance === 'for' ? 'rgba(59,159,255,0.15)' : 'rgba(255,212,100,0.15)',
+                                         color: resp.stance === 'for' ? '#3B9FFF' : '#FFD464',
+                                       }}
+                                     >
+                                       {resp.stance === 'for' ? 'A favore' : 'Contro'}
+                                     </span>
+                                   </div>
+                                   <VoicePlayer
+                                     audioUrl={resp.voice_post.audio_url}
+                                     durationSeconds={resp.voice_post.duration_seconds}
+                                     waveformData={resp.voice_post.waveform_data}
+                                     transcript={resp.voice_post.transcript}
+                                     transcriptStatus={resp.voice_post.transcript_status as any}
+                                     accentColor={resp.stance === 'for' ? '#3B9FFF' : '#FFD464'}
+                                   />
+                                   <div className="flex items-center justify-between mt-3">
+                                     <span className="text-xs text-muted-foreground">
+                                       {resp.argument_votes} vot{resp.argument_votes === 1 ? 'o' : 'i'}
+                                     </span>
+                                     <button
+                                       onClick={(e) => {
+                                         e.stopPropagation();
+                                         if (!userVote) voteForResponse(resp.id);
+                                       }}
+                                       disabled={!!userVote}
+                                       className={cn(
+                                         "text-xs font-semibold px-3 py-1.5 rounded-full transition-all",
+                                         userVote?.challenge_response_id === resp.id
+                                           ? "bg-primary/20 text-primary"
+                                           : userVote
+                                             ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                             : "bg-muted hover:bg-accent text-foreground"
+                                       )}
+                                     >
+                                       {userVote?.challenge_response_id === resp.id ? '✓ Votato' : '🏆 Miglior argomento'}
+                                     </button>
+                                   </div>
+                                 </div>
+                               ))}
+                             </div>
+                           </ScrollArea>
+                         </DrawerContent>
+                       </Drawer>
+                     </div>
+                   )}
 
                   {/* CTA: Accetta la sfida */}
                   {(() => {
