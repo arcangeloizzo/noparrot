@@ -908,10 +908,14 @@ export const FeedCard = ({
             
             {/* Voice Post Body */}
             {isVoicePost && post.voice_post && (
-              <div className="relative w-full mb-3">
+              <div className="relative w-full" style={{
+                background: 'linear-gradient(180deg, rgba(10,122,255,0.05) 0%, transparent 120px)',
+                borderRadius: 12,
+                marginBottom: 12,
+              }}>
                 {/* Post content as audio title */}
                 {post.content && (
-                  <p className="text-[15px] font-bold text-foreground leading-snug mb-3">
+                  <p style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.5, color: 'white', marginBottom: 12 }}>
                     <MentionText content={post.content.length > 200 ? post.content.slice(0, 200) + '...' : post.content} />
                   </p>
                 )}
@@ -921,6 +925,7 @@ export const FeedCard = ({
                   waveformData={post.voice_post.waveform_data}
                   transcript={post.voice_post.transcript}
                   transcriptStatus={post.voice_post.transcript_status as any}
+                  accentColor="#0A7AFF"
                 />
               </div>
             )}
