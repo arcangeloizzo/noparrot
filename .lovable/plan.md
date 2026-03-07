@@ -1,27 +1,28 @@
 
 
-# Fix VapidPkHashMismatch - Auto-resubscribe
+# Fix UI Challenge Card: Drawer risposte + Barra polarizzazione + Bottone "Vedi risposte"
 
-## Problema
-La push subscription dell'utente è stata registrata con una VAPID public key diversa da quella attuale. Apple rifiuta il push con errore `VapidPkHashMismatch`. Altri utenti con subscription più recenti funzionano correttamente.
+## Modifiche
 
-## Soluzione
+### 1. Drawer scrollabile per le risposte (ImmersivePostCard.tsx)
+- Sostituire la sezione collassabile inline (righe 1681-1745) con un **Drawer** (Vaul, già disponibile nel progetto) che si apre al click su "Vedi risposte"
+- Il Drawer conterrà la lista completa dei challenger con VoicePlayer, stance badge e pulsante voto, tutto scrollabile
+- Rimuovere lo state `showChallengeResponses` e il rendering inline
 
-### 1. Edge Function: Rilevare e pulire subscription stale
-In `send-push-notification`, quando Apple risponde con `VapidPkHashMismatch` (status 400), cancellare automaticamente la subscription dal database. Al prossimo avvio dell'app PWA, il client si ri-registrerà con le VAPID key corrette.
+### 2. Barra di polarizzazione più visibile (righe 1657-1665)
+- Aumentare altezza barra da `4px` a `8px` con bordi arrotondati più marcati
+- Aumentare font percentuali da `fontSize: 12` a `fontSize: 14` con `fontWeight: 900`
+- Colore azzurro: usare `#3B9FFF` (più luminoso) al posto di `#0A7AFF` per leggibilità su sfondo scuro
 
-Modifica in `send-push-notification/index.ts`:
-- Dopo un errore 400/410 da Apple, DELETE la riga da `push_subscriptions` usando l'endpoint
-- Log dell'operazione di cleanup
+### 3. Bottone "Vedi risposte" più impattante (righe 1670-1680)
+- Centrare il bottone (`justify-center w-full`)
+- Sostituire icona `Mic` con `Zap` (icona challenge)
+- Stile: sfondo glassmorphic (`rgba(255,255,255,0.1)`, `backdrop-blur`), padding maggiore, `rounded-full`, font più grande (`text-sm font-bold`)
+- Testo: `⚡ Vedi N risposte` / `⚡ Vedi 1 risposta`
 
-### 2. Frontend: Forzare re-subscribe all'avvio
-In `usePushNotifications`, all'avvio:
-- Confrontare la VAPID public key attuale con quella usata per la subscription esistente
-- Se diversa, unsubscribe dal browser e cancellare dal DB, poi ri-registrare
-- Questo previene futuri mismatch
+## File coinvolti
 
-### Passi implementativi
-1. Modificare la Edge Function per auto-cleanup delle subscription con errore `VapidPkHashMismatch` o status 410 Gone
-2. Modificare `usePushNotifications` per forzare re-subscribe quando rileva una subscription potenzialmente stale (confronto applicationServerKey)
-3. Cancellare manualmente la subscription stale dell'utente dal DB (query una tantum)
+| File | Modifica |
+|------|----------|
+| `src/components/feed/ImmersivePostCard.tsx` | Drawer per risposte, barra polarizzazione, bottone "Vedi risposte" |
 
