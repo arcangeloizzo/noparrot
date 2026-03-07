@@ -28,11 +28,6 @@ self.addEventListener('activate', function(event) {
   );
 });
 
-// Activate event
-self.addEventListener('activate', function(event) {
-  console.log('[SW] Service worker activated');
-  event.waitUntil(clients.claim());
-});
 
 // Push notification received
 self.addEventListener('push', function(event) {
