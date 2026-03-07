@@ -44,6 +44,7 @@ import { ReshareContextStack } from "./ReshareContextStack";
 import { SpotifyGradientBackground } from "./SpotifyGradientBackground";
 import { SourceImageWithFallback } from "./SourceImageWithFallback";
 import { FullTextModal } from "./FullTextModal";
+import { AcceptChallengeFlow } from "./AcceptChallengeFlow";
 
 // Media Components
 import { MediaGallery } from "@/components/media/MediaGallery";
@@ -366,6 +367,9 @@ const ImmersivePostCardInner = ({
 
   // Reactions sheet state
   const [showReactionsSheet, setShowReactionsSheet] = useState(false);
+
+  // Challenge flow state
+  const [showChallengeFlow, setShowChallengeFlow] = useState(false);
 
   // Trigger refetch for missing preview images on active cards
   // This helps recover from temporary extraction failures
@@ -1245,6 +1249,13 @@ const ImmersivePostCardInner = ({
       setShowAnalysisOverlay(false);
       setGateStep('idle');
 
+      // If quiz was for challenge respond, open the challenge flow
+      if (quizData?.onChallengeRespond) {
+        setShowChallengeFlow(true);
+        setShareAction(null);
+        return;
+      }
+
       if (currentShareAction === 'feed') {
         onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [], _gatePassed: true });
       } else if (currentShareAction === 'friend') {
@@ -1410,14 +1421,14 @@ const ImmersivePostCardInner = ({
                     {post.author.full_name || getDisplayUsername(post.author.username)}
                   </span>
                   {isAudioPost && !isChallengePost && (
-                    <span className="h-[24px] px-2.5 text-[11px] rounded-lg font-bold tracking-[0.5px] inline-flex items-center gap-1 uppercase"
-                      style={{ background: 'rgba(255,212,100,0.15)', border: '1px solid rgba(255,212,100,0.25)', color: '#FFD464' }}>
+                    <span className="h-8 px-2.5 gap-1.5 text-[10px] rounded-full font-bold tracking-wide inline-flex items-center uppercase backdrop-blur-md border"
+                      style={{ background: 'rgba(255,212,100,0.15)', borderColor: 'rgba(255,212,100,0.25)', color: '#FFD464' }}>
                       🎙 VOICE
                     </span>
                   )}
                   {isChallengePost && (
-                    <span className="h-[24px] px-2.5 text-[11px] rounded-lg font-bold tracking-[0.5px] inline-flex items-center gap-1 uppercase"
-                      style={{ background: 'rgba(228,30,82,0.15)', border: '1px solid rgba(228,30,82,0.25)', color: '#E41E52' }}>
+                    <span className="h-8 px-2.5 gap-1.5 text-[10px] rounded-full font-bold tracking-wide inline-flex items-center uppercase backdrop-blur-md border"
+                      style={{ background: 'rgba(228,30,82,0.15)', borderColor: 'rgba(228,30,82,0.25)', color: '#E41E52' }}>
                       ⚡ CHALLENGE
                     </span>
                   )}
@@ -1528,19 +1539,21 @@ const ImmersivePostCardInner = ({
                   top: '50%',
                   left: 0,
                   right: 0,
-                  height: 80,
+                  height: 120,
                   transform: 'translateY(-50%)',
-                  backgroundImage: `url('/assets/${isChallengePost ? 'challenge' : 'voice'}-wave-bg.png')`,
-                  backgroundSize: '100% auto',
+                  backgroundImage: isChallengePost
+                    ? `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 80' preserveAspectRatio='none'><path d='M0,35 Q20,10 45,35 Q65,58 90,35 Q115,12 140,35 Q160,55 185,35 Q210,15 235,35 Q255,58 280,35 Q305,10 330,35 Q350,55 375,35 Q395,20 400,35' stroke='white' stroke-width='1.5' fill='none' opacity='0.6'/><path d='M0,45 Q25,65 50,45 Q80,22 105,45 Q130,62 155,45 Q180,25 205,45 Q230,60 260,45 Q285,22 310,45 Q340,62 365,45 Q385,28 400,45' stroke='white' stroke-width='1.5' fill='none' opacity='0.4'/></svg>`)}")`
+                    : `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 80' preserveAspectRatio='none'><path d='M0,40 Q15,15 35,40 Q50,62 75,40 Q95,18 115,40 Q130,58 155,40 Q175,22 200,40 Q220,55 245,40 Q265,15 290,40 Q310,65 335,40 Q355,20 375,40 Q390,55 400,40' stroke='white' stroke-width='1.5' fill='none' opacity='0.6'/></svg>`)}")`,
+                  backgroundSize: '100% 100%',
                   backgroundRepeat: 'no-repeat',
                   backgroundPosition: 'center',
-                  opacity: isChallengePost ? 0.025 : 0.04,
+                  opacity: isChallengePost ? 0.06 : 0.08,
                   pointerEvents: 'none',
                   zIndex: 0,
                 }}
               />
             )}
-            <div className="w-full my-auto flex flex-col max-h-full relative z-[1]">
+            <div className={cn("w-full flex flex-col max-h-full relative z-[1]", isAudioPost ? "mt-4" : "my-auto")}>
 
 
               {/* Voice Post Body (non-challenge) */}
@@ -1604,6 +1617,74 @@ const ImmersivePostCardInner = ({
                       <div style={{ width: `${Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #FFD464CC, #FFD464)' }} />
                     </div>
                   </div>
+                  {/* CTA: Accetta la sfida */}
+                  {(() => {
+                    const isExpired = post.challenge?.status === 'expired' || post.challenge?.status === 'closed' || new Date(post.challenge?.expires_at || '') < new Date();
+                    const isAuthor = user?.id === post.author.id;
+                    return !isAuthor ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isExpired) return;
+                          // Trigger challenge respond flow
+                          const handleRespond = async () => {
+                            const transcriptText = post.voice_post?.transcript || post.content;
+                            const wordCount = getWordCount(transcriptText);
+                            const questionCount = getQuestionCountWithoutSource(wordCount);
+                            if (questionCount === 0) {
+                              setShowChallengeFlow(true);
+                              return;
+                            }
+                            setShowAnalysisOverlay(true);
+                            try {
+                              const result = await generateQA({
+                                contentId: post.id,
+                                title: post.author.full_name || post.author.username,
+                                summary: transcriptText,
+                                userText: transcriptText || '',
+                                questionCount,
+                              });
+                              setShowAnalysisOverlay(false);
+                              if (result.insufficient_context) {
+                                toast.info("Trascrizione non sufficiente per il test.");
+                                setShowChallengeFlow(true);
+                                return;
+                              }
+                              if (!result || result.error || !result.questions?.length) {
+                                toast.error(result?.error || "Errore generico");
+                                return;
+                              }
+                              setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}`, onChallengeRespond: true });
+                              setShowQuiz(true);
+                            } catch {
+                              setShowAnalysisOverlay(false);
+                              toast.error("Errore generico");
+                            }
+                          };
+                          handleRespond();
+                        }}
+                        disabled={isExpired}
+                        className="relative w-full mt-4 py-3 rounded-2xl font-bold text-sm tracking-wide overflow-hidden transition-all"
+                        style={{
+                          background: isExpired ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #E41E52, #FF6B35)',
+                          color: isExpired ? 'rgba(255,255,255,0.3)' : 'white',
+                          border: isExpired ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                          opacity: isExpired ? 0.6 : 1,
+                        }}
+                      >
+                        {!isExpired && (
+                          <span className="absolute inset-0" style={{
+                            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)',
+                            backgroundSize: '200% 100%',
+                            animation: 'shimmer 2.5s ease-in-out infinite',
+                          }} />
+                        )}
+                        <span className="relative z-10">
+                          {isExpired ? '⚡ Sfida chiusa' : '⚡ Accetta la sfida'}
+                        </span>
+                      </button>
+                    ) : null;
+                  })()}
                 </div>
               )}
 
@@ -2656,6 +2737,19 @@ const ImmersivePostCardInner = ({
       {/* Analysis Overlay */}
       {/* Analysis Overlay - z-index higher than source reader (10050 > 10040) */}
       <AnalysisOverlay isVisible={showAnalysisOverlay} message="Analisi in corso..." className="z-[10050]" />
+
+      {/* Accept Challenge Flow */}
+      {showChallengeFlow && post.challenge && (
+        <AcceptChallengeFlow
+          open={showChallengeFlow}
+          onOpenChange={setShowChallengeFlow}
+          challengeId={post.challenge.id}
+          challengeThesis={post.challenge.thesis}
+          onComplete={() => {
+            toast.success('Risposta alla sfida inviata!');
+          }}
+        />
+      )}
     </>
   );
 };

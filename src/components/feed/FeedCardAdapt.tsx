@@ -918,8 +918,8 @@ export const FeedCard = ({
                   {post.author.full_name || getDisplayUsername(post.author.username)}
                 </span>
                 {isVoicePost && (
-                  <span className="h-[24px] px-2.5 text-[11px] rounded-lg font-bold tracking-[0.5px] inline-flex items-center gap-1 uppercase"
-                    style={{ background: 'rgba(255,212,100,0.15)', border: '1px solid rgba(255,212,100,0.25)', color: '#FFD464' }}>
+                  <span className="h-8 px-2.5 gap-1.5 text-[10px] rounded-full font-bold tracking-wide inline-flex items-center uppercase backdrop-blur-md border"
+                    style={{ background: 'rgba(255,212,100,0.15)', borderColor: 'rgba(255,212,100,0.25)', color: '#FFD464' }}>
                     🎙 VOICE
                   </span>
                 )}
