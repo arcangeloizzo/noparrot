@@ -44,6 +44,7 @@ import { ReshareContextStack } from "./ReshareContextStack";
 import { SpotifyGradientBackground } from "./SpotifyGradientBackground";
 import { SourceImageWithFallback } from "./SourceImageWithFallback";
 import { FullTextModal } from "./FullTextModal";
+import { AcceptChallengeFlow } from "./AcceptChallengeFlow";
 
 // Media Components
 import { MediaGallery } from "@/components/media/MediaGallery";
