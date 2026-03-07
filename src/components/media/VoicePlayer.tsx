@@ -237,10 +237,13 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
           onClick={changeSpeed}
           className="font-bold transition-colors"
           style={{
-            padding: '3px 8px', borderRadius: 6, fontSize: 11,
+            padding: '3px 8px', borderRadius: 10, fontSize: 11,
             background: 'rgba(255,255,255,0.05)',
             border: '1px solid rgba(255,255,255,0.08)',
             color: 'rgba(241,245,249,0.6)',
+            backdropFilter: 'blur(4px)',
+            letterSpacing: '0.3px',
+            fontWeight: 600,
           }}
         >
           {playbackRate}x
@@ -251,10 +254,13 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
           disabled={transcriptStatus === 'failed'}
           className="flex items-center gap-1.5 transition-colors"
           style={{
-            padding: '3px 8px', borderRadius: 6, fontSize: 11,
+            padding: '3px 8px', borderRadius: 10, fontSize: 11,
             background: showTranscript ? `${accentColor}1F` : 'rgba(255,255,255,0.05)',
             border: `1px solid ${showTranscript ? `${accentColor}40` : 'rgba(255,255,255,0.08)'}`,
             color: showTranscript ? accentColor : 'rgba(241,245,249,0.6)',
+            backdropFilter: 'blur(4px)',
+            letterSpacing: '0.3px',
+            fontWeight: 600,
           }}
         >
           {isTranscriptLoading ? (
@@ -267,7 +273,7 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
           ) : (
             <>
               <FileText className="h-3 w-3" />
-              📝 Testo
+              Aa Testo
             </>
           )}
         </button>

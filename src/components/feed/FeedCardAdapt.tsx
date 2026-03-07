@@ -20,6 +20,7 @@ import { QuizModal } from "@/components/ui/quiz-modal";
 import { PostTestActionsModal } from "./PostTestActionsModal";
 import { QuotedPostCard } from "./QuotedPostCard";
 import { ChallengeCard } from "./ChallengeCard";
+import { AcceptChallengeFlow } from "./AcceptChallengeFlow";
 import { PostHeader } from "./PostHeader";
 import { MentionText } from "./MentionText";
 import { VoicePlayer } from "@/components/media/VoicePlayer";
@@ -106,8 +107,8 @@ export const FeedCard = ({
   const [readerSource, setReaderSource] = useState<any>(null);
   const [quizData, setQuizData] = useState<any>(null);
   const [gateStep, setGateStep] = useState<string>('idle');
-  // Comments state
   const [showComments, setShowComments] = useState(false);
+  const [showChallengeFlow, setShowChallengeFlow] = useState(false);
 
   // Share states
   const [showShareSheet, setShowShareSheet] = useState(false);
@@ -723,7 +724,7 @@ export const FeedCard = ({
 
         // Esegui l'azione scelta dall'utente
         if (quizData.onChallengeRespond) {
-            onQuoteShare?.({ ...post, _challengeResponse: true } as any);
+            setShowChallengeFlow(true);
         } else if (shareAction === 'feed') {
           onQuoteShare?.({
             ...post,
@@ -841,11 +842,37 @@ export const FeedCard = ({
     };
 
     return (
-      <ChallengeCard 
-         challenge={challengeData} 
-         onPostAction={() => {}} 
-         onRespond={handleChallengeRespond} 
-      />
+      <>
+        <ChallengeCard 
+           challenge={challengeData} 
+           onPostAction={() => {}} 
+           onRespond={handleChallengeRespond} 
+        />
+        {showChallengeFlow && challengeData && (
+          <AcceptChallengeFlow
+            open={showChallengeFlow}
+            onOpenChange={setShowChallengeFlow}
+            challengeId={challengeData.id}
+            challengeThesis={challengeData.thesis}
+            onComplete={() => {
+              toast.success('Risposta alla sfida inviata!');
+            }}
+          />
+        )}
+        {showQuiz && quizData && (
+          <QuizModal
+            questions={quizData.questions}
+            qaId={quizData.qaId}
+            onSubmit={handleQuizSubmit}
+            onCancel={() => {
+              setShowQuiz(false);
+              setQuizData(null);
+              setGateStep('idle');
+            }}
+          />
+        )}
+        <AnalysisOverlay isVisible={showAnalysisOverlay} message="Analisi in corso..." />
+      </>
     );
   }
 
@@ -891,7 +918,8 @@ export const FeedCard = ({
                   {post.author.full_name || getDisplayUsername(post.author.username)}
                 </span>
                 {isVoicePost && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-yellow/10 text-brand-yellow text-[10px] font-bold uppercase tracking-wider">
+                  <span className="inline-flex items-center gap-1 h-[24px] px-2.5 rounded-lg text-[11px] font-bold uppercase tracking-[0.5px]"
+                    style={{ background: 'rgba(255,212,100,0.15)', color: '#FFD464' }}>
                     <Mic className="h-2.5 w-2.5" /> Voice
                   </span>
                 )}
