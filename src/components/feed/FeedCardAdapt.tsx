@@ -44,6 +44,7 @@ import { PeoplePicker } from "@/components/share/PeoplePicker";
 // Hooks & Utils
 import { Post, useQuotedPost, useDeletePost } from "@/hooks/usePosts";
 import { useToggleReaction } from "@/hooks/usePosts";
+import { useChallengeResponses } from "@/hooks/useChallengeResponses";
 import { useAuth } from "@/contexts/AuthContext";
 import { detectPlatformFromUrl } from "@/components/media/utils/mediaUtils";
 import { AnalysisOverlay } from "@/components/ui/AnalysisOverlay";
