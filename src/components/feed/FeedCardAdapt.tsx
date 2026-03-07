@@ -106,8 +106,8 @@ export const FeedCard = ({
   const [readerSource, setReaderSource] = useState<any>(null);
   const [quizData, setQuizData] = useState<any>(null);
   const [gateStep, setGateStep] = useState<string>('idle');
-  // Comments state
   const [showComments, setShowComments] = useState(false);
+  const [showChallengeFlow, setShowChallengeFlow] = useState(false);
 
   // Share states
   const [showShareSheet, setShowShareSheet] = useState(false);
