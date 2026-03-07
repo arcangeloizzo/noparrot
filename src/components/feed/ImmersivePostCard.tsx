@@ -1532,19 +1532,21 @@ const ImmersivePostCardInner = ({
                   top: '50%',
                   left: 0,
                   right: 0,
-                  height: 80,
+                  height: 120,
                   transform: 'translateY(-50%)',
-                  backgroundImage: `url('/assets/${isChallengePost ? 'challenge' : 'voice'}-wave-bg.png')`,
-                  backgroundSize: '100% auto',
+                  backgroundImage: isChallengePost
+                    ? `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 80' preserveAspectRatio='none'><path d='M0,35 Q20,10 45,35 Q65,58 90,35 Q115,12 140,35 Q160,55 185,35 Q210,15 235,35 Q255,58 280,35 Q305,10 330,35 Q350,55 375,35 Q395,20 400,35' stroke='white' stroke-width='1.5' fill='none' opacity='0.6'/><path d='M0,45 Q25,65 50,45 Q80,22 105,45 Q130,62 155,45 Q180,25 205,45 Q230,60 260,45 Q285,22 310,45 Q340,62 365,45 Q385,28 400,45' stroke='white' stroke-width='1.5' fill='none' opacity='0.4'/></svg>`)}")`
+                    : `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 80' preserveAspectRatio='none'><path d='M0,40 Q15,15 35,40 Q50,62 75,40 Q95,18 115,40 Q130,58 155,40 Q175,22 200,40 Q220,55 245,40 Q265,15 290,40 Q310,65 335,40 Q355,20 375,40 Q390,55 400,40' stroke='white' stroke-width='1.5' fill='none' opacity='0.6'/></svg>`)}")`,
+                  backgroundSize: '100% 100%',
                   backgroundRepeat: 'no-repeat',
                   backgroundPosition: 'center',
-                  opacity: isChallengePost ? 0.025 : 0.04,
+                  opacity: isChallengePost ? 0.06 : 0.08,
                   pointerEvents: 'none',
                   zIndex: 0,
                 }}
               />
             )}
-            <div className="w-full my-auto flex flex-col max-h-full relative z-[1]">
+            <div className={cn("w-full flex flex-col max-h-full relative z-[1]", isAudioPost ? "mt-4" : "my-auto")}>
 
 
               {/* Voice Post Body (non-challenge) */}
