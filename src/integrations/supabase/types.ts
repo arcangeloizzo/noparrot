@@ -112,24 +112,34 @@ export type Database = {
       }
       challenge_votes: {
         Row: {
+          challenge_id: string
           challenge_response_id: string | null
           created_at: string | null
           id: string
           user_id: string | null
         }
         Insert: {
+          challenge_id: string
           challenge_response_id?: string | null
           created_at?: string | null
           id?: string
           user_id?: string | null
         }
         Update: {
+          challenge_id?: string
           challenge_response_id?: string | null
           created_at?: string | null
           id?: string
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "challenge_votes_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "challenge_votes_challenge_response_id_fkey"
             columns: ["challenge_response_id"]
