@@ -2038,7 +2038,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                 size="sm"
                 onClick={() => {
                   // Check if there's any content to lose
-                  const hasContent = content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl;
+                  const hasContent = content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || showVoiceRecorder || !!voicePostData;
                   if (hasContent) {
                     setShowCancelConfirm(true);
                   } else {
