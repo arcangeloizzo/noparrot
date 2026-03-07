@@ -169,6 +169,7 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, onRespo
                     </h3>
 
                     {/* Player inside thesis block */}
+                    {challenge.voicePost && (
                     <div className="mt-3">
                         <VoicePlayer
                             audioUrl={challenge.voicePost.audio_url}
@@ -179,6 +180,7 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, onRespo
                             accentColor="#E41E52"
                         />
                     </div>
+                    )}
                 </div>
             </div>
 
