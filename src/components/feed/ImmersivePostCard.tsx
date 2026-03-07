@@ -2729,6 +2729,19 @@ const ImmersivePostCardInner = ({
       {/* Analysis Overlay */}
       {/* Analysis Overlay - z-index higher than source reader (10050 > 10040) */}
       <AnalysisOverlay isVisible={showAnalysisOverlay} message="Analisi in corso..." className="z-[10050]" />
+
+      {/* Accept Challenge Flow */}
+      {showChallengeFlow && post.challenge && (
+        <AcceptChallengeFlow
+          open={showChallengeFlow}
+          onOpenChange={setShowChallengeFlow}
+          challengeId={post.challenge.id}
+          challengeThesis={post.challenge.thesis}
+          onComplete={() => {
+            toast.success('Risposta alla sfida inviata!');
+          }}
+        />
+      )}
     </>
   );
 };
