@@ -141,6 +141,24 @@ export const usePosts = () => {
             transcript,
             transcript_status
           ),
+          challenges!challenges_post_id_fkey (
+            id,
+            thesis,
+            duration_hours,
+            status,
+            expires_at,
+            votes_for,
+            votes_against,
+            voice_post_id,
+            voice_posts!challenges_voice_post_id_fkey (
+              id,
+              audio_url,
+              duration_seconds,
+              waveform_data,
+              transcript,
+              transcript_status
+            )
+          ),
           questions (*),
           reactions (
             reaction_type,
