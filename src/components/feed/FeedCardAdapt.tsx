@@ -764,27 +764,52 @@ export const FeedCard = ({
   const displaySources = uniqueSources(post.sources || []);
 
   if (post.post_type === 'challenge' || post.challenge) {
-    // Determine the actual challenge data (might be inside post.challenge or mapped differently)
-    const challengeData = post.challenge || post;
+    // Map challenge data to match ChallengeCard interface
+    const rawChallenge = post.challenge;
+    
+    const challengeData = rawChallenge ? {
+      id: rawChallenge.id,
+      thesis: rawChallenge.thesis,
+      status: (rawChallenge.status || 'active') as 'active' | 'expired' | 'closed',
+      expires_at: rawChallenge.expires_at,
+      votes_for: rawChallenge.votes_for || 0,
+      votes_against: rawChallenge.votes_against || 0,
+      author: {
+        id: post.author.id,
+        username: post.author.username,
+        full_name: post.author.full_name,
+        avatar_url: post.author.avatar_url,
+      },
+      voicePost: rawChallenge.voice_post ? {
+        audio_url: rawChallenge.voice_post.audio_url,
+        duration_seconds: rawChallenge.voice_post.duration_seconds,
+        waveform_data: rawChallenge.voice_post.waveform_data,
+        transcript: rawChallenge.voice_post.transcript || null,
+        transcript_status: rawChallenge.voice_post.transcript_status || null,
+      } : null,
+      responses: [],
+    } : null;
+
+    if (!challengeData) {
+      // Challenge post but no challenge data fetched — render nothing meaningful
+      return null;
+    }
 
     const handleChallengeRespond = async () => {
-      // 1. Bypass se è l'autore
       if (user?.id === post.author.id) {
          toast.error("Non puoi rispondere alla tua stessa challenge");
          return;
       }
       
-      const transcriptText = challengeData.voice_post?.transcript || (challengeData as any).voicePost?.transcript || post.content;
+      const transcriptText = challengeData.voicePost?.transcript || post.content;
       const wordCount = getWordCount(transcriptText);
       const questionCount = getQuestionCountWithoutSource(wordCount);
 
       if (questionCount === 0) {
-        // Nessun testo sufficiente, bypass
         onQuoteShare?.({ ...post, _challengeResponse: true } as any);
         return;
       }
       
-      // Setup gate logic just like share
       setShowAnalysisOverlay(true);
       try {
         const result = await generateQA({
@@ -817,7 +842,7 @@ export const FeedCard = ({
 
     return (
       <ChallengeCard 
-         challenge={challengeData as any} 
+         challenge={challengeData} 
          onPostAction={() => {}} 
          onRespond={handleChallengeRespond} 
       />
