@@ -1549,13 +1549,13 @@ const ImmersivePostCardInner = ({
                 <div className="relative w-full max-w-lg mx-auto" style={{ marginBottom: 12 }}>
                   {/* Thesis */}
                   <div className="relative" style={{
-                    background: 'linear-gradient(145deg, rgba(228,30,82,0.06), rgba(255,255,255,0.02), rgba(52,211,153,0.04))',
-                    border: '1px solid rgba(228,30,82,0.15)',
+                    background: 'linear-gradient(145deg, rgba(255,212,100,0.06), rgba(255,255,255,0.02), rgba(10,122,255,0.04))',
+                    border: '1px solid rgba(255,212,100,0.15)',
                     borderRadius: 18, padding: '18px 20px',
                   }}>
                     <span className="absolute select-none pointer-events-none" style={{
                       top: 10, left: 14, fontSize: 48, fontFamily: 'Georgia, serif',
-                      color: 'rgba(228,30,82,0.1)', lineHeight: 1,
+                      color: 'rgba(255,212,100,0.1)', lineHeight: 1,
                     }}>"</span>
                     <h3 className="relative z-10" style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.5, color: 'white', paddingLeft: 4 }}>
                       {post.challenge.thesis}
@@ -1574,12 +1574,12 @@ const ImmersivePostCardInner = ({
                   {/* Polarization mini-bar */}
                   <div className="mt-3 px-1">
                     <div className="flex items-end justify-between mb-1">
-                      <span style={{ fontSize: 12, fontWeight: 800, color: '#E41E52' }}>{Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%</span>
-                      <span style={{ fontSize: 12, fontWeight: 800, color: '#34D399' }}>{Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%</span>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: '#FFD464' }}>{Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%</span>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: '#0A7AFF' }}>{Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%</span>
                     </div>
                     <div className="flex overflow-hidden" style={{ height: 4, borderRadius: 2 }}>
-                      <div style={{ width: `${Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #E41E52, rgba(228,30,82,0.8))' }} />
-                      <div style={{ width: `${Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, rgba(52,211,153,0.8), #34D399)' }} />
+                      <div style={{ width: `${Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #FFD464, #FFD464CC)' }} />
+                      <div style={{ width: `${Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #0A7AFFCC, #0A7AFF)' }} />
                     </div>
                   </div>
                 </div>
