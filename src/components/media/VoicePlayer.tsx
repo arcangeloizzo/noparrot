@@ -1,6 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Button } from "@/components/ui/button";
-import { Play, Pause, ChevronDown, ChevronUp, Loader2, FileText } from "lucide-react";
+import React, { useState, useRef, useMemo } from 'react';
+import { Play, Pause, Loader2, FileText, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface VoicePlayerProps {
@@ -10,7 +9,19 @@ interface VoicePlayerProps {
   transcript?: string | null;
   transcriptStatus?: 'pending' | 'processing' | 'completed' | 'failed' | null;
   compact?: boolean;
+  accentColor?: string;
 }
+
+/** Generate bell-curve waveform with random variation */
+const generateWaveform = (count: number, seed?: number[] | null): number[] => {
+  if (Array.isArray(seed) && seed.length > 0) return seed;
+  return Array.from({ length: count }, (_, i) => {
+    const center = count / 2;
+    const gaussian = Math.exp(-0.5 * Math.pow((i - center) / (count * 0.28), 2));
+    const variation = 0.3 + Math.random() * 0.7;
+    return Math.max(0.08, gaussian * variation);
+  });
+};
 
 export const VoicePlayer: React.FC<VoicePlayerProps> = ({
   audioUrl,
@@ -18,11 +29,13 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
   waveformData,
   transcript,
   transcriptStatus,
-  compact = false
+  compact = false,
+  accentColor = '#0A7AFF',
 }) => {
   const fullAudioUrl = audioUrl.startsWith('http')
     ? audioUrl
     : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/voice-audio/${audioUrl}`;
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
@@ -30,9 +43,8 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
   const [showTranscript, setShowTranscript] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const waveform = Array.isArray(waveformData) && waveformData.length > 0
-    ? waveformData
-    : Array(compact ? 30 : 50).fill(0).map(() => Math.random() * 0.5 + 0.1);
+  const barCount = compact ? 30 : 50;
+  const waveform = useMemo(() => generateWaveform(barCount, waveformData), [barCount, waveformData]);
 
   const togglePlayback = () => {
     if (!audioRef.current) return;
@@ -53,8 +65,8 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
 
   const handleTimeUpdate = () => {
     if (!audioRef.current) return;
-    const currentProg = audioRef.current.currentTime / audioRef.current.duration;
-    setProgress(isNaN(currentProg) ? 0 : currentProg);
+    const p = audioRef.current.currentTime / audioRef.current.duration;
+    setProgress(isNaN(p) ? 0 : p);
     setCurrentTime(audioRef.current.currentTime || 0);
   };
 
@@ -68,142 +80,182 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
   const handleWaveformClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!audioRef.current) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const percentage = x / rect.width;
-    audioRef.current.currentTime = percentage * audioRef.current.duration;
-    setProgress(percentage);
+    const pct = (e.clientX - rect.left) / rect.width;
+    audioRef.current.currentTime = pct * audioRef.current.duration;
+    setProgress(pct);
     if (!isPlaying) togglePlayback();
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
   };
 
   const isTranscriptLoading = transcriptStatus === 'pending' || transcriptStatus === 'processing';
   const hasTranscript = transcriptStatus === 'completed' && transcript;
 
+  const audioEl = (
+    <audio
+      ref={audioRef}
+      src={fullAudioUrl}
+      onTimeUpdate={handleTimeUpdate}
+      onEnded={handleEnded}
+      onPause={() => setIsPlaying(false)}
+      onPlay={() => setIsPlaying(true)}
+    />
+  );
+
+  // ─── COMPACT ───
   if (compact) {
     return (
-      <div className="flex flex-col gap-1.5 w-full">
-        <audio
-          ref={audioRef}
-          src={fullAudioUrl}
-          onTimeUpdate={handleTimeUpdate}
-          onEnded={handleEnded}
-          onPause={() => setIsPlaying(false)}
-          onPlay={() => setIsPlaying(true)}
-        />
-        <div className="flex items-center gap-2.5">
-          {/* Compact Play Button */}
-          <button
-            onClick={togglePlayback}
-            className="h-9 w-9 shrink-0 rounded-full bg-primary flex items-center justify-center shadow-[0_0_12px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_20px_hsl(var(--primary)/0.4)] transition-all active:scale-95"
-          >
-            {isPlaying
-              ? <Pause className="h-3.5 w-3.5 fill-primary-foreground text-primary-foreground" />
-              : <Play className="h-3.5 w-3.5 fill-primary-foreground text-primary-foreground ml-0.5" />
-            }
-          </button>
+      <div
+        className="flex items-center gap-2.5 w-full"
+        style={{
+          padding: '8px 10px',
+          borderRadius: '10px',
+          background: 'rgba(0,0,0,0.2)',
+          border: '1px solid rgba(255,255,255,0.07)',
+        }}
+      >
+        {audioEl}
+        <button
+          onClick={togglePlayback}
+          className="shrink-0 flex items-center justify-center active:scale-95 transition-transform"
+          style={{
+            width: 28, height: 28, borderRadius: '50%',
+            background: `radial-gradient(circle at 40% 35%, ${accentColor}, ${accentColor}CC)`,
+            boxShadow: `0 0 12px ${accentColor}40`,
+          }}
+        >
+          {isPlaying
+            ? <Pause className="h-3 w-3 fill-white text-white" />
+            : <Play className="h-3 w-3 fill-white text-white ml-px" />
+          }
+        </button>
 
-          {/* Compact Waveform */}
-          <div
-            className="flex-1 h-6 flex items-center justify-between gap-[1.5px] cursor-pointer"
-            onClick={handleWaveformClick}
-          >
-            {waveform.map((amp, index) => {
-              const isPlayed = (index / waveform.length) <= progress;
-              return (
-                <div
-                  key={index}
-                  className={cn(
-                    "w-[2.5px] rounded-full transition-colors duration-100",
-                    isPlayed ? "bg-primary" : "bg-foreground/10"
-                  )}
-                  style={{ height: `${Math.max(20, amp * 100)}%` }}
-                />
-              );
-            })}
-          </div>
-
-          {/* Compact Time */}
-          <span className="text-[10px] font-medium text-muted-foreground tabular-nums shrink-0">
-            {formatTime(currentTime)} / {formatTime(durationSeconds)}
-          </span>
+        <div
+          className="flex-1 flex items-center gap-[1.5px] cursor-pointer"
+          style={{ height: 22 }}
+          onClick={handleWaveformClick}
+        >
+          {waveform.map((amp, i) => {
+            const played = (i / waveform.length) <= progress;
+            return (
+              <div
+                key={i}
+                style={{
+                  width: 2.5, borderRadius: 2, minHeight: 3,
+                  height: `${Math.max(14, amp * 100)}%`,
+                  backgroundColor: played ? accentColor : 'rgba(255,255,255,0.12)',
+                  transition: 'background-color 100ms',
+                }}
+              />
+            );
+          })}
         </div>
+
+        <span className="text-[10px] font-medium tabular-nums shrink-0" style={{ color: 'rgba(241,245,249,0.5)' }}>
+          {formatTime(currentTime)} / {formatTime(durationSeconds)}
+        </span>
       </div>
     );
   }
 
-  // Full player
+  // ─── FULL PLAYER ───
   return (
-    <div className="flex flex-col gap-2.5 bg-foreground/[0.03] backdrop-blur-xl border border-foreground/[0.08] rounded-2xl p-4 w-full">
-      <audio
-        ref={audioRef}
-        src={fullAudioUrl}
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={handleEnded}
-        onPause={() => setIsPlaying(false)}
-        onPlay={() => setIsPlaying(true)}
-      />
+    <div className="flex flex-col w-full" style={{
+      background: `linear-gradient(135deg, ${accentColor}0F, rgba(255,255,255,0.03), ${accentColor}0A)`,
+      border: '1px solid rgba(255,255,255,0.10)',
+      borderRadius: 18,
+      padding: '16px 18px',
+      backdropFilter: 'blur(8px)',
+      gap: 10,
+    }}>
+      {audioEl}
 
-      <div className="flex items-center gap-4">
-        {/* Play Button — Large, glowing */}
-        <button
-          onClick={togglePlayback}
-          className="h-12 w-12 shrink-0 rounded-full bg-primary flex items-center justify-center shadow-[0_0_20px_hsl(var(--primary)/0.35)] hover:shadow-[0_0_28px_hsl(var(--primary)/0.5)] transition-all active:scale-95"
-        >
-          {isPlaying
-            ? <Pause className="h-5 w-5 fill-primary-foreground text-primary-foreground" />
-            : <Play className="h-5 w-5 fill-primary-foreground text-primary-foreground ml-0.5" />
-          }
-        </button>
+      <div className="flex items-center gap-3.5">
+        {/* Play button */}
+        <div className="relative shrink-0 flex items-center justify-center" style={{ width: 46, height: 46 }}>
+          {/* Spinning ring when playing */}
+          {isPlaying && (
+            <div
+              className="absolute inset-[-4px] rounded-full animate-spin"
+              style={{
+                border: `1.5px solid ${accentColor}33`,
+                animationDuration: '3s',
+              }}
+            />
+          )}
+          <button
+            onClick={togglePlayback}
+            className="relative z-10 flex items-center justify-center active:scale-95 transition-transform"
+            style={{
+              width: 46, height: 46, borderRadius: '50%',
+              background: `radial-gradient(circle at 40% 35%, ${accentColor}, ${accentColor}CC)`,
+              boxShadow: `0 0 20px ${accentColor}40, 0 0 40px ${accentColor}1F`,
+            }}
+          >
+            {isPlaying
+              ? <Pause className="h-4 w-4 fill-white text-white" />
+              : <Play className="h-4 w-4 fill-white text-white ml-0.5" />
+            }
+          </button>
+        </div>
 
-        {/* Waveform — Thicker, defined bars */}
+        {/* Waveform + time */}
         <div className="flex-1 flex flex-col gap-1.5">
           <div
-            className="h-10 flex items-center justify-between gap-[2px] cursor-pointer"
+            className="flex items-center gap-[1.5px] cursor-pointer"
+            style={{ height: 36 }}
             onClick={handleWaveformClick}
           >
-            {waveform.map((amp, index) => {
-              const isPlayed = (index / waveform.length) <= progress;
+            {waveform.map((amp, i) => {
+              const played = (i / waveform.length) <= progress;
               return (
                 <div
-                  key={index}
-                  className={cn(
-                    "w-[3px] rounded-full transition-colors duration-100",
-                    isPlayed ? "bg-primary" : "bg-foreground/[0.12]"
-                  )}
-                  style={{ height: `${Math.max(20, amp * 100)}%` }}
+                  key={i}
+                  style={{
+                    width: 2.5, borderRadius: 2, minHeight: 3,
+                    height: `${Math.max(8, amp * 100)}%`,
+                    backgroundColor: played ? accentColor : 'rgba(255,255,255,0.12)',
+                    transition: 'background-color 100ms',
+                  }}
                 />
               );
             })}
           </div>
-
-          {/* Time under waveform */}
-          <div className="text-[11px] font-medium text-muted-foreground tabular-nums">
+          <span className="text-[11px] font-medium tabular-nums" style={{ color: 'rgba(241,245,249,0.5)' }}>
             {formatTime(currentTime)} / {formatTime(durationSeconds)}
-          </div>
+          </span>
         </div>
       </div>
 
       {/* Controls row */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-end gap-2">
         <button
-          className="h-6 px-2.5 text-[10px] font-bold tracking-wider rounded-full bg-secondary/60 text-muted-foreground hover:bg-secondary transition-colors"
           onClick={changeSpeed}
+          className="font-bold transition-colors"
+          style={{
+            padding: '3px 8px', borderRadius: 6, fontSize: 11,
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            color: 'rgba(241,245,249,0.6)',
+          }}
         >
           {playbackRate}x
         </button>
 
         <button
-          className={cn(
-            "h-6 px-2.5 text-[11px] rounded-full flex items-center gap-1.5 transition-colors",
-            showTranscript ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/60"
-          )}
           onClick={() => setShowTranscript(!showTranscript)}
           disabled={transcriptStatus === 'failed'}
+          className="flex items-center gap-1.5 transition-colors"
+          style={{
+            padding: '3px 8px', borderRadius: 6, fontSize: 11,
+            background: showTranscript ? `${accentColor}1F` : 'rgba(255,255,255,0.05)',
+            border: `1px solid ${showTranscript ? `${accentColor}40` : 'rgba(255,255,255,0.08)'}`,
+            color: showTranscript ? accentColor : 'rgba(241,245,249,0.6)',
+          }}
         >
           {isTranscriptLoading ? (
             <>
@@ -211,20 +263,32 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
               <span>Trascrizione...</span>
             </>
           ) : transcriptStatus === 'failed' ? (
-            <span className="opacity-50">Trascrizione non disp.</span>
+            <span style={{ opacity: 0.5 }}>Non disp.</span>
           ) : (
             <>
               <FileText className="h-3 w-3" />
-              Testo
-              {showTranscript ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              📝 Testo
             </>
           )}
         </button>
       </div>
 
-      {/* Transcript Expanded */}
+      {/* Transcript block */}
       {showTranscript && hasTranscript && (
-        <div className="text-sm text-foreground/90 bg-foreground/[0.03] rounded-xl p-3 max-h-40 overflow-y-auto leading-relaxed border border-foreground/[0.06] animate-in fade-in slide-in-from-top-2">
+        <div
+          className="animate-in fade-in slide-in-from-top-2"
+          style={{
+            background: 'rgba(0,0,0,0.2)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: 12,
+            padding: '12px 14px',
+            maxHeight: 100,
+            overflowY: 'auto',
+            fontSize: 12.5,
+            lineHeight: 1.6,
+            color: 'rgba(241,245,249,0.6)',
+          }}
+        >
           {transcript}
         </div>
       )}

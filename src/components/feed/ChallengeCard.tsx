@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { Zap, Clock, ThumbsUp, ThumbsDown, Trophy, Mic, ChevronDown, ChevronUp, Brain, ShieldCheck } from "lucide-react";
+import { Zap, Clock, ThumbsUp, ThumbsDown, Brain, ShieldCheck, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { VoicePlayer } from "../media/VoicePlayer";
@@ -62,6 +61,7 @@ interface ChallengeCardProps {
 export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, onRespond, onPostAction }) => {
     const { user } = useAuth();
     const [hasVoted, setHasVoted] = useState(!!challenge.hasVotedObj);
+    const [votedResponseId, setVotedResponseId] = useState<string | null>(null);
     const [localVotesFor, setLocalVotesFor] = useState(challenge.votes_for || 0);
     const [localVotesAgainst, setLocalVotesAgainst] = useState(challenge.votes_against || 0);
     const [showChallengers, setShowChallengers] = useState(false);
@@ -69,69 +69,67 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, onRespo
     const totalVotes = localVotesFor + localVotesAgainst;
     const percentageFor = totalVotes === 0 ? 50 : Math.round((localVotesFor / totalVotes) * 100);
     const percentageAgainst = totalVotes === 0 ? 50 : Math.round((localVotesAgainst / totalVotes) * 100);
-
     const isExpired = new Date(challenge.expires_at) < new Date() || challenge.status !== 'active';
-
     const sortedResponses = [...(challenge.responses || [])].sort((a, b) => (b.argument_votes || 0) - (a.argument_votes || 0));
 
     const handleVote = async (stance: 'for' | 'against') => {
         if (!user || hasVoted || isExpired) return;
         setHasVoted(true);
-        if (stance === 'for') setLocalVotesFor(prev => prev + 1);
-        else setLocalVotesAgainst(prev => prev + 1);
-
+        if (stance === 'for') setLocalVotesFor(p => p + 1);
+        else setLocalVotesAgainst(p => p + 1);
         try {
             const { error } = await supabase.from('challenge_votes').insert({
-                challenge_id: challenge.id,
-                stance: stance,
-                user_id: user.id
-            });
+                challenge_id: challenge.id, stance, user_id: user.id
+            } as any);
             if (error) throw error;
             toast.success('Voto registrato!');
-            if (onPostAction) onPostAction();
-        } catch (err) {
-            console.error(err);
+            onPostAction?.();
+        } catch {
             toast.error('Errore durante il voto');
             setHasVoted(false);
-            if (stance === 'for') setLocalVotesFor(prev => prev - 1);
-            else setLocalVotesAgainst(prev => prev - 1);
+            if (stance === 'for') setLocalVotesFor(p => p - 1);
+            else setLocalVotesAgainst(p => p - 1);
         }
     };
 
     const handleArgVote = async (responseId: string) => {
         if (!user || hasVoted || isExpired) return;
         setHasVoted(true);
+        setVotedResponseId(responseId);
         try {
             const { error } = await supabase.from('challenge_votes').insert({
-                challenge_response_id: responseId,
-                user_id: user.id
+                challenge_response_id: responseId, user_id: user.id
             });
             if (error) throw error;
             toast.success('Miglior argomento votato!');
-            if (onPostAction) onPostAction();
-        } catch (err) {
-            console.error(err);
+            onPostAction?.();
+        } catch {
             toast.error('Errore durante il voto');
             setHasVoted(false);
+            setVotedResponseId(null);
         }
     };
 
     return (
-        <div className="overflow-hidden rounded-2xl border border-brand-pink/20 bg-card flex flex-col">
+        <div
+            className="overflow-hidden rounded-2xl flex flex-col"
+            style={{
+                background: 'linear-gradient(160deg, rgba(228,30,82,0.08) 0%, transparent 40%, rgba(52,211,153,0.04) 100%)',
+                border: '1px solid rgba(228,30,82,0.2)',
+            }}
+        >
             {/* Header Badge */}
             <div className="px-4 pt-4 pb-2 flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-pink/10 text-brand-pink text-[11px] font-bold uppercase tracking-widest">
-                        <Zap className="h-3.5 w-3.5 fill-current" />
-                        Challenge
-                    </span>
-                </div>
-                <div className={cn(
-                    "text-[11px] font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-full",
-                    isExpired
-                        ? "text-muted-foreground bg-secondary/50"
-                        : "text-brand-pink bg-brand-pink/5"
-                )}>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest"
+                    style={{ background: 'rgba(228,30,82,0.1)', color: '#E41E52' }}>
+                    <Zap className="h-3.5 w-3.5 fill-current" />
+                    Challenge
+                </span>
+                <div className="text-[11px] font-medium flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+                    style={{
+                        color: isExpired ? 'rgba(241,245,249,0.4)' : '#E41E52',
+                        background: isExpired ? 'rgba(255,255,255,0.05)' : 'rgba(228,30,82,0.05)',
+                    }}>
                     <Clock className="h-3 w-3" />
                     {isExpired ? 'Chiusa' : formatDistanceToNow(new Date(challenge.expires_at), { locale: it, addSuffix: false })}
                 </div>
@@ -145,146 +143,169 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, onRespo
                 </Avatar>
                 <span className="text-sm font-medium text-foreground">
                     {challenge.author?.full_name || `@${challenge.author?.username}`}
-                    <span className="text-muted-foreground font-normal ml-1.5">sostiene che:</span>
+                    <span className="font-normal ml-1.5" style={{ color: 'rgba(241,245,249,0.4)' }}>sostiene che:</span>
                 </span>
             </div>
 
-            {/* Thesis — Hero */}
-            <div className="px-5 py-4">
-                <h3 className="text-lg font-bold leading-snug text-foreground tracking-tight">
-                    "{challenge.thesis}"
-                </h3>
-            </div>
-
-            {/* Voice Player */}
-            <div className="px-4 pb-4">
-                <VoicePlayer
-                    audioUrl={challenge.voicePost.audio_url}
-                    durationSeconds={challenge.voicePost.duration_seconds}
-                    waveformData={challenge.voicePost.waveform_data}
-                    transcript={challenge.voicePost.transcript}
-                    transcriptStatus={challenge.voicePost.transcript_status as any}
-                />
-            </div>
-
-            {/* Polarization Bar */}
+            {/* ─── Thesis Block ─── */}
             <div className="px-4 pb-3">
-                <div className="flex justify-between text-[11px] font-bold mb-1.5 px-0.5">
-                    <span className="text-emerald-500">{percentageFor}% A favore</span>
-                    <span className="text-brand-pink">{percentageAgainst}% Contro</span>
+                <div className="relative" style={{
+                    background: 'linear-gradient(145deg, rgba(228,30,82,0.06), rgba(255,255,255,0.02), rgba(52,211,153,0.04))',
+                    border: '1px solid rgba(228,30,82,0.15)',
+                    borderRadius: 18,
+                    padding: '18px 20px',
+                }}>
+                    {/* Decorative quote */}
+                    <span className="absolute select-none pointer-events-none" style={{
+                        top: 10, left: 14, fontSize: 48, fontFamily: 'Georgia, serif',
+                        color: 'rgba(228,30,82,0.1)', lineHeight: 1,
+                    }}>"</span>
+
+                    <h3 className="relative z-10" style={{
+                        fontSize: 16, fontWeight: 600, lineHeight: 1.5, color: 'white',
+                        paddingLeft: 4,
+                    }}>
+                        {challenge.thesis}
+                    </h3>
+
+                    {/* Player inside thesis block */}
+                    <div className="mt-3">
+                        <VoicePlayer
+                            audioUrl={challenge.voicePost.audio_url}
+                            durationSeconds={challenge.voicePost.duration_seconds}
+                            waveformData={challenge.voicePost.waveform_data}
+                            transcript={challenge.voicePost.transcript}
+                            transcriptStatus={challenge.voicePost.transcript_status as any}
+                            accentColor="#E41E52"
+                        />
+                    </div>
                 </div>
-                <div className="h-2 w-full bg-secondary rounded-full overflow-hidden flex">
+            </div>
+
+            {/* ─── Polarization Bar ─── */}
+            <div className="px-4 pb-3">
+                <div className="flex items-end justify-between mb-1.5">
+                    <div className="flex flex-col">
+                        <span style={{ fontSize: 14, fontWeight: 800, color: '#E41E52' }}>{percentageAgainst}%</span>
+                        <span style={{ fontSize: 11, color: 'rgba(241,245,249,0.3)' }}>contro</span>
+                    </div>
+                    <div className="flex flex-col items-end">
+                        <span style={{ fontSize: 14, fontWeight: 800, color: '#34D399' }}>{percentageFor}%</span>
+                        <span style={{ fontSize: 11, color: 'rgba(241,245,249,0.3)' }}>a favore</span>
+                    </div>
+                </div>
+                <div className="flex overflow-hidden" style={{ height: 6, borderRadius: 3 }}>
                     <div
-                        className="h-full bg-emerald-500 rounded-l-full transition-all duration-500"
-                        style={{ width: `${percentageFor}%` }}
+                        className="transition-all duration-500"
+                        style={{
+                            width: `${percentageAgainst}%`,
+                            background: 'linear-gradient(90deg, #E41E52, rgba(228,30,82,0.8))',
+                            boxShadow: '0 0 8px rgba(228,30,82,0.2)',
+                        }}
                     />
                     <div
-                        className="h-full bg-brand-pink rounded-r-full transition-all duration-500"
-                        style={{ width: `${percentageAgainst}%` }}
+                        className="transition-all duration-500"
+                        style={{
+                            width: `${percentageFor}%`,
+                            background: 'linear-gradient(90deg, rgba(52,211,153,0.8), #34D399)',
+                            boxShadow: '0 0 8px rgba(52,211,153,0.2)',
+                        }}
                     />
                 </div>
 
                 {/* Vote Buttons */}
                 {!isExpired && (
                     <div className="flex gap-2 mt-3">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className={cn(
-                                "flex-1 h-9 border-emerald-500/20 hover:bg-emerald-500/10 hover:text-emerald-500 text-xs font-semibold",
-                                hasVoted && "opacity-40 pointer-events-none"
-                            )}
+                        <button
                             onClick={() => handleVote('for')}
+                            className={cn("flex-1 h-9 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]",
+                                hasVoted && "opacity-40 pointer-events-none")}
+                            style={{ border: '1px solid rgba(52,211,153,0.2)', color: '#34D399', background: 'rgba(52,211,153,0.06)' }}
                         >
-                            <ThumbsUp className="h-3.5 w-3.5 mr-1.5" />
-                            D'accordo
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            className={cn(
-                                "flex-1 h-9 border-brand-pink/20 hover:bg-brand-pink/10 hover:text-brand-pink text-xs font-semibold",
-                                hasVoted && "opacity-40 pointer-events-none"
-                            )}
+                            <ThumbsUp className="h-3.5 w-3.5" /> D'accordo
+                        </button>
+                        <button
                             onClick={() => handleVote('against')}
+                            className={cn("flex-1 h-9 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all active:scale-[0.98]",
+                                hasVoted && "opacity-40 pointer-events-none")}
+                            style={{ border: '1px solid rgba(228,30,82,0.2)', color: '#E41E52', background: 'rgba(228,30,82,0.06)' }}
                         >
-                            <ThumbsDown className="h-3.5 w-3.5 mr-1.5" />
-                            Non concordo
-                        </Button>
+                            <ThumbsDown className="h-3.5 w-3.5" /> Non concordo
+                        </button>
                     </div>
                 )}
             </div>
 
-            {/* Challengers Section */}
+            {/* ─── Challengers Section ─── */}
             {sortedResponses.length > 0 && (
-                <div className="border-t border-border/50">
-                    {/* Toggle */}
+                <div className="mx-4 mb-3" style={{
+                    background: 'rgba(0,0,0,0.15)',
+                    border: '1px solid rgba(255,255,255,0.07)',
+                    borderRadius: 16,
+                    overflow: 'hidden',
+                }}>
                     <button
-                        className="w-full px-4 py-3 flex items-center justify-between text-sm hover:bg-secondary/30 transition-colors"
+                        className="w-full px-4 py-3 flex items-center justify-between"
                         onClick={() => setShowChallengers(!showChallengers)}
                     >
-                        <span className="text-muted-foreground font-medium">
+                        <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(241,245,249,0.6)' }}>
                             {sortedResponses.length} challenger · per qualità argomento
                         </span>
                         {showChallengers
-                            ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                            : <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                            ? <ChevronUp className="h-4 w-4" style={{ color: 'rgba(241,245,249,0.4)' }} />
+                            : <ChevronDown className="h-4 w-4" style={{ color: 'rgba(241,245,249,0.4)' }} />
                         }
                     </button>
 
-                    {/* Collapsible List */}
                     {showChallengers && (
-                        <div className="px-4 pb-4 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2">
+                        <div className="px-3 pb-3 flex flex-col gap-3 animate-in fade-in slide-in-from-top-2">
                             {sortedResponses.map((resp, idx) => {
-                                const isTopArg = idx === 0 && resp.argument_votes > 0;
-                                return (
-                                    <div
-                                        key={resp.id}
-                                        className={cn(
-                                            "rounded-xl border p-3 flex flex-col gap-2.5 relative overflow-hidden",
-                                            isTopArg ? "border-brand-yellow/30 bg-brand-yellow/[0.03]" : "border-border/50 bg-card"
-                                        )}
-                                    >
-                                        {/* Stance accent bar */}
-                                        <div className={cn(
-                                            "absolute top-0 left-0 w-1 h-full rounded-l-xl",
-                                            resp.stance === 'for' ? 'bg-emerald-500' : 'bg-brand-pink'
-                                        )} />
+                                const stanceColor = resp.stance === 'for' ? '#34D399' : '#E41E52';
+                                const isVotedResp = votedResponseId === resp.id;
+                                const isOtherAfterVote = votedResponseId && votedResponseId !== resp.id;
 
-                                        {/* Header */}
-                                        <div className="flex items-center gap-2 pl-2">
-                                            <span className="text-xs font-bold text-muted-foreground w-5">#{idx + 1}</span>
-                                            <Avatar className="w-6 h-6">
+                                return (
+                                    <div key={resp.id} className={cn("flex flex-col gap-2", isOtherAfterVote && "opacity-40 pointer-events-none")}>
+                                        {/* Header row */}
+                                        <div className="flex items-center gap-2">
+                                            {/* Rank */}
+                                            <span className="flex items-center justify-center shrink-0" style={{
+                                                width: 22, height: 22, borderRadius: 7,
+                                                fontSize: 11, fontWeight: 800,
+                                                ...(idx === 0
+                                                    ? { background: 'rgba(255,212,100,0.13)', color: '#FFD464', border: '1px solid rgba(255,212,100,0.2)' }
+                                                    : { background: 'rgba(255,255,255,0.05)', color: 'rgba(241,245,249,0.4)', border: '1px solid rgba(255,255,255,0.06)' }
+                                                ),
+                                            }}>
+                                                {idx + 1}
+                                            </span>
+
+                                            <Avatar className="w-[30px] h-[30px]">
                                                 <AvatarImage src={resp.user?.avatar_url || ''} />
                                                 <AvatarFallback className="text-[10px]">{resp.user?.username?.charAt(0).toUpperCase()}</AvatarFallback>
                                             </Avatar>
-                                            <span className="text-sm font-medium truncate">{resp.user?.full_name || `@${resp.user?.username}`}</span>
+                                            <span className="text-sm font-medium truncate text-foreground">{resp.user?.full_name || `@${resp.user?.username}`}</span>
 
-                                            {/* Stance Badge */}
-                                            <span className={cn(
-                                                "text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest",
-                                                resp.stance === 'for' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-brand-pink/10 text-brand-pink'
-                                            )}>
+                                            {/* Stance badge */}
+                                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest" style={{
+                                                background: resp.stance === 'for' ? 'rgba(52,211,153,0.1)' : 'rgba(228,30,82,0.1)',
+                                                border: `1px solid ${resp.stance === 'for' ? 'rgba(52,211,153,0.15)' : 'rgba(228,30,82,0.15)'}`,
+                                                color: stanceColor,
+                                            }}>
                                                 {resp.stance === 'for' ? 'A favore' : 'Contro'}
                                             </span>
 
                                             {/* Gate badge */}
                                             {resp.gate_passed && (
-                                                <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-primary/10 text-primary flex items-center gap-0.5">
+                                                <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full flex items-center gap-0.5"
+                                                    style={{ background: 'rgba(52,211,153,0.1)', color: '#34D399' }}>
                                                     <ShieldCheck className="h-2.5 w-2.5" /> Gate
                                                 </span>
                                             )}
-
-                                            {/* Top Arg Trophy */}
-                                            {isTopArg && (
-                                                <div className="ml-auto flex items-center gap-1 text-brand-yellow text-[10px] font-bold">
-                                                    <Trophy className="h-3 w-3" />
-                                                </div>
-                                            )}
                                         </div>
 
-                                        {/* Compact Player */}
-                                        <div className="pl-7">
+                                        {/* Compact player */}
+                                        <div style={{ marginLeft: 32 }}>
                                             <VoicePlayer
                                                 audioUrl={resp.voice_post?.audio_url}
                                                 durationSeconds={resp.voice_post?.duration_seconds}
@@ -292,24 +313,28 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, onRespo
                                                 transcript={resp.voice_post?.transcript}
                                                 transcriptStatus={resp.voice_post?.transcript_status as any}
                                                 compact
+                                                accentColor={stanceColor}
                                             />
                                         </div>
 
-                                        {/* Arg Vote */}
+                                        {/* Vote button */}
                                         {!isExpired && (
-                                            <div className="pl-7 flex items-center justify-between">
-                                                <span className="text-[11px] text-muted-foreground">{resp.argument_votes || 0} voti</span>
+                                            <div style={{ marginLeft: 32 }} className="flex items-center justify-between">
+                                                <span style={{ fontSize: 11, color: 'rgba(241,245,249,0.4)' }}>{resp.argument_votes || 0} voti</span>
                                                 <button
-                                                    className={cn(
-                                                        "h-7 px-2.5 text-[11px] rounded-full flex items-center gap-1.5 font-medium transition-colors",
-                                                        hasVoted
-                                                            ? "opacity-40 pointer-events-none text-muted-foreground"
-                                                            : "text-foreground hover:bg-secondary/60"
-                                                    )}
                                                     onClick={() => handleArgVote(resp.id)}
+                                                    className={cn("flex items-center gap-1.5 font-medium transition-all active:scale-[0.97]",
+                                                        hasVoted && !isVotedResp && "opacity-40 pointer-events-none")}
+                                                    style={{
+                                                        padding: '5px 12px', borderRadius: 8, fontSize: 11.5,
+                                                        ...(isVotedResp
+                                                            ? { background: 'rgba(10,122,255,0.12)', border: '1px solid rgba(10,122,255,0.3)', color: '#0A7AFF' }
+                                                            : { border: '1px solid rgba(255,255,255,0.07)', color: 'rgba(241,245,249,0.6)' }
+                                                        ),
+                                                    }}
                                                 >
                                                     <Brain className="h-3.5 w-3.5" />
-                                                    Miglior argomento
+                                                    🧠 Miglior argomento
                                                 </button>
                                             </div>
                                         )}
@@ -321,15 +346,31 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, onRespo
                 </div>
             )}
 
-            {/* CTA */}
+            {/* ─── CTA "Accetta la sfida" ─── */}
             {!isExpired && onRespond && user?.id !== challenge.author?.id && (
-                <div className="p-4 border-t border-border/50">
+                <div className="px-4 pb-4">
                     <button
                         onClick={() => onRespond(challenge.id)}
-                        className="w-full h-11 rounded-xl bg-brand-pink/10 border border-brand-pink/20 text-brand-pink font-semibold text-sm flex items-center justify-center gap-2 hover:bg-brand-pink/15 active:scale-[0.98] transition-all"
+                        className="relative w-full overflow-hidden flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+                        style={{
+                            background: 'linear-gradient(135deg, rgba(228,30,82,0.12), rgba(52,211,153,0.08))',
+                            border: '1px solid rgba(228,30,82,0.2)',
+                            borderRadius: 16,
+                            padding: '14px 20px',
+                        }}
                     >
-                        <Zap className="h-4 w-4 fill-current" />
-                        Accetta la sfida · metti a fuoco prima
+                        {/* Shimmer overlay */}
+                        <div
+                            className="absolute inset-0 pointer-events-none"
+                            style={{
+                                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)',
+                                animation: 'shimmer 3s infinite',
+                            }}
+                        />
+                        <span className="relative z-10">
+                            <span style={{ fontWeight: 700, fontSize: 14, color: 'rgba(241,245,249,0.9)' }}>⚡ Accetta la sfida</span>
+                            <span style={{ fontWeight: 400, fontSize: 12, color: 'rgba(241,245,249,0.4)', marginLeft: 6 }}>· metti a fuoco prima</span>
+                        </span>
                     </button>
                 </div>
             )}
