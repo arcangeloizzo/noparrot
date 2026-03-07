@@ -861,15 +861,14 @@ export const FeedCard = ({
         )}
         {showQuiz && quizData && (
           <QuizModal
-            isOpen={showQuiz}
-            onClose={() => {
+            questions={quizData.questions}
+            qaId={quizData.qaId}
+            onSubmit={handleQuizSubmit}
+            onCancel={() => {
               setShowQuiz(false);
               setQuizData(null);
               setGateStep('idle');
             }}
-            questions={quizData.questions}
-            onSubmit={handleQuizSubmit}
-            sourceUrl={quizData.sourceUrl}
           />
         )}
         <AnalysisOverlay isVisible={showAnalysisOverlay} message="Analisi in corso..." />
