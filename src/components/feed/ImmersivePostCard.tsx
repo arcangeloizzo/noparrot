@@ -368,6 +368,9 @@ const ImmersivePostCardInner = ({
   // Reactions sheet state
   const [showReactionsSheet, setShowReactionsSheet] = useState(false);
 
+  // Challenge flow state
+  const [showChallengeFlow, setShowChallengeFlow] = useState(false);
+
   // Trigger refetch for missing preview images on active cards
   // This helps recover from temporary extraction failures
   useEffect(() => {
