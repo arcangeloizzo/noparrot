@@ -1802,3 +1802,10 @@ html:not(.light) .liquid-glass-navbar {
 .tippy-box[data-theme~='mention-dropdown'] .tippy-arrow {
   display: none;
 }
+
+/* Voice & Challenge card shimmer */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(100%); }
+  100% { transform: translateX(100%); }
+}
