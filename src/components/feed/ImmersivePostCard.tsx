@@ -30,6 +30,13 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { VoicePlayer } from "@/components/media/VoicePlayer";
 import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
