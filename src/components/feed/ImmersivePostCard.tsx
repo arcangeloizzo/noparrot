@@ -1410,15 +1410,15 @@ const ImmersivePostCardInner = ({
                     {post.author.full_name || getDisplayUsername(post.author.username)}
                   </span>
                   {isAudioPost && !isChallengePost && (
-                    <span className="inline-flex items-center gap-1 h-[24px] px-2.5 rounded-lg text-[11px] font-bold uppercase tracking-[0.5px]"
-                      style={{ background: 'rgba(255,212,100,0.15)', color: '#FFD464' }}>
-                      <Mic className="h-2.5 w-2.5" /> Voice
+                    <span className="h-[24px] px-2.5 text-[11px] rounded-lg font-bold tracking-[0.5px] inline-flex items-center gap-1 uppercase"
+                      style={{ background: 'rgba(255,212,100,0.15)', border: '1px solid rgba(255,212,100,0.25)', color: '#FFD464' }}>
+                      🎙 VOICE
                     </span>
                   )}
                   {isChallengePost && (
-                    <span className="inline-flex items-center gap-1 h-[24px] px-2.5 rounded-lg text-[11px] font-bold uppercase tracking-[0.5px]"
-                      style={{ background: 'rgba(228,30,82,0.15)', color: '#E41E52' }}>
-                      <Zap className="h-2.5 w-2.5 fill-current" /> Challenge
+                    <span className="h-[24px] px-2.5 text-[11px] rounded-lg font-bold tracking-[0.5px] inline-flex items-center gap-1 uppercase"
+                      style={{ background: 'rgba(228,30,82,0.15)', border: '1px solid rgba(228,30,82,0.25)', color: '#E41E52' }}>
+                      ⚡ CHALLENGE
                     </span>
                   )}
                 </div>
@@ -1520,7 +1520,27 @@ const ImmersivePostCardInner = ({
           {/* Center Content */}
           {/* [Rail 2] ContentRail: Adaptive height, clips overflow, no scroll */}
           <div className="flex-1 min-h-0 relative flex flex-col px-4 overflow-hidden">
-            <div className="w-full my-auto flex flex-col max-h-full">
+            {/* Decorative waveform background for voice/challenge posts */}
+            {(isVoicePost || isChallengePost) && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: 0,
+                  right: 0,
+                  height: 80,
+                  transform: 'translateY(-50%)',
+                  backgroundImage: `url('/assets/${isChallengePost ? 'challenge' : 'voice'}-wave-bg.png')`,
+                  backgroundSize: '100% auto',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'center',
+                  opacity: isChallengePost ? 0.025 : 0.04,
+                  pointerEvents: 'none',
+                  zIndex: 0,
+                }}
+              />
+            )}
+            <div className="w-full my-auto flex flex-col max-h-full relative z-[1]">
 
 
               {/* Voice Post Body (non-challenge) */}
@@ -1576,12 +1596,12 @@ const ImmersivePostCardInner = ({
                   {/* Polarization mini-bar */}
                   <div className="mt-3 px-1">
                     <div className="flex items-end justify-between mb-1">
-                      <span style={{ fontSize: 12, fontWeight: 800, color: '#FFD464' }}>{Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%</span>
                       <span style={{ fontSize: 12, fontWeight: 800, color: '#0A7AFF' }}>{Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%</span>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: '#FFD464' }}>{Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%</span>
                     </div>
                     <div className="flex overflow-hidden" style={{ height: 4, borderRadius: 2 }}>
-                      <div style={{ width: `${Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #FFD464, #FFD464CC)' }} />
-                      <div style={{ width: `${Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #0A7AFFCC, #0A7AFF)' }} />
+                      <div style={{ width: `${Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #0A7AFF, #0A7AFFCC)' }} />
+                      <div style={{ width: `${Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #FFD464CC, #FFD464)' }} />
                     </div>
                   </div>
                 </div>

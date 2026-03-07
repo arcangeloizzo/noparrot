@@ -211,31 +211,31 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, onRespo
 
             {/* ─── Polarization Bar ─── */}
             <div className="px-4 pb-3">
-                <div className="flex items-end justify-between mb-1.5">
+            <div className="flex items-end justify-between mb-1.5">
                     <div className="flex flex-col">
-                        <span style={{ fontSize: 14, fontWeight: 800, color: COLOR_AGAINST }}>{percentageAgainst}%</span>
-                        <span style={{ fontSize: 11, color: 'rgba(241,245,249,0.3)' }}>contro</span>
-                    </div>
-                    <div className="flex flex-col items-end">
                         <span style={{ fontSize: 14, fontWeight: 800, color: COLOR_FOR }}>{percentageFor}%</span>
                         <span style={{ fontSize: 11, color: 'rgba(241,245,249,0.3)' }}>a favore</span>
+                    </div>
+                    <div className="flex flex-col items-end">
+                        <span style={{ fontSize: 14, fontWeight: 800, color: COLOR_AGAINST }}>{percentageAgainst}%</span>
+                        <span style={{ fontSize: 11, color: 'rgba(241,245,249,0.3)' }}>contro</span>
                     </div>
                 </div>
                 <div className="flex overflow-hidden" style={{ height: 6, borderRadius: 3 }}>
                     <div
                         className="transition-all duration-500"
                         style={{
-                            width: `${percentageAgainst}%`,
-                            background: `linear-gradient(90deg, ${COLOR_AGAINST}, ${COLOR_AGAINST}CC)`,
-                            boxShadow: `0 0 8px rgba(255,212,100,0.2)`,
+                            width: `${percentageFor}%`,
+                            background: `linear-gradient(90deg, ${COLOR_FOR}, ${COLOR_FOR}CC)`,
+                            boxShadow: `0 0 8px rgba(10,122,255,0.2)`,
                         }}
                     />
                     <div
                         className="transition-all duration-500"
                         style={{
-                            width: `${percentageFor}%`,
-                            background: `linear-gradient(90deg, ${COLOR_FOR}CC, ${COLOR_FOR})`,
-                            boxShadow: `0 0 8px rgba(10,122,255,0.2)`,
+                            width: `${percentageAgainst}%`,
+                            background: `linear-gradient(90deg, ${COLOR_AGAINST}CC, ${COLOR_AGAINST})`,
+                            boxShadow: `0 0 8px rgba(255,212,100,0.2)`,
                         }}
                     />
                 </div>
