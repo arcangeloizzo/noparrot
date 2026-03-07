@@ -133,6 +133,10 @@ export const useNotifications = () => {
                 title = 'Nuovo reshare 🔄';
                 body = 'Il tuo post è stato condiviso!';
                 break;
+              case 'challenge_response':
+                title = 'Nuova risposta alla challenge ⚡';
+                body = 'Qualcuno ha risposto alla tua sfida!';
+                break;
             }
             
             // Determine URL based on notification type

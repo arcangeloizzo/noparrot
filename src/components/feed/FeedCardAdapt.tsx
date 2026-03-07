@@ -789,7 +789,7 @@ export const FeedCard = ({
         transcript: rawChallenge.voice_post.transcript || null,
         transcript_status: rawChallenge.voice_post.transcript_status || null,
       } : null,
-      responses: [],
+      responses: challengeResponses,
     } : null;
 
     if (!challengeData) {

@@ -94,6 +94,8 @@ const getNotificationText = (notification: Notification): string => {
       return "ha messo like al tuo messaggio";
     case "new_user":
       return "si è registrato su NoParrot";
+    case "challenge_response":
+      return "ha risposto alla tua challenge";
     default:
       return "ha interagito con te";
   }
