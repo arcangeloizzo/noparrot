@@ -1,34 +1,27 @@
 
 
-# Plan: Replace SVG waveforms with PNG backgrounds
+# Fix VapidPkHashMismatch - Auto-resubscribe
 
-## Changes
+## Problema
+La push subscription dell'utente è stata registrata con una VAPID public key diversa da quella attuale. Apple rifiuta il push con errore `VapidPkHashMismatch`. Altri utenti con subscription più recenti funzionano correttamente.
 
-### 1. Copy uploaded images to `public/assets/`
-- `IMG_6528.jpeg` -> `public/assets/voice-wave-bg.png` (blue voice waveform)
-- `IMG_6529.jpeg` -> `public/assets/challenge-wave-bg.png` (blue+yellow challenge waveform)
+## Soluzione
 
-### 2. Replace SVG blocks in `ImmersivePostCard.tsx` (lines 1537-1614)
-Remove both `<svg>` blocks (voice: lines 1538-1574, challenge: lines 1575-1614) and replace with a single `<div>`:
+### 1. Edge Function: Rilevare e pulire subscription stale
+In `send-push-notification`, quando Apple risponde con `VapidPkHashMismatch` (status 400), cancellare automaticamente la subscription dal database. Al prossimo avvio dell'app PWA, il client si ri-registrerà con le VAPID key corrette.
 
-```tsx
-{(isVoicePost || isChallengePost) && (
-  <div
-    style={{
-      position: 'absolute',
-      inset: 0,
-      backgroundImage: `url('/assets/${isChallengePost ? 'challenge' : 'voice'}-wave-bg.png')`,
-      backgroundSize: 'cover',
-      backgroundPosition: 'center',
-      backgroundRepeat: 'no-repeat',
-      opacity: 0.25,
-      pointerEvents: 'none',
-      zIndex: 0,
-    }}
-  />
-)}
-```
+Modifica in `send-push-notification/index.ts`:
+- Dopo un errore 400/410 da Apple, DELETE la riga da `push_subscriptions` usando l'endpoint
+- Log dell'operazione di cleanup
 
-### 3. Content z-index
-Line 1615 already has `relative z-[1]` on the content wrapper -- no changes needed there.
+### 2. Frontend: Forzare re-subscribe all'avvio
+In `usePushNotifications`, all'avvio:
+- Confrontare la VAPID public key attuale con quella usata per la subscription esistente
+- Se diversa, unsubscribe dal browser e cancellare dal DB, poi ri-registrare
+- Questo previene futuri mismatch
+
+### Passi implementativi
+1. Modificare la Edge Function per auto-cleanup delle subscription con errore `VapidPkHashMismatch` o status 410 Gone
+2. Modificare `usePushNotifications` per forzare re-subscribe quando rileva una subscription potenzialmente stale (confronto applicationServerKey)
+3. Cancellare manualmente la subscription stale dell'utente dal DB (query una tantum)
 
