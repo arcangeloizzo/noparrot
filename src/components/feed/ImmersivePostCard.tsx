@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, memo } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { perfStore } from "@/lib/perfStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
