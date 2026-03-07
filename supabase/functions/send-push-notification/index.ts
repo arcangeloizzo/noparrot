@@ -463,6 +463,10 @@ serve(async (req) => {
           title = `${actorName} ha condiviso il tuo post`;
           url = body.post_id ? `/post/${body.post_id}` : '/notifications';
           break;
+        case 'challenge_response':
+          title = `${actorName} ha risposto alla tua challenge ⚡`;
+          url = body.post_id ? `/post/${body.post_id}` : '/notifications';
+          break;
         case 'message_like':
           title = `${actorName} ha messo like al tuo messaggio`;
           if (body.message_id) {

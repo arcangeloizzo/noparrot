@@ -1286,6 +1286,9 @@ const ImmersivePostCardInner = ({
   const isVoicePost = post.post_type === 'voice';
   const isChallengePost = post.post_type === 'challenge';
   const isAudioPost = isVoicePost || isChallengePost;
+  const challengeIdForResponses = isChallengePost ? post.challenge?.id || null : null;
+  const { responses: challengeResponses, userVote, voteForResponse } = useChallengeResponses(challengeIdForResponses);
+  const [showChallengeResponses, setShowChallengeResponses] = useState(false);
 
   // Challenge countdown
   const challengeExpiresAt = isChallengePost ? post.challenge?.expires_at : null;
