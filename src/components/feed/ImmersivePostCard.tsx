@@ -1410,12 +1410,14 @@ const ImmersivePostCardInner = ({
                     {post.author.full_name || getDisplayUsername(post.author.username)}
                   </span>
                   {isAudioPost && !isChallengePost && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-yellow/15 text-brand-yellow text-[9px] font-bold uppercase tracking-wider">
+                    <span className="inline-flex items-center gap-1 h-[24px] px-2.5 rounded-lg text-[11px] font-bold uppercase tracking-[0.5px]"
+                      style={{ background: 'rgba(255,212,100,0.15)', color: '#FFD464' }}>
                       <Mic className="h-2.5 w-2.5" /> Voice
                     </span>
                   )}
                   {isChallengePost && (
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-pink/15 text-brand-pink text-[9px] font-bold uppercase tracking-wider">
+                    <span className="inline-flex items-center gap-1 h-[24px] px-2.5 rounded-lg text-[11px] font-bold uppercase tracking-[0.5px]"
+                      style={{ background: 'rgba(228,30,82,0.15)', color: '#E41E52' }}>
                       <Zap className="h-2.5 w-2.5 fill-current" /> Challenge
                     </span>
                   )}
