@@ -98,8 +98,8 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, onRespo
         setVotedResponseId(responseId);
         try {
             const { error } = await supabase.from('challenge_votes').insert({
-                challenge_response_id: responseId, user_id: user.id
-            });
+                challenge_response_id: responseId, challenge_id: challenge.id, user_id: user.id
+            } as any);
             if (error) throw error;
             toast.success('Miglior argomento votato!');
             onPostAction?.();
