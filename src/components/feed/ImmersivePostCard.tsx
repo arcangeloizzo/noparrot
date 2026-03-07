@@ -1553,7 +1553,7 @@ const ImmersivePostCardInner = ({
                 }}
               />
             )}
-            <div className={cn("w-full flex flex-col max-h-full relative z-[1]", isAudioPost ? "mt-4" : "my-auto")}>
+            <div className={cn("w-full flex flex-col max-h-full relative z-[1]", "my-auto")}>
 
 
               {/* Voice Post Body (non-challenge) */}
