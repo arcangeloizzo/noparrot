@@ -723,7 +723,7 @@ export const FeedCard = ({
 
         // Esegui l'azione scelta dall'utente
         if (quizData.onChallengeRespond) {
-            onQuoteShare?.({ ...post, _challengeResponse: true } as any);
+            setShowChallengeFlow(true);
         } else if (shareAction === 'feed') {
           onQuoteShare?.({
             ...post,
