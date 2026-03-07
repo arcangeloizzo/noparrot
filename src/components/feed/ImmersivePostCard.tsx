@@ -79,6 +79,7 @@ import { useReshareContextStack } from "@/hooks/useReshareContextStack";
 import { useOriginalSource } from "@/hooks/useOriginalSource";
 import { haptics } from "@/lib/haptics";
 import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
+import { useChallengeResponses } from "@/hooks/useChallengeResponses";
 import { useLongPress } from "@/hooks/useLongPress";
 import { ReactionPicker, reactionToEmoji, type ReactionType } from "@/components/ui/reaction-picker";
 // ReactionSummary removed - count next to heart is now clickable
