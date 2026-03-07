@@ -1610,6 +1610,73 @@ const ImmersivePostCardInner = ({
                       <div style={{ width: `${Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #FFD464CC, #FFD464)' }} />
                     </div>
                   </div>
+                  {/* CTA: Accetta la sfida */}
+                  {(() => {
+                    const isExpired = post.challenge?.status === 'expired' || post.challenge?.status === 'closed' || new Date(post.challenge?.expires_at || '') < new Date();
+                    const isAuthor = user?.id === post.author.id;
+                    return !isAuthor ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isExpired) return;
+                          // Trigger challenge respond flow
+                          const handleRespond = async () => {
+                            const transcriptText = post.voice_post?.transcript || post.content;
+                            const wordCount = getWordCount(transcriptText);
+                            const questionCount = getQuestionCountWithoutSource(wordCount);
+                            if (questionCount === 0) {
+                              setShowChallengeFlow(true);
+                              return;
+                            }
+                            setShowAnalysisOverlay(true);
+                            try {
+                              const result = await generateQA({
+                                contentId: post.id,
+                                title: post.author.full_name || post.author.username,
+                                summary: transcriptText,
+                                userText: transcriptText || '',
+                                questionCount,
+                              });
+                              setShowAnalysisOverlay(false);
+                              if (result.insufficient_context) {
+                                toast.info("Trascrizione non sufficiente per il test.");
+                                setShowChallengeFlow(true);
+                                return;
+                              }
+                              if (!result || result.error || !result.questions?.length) {
+                                toast.error(result?.error || "Errore generico");
+                                return;
+                              }
+                              setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}`, onChallengeRespond: true });
+                              setShowQuiz(true);
+                            } catch {
+                              setShowAnalysisOverlay(false);
+                              toast.error("Errore generico");
+                            }
+                          };
+                          handleRespond();
+                        }}
+                        disabled={isExpired}
+                        className="relative w-full mt-4 py-3 rounded-2xl font-bold text-sm tracking-wide overflow-hidden transition-all"
+                        style={{
+                          background: isExpired ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #E41E52, #FF6B35)',
+                          color: isExpired ? 'rgba(255,255,255,0.3)' : 'white',
+                          border: isExpired ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                          opacity: isExpired ? 0.6 : 1,
+                        }}
+                      >
+                        {!isExpired && (
+                          <span className="absolute inset-0 animate-shimmer" style={{
+                            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)',
+                            backgroundSize: '200% 100%',
+                          }} />
+                        )}
+                        <span className="relative z-10">
+                          {isExpired ? '⚡ Sfida chiusa' : '⚡ Accetta la sfida'}
+                        </span>
+                      </button>
+                    ) : null;
+                  })()}
                 </div>
               )}
 
