@@ -1535,82 +1535,20 @@ const ImmersivePostCardInner = ({
           {/* [Rail 2] ContentRail: Adaptive height, clips overflow, no scroll */}
           <div className="flex-1 min-h-0 relative flex flex-col px-4 overflow-hidden">
             {/* Decorative waveform background for voice/challenge posts */}
-            {isVoicePost && !isChallengePost && (
-              <svg
+            {(isVoicePost || isChallengePost) && (
+              <div
                 style={{
                   position: 'absolute',
-                  top: '50%',
-                  left: 0,
-                  width: '100%',
-                  height: 200,
-                  transform: 'translateY(-50%)',
+                  inset: 0,
+                  backgroundImage: `url('/assets/${isChallengePost ? 'challenge' : 'voice'}-wave-bg.png')`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                  opacity: 0.25,
                   pointerEvents: 'none',
                   zIndex: 0,
-                  opacity: 0.07,
                 }}
-                viewBox="0 0 800 200"
-                preserveAspectRatio="none"
-              >
-                <defs>
-                  <linearGradient id="voiceGrad1" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#0A7AFF" stopOpacity={0.3} />
-                    <stop offset="30%" stopColor="#0A7AFF" stopOpacity={0.8} />
-                    <stop offset="50%" stopColor="#4DA6FF" stopOpacity={1} />
-                    <stop offset="70%" stopColor="#0A7AFF" stopOpacity={0.8} />
-                    <stop offset="100%" stopColor="#0A7AFF" stopOpacity={0.3} />
-                  </linearGradient>
-                  <filter id="voiceGlow">
-                    <feGaussianBlur stdDeviation="4" result="blur" />
-                    <feMerge>
-                      <feMergeNode in="blur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                </defs>
-                <path d="M0,100 Q50,30 100,100 Q150,170 200,100 Q250,40 300,100 Q350,155 400,100 Q450,35 500,100 Q550,160 600,100 Q650,45 700,100 Q750,150 800,100" stroke="url(#voiceGrad1)" strokeWidth="3" fill="none" filter="url(#voiceGlow)" />
-                <path d="M0,100 Q60,55 120,100 Q180,145 240,100 Q300,60 360,100 Q420,140 480,100 Q540,55 600,100 Q660,145 720,100 Q780,60 800,100" stroke="url(#voiceGrad1)" strokeWidth="1.5" fill="none" filter="url(#voiceGlow)" opacity="0.5" />
-                <path d="M0,100 Q40,70 80,100 Q120,130 160,100 Q200,65 240,100 Q280,135 320,100 Q360,70 400,100 Q440,130 480,100 Q520,65 560,100 Q600,135 640,100 Q680,70 720,100 Q760,130 800,100" stroke="#4DA6FF" strokeWidth="0.8" fill="none" opacity="0.3" />
-              </svg>
-            )}
-            {isChallengePost && (
-              <svg
-                style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: 0,
-                  width: '100%',
-                  height: 200,
-                  transform: 'translateY(-50%)',
-                  pointerEvents: 'none',
-                  zIndex: 0,
-                  opacity: 0.06,
-                }}
-                viewBox="0 0 800 200"
-                preserveAspectRatio="none"
-              >
-                <defs>
-                  <linearGradient id="challGradBlue" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#0A7AFF" stopOpacity={0.4} />
-                    <stop offset="50%" stopColor="#0A7AFF" stopOpacity={1} />
-                    <stop offset="100%" stopColor="#0A7AFF" stopOpacity={0.4} />
-                  </linearGradient>
-                  <linearGradient id="challGradYellow" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#FFD464" stopOpacity={0.4} />
-                    <stop offset="50%" stopColor="#FFD464" stopOpacity={1} />
-                    <stop offset="100%" stopColor="#FFD464" stopOpacity={0.4} />
-                  </linearGradient>
-                  <filter id="challGlow">
-                    <feGaussianBlur stdDeviation="4" result="blur" />
-                    <feMerge>
-                      <feMergeNode in="blur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                </defs>
-                <path d="M0,90 Q50,25 100,90 Q150,155 200,90 Q250,30 300,90 Q350,150 400,90 Q450,25 500,90 Q550,150 600,90 Q650,35 700,90 Q750,145 800,90" stroke="url(#challGradBlue)" strokeWidth="2.5" fill="none" filter="url(#challGlow)" />
-                <path d="M0,110 Q60,160 120,110 Q180,55 240,110 Q300,165 360,110 Q420,50 480,110 Q540,160 600,110 Q660,55 720,110 Q780,155 800,110" stroke="url(#challGradYellow)" strokeWidth="2.5" fill="none" filter="url(#challGlow)" />
-                <path d="M0,100 L800,100" stroke="white" strokeWidth="0.5" opacity="0.15" />
-              </svg>
+              />
             )}
             <div className={cn("w-full flex flex-col max-h-full relative z-[1]", "my-auto")}>
 
