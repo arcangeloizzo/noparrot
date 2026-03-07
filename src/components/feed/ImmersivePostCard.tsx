@@ -1285,6 +1285,32 @@ const ImmersivePostCardInner = ({
   const isVoicePost = post.post_type === 'voice';
   const isChallengePost = post.post_type === 'challenge';
   const isAudioPost = isVoicePost || isChallengePost;
+
+  // Challenge countdown
+  const challengeExpiresAt = isChallengePost ? post.challenge?.expires_at : null;
+  const [challengeCountdown, setChallengeCountdown] = useState('');
+  const challengeMsRemaining = challengeExpiresAt
+    ? new Date(challengeExpiresAt).getTime() - Date.now()
+    : 0;
+  const isChallengeUrgent = challengeMsRemaining > 0 && challengeMsRemaining < 2 * 60 * 60 * 1000;
+  const isChallengeExpired = challengeExpiresAt
+    ? new Date(challengeExpiresAt) < new Date()
+    : false;
+
+  useEffect(() => {
+    if (!challengeExpiresAt) return;
+    const update = () => {
+      const ms = new Date(challengeExpiresAt).getTime() - Date.now();
+      if (ms <= 0) { setChallengeCountdown('Chiusa'); return; }
+      const h = Math.floor(ms / 3600000);
+      const m = Math.floor((ms % 3600000) / 60000);
+      if (h > 24) setChallengeCountdown(`${Math.floor(h / 24)}g ${h % 24}h`);
+      else setChallengeCountdown(h > 0 ? `${h}h ${m}m` : `${m}m`);
+    };
+    update();
+    const interval = setInterval(update, 60000);
+    return () => clearInterval(interval);
+  }, [challengeExpiresAt]);
   // Ensure text-only really means NO media and NO link in either post
   const isTextOnly = !hasMedia && !hasLink && !quotedPost?.shared_url && !isAudioPost;
   const isIntentPost = !!post.is_intent;
@@ -1435,7 +1461,25 @@ const ImmersivePostCardInner = ({
                 <span className="text-slate-900 dark:text-white font-bold text-sm drop-shadow-none dark:drop-shadow-md">
                   {post.author.full_name || getDisplayUsername(post.author.username)}
                 </span>
-                <span className="text-slate-500 dark:text-gray-400 text-xs">{timeAgo}</span>
+                <span className="text-slate-500 dark:text-gray-400 text-xs">
+                  {timeAgo}
+                  {isChallengePost && challengeCountdown && (
+                    <span style={{
+                      color: isChallengeExpired
+                        ? 'rgba(241,245,249,0.4)'
+                        : isChallengeUrgent
+                          ? '#FF8A3D'
+                          : 'rgba(241,245,249,0.4)',
+                      fontWeight: isChallengeUrgent ? 700 : 400,
+                      fontSize: 12,
+                    }}>
+                      {isChallengeExpired
+                        ? ' · Chiusa'
+                        : ` · ⏱ Scade tra ${challengeCountdown}`
+                      }
+                    </span>
+                  )}
+                </span>
               </div>
             </div>
             {/* Badge centered in remaining space */}

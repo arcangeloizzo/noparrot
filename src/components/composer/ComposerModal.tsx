@@ -404,6 +404,12 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     setQuizData(null);
     setQuizPassed(false);
     setIntentMode(false);
+    setShowVoiceRecorder(false);
+    setVoicePostData(null);
+    setPostType('standard');
+    setChallengeStance(null);
+    setShowPostTypeChooser(false);
+    setChallengeData(null);
     clearMedia();
   };
 
@@ -411,7 +417,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   useEffect(() => {
     if (isOpen) {
       // Only reset if there's residual state from previous session
-      if (showReader || showQuiz || quizData || readerClosing) {
+      if (showReader || showQuiz || quizData || readerClosing || showVoiceRecorder || voicePostData || postType !== 'standard') {
         console.log('[ComposerModal] Resetting residual state on open');
         resetAllState();
       }
@@ -2032,7 +2038,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                 size="sm"
                 onClick={() => {
                   // Check if there's any content to lose
-                  const hasContent = content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl;
+                  const hasContent = content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || showVoiceRecorder || !!voicePostData;
                   if (hasContent) {
                     setShowCancelConfirm(true);
                   } else {

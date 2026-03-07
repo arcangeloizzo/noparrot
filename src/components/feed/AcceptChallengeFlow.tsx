@@ -136,19 +136,6 @@ export const AcceptChallengeFlow: React.FC<AcceptChallengeFlowProps> = ({
             <h3 className="text-base font-bold text-foreground text-center">Qual è la tua posizione?</h3>
             <div className="flex gap-3">
               <button
-                onClick={() => handleStanceSelect("against")}
-                className="flex-1 flex flex-col items-center gap-2 py-5 rounded-2xl transition-all active:scale-[0.97]"
-                style={{
-                  background: "rgba(255,212,100,0.08)",
-                  border: "1px solid rgba(255,212,100,0.25)",
-                }}
-              >
-                <ThumbsDown className="h-6 w-6" style={{ color: "#FFD464" }} />
-                <span className="text-sm font-bold" style={{ color: "#FFD464" }}>
-                  Contro la tesi
-                </span>
-              </button>
-              <button
                 onClick={() => handleStanceSelect("for")}
                 className="flex-1 flex flex-col items-center gap-2 py-5 rounded-2xl transition-all active:scale-[0.97]"
                 style={{
@@ -159,6 +146,19 @@ export const AcceptChallengeFlow: React.FC<AcceptChallengeFlowProps> = ({
                 <ThumbsUp className="h-6 w-6" style={{ color: "#0A7AFF" }} />
                 <span className="text-sm font-bold" style={{ color: "#0A7AFF" }}>
                   A favore
+                </span>
+              </button>
+              <button
+                onClick={() => handleStanceSelect("against")}
+                className="flex-1 flex flex-col items-center gap-2 py-5 rounded-2xl transition-all active:scale-[0.97]"
+                style={{
+                  background: "rgba(255,212,100,0.08)",
+                  border: "1px solid rgba(255,212,100,0.25)",
+                }}
+              >
+                <ThumbsDown className="h-6 w-6" style={{ color: "#FFD464" }} />
+                <span className="text-sm font-bold" style={{ color: "#FFD464" }}>
+                  Contro la tesi
                 </span>
               </button>
             </div>
