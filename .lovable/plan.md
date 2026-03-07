@@ -1,27 +1,35 @@
 
 
-# Fix VapidPkHashMismatch - Auto-resubscribe
+# Piano: 4 Fix (Countdown + Bottoni + Reset Voice Composer)
 
-## Problema
-La push subscription dell'utente è stata registrata con una VAPID public key diversa da quella attuale. Apple rifiuta il push con errore `VapidPkHashMismatch`. Altri utenti con subscription più recenti funzionano correttamente.
+## Modifiche previste
 
-## Soluzione
+### 1. Reset stato Voice nel Composer (ComposerModal.tsx)
 
-### 1. Edge Function: Rilevare e pulire subscription stale
-In `send-push-notification`, quando Apple risponde con `VapidPkHashMismatch` (status 400), cancellare automaticamente la subscription dal database. Al prossimo avvio dell'app PWA, il client si ri-registrerà con le VAPID key corrette.
+**Problema:** Quando l'utente attiva il microfono e poi clicca "Annulla", il composer non resetta `showVoiceRecorder`, `voicePostData`, `postType` e `challengeStance`. Alla riapertura, il flusso audio è ancora attivo.
 
-Modifica in `send-push-notification/index.ts`:
-- Dopo un errore 400/410 da Apple, DELETE la riga da `push_subscriptions` usando l'endpoint
-- Log dell'operazione di cleanup
+**Fix:**
+- Aggiungere a `resetAllState()` (riga 395-408):
+  - `setShowVoiceRecorder(false)`
+  - `setVoicePostData(null)`
+  - `setPostType('standard')`
+  - `setChallengeStance(null)`
+- Aggiornare il check "hasContent" nel bottone Annulla (riga 2035) per includere `showVoiceRecorder || voicePostData` come contenuto da confermare prima di chiudere.
 
-### 2. Frontend: Forzare re-subscribe all'avvio
-In `usePushNotifications`, all'avvio:
-- Confrontare la VAPID public key attuale con quella usata per la subscription esistente
-- Se diversa, unsubscribe dal browser e cancellare dal DB, poi ri-registrare
-- Questo previene futuri mismatch
+### 2. Invertire bottoni Contro/A favore (AcceptChallengeFlow.tsx)
 
-### Passi implementativi
-1. Modificare la Edge Function per auto-cleanup delle subscription con errore `VapidPkHashMismatch` o status 410 Gone
-2. Modificare `usePushNotifications` per forzare re-subscribe quando rileva una subscription potenzialmente stale (confronto applicationServerKey)
-3. Cancellare manualmente la subscription stale dell'utente dal DB (query una tantum)
+Scambiare l'ordine: "A favore" (blu) a sinistra, "Contro" (giallo) a destra.
+
+### 3. Countdown Challenge nell'header (ImmersivePostCard.tsx)
+
+- Aggiungere stato `challengeCountdown` + `useEffect` con `setInterval` ogni 60s per calcolare tempo rimanente da `post.challenge?.expires_at`
+- Mostrare accanto al timestamp: `· ⏱ Scade tra Xh Ym` (arancione se < 2h, grigio altrimenti, "Chiusa" se scaduta)
+
+## File coinvolti
+
+| File | Modifica |
+|------|----------|
+| `src/components/composer/ComposerModal.tsx` | Reset voice state in `resetAllState` + check hasContent |
+| `src/components/feed/AcceptChallengeFlow.tsx` | Inversione ordine bottoni stance |
+| `src/components/feed/ImmersivePostCard.tsx` | Countdown challenge nell'header |
 
