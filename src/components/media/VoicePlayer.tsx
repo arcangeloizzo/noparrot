@@ -273,7 +273,7 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
           ) : (
             <>
               <FileText className="h-3 w-3" />
-              Aa Testo
+              Trascrizione
             </>
           )}
         </button>
