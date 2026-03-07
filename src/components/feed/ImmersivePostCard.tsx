@@ -4,7 +4,7 @@ import { perfStore } from "@/lib/perfStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Mic, Zap } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap } from "lucide-react";
 import { AnimatedHeart } from "@/components/ui/animated-heart";
 import { useDominantColors } from "@/hooks/useDominantColors";
 import { useCachedTrustScore } from "@/hooks/useCachedTrustScore";
