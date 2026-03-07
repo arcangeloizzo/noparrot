@@ -34,8 +34,12 @@
     <script>
       // Register service worker for notifications
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js')
-          .then(reg => console.log('Service Worker registered'))
+        navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+          .then(reg => {
+            console.log('Service Worker registered');
+            // Force update check
+            reg.update();
+          })
           .catch(err => console.error('Service Worker registration failed:', err));
       }
     </script>
