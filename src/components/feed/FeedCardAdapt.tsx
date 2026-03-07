@@ -842,11 +842,38 @@ export const FeedCard = ({
     };
 
     return (
-      <ChallengeCard 
-         challenge={challengeData} 
-         onPostAction={() => {}} 
-         onRespond={handleChallengeRespond} 
-      />
+      <>
+        <ChallengeCard 
+           challenge={challengeData} 
+           onPostAction={() => {}} 
+           onRespond={handleChallengeRespond} 
+        />
+        {showChallengeFlow && challengeData && (
+          <AcceptChallengeFlow
+            open={showChallengeFlow}
+            onOpenChange={setShowChallengeFlow}
+            challengeId={challengeData.id}
+            challengeThesis={challengeData.thesis}
+            onComplete={() => {
+              toast.success('Risposta alla sfida inviata!');
+            }}
+          />
+        )}
+        {showQuiz && quizData && (
+          <QuizModal
+            isOpen={showQuiz}
+            onClose={() => {
+              setShowQuiz(false);
+              setQuizData(null);
+              setGateStep('idle');
+            }}
+            questions={quizData.questions}
+            onSubmit={handleQuizSubmit}
+            sourceUrl={quizData.sourceUrl}
+          />
+        )}
+        <AnalysisOverlay isVisible={showAnalysisOverlay} message="Analisi in corso..." />
+      </>
     );
   }
 
