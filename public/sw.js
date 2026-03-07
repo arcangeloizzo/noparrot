@@ -1,19 +1,33 @@
 // Service Worker for Push Notifications - NoParrot
+// Version bump forces SW update and clears stale caches
+const SW_VERSION = '2.0.0';
+const CACHE_NAME = 'noparrot-v2';
 
-// Cache name for offline support
-const CACHE_NAME = 'noparrot-v1';
-
-// Install event
+// Install event - force activation
 self.addEventListener('install', function(event) {
-  console.log('[SW] Installing service worker...');
+  console.log('[SW] Installing service worker v' + SW_VERSION);
   self.skipWaiting();
 });
 
-// Activate event
+// Activate event - clear old caches
 self.addEventListener('activate', function(event) {
-  console.log('[SW] Service worker activated');
-  event.waitUntil(clients.claim());
+  console.log('[SW] Service worker v' + SW_VERSION + ' activated');
+  event.waitUntil(
+    caches.keys().then(function(cacheNames) {
+      return Promise.all(
+        cacheNames
+          .filter(function(name) { return name !== CACHE_NAME; })
+          .map(function(name) {
+            console.log('[SW] Deleting old cache:', name);
+            return caches.delete(name);
+          })
+      );
+    }).then(function() {
+      return clients.claim();
+    })
+  );
 });
+
 
 // Push notification received
 self.addEventListener('push', function(event) {
