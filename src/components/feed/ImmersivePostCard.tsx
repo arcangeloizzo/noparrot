@@ -1249,6 +1249,13 @@ const ImmersivePostCardInner = ({
       setShowAnalysisOverlay(false);
       setGateStep('idle');
 
+      // If quiz was for challenge respond, open the challenge flow
+      if (quizData?.onChallengeRespond) {
+        setShowChallengeFlow(true);
+        setShareAction(null);
+        return;
+      }
+
       if (currentShareAction === 'feed') {
         onQuoteShare?.({ ...post, _originalSources: Array.isArray(post.sources) ? post.sources : [], _gatePassed: true });
       } else if (currentShareAction === 'friend') {
