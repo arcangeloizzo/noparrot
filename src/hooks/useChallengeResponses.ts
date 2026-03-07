@@ -47,7 +47,7 @@ export function useChallengeResponses(challengeId: string | null) {
       // Fetch profiles
       const userIds = [...new Set(responses.map((r) => r.user_id).filter(Boolean))] as string[];
       const { data: profiles } = await supabase
-        .from("profiles")
+        .from("public_profiles")
         .select("id, username, full_name, avatar_url")
         .in("id", userIds);
 
