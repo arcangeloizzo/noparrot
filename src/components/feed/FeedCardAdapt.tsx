@@ -955,7 +955,8 @@ export const FeedCard = ({
               </div>
             )}
             
-            {/* User Comment - Interlinea rilassata */}
+            {/* User Comment - Interlinea rilassata (hidden for voice posts since content shown above player) */}
+            {!isVoicePost && (
             <div className="text-[15px] leading-relaxed text-gray-100 mb-3 whitespace-pre-wrap break-words">
               {post.content.length > 300 && !isExpanded ? (
                 <>
@@ -974,6 +975,7 @@ export const FeedCard = ({
                 <MentionText content={post.content} />
               )}
             </div>
+            )}
 
             {/* Category Chip */}
             {post.category && (
