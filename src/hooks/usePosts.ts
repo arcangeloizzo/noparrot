@@ -247,6 +247,16 @@ export const usePosts = () => {
         is_intent: post.is_intent ?? false,
         post_type: post.post_type || 'standard',
         voice_post: post.voice_posts?.[0] || null,
+        challenge: post.challenges?.[0] ? {
+          id: post.challenges[0].id,
+          thesis: post.challenges[0].thesis,
+          duration_hours: post.challenges[0].duration_hours,
+          status: post.challenges[0].status,
+          expires_at: post.challenges[0].expires_at,
+          votes_for: post.challenges[0].votes_for || 0,
+          votes_against: post.challenges[0].votes_against || 0,
+          voice_post: post.challenges[0].voice_posts || null,
+        } : null,
         media: (post.post_media || [])
           .sort((a: any, b: any) => a.order_idx - b.order_idx)
           .map((pm: any) => pm.media)
