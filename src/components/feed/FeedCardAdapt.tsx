@@ -92,6 +92,9 @@ export const FeedCard = ({
   const sendMessage = useSendMessage();
   const isOwnPost = user?.id === post.author.id;
   const isVoicePost = post.post_type === 'voice';
+  const isChallengePost = post.post_type === 'challenge' || !!post.challenge;
+  const challengeId = isChallengePost ? post.challenge?.id || null : null;
+  const { responses: challengeResponses } = useChallengeResponses(challengeId);
 
   // Article preview state
   const [articlePreview, setArticlePreview] = useState<any>(null);
