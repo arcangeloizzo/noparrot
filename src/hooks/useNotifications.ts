@@ -7,7 +7,7 @@ import { usePushNotifications } from './usePushNotifications';
 export interface Notification {
   id: string;
   user_id: string;
-  type: 'like' | 'comment' | 'follow' | 'mention' | 'message_like' | 'reshare';
+  type: 'like' | 'comment' | 'follow' | 'mention' | 'message_like' | 'reshare' | 'challenge_response' | 'new_user';
   actor_id: string;
   post_id: string | null;
   comment_id: string | null;
@@ -132,6 +132,10 @@ export const useNotifications = () => {
               case 'reshare':
                 title = 'Nuovo reshare 🔄';
                 body = 'Il tuo post è stato condiviso!';
+                break;
+              case 'challenge_response':
+                title = 'Nuova risposta alla challenge ⚡';
+                body = 'Qualcuno ha risposto alla tua sfida!';
                 break;
             }
             

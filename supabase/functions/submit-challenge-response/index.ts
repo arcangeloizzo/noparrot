@@ -238,7 +238,7 @@ Deno.serve(async (req) => {
       console.warn("transcribe-audio invocation failed (non-fatal):", e);
     }
 
-    // ── 9. Send push notification to challenge author (fire-and-forget) ──
+    // ── 9. Insert notification in DB + send push (fire-and-forget) ──
     try {
       // Get the challenge post author
       const { data: challengePost } = await supabase
@@ -248,26 +248,20 @@ Deno.serve(async (req) => {
         .single();
 
       if (challengePost && challengePost.author_id !== userId) {
-        await fetch(
-          `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-push-notification`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-internal-secret": Deno.env.get("PUSH_INTERNAL_SECRET") || "",
-            },
-            body: JSON.stringify({
-              type: "notification",
-              user_id: challengePost.author_id,
-              actor_id: userId,
-              notification_type: "challenge_response",
-              post_id: challenge.post_id,
-            }),
-          }
-        );
+        // Insert notification record so it appears in Notifications screen
+        await supabase
+          .from("notifications")
+          .insert({
+            user_id: challengePost.author_id,
+            actor_id: userId,
+            type: "challenge_response",
+            post_id: challenge.post_id,
+          });
+
+        // The DB trigger on notifications will fire push automatically
       }
     } catch (e) {
-      console.warn("Push notification failed (non-fatal):", e);
+      console.warn("Notification insert failed (non-fatal):", e);
     }
 
     // ── 10. Return response ──

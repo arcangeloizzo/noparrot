@@ -44,6 +44,7 @@ import { PeoplePicker } from "@/components/share/PeoplePicker";
 // Hooks & Utils
 import { Post, useQuotedPost, useDeletePost } from "@/hooks/usePosts";
 import { useToggleReaction } from "@/hooks/usePosts";
+import { useChallengeResponses } from "@/hooks/useChallengeResponses";
 import { useAuth } from "@/contexts/AuthContext";
 import { detectPlatformFromUrl } from "@/components/media/utils/mediaUtils";
 import { AnalysisOverlay } from "@/components/ui/AnalysisOverlay";
@@ -91,6 +92,9 @@ export const FeedCard = ({
   const sendMessage = useSendMessage();
   const isOwnPost = user?.id === post.author.id;
   const isVoicePost = post.post_type === 'voice';
+  const isChallengePost = post.post_type === 'challenge' || !!post.challenge;
+  const challengeId = isChallengePost ? post.challenge?.id || null : null;
+  const { responses: challengeResponses } = useChallengeResponses(challengeId);
 
   // Article preview state
   const [articlePreview, setArticlePreview] = useState<any>(null);
@@ -788,7 +792,7 @@ export const FeedCard = ({
         transcript: rawChallenge.voice_post.transcript || null,
         transcript_status: rawChallenge.voice_post.transcript_status || null,
       } : null,
-      responses: [],
+      responses: challengeResponses,
     } : null;
 
     if (!challengeData) {

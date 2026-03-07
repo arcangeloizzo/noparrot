@@ -15,7 +15,8 @@ import {
   Bell,
   Mail,
   CheckCheck,
-  ArrowLeft
+  ArrowLeft,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -66,6 +67,8 @@ const getNotificationIcon = (type: string) => {
       return <Mail className={cn(baseClass, "text-sky-400/70")} />;
     case "new_user":
       return <UserPlus className={cn(baseClass, "text-green-500")} />;
+    case "challenge_response":
+      return <Zap className={cn(baseClass, "text-red-400")} />;
     default:
       return <Bell className={cn(baseClass, "text-muted-foreground")} />;
   }
@@ -91,6 +94,8 @@ const getNotificationText = (notification: Notification): string => {
       return "ha messo like al tuo messaggio";
     case "new_user":
       return "si è registrato su NoParrot";
+    case "challenge_response":
+      return "ha risposto alla tua challenge";
     default:
       return "ha interagito con te";
   }
@@ -240,13 +245,14 @@ export const Notifications = () => {
       navigate(`/profile/${notification.actor_id}`);
     } else if (notification.type === "follow" && notification.actor_id) {
       navigate(`/profile/${notification.actor_id}`);
+    } else if (notification.type === "challenge_response" && notification.post_id) {
+      navigate(`/post/${notification.post_id}`);
     } else if (notification.type === "message_like") {
       const threadId = notification.message?.thread_id;
       if (threadId) {
         const scrollTo = notification.message_id ? `?scrollTo=${notification.message_id}` : "";
         navigate(`/messages/${threadId}${scrollTo}`);
       } else {
-        // Fallback if thread_id not available
         navigate(`/messages`);
       }
     } else if (notification.post_id) {
