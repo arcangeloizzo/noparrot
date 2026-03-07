@@ -1463,23 +1463,22 @@ const ImmersivePostCardInner = ({
                 </span>
                 <span className="text-slate-500 dark:text-gray-400 text-xs">
                   {timeAgo}
-                  {isChallengePost && challengeCountdown && (
-                    <span style={{
-                      color: isChallengeExpired
-                        ? 'rgba(241,245,249,0.4)'
-                        : isChallengeUrgent
-                          ? '#FF8A3D'
-                          : 'rgba(241,245,249,0.4)',
-                      fontWeight: isChallengeUrgent ? 700 : 400,
-                      fontSize: 12,
-                    }}>
-                      {isChallengeExpired
-                        ? ' · Chiusa'
-                        : ` · ⏱ Scade tra ${challengeCountdown}`
-                      }
-                    </span>
-                  )}
                 </span>
+                {isChallengePost && challengeCountdown && (
+                  <span className="text-[10px] leading-none" style={{
+                    color: isChallengeExpired
+                      ? 'rgba(148,163,184,0.7)'
+                      : isChallengeUrgent
+                        ? '#FF8A3D'
+                        : 'rgba(148,163,184,0.7)',
+                    fontWeight: isChallengeUrgent ? 700 : 400,
+                  }}>
+                    {isChallengeExpired
+                      ? '⏱ Chiusa'
+                      : `⏱ Scade tra ${challengeCountdown}`
+                    }
+                  </span>
+                )}
               </div>
             </div>
             {/* Badge centered in remaining space */}
