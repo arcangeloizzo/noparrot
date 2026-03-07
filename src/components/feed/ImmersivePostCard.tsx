@@ -1415,26 +1415,32 @@ const ImmersivePostCardInner = ({
               <div className="w-10 h-10 rounded-full border border-white/20 bg-white/10 overflow-hidden shadow-lg">
                 {getAvatarContent()}
               </div>
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-900 dark:text-white font-bold text-sm drop-shadow-none dark:drop-shadow-md">
-                    {post.author.full_name || getDisplayUsername(post.author.username)}
-                  </span>
-                  {isAudioPost && !isChallengePost && (
-                    <span className="h-8 px-2.5 gap-1.5 text-[10px] rounded-full font-bold tracking-wide inline-flex items-center uppercase backdrop-blur-md border"
-                      style={{ background: 'rgba(255,212,100,0.15)', borderColor: 'rgba(255,212,100,0.25)', color: '#FFD464' }}>
-                      🎙 VOICE
-                    </span>
-                  )}
-                  {isChallengePost && (
-                    <span className="h-8 px-2.5 gap-1.5 text-[10px] rounded-full font-bold tracking-wide inline-flex items-center uppercase backdrop-blur-md border"
-                      style={{ background: 'rgba(228,30,82,0.15)', borderColor: 'rgba(228,30,82,0.25)', color: '#E41E52' }}>
-                      ⚡ CHALLENGE
-                    </span>
-                  )}
-                </div>
+              <div className="flex flex-col shrink-0">
+                <span className="text-slate-900 dark:text-white font-bold text-sm drop-shadow-none dark:drop-shadow-md">
+                  {post.author.full_name || getDisplayUsername(post.author.username)}
+                </span>
                 <span className="text-slate-500 dark:text-gray-400 text-xs">{timeAgo}</span>
               </div>
+            </div>
+            {/* Badge centered in remaining space */}
+            {(isAudioPost || isChallengePost) && (
+              <div className="flex-1 flex justify-center">
+                {isAudioPost && !isChallengePost && (
+                  <span className="h-8 px-2.5 gap-1.5 text-[10px] rounded-full font-bold tracking-wide inline-flex items-center uppercase backdrop-blur-md border"
+                    style={{ background: 'rgba(255,212,100,0.15)', borderColor: 'rgba(255,212,100,0.25)', color: '#FFD464' }}>
+                    🎙 VOICE
+                  </span>
+                )}
+                {isChallengePost && (
+                  <span className="h-8 px-2.5 gap-1.5 text-[10px] rounded-full font-bold tracking-wide inline-flex items-center uppercase backdrop-blur-md border"
+                    style={{ background: 'rgba(228,30,82,0.15)', borderColor: 'rgba(228,30,82,0.25)', color: '#E41E52' }}>
+                    ⚡ CHALLENGE
+                  </span>
+                )}
+              </div>
+            )}
+            <div className="hidden">
+            {/* closing tag match fix */}
             </div>
 
             {/* PULSE Badge for Spotify / Trust Score / Category - Hide Trust Score for editorial shares (shown in card) */}
