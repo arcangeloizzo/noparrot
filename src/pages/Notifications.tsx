@@ -15,7 +15,8 @@ import {
   Bell,
   Mail,
   CheckCheck,
-  ArrowLeft
+  ArrowLeft,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
