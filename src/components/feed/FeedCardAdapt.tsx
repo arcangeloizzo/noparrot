@@ -20,6 +20,7 @@ import { QuizModal } from "@/components/ui/quiz-modal";
 import { PostTestActionsModal } from "./PostTestActionsModal";
 import { QuotedPostCard } from "./QuotedPostCard";
 import { ChallengeCard } from "./ChallengeCard";
+import { AcceptChallengeFlow } from "./AcceptChallengeFlow";
 import { PostHeader } from "./PostHeader";
 import { MentionText } from "./MentionText";
 import { VoicePlayer } from "@/components/media/VoicePlayer";
