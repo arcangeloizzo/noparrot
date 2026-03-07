@@ -1439,9 +1439,6 @@ const ImmersivePostCardInner = ({
                 )}
               </div>
             )}
-            <div className="hidden">
-            {/* closing tag match fix */}
-            </div>
 
             {/* PULSE Badge for Spotify / Trust Score / Category - Hide Trust Score for editorial shares (shown in card) */}
             {hasLink && isSpotify && articlePreview?.popularity !== undefined ? (
