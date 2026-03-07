@@ -67,6 +67,8 @@ const getNotificationIcon = (type: string) => {
       return <Mail className={cn(baseClass, "text-sky-400/70")} />;
     case "new_user":
       return <UserPlus className={cn(baseClass, "text-green-500")} />;
+    case "challenge_response":
+      return <Zap className={cn(baseClass, "text-red-400")} />;
     default:
       return <Bell className={cn(baseClass, "text-muted-foreground")} />;
   }
