@@ -1532,26 +1532,82 @@ const ImmersivePostCardInner = ({
           {/* [Rail 2] ContentRail: Adaptive height, clips overflow, no scroll */}
           <div className="flex-1 min-h-0 relative flex flex-col px-4 overflow-hidden">
             {/* Decorative waveform background for voice/challenge posts */}
-            {(isVoicePost || isChallengePost) && (
-              <div
+            {isVoicePost && !isChallengePost && (
+              <svg
                 style={{
                   position: 'absolute',
                   top: '50%',
                   left: 0,
-                  right: 0,
-                  height: 120,
+                  width: '100%',
+                  height: 200,
                   transform: 'translateY(-50%)',
-                  backgroundImage: isChallengePost
-                    ? `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 80' preserveAspectRatio='none'><path d='M0,35 Q20,10 45,35 Q65,58 90,35 Q115,12 140,35 Q160,55 185,35 Q210,15 235,35 Q255,58 280,35 Q305,10 330,35 Q350,55 375,35 Q395,20 400,35' stroke='white' stroke-width='1.5' fill='none' opacity='0.6'/><path d='M0,45 Q25,65 50,45 Q80,22 105,45 Q130,62 155,45 Q180,25 205,45 Q230,60 260,45 Q285,22 310,45 Q340,62 365,45 Q385,28 400,45' stroke='white' stroke-width='1.5' fill='none' opacity='0.4'/></svg>`)}")`
-                    : `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 80' preserveAspectRatio='none'><path d='M0,40 Q15,15 35,40 Q50,62 75,40 Q95,18 115,40 Q130,58 155,40 Q175,22 200,40 Q220,55 245,40 Q265,15 290,40 Q310,65 335,40 Q355,20 375,40 Q390,55 400,40' stroke='white' stroke-width='1.5' fill='none' opacity='0.6'/></svg>`)}")`,
-                  backgroundSize: '100% 100%',
-                  backgroundRepeat: 'no-repeat',
-                  backgroundPosition: 'center',
-                  opacity: isChallengePost ? 0.06 : 0.08,
                   pointerEvents: 'none',
                   zIndex: 0,
+                  opacity: 0.07,
                 }}
-              />
+                viewBox="0 0 800 200"
+                preserveAspectRatio="none"
+              >
+                <defs>
+                  <linearGradient id="voiceGrad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#0A7AFF" stopOpacity={0.3} />
+                    <stop offset="30%" stopColor="#0A7AFF" stopOpacity={0.8} />
+                    <stop offset="50%" stopColor="#4DA6FF" stopOpacity={1} />
+                    <stop offset="70%" stopColor="#0A7AFF" stopOpacity={0.8} />
+                    <stop offset="100%" stopColor="#0A7AFF" stopOpacity={0.3} />
+                  </linearGradient>
+                  <filter id="voiceGlow">
+                    <feGaussianBlur stdDeviation="4" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+                <path d="M0,100 Q50,30 100,100 Q150,170 200,100 Q250,40 300,100 Q350,155 400,100 Q450,35 500,100 Q550,160 600,100 Q650,45 700,100 Q750,150 800,100" stroke="url(#voiceGrad1)" strokeWidth="3" fill="none" filter="url(#voiceGlow)" />
+                <path d="M0,100 Q60,55 120,100 Q180,145 240,100 Q300,60 360,100 Q420,140 480,100 Q540,55 600,100 Q660,145 720,100 Q780,60 800,100" stroke="url(#voiceGrad1)" strokeWidth="1.5" fill="none" filter="url(#voiceGlow)" opacity="0.5" />
+                <path d="M0,100 Q40,70 80,100 Q120,130 160,100 Q200,65 240,100 Q280,135 320,100 Q360,70 400,100 Q440,130 480,100 Q520,65 560,100 Q600,135 640,100 Q680,70 720,100 Q760,130 800,100" stroke="#4DA6FF" strokeWidth="0.8" fill="none" opacity="0.3" />
+              </svg>
+            )}
+            {isChallengePost && (
+              <svg
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: 0,
+                  width: '100%',
+                  height: 200,
+                  transform: 'translateY(-50%)',
+                  pointerEvents: 'none',
+                  zIndex: 0,
+                  opacity: 0.06,
+                }}
+                viewBox="0 0 800 200"
+                preserveAspectRatio="none"
+              >
+                <defs>
+                  <linearGradient id="challGradBlue" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#0A7AFF" stopOpacity={0.4} />
+                    <stop offset="50%" stopColor="#0A7AFF" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#0A7AFF" stopOpacity={0.4} />
+                  </linearGradient>
+                  <linearGradient id="challGradYellow" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#FFD464" stopOpacity={0.4} />
+                    <stop offset="50%" stopColor="#FFD464" stopOpacity={1} />
+                    <stop offset="100%" stopColor="#FFD464" stopOpacity={0.4} />
+                  </linearGradient>
+                  <filter id="challGlow">
+                    <feGaussianBlur stdDeviation="4" result="blur" />
+                    <feMerge>
+                      <feMergeNode in="blur" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+                <path d="M0,90 Q50,25 100,90 Q150,155 200,90 Q250,30 300,90 Q350,150 400,90 Q450,25 500,90 Q550,150 600,90 Q650,35 700,90 Q750,145 800,90" stroke="url(#challGradBlue)" strokeWidth="2.5" fill="none" filter="url(#challGlow)" />
+                <path d="M0,110 Q60,160 120,110 Q180,55 240,110 Q300,165 360,110 Q420,50 480,110 Q540,160 600,110 Q660,55 720,110 Q780,155 800,110" stroke="url(#challGradYellow)" strokeWidth="2.5" fill="none" filter="url(#challGlow)" />
+                <path d="M0,100 L800,100" stroke="white" strokeWidth="0.5" opacity="0.15" />
+              </svg>
             )}
             <div className={cn("w-full flex flex-col max-h-full relative z-[1]", "my-auto")}>
 
