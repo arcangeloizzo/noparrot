@@ -1673,9 +1673,10 @@ const ImmersivePostCardInner = ({
                         }}
                       >
                         {!isExpired && (
-                          <span className="absolute inset-0 animate-shimmer" style={{
+                          <span className="absolute inset-0" style={{
                             background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)',
                             backgroundSize: '200% 100%',
+                            animation: 'shimmer 2.5s ease-in-out infinite',
                           }} />
                         )}
                         <span className="relative z-10">
