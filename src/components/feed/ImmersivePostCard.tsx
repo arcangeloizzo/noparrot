@@ -1596,12 +1596,12 @@ const ImmersivePostCardInner = ({
                   {/* Polarization mini-bar */}
                   <div className="mt-3 px-1">
                     <div className="flex items-end justify-between mb-1">
-                      <span style={{ fontSize: 12, fontWeight: 800, color: '#FFD464' }}>{Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%</span>
                       <span style={{ fontSize: 12, fontWeight: 800, color: '#0A7AFF' }}>{Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%</span>
+                      <span style={{ fontSize: 12, fontWeight: 800, color: '#FFD464' }}>{Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%</span>
                     </div>
                     <div className="flex overflow-hidden" style={{ height: 4, borderRadius: 2 }}>
-                      <div style={{ width: `${Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #FFD464, #FFD464CC)' }} />
-                      <div style={{ width: `${Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #0A7AFFCC, #0A7AFF)' }} />
+                      <div style={{ width: `${Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #0A7AFF, #0A7AFFCC)' }} />
+                      <div style={{ width: `${Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #FFD464CC, #FFD464)' }} />
                     </div>
                   </div>
                 </div>
