@@ -1464,26 +1464,11 @@ const ImmersivePostCardInner = ({
                 <span className="text-slate-500 dark:text-gray-400 text-xs">
                   {timeAgo}
                 </span>
-                {isChallengePost && challengeCountdown && (
-                  <span className="text-[10px] leading-none" style={{
-                    color: isChallengeExpired
-                      ? 'rgba(148,163,184,0.7)'
-                      : isChallengeUrgent
-                        ? '#FF8A3D'
-                        : 'rgba(148,163,184,0.7)',
-                    fontWeight: isChallengeUrgent ? 700 : 400,
-                  }}>
-                    {isChallengeExpired
-                      ? '⏱ Chiusa'
-                      : `⏱ Scade tra ${challengeCountdown}`
-                    }
-                  </span>
-                )}
               </div>
             </div>
             {/* Badge centered in remaining space */}
             {(isAudioPost || isChallengePost) && (
-              <div className="flex-1 flex justify-center">
+              <div className="flex-1 flex flex-col items-center gap-1">
                 {isAudioPost && !isChallengePost && (
                   <span className="h-8 px-2.5 gap-1.5 text-[10px] rounded-full font-bold tracking-wide inline-flex items-center uppercase backdrop-blur-md border"
                     style={{ background: 'rgba(255,212,100,0.15)', borderColor: 'rgba(255,212,100,0.25)', color: '#FFD464' }}>
@@ -1491,10 +1476,27 @@ const ImmersivePostCardInner = ({
                   </span>
                 )}
                 {isChallengePost && (
-                  <span className="h-8 px-2.5 gap-1.5 text-[10px] rounded-full font-bold tracking-wide inline-flex items-center uppercase backdrop-blur-md border"
-                    style={{ background: 'rgba(228,30,82,0.15)', borderColor: 'rgba(228,30,82,0.25)', color: '#E41E52' }}>
-                    ⚡ CHALLENGE
-                  </span>
+                  <>
+                    <span className="h-8 px-2.5 gap-1.5 text-[10px] rounded-full font-bold tracking-wide inline-flex items-center uppercase backdrop-blur-md border"
+                      style={{ background: 'rgba(228,30,82,0.15)', borderColor: 'rgba(228,30,82,0.25)', color: '#E41E52' }}>
+                      ⚡ CHALLENGE
+                    </span>
+                    {challengeCountdown && (
+                      <span className="text-xs leading-none" style={{
+                        color: isChallengeExpired
+                          ? 'rgba(148,163,184,0.7)'
+                          : isChallengeUrgent
+                            ? '#FF8A3D'
+                            : 'rgba(148,163,184,0.7)',
+                        fontWeight: isChallengeUrgent ? 700 : 400,
+                      }}>
+                        {isChallengeExpired
+                          ? '⏱ Chiusa'
+                          : `⏱ Scade tra ${challengeCountdown}`
+                        }
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
             )}
