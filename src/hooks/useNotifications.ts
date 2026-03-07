@@ -7,7 +7,7 @@ import { usePushNotifications } from './usePushNotifications';
 export interface Notification {
   id: string;
   user_id: string;
-  type: 'like' | 'comment' | 'follow' | 'mention' | 'message_like' | 'reshare';
+  type: 'like' | 'comment' | 'follow' | 'mention' | 'message_like' | 'reshare' | 'challenge_response' | 'new_user';
   actor_id: string;
   post_id: string | null;
   comment_id: string | null;
