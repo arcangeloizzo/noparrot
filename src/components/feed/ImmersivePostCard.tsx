@@ -1320,6 +1320,22 @@ const ImmersivePostCardInner = ({
         className="h-[100dvh] w-full snap-start relative flex flex-col p-6 overflow-hidden bg-immersive transition-colors duration-500"
         onClick={handleDoubleTap}
       >
+        {/* Decorative waveform background for voice/challenge posts */}
+        {(isVoicePost || isChallengePost) && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundImage: `url('/assets/${isChallengePost ? 'challenge' : 'voice'}-wave-bg.png')`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat',
+              opacity: 0.25,
+              pointerEvents: 'none',
+              zIndex: 0,
+            }}
+          />
+        )}
         {/* Background Layer */}
         {isMediaOnlyPost && mediaUrl ? (
           <>
