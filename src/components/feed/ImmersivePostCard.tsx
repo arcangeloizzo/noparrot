@@ -1581,9 +1581,9 @@ const ImmersivePostCardInner = ({
                 <div className="relative w-full max-w-lg mx-auto" style={{ marginBottom: 12 }}>
                   {/* Thesis */}
                   <div className="relative" style={{
-                    background: 'linear-gradient(145deg, rgba(255,212,100,0.18), rgba(255,255,255,0.08), rgba(10,122,255,0.14))',
-                    border: '1px solid rgba(255,212,100,0.15)',
-                    borderRadius: 18, padding: '18px 20px',
+                    background: 'linear-gradient(145deg, rgba(255,212,100,0.25), rgba(30,30,40,0.85), rgba(10,122,255,0.20))',
+                    border: '1px solid rgba(255,212,100,0.25)',
+                    borderRadius: 18, padding: '18px 20px', backdropFilter: 'blur(12px)',
                   }}>
                     <span className="absolute select-none pointer-events-none" style={{
                       top: 10, left: 14, fontSize: 48, fontFamily: 'Georgia, serif',
