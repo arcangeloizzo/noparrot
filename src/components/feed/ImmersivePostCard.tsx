@@ -1520,7 +1520,27 @@ const ImmersivePostCardInner = ({
           {/* Center Content */}
           {/* [Rail 2] ContentRail: Adaptive height, clips overflow, no scroll */}
           <div className="flex-1 min-h-0 relative flex flex-col px-4 overflow-hidden">
-            <div className="w-full my-auto flex flex-col max-h-full">
+            {/* Decorative waveform background for voice/challenge posts */}
+            {(isVoicePost || isChallengePost) && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: 0,
+                  right: 0,
+                  height: 80,
+                  transform: 'translateY(-50%)',
+                  backgroundImage: `url('/assets/${isChallengePost ? 'challenge' : 'voice'}-wave-bg.png')`,
+                  backgroundSize: '100% auto',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'center',
+                  opacity: isChallengePost ? 0.025 : 0.04,
+                  pointerEvents: 'none',
+                  zIndex: 0,
+                }}
+              />
+            )}
+            <div className="w-full my-auto flex flex-col max-h-full relative z-[1]">
 
 
               {/* Voice Post Body (non-challenge) */}

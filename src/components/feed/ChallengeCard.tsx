@@ -211,14 +211,14 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, onRespo
 
             {/* ─── Polarization Bar ─── */}
             <div className="px-4 pb-3">
-                <div className="flex items-end justify-between mb-1.5">
+            <div className="flex items-end justify-between mb-1.5">
                     <div className="flex flex-col">
-                        <span style={{ fontSize: 14, fontWeight: 800, color: COLOR_AGAINST }}>{percentageAgainst}%</span>
-                        <span style={{ fontSize: 11, color: 'rgba(241,245,249,0.3)' }}>contro</span>
-                    </div>
-                    <div className="flex flex-col items-end">
                         <span style={{ fontSize: 14, fontWeight: 800, color: COLOR_FOR }}>{percentageFor}%</span>
                         <span style={{ fontSize: 11, color: 'rgba(241,245,249,0.3)' }}>a favore</span>
+                    </div>
+                    <div className="flex flex-col items-end">
+                        <span style={{ fontSize: 14, fontWeight: 800, color: COLOR_AGAINST }}>{percentageAgainst}%</span>
+                        <span style={{ fontSize: 11, color: 'rgba(241,245,249,0.3)' }}>contro</span>
                     </div>
                 </div>
                 <div className="flex overflow-hidden" style={{ height: 6, borderRadius: 3 }}>
