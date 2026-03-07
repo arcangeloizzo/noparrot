@@ -404,6 +404,12 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     setQuizData(null);
     setQuizPassed(false);
     setIntentMode(false);
+    setShowVoiceRecorder(false);
+    setVoicePostData(null);
+    setPostType('standard');
+    setChallengeStance(null);
+    setShowPostTypeChooser(false);
+    setChallengeData(null);
     clearMedia();
   };
 
