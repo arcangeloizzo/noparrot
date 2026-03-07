@@ -417,7 +417,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   useEffect(() => {
     if (isOpen) {
       // Only reset if there's residual state from previous session
-      if (showReader || showQuiz || quizData || readerClosing) {
+      if (showReader || showQuiz || quizData || readerClosing || showVoiceRecorder || voicePostData || postType !== 'standard') {
         console.log('[ComposerModal] Resetting residual state on open');
         resetAllState();
       }
