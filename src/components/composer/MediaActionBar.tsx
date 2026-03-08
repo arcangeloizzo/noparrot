@@ -163,21 +163,6 @@ export const MediaActionBar = ({
           </button>
         )}
 
-        {/* Mic: open Voice Recorder */}
-        {onMicClick && isVoiceRecordingEnabled && (
-          <button
-            type="button"
-            onClick={() => {
-              haptics.light();
-              onMicClick();
-            }}
-            disabled={disabled}
-            className={iconButtonClass}
-            aria-label="Registra audio"
-          >
-            <Mic className="w-5 h-5" strokeWidth={1.5} />
-          </button>
-        )}
 
         {/* Camera: direct capture - opens camera directly */}
         <button
