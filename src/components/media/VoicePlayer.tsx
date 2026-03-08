@@ -114,7 +114,7 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
   const audioEl = (
     <audio
       ref={audioRef}
-      src={fullAudioUrl}
+      src={resolvedUrl ?? undefined}
       onTimeUpdate={handleTimeUpdate}
       onEnded={handleEnded}
       onPause={() => setIsPlaying(false)}
