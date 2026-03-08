@@ -55,7 +55,8 @@ Deno.serve(async (req) => {
       .from('voice-audio')
       .createSignedUrl(voicePost.audio_url, 60 * 60) // valid for 1h
 
-    const audioUrlToTranscribe = signErr ? `${supabaseUrl}/storage/v1/object/public/voice-audio/${voicePost.audio_url}` : signedUrlData.signedUrl;
+    if (signErr) throw new Error(`Failed to create signed URL for voice audio: ${signErr.message}`);
+    const audioUrlToTranscribe = signedUrlData.signedUrl;
 
     console.log(`[transcribe-audio:${reqId}] triggering deepgram`);
 
