@@ -417,6 +417,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     setChallengeStance(null);
     setShowPostTypeChooser(false);
     setChallengeData(null);
+    setComposerMode('idle');
+    setThesis('');
+    setChallengeDuration(48);
+    setTextFocused(false);
     clearMedia();
   };
 
@@ -424,7 +428,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   useEffect(() => {
     if (isOpen) {
       // Only reset if there's residual state from previous session
-      if (showReader || showQuiz || quizData || readerClosing || showVoiceRecorder || voicePostData || postType !== 'standard') {
+      if (showReader || showQuiz || quizData || readerClosing || showVoiceRecorder || voicePostData || postType !== 'standard' || composerMode !== 'idle') {
         console.log('[ComposerModal] Resetting residual state on open');
         resetAllState();
       }
