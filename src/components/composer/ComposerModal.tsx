@@ -2203,28 +2203,60 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
 
               {/* ─── CHALLENGE PREVIEW ─── */}
               {composerMode === 'challenge-preview' && voicePostData && (
-                <div className="px-4 py-5 animate-in fade-in slide-in-from-right-4">
+                <div className="px-4 py-5 space-y-5 animate-in fade-in slide-in-from-right-4">
                   <button
                     onClick={() => setComposerMode('challenge-thesis')}
-                    className="flex items-center gap-2 text-sm font-medium text-foreground mb-4"
+                    className="flex items-center gap-2 text-sm font-medium text-foreground"
                   >
                     <span className="text-muted-foreground">←</span>
                     <span>⚡ Anteprima</span>
                   </button>
-                  <VoiceRecorder
-                    accentColor="#E41E52"
-                    thesisReminder={thesis}
-                    headerLabel="⚡ Anteprima Challenge"
-                    onRecordingComplete={(audioBlob, durationSec, waveform) => {
-                      setVoicePostData({ audioBlob, durationSec, waveformData: waveform });
-                      // Publish challenge
-                      handlePublish('challenge', { thesis, duration_hours: challengeDuration });
+
+                  {/* Thesis block */}
+                  <div
+                    className="rounded-2xl px-4 py-3 text-sm italic"
+                    style={{
+                      background: 'linear-gradient(145deg, rgba(228,30,82,0.05), transparent)',
+                      border: '1px solid rgba(228,30,82,0.1)',
+                      color: 'hsl(var(--muted-foreground))',
                     }}
-                    onCancel={() => {
-                      setVoicePostData(null);
-                      setComposerMode('challenge-rec');
-                    }}
+                  >
+                    "{thesis}"
+                  </div>
+
+                  {/* Native audio player */}
+                  <audio
+                    src={URL.createObjectURL(voicePostData.audioBlob)}
+                    controls
+                    className="w-full h-10"
+                    controlsList="nodownload nofullscreen"
                   />
+
+                  {/* Buttons */}
+                  <div className="flex gap-3 w-full">
+                    <button
+                      onClick={() => {
+                        setVoicePostData(null);
+                        setComposerMode('challenge-rec');
+                      }}
+                      className="flex-1 py-3.5 rounded-[14px] text-[13px] font-semibold"
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.07)',
+                        color: 'hsl(var(--muted-foreground))',
+                      }}
+                    >
+                      Rifai
+                    </button>
+                    <button
+                      onClick={() => handlePublish('challenge', { thesis, duration_hours: challengeDuration })}
+                      disabled={isLoading}
+                      className="flex-1 py-3.5 rounded-[14px] text-[14px] font-bold text-white disabled:opacity-50"
+                      style={{ background: 'linear-gradient(135deg, #E41E52, #0A7AFF)' }}
+                    >
+                      {isLoading ? 'Pubblicazione...' : '⚡ Lancia Challenge'}
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -2252,17 +2284,50 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
 
               {/* ─── VOICE PREVIEW ─── */}
               {composerMode === 'voice-preview' && voicePostData && (
-                <div className="px-4 py-5 animate-in fade-in slide-in-from-right-4">
+                <div className="px-4 py-5 space-y-5 animate-in fade-in slide-in-from-right-4">
                   <button
-                    onClick={() => { setComposerMode('voice-rec'); }}
-                    className="flex items-center gap-2 text-sm font-medium text-foreground mb-4"
+                    onClick={() => setComposerMode('voice-rec')}
+                    className="flex items-center gap-2 text-sm font-medium text-foreground"
                   >
                     <span className="text-muted-foreground">←</span>
                     <span>🎙 Anteprima</span>
                   </button>
-                  <VoiceRecorder
-                    accentColor="#0A7AFF"
-                    headerLabel="🎙 Anteprima"
+
+                  {/* Native audio player */}
+                  <audio
+                    src={URL.createObjectURL(voicePostData.audioBlob)}
+                    controls
+                    className="w-full h-10"
+                    controlsList="nodownload nofullscreen"
+                  />
+
+                  {/* Buttons */}
+                  <div className="flex gap-3 w-full">
+                    <button
+                      onClick={() => {
+                        setVoicePostData(null);
+                        setComposerMode('voice-rec');
+                      }}
+                      className="flex-1 py-3.5 rounded-[14px] text-[13px] font-semibold"
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.07)',
+                        color: 'hsl(var(--muted-foreground))',
+                      }}
+                    >
+                      Rifai
+                    </button>
+                    <button
+                      onClick={() => handlePublish('voice')}
+                      disabled={isLoading}
+                      className="flex-1 py-3.5 rounded-[14px] text-[14px] font-bold text-white disabled:opacity-50"
+                      style={{ background: '#0A7AFF' }}
+                    >
+                      {isLoading ? 'Pubblicazione...' : '🎙 Pubblica'}
+                    </button>
+                  </div>
+                </div>
+              )}
                     onRecordingComplete={(audioBlob, durationSec, waveform) => {
                       setVoicePostData({ audioBlob, durationSec, waveformData: waveform });
                       handlePublish('voice');
