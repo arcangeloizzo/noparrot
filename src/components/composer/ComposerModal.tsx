@@ -2328,17 +2328,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                   </div>
                 </div>
               )}
-                    onRecordingComplete={(audioBlob, durationSec, waveform) => {
-                      setVoicePostData({ audioBlob, durationSec, waveformData: waveform });
-                      handlePublish('voice');
-                    }}
-                    onCancel={() => {
-                      setVoicePostData(null);
-                      setComposerMode('voice-rec');
-                    }}
-                  />
-                </div>
-              )}
+
+
 
               {/* ─── IDLE / TEXT EDITING ─── */}
               {(composerMode === 'idle' || composerMode === 'text-editing') && (
