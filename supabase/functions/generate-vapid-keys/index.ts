@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import webpush from "https://esm.sh/web-push@3.6.7";
 
 const corsHeaders = {
@@ -11,21 +12,40 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Generate a new valid VAPID key pair
+  // Authenticate and authorize admin only
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+  }
+
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    { global: { headers: { Authorization: authHeader } } }
+  );
+
+  const token = authHeader.replace('Bearer ', '');
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data?.user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+  }
+
+  const { data: roleData } = await supabase
+    .from('user_roles')
+    .select('role')
+    .eq('user_id', data.user.id)
+    .eq('role', 'admin')
+    .maybeSingle();
+
+  if (!roleData) {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: corsHeaders });
+  }
+
   const vapidKeys = webpush.generateVAPIDKeys();
-  
-  console.log('[VAPID] Generated new key pair');
-  
+
   return new Response(JSON.stringify({
     publicKey: vapidKeys.publicKey,
     privateKey: vapidKeys.privateKey,
-    instructions: {
-      step1: "Copy publicKey to frontend code (usePushNotifications.ts line 7)",
-      step2: "Copy publicKey to backend code (send-push-notification/index.ts line 11)",
-      step3: "Set privateKey as VAPID_PRIVATE_KEY secret",
-      step4: "Delete all rows from push_subscriptions table",
-      step5: "Re-subscribe to notifications in the app"
-    }
   }, null, 2), {
     headers: { ...corsHeaders, 'Content-Type': 'application/json' },
   });
