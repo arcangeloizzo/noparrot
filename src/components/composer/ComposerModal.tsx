@@ -116,6 +116,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const [challengeStance, setChallengeStance] = useState<'agree' | 'disagree' | null>(null);
   const isChallengeResponse = quotedPost?.post_type === 'challenge';
 
+  // ─── Composer Mode State Machine ───
+  type ComposerMode = 'idle' | 'text-editing' | 'challenge-thesis' | 'challenge-rec' | 'challenge-preview' | 'voice-rec' | 'voice-preview';
+  const [composerMode, setComposerMode] = useState<ComposerMode>('idle');
+  const [thesis, setThesis] = useState('');
+  const [challengeDuration, setChallengeDuration] = useState<24 | 48 | 168>(48);
+  const [textFocused, setTextFocused] = useState(false);
+
   const [isFinalizingPublish, setIsFinalizingPublish] = useState(false);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [detectedUrl, setDetectedUrl] = useState<string | null>(null);
@@ -410,6 +417,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     setChallengeStance(null);
     setShowPostTypeChooser(false);
     setChallengeData(null);
+    setComposerMode('idle');
+    setThesis('');
+    setChallengeDuration(48);
+    setTextFocused(false);
     clearMedia();
   };
 
@@ -417,7 +428,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   useEffect(() => {
     if (isOpen) {
       // Only reset if there's residual state from previous session
-      if (showReader || showQuiz || quizData || readerClosing || showVoiceRecorder || voicePostData || postType !== 'standard') {
+      if (showReader || showQuiz || quizData || readerClosing || showVoiceRecorder || voicePostData || postType !== 'standard' || composerMode !== 'idle') {
         console.log('[ComposerModal] Resetting residual state on open');
         resetAllState();
       }
@@ -2033,83 +2044,295 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
           <div className="flex flex-col h-full">
             {/* Minimal Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  // Check if there's any content to lose
-                  const hasContent = content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || showVoiceRecorder || !!voicePostData;
-                  if (hasContent) {
-                    setShowCancelConfirm(true);
-                  } else {
-                    // No content, just close
-                    onClose();
-                  }
-                }}
-                className="text-muted-foreground hover:text-foreground -ml-2"
-              >
-                Annulla
-              </Button>
+              {/* Left: Annulla or Back */}
+              {composerMode === 'idle' || composerMode === 'text-editing' ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const hasContent = content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!voicePostData || composerMode !== 'idle';
+                    if (hasContent && composerMode !== 'idle') {
+                      setShowCancelConfirm(true);
+                    } else if (content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl) {
+                      setShowCancelConfirm(true);
+                    } else {
+                      onClose();
+                    }
+                  }}
+                  className="text-muted-foreground hover:text-foreground -ml-2"
+                >
+                  Annulla
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const hasContent = content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!voicePostData || thesis.length > 0;
+                    if (hasContent) {
+                      setShowCancelConfirm(true);
+                    } else {
+                      onClose();
+                    }
+                  }}
+                  className="text-muted-foreground hover:text-foreground -ml-2"
+                >
+                  Annulla
+                </Button>
+              )}
 
-              <Button
-                onClick={() => handlePublish()}
-                disabled={!canPublish || isLoading || isPreviewLoading || isTranscriptionInProgress}
-                className={cn(
-                  "px-5 py-1.5 h-auto rounded-full font-semibold text-sm",
-                  "bg-primary hover:bg-primary/90 text-primary-foreground",
-                  "disabled:opacity-50"
-                )}
-              >
-                {isTranscriptionInProgress ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                    Attendere...
-                  </>
-                ) : isPreviewLoading ? 'Caricamento...' : isLoading ? (isGeneratingQuiz ? 'Generazione...' : 'Pubblicazione...') : 'Pubblica'}
-              </Button>
+              {/* Right: Pubblica only when text-editing with content */}
+              {composerMode === 'text-editing' && content.trim().length > 0 ? (
+                <Button
+                  onClick={() => handlePublish()}
+                  disabled={!canPublish || isLoading || isPreviewLoading || isTranscriptionInProgress}
+                  className={cn(
+                    "px-5 py-1.5 h-auto rounded-full font-semibold text-sm",
+                    "bg-primary hover:bg-primary/90 text-primary-foreground",
+                    "disabled:opacity-50"
+                  )}
+                >
+                  {isTranscriptionInProgress ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                      Attendere...
+                    </>
+                  ) : isPreviewLoading ? 'Caricamento...' : isLoading ? (isGeneratingQuiz ? 'Generazione...' : 'Pubblicazione...') : 'Pubblica'}
+                </Button>
+              ) : (
+                <div /> /* empty spacer */
+              )}
             </div>
 
             {/* Scrollable Content Area */}
             <div className="flex-1 overflow-y-auto">
-              {/* Voice / Challenge Flow */}
-              {showPostTypeChooser && voicePostData ? (
-                <PostTypeChooser
-                  onBackToRecorder={() => setShowPostTypeChooser(false)}
-                  onSelectType={(type, challengeDataParam) => {
-                    setPostType(type);
-                    if (type === 'challenge' && challengeDataParam) {
-                      setChallengeData({ thesis: challengeDataParam.thesis, duration_hours: challengeDataParam.durationHours });
-                    }
-                    // Pass the parameters directly into handlePublish to bypass stale React state
-                    let mappedData = undefined;
-                    if (challengeDataParam) {
-                      mappedData = { thesis: challengeDataParam.thesis, duration_hours: challengeDataParam.durationHours };
-                    }
-                    handlePublish(type, mappedData); // execute publish
-                  }}
-                  audioDuration={voicePostData.durationSec}
-                />
-              ) : showVoiceRecorder ? (
-                <div className="flex justify-center p-6 border-b border-border/50 bg-secondary/10">
+
+              {/* ─── CHALLENGE THESIS ─── */}
+              {composerMode === 'challenge-thesis' && (
+                <div className="px-4 py-5 space-y-5 animate-in fade-in slide-in-from-right-4">
+                  {/* Internal header */}
+                  <button
+                    onClick={() => { setComposerMode('idle'); setThesis(''); }}
+                    className="flex items-center gap-2 text-sm font-medium text-foreground"
+                  >
+                    <span className="text-muted-foreground">←</span>
+                    <span>⚡ Nuova Challenge</span>
+                  </button>
+
+                  {/* Thesis input block */}
+                  <div
+                    className="rounded-2xl p-4 space-y-2"
+                    style={{
+                      background: 'linear-gradient(145deg, rgba(228,30,82,0.05), transparent)',
+                      border: '1px solid rgba(228,30,82,0.1)',
+                    }}
+                  >
+                    <label className="text-xs font-semibold text-muted-foreground">Scrivi la tua tesi</label>
+                    <textarea
+                      value={thesis}
+                      onChange={(e) => setThesis(e.target.value.slice(0, 140))}
+                      placeholder="Es: I social media hanno distrutto il dibattito pubblico"
+                      rows={3}
+                      className="w-full bg-transparent border-none text-[15px] text-foreground placeholder:text-muted-foreground/40 outline-none resize-none font-inherit leading-relaxed"
+                    />
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-muted-foreground">Formulala come affermazione netta</span>
+                      <span className={cn("text-[11px] tabular-nums", thesis.length > 120 ? "text-destructive" : "text-muted-foreground")}>
+                        {thesis.length}/140
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Duration selector */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-muted-foreground">Durata sfida</label>
+                    <div className="flex gap-2">
+                      {([{ label: '24h', value: 24 }, { label: '48h', value: 48 }, { label: '7 giorni', value: 168 }] as const).map(d => (
+                        <button
+                          key={d.value}
+                          onClick={() => setChallengeDuration(d.value)}
+                          className="px-4 py-2 rounded-xl text-[13px] font-medium transition-colors"
+                          style={{
+                            background: challengeDuration === d.value ? 'rgba(228,30,82,0.13)' : 'rgba(255,255,255,0.05)',
+                            border: `1px solid ${challengeDuration === d.value ? 'rgba(228,30,82,0.3)' : 'rgba(255,255,255,0.07)'}`,
+                            color: challengeDuration === d.value ? '#E41E52' : 'hsl(var(--muted-foreground))',
+                          }}
+                        >
+                          {d.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* CTA */}
+                  <button
+                    onClick={() => thesis.length > 5 && setComposerMode('challenge-rec')}
+                    disabled={thesis.length <= 5}
+                    className="w-full py-3.5 rounded-[14px] text-[14px] font-bold text-white disabled:opacity-40 transition-opacity"
+                    style={{
+                      background: thesis.length > 5 ? 'linear-gradient(135deg, #E41E52, #0A7AFF)' : 'rgba(255,255,255,0.08)',
+                    }}
+                  >
+                    Registra il tuo argomento →
+                  </button>
+                </div>
+              )}
+
+              {/* ─── CHALLENGE REC ─── */}
+              {composerMode === 'challenge-rec' && (
+                <div className="px-4 py-5 animate-in fade-in slide-in-from-right-4">
+                  <button
+                    onClick={() => setComposerMode('challenge-thesis')}
+                    className="flex items-center gap-2 text-sm font-medium text-foreground mb-4"
+                  >
+                    <span className="text-muted-foreground">←</span>
+                    <span>⚡ Registra la tua Challenge</span>
+                  </button>
                   <VoiceRecorder
-                    onRecordingComplete={(audioBlob, durationSec, formData) => {
-                      setVoicePostData({ audioBlob, durationSec, waveformData: formData });
-                      if (isChallengeResponse) {
-                        // Direct publish for challenge response
-                        setPostType('voice');
-                        handlePublish('voice');
-                      } else {
-                        setShowPostTypeChooser(true);
-                      }
+                    accentColor="#E41E52"
+                    thesisReminder={thesis}
+                    headerLabel="⚡ Registra la tua Challenge"
+                    onRecordingComplete={(audioBlob, durationSec, waveform) => {
+                      setVoicePostData({ audioBlob, durationSec, waveformData: waveform });
+                      setComposerMode('challenge-preview');
                     }}
-                    onCancel={() => {
-                      setShowVoiceRecorder(false);
-                      setChallengeStance(null);
-                      setVoicePostData(null);
-                    }}
+                    onCancel={() => setComposerMode('challenge-thesis')}
                   />
                 </div>
-              ) : (
+              )}
+
+              {/* ─── CHALLENGE PREVIEW ─── */}
+              {composerMode === 'challenge-preview' && voicePostData && (
+                <div className="px-4 py-5 space-y-5 animate-in fade-in slide-in-from-right-4">
+                  <button
+                    onClick={() => setComposerMode('challenge-thesis')}
+                    className="flex items-center gap-2 text-sm font-medium text-foreground"
+                  >
+                    <span className="text-muted-foreground">←</span>
+                    <span>⚡ Anteprima</span>
+                  </button>
+
+                  {/* Thesis block */}
+                  <div
+                    className="rounded-2xl px-4 py-3 text-sm italic"
+                    style={{
+                      background: 'linear-gradient(145deg, rgba(228,30,82,0.05), transparent)',
+                      border: '1px solid rgba(228,30,82,0.1)',
+                      color: 'hsl(var(--muted-foreground))',
+                    }}
+                  >
+                    "{thesis}"
+                  </div>
+
+                  {/* Native audio player */}
+                  <audio
+                    src={URL.createObjectURL(voicePostData.audioBlob)}
+                    controls
+                    className="w-full h-10"
+                    controlsList="nodownload nofullscreen"
+                  />
+
+                  {/* Buttons */}
+                  <div className="flex gap-3 w-full">
+                    <button
+                      onClick={() => {
+                        setVoicePostData(null);
+                        setComposerMode('challenge-rec');
+                      }}
+                      className="flex-1 py-3.5 rounded-[14px] text-[13px] font-semibold"
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.07)',
+                        color: 'hsl(var(--muted-foreground))',
+                      }}
+                    >
+                      Rifai
+                    </button>
+                    <button
+                      onClick={() => handlePublish('challenge', { thesis, duration_hours: challengeDuration })}
+                      disabled={isLoading}
+                      className="flex-1 py-3.5 rounded-[14px] text-[14px] font-bold text-white disabled:opacity-50"
+                      style={{ background: 'linear-gradient(135deg, #E41E52, #0A7AFF)' }}
+                    >
+                      {isLoading ? 'Pubblicazione...' : '⚡ Lancia Challenge'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── VOICE REC ─── */}
+              {composerMode === 'voice-rec' && (
+                <div className="px-4 py-5 animate-in fade-in slide-in-from-right-4">
+                  <button
+                    onClick={() => { setComposerMode('idle'); setVoicePostData(null); }}
+                    className="flex items-center gap-2 text-sm font-medium text-foreground mb-4"
+                  >
+                    <span className="text-muted-foreground">←</span>
+                    <span>🎙 Pensiero vocale</span>
+                  </button>
+                  <VoiceRecorder
+                    accentColor="#0A7AFF"
+                    headerLabel="🎙 Pensiero vocale"
+                    onRecordingComplete={(audioBlob, durationSec, waveform) => {
+                      setVoicePostData({ audioBlob, durationSec, waveformData: waveform });
+                      setComposerMode('voice-preview');
+                    }}
+                    onCancel={() => { setComposerMode('idle'); setVoicePostData(null); }}
+                  />
+                </div>
+              )}
+
+              {/* ─── VOICE PREVIEW ─── */}
+              {composerMode === 'voice-preview' && voicePostData && (
+                <div className="px-4 py-5 space-y-5 animate-in fade-in slide-in-from-right-4">
+                  <button
+                    onClick={() => setComposerMode('voice-rec')}
+                    className="flex items-center gap-2 text-sm font-medium text-foreground"
+                  >
+                    <span className="text-muted-foreground">←</span>
+                    <span>🎙 Anteprima</span>
+                  </button>
+
+                  {/* Native audio player */}
+                  <audio
+                    src={URL.createObjectURL(voicePostData.audioBlob)}
+                    controls
+                    className="w-full h-10"
+                    controlsList="nodownload nofullscreen"
+                  />
+
+                  {/* Buttons */}
+                  <div className="flex gap-3 w-full">
+                    <button
+                      onClick={() => {
+                        setVoicePostData(null);
+                        setComposerMode('voice-rec');
+                      }}
+                      className="flex-1 py-3.5 rounded-[14px] text-[13px] font-semibold"
+                      style={{
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.07)',
+                        color: 'hsl(var(--muted-foreground))',
+                      }}
+                    >
+                      Rifai
+                    </button>
+                    <button
+                      onClick={() => handlePublish('voice')}
+                      disabled={isLoading}
+                      className="flex-1 py-3.5 rounded-[14px] text-[14px] font-bold text-white disabled:opacity-50"
+                      style={{ background: '#0A7AFF' }}
+                    >
+                      {isLoading ? 'Pubblicazione...' : '🎙 Pubblica'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+
+
+              {/* ─── IDLE / TEXT EDITING ─── */}
+              {(composerMode === 'idle' || composerMode === 'text-editing') && (
                 <>
                   {/* Avatar + Textarea inline (X-style) */}
                   <div className="flex gap-3 px-4 pt-4">
@@ -2128,10 +2351,98 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                         placeholder="Cosa sta succedendo?"
                         maxLength={3000}
                         disabled={isLoading}
-                        editorClassName="min-h-[120px]"
+                        editorClassName={textFocused ? "min-h-[120px]" : "min-h-[40px]"}
+                        onFocus={() => {
+                          setTextFocused(true);
+                          setComposerMode('text-editing');
+                        }}
+                        onBlur={() => {
+                          setTimeout(() => {
+                            if (!content.trim()) {
+                              setTextFocused(false);
+                              setComposerMode('idle');
+                            }
+                          }, 150);
+                        }}
                       />
                     </div>
                   </div>
+
+                  {/* ─── Challenge & Voice CTAs (visible only in idle) ─── */}
+                  {composerMode === 'idle' && !quotedPost && (
+                    <div className="px-4 py-4 space-y-3 animate-in fade-in duration-200">
+                      {/* Banner Challenge */}
+                      <button
+                        onClick={() => setComposerMode('challenge-thesis')}
+                        className="w-full text-left relative overflow-hidden"
+                        style={{
+                          padding: '16px 20px',
+                          borderRadius: 18,
+                          background: 'linear-gradient(135deg, rgba(228,30,82,0.07), rgba(10,122,255,0.04))',
+                          border: '1px solid rgba(228,30,82,0.15)',
+                        }}
+                      >
+                        {/* Shimmer overlay */}
+                        <div
+                          className="absolute inset-0 -translate-x-full"
+                          style={{
+                            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)',
+                            animation: 'shimmer 3s ease-in-out infinite',
+                          }}
+                        />
+                        <div className="flex items-center gap-3 relative z-10">
+                          <div
+                            className="flex items-center justify-center flex-shrink-0"
+                            style={{
+                              width: 44,
+                              height: 44,
+                              borderRadius: 14,
+                              background: 'rgba(228,30,82,0.12)',
+                              border: '1px solid rgba(228,30,82,0.2)',
+                            }}
+                          >
+                            <span className="text-lg">⚡</span>
+                          </div>
+                          <div>
+                            <p className="text-[15px] font-bold text-foreground">Lancia una Challenge</p>
+                            <p className="text-xs text-muted-foreground">Sfida la community con una tesi vocale</p>
+                          </div>
+                        </div>
+                      </button>
+
+                      {/* Separator */}
+                      <div className="flex items-center gap-3 px-2">
+                        <div className="flex-1 h-px bg-border" />
+                        <span className="text-[11px] text-muted-foreground">oppure</span>
+                        <div className="flex-1 h-px bg-border" />
+                      </div>
+
+                      {/* Voice Post button */}
+                      <button
+                        onClick={() => setComposerMode('voice-rec')}
+                        className="w-full flex items-center gap-2.5"
+                        style={{
+                          padding: '12px 16px',
+                          borderRadius: 14,
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid rgba(255,255,255,0.07)',
+                        }}
+                      >
+                        <div
+                          className="flex items-center justify-center flex-shrink-0"
+                          style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 10,
+                            background: 'rgba(10,122,255,0.1)',
+                          }}
+                        >
+                          <span className="text-base">🎙</span>
+                        </div>
+                        <span className="text-[13px] text-muted-foreground">Registra un pensiero vocale</span>
+                      </button>
+                    </div>
+                  )}
 
                   {/* Content previews area */}
                   <div className="px-4 py-3 space-y-3">
@@ -2242,24 +2553,24 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
               )}
             </div>
 
-            {/* Toolbar: pinned at bottom, outside scrollable area */}
-            <div className="flex-shrink-0">
-              <MediaActionBar
-                onFilesSelected={handleMediaSelect}
-                disabled={isUploading || isLoading || showVoiceRecorder}
-                onMicClick={() => setShowVoiceRecorder(true)}
-                isVoiceRecordingEnabled={!isChallengeResponse}
-                maxTotalMedia={10}
-                currentMediaCount={uploadedMedia.length}
-                characterCount={content.length}
-                maxCharacters={3000}
-                onFormat={applyFormatting}
-                keyboardOffset={0}
-                onGenerateInfographic={handleGenerateInfographic}
-                infographicEnabled={wordCount >= 50}
-                isGeneratingInfographic={isGeneratingInfographic}
-              />
-            </div>
+            {/* Toolbar: pinned at bottom, visible only in idle/text-editing */}
+            {(composerMode === 'idle' || composerMode === 'text-editing') && (
+              <div className="flex-shrink-0">
+                <MediaActionBar
+                  onFilesSelected={handleMediaSelect}
+                  disabled={isUploading || isLoading}
+                  maxTotalMedia={10}
+                  currentMediaCount={uploadedMedia.length}
+                  characterCount={content.length}
+                  maxCharacters={3000}
+                  onFormat={applyFormatting}
+                  keyboardOffset={0}
+                  onGenerateInfographic={handleGenerateInfographic}
+                  infographicEnabled={wordCount >= 50}
+                  isGeneratingInfographic={isGeneratingInfographic}
+                />
+              </div>
+            )}
           </div>
         </div>
 

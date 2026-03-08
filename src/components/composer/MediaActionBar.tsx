@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Camera, Plus, Bold, Italic, Underline, BarChart3, Loader2, Mic } from 'lucide-react';
+import { Camera, Plus, Bold, Italic, Underline, BarChart3, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -16,8 +16,6 @@ interface MediaActionBarProps {
   onGenerateInfographic?: () => void;
   infographicEnabled?: boolean;
   isGeneratingInfographic?: boolean;
-  onMicClick?: () => void;
-  isVoiceRecordingEnabled?: boolean;
 }
 
 export const MediaActionBar = ({
@@ -32,8 +30,6 @@ export const MediaActionBar = ({
   onGenerateInfographic,
   infographicEnabled = false,
   isGeneratingInfographic = false,
-  onMicClick,
-  isVoiceRecordingEnabled = true
 }: MediaActionBarProps) => {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
@@ -167,21 +163,6 @@ export const MediaActionBar = ({
           </button>
         )}
 
-        {/* Mic: open Voice Recorder */}
-        {onMicClick && isVoiceRecordingEnabled && (
-          <button
-            type="button"
-            onClick={() => {
-              haptics.light();
-              onMicClick();
-            }}
-            disabled={disabled}
-            className={iconButtonClass}
-            aria-label="Registra audio"
-          >
-            <Mic className="w-5 h-5" strokeWidth={1.5} />
-          </button>
-        )}
 
         {/* Camera: direct capture - opens camera directly */}
         <button

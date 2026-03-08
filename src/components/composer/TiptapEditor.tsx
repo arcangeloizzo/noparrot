@@ -31,6 +31,8 @@ interface TiptapEditorProps {
   editorClassName?: string;
   disabled?: boolean;
   maxLength?: number;
+  onFocus?: () => void;
+  onBlur?: () => void;
 }
 
 // Convert Tiptap JSON to Markdown
@@ -93,7 +95,9 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
   className,
   editorClassName,
   disabled = false,
-  maxLength = 3000
+  maxLength = 3000,
+  onFocus: onFocusProp,
+  onBlur: onBlurProp,
 }, ref) => {
   const [mentionQuery, setMentionQuery] = useState('');
   
@@ -255,6 +259,12 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
       const markdown = toMarkdown(json);
       const plainText = editor.getText();
       onChange?.(markdown, plainText);
+    },
+    onFocus: () => {
+      onFocusProp?.();
+    },
+    onBlur: () => {
+      onBlurProp?.();
     },
     editorProps: {
       attributes: {

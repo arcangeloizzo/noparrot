@@ -1,30 +1,27 @@
 
 
-# Verifica Publish Flow — Nessuna modifica necessaria
+# Fix VapidPkHashMismatch - Auto-resubscribe
 
-## Risultato analisi
+## Problema
+La push subscription dell'utente è stata registrata con una VAPID public key diversa da quella attuale. Apple rifiuta il push con errore `VapidPkHashMismatch`. Altri utenti con subscription più recenti funzionano correttamente.
 
-Il `handlePublish` e `publishPost` in `ComposerModal.tsx` **supportano già** i parametri richiesti:
+## Soluzione
 
-```text
-handlePublish(overridePostType?, overrideChallengeData?)
-  └→ publishPost(isIntent, overridePostType, overrideChallengeData)
-      └→ supabase.functions.invoke('publish-post', {
-            postType: finalPostType,           // 'challenge' | 'voice' | 'standard'
-            challengeData: { thesis, durationHours },  // solo se challenge
-            voiceData: { audioUrl, durationSeconds, waveform }
-         })
-```
+### 1. Edge Function: Rilevare e pulire subscription stale
+In `send-push-notification`, quando Apple risponde con `VapidPkHashMismatch` (status 400), cancellare automaticamente la subscription dal database. Al prossimo avvio dell'app PWA, il client si ri-registrerà con le VAPID key corrette.
 
-### Cosa è già implementato (righe 582-586, 1543-1700):
+Modifica in `send-push-notification/index.ts`:
+- Dopo un errore 400/410 da Apple, DELETE la riga da `push_subscriptions` usando l'endpoint
+- Log dell'operazione di cleanup
 
-1. **`handlePublish('challenge', { thesis: string, duration_hours: number })`** — passa i dati challenge fino all'edge function con mapping `thesis` → `challengeData.thesis`, `duration_hours` → `challengeData.durationHours`
+### 2. Frontend: Forzare re-subscribe all'avvio
+In `usePushNotifications`, all'avvio:
+- Confrontare la VAPID public key attuale con quella usata per la subscription esistente
+- Se diversa, unsubscribe dal browser e cancellare dal DB, poi ri-registrare
+- Questo previene futuri mismatch
 
-2. **`handlePublish('voice')`** — imposta `postType: 'voice'` e include `voiceData` con audio URL, durata e waveform
-
-3. **Il gate viene bypassato** per challenge/voice perché questi flussi non hanno `detectedUrl`, `uploadedMedia` con OCR, né `quotedPost` — quindi cadono nel fallback a riga 785: `await publishPost(false, overridePostType, overrideChallengeData)`
-
-## Conclusione
-
-Il redesign del Composer può chiamare `handlePublish('challenge', { thesis, duration_hours })` e `handlePublish('voice')` senza alcuna modifica alla pipeline di pubblicazione esistente. La firma è già compatibile.
+### Passi implementativi
+1. Modificare la Edge Function per auto-cleanup delle subscription con errore `VapidPkHashMismatch` o status 410 Gone
+2. Modificare `usePushNotifications` per forzare re-subscribe quando rileva una subscription potenzialmente stale (confronto applicationServerKey)
+3. Cancellare manualmente la subscription stale dell'utente dal DB (query una tantum)
 
