@@ -31,6 +31,33 @@ export const Post = () => {
             full_name,
             avatar_url
           ),
+          post_type,
+          voice_posts (
+            id,
+            audio_url,
+            duration_seconds,
+            waveform_data,
+            transcript,
+            transcript_status
+          ),
+          challenges!challenges_post_id_fkey (
+            id,
+            thesis,
+            duration_hours,
+            status,
+            expires_at,
+            votes_for,
+            votes_against,
+            voice_post_id,
+            voice_posts!challenges_voice_post_id_fkey (
+              id,
+              audio_url,
+              duration_seconds,
+              waveform_data,
+              transcript,
+              transcript_status
+            )
+          ),
           questions (*),
           reactions (
             reaction_type,
@@ -45,7 +72,12 @@ export const Post = () => {
               type,
               width,
               height,
-              thumbnail_url
+              thumbnail_url,
+              mime,
+              duration_sec,
+              extracted_status,
+              extracted_text,
+              extracted_kind
             )
           )
         `)
