@@ -95,7 +95,9 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
   className,
   editorClassName,
   disabled = false,
-  maxLength = 3000
+  maxLength = 3000,
+  onFocus: onFocusProp,
+  onBlur: onBlurProp,
 }, ref) => {
   const [mentionQuery, setMentionQuery] = useState('');
   
