@@ -31,6 +31,8 @@ interface TiptapEditorProps {
   editorClassName?: string;
   disabled?: boolean;
   maxLength?: number;
+  onFocus?: () => void;
+  onBlur?: () => void;
 }
 
 // Convert Tiptap JSON to Markdown
