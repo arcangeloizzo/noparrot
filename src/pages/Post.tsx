@@ -31,6 +31,33 @@ export const Post = () => {
             full_name,
             avatar_url
           ),
+          post_type,
+          voice_posts (
+            id,
+            audio_url,
+            duration_seconds,
+            waveform_data,
+            transcript,
+            transcript_status
+          ),
+          challenges!challenges_post_id_fkey (
+            id,
+            thesis,
+            duration_hours,
+            status,
+            expires_at,
+            votes_for,
+            votes_against,
+            voice_post_id,
+            voice_posts!challenges_voice_post_id_fkey (
+              id,
+              audio_url,
+              duration_seconds,
+              waveform_data,
+              transcript,
+              transcript_status
+            )
+          ),
           questions (*),
           reactions (
             reaction_type,
@@ -45,7 +72,12 @@ export const Post = () => {
               type,
               width,
               height,
-              thumbnail_url
+              thumbnail_url,
+              mime,
+              duration_sec,
+              extracted_status,
+              extracted_text,
+              extracted_kind
             )
           )
         `)
@@ -75,6 +107,18 @@ export const Post = () => {
         created_at: data.created_at,
         quoted_post_id: data.quoted_post_id,
         category: data.category || null,
+        post_type: (data as any).post_type || 'standard',
+        voice_post: (data as any).voice_posts?.[0] || null,
+        challenge: (data as any).challenges?.[0] ? {
+          id: (data as any).challenges[0].id,
+          thesis: (data as any).challenges[0].thesis,
+          duration_hours: (data as any).challenges[0].duration_hours,
+          status: (data as any).challenges[0].status,
+          expires_at: (data as any).challenges[0].expires_at,
+          votes_for: (data as any).challenges[0].votes_for || 0,
+          votes_against: (data as any).challenges[0].votes_against || 0,
+          voice_post: (data as any).challenges[0].voice_posts || null,
+        } : null,
         quoted_post: null,
         media: mediaItems,
         reactions: {
