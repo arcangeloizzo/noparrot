@@ -16,8 +16,6 @@ interface MediaActionBarProps {
   onGenerateInfographic?: () => void;
   infographicEnabled?: boolean;
   isGeneratingInfographic?: boolean;
-  onMicClick?: () => void;
-  isVoiceRecordingEnabled?: boolean;
 }
 
 export const MediaActionBar = ({
