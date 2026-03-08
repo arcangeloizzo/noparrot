@@ -260,6 +260,12 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
       const plainText = editor.getText();
       onChange?.(markdown, plainText);
     },
+    onFocus: () => {
+      onFocusProp?.();
+    },
+    onBlur: () => {
+      onBlurProp?.();
+    },
     editorProps: {
       attributes: {
         class: cn(
