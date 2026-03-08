@@ -116,6 +116,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const [challengeStance, setChallengeStance] = useState<'agree' | 'disagree' | null>(null);
   const isChallengeResponse = quotedPost?.post_type === 'challenge';
 
+  // ─── Composer Mode State Machine ───
+  type ComposerMode = 'idle' | 'text-editing' | 'challenge-thesis' | 'challenge-rec' | 'challenge-preview' | 'voice-rec' | 'voice-preview';
+  const [composerMode, setComposerMode] = useState<ComposerMode>('idle');
+  const [thesis, setThesis] = useState('');
+  const [challengeDuration, setChallengeDuration] = useState<24 | 48 | 168>(48);
+  const [textFocused, setTextFocused] = useState(false);
+
   const [isFinalizingPublish, setIsFinalizingPublish] = useState(false);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
   const [detectedUrl, setDetectedUrl] = useState<string | null>(null);
