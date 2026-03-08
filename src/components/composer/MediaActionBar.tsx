@@ -30,8 +30,6 @@ export const MediaActionBar = ({
   onGenerateInfographic,
   infographicEnabled = false,
   isGeneratingInfographic = false,
-  onMicClick,
-  isVoiceRecordingEnabled = true
 }: MediaActionBarProps) => {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
