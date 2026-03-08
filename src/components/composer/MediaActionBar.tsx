@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Camera, Plus, Bold, Italic, Underline, BarChart3, Loader2, Mic } from 'lucide-react';
+import { Camera, Plus, Bold, Italic, Underline, BarChart3, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
