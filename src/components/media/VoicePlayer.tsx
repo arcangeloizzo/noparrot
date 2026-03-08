@@ -33,9 +33,24 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
   compact = false,
   accentColor = '#0A7AFF',
 }) => {
-  const fullAudioUrl = audioUrl.startsWith('http')
-    ? audioUrl
-    : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/voice-audio/${audioUrl}`;
+  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (audioUrl.startsWith('http')) {
+      setResolvedUrl(audioUrl);
+    } else {
+      supabase.storage
+        .from('voice-audio')
+        .createSignedUrl(audioUrl, 3600)
+        .then(({ data, error }) => {
+          if (!cancelled) {
+            setResolvedUrl(error ? null : data.signedUrl);
+          }
+        });
+    }
+    return () => { cancelled = true; };
+  }, [audioUrl]);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
