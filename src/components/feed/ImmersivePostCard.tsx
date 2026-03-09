@@ -1364,7 +1364,7 @@ const ImmersivePostCardInner = ({
             style={{
               position: 'absolute',
               inset: 0,
-              backgroundImage: `url('/assets/${isChallengePost ? 'challenge-wave-bg' : 'new-voice-bg'}.png')`,
+              backgroundImage: `url('/assets/${isChallengePost ? 'new-challenge-bg' : 'new-voice-bg'}.png')`,
               backgroundSize: 'cover',
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat',
