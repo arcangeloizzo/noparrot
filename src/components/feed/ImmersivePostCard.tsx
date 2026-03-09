@@ -1369,7 +1369,7 @@ const ImmersivePostCardInner = ({
               backgroundPosition: 'center',
               backgroundRepeat: 'no-repeat',
               opacity: isChallengePost ? 0.55 : 0.30,
-              filter: 'blur(8px)',
+              filter: 'blur(5px)',
               pointerEvents: 'none',
               zIndex: 0,
             }}
