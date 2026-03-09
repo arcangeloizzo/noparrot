@@ -28,7 +28,7 @@ verify_jwt = false
 verify_jwt = true
 
 [functions.backfill-categories]
-verify_jwt = false
+verify_jwt = true
 
 [functions.fetch-daily-focus]
 verify_jwt = false
