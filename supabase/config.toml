@@ -64,7 +64,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.assign-post-topic]
-verify_jwt = false
+verify_jwt = true
 
 [functions.get-trending-topics]
 verify_jwt = false

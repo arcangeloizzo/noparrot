@@ -29,6 +29,16 @@ Deno.serve(async (req) => {
   console.log(`[assign-post-topic:${reqId}] ← request received`)
 
   try {
+    const authHeader = req.headers.get('Authorization')
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+
+    // Rigido controllo di autenticazione: solo il Service Role può chiamare questa funzione
+    // Questo protegge da chiamate non autenticate pur mantenendo il flusso publish-post
+    if (authHeader !== `Bearer ${serviceKey}`) {
+      return new Response(JSON.stringify({ error: 'Unauthorized: Service Role required' }), { 
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      })
+    }
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')
