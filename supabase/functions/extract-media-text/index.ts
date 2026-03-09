@@ -104,6 +104,15 @@ serve(async (req) => {
   }
 
   try {
+    // --- Authentication guard ---
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Missing Authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
@@ -111,6 +120,16 @@ serve(async (req) => {
     const deepgramApiKey = Deno.env.get('DEEPGRAM_API_KEY');
     
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Validate user JWT
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid or expired token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     const { mediaId, mediaUrl, extractionType, durationSec } = await req.json();
     
@@ -120,8 +139,22 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Ownership check: user can only extract text from their own media
+    const { data: mediaRecord } = await supabase
+      .from('media')
+      .select('owner_id')
+      .eq('id', mediaId)
+      .single();
+
+    if (!mediaRecord || mediaRecord.owner_id !== user.id) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized: you do not own this media' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
-    console.log(`[extract-media-text] Starting ${extractionType} for media ${mediaId}`);
+    console.log(`[extract-media-text] Starting ${extractionType} for media ${mediaId} by user ${user.id}`);
     
     // =====================================================
     // OCR VIA GEMINI VISION
