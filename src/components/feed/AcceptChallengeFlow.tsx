@@ -82,7 +82,24 @@ export const AcceptChallengeFlow: React.FC<AcceptChallengeFlowProps> = ({
         }
       );
 
-      if (error) throw error;
+      if (error) {
+        // Handle specific edge function errors if they are passed through
+        // Supabase functions sometimes wrap the error in a generic response when status != 2xx
+        // It's possible the `error` object itself contains the specific message, or we need to parse it
+        console.error("submit-challenge-response error object:", error);
+
+        // If the error message from the edge function is known, show a friendly toast
+        const isDuplicateMsg =
+          error.message?.includes("Already responded") ||
+          error.message?.includes("non-2xx") && data?.error === "Already responded to this challenge";
+
+        if (isDuplicateMsg || (data && data.error === "Already responded to this challenge")) {
+          throw new Error("Hai già risposto a questa sfida!");
+        }
+
+        throw new Error(data?.error || "Errore durante l'invio della risposta");
+      }
+
       if (data?.error) throw new Error(data.error);
 
       toast.success("Risposta inviata! 🎙️");
@@ -91,7 +108,16 @@ export const AcceptChallengeFlow: React.FC<AcceptChallengeFlowProps> = ({
       resetState();
     } catch (err: any) {
       console.error("submit-challenge-response error:", err);
-      toast.error(err?.message || "Errore durante l'invio");
+      // Custom friendly messages
+      const msg = err?.message || "Errore durante l'invio";
+
+      if (msg.includes("Hai già risposto") || msg.includes("Already responded") || msg.includes("non-2xx")) {
+        toast.error("Hai già risposto a questa sfida!");
+      } else if (msg.includes("Challenge expired")) {
+        toast.error("Questa sfida è scaduta!");
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setSubmitting(false);
     }
