@@ -29,7 +29,7 @@ export const useLongPress = ({
   threshold = 500,
   disableHaptic = false,
 }: UseLongPressOptions): LongPressHandlers => {
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isLongPressRef = useRef(false);
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
 

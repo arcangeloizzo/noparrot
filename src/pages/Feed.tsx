@@ -415,7 +415,7 @@ export const Feed = () => {
     setShowComposer(true);
   }, []);
 
-  const longPressRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleHeaderPressStart = useCallback(() => {
     if (!isEmailAllowed(user?.email)) return;
     longPressRef.current = setTimeout(() => {
