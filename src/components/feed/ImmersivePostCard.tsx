@@ -1784,11 +1784,14 @@ const ImmersivePostCardInner = ({
                   {(() => {
                     const isExpired = post.challenge?.status === 'expired' || post.challenge?.status === 'closed' || new Date(post.challenge?.expires_at || '') < new Date();
                     const isAuthor = user?.id === post.author.id;
+                    const hasResponded = challengeResponses.some(r => r.user_id === user?.id);
+                    const isDisabled = isExpired || hasResponded;
+
                     return !isAuthor ? (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (isExpired) return;
+                          if (isDisabled) return;
                           // Trigger challenge respond flow
                           const handleRespond = async () => {
                             const transcriptText = post.voice_post?.transcript || post.content;
@@ -1826,18 +1829,18 @@ const ImmersivePostCardInner = ({
                           };
                           handleRespond();
                         }}
-                        disabled={isExpired}
+                        disabled={isDisabled}
                         className={cn(
                           "relative w-full mt-4 py-3.5 rounded-full font-bold text-[15px] tracking-wide overflow-hidden transition-all shadow-lg",
-                          isExpired ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02] active:scale-[0.98]"
+                          isDisabled ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02] active:scale-[0.98]"
                         )}
                         style={{
-                          background: isExpired ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #E41E52, #FF6B35)',
-                          color: isExpired ? 'rgba(255,255,255,0.3)' : 'white',
-                          border: isExpired ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                          background: isDisabled ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #E41E52, #FF6B35)',
+                          color: isDisabled ? 'rgba(255,255,255,0.3)' : 'white',
+                          border: isDisabled ? '1px solid rgba(255,255,255,0.1)' : 'none',
                         }}
                       >
-                        {!isExpired && (
+                        {!isDisabled && (
                           <span className="absolute inset-0" style={{
                             background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)',
                             backgroundSize: '200% 100%',
@@ -1845,7 +1848,7 @@ const ImmersivePostCardInner = ({
                           }} />
                         )}
                         <span className="relative z-10">
-                          {isExpired ? '⚡ Sfida chiusa' : '⚡ Accetta la sfida'}
+                          {hasResponded ? '✓ Hai già risposto' : isExpired ? '⚡ Sfida chiusa' : '⚡ Accetta la sfida'}
                         </span>
                       </button>
                     ) : null;
@@ -2912,6 +2915,7 @@ const ImmersivePostCardInner = ({
           challengeId={post.challenge.id}
           challengeThesis={post.challenge.thesis}
           onComplete={() => {
+            queryClient.invalidateQueries({ queryKey: ["challenge-responses", post.challenge!.id] });
             toast.success('Risposta alla sfida inviata!');
           }}
         />
