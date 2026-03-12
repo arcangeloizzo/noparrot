@@ -116,10 +116,12 @@ export function useMessageThreads() {
       return enrichedThreads as MessageThread[];
     },
     enabled: !!user,
-    staleTime: 30 * 1000, // 30 secondi invece di 5 minuti
-    refetchInterval: 60 * 1000, // Polling ogni 60 secondi (fallback per iOS)
+    staleTime: 5 * 60 * 1000, // 5 minuti
+    gcTime: 10 * 60 * 1000, // 10 minuti di cache per evitare flash di caricamento
+    refetchInterval: 30 * 1000, // Polling ogni 30 secondi
     refetchOnWindowFocus: true, // Ri-fetch quando app torna in focus
     refetchOnReconnect: true, // Ri-fetch quando rete si riconnette
+    refetchOnMount: false, // Evita refetch immediato se la cache è valida (previene flickering all'ingresso della pagina)
   });
 }
 

@@ -33,11 +33,12 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
   compact = false,
   accentColor = '#0A7AFF',
 }) => {
-  const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
+  const isImmediate = audioUrl.startsWith('http') || audioUrl.startsWith('blob:') || audioUrl.startsWith('data:');
+  const [resolvedUrl, setResolvedUrl] = useState<string | null>(isImmediate ? audioUrl : null);
 
   useEffect(() => {
     let cancelled = false;
-    if (audioUrl.startsWith('http')) {
+    if (isImmediate) {
       setResolvedUrl(audioUrl);
     } else {
       supabase.storage

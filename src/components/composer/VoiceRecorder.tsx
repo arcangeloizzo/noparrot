@@ -293,7 +293,11 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       setPlaybackProgress(0);
     };
 
-    audio.play();
+    audio.play().catch(err => {
+      console.error("VoiceRecorder play error:", err);
+      import("sonner").then(m => m.toast.error("Impossibile riprodurre l'audio locale: " + err.message));
+      setIsPlaying(false);
+    });
     setIsPlaying(true);
   };
 

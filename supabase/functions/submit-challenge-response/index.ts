@@ -143,7 +143,7 @@ Deno.serve(async (req) => {
 
     if (uploadErr) {
       console.error("Upload error:", uploadErr);
-      return new Response(JSON.stringify({ error: "Audio upload failed" }), {
+      return new Response(JSON.stringify({ error: `Audio upload failed: ${uploadErr.message || JSON.stringify(uploadErr)}` }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
     if (vpErr || !voicePost) {
       console.error("voice_posts insert error:", vpErr);
       return new Response(
-        JSON.stringify({ error: "Failed to create voice post" }),
+        JSON.stringify({ error: `Failed to create voice post: ${vpErr?.message || JSON.stringify(vpErr)}` }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -190,7 +190,7 @@ Deno.serve(async (req) => {
     if (crErr || !challengeResp) {
       console.error("challenge_responses insert error:", crErr);
       return new Response(
-        JSON.stringify({ error: "Failed to create response" }),
+        JSON.stringify({ error: `Failed to create response: ${crErr?.message || JSON.stringify(crErr)}` }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -251,10 +251,10 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
-  } catch (err) {
+  } catch (err: any) {
     console.error("submit-challenge-response error:", err);
     return new Response(
-      JSON.stringify({ error: "Internal server error" }),
+      JSON.stringify({ error: `Internal server error: ${err.message || err}` }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

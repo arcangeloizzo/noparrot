@@ -123,23 +123,18 @@ export const ProgressiveImage = memo(function ProgressiveImage({
         }} 
       />
       
-      {/* Skeleton overlay while loading */}
-      {loadState === 'placeholder' && shouldLoad && (
-        <Skeleton className="absolute inset-0 bg-white/5" />
-      )}
-      
       {/* Hero image - only render when shouldLoad is true, uses optimized URL */}
       {shouldLoad && (
         <img 
           src={optimizedSrc}
           alt={alt}
           loading={priority ? "eager" : "lazy"}
-          decoding="async"
+          decoding="sync"
           onLoad={handleLoad}
           onError={handleError}
           className={cn(
-            "absolute inset-0 w-full h-full object-cover transition-opacity duration-300",
-            loadState === 'hero' ? 'opacity-100' : 'opacity-0'
+            "absolute inset-0 w-full h-full object-cover",
+            loadState === 'placeholder' ? 'opacity-0' : 'opacity-100'
           )}
         />
       )}

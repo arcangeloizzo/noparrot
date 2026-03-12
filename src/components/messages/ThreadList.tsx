@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ProgressiveImage } from "@/components/feed/ProgressiveImage";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
@@ -68,14 +69,20 @@ const ThreadItem = memo(({
     >
       {/* Avatar with online indicator */}
       <div className="relative flex-shrink-0">
-        <Avatar className="h-14 w-14 ring-2 ring-background">
-          <AvatarImage src={displayProfile.avatar_url || undefined} loading="lazy" />
-          <AvatarFallback className="text-lg font-medium bg-accent">
+        <div className="h-14 w-14 rounded-full overflow-hidden ring-2 ring-background relative bg-accent flex items-center justify-center">
+          {/* Always render fallback initially behind the image */}
+          <span className="text-lg font-medium absolute z-0 text-foreground">
             {displayProfile.username?.[0]?.toUpperCase() || '?'}
-          </AvatarFallback>
-        </Avatar>
+          </span>
+          <ProgressiveImage
+            src={displayProfile.avatar_url || undefined}
+            className="w-full h-full object-cover relative z-10"
+            priority={index < 8}
+            dominantColor="transparent"
+          />
+        </div>
         {isOnline && (
-          <span className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-background rounded-full" />
+          <span className="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-background rounded-full z-20" />
         )}
       </div>
 
