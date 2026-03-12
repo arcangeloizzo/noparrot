@@ -1941,8 +1941,6 @@ const ImmersivePostCardInner = ({
                     {/* Urban texture overlay - static PNG */}
                     <div className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay rounded-3xl urban-noise-overlay" />
 
-                    {/* Decorative quote mark */}
-                    <div className="absolute top-4 left-5 text-immersive-foreground/10 text-[80px] font-serif leading-none pointer-events-none select-none">"</div>
 
                     {/* Content */}
                     <div className="relative z-10">
