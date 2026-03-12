@@ -62,6 +62,24 @@ export type Database = {
         }
         Relationships: []
       }
+      app_config: {
+        Row: {
+          created_at: string | null
+          key: string
+          value: string
+        }
+        Insert: {
+          created_at?: string | null
+          key: string
+          value: string
+        }
+        Update: {
+          created_at?: string | null
+          key?: string
+          value?: string
+        }
+        Relationships: []
+      }
       challenge_responses: {
         Row: {
           argument_votes: number | null
