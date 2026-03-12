@@ -30,7 +30,7 @@ export function useBlockTracking({
   const lastScrollRef = useRef({ y: 0, time: Date.now() });
   const unlockReachedRef = useRef(false);
   const startTimeRef = useRef(Date.now());
-  const velocityViolationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const velocityViolationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Protezione unmount per evitare setState su componenti smontati
   const isMountedRef = useRef(true);
