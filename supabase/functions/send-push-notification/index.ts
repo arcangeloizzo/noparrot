@@ -188,7 +188,7 @@ async function encryptPayload(
     await crypto.subtle.encrypt(
       { name: 'AES-GCM', iv: (nonce as Uint8Array<ArrayBuffer>).buffer },
       key,
-      paddedPlaintext
+      paddedPlaintext as unknown as BufferSource
     )
   );
 
