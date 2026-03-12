@@ -151,7 +151,7 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
         </button>
 
         <div
-          className="flex-1 flex items-center gap-[1.5px] cursor-pointer"
+          className="flex-1 flex items-center justify-between cursor-pointer"
           style={{ height: 22 }}
           onClick={handleWaveformClick}
         >
@@ -222,7 +222,7 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
         {/* Waveform + time */}
         <div className="flex-1 flex flex-col gap-1.5">
           <div
-            className="flex items-center gap-[1.5px] cursor-pointer"
+            className="flex items-center justify-between w-full cursor-pointer"
             style={{ height: 36 }}
             onClick={handleWaveformClick}
           >

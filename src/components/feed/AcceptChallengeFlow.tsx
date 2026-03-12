@@ -75,6 +75,7 @@ export const AcceptChallengeFlow: React.FC<AcceptChallengeFlowProps> = ({
           body: {
             challenge_id: challengeId,
             audio_base64,
+            audio_mime_type: audioBlob.type,
             stance,
             duration_seconds: audioDuration,
             waveform_data: audioWaveform,

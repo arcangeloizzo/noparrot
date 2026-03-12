@@ -1358,17 +1358,24 @@ const ImmersivePostCardInner = ({
         className="h-[100dvh] w-full snap-start relative flex flex-col p-6 overflow-hidden bg-immersive transition-colors duration-500"
         onClick={handleDoubleTap}
       >
-        {/* Decorative waveform background for voice/challenge posts */}
-        {(isVoicePost || isChallengePost) && (
+        {/* Background for voice/challenge posts without PNGs */}
+        {isChallengePost && (
           <div
             style={{
               position: 'absolute',
               inset: 0,
-              backgroundImage: `url('/assets/${isChallengePost ? 'new-challenge-bg' : 'new-voice-bg'}.png')`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              backgroundRepeat: 'no-repeat',
-              opacity: isChallengePost ? 0.85 : 0.65,
+              background: 'linear-gradient(135deg, rgba(228, 30, 82, 0.07) 0%, rgba(13, 27, 42, 0.95) 40%, rgba(10, 122, 255, 0.04) 100%)',
+              pointerEvents: 'none',
+              zIndex: 0,
+            }}
+          />
+        )}
+        {isVoicePost && !isChallengePost && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(135deg, rgba(10, 122, 255, 0.05) 0%, rgba(13, 27, 42, 0.95) 40%, rgba(10, 122, 255, 0.03) 100%)',
               pointerEvents: 'none',
               zIndex: 0,
             }}
@@ -1416,7 +1423,7 @@ const ImmersivePostCardInner = ({
         ) : (
           <>
             {/* Blurred background image - behind everything */}
-            {backgroundImage && shouldLoadImages && (
+            {backgroundImage && shouldLoadImages && !(!useStackLayout && isChallengePost) && (
               <img
                 src={backgroundImage}
                 className="absolute inset-0 w-full h-full object-cover opacity-[0.05] blur-2xl scale-110 dark:opacity-60 transition-opacity duration-500"
@@ -1425,15 +1432,20 @@ const ImmersivePostCardInner = ({
               />
             )}
             {/* Gradient overlay on top of image, or solid color if no image */}
-            {/* Gradient overlay on top of image, or solid color if no image */}
-            {/* Gradient overlay on top of image, or solid color if no image */}
             <div className={cn(
-              "absolute inset-0 transition-colors duration-500",
-              backgroundImage ? "bg-gradient-to-b from-transparent via-transparent to-transparent dark:from-black/40 dark:via-black/20 dark:to-black/80" : "bg-immersive"
+               "absolute inset-0 transition-colors duration-500",
+               (!useStackLayout && isChallengePost) 
+                 ? "bg-transparent" 
+                 : backgroundImage 
+                   ? "bg-gradient-to-b from-transparent via-transparent to-transparent dark:from-black/40 dark:via-black/20 dark:to-black/80" 
+                   : "bg-immersive"
             )}>
               {/* Light mode specific gradient: much lighter/transparent */}
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-transparent dark:from-black/40 dark:via-black/20 dark:to-black/80" />
+              {!(!useStackLayout && isChallengePost) && (
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-transparent dark:from-black/40 dark:via-black/20 dark:to-black/80" />
+              )}
             </div>
+            
           </>
         )}
 
@@ -1458,59 +1470,30 @@ const ImmersivePostCardInner = ({
 
           {/* [Rail 1] HeaderRail: Fixed top, stable height, no shrinking */}
           <div className="flex justify-between items-start flex-shrink-0 pt-[calc(env(safe-area-inset-top)+42px)] px-5 pb-2 z-50">
-            {/* Author */}
-            <div
-              className="flex items-center gap-3 cursor-pointer"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/profile/${post.author.id}`);
-              }}
-            >
-              <div className="w-10 h-10 rounded-full border border-white/20 bg-white/10 overflow-hidden shadow-lg">
-                {getAvatarContent()}
-              </div>
-              <div className="flex flex-col shrink-0">
-                <span className="text-slate-900 dark:text-white font-bold text-sm drop-shadow-none dark:drop-shadow-md">
-                  {post.author.full_name || getDisplayUsername(post.author.username)}
-                </span>
-                <span className="text-slate-500 dark:text-gray-400 text-xs">
-                  {timeAgo}
-                </span>
+            <div className="flex flex-col items-center gap-2">
+              <div
+                className="flex items-center gap-3 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  navigate(`/profile/${post.author.id}`);
+                }}
+              >
+                <div className="w-10 h-10 rounded-full border border-white/20 bg-white/10 overflow-hidden shadow-lg">
+                  {getAvatarContent()}
+                </div>
+                <div className="flex flex-col shrink-0">
+                  <span className="text-slate-900 dark:text-white font-bold text-sm drop-shadow-none dark:drop-shadow-md">
+                    {post.author.full_name || getDisplayUsername(post.author.username)}
+                  </span>
+                  <span className="text-slate-500 dark:text-gray-400 text-xs">
+                    {timeAgo}
+                  </span>
+                </div>
               </div>
             </div>
-            {/* Badge centered in remaining space */}
+                
             {(isAudioPost || isChallengePost) && (
-              <div className="flex-1 flex flex-col items-center gap-1">
-                {isAudioPost && !isChallengePost && (
-                  <span className="h-8 px-2.5 gap-1.5 text-[10px] rounded-full font-bold tracking-wide inline-flex items-center uppercase backdrop-blur-md border"
-                    style={{ background: 'rgba(255,212,100,0.15)', borderColor: 'rgba(255,212,100,0.25)', color: '#FFD464' }}>
-                    🎙 VOICE
-                  </span>
-                )}
-                {isChallengePost && (
-                  <>
-                    <span className="h-8 px-2.5 gap-1.5 text-[10px] rounded-full font-bold tracking-wide inline-flex items-center uppercase backdrop-blur-md border"
-                      style={{ background: 'rgba(228,30,82,0.15)', borderColor: 'rgba(228,30,82,0.25)', color: '#E41E52' }}>
-                      ⚡ CHALLENGE
-                    </span>
-                    {challengeCountdown && (
-                      <span className="text-xs leading-none" style={{
-                        color: isChallengeExpired
-                          ? 'rgba(148,163,184,0.7)'
-                          : isChallengeUrgent
-                            ? '#FF8A3D'
-                            : 'rgba(148,163,184,0.7)',
-                        fontWeight: isChallengeUrgent ? 700 : 400,
-                      }}>
-                        {isChallengeExpired
-                          ? '⏱ Chiusa'
-                          : `⏱ Scade tra ${challengeCountdown}`
-                        }
-                      </span>
-                    )}
-                  </>
-                )}
-              </div>
+              <div className="hidden" />
             )}
 
             {/* PULSE Badge for Spotify / Trust Score / Category - Hide Trust Score for editorial shares (shown in card) */}
@@ -1606,59 +1589,88 @@ const ImmersivePostCardInner = ({
 
           {/* Center Content */}
           {/* [Rail 2] ContentRail: Adaptive height, clips overflow, no scroll */}
-          <div className="flex-1 min-h-0 relative flex flex-col px-4 overflow-hidden">
+          <div className="flex-1 min-h-0 relative flex flex-col px-4 overflow-hidden pt-4">
+
+            {/* Badges strictly pinned to the top of the content area for uniform height */}
+            {(isAudioPost || isChallengePost) && !useStackLayout && (
+              <div className="w-full flex justify-center mb-6 shrink-0 z-10">
+                <div className="flex items-center gap-2">
+                  {isAudioPost && !isChallengePost && (
+                    <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm backdrop-blur-md"
+                      style={{ color: '#0A7AFF', background: 'rgba(10,122,255,0.06)', borderColor: 'rgba(10,122,255,0.2)' }}>
+                      🎙 VOICE
+                    </span>
+                  )}
+                  {isChallengePost && (
+                    <>
+                      <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm backdrop-blur-md"
+                        style={{ color: '#E41E52', background: 'rgba(228,30,82,0.06)', borderColor: 'rgba(228,30,82,0.2)' }}>
+                        ⚡ CHALLENGE
+                      </span>
+                      {challengeCountdown && (
+                        <span style={{ 
+                          color: isChallengeExpired ? 'rgba(241,245,249,0.4)' : isChallengeUrgent ? '#FF8A3D' : 'rgba(241,245,249,0.4)', 
+                          fontSize: 13,
+                          fontWeight: isChallengeUrgent ? 700 : 500,
+                          marginLeft: 4
+                        }}>
+                          · {isChallengeExpired ? '⏱ Chiusa' : `⏱ Scade tra ${challengeCountdown}`}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className={cn("w-full flex flex-col max-h-full relative z-[1]", "my-auto")}>
 
 
               {/* Voice Post Body (non-challenge) */}
               {!useStackLayout && isAudioPost && !isChallengePost && post.voice_post && (
-                <div className="relative w-full max-w-lg mx-auto" style={{
-                  background: 'linear-gradient(180deg, rgba(10,122,255,0.05) 0%, transparent 120px)',
-                  borderRadius: 12,
-                  marginBottom: 12,
-                }}>
+                <div className="relative w-full max-w-lg mx-auto" style={{ marginBottom: 12 }}>
                   {post.content && (
-                    <p style={{ fontSize: 15, fontWeight: 600, lineHeight: 1.5, color: 'white', marginBottom: 12 }} className="px-1 drop-shadow-md">
+                    <p style={{ fontSize: 16, fontWeight: 400, lineHeight: 1.5, color: '#f1f5f9', marginBottom: 16, padding: '0 4px' }}>
                       <MentionText content={post.content.length > 200 ? post.content.slice(0, 200) + '...' : post.content} />
                     </p>
                   )}
-                  <VoicePlayer
-                    audioUrl={post.voice_post.audio_url}
-                    durationSeconds={post.voice_post.duration_seconds}
-                    waveformData={post.voice_post.waveform_data}
-                    transcript={post.voice_post.transcript}
-                    transcriptStatus={post.voice_post.transcript_status as any}
-                    accentColor="#0A7AFF"
-                  />
+                  <div className="relative mt-2">
+                    <VoicePlayer
+                      audioUrl={post.voice_post.audio_url}
+                      durationSeconds={post.voice_post.duration_seconds}
+                      waveformData={post.voice_post.waveform_data}
+                      transcript={post.voice_post.transcript}
+                      transcriptStatus={post.voice_post.transcript_status as any}
+                      accentColor="#0A7AFF"
+                    />
+                  </div>
                 </div>
               )}
 
               {/* Challenge Post Body (condensed in immersive) */}
               {!useStackLayout && isChallengePost && post.voice_post && post.challenge && (
                 <div className="relative w-full max-w-lg mx-auto" style={{ marginBottom: 12 }}>
+                  {/* User Text */}
+                  {post.content && post.content !== post.challenge.thesis && (
+                    <p style={{ fontSize: 16, fontWeight: 400, lineHeight: 1.5, color: '#f1f5f9', marginBottom: 16 }}>
+                      <MentionText content={post.content.length > 200 ? post.content.slice(0, 200) + '...' : post.content} />
+                    </p>
+                  )}
                   {/* Thesis */}
-                  <div className="relative" style={{
-                    background: 'linear-gradient(145deg, rgba(255,212,100,0.25), rgba(30,30,40,0.85), rgba(10,122,255,0.20))',
-                    border: '1px solid rgba(255,212,100,0.25)',
-                    borderRadius: 18, padding: '18px 20px', backdropFilter: 'blur(12px)',
-                  }}>
-                    <span className="absolute select-none pointer-events-none" style={{
-                      top: 10, left: 14, fontSize: 48, fontFamily: 'Georgia, serif',
-                      color: 'rgba(255,212,100,0.1)', lineHeight: 1,
-                    }}>"</span>
-                    <h3 className="relative z-10" style={{ fontSize: 16, fontWeight: 600, lineHeight: 1.5, color: 'white', paddingLeft: 4 }}>
-                      {post.challenge.thesis}
-                    </h3>
-                    <div className="mt-3">
-                      <VoicePlayer
-                        audioUrl={post.voice_post.audio_url}
-                        durationSeconds={post.voice_post.duration_seconds}
-                        waveformData={post.voice_post.waveform_data}
-                        transcript={post.voice_post.transcript}
-                        transcriptStatus={post.voice_post.transcript_status as any}
-                        accentColor="#E41E52"
-                      />
-                    </div>
+                  <div style={{ fontSize: 17, fontWeight: 400, lineHeight: 1.4, color: '#f1f5f9', padding: '0 8px', marginBottom: 20 }}>
+                    {post.challenge.thesis}
+                  </div>
+
+                  {/* Challenge Block */}
+                  <div className="relative mt-2">
+                    <VoicePlayer
+                      audioUrl={post.voice_post.audio_url}
+                      durationSeconds={post.voice_post.duration_seconds}
+                      waveformData={post.voice_post.waveform_data}
+                      transcript={post.voice_post.transcript}
+                      transcriptStatus={post.voice_post.transcript_status as any}
+                      accentColor="#E41E52"
+                    />
                   </div>
                    {/* Polarization bar */}
                    <div className="mt-4 px-1">
@@ -1678,20 +1690,15 @@ const ImmersivePostCardInner = ({
 
                    {/* Challenge Responses Button + Drawer */}
                    {challengeResponses.length > 0 && (
-                     <div className="mt-4">
+                     <div className="mt-5 flex justify-center">
                        <button
                          onClick={(e) => {
                            e.stopPropagation();
                            setChallengeDrawerOpen(true);
                          }}
-                         className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-full text-sm font-bold text-white/90 hover:text-white transition-all"
-                         style={{
-                           background: 'rgba(255,255,255,0.1)',
-                           backdropFilter: 'blur(12px)',
-                           border: '1px solid rgba(255,255,255,0.15)',
-                         }}
+                         className="flex items-center justify-center gap-1.5 py-1.5 px-4 rounded-full text-sm font-semibold text-slate-300 hover:text-white transition-all hover:bg-white/5"
                        >
-                         <Zap className="w-4 h-4" style={{ color: '#E41E52' }} />
+                         <Zap className="w-3.5 h-3.5" style={{ color: '#E41E52' }} />
                          Vedi {challengeResponses.length} rispost{challengeResponses.length === 1 ? 'a' : 'e'}
                        </button>
 
@@ -1820,12 +1827,14 @@ const ImmersivePostCardInner = ({
                           handleRespond();
                         }}
                         disabled={isExpired}
-                        className="relative w-full mt-4 py-3 rounded-2xl font-bold text-sm tracking-wide overflow-hidden transition-all"
+                        className={cn(
+                          "relative w-full mt-4 py-3.5 rounded-full font-bold text-[15px] tracking-wide overflow-hidden transition-all shadow-lg",
+                          isExpired ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02] active:scale-[0.98]"
+                        )}
                         style={{
                           background: isExpired ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #E41E52, #FF6B35)',
                           color: isExpired ? 'rgba(255,255,255,0.3)' : 'white',
                           border: isExpired ? '1px solid rgba(255,255,255,0.1)' : 'none',
-                          opacity: isExpired ? 0.6 : 1,
                         }}
                       >
                         {!isExpired && (
@@ -1846,7 +1855,10 @@ const ImmersivePostCardInner = ({
 
               {/* Stack Layout: User comment first - Plain text for standard */}
               {useStackLayout && post.content && post.content !== post.shared_title && (
-                <div className="text-base sm:text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide drop-shadow-none dark:drop-shadow-md mb-4 px-1">
+                <div className={cn(
+                  "text-base sm:text-lg text-slate-600 dark:text-white/90 leading-snug tracking-wide drop-shadow-none dark:drop-shadow-md mb-4 px-1",
+                  isChallengePost ? "font-normal" : "font-normal"
+                )}>
                   {post.content.length > 400 ? (
                     <>
                       <MentionText content={post.content.slice(0, 400) + '...'} />

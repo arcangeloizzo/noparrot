@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useEffect } from 'react';
 
 export interface Comment {
   id: string;
@@ -29,6 +30,34 @@ export interface Comment {
 }
 
 export const useComments = (postId: string, sortMode: 'relevance' | 'recent' | 'top' = 'relevance') => {
+  const queryClient = useQueryClient();
+
+  // Setup realtime subscription for comments on this post
+  useEffect(() => {
+    if (!postId) return;
+
+    const channel = supabase
+      .channel(`comments-realtime-${postId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'comments',
+          filter: `post_id=eq.${postId}`
+        },
+        () => {
+          // Invalidate completely so new comments instantly show up
+          queryClient.invalidateQueries({ queryKey: ['comments', postId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [postId, queryClient]);
+
   return useQuery({
     queryKey: ['comments', postId, sortMode],
     queryFn: async () => {

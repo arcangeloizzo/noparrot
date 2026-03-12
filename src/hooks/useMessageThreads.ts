@@ -75,7 +75,8 @@ export function useMessageThreads() {
             profile:public_profiles(id, username, full_name, avatar_url)
           )
         `)
-        .order('updated_at', { ascending: false });
+        .order('updated_at', { ascending: false })
+        .limit(20);
 
       if (error) throw error;
 

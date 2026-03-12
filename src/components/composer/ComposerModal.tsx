@@ -2336,7 +2336,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                 <>
                   {/* Avatar + Textarea inline (X-style) */}
                   <div className="flex gap-3 px-4 pt-4">
-                    <Avatar className="w-10 h-10 flex-shrink-0">
+                    <Avatar className="w-[46px] h-[46px] flex-shrink-0">
                       <AvatarImage src={profile?.avatar_url || undefined} className="object-cover" />
                       <AvatarFallback className="bg-muted text-muted-foreground text-sm font-medium">
                         {initials}
@@ -2371,76 +2371,52 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                   {/* ─── Challenge & Voice CTAs (visible only in idle) ─── */}
                   {composerMode === 'idle' && !quotedPost && (
                     <div className="px-4 py-4 space-y-3 animate-in fade-in duration-200">
-                      {/* Banner Challenge */}
-                      <button
-                        onClick={() => setComposerMode('challenge-thesis')}
-                        className="w-full text-left relative overflow-hidden"
-                        style={{
-                          padding: '16px 20px',
-                          borderRadius: 18,
-                          background: 'linear-gradient(135deg, rgba(228,30,82,0.07), rgba(10,122,255,0.04))',
-                          border: '1px solid rgba(228,30,82,0.15)',
-                        }}
-                      >
-                        {/* Shimmer overlay */}
-                        <div
-                          className="absolute inset-0 -translate-x-full"
-                          style={{
-                            background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)',
-                            animation: 'shimmer 3s ease-in-out infinite',
-                          }}
-                        />
-                        <div className="flex items-center gap-3 relative z-10">
-                          <div
-                            className="flex items-center justify-center flex-shrink-0"
-                            style={{
-                              width: 44,
-                              height: 44,
-                              borderRadius: 14,
-                              background: 'rgba(228,30,82,0.12)',
-                              border: '1px solid rgba(228,30,82,0.2)',
-                            }}
-                          >
-                            <span className="text-lg">⚡</span>
-                          </div>
-                          <div>
-                            <p className="text-[15px] font-bold text-foreground">Lancia una Challenge</p>
-                            <p className="text-xs text-muted-foreground">Sfida la community con una tesi vocale</p>
-                          </div>
-                        </div>
-                      </button>
-
                       {/* Separator */}
-                      <div className="flex items-center gap-3 px-2">
+                      <div className="flex items-center gap-3 px-2 mb-3">
                         <div className="flex-1 h-px bg-border" />
                         <span className="text-[11px] text-muted-foreground">oppure</span>
                         <div className="flex-1 h-px bg-border" />
                       </div>
 
-                      {/* Voice Post button */}
-                      <button
-                        onClick={() => setComposerMode('voice-rec')}
-                        className="w-full flex items-center gap-2.5"
-                        style={{
-                          padding: '12px 16px',
-                          borderRadius: 14,
-                          background: 'rgba(255,255,255,0.05)',
-                          border: '1px solid rgba(255,255,255,0.07)',
-                        }}
-                      >
-                        <div
-                          className="flex items-center justify-center flex-shrink-0"
+                      <div className="flex gap-3">
+                        {/* Challenge button */}
+                        <button
+                          onClick={() => setComposerMode('challenge-thesis')}
+                          className="flex-1 flex flex-col items-center gap-2 py-4 rounded-2xl"
                           style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 10,
-                            background: 'rgba(10,122,255,0.1)',
+                            background: 'linear-gradient(135deg, rgba(228,30,82,0.07), rgba(10,122,255,0.04))',
+                            border: '1px solid rgba(228,30,82,0.15)',
                           }}
                         >
-                          <span className="text-base">🎙</span>
-                        </div>
-                        <span className="text-[13px] text-muted-foreground">Registra un pensiero vocale</span>
-                      </button>
+                          <div style={{
+                            width: 40, height: 40, borderRadius: 12,
+                            background: 'rgba(228,30,82,0.12)',
+                            border: '1px solid rgba(228,30,82,0.2)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 20,
+                          }}>⚡</div>
+                          <span style={{ color: '#F1F5F9', fontSize: 13, fontWeight: 600 }}>Challenge</span>
+                        </button>
+
+                        {/* Voice button */}
+                        <button
+                          onClick={() => setComposerMode('voice-rec')}
+                          className="flex-1 flex flex-col items-center gap-2 py-4 rounded-2xl"
+                          style={{
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '1px solid rgba(255,255,255,0.07)',
+                          }}
+                        >
+                          <div style={{
+                            width: 40, height: 40, borderRadius: 12,
+                            background: 'rgba(10,122,255,0.1)',
+                            border: '1px solid rgba(10,122,255,0.2)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 20,
+                          }}>🎙</div>
+                          <span style={{ color: '#F1F5F9', fontSize: 13, fontWeight: 600 }}>Vocale</span>
+                        </button>
+                      </div>
                     </div>
                   )}
 

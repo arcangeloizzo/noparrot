@@ -50,6 +50,7 @@ Deno.serve(async (req) => {
       stance,
       duration_seconds,
       waveform_data,
+      audio_mime_type = "audio/webm",
     } = await req.json();
 
     if (!challenge_id || !audio_base64 || !stance || !duration_seconds) {
@@ -131,11 +132,12 @@ Deno.serve(async (req) => {
       bytes[i] = binaryStr.charCodeAt(i);
     }
 
-    const filePath = `${userId}/${challenge_id}_response.webm`;
+    const ext = audio_mime_type.includes("mp4") ? "mp4" : "webm";
+    const filePath = `${userId}/${challenge_id}_response_${Date.now()}.${ext}`;
     const { error: uploadErr } = await supabase.storage
       .from("voice-audio")
       .upload(filePath, bytes, {
-        contentType: "audio/webm",
+        contentType: audio_mime_type,
         upsert: true,
       });
 
@@ -196,30 +198,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── 7. Update challenge votes ──
-    if (stance === "for") {
-      await supabase.rpc("increment_post_shares", {
-        target_post_id: challenge_id,
-      }).catch(() => {});
-      // Direct update instead
-      await supabase
-        .from("challenges")
-        .update({
-          votes_for: (challenge as any).votes_for
-            ? (challenge as any).votes_for + 1
-            : 1,
-        })
-        .eq("id", challenge_id);
-    } else {
-      await supabase
-        .from("challenges")
-        .update({
-          votes_against: (challenge as any).votes_against
-            ? (challenge as any).votes_against + 1
-            : 1,
-        })
-        .eq("id", challenge_id);
-    }
+    // ── 7. Update challenge votes (REMOVED: Handled by increment_stance_votes DB trigger) ──
 
     // ── 8. Trigger transcription (fire-and-forget) ──
     try {
