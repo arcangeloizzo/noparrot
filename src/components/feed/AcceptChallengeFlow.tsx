@@ -85,8 +85,21 @@ export const AcceptChallengeFlow: React.FC<AcceptChallengeFlowProps> = ({
 
       if (error) {
         console.error("submit-challenge-response invoke error:", error);
-        // data.error is often where the detailed message from the edge function is
-        const errMsg = data?.error || error.message || "Errore durante l'invio della risposta";
+
+        let contextError = "";
+        const rawContext = (error as any)?.context;
+        if (typeof rawContext === "string") {
+          try {
+            const parsed = JSON.parse(rawContext);
+            contextError = parsed?.error || rawContext;
+          } catch {
+            contextError = rawContext;
+          }
+        } else if (rawContext && typeof rawContext === "object") {
+          contextError = rawContext.error || "";
+        }
+
+        const errMsg = data?.error || contextError || error.message || "Errore durante l'invio della risposta";
         throw new Error(errMsg);
       }
 
@@ -98,13 +111,14 @@ export const AcceptChallengeFlow: React.FC<AcceptChallengeFlowProps> = ({
       resetState();
     } catch (err: any) {
       console.error("submit-challenge-response error:", err);
-      // Custom friendly messages
       const msg = err?.message || "Errore durante l'invio";
 
-      if (msg.includes("Hai già risposto") || msg.includes("Already responded") || msg.includes("non-2xx")) {
+      if (msg.includes("Hai già risposto") || msg.includes("Already responded")) {
         toast.error("Hai già risposto a questa sfida!");
       } else if (msg.includes("Challenge expired")) {
         toast.error("Questa sfida è scaduta!");
+      } else if (msg.includes("Accesso negato") || msg.includes("Comprehension Gate")) {
+        toast.error("Devi prima superare il Comprehension Gate per rispondere.");
       } else {
         toast.error(msg);
       }
