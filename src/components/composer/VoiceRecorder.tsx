@@ -208,8 +208,9 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
       };
 
       mediaRecorder.onstop = () => {
-        const actualMimeType = audioChunksRef.current.length > 0 && audioChunksRef.current[0].type
-          ? audioChunksRef.current[0].type
+        const firstChunk = audioChunksRef.current[0];
+        const actualMimeType = audioChunksRef.current.length > 0 && firstChunk instanceof Blob && firstChunk.type
+          ? firstChunk.type
           : mimeType;
         const blob = new Blob(audioChunksRef.current, { type: actualMimeType });
         setAudioBlob(blob);
