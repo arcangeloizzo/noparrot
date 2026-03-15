@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { sortCommentsByMode } from './useComments';
 
 export interface MediaComment {
   id: string;
@@ -48,7 +49,7 @@ export const useMediaComments = (mediaId: string) => {
       
       const authorsMap = new Map(authors?.map(a => [a.id, a]) || []);
       
-      return data.map(comment => ({
+      const mappedComments = data.map(comment => ({
         ...comment,
         author: authorsMap.get(comment.author_id) || {
           id: comment.author_id,
@@ -57,6 +58,8 @@ export const useMediaComments = (mediaId: string) => {
           avatar_url: null
         }
       })) as MediaComment[];
+      
+      return sortCommentsByMode(mappedComments, 'oldest');
     },
     enabled: !!mediaId
   });

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { sortCommentsByMode } from './useComments';
 
 export interface FocusComment {
   id: string;
@@ -71,7 +72,7 @@ export const useFocusComments = (focusId: string, focusType: 'daily' | 'interest
         repliesCount: repliesCountMap.get(c.id) || 0
       }));
 
-      return commentsWithReactions;
+      return sortCommentsByMode(commentsWithReactions, 'oldest');
     },
     enabled: !!focusId
   });

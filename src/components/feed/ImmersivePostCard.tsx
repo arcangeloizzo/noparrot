@@ -75,10 +75,8 @@ import { toast } from "sonner";
 import { TOASTS } from "@/constants/toast-messages";
 import { AnalysisOverlay } from "@/components/ui/AnalysisOverlay";
 import { cn, getDisplayUsername } from "@/lib/utils";
-import { fetchTrustScore } from "@/lib/comprehension-gate";
 import { generateQA, fetchArticlePreview } from "@/lib/ai-helpers";
 import { supabase } from "@/integrations/supabase/client";
-import { uniqueSources } from "@/lib/url";
 import { useCreateThread } from "@/hooks/useMessageThreads";
 import { useSendMessage } from "@/hooks/useMessages";
 import { getWordCount, getTestModeWithSource, getQuestionCountWithoutSource, getQuestionCountForIntentReshare } from "@/lib/gate-utils";
@@ -1295,7 +1293,7 @@ const ImmersivePostCardInner = ({
   const isChallengePost = post.post_type === 'challenge';
   const isAudioPost = isVoicePost || isChallengePost;
   const challengeIdForResponses = isChallengePost ? post.challenge?.id || null : null;
-  const { responses: challengeResponses, userVote, voteForResponse } = useChallengeResponses(challengeIdForResponses);
+  const { responses: challengeResponses, userVote, voteForResponse, removeVote } = useChallengeResponses(challengeIdForResponses);
   const [challengeDrawerOpen, setChallengeDrawerOpen] = useState(false);
 
   // Challenge countdown
@@ -1593,12 +1591,12 @@ const ImmersivePostCardInner = ({
 
             {/* Badges strictly pinned to the top of the content area for uniform height */}
             {(isAudioPost || isChallengePost) && !useStackLayout && (
-              <div className="w-full flex justify-center mb-6 shrink-0 z-10">
+              <div className="w-full flex justify-center mt-2 mb-6 shrink-0 z-10">
                 <div className="flex items-center gap-2">
                   {isAudioPost && !isChallengePost && (
                     <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm backdrop-blur-md"
                       style={{ color: '#0A7AFF', background: 'rgba(10,122,255,0.06)', borderColor: 'rgba(10,122,255,0.2)' }}>
-                      🎙 VOICE
+                      🎙 VOICECAST
                     </span>
                   )}
                   {isChallengePost && (
@@ -1623,55 +1621,130 @@ const ImmersivePostCardInner = ({
               </div>
             )}
 
-            <div className={cn("w-full flex flex-col max-h-full relative z-[1]", "my-auto")}>
+            <div className={cn(
+              "w-full flex flex-col relative z-[1]", 
+              (!isAudioPost && !isChallengePost) ? "max-h-full my-auto" : "flex-1 min-h-0"
+            )}>
 
 
               {/* Voice Post Body (non-challenge) */}
               {!useStackLayout && isAudioPost && !isChallengePost && post.voice_post && (
-                <div className="relative w-full max-w-lg mx-auto" style={{ marginBottom: 12 }}>
-                  {post.content && (
-                    <p style={{ fontSize: 16, fontWeight: 400, lineHeight: 1.5, color: '#f1f5f9', marginBottom: 16, padding: '0 4px' }}>
-                      <MentionText content={post.content.length > 200 ? post.content.slice(0, 200) + '...' : post.content} />
-                    </p>
-                  )}
-                  <div className="relative mt-2">
-                    <VoicePlayer
-                      audioUrl={post.voice_post.audio_url}
-                      durationSeconds={post.voice_post.duration_seconds}
-                      waveformData={post.voice_post.waveform_data}
-                      transcript={post.voice_post.transcript}
-                      transcriptStatus={post.voice_post.transcript_status as any}
-                      accentColor="#0A7AFF"
-                    />
-                  </div>
+                <div className="w-full h-full flex flex-col pt-2 pb-6">
+                    {/* 1. User Text */}
+                    {post.content && (
+                      <div className="flex-shrink-0 mb-4 px-1">
+                        <div className="text-[17px] sm:text-lg font-normal text-immersive-foreground leading-[1.65] tracking-[0.01em] whitespace-pre-wrap line-clamp-3">
+                          <MentionText content={post.content} />
+                        </div>
+                        {post.content.length > 150 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                            className="text-sm font-semibold text-primary mt-1 hover:underline"
+                          >
+                            Mostra tutto
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* 2. Media Image (Cropped flexibly taking remaining space) */}
+                    {post.media && post.media.length > 0 && (
+                      <div className="flex-1 min-h-0 w-full mb-6 rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-black/50">
+                        {post.media.length === 1 ? (
+                          <img
+                            src={post.media[0].thumbnail_url || post.media[0].url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full object-cover">
+                            <MediaGallery
+                              media={post.media}
+                              onClick={(_, index) => setSelectedMediaIndex(index)}
+                              initialIndex={carouselIndex}
+                              onIndexChange={setCarouselIndex}
+                              className="w-full h-full object-cover"
+                              fillHeight={true}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 3. Audio Player */}
+                    <div className="relative w-full shadow-2xl rounded-2xl flex-shrink-0">
+                      <VoicePlayer
+                        audioUrl={post.voice_post.audio_url}
+                        durationSeconds={post.voice_post.duration_seconds}
+                        waveformData={post.voice_post.waveform_data}
+                        transcript={post.voice_post.transcript}
+                        transcriptStatus={post.voice_post.transcript_status as any}
+                        accentColor="#0A7AFF"
+                      />
+                    </div>
                 </div>
               )}
 
               {/* Challenge Post Body (condensed in immersive) */}
               {!useStackLayout && isChallengePost && post.voice_post && post.challenge && (
-                <div className="relative w-full max-w-lg mx-auto" style={{ marginBottom: 12 }}>
-                  {/* User Text */}
-                  {post.content && post.content !== post.challenge.thesis && (
-                    <p style={{ fontSize: 16, fontWeight: 400, lineHeight: 1.5, color: '#f1f5f9', marginBottom: 16 }}>
-                      <MentionText content={post.content.length > 200 ? post.content.slice(0, 200) + '...' : post.content} />
-                    </p>
-                  )}
-                  {/* Thesis */}
-                  <div style={{ fontSize: 17, fontWeight: 400, lineHeight: 1.4, color: '#f1f5f9', padding: '0 8px', marginBottom: 20 }}>
-                    {post.challenge.thesis}
-                  </div>
+                <div className="w-full h-full flex flex-col pt-2 pb-6">
+                    {/* 1. User Text (Only if different from thesis) */}
+                    {post.content && post.content !== post.challenge.thesis && (
+                      <div className="flex-shrink-0 mb-4 px-1">
+                        <div className="text-[17px] sm:text-lg font-normal text-immersive-foreground leading-[1.65] tracking-[0.01em] whitespace-pre-wrap line-clamp-3">
+                          <MentionText content={post.content} />
+                        </div>
+                        {post.content.length > 150 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                            className="text-sm font-semibold text-primary mt-1 hover:underline"
+                          >
+                            Mostra tutto
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* 1b. Thesis Content */}
+                    <div className="flex-shrink-0 text-xl sm:text-2xl font-medium text-white leading-tight px-1 mb-4 drop-shadow-md">
+                      <MentionText content={post.challenge.thesis} />
+                    </div>
 
-                  {/* Challenge Block */}
-                  <div className="relative mt-2">
-                    <VoicePlayer
-                      audioUrl={post.voice_post.audio_url}
-                      durationSeconds={post.voice_post.duration_seconds}
-                      waveformData={post.voice_post.waveform_data}
-                      transcript={post.voice_post.transcript}
-                      transcriptStatus={post.voice_post.transcript_status as any}
-                      accentColor="#E41E52"
-                    />
-                  </div>
+                    {/* 2. Media Image (Cropped flexibly taking remaining space) */}
+                    {post.media && post.media.length > 0 && (
+                      <div className="flex-1 min-h-0 w-full mb-6 rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-black/50">
+                        {post.media.length === 1 ? (
+                          <img
+                            src={post.media[0].thumbnail_url || post.media[0].url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full object-cover">
+                            <MediaGallery
+                              media={post.media}
+                              onClick={(_, index) => setSelectedMediaIndex(index)}
+                              initialIndex={carouselIndex}
+                              onIndexChange={setCarouselIndex}
+                              className="w-full h-full object-cover"
+                              fillHeight={true}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 3. Audio Player */}
+                    <div className="relative w-full shadow-2xl rounded-2xl flex-shrink-0">
+                      <VoicePlayer
+                        audioUrl={post.voice_post.audio_url}
+                        durationSeconds={post.voice_post.duration_seconds}
+                        waveformData={post.voice_post.waveform_data}
+                        transcript={post.voice_post.transcript}
+                        transcriptStatus={post.voice_post.transcript_status as any}
+                        accentColor="#E41E52"
+                      />
+                    </div>
                    {/* Polarization bar */}
                    <div className="mt-4 px-1">
                      <div className="flex items-end justify-between mb-1.5">
@@ -1756,19 +1829,30 @@ const ImmersivePostCardInner = ({
                                      <button
                                        onClick={(e) => {
                                          e.stopPropagation();
-                                         if (!userVote) voteForResponse(resp.id);
+                                         if (userVote?.challenge_response_id === resp.id) {
+                                           removeVote();
+                                         } else if (!userVote) {
+                                           voteForResponse(resp.id);
+                                         }
                                        }}
-                                       disabled={!!userVote}
+                                       disabled={!!userVote && userVote.challenge_response_id !== resp.id}
                                        className={cn(
-                                         "text-xs font-semibold px-3 py-1.5 rounded-full transition-all",
+                                         "text-xs font-semibold px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5",
                                          userVote?.challenge_response_id === resp.id
-                                           ? "bg-primary/20 text-primary"
+                                           ? "bg-primary/20 text-primary hover:bg-destructive/20 hover:text-destructive"
                                            : userVote
                                              ? "bg-muted text-muted-foreground cursor-not-allowed"
                                              : "bg-muted hover:bg-accent text-foreground"
                                        )}
                                      >
-                                       {userVote?.challenge_response_id === resp.id ? '✓ Votato' : '🏆 Miglior argomento'}
+                                       {userVote?.challenge_response_id === resp.id ? (
+                                         <span className="flex items-center gap-1">
+                                           <span className="group-hover:hidden">✓ Votato</span>
+                                           <span className="hidden group-hover:inline">✗ Rimuovi voto</span>
+                                         </span>
+                                       ) : (
+                                         '🏆 Miglior argomento'
+                                       )}
                                      </button>
                                    </div>
                                  </div>
@@ -1778,9 +1862,7 @@ const ImmersivePostCardInner = ({
                          </DrawerContent>
                        </Drawer>
                      </div>
-                   )}
-
-                  {/* CTA: Accetta la sfida */}
+                    )}
                   {(() => {
                     const isExpired = post.challenge?.status === 'expired' || post.challenge?.status === 'closed' || new Date(post.challenge?.expires_at || '') < new Date();
                     const isAuthor = user?.id === post.author.id;
@@ -1857,7 +1939,7 @@ const ImmersivePostCardInner = ({
               )}
 
               {/* Stack Layout: User comment first - Plain text for standard */}
-              {useStackLayout && post.content && post.content !== post.shared_title && (
+              {useStackLayout && !isAudioPost && !isChallengePost && post.content && post.content !== post.shared_title && (
                 <div className={cn(
                   "text-base sm:text-lg text-slate-600 dark:text-white/90 leading-snug tracking-wide drop-shadow-none dark:drop-shadow-md mb-4 px-1",
                   isChallengePost ? "font-normal" : "font-normal"
@@ -1971,7 +2053,7 @@ const ImmersivePostCardInner = ({
               )}
 
               {/* User Text for media-only posts - ABOVE the media */}
-              {!useStackLayout && isMediaOnlyPost && post.content && (
+              {!useStackLayout && !isAudioPost && !isChallengePost && isMediaOnlyPost && post.content && (
                 <div className="mb-6">
                   <h2 className="text-xl font-medium text-immersive-foreground leading-snug tracking-wide drop-shadow-lg">
                     <MentionText content={post.content.length > 200 ? post.content.slice(0, 200) + '...' : post.content} />
@@ -1988,7 +2070,7 @@ const ImmersivePostCardInner = ({
               )}
 
               {/* Framed Media Window for media-only posts - Hide if using stack layout */}
-              {!useStackLayout && isMediaOnlyPost && post.media && post.media.length > 0 && (
+              {!useStackLayout && !isAudioPost && !isChallengePost && isMediaOnlyPost && post.media && post.media.length > 0 && (
                 post.media.length === 1 ? (
                   /* Single media: flexible adaptive layout */
                   <button

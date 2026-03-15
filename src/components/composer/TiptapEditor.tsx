@@ -31,6 +31,7 @@ interface TiptapEditorProps {
   editorClassName?: string;
   disabled?: boolean;
   maxLength?: number;
+  maxWords?: number; // [NEW] Optional strict word limit
   onFocus?: () => void;
   onBlur?: () => void;
 }
@@ -88,6 +89,11 @@ const parseMarkdownToContent = (markdown: string): string => {
   return markdown;
 };
 
+// Helper to count words strictly
+const countWords = (text: string): number => {
+  return text.trim().split(/\s+/).filter(word => word.length > 0).length;
+};
+
 const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
   initialContent = '',
   onChange,
@@ -96,6 +102,7 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
   editorClassName,
   disabled = false,
   maxLength = 3000,
+  maxWords,
   onFocus: onFocusProp,
   onBlur: onBlurProp,
 }, ref) => {
@@ -275,15 +282,42 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
         ),
       },
       handleKeyDown: (view, event) => {
+        const text = view.state.doc.textContent;
+        // Block text if exceeding standard maxLength
+        if (text.length >= maxLength && event.key !== 'Backspace' && event.key !== 'Delete' && !event.ctrlKey && !event.metaKey && !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+           return true;
+        }
+
+        // Block new content if exceeding maxWords
+        if (maxWords !== undefined && event.key !== 'Backspace' && event.key !== 'Delete' && !event.ctrlKey && !event.metaKey && !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+           const currentWords = countWords(text);
+           if (currentWords >= maxWords && event.key === ' ') {
+               // Prevent adding a space if we are exactly at word limit
+               return true;
+           }
+           if (currentWords > maxWords) {
+               return true; // Extreme fallback
+           }
+        }
+        
         // Prevent Enter from creating new paragraphs when at max length
         if (event.key === 'Enter' && !event.shiftKey) {
-          const text = view.state.doc.textContent;
           if (text.length >= maxLength) {
             return true;
           }
         }
         return false;
       },
+      handlePaste: (view, event, slice) => {
+         if (maxWords !== undefined) {
+             const currentWords = countWords(view.state.doc.textContent);
+             const pastedWords = countWords(slice.content.textBetween(0, slice.content.size, ' '));
+             if (currentWords + pastedWords > maxWords) {
+                 return true; // Block entire paste if it exceeds limit
+             }
+         }
+         return false;
+      }
     },
   });
   

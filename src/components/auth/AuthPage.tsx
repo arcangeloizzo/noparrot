@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
+import { PENDING_SHARE_KEY } from "@/pages/ShareTargetHandler";
 
 export interface AuthPageProps {
   initialMode?: 'login' | 'signup';
@@ -51,7 +52,13 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
   useEffect(() => {
     // NON reindirizzare se siamo in modalità update password
     if (user && !showUpdatePassword) {
-      navigate("/");
+      if (localStorage.getItem(PENDING_SHARE_KEY) === 'true') {
+        localStorage.removeItem(PENDING_SHARE_KEY);
+        // Ritardiamo leggermente lo svuotamento per permettere alla modale di essere caricata
+        navigate("/", { replace: true, state: { openComposer: true } });
+      } else {
+        navigate("/");
+      }
     }
   }, [user, navigate, showUpdatePassword]);
 
@@ -172,7 +179,12 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
       toast.error(error.message);
     } else {
       toast.success("Registrazione completata!");
-      navigate("/");
+      if (localStorage.getItem(PENDING_SHARE_KEY) === 'true') {
+        localStorage.removeItem(PENDING_SHARE_KEY);
+        navigate("/", { replace: true, state: { openComposer: true } });
+      } else {
+        navigate("/");
+      }
     }
     setIsLoading(false);
   };
@@ -187,7 +199,12 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
       toast.error(error.message === "Invalid login credentials" ? "Email o password non corretti" : error.message);
     } else {
       toast.success("Login effettuato!");
-      navigate("/");
+      if (localStorage.getItem(PENDING_SHARE_KEY) === 'true') {
+        localStorage.removeItem(PENDING_SHARE_KEY);
+        navigate("/", { replace: true, state: { openComposer: true } });
+      } else {
+        navigate("/");
+      }
     }
     setIsLoading(false);
   };

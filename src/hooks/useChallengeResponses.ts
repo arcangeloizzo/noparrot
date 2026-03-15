@@ -127,10 +127,33 @@ export function useChallengeResponses(challengeId: string | null) {
     },
   });
 
+  const removeVote = useMutation({
+    mutationFn: async () => {
+      if (!user || !challengeId) throw new Error("Not authenticated");
+      
+      const { error } = await supabase
+        .from("challenge_votes")
+        .delete()
+        .eq("challenge_id", challengeId)
+        .eq("user_id", user.id);
+        
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Voto rimosso");
+      queryClient.invalidateQueries({ queryKey: ["challenge-user-vote", challengeId] });
+      queryClient.invalidateQueries({ queryKey: ["challenge-responses", challengeId] });
+    },
+    onError: () => {
+      toast.error("Errore durante la rimozione del voto");
+    },
+  });
+
   return {
     responses: responsesQuery.data || [],
     userVote: userVoteQuery.data || null,
     isLoading: responsesQuery.isLoading,
     voteForResponse: voteForResponse.mutate,
+    removeVote: removeVote.mutate,
   };
 }

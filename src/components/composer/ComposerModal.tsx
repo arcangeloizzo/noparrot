@@ -28,7 +28,7 @@ import { haptics } from "@/lib/haptics";
 import { TiptapEditor, TiptapEditorRef } from "./TiptapEditor";
 import { useVisualViewportOffset } from "@/hooks/useVisualViewportOffset";
 import { useComposerPersistence } from "@/hooks/useComposerPersistence"; // [NEW] Persistence hook
-import { Loader2, Youtube } from "lucide-react";
+import { X, Image as ImageIcon, Sparkles, Loader2, Music, Youtube, Hash, ImagePlus, ChevronDown, Check, Video, ZoomIn, Search, FileText, Share2, Zap, Mic } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -111,16 +111,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const [voicePostData, setVoicePostData] = useState<{ audioBlob: Blob; durationSec: number; waveformData: number[] } | null>(null);
   const [postType, setPostType] = useState<'standard' | 'voice' | 'challenge'>('standard');
-  const [challengeData, setChallengeData] = useState<{ thesis: string; duration_hours: number } | null>(null);
+  const [challengeData, setChallengeData] = useState<{ duration_hours: number } | null>(null);
   const [showPostTypeChooser, setShowPostTypeChooser] = useState(false);
   const [challengeStance, setChallengeStance] = useState<'agree' | 'disagree' | null>(null);
   const isChallengeResponse = quotedPost?.post_type === 'challenge';
 
   // ─── Composer Mode State Machine ───
-  type ComposerMode = 'idle' | 'text-editing' | 'challenge-thesis' | 'challenge-rec' | 'challenge-preview' | 'voice-rec' | 'voice-preview';
+  type ComposerMode = 'idle' | 'text-editing' | 'challenge-rec' | 'voice-rec' | 'post-type-chooser';
   const [composerMode, setComposerMode] = useState<ComposerMode>('idle');
-  const [thesis, setThesis] = useState('');
-  const [challengeDuration, setChallengeDuration] = useState<24 | 48 | 168>(48);
   const [textFocused, setTextFocused] = useState(false);
 
   const [isFinalizingPublish, setIsFinalizingPublish] = useState(false);
@@ -418,8 +416,6 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     setShowPostTypeChooser(false);
     setChallengeData(null);
     setComposerMode('idle');
-    setThesis('');
-    setChallengeDuration(48);
     setTextFocused(false);
     clearMedia();
   };
@@ -592,7 +588,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
 
   const handlePublish = async (
     overridePostType?: 'voice' | 'challenge' | 'standard',
-    overrideChallengeData?: { thesis: string; duration_hours: number }
+    overrideChallengeData?: { duration_hours: number }
   ) => {
     // Allow publish if user has text, media, a detected URL, a quoted post (reshare), or a voice recording
     if (!user || (!content.trim() && !detectedUrl && uploadedMedia.length === 0 && !quotedPost && !voicePostData)) return;
@@ -801,7 +797,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     quoted: any,
     testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY',
     overridePostType?: 'voice' | 'challenge' | 'standard',
-    overrideChallengeData?: { thesis: string; duration_hours: number }
+    overrideChallengeData?: { duration_hours: number }
   ) => {
     if (isGeneratingQuiz) return;
 
@@ -1554,7 +1550,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const publishPost = async (
     isIntentPost = false,
     overridePostType?: 'voice' | 'challenge' | 'standard',
-    overrideChallengeData?: { thesis: string; duration_hours: number }
+    overrideChallengeData?: { duration_hours: number }
   ) => {
     if (!user) return;
 
@@ -1690,9 +1686,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                 durationSeconds: voicePostData.durationSec,
                 waveform: voicePostData.waveformData || null,
               },
-              // Challenge data in nested format
+              // For challenge, content IS the thesis now
               challengeData: (finalPostType === 'challenge') ? {
-                thesis: overrideChallengeData?.thesis ?? challengeData?.thesis ?? '',
+                thesis: cleanContent, // <--- Rich text content up to 30 words
                 durationHours: overrideChallengeData?.duration_hours ?? challengeData?.duration_hours ?? 48,
               } : undefined,
               // Challenge response fields
@@ -2043,7 +2039,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
           {/* Inner flex container */}
           <div className="flex flex-col h-full">
             {/* Minimal Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
               {/* Left: Annulla or Back */}
               {composerMode === 'idle' || composerMode === 'text-editing' ? (
                 <Button
@@ -2068,7 +2064,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    const hasContent = content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!voicePostData || thesis.length > 0;
+                    const hasContent = content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!voicePostData;
                     if (hasContent) {
                       setShowCancelConfirm(true);
                     } else {
@@ -2082,7 +2078,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
               )}
 
               {/* Right: Pubblica only when text-editing with content */}
-              {composerMode === 'text-editing' && content.trim().length > 0 ? (
+              {composerMode === 'text-editing' && (content.trim().length > 0 || voicePostData) ? (
                 <Button
                   onClick={() => handlePublish()}
                   disabled={!canPublish || isLoading || isPreviewLoading || isTranscriptionInProgress}
@@ -2107,156 +2103,29 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
             {/* Scrollable Content Area */}
             <div className="flex-1 overflow-y-auto">
 
-              {/* ─── CHALLENGE THESIS ─── */}
-              {composerMode === 'challenge-thesis' && (
-                <div className="px-4 py-5 space-y-5 animate-in fade-in slide-in-from-right-4">
-                  {/* Internal header */}
-                  <button
-                    onClick={() => { setComposerMode('idle'); setThesis(''); }}
-                    className="flex items-center gap-2 text-sm font-medium text-foreground"
-                  >
-                    <span className="text-muted-foreground">←</span>
-                    <span>⚡ Nuova Challenge</span>
-                  </button>
-
-                  {/* Thesis input block */}
-                  <div
-                    className="rounded-2xl p-4 space-y-2"
-                    style={{
-                      background: 'linear-gradient(145deg, rgba(228,30,82,0.05), transparent)',
-                      border: '1px solid rgba(228,30,82,0.1)',
-                    }}
-                  >
-                    <label className="text-xs font-semibold text-muted-foreground">Scrivi la tua tesi</label>
-                    <textarea
-                      value={thesis}
-                      onChange={(e) => setThesis(e.target.value.slice(0, 140))}
-                      placeholder="Es: I social media hanno distrutto il dibattito pubblico"
-                      rows={3}
-                      className="w-full bg-transparent border-none text-[15px] text-foreground placeholder:text-muted-foreground/40 outline-none resize-none font-inherit leading-relaxed"
-                    />
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] text-muted-foreground">Formulala come affermazione netta</span>
-                      <span className={cn("text-[11px] tabular-nums", thesis.length > 120 ? "text-destructive" : "text-muted-foreground")}>
-                        {thesis.length}/140
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Duration selector */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold text-muted-foreground">Durata sfida</label>
-                    <div className="flex gap-2">
-                      {([{ label: '24h', value: 24 }, { label: '48h', value: 48 }, { label: '7 giorni', value: 168 }] as const).map(d => (
-                        <button
-                          key={d.value}
-                          onClick={() => setChallengeDuration(d.value)}
-                          className="px-4 py-2 rounded-xl text-[13px] font-medium transition-colors"
-                          style={{
-                            background: challengeDuration === d.value ? 'rgba(228,30,82,0.13)' : 'rgba(255,255,255,0.05)',
-                            border: `1px solid ${challengeDuration === d.value ? 'rgba(228,30,82,0.3)' : 'rgba(255,255,255,0.07)'}`,
-                            color: challengeDuration === d.value ? '#E41E52' : 'hsl(var(--muted-foreground))',
-                          }}
-                        >
-                          {d.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* CTA */}
-                  <button
-                    onClick={() => thesis.length > 5 && setComposerMode('challenge-rec')}
-                    disabled={thesis.length <= 5}
-                    className="w-full py-3.5 rounded-[14px] text-[14px] font-bold text-white disabled:opacity-40 transition-opacity"
-                    style={{
-                      background: thesis.length > 5 ? 'linear-gradient(135deg, #E41E52, #0A7AFF)' : 'rgba(255,255,255,0.08)',
-                    }}
-                  >
-                    Registra il tuo argomento →
-                  </button>
-                </div>
-              )}
-
               {/* ─── CHALLENGE REC ─── */}
               {composerMode === 'challenge-rec' && (
                 <div className="px-4 py-5 animate-in fade-in slide-in-from-right-4">
                   <button
-                    onClick={() => setComposerMode('challenge-thesis')}
+                    onClick={() => { setComposerMode('idle'); setVoicePostData(null); }}
                     className="flex items-center gap-2 text-sm font-medium text-foreground mb-4"
                   >
                     <span className="text-muted-foreground">←</span>
-                    <span>⚡ Registra la tua Challenge</span>
+                    <span>⚡ Registra Voicecast per la Challenge</span>
                   </button>
                   <VoiceRecorder
                     accentColor="#E41E52"
-                    thesisReminder={thesis}
-                    headerLabel="⚡ Registra la tua Challenge"
+                    headerLabel="⚡ Registra Voicecast per la Challenge"
                     onRecordingComplete={(audioBlob, durationSec, waveform) => {
                       setVoicePostData({ audioBlob, durationSec, waveformData: waveform });
-                      setComposerMode('challenge-preview');
+                      setPostType('challenge');
+                      // set default duration to 24h
+                      setChallengeData({ duration_hours: 24 });
+                      setComposerMode('text-editing');
+                      setTimeout(() => editorRef.current?.focus(), 100);
                     }}
-                    onCancel={() => setComposerMode('challenge-thesis')}
+                    onCancel={() => { setComposerMode('idle'); setVoicePostData(null); }}
                   />
-                </div>
-              )}
-
-              {/* ─── CHALLENGE PREVIEW ─── */}
-              {composerMode === 'challenge-preview' && voicePostData && (
-                <div className="px-4 py-5 space-y-5 animate-in fade-in slide-in-from-right-4">
-                  <button
-                    onClick={() => setComposerMode('challenge-thesis')}
-                    className="flex items-center gap-2 text-sm font-medium text-foreground"
-                  >
-                    <span className="text-muted-foreground">←</span>
-                    <span>⚡ Anteprima</span>
-                  </button>
-
-                  {/* Thesis block */}
-                  <div
-                    className="rounded-2xl px-4 py-3 text-sm italic"
-                    style={{
-                      background: 'linear-gradient(145deg, rgba(228,30,82,0.05), transparent)',
-                      border: '1px solid rgba(228,30,82,0.1)',
-                      color: 'hsl(var(--muted-foreground))',
-                    }}
-                  >
-                    "{thesis}"
-                  </div>
-
-                  {/* Native audio player */}
-                  <audio
-                    src={URL.createObjectURL(voicePostData.audioBlob)}
-                    controls
-                    className="w-full h-10"
-                    controlsList="nodownload nofullscreen"
-                  />
-
-                  {/* Buttons */}
-                  <div className="flex gap-3 w-full">
-                    <button
-                      onClick={() => {
-                        setVoicePostData(null);
-                        setComposerMode('challenge-rec');
-                      }}
-                      className="flex-1 py-3.5 rounded-[14px] text-[13px] font-semibold"
-                      style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.07)',
-                        color: 'hsl(var(--muted-foreground))',
-                      }}
-                    >
-                      Rifai
-                    </button>
-                    <button
-                      onClick={() => handlePublish('challenge', { thesis, duration_hours: challengeDuration })}
-                      disabled={isLoading}
-                      className="flex-1 py-3.5 rounded-[14px] text-[14px] font-bold text-white disabled:opacity-50"
-                      style={{ background: 'linear-gradient(135deg, #E41E52, #0A7AFF)' }}
-                    >
-                      {isLoading ? 'Pubblicazione...' : '⚡ Lancia Challenge'}
-                    </button>
-                  </div>
                 </div>
               )}
 
@@ -2268,68 +2137,39 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                     className="flex items-center gap-2 text-sm font-medium text-foreground mb-4"
                   >
                     <span className="text-muted-foreground">←</span>
-                    <span>🎙 Pensiero vocale</span>
+                    <span>🎙 Voicecast</span>
                   </button>
                   <VoiceRecorder
                     accentColor="#0A7AFF"
-                    headerLabel="🎙 Pensiero vocale"
+                    headerLabel="🎙 Voicecast"
                     onRecordingComplete={(audioBlob, durationSec, waveform) => {
                       setVoicePostData({ audioBlob, durationSec, waveformData: waveform });
-                      setComposerMode('voice-preview');
+                      setPostType('voice');
+                      setComposerMode('text-editing');
+                      setTimeout(() => editorRef.current?.focus(), 100);
                     }}
                     onCancel={() => { setComposerMode('idle'); setVoicePostData(null); }}
                   />
                 </div>
               )}
 
-              {/* ─── VOICE PREVIEW ─── */}
-              {composerMode === 'voice-preview' && voicePostData && (
-                <div className="px-4 py-5 space-y-5 animate-in fade-in slide-in-from-right-4">
-                  <button
-                    onClick={() => setComposerMode('voice-rec')}
-                    className="flex items-center gap-2 text-sm font-medium text-foreground"
-                  >
-                    <span className="text-muted-foreground">←</span>
-                    <span>🎙 Anteprima</span>
-                  </button>
-
-                  {/* Native audio player */}
-                  <audio
-                    src={URL.createObjectURL(voicePostData.audioBlob)}
-                    controls
-                    className="w-full h-10"
-                    controlsList="nodownload nofullscreen"
-                  />
-
-                  {/* Buttons */}
-                  <div className="flex gap-3 w-full">
-                    <button
-                      onClick={() => {
-                        setVoicePostData(null);
-                        setComposerMode('voice-rec');
-                      }}
-                      className="flex-1 py-3.5 rounded-[14px] text-[13px] font-semibold"
-                      style={{
-                        background: 'rgba(255,255,255,0.05)',
-                        border: '1px solid rgba(255,255,255,0.07)',
-                        color: 'hsl(var(--muted-foreground))',
-                      }}
-                    >
-                      Rifai
-                    </button>
-                    <button
-                      onClick={() => handlePublish('voice')}
-                      disabled={isLoading}
-                      className="flex-1 py-3.5 rounded-[14px] text-[14px] font-bold text-white disabled:opacity-50"
-                      style={{ background: '#0A7AFF' }}
-                    >
-                      {isLoading ? 'Pubblicazione...' : '🎙 Pubblica'}
-                    </button>
-                  </div>
-                </div>
+              {/* ─── POST TYPE CHOOSER (Challenge vs Voicecast) ─── */}
+              {composerMode === 'post-type-chooser' && voicePostData && (
+                 <div className="px-4 py-5 animate-in fade-in">
+                    <PostTypeChooser
+                        audioDuration={voicePostData.durationSec}
+                        onBackToRecorder={() => setComposerMode(postType === 'challenge' ? 'challenge-rec' : 'voice-rec')}
+                        onSelectType={(type, challengeDataResp) => {
+                            setPostType(type);
+                            if (challengeDataResp) {
+                                setChallengeData({ duration_hours: challengeDataResp.durationHours });
+                            }
+                            setComposerMode('text-editing');
+                            editorRef.current?.focus();
+                        }}
+                    />
+                 </div>
               )}
-
-
 
               {/* ─── IDLE / TEXT EDITING ─── */}
               {(composerMode === 'idle' || composerMode === 'text-editing') && (
@@ -2348,8 +2188,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                         ref={editorRef}
                         initialContent=""
                         onChange={handleEditorChange}
-                        placeholder="Cosa sta succedendo?"
+                        placeholder={postType === 'challenge' ? "Es: L'AI aumenterà le diseguaglianze..." : (postType === 'voice' ? "Aggiungi un pensiero al tuo voicecast (max 30 parole)..." : "Cosa sta succedendo?")}
                         maxLength={3000}
+                        maxWords={(postType === 'challenge' || postType === 'voice') ? 30 : undefined}
                         disabled={isLoading}
                         editorClassName={textFocused ? "min-h-[120px]" : "min-h-[40px]"}
                         onFocus={() => {
@@ -2358,7 +2199,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                         }}
                         onBlur={() => {
                           setTimeout(() => {
-                            if (!content.trim()) {
+                            if (!content.trim() && !voicePostData) {
                               setTextFocused(false);
                               setComposerMode('idle');
                             }
@@ -2368,8 +2209,35 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                     </div>
                   </div>
 
+                  {/* Audio Player Preview */}
+                  {voicePostData && (
+                     <div className="px-4 mt-2 mb-4 animate-in fade-in slide-in-from-bottom-2">
+                        <div className="p-3 bg-secondary/50 rounded-xl border border-border flex items-center gap-3">
+                           <div className="bg-primary/20 w-10 h-10 rounded-full flex items-center justify-center text-primary flex-shrink-0">
+                               {postType === 'challenge' ? <Zap className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                           </div>
+                           <div className="flex-1 min-w-0">
+                               <p className="text-sm font-semibold truncate uppercase">{postType === 'challenge' ? 'Challenge' : 'Voicecast'}</p>
+                               <audio
+                                 src={URL.createObjectURL(voicePostData.audioBlob)}
+                                 controls
+                                 className="w-full h-8 mt-1 block"
+                                 controlsList="nodownload nofullscreen"
+                               />
+                           </div>
+                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground flex-shrink-0" onClick={() => {
+                               setVoicePostData(null);
+                               if (!content.trim()) setComposerMode('idle');
+                           }}>
+                               <span className="sr-only">Rimuovi</span>
+                               &times;
+                           </Button>
+                        </div>
+                     </div>
+                  )}
+
                   {/* ─── Challenge & Voice CTAs (visible only in idle) ─── */}
-                  {composerMode === 'idle' && !quotedPost && (
+                  {composerMode === 'idle' && !quotedPost && !voicePostData && (
                     <div className="px-4 py-4 space-y-3 animate-in fade-in duration-200">
                       {/* Separator */}
                       <div className="flex items-center gap-3 px-2 mb-3">
@@ -2381,7 +2249,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                       <div className="flex gap-3">
                         {/* Challenge button */}
                         <button
-                          onClick={() => setComposerMode('challenge-thesis')}
+                          onClick={() => setComposerMode('challenge-rec')}
                           className="flex-1 flex flex-col items-center gap-2 py-4 rounded-2xl"
                           style={{
                             background: 'linear-gradient(135deg, rgba(228,30,82,0.07), rgba(10,122,255,0.04))',
@@ -2414,7 +2282,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             fontSize: 20,
                           }}>🎙</div>
-                          <span style={{ color: '#F1F5F9', fontSize: 13, fontWeight: 600 }}>Vocale</span>
+                          <span style={{ color: '#F1F5F9', fontSize: 13, fontWeight: 600 }}>Voicecast</span>
                         </button>
                       </div>
                     </div>
@@ -2510,7 +2378,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                         onRemove={removeMedia}
                         onReorder={reorderMedia}
                         onRequestTranscription={handleRequestTranscription}
-                        onRequestOCR={handleRequestOCR}
+                        onRequestOCR={(postType === 'voice' || postType === 'challenge') ? undefined : handleRequestOCR}
                         onRequestBatchExtraction={requestBatchExtraction}
                         isTranscribing={isTranscriptionInProgress}
                         isBatchExtracting={isBatchExtracting}

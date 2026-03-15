@@ -160,12 +160,15 @@ export const Feed = () => {
   const [focusCommentsOpen, setFocusCommentsOpen] = useState(false);
   const [selectedFocusForComments, setSelectedFocusForComments] = useState<any>(null);
 
-  // Handle navigation state from /post/:id reshare flow
+  // Handle navigation state from /post/:id reshare flow or share target
   useEffect(() => {
     if (location.state?.quotePost) {
       setQuotedPost(location.state.quotePost);
       setShowComposer(true);
       // Clear state to prevent re-triggering on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    } else if (location.state?.openComposer) {
+      setShowComposer(true);
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, navigate, location.pathname]);

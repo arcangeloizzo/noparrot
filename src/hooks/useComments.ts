@@ -130,7 +130,7 @@ export const useComments = (postId: string, sortMode: 'relevance' | 'recent' | '
   });
 };
 
-const calculateRelevance = (comment: any): number => {
+export const calculateRelevance = (comment: any): number => {
   const likesWeight = (comment.likesCount || 0) * 2;
   const repliesWeight = (comment.repliesCount || 0) * 3;
   const hoursSinceCreation = (Date.now() - new Date(comment.created_at).getTime()) / (1000 * 60 * 60);
@@ -138,7 +138,7 @@ const calculateRelevance = (comment: any): number => {
   return likesWeight + repliesWeight + recencyBoost;
 };
 
-const sortCommentsByMode = (comments: any[], mode: string): any[] => {
+export const sortCommentsByMode = (comments: any[], mode: string): any[] => {
   const topLevel = comments.filter(c => !c.parent_id);
   const repliesMap = new Map<string, any[]>();
   
@@ -152,20 +152,38 @@ const sortCommentsByMode = (comments: any[], mode: string): any[] => {
   
   const sortSiblings = (siblings: any[]) => {
     if (mode === 'recent') {
-      return siblings.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      return [...siblings].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    } else if (mode === 'oldest') {
+      return [...siblings].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
     } else if (mode === 'top') {
-      return siblings.sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0));
+      return [...siblings].sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0));
     } else {
-      return siblings.sort((a, b) => calculateRelevance(b) - calculateRelevance(a));
+      return [...siblings].sort((a, b) => calculateRelevance(b) - calculateRelevance(a));
     }
   };
   
-  sortSiblings([...topLevel]);
-  repliesMap.forEach((replies, parentId) => {
-    repliesMap.set(parentId, sortSiblings(replies));
+  const sortReplies = (siblings: any[]) => {
+    return [...siblings].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  };
+  
+  const sortedTopLevel = sortSiblings(topLevel);
+  const flattened: any[] = [];
+  
+  const flattenReplies = (commentId: string) => {
+    const replies = repliesMap.get(commentId) || [];
+    const sortedReplies = sortReplies(replies);
+    sortedReplies.forEach(reply => {
+      flattened.push(reply);
+      flattenReplies(reply.id);
+    });
+  };
+  
+  sortedTopLevel.forEach(comment => {
+    flattened.push(comment);
+    flattenReplies(comment.id);
   });
   
-  return comments;
+  return flattened;
 };
 
 export const useAddComment = () => {

@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useAuth } from '@/contexts/AuthContext';
+import { MentionText } from './MentionText';
 
 interface Challenger {
     id: string;
@@ -186,11 +187,8 @@ export const ChallengeCard: React.FC<ChallengeCardProps> = ({ challenge, onRespo
                         color: `rgba(255,212,100,0.1)`, lineHeight: 1,
                     }}>"</span>
 
-                    <h3 className="relative z-10" style={{
-                        fontSize: 16, fontWeight: 600, lineHeight: 1.5, color: 'white',
-                        paddingLeft: 4,
-                    }}>
-                        {challenge.thesis}
+                    <h3 className="relative z-10 text-[16px] font-semibold leading-relaxed text-white pl-1 tiptap-content-wrapper">
+                        <MentionText content={challenge.thesis} />
                     </h3>
 
                     {/* Player inside thesis block */}

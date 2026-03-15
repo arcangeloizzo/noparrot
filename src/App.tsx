@@ -31,6 +31,7 @@ import { Notifications } from "./pages/Notifications";
 import { Search } from "./pages/Search";
 import { Saved } from "./pages/Saved";
 import NotFound from "./pages/NotFound";
+import ShareTargetHandler from "./pages/ShareTargetHandler";
 
 // queryClient moved below with config
 
@@ -131,6 +132,7 @@ const App = () => (
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/search" element={<Search />} />
                 <Route path="/saved" element={<Saved />} />
+                <Route path="/_share-target" element={<ShareTargetHandler />} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                 <Route path="*" element={<NotFound />} />
               </Routes>

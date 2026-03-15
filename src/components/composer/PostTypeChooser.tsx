@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Mic, Zap, Clock, ChevronLeft } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
 
 interface PostTypeChooserProps {
-    onSelectType: (type: 'voice' | 'challenge', challengeData?: { thesis: string, durationHours: number }) => void;
+    onSelectType: (type: 'voice' | 'challenge', challengeData?: { durationHours: number }) => void;
     onBackToRecorder: () => void;
     audioDuration: number;
 }
@@ -15,12 +14,11 @@ export const PostTypeChooser: React.FC<PostTypeChooserProps> = ({
     audioDuration
 }) => {
     const [selectedType, setSelectedType] = useState<'voice' | 'challenge' | null>(null);
-    const [thesis, setThesis] = useState('');
     const [duration, setDuration] = useState<number>(48);
 
     const handlePublish = () => {
-        if (selectedType === 'challenge' && thesis.trim().length > 0) {
-            onSelectType('challenge', { thesis: thesis.trim(), durationHours: duration });
+        if (selectedType === 'challenge') {
+            onSelectType('challenge', { durationHours: duration });
         } else if (selectedType === 'voice') {
             onSelectType('voice');
         }
@@ -41,7 +39,7 @@ export const PostTypeChooser: React.FC<PostTypeChooserProps> = ({
                             <Mic className="h-5 w-5 text-primary" />
                         </div>
                         <div className="flex flex-col items-start gap-1">
-                            <span className="font-semibold">Pensiero vocale</span>
+                            <span className="font-semibold uppercase">Voicecast</span>
                             <span className="text-xs text-muted-foreground font-normal">Pubblica nel feed per i tuoi follower</span>
                         </div>
                     </Button>
@@ -81,25 +79,6 @@ export const PostTypeChooser: React.FC<PostTypeChooserProps> = ({
                     </div>
                 </div>
 
-                <div className="space-y-3">
-                    <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                        La tua tesi (obbligatoria)
-                    </label>
-                    <Textarea
-                        placeholder="I social hanno fatto più danni alla democrazia..."
-                        className="resize-none h-24 text-base focus-visible:ring-destructive"
-                        value={thesis}
-                        onChange={(e) => setThesis(e.target.value)}
-                        maxLength={140}
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Formulala come affermazione netta.</span>
-                        <span className={thesis.length > 130 ? 'text-destructive font-medium' : ''}>
-                            {thesis.length}/140
-                        </span>
-                    </div>
-                </div>
-
                 <div className="space-y-3 pt-2">
                     <label className="text-sm font-medium flex items-center gap-1.5">
                         <Clock className="h-4 w-4 text-muted-foreground" /> Durata della sfida
@@ -120,16 +99,15 @@ export const PostTypeChooser: React.FC<PostTypeChooserProps> = ({
 
                 <div className="bg-secondary/40 border p-3 rounded-lg text-sm flex gap-2 items-center text-muted-foreground mt-2">
                     <Zap className="h-8 w-8 text-destructive opacity-30 shrink-0" />
-                    <p>L'audio di {Math.ceil(audioDuration)} secondi funge da argomento a sostegno della tua tesi.</p>
+                    <p>L'audio di {Math.ceil(audioDuration)} secondi fungerà da argomento a sostegno della tua tesi. Potrai aggiungere il testo (max 30 parole) e un'immagine nella prossima schermata.</p>
                 </div>
 
                 <Button
                     className="w-full bg-destructive hover:bg-destructive/90 text-white mt-4"
                     size="lg"
-                    disabled={thesis.trim().length < 5}
                     onClick={handlePublish}
                 >
-                    Lancia Challenge
+                    Continua
                 </Button>
             </div>
         );
@@ -142,10 +120,9 @@ export const PostTypeChooser: React.FC<PostTypeChooserProps> = ({
                 <Mic className="h-8 w-8" />
             </div>
             <div>
-                <h3 className="font-semibold text-lg mb-1">Pronto per essere pubblicato</h3>
+                <h3 className="font-semibold text-lg mb-1">VOICECAST pronto</h3>
                 <p className="text-sm text-muted-foreground">
-                    Il tuo pensiero vocale diventerà un post accessibile ai tuoi follower.
-                    Verrà generato anche il Comprehension Gate.
+                    Potrai aggiungere eventuale testo (max 30 parole) e un'immagine di copertina nella schermata successiva.
                 </p>
             </div>
 
@@ -154,7 +131,7 @@ export const PostTypeChooser: React.FC<PostTypeChooserProps> = ({
                     Annulla
                 </Button>
                 <Button onClick={handlePublish} className="flex-1">
-                    Pubblica Vocale
+                    Continua
                 </Button>
             </div>
         </div>
