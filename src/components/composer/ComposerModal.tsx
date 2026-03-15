@@ -2379,7 +2379,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                         onReorder={reorderMedia}
                         onRequestTranscription={handleRequestTranscription}
                         onRequestOCR={(postType === 'voice' || postType === 'challenge') ? undefined : handleRequestOCR}
-                        onRequestBatchExtraction={requestBatchExtraction}
+                        onRequestBatchExtraction={(postType === 'voice' || postType === 'challenge') ? undefined : requestBatchExtraction}
                         isTranscribing={isTranscriptionInProgress}
                         isBatchExtracting={isBatchExtracting}
                         onMediaClick={handleMediaPreview}
