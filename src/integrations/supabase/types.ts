@@ -1515,6 +1515,7 @@ export type Database = {
           date_of_birth: string
           editorial_notifications_enabled: boolean | null
           full_name: string | null
+          has_dismissed_tutorial: boolean | null
           id: string
           last_seen_at: string | null
           notifications_comments_enabled: boolean | null
@@ -1534,6 +1535,7 @@ export type Database = {
           date_of_birth: string
           editorial_notifications_enabled?: boolean | null
           full_name?: string | null
+          has_dismissed_tutorial?: boolean | null
           id: string
           last_seen_at?: string | null
           notifications_comments_enabled?: boolean | null
@@ -1553,6 +1555,7 @@ export type Database = {
           date_of_birth?: string
           editorial_notifications_enabled?: boolean | null
           full_name?: string | null
+          has_dismissed_tutorial?: boolean | null
           id?: string
           last_seen_at?: string | null
           notifications_comments_enabled?: boolean | null
@@ -1562,7 +1565,6 @@ export type Database = {
           notifications_messages_enabled?: boolean | null
           notifications_reshares_enabled?: boolean | null
           username?: string
-          has_dismissed_tutorial?: boolean
         }
         Relationships: []
       }
@@ -2014,8 +2016,7 @@ export type Database = {
           created_at?: string | null
           full_name?: string | null
           id?: string | null
-          username?: string
-          has_dismissed_tutorial?: boolean | null
+          username?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -2023,8 +2024,7 @@ export type Database = {
           created_at?: string | null
           full_name?: string | null
           id?: string | null
-          username?: string
-          has_dismissed_tutorial?: boolean | null
+          username?: string | null
         }
         Relationships: []
       }
