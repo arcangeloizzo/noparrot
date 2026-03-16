@@ -84,6 +84,7 @@ export const ImmersiveFocusCard = ({
     <div
       className="h-[100dvh] w-full snap-start relative flex flex-col overflow-hidden cursor-pointer"
       onClick={handleCardClick}
+      data-tutorial="il-punto"
     >
 
       {/* Background Layer */}

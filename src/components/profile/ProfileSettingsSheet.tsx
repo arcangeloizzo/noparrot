@@ -1,5 +1,8 @@
 import { useNavigate } from "react-router-dom";
-import { Settings, LogOut, UserPen, X } from "lucide-react";
+import { useMutation } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { Settings, LogOut, UserPen, X, PlayCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import {
@@ -16,7 +19,22 @@ interface ProfileSettingsSheetProps {
 
 export const ProfileSettingsSheet = ({ open, onOpenChange }: ProfileSettingsSheetProps) => {
   const navigate = useNavigate();
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
+
+  const { mutate: resetTutorial } = useMutation({
+    mutationFn: async () => {
+      if (!user) return;
+      const { error } = await supabase
+        .from("profiles")
+        .update({ has_dismissed_tutorial: false })
+        .eq("id", user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      onOpenChange(false);
+      window.location.href = "/";
+    }
+  });
 
   const handleLogout = async () => {
     onOpenChange(false);
@@ -43,6 +61,13 @@ export const ProfileSettingsSheet = ({ open, onOpenChange }: ProfileSettingsShee
       label: 'Impostazioni e Privacy',
       description: 'Preferenze, account e dati',
       onClick: () => handleAction('/settings/privacy'),
+    },
+    {
+      id: 'reset-tutorial',
+      icon: PlayCircle,
+      label: 'Rivedi Tutorial',
+      description: 'Riavvia il tutorial iniziale',
+      onClick: () => resetTutorial(),
     },
   ];
 

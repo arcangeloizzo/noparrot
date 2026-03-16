@@ -84,64 +84,69 @@ function NavigationRecovery() {
   return null;
 }
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      // [HARDENING] Disable aggressive refetching on window focus
-      // This prevents "random" state resets when switching apps or closing control center
-      refetchOnWindowFocus: false,
-      retry: 1,
-      staleTime: 5 * 60 * 1000, // 5 minutes defaults
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        // [HARDENING] Disable aggressive refetching on window focus
+        // This prevents "random" state resets when switching apps or closing control center
+        refetchOnWindowFocus: false,
+        retry: 1,
+        staleTime: 5 * 60 * 1000, // 5 minutes defaults
+      },
     },
-  },
-});
-
-const App = () => (
-  <AppErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider
-        attribute="class"
-        defaultTheme="dark"
-        disableTransitionOnChange
-      >
-        <AuthProvider>
-          <TooltipProvider>
-            <Sonner />
-            <ServiceWorkerNavigationHandler />
-            <NavigationRecovery />
-            <AppLifecycleHandler />
-            <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/auth" element={<AuthPage />} />
-                <Route path="/consent" element={<ConsentScreen />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/profile/:userId" element={<UserProfile />} />
-                <Route path="/profile/edit" element={<ProfileEdit />} />
-                <Route path="/completed-paths" element={<CompletedPaths />} />
-                <Route path="/post/:postId" element={<Post />} />
-                <Route path="/post/:postId/comments" element={<Post />} />
-                <Route path="/privacy" element={<PrivacyPolicy />} />
-                <Route path="/terms" element={<TermsOfService />} />
-                <Route path="/settings/privacy" element={<SettingsPrivacy />} />
-                <Route path="/legal/ads" element={<AdsPolicy />} />
-                <Route path="/legal/transparency" element={<Transparency />} />
-                <Route path="/cookies" element={<CookiePolicy />} />
-                <Route path="/messages" element={<Messages />} />
-                <Route path="/messages/:threadId" element={<MessageThread />} />
-                <Route path="/notifications" element={<Notifications />} />
-                <Route path="/search" element={<Search />} />
-                <Route path="/saved" element={<Saved />} />
-                <Route path="/_share-target" element={<ShareTargetHandler />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BrowserRouter>
-          </TooltipProvider>
-        </AuthProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
-  </AppErrorBoundary>
-);
-
-export default App;
+  });
+  
+  import { OnboardingTutorial } from "@/components/tutorial/OnboardingTutorial";
+  
+  const App = () => (
+    <AppErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          disableTransitionOnChange
+        >
+          <AuthProvider>
+            <TooltipProvider>
+              <Sonner />
+              <ServiceWorkerNavigationHandler />
+              <NavigationRecovery />
+              <AppLifecycleHandler />
+              <BrowserRouter>
+                {/* Global elements */}
+                <OnboardingTutorial />
+                
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/auth" element={<AuthPage />} />
+                  <Route path="/consent" element={<ConsentScreen />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/profile/:userId" element={<UserProfile />} />
+                  <Route path="/profile/edit" element={<ProfileEdit />} />
+                  <Route path="/completed-paths" element={<CompletedPaths />} />
+                  <Route path="/post/:postId" element={<Post />} />
+                  <Route path="/post/:postId/comments" element={<Post />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/terms" element={<TermsOfService />} />
+                  <Route path="/settings/privacy" element={<SettingsPrivacy />} />
+                  <Route path="/legal/ads" element={<AdsPolicy />} />
+                  <Route path="/legal/transparency" element={<Transparency />} />
+                  <Route path="/cookies" element={<CookiePolicy />} />
+                  <Route path="/messages" element={<Messages />} />
+                  <Route path="/messages/:threadId" element={<MessageThread />} />
+                  <Route path="/notifications" element={<Notifications />} />
+                  <Route path="/search" element={<Search />} />
+                  <Route path="/saved" element={<Saved />} />
+                  <Route path="/_share-target" element={<ShareTargetHandler />} />
+                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BrowserRouter>
+            </TooltipProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </AppErrorBoundary>
+  );
+  
+  export default App;

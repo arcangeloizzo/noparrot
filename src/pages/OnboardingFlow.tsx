@@ -3,12 +3,13 @@ import { SplashScreen } from "@/components/onboarding/SplashScreen";
 import { OnboardingSlides } from "@/components/onboarding/OnboardingSlides";
 import { AuthPage } from "@/components/auth/AuthPage";
 import ConsentScreen from "@/pages/ConsentScreen";
+import { DemoGateFlow } from "@/pages/DemoGateFlow";
 
 interface OnboardingFlowProps {
   onComplete: () => void;
 }
 
-type OnboardingStep = "splash" | "slides" | "consent" | "auth";
+type OnboardingStep = "splash" | "slides" | "demo" | "consent" | "auth";
 
 // Reset consent flag to ensure ConsentScreen is always shown during onboarding
 const resetConsentFlag = () => {
@@ -28,7 +29,11 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
   };
 
   const handleSlidesComplete = () => {
-    // Always show consent screen during onboarding
+    setCurrentStep("demo");
+  };
+
+  const handleDemoComplete = () => {
+    // Both success and skip lead to consent then auth
     setCurrentStep("consent");
   };
 
@@ -41,11 +46,10 @@ export const OnboardingFlow = ({ onComplete }: OnboardingFlowProps) => {
       return <SplashScreen onComplete={handleSplashComplete} />;
     
     case "slides":
-      return (
-        <OnboardingSlides 
-          onComplete={handleSlidesComplete}
-        />
-      );
+      return <OnboardingSlides onComplete={handleSlidesComplete} />;
+      
+    case "demo":
+      return <DemoGateFlow onComplete={handleDemoComplete} onSkip={handleDemoComplete} />;
     
     case "consent":
       return <ConsentScreen onComplete={handleConsentComplete} />;

@@ -1562,6 +1562,7 @@ export type Database = {
           notifications_messages_enabled?: boolean | null
           notifications_reshares_enabled?: boolean | null
           username?: string
+          has_dismissed_tutorial?: boolean
         }
         Relationships: []
       }
@@ -2013,7 +2014,8 @@ export type Database = {
           created_at?: string | null
           full_name?: string | null
           id?: string | null
-          username?: string | null
+          username?: string
+          has_dismissed_tutorial?: boolean | null
         }
         Update: {
           avatar_url?: string | null
@@ -2021,7 +2023,8 @@ export type Database = {
           created_at?: string | null
           full_name?: string | null
           id?: string | null
-          username?: string | null
+          username?: string
+          has_dismissed_tutorial?: boolean | null
         }
         Relationships: []
       }

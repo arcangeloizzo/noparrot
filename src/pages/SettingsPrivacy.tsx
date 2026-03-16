@@ -1,4 +1,4 @@
-import { ArrowLeft, FileText, Scale, Trash2, Shield, Brain, Megaphone, Sparkles, Download, Cookie, Bell, RefreshCw, Heart, MessageCircle, AtSign, UserPlus, Mail, Repeat2, Palette } from "lucide-react";
+import { ArrowLeft, FileText, Scale, Trash2, Shield, Brain, Megaphone, Sparkles, Download, Cookie, Bell, RefreshCw, Heart, MessageCircle, AtSign, UserPlus, Mail, Repeat2, Palette, PlayCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -26,6 +26,7 @@ import { useExportUserData } from "@/hooks/useExportUserData";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { useNotificationPreferences, NotificationPreferenceField } from "@/hooks/useNotificationPreferences";
 import { ThemeSwitcher } from "@/components/ui/theme-switcher";
+import { useMutation } from "@tanstack/react-query";
 
 export default function SettingsPrivacy() {
   const navigate = useNavigate();
@@ -45,6 +46,20 @@ export default function SettingsPrivacy() {
     isIOS,
     isPWA
   } = usePushNotifications();
+
+  const { mutate: resetTutorial, isPending: isResettingTutorial } = useMutation({
+    mutationFn: async () => {
+      if (!user) return;
+      const { error } = await supabase
+        .from("profiles")
+        .update({ has_dismissed_tutorial: false })
+        .eq("id", user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      window.location.href = "/";
+    }
+  });
 
   const handleDeleteAccount = async () => {
     if (!user) return;
