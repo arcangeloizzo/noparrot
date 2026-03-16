@@ -91,30 +91,38 @@ export const OnboardingTutorial = () => {
       )`,
     };
 
-    // Calculate tooltip position based on content preference and screen bounds
-    const tooltipWidth = 320; // max-w-sm roughly
-    const tooltipHeight = 200; // estimated
-    let tooltipTop = 0;
+    // --- Simplified Positioning Logic ---
+    const tooltipHeight = 220;
+    const tooltipPadding = 16;
     
+    // Vertical positioning
+    let tooltipTop = 0;
     if (content.position === "bottom") {
-      tooltipTop = bottom + 16;
-      // If goes off screen bottom, put it above
+      tooltipTop = bottom + tooltipPadding;
       if (tooltipTop + tooltipHeight > window.innerHeight) {
-        tooltipTop = top - tooltipHeight - 16;
+        tooltipTop = top - tooltipHeight - tooltipPadding;
       }
     } else if (content.position === "top") {
-      tooltipTop = top - tooltipHeight - 32;
-      // If goes off screen top, put it below
+      tooltipTop = top - tooltipHeight - tooltipPadding;
       if (tooltipTop < 0) {
-        tooltipTop = bottom + 16;
+        tooltipTop = bottom + tooltipPadding;
       }
     }
 
+    if (tooltipTop < tooltipPadding) tooltipTop = tooltipPadding;
+    if (tooltipTop > window.innerHeight - tooltipHeight - tooltipPadding) tooltipTop = window.innerHeight - tooltipHeight - tooltipPadding;
+
+    // Use absolute positioning with left/right 0 and margin auto to force centering
+    // while adhering to a safe max-width. This ensures it NEVER horizontal overflows.
     tooltipStyle = {
       top: `${tooltipTop}px`,
-      left: "50%",
-      transform: "translateX(-50%)",
+      left: 0,
+      right: 0,
+      margin: "0 auto",
       position: "absolute",
+      zIndex: 100,
+      width: `calc(100vw - ${tooltipPadding * 2}px)`,
+      maxWidth: "320px",
     };
   }
 
@@ -158,7 +166,6 @@ export const OnboardingTutorial = () => {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -10, scale: 0.95 }}
           transition={{ duration: 0.3 }}
-          className={`absolute w-full max-w-sm px-4 ${isFinal ? '' : ''}`}
           style={tooltipStyle}
         >
           {isFinal ? (
