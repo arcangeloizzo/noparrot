@@ -74,6 +74,11 @@ export const OnboardingTutorial = () => {
     top: "50%",
     left: "50%",
     transform: "translate(-50%, -50%)",
+    position: "absolute",
+    zIndex: 100,
+    width: "calc(100vw - 32px)",
+    maxWidth: "320px",
+    pointerEvents: "auto",
   };
 
   if (!isFinal && targetRect) {
@@ -132,11 +137,18 @@ export const OnboardingTutorial = () => {
       {/* Dynamic Backdrop with Spotlight cutout */}
       {!isFinal ? (
         <div 
-          className="absolute inset-0 bg-black/80 backdrop-blur-[2px] transition-all duration-300 pointer-events-none"
+          className="absolute inset-0 bg-black/80 backdrop-blur-[2px] transition-all duration-300 pointer-events-auto"
           style={spotlightStyle}
+          onClick={(e) => {
+             // Let the user tap the dark background to safely exit the tutorial if they are stuck
+             dismissTutorial(true);
+          }}
         />
       ) : (
-        <div className="absolute inset-0 bg-[#0D1B2A]/90 backdrop-blur-md pointer-events-auto" />
+        <div 
+          className="absolute inset-0 bg-[#0D1B2A]/90 backdrop-blur-md pointer-events-auto" 
+          onClick={() => dismissTutorial(true)}
+        />
       )}
 
       {/* Target Highlight Ring (Animates into place) */}
