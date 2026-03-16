@@ -123,6 +123,7 @@ export const OnboardingTutorial = () => {
       zIndex: 100,
       width: `calc(100vw - ${tooltipPadding * 2}px)`,
       maxWidth: "320px",
+      pointerEvents: "auto",
     };
   }
 
@@ -131,12 +132,8 @@ export const OnboardingTutorial = () => {
       {/* Dynamic Backdrop with Spotlight cutout */}
       {!isFinal ? (
         <div 
-          className="absolute inset-0 bg-black/80 backdrop-blur-[2px] transition-all duration-300 pointer-events-auto"
+          className="absolute inset-0 bg-black/80 backdrop-blur-[2px] transition-all duration-300 pointer-events-none"
           style={spotlightStyle}
-          onClick={(e) => {
-            // Optional: Dismiss on overlay click or just prevent clicks from passing
-            e.stopPropagation();
-          }}
         />
       ) : (
         <div className="absolute inset-0 bg-[#0D1B2A]/90 backdrop-blur-md pointer-events-auto" />

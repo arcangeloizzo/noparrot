@@ -127,13 +127,32 @@ export const useOnboardingTutorial = () => {
 
     let rafId: number;
 
+    const checkAndUpdateRect = (el: Element | null) => {
+      if (!el) {
+        setTargetRect(prev => prev === null ? null : null);
+        return;
+      }
+      const newRect = el.getBoundingClientRect();
+      setTargetRect(prev => {
+        if (!prev) return newRect;
+        // Avoid re-renders if the rect hasn't meaningfully changed
+        if (
+          Math.abs(prev.x - newRect.x) < 0.5 &&
+          Math.abs(prev.y - newRect.y) < 0.5 &&
+          Math.abs(prev.width - newRect.width) < 0.5 &&
+          Math.abs(prev.height - newRect.height) < 0.5
+        ) {
+          return prev;
+        }
+        return newRect;
+      });
+    };
+
     const updateRect = () => {
       const el = document.querySelector(`[data-tutorial="${activeStep}"]`);
-      if (el) {
-        setTargetRect(el.getBoundingClientRect());
-      } else {
-        setTargetRect(null);
-      }
+      checkAndUpdateRect(el);
+      // Optional: Since we only really need to poll to catch layout shifts,
+      // requestAnimationFrame is fine now because we return the same state ref.
       rafId = requestAnimationFrame(updateRect);
     };
 
@@ -142,9 +161,7 @@ export const useOnboardingTutorial = () => {
     // Re-measure on resize or scroll
     const handleScrollResize = () => {
       const el = document.querySelector(`[data-tutorial="${activeStep}"]`);
-      if (el) {
-        setTargetRect(el.getBoundingClientRect());
-      }
+      checkAndUpdateRect(el);
     };
 
     window.addEventListener("resize", handleScrollResize);
