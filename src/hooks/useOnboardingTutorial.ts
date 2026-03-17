@@ -78,6 +78,21 @@ export const useOnboardingTutorial = () => {
     }
   }, [activeStep, location.pathname, hasDismissed, isLoading, navigate]);
 
+  // Ensure target is brought into view
+  useEffect(() => {
+    if (hasDismissed || !activeStep) return;
+    
+    // Give DOM a tiny moment to render after navigation
+    const timer = setTimeout(() => {
+      const el = document.querySelector(`[data-tutorial="${activeStep}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [activeStep, location.pathname, hasDismissed]);
+
   const nextStep = useCallback(() => {
     if (!activeStep) return;
     const currentIndex = STEPS.indexOf(activeStep);

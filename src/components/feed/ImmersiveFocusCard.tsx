@@ -84,7 +84,6 @@ export const ImmersiveFocusCard = ({
     <div
       className="h-[100dvh] w-full snap-start relative flex flex-col overflow-hidden cursor-pointer"
       onClick={handleCardClick}
-      data-tutorial="il-punto"
     >
 
       {/* Background Layer */}
@@ -120,6 +119,7 @@ export const ImmersiveFocusCard = ({
                 <button
                   onClick={(e) => e.stopPropagation()}
                   className="h-8 inline-flex items-center gap-2 px-3 rounded-full backdrop-blur-xl border cursor-pointer hover:opacity-80 transition-opacity whitespace-nowrap bg-[#0A7AFF]/20 border-[#0A7AFF]/30 text-[#0A7AFF]"
+                  data-tutorial="il-punto"
                 >
                   <span className="text-xs font-bold tracking-wide font-mono">
                     ◉ IL PUNTO

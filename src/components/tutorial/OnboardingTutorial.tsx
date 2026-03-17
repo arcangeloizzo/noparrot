@@ -65,15 +65,16 @@ export const OnboardingTutorial = () => {
   const content = TUTORIAL_CONTENT[activeStep];
   const isFinal = activeStep === "final";
 
-  // Calculate spotlight style
   let spotlightStyle: React.CSSProperties = {
-    clipPath: "none",
+    // Hidden until target is found
+    opacity: 0,
   };
 
   let tooltipStyle: React.CSSProperties = {
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
+    top: "calc(50% - 110px)", // 110px is half the tooltip height
+    left: 0,
+    right: 0,
+    margin: "0 auto",
     position: "absolute",
     zIndex: 100,
     width: "calc(100vw - 32px)",
@@ -85,15 +86,21 @@ export const OnboardingTutorial = () => {
     const padding = 8;
     const top = targetRect.top - padding;
     const left = targetRect.left - padding;
-    const right = targetRect.right + padding;
     const bottom = targetRect.bottom + padding;
+    const width = targetRect.width + padding * 2;
+    const height = targetRect.height + padding * 2;
 
-    // Create a hole in the overlay using clip-path polygon
+    // The ultra-reliable box-shadow spotlight
     spotlightStyle = {
-      clipPath: `polygon(
-        0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%,
-        ${left}px ${top}px, ${left}px ${bottom}px, ${right}px ${bottom}px, ${right}px ${top}px, ${left}px ${top}px
-      )`,
+      position: "absolute",
+      top: top,
+      left: left,
+      width: width,
+      height: height,
+      borderRadius: "12px",
+      boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.85)",
+      pointerEvents: "none", // Let clicks pass through this hole layer
+      transition: "all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)",
     };
 
     // --- Simplified Positioning Logic ---
@@ -134,17 +141,23 @@ export const OnboardingTutorial = () => {
 
   return (
     <div className="fixed inset-0 z-[99999] pointer-events-auto">
-      {/* Dynamic Backdrop with Spotlight cutout */}
-      {!isFinal ? (
-        <div 
-          className="absolute inset-0 bg-black/80 backdrop-blur-[2px] transition-all duration-300 pointer-events-auto"
-          style={spotlightStyle}
-          onClick={(e) => {
-             // Let the user tap the dark background to safely exit the tutorial if they are stuck
-             dismissTutorial(true);
-          }}
-        />
-      ) : (
+      {/* Background click catcher */}
+      <div 
+        className="absolute inset-0 z-0" 
+        onClick={() => dismissTutorial(true)} 
+      />
+
+      {/* Dynamic Backdrop with Spotlight cutout (Box-Shadow Trick) */}
+      {!isFinal && targetRect && (
+        <div style={spotlightStyle} />
+      )}
+      
+      {/* Fallback dark overlay if waiting for target */}
+      {!isFinal && !targetRect && (
+        <div className="absolute inset-0 bg-black/85 transition-opacity duration-300 pointer-events-none" />
+      )}
+
+      {isFinal && (
         <div 
           className="absolute inset-0 bg-[#0D1B2A]/90 backdrop-blur-md pointer-events-auto" 
           onClick={() => dismissTutorial(true)}
@@ -154,16 +167,16 @@ export const OnboardingTutorial = () => {
       {/* Target Highlight Ring (Animates into place) */}
       {!isFinal && targetRect && (
         <motion.div
-          initial={{ opacity: 0, scale: 1.1 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="absolute rounded-xl border-2 border-[hsl(var(--cognitive-glow-blue))]/60 pointer-events-none"
+          transition={{ duration: 0 }}
+          className="absolute rounded-xl border-2 border-[hsl(var(--cognitive-glow-blue))]/60 pointer-events-none z-10"
           style={{
             top: targetRect.top - 8,
             left: targetRect.left - 8,
             width: targetRect.width + 16,
             height: targetRect.height + 16,
             boxShadow: "0 0 20px 4px rgba(10, 122, 255, 0.2)",
+            transition: "all 0.4s cubic-bezier(0.25, 0.1, 0.25, 1)",
           }}
         />
       )}

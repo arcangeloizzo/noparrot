@@ -149,6 +149,7 @@ export const BottomNavigation = ({
           onClick={handleFabClick}
           className="liquid-glass-fab-central relative -translate-y-4 w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 active:scale-95"
           aria-label="Crea post"
+          data-tutorial="composer"
         >
           <Logo 
             variant="white" 
@@ -169,6 +170,7 @@ export const BottomNavigation = ({
                 "flex flex-col items-center justify-center gap-0.5 px-4 h-full transition-all duration-200 relative",
                 activeTab === id ? "text-foreground" : "text-muted-foreground hover:text-foreground"
               )}
+              data-tutorial={id === "profile" ? "profile-nav" : undefined}
             >
               {isAvatar ? (
                 <div className={cn(

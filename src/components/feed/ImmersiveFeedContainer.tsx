@@ -116,7 +116,6 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     <FeedContext.Provider value={{ activeIndex }}>
       <div
         ref={containerRef} // touch-action-pan-y allows vertical scroll but prevents browser gestures like back/forward
-        data-tutorial="feed"
         className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory no-scrollbar overscroll-y-contain bg-background"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
