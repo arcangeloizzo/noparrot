@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useOnboardingTutorial, STEPS } from "@/hooks/useOnboardingTutorial";
+import { SwipeGesture } from "./SwipeGesture";
 
 const TUTORIAL_CONTENT = {
   "il-punto": {
@@ -60,10 +61,27 @@ export const OnboardingTutorial = () => {
     };
   }, [isTutorialActive]);
 
+  // Specific step behaviors (e.g. scroll the feed to show dynamics)
+  useEffect(() => {
+    if (activeStep === "feed") {
+      const feedEl = document.querySelector('[data-tutorial="feed"]') as HTMLElement | null;
+      if (feedEl) {
+        // Scroll down one full viewport height after a short delay to demonstrate the feed
+        setTimeout(() => {
+          feedEl.scrollTo({ top: feedEl.clientHeight, behavior: "smooth" });
+        }, 800);
+      }
+    }
+  }, [activeStep]);
+
   if (!isTutorialActive || !activeStep) return null;
 
   const content = TUTORIAL_CONTENT[activeStep];
   const isFinal = activeStep === "final";
+  
+  // Feed is a full-screen scroll concept and Il Punto uses the badge target, but both involve swiping
+  const expectsSpotlight = !["feed"].includes(activeStep) && !isFinal;
+  const effectiveTargetRect = expectsSpotlight ? targetRect : null;
 
   let spotlightStyle: React.CSSProperties = {
     // Hidden until target is found
@@ -82,13 +100,13 @@ export const OnboardingTutorial = () => {
     pointerEvents: "auto",
   };
 
-  if (!isFinal && targetRect) {
+  if (effectiveTargetRect) {
     const padding = 8;
-    const top = targetRect.top - padding;
-    const left = targetRect.left - padding;
-    const bottom = targetRect.bottom + padding;
-    const width = targetRect.width + padding * 2;
-    const height = targetRect.height + padding * 2;
+    const top = effectiveTargetRect.top - padding;
+    const left = effectiveTargetRect.left - padding;
+    const bottom = effectiveTargetRect.bottom + padding;
+    const width = effectiveTargetRect.width + padding * 2;
+    const height = effectiveTargetRect.height + padding * 2;
 
     // The ultra-reliable box-shadow spotlight
     spotlightStyle = {
@@ -148,12 +166,12 @@ export const OnboardingTutorial = () => {
       />
 
       {/* Dynamic Backdrop with Spotlight cutout (Box-Shadow Trick) */}
-      {!isFinal && targetRect && (
+      {effectiveTargetRect && (
         <div style={spotlightStyle} />
       )}
       
-      {/* Fallback dark overlay if waiting for target */}
-      {!isFinal && !targetRect && (
+      {/* Fallback dark overlay if waiting for target or no target expected */}
+      {!effectiveTargetRect && !isFinal && (
         <div className="absolute inset-0 bg-black/85 transition-opacity duration-300 pointer-events-none" />
       )}
 
@@ -164,8 +182,17 @@ export const OnboardingTutorial = () => {
         />
       )}
 
+      {/* Swipe Gesture Hints */}
+      {activeStep === "il-punto" && (
+        <SwipeGesture direction="left" text="Scorri per le notizie" />
+      )}
+      
+      {activeStep === "feed" && (
+        <SwipeGesture direction="up" text="Scorri per esplorare" />
+      )}
+
       {/* Target Highlight Ring (Animates into place) */}
-      {!isFinal && targetRect && (
+      {effectiveTargetRect && (
         <motion.div
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0 }}
