@@ -977,7 +977,7 @@ export const FeedCard = ({
                           return;
                         }
                         try {
-                          const { error } = await (supabase as any)
+                          const { error } = await supabase
                             .from('content_reports')
                             .insert({
                               post_id: post.id,
