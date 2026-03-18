@@ -122,7 +122,7 @@ export const usePosts = () => {
     queryKey: ['posts', user?.id],
     staleTime: 0, // Pre-carica sempre dati freschi per welcome screen
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from('posts')
         .select(`
           *,
@@ -215,8 +215,7 @@ export const usePosts = () => {
               )
             )
           )
-        `)
-        // @ts-ignore: is_removed will be in types after db migration
+        `) as any)
         .eq('is_removed', false)
         .order('created_at', { ascending: false });
 

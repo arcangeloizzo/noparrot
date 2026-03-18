@@ -61,7 +61,7 @@ export const useComments = (postId: string, sortMode: 'relevance' | 'recent' | '
   return useQuery({
     queryKey: ['comments', postId, sortMode],
     queryFn: async () => {
-      const { data: commentsData, error: commentsError } = await supabase
+      const { data: commentsData, error: commentsError } = await (supabase
         .from('comments')
         .select(`
           id,
@@ -89,8 +89,7 @@ export const useComments = (postId: string, sortMode: 'relevance' | 'recent' | '
               height
             )
           )
-        `)
-        // @ts-ignore: is_removed will be in types after db migration
+        `) as any)
         .eq('is_removed', false)
         .eq('post_id', postId)
         .order('created_at', { ascending: true });

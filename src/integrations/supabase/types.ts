@@ -327,33 +327,45 @@ export type Database = {
           content: string
           created_at: string | null
           id: string
+          is_removed: boolean | null
           level: number
           parent_id: string | null
           passed_gate: boolean
           post_category: string | null
           post_id: string
+          removed_at: string | null
+          removed_by: string | null
+          removed_reason: string | null
         }
         Insert: {
           author_id: string
           content: string
           created_at?: string | null
           id?: string
+          is_removed?: boolean | null
           level?: number
           parent_id?: string | null
           passed_gate?: boolean
           post_category?: string | null
           post_id: string
+          removed_at?: string | null
+          removed_by?: string | null
+          removed_reason?: string | null
         }
         Update: {
           author_id?: string
           content?: string
           created_at?: string | null
           id?: string
+          is_removed?: boolean | null
           level?: number
           parent_id?: string | null
           passed_gate?: boolean
           post_category?: string | null
           post_id?: string
+          removed_at?: string | null
+          removed_by?: string | null
+          removed_reason?: string | null
         }
         Relationships: [
           {
@@ -382,6 +394,20 @@ export type Database = {
             columns: ["post_id"]
             isOneToOne: false
             referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_removed_by_fkey"
+            columns: ["removed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comments_removed_by_fkey"
+            columns: ["removed_by"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -427,36 +453,46 @@ export type Database = {
       }
       content_reports: {
         Row: {
+          comment_id: string | null
           created_at: string
           details: string | null
           id: string
-          post_id: string
+          post_id: string | null
           reason: string
           reporter_id: string
           status: string
           updated_at: string
         }
         Insert: {
+          comment_id?: string | null
           created_at?: string
           details?: string | null
           id?: string
-          post_id: string
+          post_id?: string | null
           reason?: string
           reporter_id: string
           status?: string
           updated_at?: string
         }
         Update: {
+          comment_id?: string | null
           created_at?: string
           details?: string | null
           id?: string
-          post_id?: string
+          post_id?: string | null
           reason?: string
           reporter_id?: string
           status?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "content_reports_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "comments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "content_reports_post_id_fkey"
             columns: ["post_id"]
@@ -1469,10 +1505,14 @@ export type Database = {
           hostname: string | null
           id: string
           is_intent: boolean
+          is_removed: boolean | null
           post_type: Database["public"]["Enums"]["post_type_enum"] | null
           preview_fetched_at: string | null
           preview_img: string | null
           quoted_post_id: string | null
+          removed_at: string | null
+          removed_by: string | null
+          removed_reason: string | null
           shared_title: string | null
           shared_url: string | null
           shares_count: number | null
@@ -1495,10 +1535,14 @@ export type Database = {
           hostname?: string | null
           id?: string
           is_intent?: boolean
+          is_removed?: boolean | null
           post_type?: Database["public"]["Enums"]["post_type_enum"] | null
           preview_fetched_at?: string | null
           preview_img?: string | null
           quoted_post_id?: string | null
+          removed_at?: string | null
+          removed_by?: string | null
+          removed_reason?: string | null
           shared_title?: string | null
           shared_url?: string | null
           shares_count?: number | null
@@ -1521,10 +1565,14 @@ export type Database = {
           hostname?: string | null
           id?: string
           is_intent?: boolean
+          is_removed?: boolean | null
           post_type?: Database["public"]["Enums"]["post_type_enum"] | null
           preview_fetched_at?: string | null
           preview_img?: string | null
           quoted_post_id?: string | null
+          removed_at?: string | null
+          removed_by?: string | null
+          removed_reason?: string | null
           shared_title?: string | null
           shared_url?: string | null
           shares_count?: number | null
@@ -1556,6 +1604,20 @@ export type Database = {
             columns: ["quoted_post_id"]
             isOneToOne: false
             referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_removed_by_fkey"
+            columns: ["removed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "posts_removed_by_fkey"
+            columns: ["removed_by"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2085,6 +2147,15 @@ export type Database = {
       }
     }
     Functions: {
+      admin_remove_content: {
+        Args: {
+          p_admin_id: string
+          p_reason: string
+          p_target_id: string
+          p_target_type: string
+        }
+        Returns: undefined
+      }
       create_or_get_thread: {
         Args: { participant_ids: string[] }
         Returns: string
