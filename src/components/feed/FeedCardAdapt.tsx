@@ -16,8 +16,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { QuizModal } from "@/components/ui/quiz-modal";
 
-// Feed Components
 import { PostTestActionsModal } from "./PostTestActionsModal";
+import { ReportContentDialog } from "./ReportContentDialog";
+import { AdminRemoveDialog } from "./AdminRemoveDialog";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import { QuotedPostCard } from "./QuotedPostCard";
 import { ChallengeCard } from "./ChallengeCard";
 import { AcceptChallengeFlow } from "./AcceptChallengeFlow";
@@ -117,6 +119,10 @@ export const FeedCard = ({
   // Share states
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showPeoplePicker, setShowPeoplePicker] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showAdminRemoveDialog, setShowAdminRemoveDialog] = useState(false);
+  const { data: adminRole } = useAdminRole();
+  const isStaff = adminRole?.isStaff;
   // Derived state
   const finalSourceUrl = post.shared_url || (Array.isArray(post.sources) && post.sources.length > 0 ? (post.sources[0] as any)?.url : null);
 
@@ -970,37 +976,26 @@ export const FeedCard = ({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
                     <DropdownMenuItem
-                      onClick={async (e) => {
+                      onClick={(e) => {
                         e.stopPropagation();
-                        if (!user) {
-                          toast.error('Devi accedere per segnalare');
-                          return;
-                        }
-                        try {
-                          const { error } = await supabase
-                            .from('content_reports')
-                            .insert({
-                              post_id: post.id,
-                              reporter_id: user.id,
-                              reason: 'inappropriate',
-                            });
-                          if (error) {
-                            if (error.code === '23505') {
-                              toast.info('Hai già segnalato questo contenuto');
-                            } else {
-                              toast.error('Errore nella segnalazione');
-                            }
-                          } else {
-                            toast.success('Contenuto segnalato. Grazie per la collaborazione.');
-                          }
-                        } catch {
-                          toast.error('Errore nella segnalazione');
-                        }
+                        setShowReportDialog(true);
                       }}
                     >
                       <Flag className="w-4 h-4 mr-2" />
                       Segnala contenuto
                     </DropdownMenuItem>
+                    {isStaff && (
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowAdminRemoveDialog(true);
+                        }}
+                        className="text-destructive focus:text-destructive"
+                      >
+                        <ShieldAlert className="w-4 h-4 mr-2" />
+                        Rimuovi contenuto (Admin)
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
@@ -1408,6 +1403,18 @@ export const FeedCard = ({
         />
       )}
       <AnalysisOverlay isVisible={showAnalysisOverlay} message="Analisi in corso..." />
+      <ReportContentDialog
+        open={showReportDialog}
+        onOpenChange={setShowReportDialog}
+        postId={post.id}
+      />
+      <AdminRemoveDialog
+        open={showAdminRemoveDialog}
+        onOpenChange={setShowAdminRemoveDialog}
+        targetId={post.id}
+        targetType="post"
+        onSuccess={() => onRemove?.()}
+      />
     </>
   );
 };

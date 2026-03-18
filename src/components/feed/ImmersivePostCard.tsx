@@ -4,7 +4,10 @@ import { perfStore } from "@/lib/perfStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap, Flag } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap, Flag, ShieldAlert } from "lucide-react";
+import { ReportContentDialog } from "./ReportContentDialog";
+import { AdminRemoveDialog } from "./AdminRemoveDialog";
+import { useAdminRole } from "@/hooks/useAdminRole";
 import { AnimatedHeart } from "@/components/ui/animated-heart";
 import { useDominantColors } from "@/hooks/useDominantColors";
 import { useCachedTrustScore } from "@/hooks/useCachedTrustScore";
@@ -360,6 +363,10 @@ const ImmersivePostCardInner = ({
   // Share states
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [showPeoplePicker, setShowPeoplePicker] = useState(false);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showAdminRemoveDialog, setShowAdminRemoveDialog] = useState(false);
+  const { data: adminRole } = useAdminRole();
+  const isStaff = adminRole?.isStaff;
   const [shareAction, setShareAction] = useState<'feed' | 'friend' | null>(null);
 
   // Editorial summary fallback (for legacy posts without article_content)
@@ -1591,37 +1598,26 @@ const ImmersivePostCardInner = ({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuItem
-                    onClick={async (e) => {
+                    onClick={(e) => {
                       e.stopPropagation();
-                      if (!user) {
-                        toast.error('Devi accedere per segnalare');
-                        return;
-                      }
-                      try {
-                        const { error } = await supabase
-                          .from('content_reports')
-                          .insert({
-                            post_id: post.id,
-                            reporter_id: user.id,
-                            reason: 'inappropriate',
-                          });
-                        if (error) {
-                          if (error.code === '23505') {
-                            toast.info('Hai già segnalato questo contenuto');
-                          } else {
-                            toast.error('Errore nella segnalazione');
-                          }
-                        } else {
-                          toast.success('Contenuto segnalato. Grazie per la collaborazione.');
-                        }
-                      } catch {
-                        toast.error('Errore nella segnalazione');
-                      }
+                      setShowReportDialog(true);
                     }}
                   >
                     <Flag className="w-4 h-4 mr-2" />
                     Segnala contenuto
                   </DropdownMenuItem>
+                  {isStaff && (
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowAdminRemoveDialog(true);
+                      }}
+                      className="text-destructive focus:text-destructive"
+                    >
+                      <ShieldAlert className="w-4 h-4 mr-2" />
+                      Rimuovi contenuto (Admin)
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
@@ -3044,6 +3040,18 @@ const ImmersivePostCardInner = ({
           }}
         />
       )}
+      <ReportContentDialog
+        open={showReportDialog}
+        onOpenChange={setShowReportDialog}
+        postId={post.id}
+      />
+      <AdminRemoveDialog
+        open={showAdminRemoveDialog}
+        onOpenChange={setShowAdminRemoveDialog}
+        targetId={post.id}
+        targetType="post"
+        onSuccess={() => onRemove?.(post.id)}
+      />
     </>
   );
 };

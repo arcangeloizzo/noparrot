@@ -94,7 +94,44 @@ export default function TermsOfService() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-3 text-foreground">7. Modifiche ai termini</h2>
+              <h2 className="text-xl font-semibold mb-3 text-foreground">7. Moderazione dei contenuti e restrizioni (DSA Art. 14, 17)</h2>
+              <p className="text-foreground">
+                NoParrot si riserva il diritto di limitare, rimuovere o rendere inaccessibili contenuti 
+                che violino i presenti Termini, la legge applicabile o i diritti di terzi. In particolare possono essere rimossi contenuti che:
+              </p>
+              <ul className="list-disc list-inside mt-2 space-y-1 text-foreground text-sm">
+                <li>Contengano incitamento all'odio, alla violenza o alla discriminazione</li>
+                <li>Costituiscano spam, phishing o contenuti ingannevoli</li>
+                <li>Violino la proprietà intellettuale di terzi</li>
+                <li>Contengano materiale illegale ai sensi del diritto dell'Unione Europea</li>
+                <li>Siano stati segnalati e confermati come inappropriati</li>
+              </ul>
+              <p className="text-foreground mt-3">
+                In caso di rimozione di un contenuto o di restrizione dell'account, l'utente riceverà 
+                una comunicazione via email con: (a) la decisione adottata, (b) il motivo della restrizione 
+                e (c) le modalità per presentare un reclamo.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold mb-3 text-foreground">8. Sistema di reclamo e appello (DSA Art. 20)</h2>
+              <p className="text-foreground">
+                Se ritieni che una decisione di moderazione (rimozione di contenuto, sospensione dell'account 
+                o altra restrizione) sia stata presa in modo errato, puoi presentare un reclamo gratuito 
+                scrivendo a{" "}
+                <a href="mailto:noparrot.info@gmail.com" className="text-primary underline">noparrot.info@gmail.com</a>{" "}
+                entro 6 mesi dalla decisione.
+              </p>
+              <p className="text-foreground mt-2">
+                Il reclamo verrà esaminato da un membro del team entro 15 giorni lavorativi. 
+                La decisione sull'appello sarà comunicata via email con le relative motivazioni. 
+                In caso di conferma della rimozione, potrai rivolgerti a un organismo di risoluzione 
+                extragiudiziale certificato o all'autorità giudiziaria competente.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold mb-3 text-foreground">9. Modifiche ai termini</h2>
               <p className="text-foreground">
                 NOPARROT può aggiornare questi termini previa notifica. L'uso continuato dell'app implica accettazione delle modifiche.
               </p>

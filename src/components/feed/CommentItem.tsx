@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
-import { Heart, MessageCircle, Trash2, Link2 } from 'lucide-react';
+import { Heart, MessageCircle, Trash2, Link2, Flag, ShieldAlert } from 'lucide-react';
 import { Comment } from '@/hooks/useComments';
 import { useCommentReactions, useToggleCommentReaction } from '@/hooks/useCommentReactions';
 import { useFocusCommentReactions, useToggleFocusCommentReaction } from '@/hooks/useFocusCommentReactions';
@@ -22,6 +22,9 @@ import { LOGO_BASE, EDITORIAL } from '@/config/brand';
 import { ReactionPicker, type ReactionType, reactionToEmoji } from '@/components/ui/reaction-picker';
 import { useLongPress } from '@/hooks/useLongPress';
 import { ReactionSummary, getReactionCounts } from '@/components/feed/ReactionSummary';
+import { ReportContentDialog } from '@/components/feed/ReportContentDialog';
+import { AdminRemoveDialog } from '@/components/feed/AdminRemoveDialog';
+import { useAdminRole } from '@/hooks/useAdminRole';
 
 // Helper to detect touch device - tooltips are meaningless on touch (hover doesn't exist)
 const isTouchDevice = (): boolean => 
@@ -72,6 +75,10 @@ export const CommentItem = ({
 
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
+  const [showReportDialog, setShowReportDialog] = useState(false);
+  const [showAdminRemoveDialog, setShowAdminRemoveDialog] = useState(false);
+  const { data: adminRole } = useAdminRole();
+  const isStaff = adminRole?.isStaff;
   const likeButtonRef = useRef<HTMLButtonElement>(null);
   
   const handleLike = (reactionType: ReactionType = 'heart') => {
@@ -400,10 +407,49 @@ export const CommentItem = ({
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
               )}
+              {/* Report (others' comments) */}
+              {currentUserId !== comment.author.id && (
+                <button
+                  onClick={() => setShowReportDialog(true)}
+                  className={cn(
+                    "flex items-center gap-1.5 py-1.5 px-2 rounded-full transition-all duration-200 ml-auto",
+                    "text-muted-foreground/40 hover:text-orange-400 hover:bg-orange-500/10"
+                  )}
+                  aria-label="Segnala commento"
+                >
+                  <Flag className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {/* Admin Remove (staff only) */}
+              {isStaff && (
+                <button
+                  onClick={() => setShowAdminRemoveDialog(true)}
+                  className={cn(
+                    "flex items-center gap-1.5 py-1.5 px-2 rounded-full transition-all duration-200",
+                    currentUserId === comment.author.id ? 'ml-auto' : '',
+                    "text-muted-foreground/40 hover:text-red-500 hover:bg-red-500/10"
+                  )}
+                  aria-label="Rimuovi (Admin)"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
+      <ReportContentDialog
+        open={showReportDialog}
+        onOpenChange={setShowReportDialog}
+        commentId={comment.id}
+      />
+      <AdminRemoveDialog
+        open={showAdminRemoveDialog}
+        onOpenChange={setShowAdminRemoveDialog}
+        targetId={comment.id}
+        targetType="comment"
+        onSuccess={() => onDelete()}
+      />
     </div>
   );
 };

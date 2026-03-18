@@ -216,6 +216,8 @@ export const usePosts = () => {
             )
           )
         `)
+        // @ts-ignore: is_removed will be in types after db migration
+        .eq('is_removed', false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -640,6 +642,8 @@ export const useSavedPosts = () => {
         `)
         .eq('user_id', user.id)
         .eq('reaction_type', 'bookmark')
+        // @ts-ignore: is_removed will be in types after db migration
+        .eq('posts.is_removed', false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
