@@ -90,8 +90,7 @@ export const useComments = (postId: string, sortMode: 'relevance' | 'recent' | '
             )
           )
         `)
-        // @ts-ignore: is_removed will be in types after db migration
-        .eq('is_removed', false)
+        .eq('is_removed' as any, false)
         .eq('post_id', postId)
         .order('created_at', { ascending: true });
 

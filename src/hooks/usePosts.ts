@@ -216,8 +216,7 @@ export const usePosts = () => {
             )
           )
         `)
-        // @ts-ignore: is_removed will be in types after db migration
-        .eq('is_removed', false)
+        .eq('is_removed' as any, false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
