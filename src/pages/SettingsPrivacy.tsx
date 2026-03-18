@@ -65,10 +65,8 @@ export default function SettingsPrivacy() {
     if (!user) return;
 
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .delete()
-        .eq("id", user.id);
+      // Chiamata alla nuova Edge Function che pulisce in cascata tutti i dati
+      const { error } = await supabase.functions.invoke("delete-user-data");
 
       if (error) throw error;
 
@@ -78,6 +76,36 @@ export default function SettingsPrivacy() {
     } catch (error) {
       console.error("Error deleting account:", error);
       toast.error("Errore durante la cancellazione dell'account");
+    }
+  };
+
+  const handleExportData = async () => {
+    try {
+      const { data, error } = await supabase.functions.invoke('export-user-data');
+      
+      if (error) {
+        if (error.status === 429) {
+          throw new Error("Puoi esportare i tuoi dati solo una volta ogni 24 ore.");
+        }
+        throw new Error("Errore durante l'esportazione dei dati.");
+      }
+
+      // Create a blob and trigger download
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const dateStr = new Date().toISOString().split('T')[0];
+      a.download = `noparrot-data-export-${profile?.username || 'user'}-${dateStr}.json`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast.success("Esportazione completata con successo");
+    } catch (error: any) {
+      console.error("Export error:", error);
+      toast.error(error.message || "Impossibile esportare i dati in questo momento");
     }
   };
 
@@ -439,6 +467,28 @@ export default function SettingsPrivacy() {
                 Cookie Policy
               </Button>
             </div>
+          </Card>
+
+          <Separator />
+
+          {/* Esportazione Dati */}
+          <Card className="p-4">
+            <div className="flex items-center gap-3 mb-4">
+              <Download className="w-5 h-5 text-green-500" />
+              <h2 className="text-lg font-semibold">Esporta i tuoi dati</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Scarica una copia di tutti i tuoi dati in formato JSON, come previsto dal GDPR (Art. 20).
+              Disponibile una volta ogni 24 ore.
+            </p>
+            <Button 
+              variant="outline" 
+              className="w-full justify-start"
+              onClick={handleExportData}
+            >
+              <Download className="w-4 h-4 mr-3" />
+              📥 Esporta i tuoi dati
+            </Button>
           </Card>
 
           <Separator />

@@ -274,6 +274,10 @@ export default function PrivacyPolicy() {
                 Puoi esercitarli da <strong>Impostazioni → Privacy</strong> o scrivendo a{" "}
                 <a href="mailto:noparrot.info@gmail.com" className="text-primary underline">noparrot.info@gmail.com</a>.
               </p>
+              <p className="text-muted-foreground mt-3">
+                Hai il diritto di proporre reclamo al Garante per la Protezione dei Dati Personali 
+                (<a href="https://www.garanteprivacy.it" target="_blank" rel="noopener noreferrer" className="text-primary underline">www.garanteprivacy.it</a>).
+              </p>
             </section>
 
             {/* Footer */}
