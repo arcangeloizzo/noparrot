@@ -131,7 +131,27 @@ export default function TermsOfService() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold mb-3 text-foreground">9. Modifiche ai termini</h2>
+              <h2 className="text-xl font-semibold mb-3 text-foreground">10. Norme di Condotta</h2>
+              <p className="text-foreground">È severamente vietato pubblicare contenuti che:</p>
+              <ul className="list-disc list-inside mt-2 space-y-1 text-foreground text-sm ml-2">
+                <li>Promuovono odio, discriminazione, o violenza;</li>
+                <li>Includono e diffondono CSAM o materiale sessualmente esplicito;</li>
+                <li>Costituiscono spam e manipolazione artificially-inflated;</li>
+                <li>Violano la privacy o il diritto d'autore di terzi.</li>
+              </ul>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold mb-3 text-foreground">11. Legge Applicabile e Foro Competente</h2>
+              <p className="text-foreground">
+                I presenti Termini sono regolati dalla legge Italiana. Per qualsiasi controversia nascente 
+                con i consumatori (B2C), farà fede il foro del luogo di residenza e domicilio del "consumatore" 
+                come definito dal Codice del Consumo secondo la Direttiva 93/13/CEE.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold mb-3 text-foreground">12. Modifiche ai termini</h2>
               <p className="text-foreground">
                 NOPARROT può aggiornare questi termini previa notifica. L'uso continuato dell'app implica accettazione delle modifiche.
               </p>

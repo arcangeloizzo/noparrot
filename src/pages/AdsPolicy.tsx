@@ -66,6 +66,16 @@ export default function AdsPolicy() {
 
                 <div className="p-4 bg-muted/30 rounded-lg border border-border">
                   <h3 className="font-semibold text-foreground mb-2">
+                    🚫 Esclusione Pubblicità Sensibili
+                  </h3>
+                  <p>
+                    NoParrot esclude categoricamente le inserzioni di natura politica (es. propaganda) 
+                    e qualsiasi annuncio mirato esplicitamente ai minori.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-muted/30 rounded-lg border border-border">
+                  <h3 className="font-semibold text-foreground mb-2">
                     🧠 Cognitivo solo con consenso
                   </h3>
                   <p>
