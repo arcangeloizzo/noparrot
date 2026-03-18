@@ -36,6 +36,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
           const { syncPendingConsents } = await import('@/hooks/useUserConsents');
           syncPendingConsents(session.user.id);
+          
+          // Check if user needs age gate completion (OAuth bypass protection)
+          try {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('date_of_birth')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (profile && !profile.date_of_birth) {
+              localStorage.setItem('noparrot-needs-age-gate', 'true');
+            } else {
+              localStorage.removeItem('noparrot-needs-age-gate');
+            }
+          } catch {
+            // Non-critical, silently ignore
+          }
         }
       }
     );

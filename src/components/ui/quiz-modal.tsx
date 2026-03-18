@@ -525,7 +525,14 @@ export function QuizModal({ questions, qaId, onSubmit, onCancel, onComplete, pos
                 )}
               </div>
 
-              <div className="px-4 sm:px-6 pb-4 sm:pb-6 flex gap-3 pointer-events-auto flex-shrink-0" style={{ pointerEvents: 'auto', paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)' }}>
+              {/* AI Act Art. 50 – Transparency Disclaimer */}
+              <div className="px-4 sm:px-6 flex-shrink-0">
+                <p className="text-[10px] sm:text-xs text-muted-foreground/60 text-center leading-snug">
+                  Le domande e le risposte sono generate automaticamente da un sistema di Intelligenza Artificiale. Possono contenere inesattezze.
+                </p>
+              </div>
+
+              <div className="px-4 sm:px-6 pb-4 sm:pb-6 pt-2 flex gap-3 pointer-events-auto flex-shrink-0" style={{ pointerEvents: 'auto', paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)' }}>
                 {onCancel && (
                   <Button 
                     onClick={(e) => { 

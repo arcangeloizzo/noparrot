@@ -227,6 +227,10 @@ export default function PrivacyPolicy() {
                       <td className="py-2">Estrazione articoli</td>
                     </tr>
                     <tr className="border-b border-border/50">
+                      <td className="py-2">Deepgram</td>
+                      <td className="py-2">Trascrizione Vocale AI</td>
+                    </tr>
+                    <tr className="border-b border-border/50">
                       <td className="py-2">Jina</td>
                       <td className="py-2">Estrazione articoli</td>
                     </tr>

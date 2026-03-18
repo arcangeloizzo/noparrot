@@ -329,32 +329,51 @@ export default function SettingsPrivacy() {
               Gli annunci su NoParrot sono mostrati in base al tema dei contenuti che leggi.
               Puoi scegliere se riceverne di più pertinenti in base ai tuoi interessi.
             </p>
-            <div className={`flex items-center justify-between p-3 rounded-lg border ${profile?.cognitive_tracking_enabled === false
-                ? "bg-muted/10 border-muted"
-                : "bg-muted/30 border-border"
-              }`}>
-              <div className="space-y-1 flex-1 mr-4">
-                <Label
-                  htmlFor="ads-personalization"
-                  className={`text-sm font-medium ${profile?.cognitive_tracking_enabled === false ? "text-muted-foreground" : "cursor-pointer"
-                    }`}
-                >
-                  Annunci basati sui miei interessi
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  {profile?.cognitive_tracking_enabled === false
-                    ? "Per attivare gli annunci personalizzati, devi prima attivare il profilo cognitivo."
-                    : "Se disattivato, vedrai solo annunci legati al tema della conversazione."
-                  }
-                </p>
-              </div>
-              <Switch
-                id="ads-personalization"
-                checked={profile?.cognitive_tracking_enabled === false ? false : (consents?.ads_personalization_opt_in ?? false)}
-                onCheckedChange={handleAdsToggle}
-                disabled={consentsLoading || toggleAds.isPending || profile?.cognitive_tracking_enabled === false}
-              />
-            </div>
+            {(() => {
+              // DSA Art. 28: Block ads personalization for minors (< 18)
+              const isMinor = (() => {
+                if (!profile?.date_of_birth) return false;
+                const birthDate = new Date(profile.date_of_birth);
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const m = today.getMonth() - birthDate.getMonth();
+                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+                return age < 18;
+              })();
+
+              const isDisabledByCognitive = profile?.cognitive_tracking_enabled === false;
+              const isDisabled = isMinor || isDisabledByCognitive;
+
+              return (
+                <div className={`flex items-center justify-between p-3 rounded-lg border ${isDisabled
+                    ? "bg-muted/10 border-muted"
+                    : "bg-muted/30 border-border"
+                  }`}>
+                  <div className="space-y-1 flex-1 mr-4">
+                    <Label
+                      htmlFor="ads-personalization"
+                      className={`text-sm font-medium ${isDisabled ? "text-muted-foreground" : "cursor-pointer"}`}
+                    >
+                      Annunci basati sui miei interessi
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {isMinor
+                        ? "Non disponibile per gli under 18 (DSA Art. 28)"
+                        : isDisabledByCognitive
+                        ? "Per attivare gli annunci personalizzati, devi prima attivare il profilo cognitivo."
+                        : "Se disattivato, vedrai solo annunci legati al tema della conversazione."
+                      }
+                    </p>
+                  </div>
+                  <Switch
+                    id="ads-personalization"
+                    checked={isDisabled ? false : (consents?.ads_personalization_opt_in ?? false)}
+                    onCheckedChange={handleAdsToggle}
+                    disabled={consentsLoading || toggleAds.isPending || isDisabled}
+                  />
+                </div>
+              );
+            })()}
             <p className="text-xs text-muted-foreground mt-2 text-center">
               Puoi cambiare idea in qualsiasi momento.
             </p>

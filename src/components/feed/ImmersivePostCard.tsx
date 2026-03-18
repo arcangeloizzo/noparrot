@@ -4,7 +4,7 @@ import { perfStore } from "@/lib/perfStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap, Flag } from "lucide-react";
 import { AnimatedHeart } from "@/components/ui/animated-heart";
 import { useDominantColors } from "@/hooks/useDominantColors";
 import { useCachedTrustScore } from "@/hooks/useCachedTrustScore";
@@ -1554,7 +1554,7 @@ const ImmersivePostCardInner = ({
             ) : null}
 
             {/* Menu */}
-            {isOwnPost && (
+            {isOwnPost ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                   <button className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-black/20 dark:hover:bg-white/10 transition-colors text-slate-900 dark:text-white">
@@ -1579,6 +1579,48 @@ const ImmersivePostCardInner = ({
                   >
                     <Trash2 className="w-4 h-4 mr-2" />
                     Elimina post
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <button className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-black/20 dark:hover:bg-white/10 transition-colors text-slate-900 dark:text-white">
+                    <MoreHorizontal className="w-4 h-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      if (!user) {
+                        toast.error('Devi accedere per segnalare');
+                        return;
+                      }
+                      try {
+                        const { error } = await (supabase as any)
+                          .from('content_reports')
+                          .insert({
+                            post_id: post.id,
+                            reporter_id: user.id,
+                            reason: 'inappropriate',
+                          });
+                        if (error) {
+                          if (error.code === '23505') {
+                            toast.info('Hai già segnalato questo contenuto');
+                          } else {
+                            toast.error('Errore nella segnalazione');
+                          }
+                        } else {
+                          toast.success('Contenuto segnalato. Grazie per la collaborazione.');
+                        }
+                      } catch {
+                        toast.error('Errore nella segnalazione');
+                      }
+                    }}
+                  >
+                    <Flag className="w-4 h-4 mr-2" />
+                    Segnala contenuto
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

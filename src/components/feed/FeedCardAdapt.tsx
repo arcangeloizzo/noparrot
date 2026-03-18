@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle, Info } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, ShieldCheck, ShieldAlert, AlertTriangle, Info, Flag } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 
@@ -933,7 +933,7 @@ export const FeedCard = ({
               <span className="text-[13px] text-gray-400 flex-shrink-0">
                 {timeAgo}
               </span>
-              {isOwnPost && (
+              {isOwnPost ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                     <button className="p-1.5 rounded-full hover:bg-muted/50 transition-colors">
@@ -958,6 +958,48 @@ export const FeedCard = ({
                     >
                       <Trash2 className="w-4 h-4 mr-2" />
                       Elimina post
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                    <button className="p-1.5 rounded-full hover:bg-muted/50 transition-colors">
+                      <MoreHorizontal className="w-4 h-4 text-gray-400" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (!user) {
+                          toast.error('Devi accedere per segnalare');
+                          return;
+                        }
+                        try {
+                          const { error } = await (supabase as any)
+                            .from('content_reports')
+                            .insert({
+                              post_id: post.id,
+                              reporter_id: user.id,
+                              reason: 'inappropriate',
+                            });
+                          if (error) {
+                            if (error.code === '23505') {
+                              toast.info('Hai già segnalato questo contenuto');
+                            } else {
+                              toast.error('Errore nella segnalazione');
+                            }
+                          } else {
+                            toast.success('Contenuto segnalato. Grazie per la collaborazione.');
+                          }
+                        } catch {
+                          toast.error('Errore nella segnalazione');
+                        }
+                      }}
+                    >
+                      <Flag className="w-4 h-4 mr-2" />
+                      Segnala contenuto
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

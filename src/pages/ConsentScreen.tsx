@@ -19,12 +19,13 @@ export default function ConsentScreen({ onComplete }: ConsentScreenProps) {
   const upsertConsents = useUpsertConsents();
   
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAcknowledged, setPrivacyAcknowledged] = useState(false);
   const [adsOptIn, setAdsOptIn] = useState(false);
   const [cognitiveOptIn, setCognitiveOptIn] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleContinue = async () => {
-    if (!termsAccepted) return;
+    if (!termsAccepted || !privacyAcknowledged) return;
     
     setIsSubmitting(true);
     try {
@@ -94,39 +95,57 @@ export default function ConsentScreen({ onComplete }: ConsentScreenProps) {
 
         {/* Consent options */}
         <div className="space-y-4 pt-4">
-          {/* Mandatory checkbox */}
-          <div className="bg-white/5 rounded-xl p-4 border border-white/10">
+          {/* Mandatory checkboxes */}
+          <div className="bg-white/5 rounded-xl p-4 border border-white/10 space-y-4">
             <div className="flex items-start space-x-3">
               <Checkbox
-                id="terms-privacy"
+                id="terms"
                 checked={termsAccepted}
                 onCheckedChange={(checked) => setTermsAccepted(checked === true)}
                 className="mt-0.5 border-white/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
               />
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Label 
-                  htmlFor="terms-privacy" 
+                  htmlFor="terms" 
                   className="text-sm font-medium text-white cursor-pointer"
                 >
-                  Accetto Termini e Privacy *
+                  Accetto i Termini di Servizio *
                 </Label>
-                <div className="flex flex-wrap gap-2 text-xs">
-                  <a 
-                    href="/privacy" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-primary hover:underline inline-flex items-center gap-1"
-                  >
-                    Privacy Policy <ExternalLink className="w-3 h-3" />
-                  </a>
-                  <span className="text-white/30">•</span>
+                <div className="text-xs">
                   <a 
                     href="/terms" 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="text-primary hover:underline inline-flex items-center gap-1"
                   >
-                    Termini di Servizio <ExternalLink className="w-3 h-3" />
+                    Leggi i Termini <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-start space-x-3">
+              <Checkbox
+                id="privacy"
+                checked={privacyAcknowledged}
+                onCheckedChange={(checked) => setPrivacyAcknowledged(checked === true)}
+                className="mt-0.5 border-white/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+              />
+              <div className="space-y-1">
+                <Label 
+                  htmlFor="privacy" 
+                  className="text-sm font-medium text-white cursor-pointer"
+                >
+                  Ho letto la Privacy Policy *
+                </Label>
+                <div className="text-xs">
+                  <a 
+                    href="/privacy" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline inline-flex items-center gap-1"
+                  >
+                    Leggi la Policy <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
               </div>
@@ -178,7 +197,7 @@ export default function ConsentScreen({ onComplete }: ConsentScreenProps) {
         <div className="mt-8 space-y-3">
           <Button
             onClick={handleContinue}
-            disabled={!termsAccepted || isSubmitting}
+            disabled={!termsAccepted || !privacyAcknowledged || isSubmitting}
             className="w-full h-14 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-full text-base"
             size="lg"
           >
@@ -188,7 +207,7 @@ export default function ConsentScreen({ onComplete }: ConsentScreenProps) {
           <button
             onClick={() => {
               // Save pending consents before navigating to login
-              if (termsAccepted) {
+              if (termsAccepted && privacyAcknowledged) {
                 savePendingConsent({
                   accepted_terms: true,
                   accepted_privacy: true,
@@ -200,7 +219,7 @@ export default function ConsentScreen({ onComplete }: ConsentScreenProps) {
               }
               navigate("/auth?mode=login", { replace: true });
             }}
-            disabled={!termsAccepted}
+            disabled={!termsAccepted || !privacyAcknowledged}
             className="w-full text-center text-sm text-white/70 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Hai già un account? <span className="text-primary font-bold hover:underline">Accedi</span>

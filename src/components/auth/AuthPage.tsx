@@ -18,6 +18,22 @@ export interface AuthPageProps {
   forcePasswordReset?: boolean;
 }
 
+// Age gate helpers
+const AGE_GATE_FAILED_KEY = 'age_gate_failed';
+const AGE_GATE_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+const NEEDS_AGE_GATE_KEY = 'noparrot-needs-age-gate';
+
+function calculateAge(dateOfBirth: string): number {
+  const birthDate = new Date(dateOfBirth);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+}
+
 export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: AuthPageProps) => {
   const navigate = useNavigate();
   const { user, signIn, signUpStep1, verifyEmailOTP, completeProfile } = useAuth();
@@ -29,6 +45,15 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
   const [resetEmail, setResetEmail] = useState("");
   const [showUpdatePassword, setShowUpdatePassword] = useState(forcePasswordReset);
   const [newPassword, setNewPassword] = useState("");
+  
+  // Age Gate OAuth completion
+  const [showOAuthAgeGate, setShowOAuthAgeGate] = useState(false);
+  const [oauthDay, setOauthDay] = useState("");
+  const [oauthMonth, setOauthMonth] = useState("");
+  const [oauthYear, setOauthYear] = useState("");
+  
+  // Age Gate failed cooldown
+  const [ageGateBlocked, setAgeGateBlocked] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState("");
 
   // Step 1 data
@@ -49,12 +74,30 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
 
+  // Check age gate cooldown on mount
+  useEffect(() => {
+    const failedTs = localStorage.getItem(AGE_GATE_FAILED_KEY);
+    if (failedTs) {
+      const elapsed = Date.now() - parseInt(failedTs, 10);
+      if (elapsed < AGE_GATE_COOLDOWN_MS) {
+        setAgeGateBlocked(true);
+      } else {
+        localStorage.removeItem(AGE_GATE_FAILED_KEY);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     // NON reindirizzare se siamo in modalità update password
     if (user && !showUpdatePassword) {
+      // Check if OAuth user needs age gate completion
+      if (localStorage.getItem(NEEDS_AGE_GATE_KEY) === 'true') {
+        setShowOAuthAgeGate(true);
+        return;
+      }
+      
       if (localStorage.getItem(PENDING_SHARE_KEY) === 'true') {
         localStorage.removeItem(PENDING_SHARE_KEY);
-        // Ritardiamo leggermente lo svuotamento per permettere alla modale di essere caricata
         navigate("/", { replace: true, state: { openComposer: true } });
       } else {
         navigate("/");
@@ -134,6 +177,11 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
     const { error } = await signUpStep1(email, password, cleanFullName, dateOfBirth);
 
     if (error) {
+      // If age < 16, set cooldown to prevent immediate retry
+      if (error.message?.includes('16 anni')) {
+        localStorage.setItem(AGE_GATE_FAILED_KEY, Date.now().toString());
+        setAgeGateBlocked(true);
+      }
       toast.error(error.message);
     } else {
       toast.success("Codice di verifica inviato alla tua email!");
@@ -272,6 +320,117 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
     }
     setIsLoading(false);
   };
+
+  // OAUTH AGE GATE COMPLETION VIEW
+  const handleOAuthAgeGate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!oauthDay || !oauthMonth || !oauthYear || !user) return;
+    setIsLoading(true);
+
+    const dateOfBirth = `${oauthYear}-${oauthMonth.padStart(2, "0")}-${oauthDay.padStart(2, "0")}`;
+    const age = calculateAge(dateOfBirth);
+
+    if (age < 16) {
+      localStorage.setItem(AGE_GATE_FAILED_KEY, Date.now().toString());
+      setAgeGateBlocked(true);
+      setShowOAuthAgeGate(false);
+      toast.error('Devi avere almeno 16 anni per usare NoParrot');
+      // Sign out the underage user
+      const { signOut } = await import('@/contexts/AuthContext').then(m => ({ signOut: async () => { await supabase.auth.signOut(); } }));
+      await supabase.auth.signOut();
+      setIsLoading(false);
+      return;
+    }
+
+    // Save date_of_birth to profile
+    const { error } = await supabase
+      .from('profiles')
+      .update({ date_of_birth: dateOfBirth })
+      .eq('id', user.id);
+
+    if (error) {
+      toast.error('Errore nel salvataggio. Riprova.');
+    } else {
+      localStorage.removeItem(NEEDS_AGE_GATE_KEY);
+      setShowOAuthAgeGate(false);
+      toast.success('Profilo completato!');
+      navigate('/', { replace: true });
+    }
+    setIsLoading(false);
+  };
+
+  if (showOAuthAgeGate) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+        <Card className="w-full max-w-md p-6 rounded-2xl overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.25)]">
+          <div className="text-center mb-6">
+            <Logo className="w-auto h-12 mx-auto" />
+            <h1 className="text-2xl font-bold mt-4">Completa la registrazione</h1>
+            <p className="text-sm text-muted-foreground mt-2">
+              Per continuare, inserisci la tua data di nascita
+            </p>
+          </div>
+
+          <form onSubmit={handleOAuthAgeGate} className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Data di nascita</label>
+              <div className="grid grid-cols-3 gap-2">
+                <Select value={oauthDay} onValueChange={setOauthDay}>
+                  <SelectTrigger><SelectValue placeholder="Giorno" /></SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+                      <SelectItem key={day} value={String(day)}>{day}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={oauthMonth} onValueChange={setOauthMonth}>
+                  <SelectTrigger><SelectValue placeholder="Mese" /></SelectTrigger>
+                  <SelectContent>
+                    {["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"].map((month, idx) => (
+                      <SelectItem key={idx + 1} value={String(idx + 1)}>{month}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                <Select value={oauthYear} onValueChange={setOauthYear}>
+                  <SelectTrigger><SelectValue placeholder="Anno" /></SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 85 }, (_, i) => new Date().getFullYear() - 16 - i).map((year) => (
+                      <SelectItem key={year} value={String(year)}>{year}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <p className="text-xs text-muted-foreground">Per iscriverti devi avere almeno 16 anni</p>
+            </div>
+
+            <Button type="submit" className="w-full" disabled={isLoading || !oauthDay || !oauthMonth || !oauthYear}>
+              {isLoading ? "Salvataggio..." : "Conferma e continua"}
+            </Button>
+          </form>
+        </Card>
+      </div>
+    );
+  }
+
+  // AGE GATE BLOCKED VIEW (24h cooldown)
+  if (ageGateBlocked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-background">
+        <Card className="w-full max-w-md p-6 rounded-2xl overflow-hidden shadow-[0_4px_12px_rgba(0,0,0,0.25)] text-center">
+          <Logo className="w-auto h-12 mx-auto" />
+          <h1 className="text-2xl font-bold mt-4">Registrazione non disponibile</h1>
+          <p className="text-sm text-muted-foreground mt-3">
+            NoParrot è riservato agli utenti con almeno 16 anni. Riprova più tardi.
+          </p>
+          <Button variant="ghost" className="w-full mt-6" onClick={() => { setIsLogin(true); setAgeGateBlocked(false); }}>
+            Accedi con un account esistente
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   // UPDATE PASSWORD VIEW
   if (showUpdatePassword) {
