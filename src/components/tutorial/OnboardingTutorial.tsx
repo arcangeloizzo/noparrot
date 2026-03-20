@@ -21,6 +21,11 @@ const TUTORIAL_CONTENT = {
     description: "Condividi un link o esprimi un'opinione. Su NoParrot, la qualità della discussione conta più dei like.",
     position: "top"
   },
+  "composer-open": {
+    title: "Tre modi per partecipare",
+    description: "Scrivi un post o condividi un link nel campo in alto. Oppure lancia una Challenge per un dibattito strutturato, o registra un Voicecast con la tua voce.",
+    position: "bottom"
+  },
   "profile-nav": {
     title: "Il tuo Profilo",
     description: "Qui trovi i tuoi contenuti, e soprattutto la tua Nebulosa Cognitiva.",
@@ -61,6 +66,15 @@ export const OnboardingTutorial = () => {
     };
   }, [isTutorialActive]);
 
+  // Trigger Composer modal automatically for composer-open step
+  useEffect(() => {
+    if (activeStep === "composer-open") {
+      window.dispatchEvent(new CustomEvent('tutorial-composer-open'));
+    } else {
+      window.dispatchEvent(new CustomEvent('tutorial-composer-close'));
+    }
+  }, [activeStep]);
+
   // Specific step behaviors (e.g. scroll the feed to show dynamics)
   useEffect(() => {
     if (activeStep === "feed") {
@@ -80,7 +94,7 @@ export const OnboardingTutorial = () => {
   const isFinal = activeStep === "final";
   
   // Feed is a full-screen scroll concept and Il Punto uses the badge target, but both involve swiping
-  const expectsSpotlight = !["feed"].includes(activeStep) && !isFinal;
+  const expectsSpotlight = !["feed", "composer-open"].includes(activeStep) && !isFinal;
   const effectiveTargetRect = expectsSpotlight ? targetRect : null;
 
   let spotlightStyle: React.CSSProperties = {
@@ -88,8 +102,16 @@ export const OnboardingTutorial = () => {
     opacity: 0,
   };
 
+  // Default positioning for steps without target (or before target is found)
+  let defaultTop = "calc(50% - 110px)";
+  if (activeStep === "il-punto" || content.position === "bottom") {
+    defaultTop = "calc(100svh - 260px)";
+  } else if (content.position === "top") {
+    defaultTop = "60px";
+  }
+
   let tooltipStyle: React.CSSProperties = {
-    top: "calc(50% - 110px)", // 110px is half the tooltip height
+    top: defaultTop,
     left: 0,
     right: 0,
     margin: "0 auto",
@@ -127,7 +149,12 @@ export const OnboardingTutorial = () => {
     
     // Vertical positioning
     let tooltipTop = 0;
-    if (content.position === "bottom") {
+    
+    // FIX OVERLAP: Se lo step è "il-punto", costringiamo il tooltip in fondo allo schermo
+    // in modo che lo SwipeGesture (al centro) non lo accavalli mai.
+    if (activeStep === "il-punto") {
+      tooltipTop = window.innerHeight - 260;
+    } else if (content.position === "bottom") {
       tooltipTop = bottom + tooltipPadding;
       if (tooltipTop + tooltipHeight > window.innerHeight) {
         tooltipTop = top - tooltipHeight - tooltipPadding;
@@ -171,7 +198,7 @@ export const OnboardingTutorial = () => {
       )}
       
       {/* Fallback dark overlay if waiting for target or no target expected */}
-      {!effectiveTargetRect && !isFinal && (
+      {!effectiveTargetRect && !isFinal && activeStep !== "composer-open" && (
         <div className="absolute inset-0 bg-black/85 transition-opacity duration-300 pointer-events-none" />
       )}
 
@@ -184,11 +211,11 @@ export const OnboardingTutorial = () => {
 
       {/* Swipe Gesture Hints */}
       {activeStep === "il-punto" && (
-        <SwipeGesture direction="left" text="Scorri per le notizie" />
+        <SwipeGesture direction="left" text="Scorri per le notizie" className="top-[40vh] -translate-y-1/2" />
       )}
       
       {activeStep === "feed" && (
-        <SwipeGesture direction="up" text="Scorri per esplorare" />
+        <SwipeGesture direction="up" text="Scorri per esplorare" className="top-[40vh] -translate-y-1/2" />
       )}
 
       {/* Target Highlight Ring (Animates into place) */}

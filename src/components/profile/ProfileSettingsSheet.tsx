@@ -32,7 +32,9 @@ export const ProfileSettingsSheet = ({ open, onOpenChange }: ProfileSettingsShee
     },
     onSuccess: () => {
       onOpenChange(false);
-      window.location.href = "/";
+      // Evita il ricaricamento distruttivo che blocca l'engine JS in locale
+      window.dispatchEvent(new CustomEvent('force-reset-tutorial'));
+      navigate("/");
     }
   });
 

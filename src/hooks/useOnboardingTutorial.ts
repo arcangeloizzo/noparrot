@@ -4,12 +4,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useLocation } from "react-router-dom";
 
-export type TutorialStep = "il-punto" | "feed" | "composer" | "profile-nav" | "nebulosa" | "final" | null;
+export type TutorialStep = "il-punto" | "feed" | "composer" | "composer-open" | "profile-nav" | "nebulosa" | "final" | null;
 
 export const STEPS: TutorialStep[] = [
   "il-punto",
   "feed",
   "composer",
+  "composer-open",
   "profile-nav",
   "nebulosa",
   "final"
@@ -71,7 +72,7 @@ export const useOnboardingTutorial = () => {
   useEffect(() => {
     if (hasDismissed || isLoading || !activeStep) return;
 
-    if ((activeStep === "il-punto" || activeStep === "feed" || activeStep === "composer" || activeStep === "profile-nav") && location.pathname !== '/') {
+    if ((activeStep === "il-punto" || activeStep === "feed" || activeStep === "composer" || activeStep === "composer-open" || activeStep === "profile-nav") && location.pathname !== '/') {
       navigate('/');
     } else if (activeStep === "nebulosa" && location.pathname !== '/profile') {
       navigate('/profile');
@@ -104,6 +105,7 @@ export const useOnboardingTutorial = () => {
   }, [activeStep]);
 
   const dismissTutorial = useCallback(async (permanently: boolean) => {
+    const isFinishing = activeStep === "final";
     setActiveStep(null);
     if (permanently && user) {
       setHasDismissed(true);
@@ -112,11 +114,25 @@ export const useOnboardingTutorial = () => {
           .from("profiles")
           .update({ has_dismissed_tutorial: true })
           .eq("id", user.id);
+          
+        if (isFinishing) {
+          navigate('/');
+        }
       } catch (err) {
         console.error("Failed to dismiss tutorial:", err);
       }
     }
-  }, [user]);
+  }, [user, activeStep, navigate]);
+
+  // Ascolta l'evento globale per un "soft-reload" del tutorial da altre componenti
+  useEffect(() => {
+    const handleForceReset = () => {
+      setHasDismissed(false);
+      setActiveStep("il-punto");
+    };
+    window.addEventListener('force-reset-tutorial', handleForceReset);
+    return () => window.removeEventListener('force-reset-tutorial', handleForceReset);
+  }, []);
 
   const resetTutorial = useCallback(async () => {
     if (!user) return;

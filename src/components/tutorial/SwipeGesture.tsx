@@ -5,9 +5,10 @@ import { Hand } from "lucide-react";
 interface SwipeGestureProps {
   direction: "up" | "left" | "right";
   text?: string;
+  className?: string; // Per consentire custom offset senza rompere logiche React
 }
 
-export const SwipeGesture = ({ direction, text }: SwipeGestureProps) => {
+export const SwipeGesture = ({ direction, text, className = "" }: SwipeGestureProps) => {
   const getAnimation = () => {
     switch (direction) {
       case "up":
@@ -31,7 +32,7 @@ export const SwipeGesture = ({ direction, text }: SwipeGestureProps) => {
   };
 
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-[105]">
+    <div className={`absolute inset-x-0 flex flex-col items-center justify-center pointer-events-none z-[105] ${className}`}>
       <motion.div
         animate={getAnimation()}
         transition={{

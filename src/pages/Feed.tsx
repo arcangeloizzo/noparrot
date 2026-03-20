@@ -160,6 +160,20 @@ export const Feed = () => {
   const [focusCommentsOpen, setFocusCommentsOpen] = useState(false);
   const [selectedFocusForComments, setSelectedFocusForComments] = useState<any>(null);
 
+  // Handle tutorial composer open step via custom events
+  useEffect(() => {
+    const handleOpen = () => setShowComposer(true);
+    const handleClose = () => setShowComposer(false);
+    
+    window.addEventListener('tutorial-composer-open', handleOpen);
+    window.addEventListener('tutorial-composer-close', handleClose);
+    
+    return () => {
+      window.removeEventListener('tutorial-composer-open', handleOpen);
+      window.removeEventListener('tutorial-composer-close', handleClose);
+    };
+  }, []);
+
   // Handle navigation state from /post/:id reshare flow or share target
   useEffect(() => {
     if (location.state?.quotePost) {
