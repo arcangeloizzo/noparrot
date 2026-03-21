@@ -64,7 +64,7 @@ export const Feed = () => {
   }, []);
 
   // Fetch real Daily Focus items (now returns { items, totalCount }) with refreshNonce
-  const { data: dailyFocusData, isLoading: loadingDaily } = useDailyFocus(refreshNonce);
+  const { data: dailyFocusData, isLoading: loadingDaily, isError: dailyError } = useDailyFocus(refreshNonce);
   const dailyFocusItems = dailyFocusData?.items || [];
   const dailyFocusTotalCount = dailyFocusData?.totalCount || dailyFocusItems.length;
 
