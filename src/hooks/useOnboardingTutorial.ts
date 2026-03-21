@@ -40,22 +40,29 @@ export const useOnboardingTutorial = () => {
       try {
         const { data, error } = await supabase
           .from("profiles")
-          .select("has_dismissed_tutorial")
+          .select("has_dismissed_tutorial, created_at")
           .eq("id", user.id)
           .single();
 
         if (error) {
           console.error("Error fetching tutorial state:", error);
-          setHasDismissed(true); // Failsafe, don't show tutorial
+          setHasDismissed(true);
         } else {
           const dismissed = data?.has_dismissed_tutorial ?? false;
-          setHasDismissed(dismissed);
-          if (!dismissed) {
-             setActiveStep(STEPS[0]);
-             // Ensure we are on home for first steps
-             if (location.pathname !== '/') {
-                navigate('/');
-             }
+
+          // Safety guard: only show tutorial to users created in the last 7 days
+          const createdAt = data?.created_at ? new Date(data.created_at) : null;
+          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+          const isRecentUser = createdAt && createdAt > sevenDaysAgo;
+
+          if (dismissed || !isRecentUser) {
+            setHasDismissed(true);
+          } else {
+            setHasDismissed(false);
+            setActiveStep(STEPS[0]);
+            if (location.pathname !== '/') {
+              navigate('/');
+            }
           }
         }
       } catch (err) {
