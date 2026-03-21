@@ -1,45 +1,28 @@
 
 
-## Problem Analysis
+## Problem
 
-The freeze when clicking Home is caused by the **onboarding tutorial activating for existing users**.
+After a failed logout + force close, the app gets stuck on skeletons (the screenshot confirms this). The root cause:
 
-When the `has_dismissed_tutorial` column was added with `DEFAULT false`, **all existing users** got `false` — meaning the tutorial starts for them on every app load. The tutorial:
-
-1. Locks body scroll (`document.body.style.overflow = "hidden"`)
-2. Renders a full-screen dark overlay at `z-[99999]`, blocking all interaction
-3. Runs a continuous `requestAnimationFrame` loop polling DOM elements 60 times/second
-
-Users who registered months ago (Maurizio from Oct 2025, Marco Izzo from Oct 2025, etc.) all have `has_dismissed_tutorial = false`. When they open the app or navigate to Home, the tutorial overlay appears as a dark screen that blocks everything — perceived as a freeze.
-
-Additionally, the continuous RAF loop (lines 159-205 in `useOnboardingTutorial.ts`) never stops polling while the tutorial is active, which causes unnecessary CPU usage on mobile.
+1. `signOut()` didn't complete → Supabase session token stays in localStorage but is corrupted/expired
+2. On reopen, `getSession()` returns a stale session → `user` is set to non-null → Feed renders
+3. All data queries (`usePosts`, `useDailyFocus`) fail silently with auth errors → `isLoading` stays `true` forever → eternal skeleton screen
+4. There's no error recovery: if queries throw due to bad auth, nothing forces a sign-out
 
 ## Plan
 
-### Step 1: Database fix — dismiss tutorial for all existing users
-Run a migration to set `has_dismissed_tutorial = true` for all profiles created before the tutorial feature was deployed (before ~March 16, 2026). Only truly new users going forward should see the tutorial.
+### Step 1: Add auth error recovery to Feed queries
+In `src/pages/Feed.tsx`, detect when both `usePosts` and `useDailyFocus` have errored out (especially with auth-related errors like 401/PGRST). When this happens, force `signOut()` to clear the corrupted session and redirect to the auth page.
 
-```sql
-UPDATE profiles 
-SET has_dismissed_tutorial = true 
-WHERE created_at < '2026-03-16T00:00:00Z' 
-  AND has_dismissed_tutorial = false;
-```
+### Step 2: Add query error + timeout fallback in Feed
+If `isLoading` persists for more than ~10 seconds, show a recovery UI ("Sessione scaduta" + Logout button) instead of infinite skeletons. This catches any edge case where queries hang without erroring.
 
-### Step 2: Replace RAF loop with IntersectionObserver/ResizeObserver
-The current `requestAnimationFrame` loop in `useOnboardingTutorial.ts` (lines 159-205) runs `document.querySelector` + `getBoundingClientRect` on every frame indefinitely. Replace with:
-- A `ResizeObserver` + single initial measurement
-- Re-measure only on `resize`/`scroll` events (already partially implemented)
-- Remove the recursive `requestAnimationFrame(updateRect)` call
+### Step 3: Harden signOut in AuthContext
+Make `signOut()` more robust: even if `supabase.auth.signOut()` fails (network error, etc.), manually clear localStorage keys (`sb-*`) to ensure the stale session is removed. This prevents the app from getting stuck on reopen after a failed logout.
 
-### Step 3: Add safety guard for tutorial activation
-In `useOnboardingTutorial.ts`, add a check so the tutorial only activates if the user registered recently (e.g., within the last 7 days) OR if a specific flag like `is_new_user` is set. This prevents edge cases where the DB update doesn't reach a user in time.
-
-### Technical details
+## Technical details
 
 **Files to modify:**
-- `src/hooks/useOnboardingTutorial.ts` — replace RAF loop with event-driven measurement; add registration date guard
-- Database migration — bulk update existing users
-
-**Risk:** None for existing users (they skip the tutorial). New users still get the full onboarding experience.
+- `src/pages/Feed.tsx` — add `isError` from usePosts/useDailyFocus, auto-signout on auth error, timeout fallback UI
+- `src/contexts/AuthContext.tsx` — harden `signOut` to clear storage even if API call fails
 
