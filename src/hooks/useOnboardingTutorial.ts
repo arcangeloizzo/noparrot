@@ -156,24 +156,22 @@ export const useOnboardingTutorial = () => {
     }
   }, [user, navigate]);
 
-  // Observer/Polling for target DOM coordinates
+  // Event-driven measurement for target DOM coordinates (no RAF loop)
   useEffect(() => {
     if (!activeStep || activeStep === "final" || hasDismissed) {
       setTargetRect(null);
       return;
     }
 
-    let rafId: number;
-
-    const checkAndUpdateRect = (el: Element | null) => {
+    const measure = () => {
+      const el = document.querySelector(`[data-tutorial="${activeStep}"]`);
       if (!el) {
-        setTargetRect(prev => prev === null ? null : null);
+        setTargetRect(null);
         return;
       }
       const newRect = el.getBoundingClientRect();
       setTargetRect(prev => {
         if (!prev) return newRect;
-        // Avoid re-renders if the rect hasn't meaningfully changed
         if (
           Math.abs(prev.x - newRect.x) < 0.5 &&
           Math.abs(prev.y - newRect.y) < 0.5 &&
@@ -186,29 +184,26 @@ export const useOnboardingTutorial = () => {
       });
     };
 
-    const updateRect = () => {
-      const el = document.querySelector(`[data-tutorial="${activeStep}"]`);
-      checkAndUpdateRect(el);
-      // Optional: Since we only really need to poll to catch layout shifts,
-      // requestAnimationFrame is fine now because we return the same state ref.
-      rafId = requestAnimationFrame(updateRect);
-    };
+    // Initial measure after a short delay to let DOM settle
+    const timer = setTimeout(measure, 100);
 
-    updateRect();
+    // Re-measure on resize/scroll only
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
 
-    // Re-measure on resize or scroll
-    const handleScrollResize = () => {
-      const el = document.querySelector(`[data-tutorial="${activeStep}"]`);
-      checkAndUpdateRect(el);
-    };
-
-    window.addEventListener("resize", handleScrollResize);
-    window.addEventListener("scroll", handleScrollResize, true); // true for capture, useful in deeply nested scroll areas
+    // Use ResizeObserver if target exists
+    let observer: ResizeObserver | null = null;
+    const el = document.querySelector(`[data-tutorial="${activeStep}"]`);
+    if (el) {
+      observer = new ResizeObserver(measure);
+      observer.observe(el);
+    }
 
     return () => {
-      cancelAnimationFrame(rafId);
-      window.removeEventListener("resize", handleScrollResize);
-      window.removeEventListener("scroll", handleScrollResize, true);
+      clearTimeout(timer);
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+      observer?.disconnect();
     };
   }, [activeStep, hasDismissed]);
 
