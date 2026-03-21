@@ -36,11 +36,11 @@ const getOptimizedImageUrl = (src: string | undefined): string | undefined => {
 };
 
 export const Feed = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data: dbPosts = [], isLoading, refetch } = usePosts();
+  const { data: dbPosts = [], isLoading, isError: postsError, refetch } = usePosts();
   const queryClient = useQueryClient();
   const feedContainerRef = useRef<ImmersiveFeedContainerRef>(null);
 
@@ -64,7 +64,7 @@ export const Feed = () => {
   }, []);
 
   // Fetch real Daily Focus items (now returns { items, totalCount }) with refreshNonce
-  const { data: dailyFocusData, isLoading: loadingDaily } = useDailyFocus(refreshNonce);
+  const { data: dailyFocusData, isLoading: loadingDaily, isError: dailyError } = useDailyFocus(refreshNonce);
   const dailyFocusItems = dailyFocusData?.items || [];
   const dailyFocusTotalCount = dailyFocusData?.totalCount || dailyFocusItems.length;
 
@@ -446,7 +446,41 @@ export const Feed = () => {
     if (longPressRef.current) clearTimeout(longPressRef.current);
   }, []);
 
+  // ===== AUTH ERROR RECOVERY =====
+  // If both queries error out, force sign out to clear corrupted session
+  useEffect(() => {
+    if (postsError && dailyError) {
+      console.warn('[Feed] Both queries failed — forcing sign out');
+      signOut().then(() => navigate('/auth', { replace: true }));
+    }
+  }, [postsError, dailyError, signOut, navigate]);
+
+  // Timeout fallback: if loading persists >12s, show recovery UI
+  const [loadingStuck, setLoadingStuck] = useState(false);
+  useEffect(() => {
+    if (!isLoading && !loadingDaily) {
+      setLoadingStuck(false);
+      return;
+    }
+    const timer = setTimeout(() => setLoadingStuck(true), 12000);
+    return () => clearTimeout(timer);
+  }, [isLoading, loadingDaily]);
+
   if (isLoading || loadingDaily) {
+    if (loadingStuck) {
+      return (
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 p-6 text-center">
+          <p className="text-lg font-semibold text-foreground">Sessione scaduta</p>
+          <p className="text-sm text-muted-foreground">Non riusciamo a caricare i dati. Prova a rientrare.</p>
+          <button
+            onClick={() => signOut().then(() => navigate('/auth', { replace: true }))}
+            className="px-6 py-3 rounded-xl bg-primary text-primary-foreground font-medium"
+          >
+            Esci e riaccedi
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen bg-background">
         <Header variant="immersive" />
