@@ -36,11 +36,11 @@ const getOptimizedImageUrl = (src: string | undefined): string | undefined => {
 };
 
 export const Feed = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data: dbPosts = [], isLoading, refetch } = usePosts();
+  const { data: dbPosts = [], isLoading, isError: postsError, refetch } = usePosts();
   const queryClient = useQueryClient();
   const feedContainerRef = useRef<ImmersiveFeedContainerRef>(null);
 
