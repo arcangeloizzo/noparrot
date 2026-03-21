@@ -236,7 +236,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.warn('[Auth] signOut API failed, clearing local session', e);
+    } finally {
+      // Always clear stale session tokens from localStorage
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('sb-')) localStorage.removeItem(key);
+      });
+      setUser(null);
+      setSession(null);
+    }
   };
 
   return (
