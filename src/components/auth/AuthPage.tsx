@@ -304,13 +304,22 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
     }
 
     try {
-      const { error } = await supabase.auth.updateUser({ 
-        password: newPassword 
-      });
+      const updatePromise = supabase.auth.updateUser({ password: newPassword });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 15000)
+      );
+
+      const { error } = await Promise.race([updatePromise, timeoutPromise]);
 
       if (error) {
         console.error('[Auth] updateUser error:', error);
-        toast.error(error.message || "Errore nell'aggiornamento della password");
+        // HIBP / password policy errors
+        const msg = error.message?.toLowerCase() || '';
+        if (msg.includes('pwned') || msg.includes('leaked') || msg.includes('breach')) {
+          toast.error("Questa password è stata compromessa in un data breach. Scegline un'altra più sicura.");
+        } else {
+          toast.error(error.message || "Errore nell'aggiornamento della password");
+        }
       } else {
         toast.success("Password aggiornata con successo!");
         setShowUpdatePassword(false);
@@ -319,9 +328,13 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
         window.history.replaceState({}, document.title, window.location.pathname);
         navigate("/");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Auth] updateUser exception:', err);
-      toast.error("Errore di rete. Riprova.");
+      if (err?.message === 'timeout') {
+        toast.error("La richiesta ha impiegato troppo tempo. Riprova.");
+      } else {
+        toast.error("Errore di rete. Riprova.");
+      }
     } finally {
       setIsLoading(false);
     }
