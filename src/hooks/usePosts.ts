@@ -116,12 +116,12 @@ export interface Post {
 }
 
 export const usePosts = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, authReady } = useAuth();
 
   return useQuery({
     queryKey: ['posts', user?.id],
     staleTime: 0, // Pre-carica sempre dati freschi per welcome screen
-    enabled: !loading && !!user,
+    enabled: authReady && !loading && !!user,
     queryFn: async () => {
       const { data, error } = await (supabase
         .from('posts')

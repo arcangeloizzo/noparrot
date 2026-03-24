@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
+import { User, Session } from '@supabase/supabase-js';
 import { restoreSessionFromUrlHash } from '@/lib/authUrlSession';
 
 const AUTH_INIT_TIMEOUT_MS = 6000;
@@ -17,37 +17,11 @@ const clearStoredAuthState = () => {
   }
 };
 
-const syncPostAuthState = async (event: AuthChangeEvent, userId: string) => {
-  if (event !== 'SIGNED_IN' && event !== 'USER_UPDATED') return;
-
-  try {
-    const { syncPendingConsents } = await import('@/hooks/useUserConsents');
-    syncPendingConsents(userId);
-  } catch (error) {
-    console.warn('[Auth] Failed to sync pending consents', error);
-  }
-
-  try {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('date_of_birth')
-      .eq('id', userId)
-      .maybeSingle();
-
-    if (profile && !profile.date_of_birth) {
-      localStorage.setItem('noparrot-needs-age-gate', 'true');
-    } else {
-      localStorage.removeItem('noparrot-needs-age-gate');
-    }
-  } catch {
-    localStorage.removeItem('noparrot-needs-age-gate');
-  }
-};
-
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
+  authReady: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUpStep1: (email: string, password: string, fullName: string, dateOfBirth: string) => Promise<{ error: any; needsEmailConfirmation?: boolean }>;
   verifyEmailOTP: (email: string, otp: string) => Promise<{ error: any }>;
@@ -65,18 +39,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
 
+  // Track which user ID we already synced for, to avoid re-running on token refresh
+  const syncedForUserRef = useRef<string | null>(null);
+
+  // ===== STEP 1: Pure auth bootstrap — no side effects =====
   useEffect(() => {
     let isMounted = true;
     let isBootstrapped = false;
 
     const applySession = (nextSession: Session | null) => {
       if (!isMounted) return;
-
       isBootstrapped = true;
       setSession(nextSession);
       setUser(nextSession?.user ?? null);
       setLoading(false);
+      setAuthReady(true);
     };
 
     const recoverFromBrokenBootstrap = (reason: string, error?: unknown) => {
@@ -90,21 +69,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       recoverFromBrokenBootstrap('Session bootstrap timed out, clearing stale local auth state');
     }, AUTH_INIT_TIMEOUT_MS);
 
-    // Listener per cambiamenti autenticazione
+    // Listener: PURE state updates only — no backend calls
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, nextSession) => {
+      (_event, nextSession) => {
         window.clearTimeout(timeoutId);
         applySession(nextSession);
-
-        if (nextSession?.user) {
-          void syncPostAuthState(event, nextSession.user.id);
-        } else {
-          localStorage.removeItem('noparrot-needs-age-gate');
-        }
       }
     );
 
-    // Controlla sessione esistente e ripristina esplicitamente le sessioni provenienti da hash URL (recovery/login)
+    // Initial session check
     void (async () => {
       try {
         const restoredSession = await restoreSessionFromUrlHash();
@@ -116,12 +89,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
-
         window.clearTimeout(timeoutId);
         applySession(session);
       } catch (error) {
         window.clearTimeout(timeoutId);
-        recoverFromBrokenBootstrap('getSession failed during bootstrap, clearing stale local auth state', error);
+        recoverFromBrokenBootstrap('getSession failed during bootstrap', error);
       }
     })();
 
@@ -131,6 +103,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       subscription.unsubscribe();
     };
   }, []);
+
+  // ===== STEP 2: Side effects AFTER auth is stable =====
+  // Runs once per unique user login, deferred to next tick
+  useEffect(() => {
+    if (!authReady || !user) {
+      // Reset sync tracker on logout
+      if (!user) syncedForUserRef.current = null;
+      return;
+    }
+
+    // Skip if we already synced for this user (avoids re-running on token refresh)
+    if (syncedForUserRef.current === user.id) return;
+    syncedForUserRef.current = user.id;
+
+    // Defer to next tick so it doesn't block onAuthStateChange completion
+    const timerId = setTimeout(() => {
+      void (async () => {
+        try {
+          const { syncPendingConsents } = await import('@/hooks/useUserConsents');
+          syncPendingConsents(user.id);
+        } catch (error) {
+          console.warn('[Auth] Failed to sync pending consents', error);
+        }
+
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('date_of_birth')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (profile && !profile.date_of_birth) {
+            localStorage.setItem('noparrot-needs-age-gate', 'true');
+          } else {
+            localStorage.removeItem('noparrot-needs-age-gate');
+          }
+        } catch {
+          localStorage.removeItem('noparrot-needs-age-gate');
+        }
+      })();
+    }, 100);
+
+    return () => clearTimeout(timerId);
+  }, [authReady, user]);
 
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -142,14 +158,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(data.session);
       setUser(data.user);
       setLoading(false);
-      void syncPostAuthState('SIGNED_IN', data.user.id);
+      setAuthReady(true);
+      // Side effects will be triggered by the useEffect above
     }
 
     return { error };
   };
 
   const signUpStep1 = async (email: string, password: string, fullName: string, dateOfBirth: string) => {
-    // Validazione età (>=16 anni) - GDPR Art.8
     const birthDate = new Date(dateOfBirth);
     const today = new Date();
     
@@ -191,13 +207,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const completeProfile = async (username: string, avatarFile?: File) => {
     if (!user) return { error: new Error('Not authenticated') };
 
-    // Valida username
     const { data: isValid, error: validationError } = await supabase.rpc('is_valid_username', { username });
     if (validationError || !isValid) {
       return { error: { message: 'Username non valido o già in uso' } };
     }
 
-    // Upload avatar se presente
     let avatarUrl: string | null = null;
     if (avatarFile) {
       const fileExt = avatarFile.name.split('.').pop();
@@ -213,7 +227,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     }
 
-    // Aggiorna profilo
     const { error: updateError } = await supabase
       .from('profiles')
       .update({ username, ...(avatarUrl && { avatar_url: avatarUrl }) })
@@ -261,23 +274,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const updateProfile = async (data: { full_name?: string; username?: string; bio?: string; email?: string }) => {
     if (!user) return { error: new Error('Not authenticated') };
 
-    // Se cambio email, richiedo OTP
     if (data.email && data.email !== user.email) {
       const { error } = await supabase.auth.updateUser({ email: data.email });
       if (error) return { error };
       return { error: null, requiresEmailVerification: true };
     }
 
-    // Valida username solo se effettivamente modificato
     if (data.username) {
-      // Fetch current username per confronto
       const { data: currentProfile } = await supabase
         .from('profiles')
         .select('username')
         .eq('id', user.id)
         .single();
       
-      // Valida solo se username è diverso dal corrente
       if (data.username !== currentProfile?.username) {
         const { data: isValid, error: validationError } = await supabase.rpc('is_valid_username', { username: data.username });
         if (validationError || !isValid) {
@@ -318,6 +327,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(null);
       setSession(null);
       setLoading(false);
+      setAuthReady(true);
+      syncedForUserRef.current = null;
     }
   };
 
@@ -326,6 +337,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       user, 
       session, 
       loading, 
+      authReady,
       signIn, 
       signUpStep1, 
       verifyEmailOTP, 
