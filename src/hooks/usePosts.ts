@@ -296,8 +296,7 @@ export const usePosts = () => {
             correct_index: q.correct_index
           }))
       }));
-    },
-    enabled: !!user
+    }
   });
 };
 
