@@ -1,6 +1,47 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { User, Session } from '@supabase/supabase-js';
+import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
+
+const AUTH_INIT_TIMEOUT_MS = 6000;
+
+const clearStoredAuthState = () => {
+  try {
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('sb-') || key === 'noparrot-needs-age-gate') {
+        localStorage.removeItem(key);
+      }
+    });
+  } catch (error) {
+    console.warn('[Auth] Failed to clear local auth state', error);
+  }
+};
+
+const syncPostAuthState = async (event: AuthChangeEvent, userId: string) => {
+  if (event !== 'SIGNED_IN' && event !== 'USER_UPDATED') return;
+
+  try {
+    const { syncPendingConsents } = await import('@/hooks/useUserConsents');
+    syncPendingConsents(userId);
+  } catch (error) {
+    console.warn('[Auth] Failed to sync pending consents', error);
+  }
+
+  try {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('date_of_birth')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (profile && !profile.date_of_birth) {
+      localStorage.setItem('noparrot-needs-age-gate', 'true');
+    } else {
+      localStorage.removeItem('noparrot-needs-age-gate');
+    }
+  } catch {
+    localStorage.removeItem('noparrot-needs-age-gate');
+  }
+};
 
 interface AuthContextType {
   user: User | null;
@@ -25,46 +66,60 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+    let isBootstrapped = false;
+
+    const applySession = (nextSession: Session | null) => {
+      if (!isMounted) return;
+
+      isBootstrapped = true;
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
+      setLoading(false);
+    };
+
+    const recoverFromBrokenBootstrap = (reason: string, error?: unknown) => {
+      console.warn(`[Auth] ${reason}`, error);
+      clearStoredAuthState();
+      applySession(null);
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      if (isBootstrapped) return;
+      recoverFromBrokenBootstrap('Session bootstrap timed out, clearing stale local auth state');
+    }, AUTH_INIT_TIMEOUT_MS);
+
     // Listener per cambiamenti autenticazione
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-        
-        // Sync pending consents after login/signup
-        if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user) {
-          const { syncPendingConsents } = await import('@/hooks/useUserConsents');
-          syncPendingConsents(session.user.id);
-          
-          // Check if user needs age gate completion (OAuth bypass protection)
-          try {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('date_of_birth')
-              .eq('id', session.user.id)
-              .single();
-            
-            if (profile && !profile.date_of_birth) {
-              localStorage.setItem('noparrot-needs-age-gate', 'true');
-            } else {
-              localStorage.removeItem('noparrot-needs-age-gate');
-            }
-          } catch {
-            // Non-critical, silently ignore
-          }
+      (event, nextSession) => {
+        window.clearTimeout(timeoutId);
+        applySession(nextSession);
+
+        if (nextSession?.user) {
+          void syncPostAuthState(event, nextSession.user.id);
+        } else {
+          localStorage.removeItem('noparrot-needs-age-gate');
         }
       }
     );
 
     // Controlla sessione esistente
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    void supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        if (error) throw error;
+        window.clearTimeout(timeoutId);
+        applySession(session);
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId);
+        recoverFromBrokenBootstrap('getSession failed during bootstrap, clearing stale local auth state', error);
+      });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      window.clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -241,12 +296,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (e) {
       console.warn('[Auth] signOut API failed, clearing local session', e);
     } finally {
-      // Always clear stale session tokens from localStorage
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('sb-')) localStorage.removeItem(key);
-      });
+      clearStoredAuthState();
       setUser(null);
       setSession(null);
+      setLoading(false);
     }
   };
 
