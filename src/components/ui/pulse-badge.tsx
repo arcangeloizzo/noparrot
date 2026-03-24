@@ -65,8 +65,8 @@ export function PulseBadge({
   const { Icon, label, lightClass, darkClass, iconColor } = config;
 
   const sizeClasses = size === "sm"
-    ? "h-8 px-2.5 gap-1.5 text-[10px]"
-    : "h-10 px-3 gap-2 text-xs";
+    ? "min-h-[32px] py-1 px-2.5 gap-x-1.5 gap-y-0.5 text-[10px]"
+    : "min-h-[40px] py-1.5 px-3 gap-x-2 gap-y-1 text-xs";
 
   const iconSize = size === "sm" ? "w-3.5 h-3.5" : "w-4 h-4";
 
@@ -76,7 +76,7 @@ export function PulseBadge({
         <button
           onClick={(e) => e.stopPropagation()}
           className={cn(
-            "inline-flex items-center justify-center rounded-full border transition-all duration-200 active:scale-[0.97] backdrop-blur-md",
+            "inline-flex flex-wrap items-center justify-center rounded-xl border transition-all duration-200 active:scale-[0.97] backdrop-blur-md max-w-[120px] sm:max-w-none text-center leading-tight",
             lightClass,
             darkClass,
             sizeClasses,
@@ -85,22 +85,24 @@ export function PulseBadge({
         >
           {/* Pulse Indicator */}
           <span
-            className="font-bold tracking-wide opacity-60 text-current"
+            className="font-bold tracking-wide opacity-60 text-current flex-shrink-0"
           >
             PULSE
           </span>
 
-          {/* Category Icon */}
-          <Icon
-            className={cn(iconSize, iconColor)}
-          />
+          <div className="flex items-center gap-1 justify-center">
+            {/* Category Icon */}
+            <Icon
+              className={cn(iconSize, iconColor, "flex-shrink-0")}
+            />
 
-          {/* Category Label */}
-          <span
-            className="font-bold tracking-wider text-current"
-          >
-            {label}
-          </span>
+            {/* Category Label */}
+            <span
+              className="font-bold tracking-wider text-current max-w-full"
+            >
+              {label}
+            </span>
+          </div>
         </button>
       </DialogTrigger>
 

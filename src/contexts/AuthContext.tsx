@@ -77,6 +77,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
+    // Handle visibility change (crucial for PWA mobile where background timers stop)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // This forces Supabase to check the token and refresh if needed
+        supabase.auth.getSession().catch(err => {
+          console.warn('[Auth] Error getting session on visibility change', err);
+        });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     // Initial session check
     void (async () => {
       try {
@@ -101,6 +112,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isMounted = false;
       window.clearTimeout(timeoutId);
       subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
