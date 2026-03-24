@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
+import { restoreSessionFromUrlHash } from '@/lib/authUrlSession';
 
 const AUTH_INIT_TIMEOUT_MS = 6000;
 
@@ -103,17 +104,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
-    // Controlla sessione esistente
-    void supabase.auth.getSession()
-      .then(({ data: { session }, error }) => {
+    // Controlla sessione esistente e ripristina esplicitamente le sessioni provenienti da hash URL (recovery/login)
+    void (async () => {
+      try {
+        const restoredSession = await restoreSessionFromUrlHash();
+        if (restoredSession) {
+          window.clearTimeout(timeoutId);
+          applySession(restoredSession);
+          return;
+        }
+
+        const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
+
         window.clearTimeout(timeoutId);
         applySession(session);
-      })
-      .catch((error) => {
+      } catch (error) {
         window.clearTimeout(timeoutId);
         recoverFromBrokenBootstrap('getSession failed during bootstrap, clearing stale local auth state', error);
-      });
+      }
+    })();
 
     return () => {
       isMounted = false;
@@ -123,10 +133,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
+
+    if (!error && data.session) {
+      setSession(data.session);
+      setUser(data.user);
+      setLoading(false);
+      void syncPostAuthState('SIGNED_IN', data.user.id);
+    }
+
     return { error };
   };
 
