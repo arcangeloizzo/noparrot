@@ -116,11 +116,12 @@ export interface Post {
 }
 
 export const usePosts = () => {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
 
   return useQuery({
     queryKey: ['posts', user?.id],
     staleTime: 0, // Pre-carica sempre dati freschi per welcome screen
+    enabled: !loading && !!user,
     queryFn: async () => {
       const { data, error } = await (supabase
         .from('posts')
@@ -295,8 +296,7 @@ export const usePosts = () => {
             correct_index: q.correct_index
           }))
       }));
-    },
-    enabled: !!user
+    }
   });
 };
 

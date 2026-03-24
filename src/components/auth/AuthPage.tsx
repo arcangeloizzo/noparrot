@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { PENDING_SHARE_KEY } from "@/pages/ShareTargetHandler";
+import { restoreSessionFromUrlHash } from "@/lib/authUrlSession";
 
 export interface AuthPageProps {
   initialMode?: 'login' | 'signup';
@@ -104,6 +105,13 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
       }
     }
   }, [user, navigate, showUpdatePassword]);
+
+  useEffect(() => {
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    if (hashParams.get('type') === 'recovery') {
+      setShowUpdatePassword(true);
+    }
+  }, []);
 
   // Auto-suggerimento username da email
   useEffect(() => {
@@ -247,12 +255,6 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
       toast.error(error.message === "Invalid login credentials" ? "Email o password non corretti" : error.message);
     } else {
       toast.success("Login effettuato!");
-      if (localStorage.getItem(PENDING_SHARE_KEY) === 'true') {
-        localStorage.removeItem(PENDING_SHARE_KEY);
-        navigate("/", { replace: true, state: { openComposer: true } });
-      } else {
-        navigate("/");
-      }
     }
     setIsLoading(false);
   };
@@ -304,6 +306,17 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
     }
 
     try {
+      await restoreSessionFromUrlHash();
+
+      const { data: { session: recoverySession }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        throw sessionError;
+      }
+
+      if (!recoverySession) {
+        throw new Error('missing_recovery_session');
+      }
+
       const updatePromise = supabase.auth.updateUser({ password: newPassword });
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('timeout')), 15000)
@@ -321,17 +334,25 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
           toast.error(error.message || "Errore nell'aggiornamento della password");
         }
       } else {
+        const { data: { session: nextSession } } = await supabase.auth.getSession();
+
         toast.success("Password aggiornata con successo!");
         setShowUpdatePassword(false);
         setNewPassword("");
         setConfirmPassword("");
         window.history.replaceState({}, document.title, window.location.pathname);
-        navigate("/");
+        if (nextSession?.user) {
+          navigate("/", { replace: true });
+        } else {
+          navigate("/auth", { replace: true });
+        }
       }
     } catch (err: any) {
       console.error('[Auth] updateUser exception:', err);
       if (err?.message === 'timeout') {
         toast.error("La richiesta ha impiegato troppo tempo. Riprova.");
+      } else if (err?.message === 'missing_recovery_session') {
+        toast.error("Link di recupero non valido o scaduto. Richiedine uno nuovo.");
       } else {
         toast.error("Errore di rete. Riprova.");
       }
