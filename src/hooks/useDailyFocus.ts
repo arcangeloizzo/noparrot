@@ -28,11 +28,11 @@ export interface DailyFocus {
 }
 
 export const useDailyFocus = (refreshNonce: number = 0) => {
-  const { user, loading } = useAuth();
+  const { user, loading, authReady } = useAuth();
 
   return useQuery({
     queryKey: ['daily-focus', refreshNonce, user?.id],
-    enabled: !loading && !!user,
+    enabled: authReady && !loading && !!user,
     queryFn: async (): Promise<{ items: DailyFocus[]; totalCount: number }> => {
       // Fetch total count of ALL editorials in DB
       console.log('Fetching daily focus from DB (nonce:', refreshNonce, ')...');

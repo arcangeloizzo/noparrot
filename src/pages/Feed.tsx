@@ -446,23 +446,41 @@ export const Feed = () => {
     if (longPressRef.current) clearTimeout(longPressRef.current);
   }, []);
 
-  // ===== AUTH ERROR RECOVERY =====
-  // If both queries error out, force sign out to clear corrupted session
-  useEffect(() => {
-    if (postsError && dailyError) {
-      console.warn('[Feed] Both queries failed — forcing sign out');
-      signOut().then(() => navigate('/auth', { replace: true }));
-    }
-  }, [postsError, dailyError, signOut, navigate]);
+  // ===== AUTH ERROR RECOVERY (2-step) =====
+  const [recoveryAttempted, setRecoveryAttempted] = useState(false);
 
-  // Timeout fallback: if loading persists >12s, show recovery UI
+  // Step 1: If both queries error, try refreshing the session first
+  useEffect(() => {
+    if (!postsError || !dailyError) return;
+    if (recoveryAttempted) return; // Already tried, don't loop
+
+    console.warn('[Feed] Both queries failed — attempting session refresh');
+    setRecoveryAttempted(true);
+
+    void (async () => {
+      try {
+        const { error } = await supabase.auth.refreshSession();
+        if (error) throw error;
+        // Session refreshed — invalidate queries to retry
+        queryClient.invalidateQueries({ queryKey: ['posts'] });
+        queryClient.invalidateQueries({ queryKey: ['daily-focus'] });
+        console.log('[Feed] Session refreshed, retrying queries');
+      } catch (err) {
+        // Step 2: Refresh failed — force sign out
+        console.warn('[Feed] Session refresh failed, forcing sign out', err);
+        signOut().then(() => navigate('/auth', { replace: true }));
+      }
+    })();
+  }, [postsError, dailyError, recoveryAttempted, signOut, navigate, queryClient]);
+
+  // Timeout fallback: if loading persists >15s, show recovery UI
   const [loadingStuck, setLoadingStuck] = useState(false);
   useEffect(() => {
     if (!isLoading && !loadingDaily) {
       setLoadingStuck(false);
       return;
     }
-    const timer = setTimeout(() => setLoadingStuck(true), 12000);
+    const timer = setTimeout(() => setLoadingStuck(true), 15000);
     return () => clearTimeout(timer);
   }, [isLoading, loadingDaily]);
 
@@ -470,8 +488,8 @@ export const Feed = () => {
     if (loadingStuck) {
       return (
         <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 p-6 text-center">
-          <p className="text-lg font-semibold text-foreground">Sessione scaduta</p>
-          <p className="text-sm text-muted-foreground">Non riusciamo a caricare i dati. Prova a rientrare.</p>
+          <p className="text-lg font-semibold text-foreground">Caricamento bloccato</p>
+          <p className="text-sm text-muted-foreground">Prova a rientrare se il problema persiste.</p>
           <button
             onClick={() => signOut().then(() => navigate('/auth', { replace: true }))}
             className="px-6 py-3 rounded-xl bg-primary text-primary-foreground font-medium"
