@@ -303,22 +303,28 @@ export const AuthPage = ({ initialMode = 'login', forcePasswordReset = false }: 
       return;
     }
 
-    const { error } = await supabase.auth.updateUser({ 
-      password: newPassword 
-    });
+    try {
+      const { error } = await supabase.auth.updateUser({ 
+        password: newPassword 
+      });
 
-    if (error) {
-      toast.error(error.message);
-    } else {
-      toast.success("Password aggiornata con successo!");
-      setShowUpdatePassword(false);
-      setNewPassword("");
-      setConfirmPassword("");
-      // Pulisci l'hash dall'URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-      navigate("/");
+      if (error) {
+        console.error('[Auth] updateUser error:', error);
+        toast.error(error.message || "Errore nell'aggiornamento della password");
+      } else {
+        toast.success("Password aggiornata con successo!");
+        setShowUpdatePassword(false);
+        setNewPassword("");
+        setConfirmPassword("");
+        window.history.replaceState({}, document.title, window.location.pathname);
+        navigate("/");
+      }
+    } catch (err) {
+      console.error('[Auth] updateUser exception:', err);
+      toast.error("Errore di rete. Riprova.");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   // OAUTH AGE GATE COMPLETION VIEW
