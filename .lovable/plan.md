@@ -1,28 +1,64 @@
 
+Problema reale
 
-## Problem
+- L’account di Ornella non è il problema: i log di autenticazione mostrano login password riusciti con `status=200`, quindi le credenziali e il backend stanno funzionando.
+- Il blocco è client-side sul telefono Android/webapp: il login riesce, ma appena l’app entra nel feed le query iniziali si piantano e dopo 12 secondi compare la schermata “Sessione scaduta”.
+- Ho verificato il codice e il punto critico è ancora in `AuthContext.tsx`: subito dopo eventi auth (`SIGNED_IN` / `USER_UPDATED`) vengono avviate altre chiamate al backend (`syncPendingConsents` + query su `profiles` dentro `syncPostAuthState`).
+- Inoltre `signIn()` richiama di nuovo `syncPostAuthState()` immediatamente dopo `signInWithPassword`.
+- Questo combacia con un problema noto del client auth su mobile/PWA: fare chiamate backend dentro o immediatamente attorno a `onAuthStateChange` può lasciare bloccate le query successive. In questo progetto le query che poi restano appese sono soprattutto `usePosts` e `useDailyFocus`, che fanno scattare il fallback del feed.
 
-After a failed logout + force close, the app gets stuck on skeletons (the screenshot confirms this). The root cause:
+Do I know what the issue is? Yes.
 
-1. `signOut()` didn't complete → Supabase session token stays in localStorage but is corrupted/expired
-2. On reopen, `getSession()` returns a stale session → `user` is set to non-null → Feed renders
-3. All data queries (`usePosts`, `useDailyFocus`) fail silently with auth errors → `isLoading` stays `true` forever → eternal skeleton screen
-4. There's no error recovery: if queries throw due to bad auth, nothing forces a sign-out
+Piano
 
-## Plan
+1. Pulire il bootstrap auth
+- In `src/contexts/AuthContext.tsx` introdurre uno stato separato tipo `authReady` / `isHydrated`.
+- Completare prima il ripristino sessione (`restoreSessionFromUrlHash` + `getSession`) e solo dopo sbloccare le query.
+- Lasciare `onAuthStateChange` “puro”: aggiornamento di `session`, `user`, `loading/authReady` e basta.
 
-### Step 1: Add auth error recovery to Feed queries
-In `src/pages/Feed.tsx`, detect when both `usePosts` and `useDailyFocus` have errored out (especially with auth-related errors like 401/PGRST). When this happens, force `signOut()` to clear the corrupted session and redirect to the auth page.
+2. Spostare le side effect fuori dal callback auth
+- Rimuovere le chiamate a `syncPostAuthState()`:
+  - dal callback `onAuthStateChange`
+  - da `signIn()`
+- Eseguire sync consensi / check profilo in un `useEffect` separato, dopo che l’autenticazione è stabile, eventualmente differito di un tick.
+- Fare in modo che giri una sola volta per login/reset, non su refresh token o eventi ripetuti.
 
-### Step 2: Add query error + timeout fallback in Feed
-If `isLoading` persists for more than ~10 seconds, show a recovery UI ("Sessione scaduta" + Logout button) instead of infinite skeletons. This catches any edge case where queries hang without erroring.
+3. Bloccare le query finché auth non è davvero pronta
+- Aggiornare `src/hooks/usePosts.ts` e `src/hooks/useDailyFocus.ts` per usare `enabled: authReady && !!user`.
+- Se necessario, ritardare anche altri hook di startup che interrogano subito il backend dopo il login, in particolare `usePushNotifications`.
 
-### Step 3: Harden signOut in AuthContext
-Make `signOut()` more robust: even if `supabase.auth.signOut()` fails (network error, etc.), manually clear localStorage keys (`sb-*`) to ensure the stale session is removed. This prevents the app from getting stuck on reopen after a failed logout.
+4. Rendere il Feed meno aggressivo nel recovery
+- In `src/pages/Feed.tsx` sostituire il comportamento attuale “se entrambe le query falliscono => logout immediato” con un recupero a due step:
+  1) tentare un `refreshSession()` + invalidazione query,
+  2) mostrare logout solo se anche il secondo tentativo fallisce o resta appeso.
+- Tenere il bottone “Esci e riaccedi” come ultima spiaggia, non come prima reazione.
 
-## Technical details
+5. Verifica finale mirata al caso Ornella
+- Login da webapp Android
+- cambio password da link email
+- riapertura app con sessione già esistente
+- logout -> login di nuovo
+- controllo che non ricompaiano né skeleton infiniti né “Sessione scaduta” dopo login riuscito
 
-**Files to modify:**
-- `src/pages/Feed.tsx` — add `isError` from usePosts/useDailyFocus, auto-signout on auth error, timeout fallback UI
-- `src/contexts/AuthContext.tsx` — harden `signOut` to clear storage even if API call fails
+File da toccare
+- `src/contexts/AuthContext.tsx`
+- `src/hooks/usePosts.ts`
+- `src/hooks/useDailyFocus.ts`
+- `src/pages/Feed.tsx`
+- probabilmente `src/hooks/usePushNotifications.ts`
 
+Dettaglio tecnico
+```text
+Flusso attuale che si rompe
+login / update password riuscito
+  -> onAuthStateChange(SIGNED_IN o USER_UPDATED)
+  -> syncPostAuthState()
+      -> syncPendingConsents()  [backend]
+      -> profiles select        [backend]
+  -> Feed monta
+  -> usePosts / useDailyFocus partono
+  -> su Android/PWA il client resta appeso
+  -> dopo 12s compare "Sessione scaduta"
+```
+
+Non serve nessuna migrazione database: è un fix di orchestrazione auth lato frontend.
