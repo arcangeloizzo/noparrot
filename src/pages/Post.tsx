@@ -50,6 +50,8 @@ export const Post = () => {
             expires_at,
             votes_for,
             votes_against,
+            title,
+            body_text,
             voice_post_id,
             voice_posts!challenges_voice_post_id_fkey (
               id,
@@ -57,7 +59,9 @@ export const Post = () => {
               duration_seconds,
               waveform_data,
               transcript,
-              transcript_status
+              transcript_status,
+              title,
+              body_text
             )
           ),
           questions (*),
