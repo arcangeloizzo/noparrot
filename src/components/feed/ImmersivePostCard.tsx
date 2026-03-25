@@ -1666,7 +1666,7 @@ const ImmersivePostCardInner = ({
 
             <div className={cn(
               "w-full flex flex-col relative z-[1]", 
-              (!isAudioPost && !isChallengePost) ? "max-h-full my-auto" : "flex-1 min-h-0"
+              (!isAudioPost && !isChallengePost) ? "max-h-full my-auto" : "flex-1 min-h-0 justify-center"
             )}>
 
 
