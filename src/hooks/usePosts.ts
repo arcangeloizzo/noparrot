@@ -148,7 +148,9 @@ export const usePosts = () => {
             duration_seconds,
             waveform_data,
             transcript,
-            transcript_status
+            transcript_status,
+            title,
+            body_text
           ),
           challenges!challenges_post_id_fkey (
             id,
@@ -158,6 +160,8 @@ export const usePosts = () => {
             expires_at,
             votes_for,
             votes_against,
+            title,
+            body_text,
             voice_post_id,
             voice_posts!challenges_voice_post_id_fkey (
               id,
@@ -165,7 +169,9 @@ export const usePosts = () => {
               duration_seconds,
               waveform_data,
               transcript,
-              transcript_status
+              transcript_status,
+              title,
+              body_text
             )
           ),
           questions (*),
@@ -204,7 +210,9 @@ export const usePosts = () => {
               duration_seconds,
               waveform_data,
               transcript,
-              transcript_status
+              transcript_status,
+              title,
+              body_text
             ),
             is_intent,
             author:public_profiles!author_id (
