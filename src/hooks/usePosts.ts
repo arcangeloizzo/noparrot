@@ -12,6 +12,7 @@ export interface Post {
     avatar_url: string | null;
   };
   content: string;
+  title?: string;
   topic_tag: string | null;
   shared_title: string | null;
   shared_url: string | null;
@@ -41,6 +42,7 @@ export interface Post {
   quoted_post?: {
     id: string;
     content: string;
+    title?: string;
     created_at: string;
     shared_url?: string | null;
     shared_title?: string | null;
@@ -199,6 +201,7 @@ export const usePosts = () => {
           quoted_post:posts!quoted_post_id (
             id,
             content,
+            title,
             created_at,
             shared_url,
             shared_title,
@@ -242,6 +245,7 @@ export const usePosts = () => {
         id: post.id,
         author: post.author,
         content: post.content,
+        title: post.title || undefined,
         topic_tag: post.topic_tag,
         shared_title: post.shared_title,
         shared_url: post.shared_url,
@@ -256,6 +260,7 @@ export const usePosts = () => {
         category: post.category || null,
         quoted_post: post.quoted_post ? {
           ...post.quoted_post,
+          title: post.quoted_post.title || undefined,
           media: (post.quoted_post.post_media || [])
             .sort((a: any, b: any) => a.order_idx - b.order_idx)
             .map((pm: any) => pm.media)

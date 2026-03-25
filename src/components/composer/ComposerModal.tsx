@@ -107,6 +107,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const { data: profile } = useCurrentProfile();
   const queryClient = useQueryClient();
   const [content, setContent] = useState("");
+  const [postTitle, setPostTitle] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
   const [showVoiceRecorder, setShowVoiceRecorder] = useState(false);
   const [voicePostData, setVoicePostData] = useState<{ audioBlob: Blob; durationSec: number; waveformData: number[] } | null>(null);
@@ -123,6 +124,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   type ComposerMode = 'idle' | 'text-editing' | 'challenge-rec' | 'voice-rec' | 'post-type-chooser';
   const [composerMode, setComposerMode] = useState<ComposerMode>('idle');
   const [textFocused, setTextFocused] = useState(false);
+  const [titleFocused, setTitleFocused] = useState(false);
 
   const [isFinalizingPublish, setIsFinalizingPublish] = useState(false);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
@@ -308,6 +310,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   // [NEW] Block publish during transcription
   const canPublish = !hasPendingExtraction && !transcribingMediaId && (
     content.trim().length > 0 || 
+    postTitle.trim().length > 0 ||
     uploadedMedia.length > 0 || 
     !!detectedUrl || 
     !!quotedPost || 
@@ -333,7 +336,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
 
   // [FIX] Word count of the ORIGINAL quoted post (source) - used for reshare gate logic
   // The resharer is tested on the SOURCE content, NEVER on their own comment
-  const quotedPostWordCount = quotedPost?.content ? getWordCount(quotedPost.content) : 0;
+  const quotedPostWordCount = quotedPost?.content || quotedPost?.title
+    ? getWordCount([quotedPost.title, quotedPost.content].filter(Boolean).join(' '))
+    : 0;
 
   // Gate status indicator (real-time feedback)
   // Character-based gate applies ONLY to reshares (quotedPost), not free text
@@ -408,6 +413,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   // Reset all state for clean composer on reopen
   const resetAllState = () => {
     setContent('');
+    setPostTitle('');
     setDetectedUrl(null);
     setUrlPreview(null);
     setIsPreviewLoading(false);
@@ -1121,7 +1127,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
         // For text-only posts, use 'url' kind with post:// protocol
         qaSourceRef: { kind: 'url', id: `post://${quotedPost.id}`, url: `post://${quotedPost.id}` },
         sourceUrl: undefined,
-        userText: quotedPost.content, // Use SOURCE text, not resharer's comment
+        userText: [quotedPost.title, quotedPost.content].filter(Boolean).join('\n\n'), // Use SOURCE text, not resharer's comment
         testMode: 'USER_ONLY', // Test on the original author's text
         questionCount,
         quotedPostId: quotedPost.id, // Reshare: reuse original quiz if exists
@@ -1301,8 +1307,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
       const isReshare = !!quotedPost;
       let testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY';
 
-      if (isReshare && quotedPost?.content) {
-        const originalAuthorWordCount = getWordCount(quotedPost.content);
+      if (isReshare && (quotedPost?.content || quotedPost?.title)) {
+        const originalAuthorWordCount = getWordCount([quotedPost?.title, quotedPost?.content].filter(Boolean).join(' '));
         testMode = getTestModeWithSource(originalAuthorWordCount);
       } else {
         testMode = 'SOURCE_ONLY';
@@ -1702,6 +1708,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
             body: {
               content: cleanContent || undefined, // Maybe empty for voice only
               postType: finalPostType,
+              title: postTitle.trim() || undefined,
               // Voice data in the nested format expected by the edge function
               voiceData: {
                 audioUrl: uploadData.path,
@@ -1738,6 +1745,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
           const invokeResult = await supabase.functions.invoke('publish-post', {
             body: {
               content: cleanContent,
+              title: postTitle.trim() || undefined,
               // For editorials: embed metadata directly, don't use quoted_post_id
               sharedUrl: isQuotingEditorial ? editorialData.shared_url : (snapshotDetectedUrl || null),
               sharedTitle: isQuotingEditorial ? editorialData.shared_title : (intentMetadata.sharedTitle || null),
@@ -1826,6 +1834,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
             .from('posts')
             .insert({
               content: cleanContent.substring(0, 5000),
+              title: postTitle.trim().substring(0, 500) || null,
               author_id: user.id,
               post_type: fallbackPostType,
               shared_url: isQuotingEditorial ? editorialData.shared_url : (snapshotDetectedUrl || null),
@@ -2230,7 +2239,37 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                         </AvatarFallback>
                       </Avatar>
 
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 flex flex-col gap-2">
+                        {/* Title Input */}
+                        <input
+                          type="text"
+                          placeholder="Dai un titolo (opzionale)"
+                          value={postTitle}
+                          onChange={(e) => setPostTitle(e.target.value)}
+                          onFocus={() => {
+                            setTitleFocused(true);
+                            setComposerMode('text-editing');
+                          }}
+                          onBlur={() => {
+                            setTitleFocused(false);
+                            setTimeout(() => {
+                              if (!content.trim() && !postTitle.trim() && !voicePostData) {
+                                setComposerMode('idle');
+                              }
+                            }, 150);
+                          }}
+                          className="w-full bg-transparent outline-none transition-colors placeholder:text-muted-foreground/60"
+                          style={{
+                            fontFamily: 'Impact, sans-serif',
+                            fontSize: '24px',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderBottom: titleFocused ? '2px solid #0A7AFF' : '2px solid rgba(255,255,255,0.06)',
+                            padding: '12px 0',
+                            textAlign: 'left'
+                          }}
+                        />
+
                         <TiptapEditor
                           ref={editorRef}
                           initialContent=""
@@ -2245,7 +2284,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                           }}
                           onBlur={() => {
                             setTimeout(() => {
-                              if (!content.trim() && !voicePostData) {
+                              if (!content.trim() && !postTitle.trim() && !voicePostData) {
                                 setTextFocused(false);
                                 setComposerMode('idle');
                               }

@@ -603,7 +603,7 @@ const ImmersivePostCardInner = ({
       return;
     }
 
-    const userText = post.content;
+    const userText = [post.title, post.content].filter(Boolean).join('\n\n');
     const userWordCount = getWordCount(userText);
 
     // Use finalSourceUrl to include sources from quoted posts and deep chains
@@ -633,7 +633,7 @@ const ImmersivePostCardInner = ({
       return;
     }
 
-    const userText = post.content;
+    const userText = [post.title, post.content].filter(Boolean).join('\n\n');
     const userWordCount = getWordCount(userText);
 
     // Use finalSourceUrl to include sources from quoted posts and deep chains
@@ -673,7 +673,7 @@ const ImmersivePostCardInner = ({
     // Direct gate for text-only posts when already read (bypasses reader)
     if (!user) return;
 
-    let userText = post.content;
+    let userText = [post.title, post.content].filter(Boolean).join('\n\n');
     let gateSourceType: 'text' | 'ocr' | 'editorial' = 'text';
     let qaSourceRef: any = undefined;
 
@@ -901,7 +901,7 @@ const ImmersivePostCardInner = ({
       if ((isCurrentPostIntent || isQuotedPostIntent) && isBlockedPlatform) {
         // Use the Intent post's content (either current or quoted)
         const intentPost = isCurrentPostIntent ? post : quotedPost;
-        const userText = intentPost?.content || '';
+        const userText = [intentPost?.title, intentPost?.content].filter(Boolean).join('\n\n') || '';
         const userWordCount = getWordCount(userText);
 
         // Intent posts always require gate (min 30 words guaranteed at creation)
@@ -1050,7 +1050,7 @@ const ImmersivePostCardInner = ({
       }
 
       const isOriginalPost = readerSource.isOriginalPost;
-      const userText = post.content;
+      const userText = [post.title, post.content].filter(Boolean).join('\n\n');
       const userWordCount = getWordCount(userText);
 
       let testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY' | undefined;
@@ -2094,23 +2094,49 @@ const ImmersivePostCardInner = ({
               )}
 
               {/* Stack Layout: User comment first - Plain text for standard */}
-              {useStackLayout && !isAudioPost && !isChallengePost && post.content && post.content !== post.shared_title && (
+              {useStackLayout && !isAudioPost && !isChallengePost && (post.content || post.title) && post.content !== post.shared_title && (
                 <div className={cn(
-                  "text-base sm:text-lg text-slate-600 dark:text-white/90 leading-snug tracking-wide drop-shadow-none dark:drop-shadow-md mb-4 px-1",
+                  "mb-4 px-1 flex flex-col gap-1",
                   isChallengePost ? "font-normal" : "font-normal"
                 )}>
-                  {post.content.length > 400 ? (
-                    <>
-                      <MentionText content={post.content.slice(0, 400) + '...'} />
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                        className="mt-2 text-sm text-primary font-semibold hover:underline block"
-                      >
-                        Mostra tutto
-                      </button>
-                    </>
-                  ) : (
-                    <MentionText content={post.content} />
+                  {/* Title */}
+                  {post.title && post.title.trim().length > 0 && (
+                    <h2 
+                      className="uppercase mb-1"
+                      style={{
+                        fontFamily: 'Impact, sans-serif',
+                        fontSize: 'clamp(30px, 8vw, 42px)',
+                        lineHeight: 0.92,
+                        letterSpacing: '-0.02em',
+                        color: '#FFFFFF',
+                        textAlign: 'left'
+                      }}
+                    >
+                      {post.title}
+                    </h2>
+                  )}
+                  {post.content && post.content.trim().length > 0 && (
+                    <div 
+                      className={cn(
+                        "whitespace-pre-wrap break-words drop-shadow-none dark:drop-shadow-md",
+                        post.title && post.title.trim().length > 0 ? "text-[14px] text-[#7A8FA6]" : "text-base sm:text-lg text-slate-600 dark:text-white/90 leading-snug tracking-wide"
+                      )}
+                      style={post.title && post.title.trim().length > 0 ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
+                    >
+                      {post.content.length > 400 ? (
+                        <>
+                          <MentionText content={post.content.slice(0, 400) + '...'} />
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                            className="mt-2 text-sm text-primary font-semibold hover:underline block"
+                          >
+                            Mostra tutto
+                          </button>
+                        </>
+                      ) : (
+                        <MentionText content={post.content} />
+                      )}
+                    </div>
                   )}
                 </div>
               )}
@@ -2131,49 +2157,100 @@ const ImmersivePostCardInner = ({
 
               {/* User Text Content - Show for link posts (if different from article title) - NON stack layout */}
               {/* User Text - Skip for intent posts (already rendered above) */}
-              {!useStackLayout && shouldShowUserText && !post.is_intent && (
-                post.content.length > 400 ? (
-                  <div className="mb-4 flex-shrink-0">
-                    <h2 className="text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide drop-shadow-md line-clamp-3">
-                      <MentionText content={post.content} />
-                    </h2>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                      className="mt-1 text-sm text-primary font-semibold hover:underline"
+              {!useStackLayout && ((shouldShowUserText) || (post.title && post.title.trim().length > 0)) && !post.is_intent && !isTextOnly && hasLink && (
+                <div className="mb-4 flex-shrink-0 flex flex-col gap-1 px-1 z-10 relative">
+                  {/* Title */}
+                  {post.title && post.title.trim().length > 0 && (
+                    <h2 
+                      className="uppercase mb-1"
+                      style={{
+                        fontFamily: 'Impact, sans-serif',
+                        fontSize: 'clamp(30px, 8vw, 42px)',
+                        lineHeight: 0.92,
+                        letterSpacing: '-0.02em',
+                        color: '#FFFFFF',
+                        textAlign: 'left'
+                      }}
                     >
-                      Mostra tutto
-                    </button>
-                  </div>
-                ) : (
-                  <h2 className="text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide drop-shadow-none dark:drop-shadow-md mb-4 line-clamp-4 flex-shrink-0">
-                    <MentionText content={post.content} />
-                  </h2>
-                )
+                      {post.title}
+                    </h2>
+                  )}
+                  {/* Content */}
+                  {shouldShowUserText && post.content && post.content.trim().length > 0 && (
+                    <div 
+                      className={cn(
+                        "whitespace-pre-wrap break-words drop-shadow-md",
+                        post.title && post.title.trim().length > 0 ? "text-[14px] text-[#7A8FA6]" : "text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide"
+                      )}
+                      style={post.title && post.title.trim().length > 0 ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
+                    >
+                      {post.content.length > 400 ? (
+                        <>
+                          <MentionText content={post.content.slice(0, 400) + '...'} />
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                            className="mt-2 text-sm text-primary font-semibold hover:underline block"
+                          >
+                            Mostra tutto
+                          </button>
+                        </>
+                      ) : (
+                        <div className={post.title && post.title.trim().length > 0 ? "line-clamp-4" : "line-clamp-3"}>
+                          <MentionText content={post.content} />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* User Text for normal reshares (long quoted comment, no source): show current user's comment ABOVE the QuotedPostCard */}
-              {!useStackLayout && quotedPost && !hasLink && post.content && (
-                post.content.length > 400 ? (
-                  <div className="mb-6">
-                    <h2 className="text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide drop-shadow-md">
-                      <MentionText content={post.content.slice(0, 400) + '...'} />
-                    </h2>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                      className="mt-2 text-sm text-primary font-semibold hover:underline"
+              {!useStackLayout && quotedPost && !hasLink && (post.content || post.title) && (
+                <div className="mb-6 flex flex-col gap-1 px-1 flex-shrink-0 relative z-10">
+                  {/* Title */}
+                  {post.title && post.title.trim().length > 0 && (
+                    <h2 
+                      className="uppercase mb-1"
+                      style={{
+                        fontFamily: 'Impact, sans-serif',
+                        fontSize: 'clamp(30px, 8vw, 42px)',
+                        lineHeight: 0.92,
+                        letterSpacing: '-0.02em',
+                        color: '#FFFFFF',
+                        textAlign: 'left'
+                      }}
                     >
-                      Mostra tutto
-                    </button>
-                  </div>
-                ) : (
-                  <h2 className="text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide drop-shadow-md mb-6">
-                    <MentionText content={post.content} />
-                  </h2>
-                )
+                      {post.title}
+                    </h2>
+                  )}
+                  {post.content && post.content.trim().length > 0 && (
+                    <div 
+                      className={cn(
+                        "whitespace-pre-wrap break-words drop-shadow-md",
+                        post.title && post.title.trim().length > 0 ? "text-[14px] text-[#7A8FA6]" : "text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide"
+                      )}
+                      style={post.title && post.title.trim().length > 0 ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
+                    >
+                      {post.content.length > 400 ? (
+                        <>
+                          <MentionText content={post.content.slice(0, 400) + '...'} />
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                            className="mt-2 text-sm text-primary font-semibold hover:underline block"
+                          >
+                            Mostra tutto
+                          </button>
+                        </>
+                      ) : (
+                        <MentionText content={post.content} />
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Pure Text-Only Posts - Immersive editorial-style card - Hide if using stack layout */}
-              {!useStackLayout && isTextOnly && post.content && (
+              {!useStackLayout && isTextOnly && (post.content || post.title) && (
                 <div className="relative w-full max-w-lg mx-auto">
                   {/* Card container with glassmorphism and urban texture - GPU optimized */}
                   <div className="relative immersive-card rounded-3xl p-6 sm:p-8 shadow-2xl overflow-hidden">
@@ -2183,24 +2260,52 @@ const ImmersivePostCardInner = ({
 
 
                     {/* Content */}
-                    <div className="relative z-10">
-                      {post.content.length > 400 ? (
-                        <>
-                          <p className="text-[17px] sm:text-lg font-normal text-immersive-foreground leading-[1.65] tracking-[0.01em] whitespace-pre-wrap">
-                            <MentionText content={post.content.slice(0, 400) + '...'} />
-                          </p>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                            className="mt-4 inline-flex items-center gap-1.5 text-sm text-primary/90 font-semibold hover:text-primary transition-colors"
-                          >
-                            <span>Mostra tutto</span>
-                            <Maximize2 className="w-3.5 h-3.5" />
-                          </button>
-                        </>
-                      ) : (
-                        <p className="text-[17px] sm:text-lg font-normal text-immersive-foreground leading-[1.65] tracking-[0.01em] whitespace-pre-wrap">
-                          <MentionText content={post.content} />
-                        </p>
+                    <div className="relative z-10 flex flex-col gap-2">
+                       {/* Title */}
+                      {post.title && post.title.trim().length > 0 && (
+                        <h2 
+                          className="uppercase mb-2 drop-shadow-md"
+                          style={{
+                            fontFamily: 'Impact, sans-serif',
+                            fontSize: 'clamp(30px, 8vw, 42px)',
+                            lineHeight: 0.92,
+                            letterSpacing: '-0.02em',
+                            color: '#FFFFFF',
+                            textAlign: 'left'
+                          }}
+                        >
+                          {post.title}
+                        </h2>
+                      )}
+                      {post.content && post.content.trim().length > 0 && (
+                        <div 
+                          className={cn(
+                            "whitespace-pre-wrap break-words",
+                            post.title && post.title.trim().length > 0 ? "" : "text-[17px] sm:text-lg font-normal text-immersive-foreground leading-[1.65] tracking-[0.01em]"
+                          )}
+                          style={post.title && post.title.trim().length > 0 ? {
+                            fontFamily: 'Inter, sans-serif',
+                            fontSize: '14px',
+                            color: '#7A8FA6',
+                            lineHeight: 1.55,
+                            textAlign: 'left'
+                          } : {}}
+                        >
+                          {post.content.length > 400 ? (
+                            <>
+                              <MentionText content={post.content.slice(0, 400) + '...'} />
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                                className="mt-4 inline-flex items-center gap-1.5 text-sm text-primary/90 font-semibold hover:text-primary transition-colors"
+                              >
+                                <span>Mostra tutto</span>
+                                <Maximize2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          ) : (
+                            <MentionText content={post.content} />
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -2208,18 +2313,46 @@ const ImmersivePostCardInner = ({
               )}
 
               {/* User Text for media-only posts - ABOVE the media */}
-              {!useStackLayout && !isAudioPost && !isChallengePost && isMediaOnlyPost && post.content && (
-                <div className="mb-6">
-                  <h2 className="text-xl font-medium text-immersive-foreground leading-snug tracking-wide drop-shadow-lg">
-                    <MentionText content={post.content.length > 200 ? post.content.slice(0, 200) + '...' : post.content} />
-                  </h2>
-                  {post.content.length > 200 && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                      className="mt-2 text-sm text-primary font-semibold hover:underline"
+              {!useStackLayout && !isAudioPost && !isChallengePost && isMediaOnlyPost && (post.content || post.title) && (
+                <div className="mb-6 flex flex-col gap-1 px-1 flex-shrink-0 z-10 relative">
+                  {/* Title */}
+                  {post.title && post.title.trim().length > 0 && (
+                    <h2 
+                      className="uppercase mb-1 drop-shadow-lg"
+                      style={{
+                        fontFamily: 'Impact, sans-serif',
+                        fontSize: 'clamp(30px, 8vw, 42px)',
+                        lineHeight: 0.92,
+                        letterSpacing: '-0.02em',
+                        color: '#FFFFFF',
+                        textAlign: 'left'
+                      }}
                     >
-                      Mostra tutto
-                    </button>
+                      {post.title}
+                    </h2>
+                  )}
+                  {post.content && post.content.trim().length > 0 && (
+                    <div 
+                      className={cn(
+                        "whitespace-pre-wrap break-words drop-shadow-lg",
+                        post.title && post.title.trim().length > 0 ? "text-[14px] text-[#7A8FA6]" : "text-xl font-medium text-immersive-foreground leading-snug tracking-wide"
+                      )}
+                      style={post.title && post.title.trim().length > 0 ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
+                    >
+                      {post.content.length > 200 ? (
+                        <>
+                          <MentionText content={post.content.slice(0, 200) + '...'} />
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                            className="mt-2 text-sm text-primary font-semibold hover:underline block drop-shadow-md"
+                          >
+                            Mostra tutto
+                          </button>
+                        </>
+                      ) : (
+                        <MentionText content={post.content} />
+                      )}
+                    </div>
                   )}
                 </div>
               )}

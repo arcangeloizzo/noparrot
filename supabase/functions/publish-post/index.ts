@@ -168,6 +168,7 @@ type PublishPostBody = {
   idempotencyKey?: string | null
   isIntent?: boolean
   postType?: 'standard' | 'voice' | 'challenge'
+  title?: string | null
   voiceData?: {
     audioUrl: string
     durationSeconds: number
@@ -223,7 +224,7 @@ Deno.serve(async (req) => {
     // Allow empty content ONLY for reshares, link-only posts, media-only posts, OR voice/challenge posts.
     // This prevents "ghost" text-only posts, while letting users share without adding a comment.
     const mediaCount = Array.isArray(body.mediaIds) ? body.mediaIds.filter(Boolean).length : 0
-    const allowEmpty = !!body.quotedPostId || !!body.sharedUrl || mediaCount > 0 || body.postType === 'voice' || body.postType === 'challenge'
+    const allowEmpty = !!body.quotedPostId || !!body.sharedUrl || mediaCount > 0 || body.postType === 'voice' || body.postType === 'challenge' || !!body.title
     if (!content && !allowEmpty) {
       console.error(`[publish-post:${reqId}] stage=validate empty content`)
       return new Response(JSON.stringify({ error: 'content_required', stage: 'validate' }), {
@@ -348,6 +349,9 @@ Deno.serve(async (req) => {
     let sanitizedTitle = body.sharedTitle
       ? sanitizeContent(String(body.sharedTitle)).substring(0, 500)
       : null;
+    let sanitizedPostTitle = body.title
+      ? sanitizeContent(String(body.title)).substring(0, 500)
+      : null;
     let sanitizedArticle = body.articleContent
       ? sanitizeContent(String(body.articleContent)).substring(0, 10000)
       : null;
@@ -419,6 +423,7 @@ Deno.serve(async (req) => {
 
     const insertPayload = {
       content: sanitizedContent,
+      title: sanitizedPostTitle,
       author_id: user.id,
       shared_url: sanitizedSharedUrl,
       shared_title: sanitizedTitle,
