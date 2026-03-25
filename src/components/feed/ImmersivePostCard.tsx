@@ -3201,6 +3201,7 @@ const ImmersivePostCardInner = ({
       <FullTextModal
         isOpen={showFullText}
         onClose={() => setShowFullText(false)}
+        title={post.title}
         content={
           isChallengePost 
             ? (post.challenge?.voice_post?.transcript || post.challenge?.body_text || post.content)

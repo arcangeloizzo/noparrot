@@ -20,6 +20,7 @@ interface FullTextModalProps {
   isOpen: boolean;
   onClose: () => void;
   content: string;
+  title?: string;
   author?: FullTextModalAuthor;
   source?: FullTextModalSource;
   variant?: 'post' | 'caption' | 'editorial' | 'quoted';
@@ -43,6 +44,7 @@ const FullTextModalInner = ({
   isOpen,
   onClose,
   content,
+  title,
   author,
   source,
   variant = 'post',
@@ -112,16 +114,40 @@ const FullTextModalInner = ({
   // Render content with paragraph breaks
   const renderContent = () => {
     const paragraphs = (content || "").split(/\n\n+/);
-    return paragraphs.map((paragraph, idx) => (
-      <div key={idx} className={cn(idx > 0 && "mt-5")}>
-        <p className="text-[16px] sm:text-[17px] font-normal text-foreground leading-[1.7] tracking-[0.01em] whitespace-pre-wrap">
-          <MentionText content={paragraph} />
-        </p>
-        {idx < paragraphs.length - 1 && (
-          <div className="mt-5 h-px bg-border" />
+    return (
+      <div className="flex flex-col gap-2">
+        {title && title.trim().length > 0 && (
+          <h2 
+            className="uppercase mb-4"
+            style={{
+              fontFamily: 'Impact, sans-serif',
+              fontSize: 'clamp(30px, 8vw, 42px)',
+              lineHeight: 0.92,
+              letterSpacing: '-0.02em',
+              color: '#FFFFFF',
+              textAlign: 'left'
+            }}
+          >
+            {title}
+          </h2>
         )}
+        <div className="flex flex-col">
+          {paragraphs.map((paragraph, idx) => (
+            <div key={idx} className={cn(idx > 0 && "mt-5")}>
+              <p className={cn(
+                "font-normal text-foreground leading-[1.7] tracking-[0.01em] whitespace-pre-wrap",
+                title && title.trim().length > 0 ? "text-[15px] text-[#7A8FA6]" : "text-[16px] sm:text-[17px]"
+              )}>
+                <MentionText content={paragraph} />
+              </p>
+              {idx < paragraphs.length - 1 && (
+                <div className="mt-5 h-px bg-border" />
+              )}
+            </div>
+          ))}
+        </div>
       </div>
-    ));
+    );
   };
 
   // Render action bar if post and actions are provided
