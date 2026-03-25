@@ -148,7 +148,9 @@ export const usePosts = () => {
             duration_seconds,
             waveform_data,
             transcript,
-            transcript_status
+            transcript_status,
+            title,
+            body_text
           ),
           challenges!challenges_post_id_fkey (
             id,
