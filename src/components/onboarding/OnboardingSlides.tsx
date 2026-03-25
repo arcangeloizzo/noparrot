@@ -100,12 +100,31 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
       <LogoVertical className="w-auto h-32 mb-12" />
       
       {/* Titolo */}
-      <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-6">
+      <h2 
+        className="uppercase mb-6"
+        style={{
+          fontFamily: 'Impact, sans-serif',
+          fontSize: 'clamp(30px, 8vw, 42px)',
+          lineHeight: 0.92,
+          letterSpacing: '-0.02em',
+          color: '#FFFFFF',
+          textAlign: 'center'
+        }}
+      >
         Non fare il pappagallo.
-      </h1>
+      </h2>
       
       {/* Sottotitolo */}
-      <p className="text-base text-white/60 leading-relaxed max-w-sm">
+      <p 
+        className="max-w-sm"
+        style={{
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '14px',
+          color: '#7A8FA6',
+          lineHeight: 1.55,
+          textAlign: 'center'
+        }}
+      >
         I social sono echi infiniti. Qui si condivide solo ciò che si è compreso. Spezza la catena.
       </p>
       
@@ -139,12 +158,31 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
       </div>
       
       {/* Titolo */}
-      <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-6">
+      <h2 
+        className="uppercase mb-6"
+        style={{
+          fontFamily: 'Impact, sans-serif',
+          fontSize: 'clamp(30px, 8vw, 42px)',
+          lineHeight: 0.92,
+          letterSpacing: '-0.02em',
+          color: '#FFFFFF',
+          textAlign: 'center'
+        }}
+      >
         Prima capisci. Poi posti.
-      </h1>
+      </h2>
       
       {/* Sottotitolo */}
-      <p className="text-base text-white/60 leading-relaxed max-w-sm">
+      <p 
+        className="max-w-sm"
+        style={{
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '14px',
+          color: '#7A8FA6',
+          lineHeight: 1.55,
+          textAlign: 'center'
+        }}
+      >
         Vuoi condividere un link? L'AI ti farà 3 domande. Se non hai letto o non hai capito, non passa. Nessuna eccezione.
       </p>
       
@@ -168,12 +206,31 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
       </div>
       
       {/* Titolo */}
-      <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-6">
+      <h2 
+        className="uppercase mb-6"
+        style={{
+          fontFamily: 'Impact, sans-serif',
+          fontSize: 'clamp(30px, 8vw, 42px)',
+          lineHeight: 0.92,
+          letterSpacing: '-0.02em',
+          color: '#FFFFFF',
+          textAlign: 'center'
+        }}
+      >
         Il tuo Diario Cognitivo.
-      </h1>
+      </h2>
       
       {/* Sottotitolo */}
-      <p className="text-base text-white/60 leading-relaxed max-w-sm">
+      <p 
+        className="max-w-sm"
+        style={{
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '14px',
+          color: '#7A8FA6',
+          lineHeight: 1.55,
+          textAlign: 'center'
+        }}
+      >
         Niente post usa e getta. Il tuo profilo è un blog personale dove ciò che scrivi e ciò che comprendi costruisce la tua identità. Lascia un segno, non solo rumore.
       </p>
       
@@ -193,12 +250,31 @@ export const OnboardingSlides = ({ onComplete }: OnboardingSlidesProps) => {
   const SlidePatto = () => (
     <div className="flex flex-col items-center justify-center flex-1 px-8 text-center">
       {/* Titolo */}
-      <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-6">
+      <h2 
+        className="uppercase mb-6"
+        style={{
+          fontFamily: 'Impact, sans-serif',
+          fontSize: 'clamp(30px, 8vw, 42px)',
+          lineHeight: 0.92,
+          letterSpacing: '-0.02em',
+          color: '#FFFFFF',
+          textAlign: 'center'
+        }}
+      >
         NoParrot richiede tempo.
-      </h1>
+      </h2>
       
       {/* Sottotitolo */}
-      <p className="text-base text-white/60 leading-relaxed max-w-sm mb-16">
+      <p 
+        className="max-w-sm mb-16"
+        style={{
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '14px',
+          color: '#7A8FA6',
+          lineHeight: 1.55,
+          textAlign: 'center'
+        }}
+      >
         Stai scegliendo l'attrito al posto della comodità. Sei sicuro?
       </p>
       

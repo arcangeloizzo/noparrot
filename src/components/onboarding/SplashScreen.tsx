@@ -48,7 +48,16 @@ export const SplashScreen = ({ onComplete }: SplashScreenProps) => {
               phase >= 1 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
             }`}
           >
-            <h1 className="font-inter text-4xl font-bold tracking-wider">
+            <h1 
+              className="uppercase"
+              style={{
+                fontFamily: 'Impact, sans-serif',
+                fontSize: 'clamp(40px, 10vw, 56px)',
+                lineHeight: 0.92,
+                letterSpacing: '0.02em',
+                textAlign: 'center'
+              }}
+            >
               <span className="text-[#2465d2]">NO</span>
               <span className="text-white">PARROT</span>
             </h1>
