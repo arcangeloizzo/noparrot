@@ -82,9 +82,11 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
 
   const handleTimeUpdate = () => {
     if (!audioRef.current) return;
-    const p = audioRef.current.currentTime / audioRef.current.duration;
-    setProgress(isNaN(p) ? 0 : p);
-    setCurrentTime(audioRef.current.currentTime || 0);
+    const current = audioRef.current.currentTime || 0;
+    const total = durationSeconds > 0 ? durationSeconds : (audioRef.current.duration || 1);
+    const p = current / total;
+    setProgress(isNaN(p) || !isFinite(p) ? 0 : p);
+    setCurrentTime(current);
   };
 
   const handleEnded = () => {
@@ -98,8 +100,11 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
     if (!audioRef.current) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const pct = (e.clientX - rect.left) / rect.width;
-    audioRef.current.currentTime = pct * audioRef.current.duration;
-    setProgress(pct);
+    const total = durationSeconds > 0 ? durationSeconds : (audioRef.current.duration || 1);
+    if (isFinite(total) && total > 0) {
+      audioRef.current.currentTime = pct * total;
+      setProgress(pct);
+    }
     if (!isPlaying) togglePlayback();
   };
 
@@ -249,15 +254,15 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
       </div>
 
       {/* Controls row */}
-      <div className="flex items-center justify-end gap-2">
+      <div className="flex items-center justify-end gap-2 mt-2">
         <button
           onClick={changeSpeed}
-          className="font-bold transition-colors"
+          className="font-bold transition-colors active:scale-95"
           style={{
-            padding: '3px 8px', borderRadius: 10, fontSize: 11,
+            padding: '5px 12px', borderRadius: 12, fontSize: 12,
             background: 'rgba(255,255,255,0.05)',
             border: '1px solid rgba(255,255,255,0.08)',
-            color: 'rgba(241,245,249,0.6)',
+            color: 'rgba(241,245,249,0.8)',
             backdropFilter: 'blur(4px)',
             letterSpacing: '0.3px',
             fontWeight: 600,
@@ -269,28 +274,29 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
         <button
           onClick={() => setShowTranscript(!showTranscript)}
           disabled={transcriptStatus === 'failed'}
-          className="flex items-center gap-1.5 transition-colors"
+          className="flex items-center gap-1.5 transition-colors active:scale-95"
           style={{
-            padding: '3px 8px', borderRadius: 10, fontSize: 11,
+            padding: '5px 14px', borderRadius: 12, fontSize: 13,
             background: showTranscript ? `${accentColor}1F` : 'rgba(255,255,255,0.05)',
             border: `1px solid ${showTranscript ? `${accentColor}40` : 'rgba(255,255,255,0.08)'}`,
-            color: showTranscript ? accentColor : 'rgba(241,245,249,0.6)',
+            color: showTranscript ? accentColor : 'rgba(241,245,249,0.8)',
             backdropFilter: 'blur(4px)',
-            letterSpacing: '0.3px',
+            letterSpacing: '0.2px',
             fontWeight: 600,
+            fontFamily: 'Inter, sans-serif'
           }}
         >
           {isTranscriptLoading ? (
             <>
-              <Loader2 className="h-3 w-3 animate-spin" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
               <span>Trascrizione...</span>
             </>
           ) : transcriptStatus === 'failed' ? (
-            <span style={{ opacity: 0.5 }}>Non disp.</span>
+            <span style={{ opacity: 0.5 }}>Trascrizione non disp.</span>
           ) : (
             <>
-              <FileText className="h-3 w-3" />
-              Trascrizione
+              <FileText className="h-3.5 w-3.5" />
+              Leggi la trascrizione
             </>
           )}
         </button>

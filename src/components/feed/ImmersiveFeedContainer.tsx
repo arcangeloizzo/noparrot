@@ -1,4 +1,4 @@
-import React, { useRef, useState, forwardRef, useImperativeHandle, useCallback, createContext, useContext } from "react";
+import React, { useRef, useState, forwardRef, useImperativeHandle, useCallback, createContext, useContext, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 // Context to share activeIndex with child cards without prop drilling
@@ -112,12 +112,22 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     pullDistance.current = 0;
   };
 
+  // DEBUG LOGGING
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (containerRef.current) {
+        console.log(`[DEBUG SCROLL] clientHeight: ${containerRef.current.clientHeight}, scrollHeight: ${containerRef.current.scrollHeight}, childrenCount: ${containerRef.current.children.length}`);
+      }
+    }, 2000);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <FeedContext.Provider value={{ activeIndex }}>
       <div
         ref={containerRef} // touch-action-pan-y allows vertical scroll but prevents browser gestures like back/forward
         data-tutorial="feed"
-        className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory no-scrollbar overscroll-y-contain bg-background"
+        className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory bg-background"
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}

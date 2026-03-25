@@ -523,20 +523,6 @@ const EditorialSlideInner = ({
 
         {/* Main Content Area - Editorial Edition Layout */}
         <div className="flex flex-col relative">
-          {/* FOCUS Background Texture - Semantic element */}
-          <span
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10rem] sm:text-[14rem] font-black text-white pointer-events-none select-none z-0"
-            style={{
-              opacity: 0.03,
-              fontFamily: "'Impact', 'Arial Black', sans-serif",
-              letterSpacing: '-0.05em',
-              WebkitTextStroke: '1px rgba(255,255,255,0.02)',
-              color: 'var(--immersive-fg)'
-            }}
-          >
-            FOCUS
-          </span>
-
           {/* Soft glow vignette behind headline */}
           <div className="absolute inset-0 flex items-start justify-center pointer-events-none">
             <div className="w-[80%] h-[200px] bg-noparrot-blue/5 rounded-full blur-3xl mt-8" />
@@ -544,78 +530,138 @@ const EditorialSlideInner = ({
 
           {/* Content */}
           <div className="relative z-10">
-            {/* Header Tecnico - AI Synthesis + Timestamp */}
-            <div className="flex items-center gap-3 mb-4">
-              {/* Badge AI Synthesis */}
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-immersive-foreground/5 border border-immersive-border">
-                <Sparkles className="w-3 h-3 text-purple-400" />
-                <span className="text-[10px] font-bold tracking-[0.15em] uppercase text-purple-700 dark:text-white/70">
+            {/* Author Row - Il Punto Brand */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                {/* Avatar */}
+                <div 
+                  className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                  style={{ color: '#0A7AFF', border: '2px solid #0A7AFF', background: '#060E18' }}
+                >
+                  <span className="text-xl font-bold mt-0.5">◉</span>
+                </div>
+                
+                {/* Name & Meta */}
+                <div className="flex flex-col">
+                  <span className="text-white font-semibold text-[15px] leading-tight flex items-center gap-1.5">
+                    Il Punto
+                    <svg className="w-3.5 h-3.5 text-[#0A7AFF] fill-current" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                  </span>
+                  <span style={{ fontSize: '11px', color: '#7A8FA6' }}>
+                    @ilpunto · {formatFullTimestamp(item.created_at)}
+                  </span>
+                </div>
+              </div>
+
+              {/* AI Synthesis Badge */}
+              <div 
+                className="inline-flex items-center gap-1.5 px-2 py-1 rounded-sm"
+                style={{ background: 'rgba(10,122,255,0.12)', border: '1px solid rgba(10,122,255,0.2)' }}
+              >
+                <Sparkles size={12} color="#0A7AFF" />
+                <span className="text-[10px] font-bold tracking-widest uppercase" style={{ color: '#0A7AFF' }}>
                   AI SYNTHESIS
                 </span>
               </div>
-
-              {/* Timestamp Completo */}
-              <span className="text-xs font-mono text-slate-500 dark:text-gray-400 tracking-wide">
-                {formatFullTimestamp(item.created_at)}
-              </span>
-
-              {/* Info Button */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenInfoDialog();
-                }}
-                className="hover:text-immersive-foreground/80 transition-colors"
-              >
-                <Info className="w-3.5 h-3.5 text-immersive-foreground/40" />
-              </button>
             </div>
 
-            {/* Source Attribution - Sopra il titolo */}
+            {/* Source Attribution Row with Info Icon */}
             {item.sources?.length > 0 && (
-              <div className="flex items-center gap-1.5 mb-2">
-                <span className="text-xs text-noparrot-blue font-medium">
+              <div className="flex items-center gap-1.5 bg-white/5 inline-flex self-start px-2 py-1 rounded-md mb-3 border border-white/5">
+                <span style={{ fontFamily: 'JetBrains Mono', fontSize: '10px', color: '#7A8FA6' }}>
                   Analisi basata su:
                 </span>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onOpenSources?.(); }}
-                  className="text-xs text-slate-700 dark:text-immersive-foreground/80 font-semibold hover:text-black dark:hover:text-immersive-foreground transition-colors"
-                >
-                  <span className="underline decoration-immersive-foreground/30 underline-offset-2">
-                    {(item.sources[0] as any)?.name || 'Fonti'}
+                <span style={{ fontFamily: 'JetBrains Mono', fontSize: '10px', color: '#E2EAF4' }} className="font-semibold uppercase px-0.5">
+                  {(item.sources[0] as any)?.name || new URL((item.sources[0] as any)?.url || 'https://fonte').hostname.replace('www.', '')}
+                </span>
+                {item.sources.length > 1 && (
+                  <span style={{ fontFamily: 'JetBrains Mono', fontSize: '10px', color: '#7A8FA6' }}>
+                    + {item.sources.length - 1} {item.sources.length - 1 === 1 ? 'fonte aggiuntiva' : 'fonti aggiuntive'}
                   </span>
-                  {item.sources.length > 1 && (
-                    <span className="text-immersive-foreground/50 ml-1">+ {item.sources.length - 1} fonti</span>
-                  )}
+                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenInfoDialog();
+                  }}
+                  className="ml-0.5 text-white/40 hover:text-white transition-colors"
+                >
+                  <Info className="w-3.5 h-3.5" />
                 </button>
               </div>
             )}
 
-            {/* Headline - Elemento più leggibile, max 2 righe */}
-            <h1 className="text-xl sm:text-3xl font-bold text-slate-900 dark:text-white leading-tight mb-3 drop-shadow-sm dark:drop-shadow-xl line-clamp-2">
+            {/* Headline - Impact Font with exact sizes */}
+            <h1 
+              style={{
+                fontFamily: 'Impact, sans-serif',
+                fontSize: 'clamp(26px, 6.5vw, 36px)',
+                lineHeight: 0.95,
+                letterSpacing: '-0.02em',
+                color: '#FFFFFF',
+                textTransform: 'uppercase'
+              }}
+              className="mb-3 drop-shadow-xl line-clamp-2"
+            >
               {item.title}
             </h1>
 
-            {/* Abstract/Lead - Preview della notizia con "Leggi tutto" inline */}
-            {/* Abstract/Lead - Preview della notizia con "Leggi tutto" inline */}
-            <p className="text-base sm:text-lg text-slate-600 dark:text-white/80 leading-relaxed mb-5 line-clamp-5 sm:line-clamp-none">
-              {item.summary.replace(/\[SOURCE:[\d,\s]+\]/g, "").substring(0, 260).trim()}
-              <span className="text-slate-900 dark:text-white font-bold cursor-pointer hover:underline"> …Leggi tutto</span>
+            {/* Abstract/Lead */}
+            <p 
+              style={{ fontSize: '14px', color: '#7A8FA6', lineHeight: 1.55 }}
+              className="mb-5 line-clamp-3"
+            >
+              {item.summary.replace(/\[SOURCE:[\d,\s]+\]/g, "").trim()}
             </p>
 
-            {/* CTA Gateway - Apre SourcesDrawer */}
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenSources?.();
-              }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-immersive-border/60 hover:border-immersive-border bg-transparent hover:bg-immersive-foreground/5 transition-all mb-5 group"
-            >
-              <Layers className="w-4 h-4 text-immersive-muted group-hover:text-immersive-foreground transition-colors" />
-              <span className="text-sm font-medium text-slate-600 dark:text-immersive-foreground/80 group-hover:text-slate-900 dark:group-hover:text-immersive-foreground transition-colors">
-                Vedi le <strong>{item.sources?.length || 0}</strong> fonti consultate
-              </span>
-            </button>
+            {/* Blocco Fonti (max 5) - V2 */}
+            {item.sources && item.sources.length > 0 && (
+              <div 
+                className="mb-6 pointer-events-auto flex flex-col"
+                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', overflow: 'hidden' }}
+              >
+                {item.sources.slice(0, 5).map((source: any, idx: number, arr: any[]) => {
+                  const colors = ['#0A7AFF', '#E41E52', '#FFD464', '#10B981', '#A78BFA'];
+                  const barColor = colors[idx % colors.length];
+                  const domainName = (source.name || new URL(source.url || 'https://link').hostname).replace('www.', '');
+                  const headline = source.title || source.headline || source.description;
+                  
+                  return (
+                    <button 
+                      key={idx}
+                      onClick={(e) => {
+                         e.stopPropagation();
+                         if (source.url) window.open(source.url, '_blank');
+                      }}
+                      className="w-full flex items-center group hover:bg-white/5 transition-all outline-none"
+                      style={{ 
+                        borderBottom: idx !== arr.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                        padding: '10px 12px'
+                      }}
+                    >
+                      <div className="flex items-center min-w-0 flex-1">
+                        <div style={{ width: '3px', height: '24px', borderRadius: '2px', backgroundColor: barColor, flexShrink: 0 }} />
+                        <div className="flex flex-col items-start px-3 min-w-0 flex-1">
+                          <span style={{ fontFamily: 'JetBrains Mono', fontSize: '9px', color: '#7A8FA6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {domainName}
+                          </span>
+                          {headline && (
+                            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#E2EAF4', width: '100%', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '1px' }}>
+                              {headline}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ color: '#7A8FA6', fontSize: '12px', flexShrink: 0 }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Action Bar - Aligned with ImmersivePostCard */}
             <div className="flex items-center justify-between gap-6">

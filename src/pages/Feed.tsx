@@ -70,6 +70,15 @@ export const Feed = () => {
 
   const [showComposer, setShowComposer] = useState(false);
 
+  // Force unlock scroll on mount, in case a previous screen leaked a scroll lock
+  useEffect(() => {
+    import('@/lib/bodyScrollLock').then(({ forceUnlockBodyScroll }) => {
+      forceUnlockBodyScroll();
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    }).catch(console.error);
+  }, []);
+
   // Prefetch article previews for first 5 posts on mount
   const hasPrefetchedRef = useRef(false);
   useEffect(() => {
@@ -133,6 +142,11 @@ export const Feed = () => {
   // ===== HARDENING 1: Robust Home Refresh =====
   // Handler per refresh quando già nel feed - uses syncActiveIndex for deterministic state
   const handleHomeRefresh = () => {
+    // Force cleanup any rogue locks (e.g. from interrupted overlays)
+    import('@/lib/bodyScrollLock').then(({ forceUnlockBodyScroll }) => {
+      forceUnlockBodyScroll();
+    }).catch(console.error);
+
     // 1) Hard sync activeIndex a 0 PRIMA dello scroll (atomic state update)
     syncActiveIndex(0);
 

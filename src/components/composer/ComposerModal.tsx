@@ -114,6 +114,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const [challengeData, setChallengeData] = useState<{ duration_hours: number } | null>(null);
   const [showPostTypeChooser, setShowPostTypeChooser] = useState(false);
   const [challengeStance, setChallengeStance] = useState<'agree' | 'disagree' | null>(null);
+  const [voiceTitle, setVoiceTitle] = useState("");
+  const [voiceBodyText, setVoiceBodyText] = useState("");
+  const [showTitleError, setShowTitleError] = useState(false);
   const isChallengeResponse = quotedPost?.post_type === 'challenge';
 
   // ─── Composer Mode State Machine ───
@@ -303,7 +306,13 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   const isTranscriptionInProgress = !!transcribingMediaId || hasPendingTranscription;
 
   // [NEW] Block publish during transcription
-  const canPublish = !hasPendingExtraction && !transcribingMediaId && (content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!quotedPost) && intentWordsMet;
+  const canPublish = !hasPendingExtraction && !transcribingMediaId && (
+    content.trim().length > 0 || 
+    uploadedMedia.length > 0 || 
+    !!detectedUrl || 
+    !!quotedPost || 
+    (!!voicePostData && voiceTitle.trim().length > 0)
+  ) && intentWordsMet;
   const isLoading = isPublishing || isGeneratingQuiz || isFinalizingPublish;
 
   // Note: Toast on transcription completion is now handled by the transcribingMediaId reset effect above
@@ -409,8 +418,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     setQuizData(null);
     setQuizPassed(false);
     setIntentMode(false);
-    setShowVoiceRecorder(false);
     setVoicePostData(null);
+    setVoiceTitle('');
+    setVoiceBodyText('');
+    setShowTitleError(false);
     setPostType('standard');
     setChallengeStance(null);
     setShowPostTypeChooser(false);
@@ -590,6 +601,17 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     overridePostType?: 'voice' | 'challenge' | 'standard',
     overrideChallengeData?: { duration_hours: number }
   ) => {
+    // Validate Voice/Challenge Title
+    if (voicePostData && (overridePostType || postType) !== 'standard') {
+      if (!voiceTitle.trim()) {
+        setShowTitleError(true);
+        const input = document.getElementById('voice-title-input');
+        if (input) input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        toast.error("Il titolo è obbligatorio");
+        return;
+      }
+    }
+
     // Allow publish if user has text, media, a detected URL, a quoted post (reshare), or a voice recording
     if (!user || (!content.trim() && !detectedUrl && uploadedMedia.length === 0 && !quotedPost && !voicePostData)) return;
 
@@ -1685,10 +1707,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                 audioUrl: uploadData.path,
                 durationSeconds: voicePostData.durationSec,
                 waveform: voicePostData.waveformData || null,
+                title: voiceTitle.trim() || undefined,
+                bodyText: voiceBodyText.trim() || undefined,
               },
               // For challenge, content IS the thesis now
               challengeData: (finalPostType === 'challenge') ? {
-                thesis: cleanContent, // <--- Rich text content up to 30 words
+                thesis: cleanContent, // <--- Rich text content up to 140 words
+                title: voiceTitle.trim() || undefined,
+                bodyText: voiceBodyText.trim() || undefined,
                 durationHours: overrideChallengeData?.duration_hours ?? challengeData?.duration_hours ?? 48,
               } : undefined,
               // Challenge response fields
@@ -1762,6 +1788,24 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
           addBreadcrumb('publish_no_postid', { data: JSON.stringify(data) });
           throw new Error('publish_post_missing_id');
         }
+
+        // --- NEW: Update title and body text post-creation ---
+        if (voicePostData && postId) {
+          const resolvedPostType = isChallengeResponse ? 'voice' : (overridePostType || postType);
+          const tableToUpdate = resolvedPostType === 'challenge' ? 'challenges' : 'voice_posts';
+          const payload = {
+            title: voiceTitle.trim(),
+            body_text: voiceBodyText.trim() || null
+          };
+          const { error: updateErr } = await supabase
+            .from(tableToUpdate)
+            // @ts-ignore: type generated from older schema
+            .update(payload)
+            .eq(resolvedPostType === 'challenge' ? 'post_id' : 'post_id', postId);
+          if (updateErr) {
+             console.warn(`[Publish] fallito update campi custom per ${tableToUpdate}:`, updateErr);
+          }
+        }
       } catch (fnErr) {
         // FALLBACK: Direct insert if edge function fails
         console.warn('[Publish] Edge function failed, trying direct insert fallback...');
@@ -1823,6 +1867,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
               duration_seconds: voicePostData.durationSec,
               waveform_data: voicePostData.waveformData,
               transcript_status: 'pending',
+              title: voiceTitle.trim(),
+              body_text: voiceBodyText.trim() || null
             });
             if (vpErr) {
               console.warn('[Publish] Fallback voice_posts insert failed:', vpErr);
@@ -2175,66 +2221,128 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
               {(composerMode === 'idle' || composerMode === 'text-editing') && (
                 <>
                   {/* Avatar + Textarea inline (X-style) */}
-                  <div className="flex gap-3 px-4 pt-4">
-                    <Avatar className="w-[46px] h-[46px] flex-shrink-0">
-                      <AvatarImage src={profile?.avatar_url || undefined} className="object-cover" />
-                      <AvatarFallback className="bg-muted text-muted-foreground text-sm font-medium">
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
+                  {!voicePostData && (
+                    <div className="flex gap-3 px-4 pt-4">
+                      <Avatar className="w-[46px] h-[46px] flex-shrink-0">
+                        <AvatarImage src={profile?.avatar_url || undefined} className="object-cover" />
+                        <AvatarFallback className="bg-muted text-muted-foreground text-sm font-medium">
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
 
-                    <div className="flex-1 min-w-0">
-                      <TiptapEditor
-                        ref={editorRef}
-                        initialContent=""
-                        onChange={handleEditorChange}
-                        placeholder={postType === 'challenge' ? "Es: L'AI aumenterà le diseguaglianze..." : (postType === 'voice' ? "Aggiungi un pensiero al tuo voicecast (max 30 parole)..." : "Cosa sta succedendo?")}
-                        maxLength={3000}
-                        maxWords={(postType === 'challenge' || postType === 'voice') ? 30 : undefined}
-                        disabled={isLoading}
-                        editorClassName={textFocused ? "min-h-[120px]" : "min-h-[40px]"}
-                        onFocus={() => {
-                          setTextFocused(true);
-                          setComposerMode('text-editing');
-                        }}
-                        onBlur={() => {
-                          setTimeout(() => {
-                            if (!content.trim() && !voicePostData) {
-                              setTextFocused(false);
-                              setComposerMode('idle');
-                            }
-                          }, 150);
-                        }}
+                      <div className="flex-1 min-w-0">
+                        <TiptapEditor
+                          ref={editorRef}
+                          initialContent=""
+                          onChange={handleEditorChange}
+                          placeholder={"Cosa sta succedendo?"}
+                          maxLength={3000}
+                          disabled={isLoading}
+                          editorClassName={textFocused ? "min-h-[120px]" : "min-h-[40px]"}
+                          onFocus={() => {
+                            setTextFocused(true);
+                            setComposerMode('text-editing');
+                          }}
+                          onBlur={() => {
+                            setTimeout(() => {
+                              if (!content.trim() && !voicePostData) {
+                                setTextFocused(false);
+                                setComposerMode('idle');
+                              }
+                            }, 150);
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+              {/* Audio Player Preview & Voice/Challenge Metadata */}
+              {voicePostData && (
+                <div className="flex flex-col px-4 pt-4 pb-4 animate-in fade-in slide-in-from-bottom-2 gap-6 w-full max-w-full">
+                  
+                  {/* Compact Player Preview */}
+                  <div className="w-full p-3 bg-white/5 rounded-xl border border-white/10 flex items-center gap-3 inline-flex max-w-full overflow-hidden">
+                    <div className="bg-primary/20 w-10 h-10 rounded-xl flex items-center justify-center text-primary flex-shrink-0">
+                      {postType === 'challenge' ? <Zap className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+                    </div>
+                    <div className="flex-1 min-w-0 pr-2 overflow-hidden flex flex-col justify-center">
+                      <p className="text-xs font-bold text-white/90 tracking-wider uppercase truncate">
+                        {postType === 'challenge' ? 'Challenge' : 'Voicecast'}
+                      </p>
+                      <audio
+                        src={URL.createObjectURL(voicePostData.audioBlob)}
+                        controls
+                        className="w-[calc(100%+16px)] h-8 mt-1.5 -ml-2"
+                        controlsList="nodownload nofullscreen"
                       />
                     </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-white/40 hover:text-white hover:bg-white/10 flex-shrink-0 rounded-full shrink-0" 
+                      onClick={() => {
+                        setVoicePostData(null);
+                        setVoiceTitle('');
+                        setVoiceBodyText('');
+                        setComposerMode('idle');
+                      }}
+                    >
+                      <span className="text-lg">&times;</span>
+                    </Button>
                   </div>
 
-                  {/* Audio Player Preview */}
-                  {voicePostData && (
-                     <div className="px-4 mt-2 mb-4 animate-in fade-in slide-in-from-bottom-2">
-                        <div className="p-3 bg-secondary/50 rounded-xl border border-border flex items-center gap-3">
-                           <div className="bg-primary/20 w-10 h-10 rounded-full flex items-center justify-center text-primary flex-shrink-0">
-                               {postType === 'challenge' ? <Zap className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-                           </div>
-                           <div className="flex-1 min-w-0">
-                               <p className="text-sm font-semibold truncate uppercase">{postType === 'challenge' ? 'Challenge' : 'Voicecast'}</p>
-                               <audio
-                                 src={URL.createObjectURL(voicePostData.audioBlob)}
-                                 controls
-                                 className="w-full h-8 mt-1 block"
-                                 controlsList="nodownload nofullscreen"
-                               />
-                           </div>
-                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground flex-shrink-0" onClick={() => {
-                               setVoicePostData(null);
-                               if (!content.trim()) setComposerMode('idle');
-                           }}>
-                               <span className="sr-only">Rimuovi</span>
-                               &times;
-                           </Button>
-                        </div>
-                     </div>
-                  )}
+                  {/* Title Input (MUST BE FIRST AFTER PLAYER) */}
+                  <div className="w-full">
+                    <input
+                      id="voice-title-input"
+                      type="text"
+                      placeholder={postType === 'challenge' ? "Dai un titolo alla tua sfida" : "Dai un titolo al tuo pensiero"}
+                      value={voiceTitle}
+                      onChange={(e) => {
+                        setVoiceTitle(e.target.value);
+                        if (showTitleError && e.target.value.trim().length > 0) setShowTitleError(false);
+                      }}
+                      className="w-full bg-transparent outline-none transition-colors"
+                      style={{
+                        fontFamily: 'Impact, sans-serif',
+                        fontSize: '24px',
+                        color: '#FFFFFF',
+                        borderBottom: showTitleError ? '2px solid #E41E52' : (voiceTitle.trim().length > 0 ? '2px solid #0A7AFF' : '2px solid rgba(10,122,255,0.3)'),
+                        padding: '12px 0'
+                      }}
+                    />
+                    {showTitleError && (
+                      <p className="mt-1" style={{ color: '#E41E52', fontSize: '12px' }}>Il titolo è obbligatorio</p>
+                    )}
+                  </div>
+
+                  {/* Body Text Input (Optional) */}
+                  <div className="w-full">
+                    <label style={{ fontSize: '11px', color: '#7A8FA6' }} className="block mb-1">Opzionale</label>
+                    <textarea
+                      placeholder="Aggiungi un contesto (opzionale)"
+                      value={voiceBodyText}
+                      onChange={(e) => setVoiceBodyText(e.target.value)}
+                      className="w-full bg-transparent outline-none resize-none transition-colors overflow-hidden break-words"
+                      style={{
+                        fontFamily: 'Inter, sans-serif',
+                        fontSize: '15px',
+                        color: '#E2EAF4',
+                        borderBottom: '1px solid rgba(255,255,255,0.06)',
+                        padding: '12px 0',
+                        minHeight: '40px'
+                      }}
+                      rows={1}
+                      onInput={(e) => {
+                        const target = e.target as HTMLTextAreaElement;
+                        target.style.height = 'auto';
+                        target.style.height = `${target.scrollHeight}px`;
+                      }}
+                    />
+                  </div>
+
+                </div>
+              )}
 
                   {/* ─── Challenge & Voice CTAs (visible only in idle) ─── */}
                   {composerMode === 'idle' && !quotedPost && !voicePostData && (

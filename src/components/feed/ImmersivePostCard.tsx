@@ -32,6 +32,7 @@ import { CategoryChip } from "@/components/ui/category-chip";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { VoicePlayer } from "@/components/media/VoicePlayer";
+import { ImmersiveVoicePlayerV2 } from "@/components/media/ImmersiveVoicePlayerV2";
 import {
   Drawer,
   DrawerContent,
@@ -519,11 +520,15 @@ const ImmersivePostCardInner = ({
   // Blocca scroll del feed quando il reaction picker è aperto
   useEffect(() => {
     if (showReactionPicker) {
+      const originalOverflow = document.body.style.overflow;
+      const originalTouchAction = document.body.style.touchAction;
+      
       document.body.style.overflow = 'hidden';
       document.body.style.touchAction = 'none';
+      
       return () => {
-        document.body.style.overflow = '';
-        document.body.style.touchAction = '';
+        document.body.style.overflow = originalOverflow || '';
+        document.body.style.touchAction = originalTouchAction || '';
       };
     }
   }, [showReactionPicker]);
@@ -1667,25 +1672,77 @@ const ImmersivePostCardInner = ({
 
               {/* Voice Post Body (non-challenge) */}
               {!useStackLayout && isAudioPost && !isChallengePost && post.voice_post && (
-                <div className="w-full h-full flex flex-col pt-2 pb-6">
-                    {/* 1. User Text */}
-                    {post.content && (
-                      <div className="flex-shrink-0 mb-4 px-1">
-                        <div className="text-[17px] sm:text-lg font-normal text-immersive-foreground leading-[1.65] tracking-[0.01em] whitespace-pre-wrap line-clamp-3">
-                          <MentionText content={post.content} />
+                <div className="w-full h-full flex flex-col pt-2 pb-8">
+                    {/* VoiceCast Content Hierarchy - 4 scenarios */}
+                    {(() => {
+                      const hasTitle = Boolean(post.voice_post?.title);
+                      const hasBodyText = Boolean(post.voice_post?.body_text);
+
+                      if (hasTitle) {
+                        return (
+                          <div className={cn(
+                            "flex flex-col mb-4",
+                            hasBodyText ? "items-start text-left px-2" : "items-center text-center justify-center flex-1 px-4 min-h-0"
+                          )}>
+                            <h2 
+                              style={{
+                                fontFamily: 'Impact, sans-serif',
+                                fontSize: 'clamp(26px, 6.5vw, 36px)',
+                                lineHeight: 0.95,
+                                letterSpacing: '-0.02em',
+                                color: '#FFFFFF',
+                                textTransform: 'uppercase'
+                              }}
+                              className={cn(
+                                "drop-shadow-xl w-full",
+                                hasBodyText ? "mb-3" : "text-center mb-6"
+                              )}
+                            >
+                              {post.voice_post?.title}
+                            </h2>
+                            {hasBodyText && (
+                              <div 
+                                style={{
+                                  fontSize: '14px',
+                                  color: '#7A8FA6',
+                                  lineHeight: 1.55
+                                }}
+                              >
+                                <MentionText content={post.voice_post?.body_text!} />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      // Fallback per vecchi post che hanno solo il body text (post.content)
+                      return (
+                        <div className="flex-shrink-0 mb-4 px-1">
+                          {post.content && (
+                            <div 
+                              style={{
+                                fontSize: '15px',
+                                color: '#E2EAF4',
+                                lineHeight: 1.55
+                              }}
+                              className="whitespace-pre-wrap line-clamp-3"
+                            >
+                              <MentionText content={post.content} />
+                            </div>
+                          )}
+                          {post.content && post.content.length > 150 && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                              className="text-sm font-semibold text-primary mt-1 hover:underline"
+                            >
+                              Mostra tutto
+                            </button>
+                          )}
                         </div>
-                        {post.content.length > 150 && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                            className="text-sm font-semibold text-primary mt-1 hover:underline"
-                          >
-                            Mostra tutto
-                          </button>
-                        )}
-                      </div>
-                    )}
+                      );
+                    })()}
                     
-                    {/* 2. Media Image (Cropped flexibly taking remaining space) */}
+                    {/* 2. Media Image (Cropped flexibly taking remaining space) - only if they attach images to VoiceCast */}
                     {post.media && post.media.length > 0 && (
                       <div className="flex-1 min-h-0 w-full mb-6 rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-black/50">
                         {post.media.length === 1 ? (
@@ -1709,44 +1766,104 @@ const ImmersivePostCardInner = ({
                       </div>
                     )}
 
-                    {/* 3. Audio Player */}
-                    <div className="relative w-full shadow-2xl rounded-2xl flex-shrink-0">
-                      <VoicePlayer
-                        audioUrl={post.voice_post.audio_url}
-                        durationSeconds={post.voice_post.duration_seconds}
-                        waveformData={post.voice_post.waveform_data}
-                        transcript={post.voice_post.transcript}
-                        transcriptStatus={post.voice_post.transcript_status as any}
-                        accentColor="#0A7AFF"
-                      />
-                    </div>
+                    {/* 3. Animated Big Waveform Player */}
+                    <ImmersiveVoicePlayerV2
+                      audioUrl={post.voice_post?.audio_url || ''}
+                      durationSeconds={post.voice_post?.duration_seconds || 0}
+                      transcriptStatus={post.voice_post?.transcript_status as any}
+                      onShowTranscript={() => setShowFullText(true)}
+                    />
                 </div>
               )}
 
               {/* Challenge Post Body (condensed in immersive) */}
               {!useStackLayout && isChallengePost && post.voice_post && post.challenge && (
                 <div className="w-full h-full flex flex-col pt-2 pb-6">
-                    {/* 1. User Text (Only if different from thesis) */}
-                    {post.content && post.content !== post.challenge.thesis && (
-                      <div className="flex-shrink-0 mb-4 px-1">
-                        <div className="text-[17px] sm:text-lg font-normal text-immersive-foreground leading-[1.65] tracking-[0.01em] whitespace-pre-wrap line-clamp-3">
-                          <MentionText content={post.content} />
-                        </div>
-                        {post.content.length > 150 && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                            className="text-sm font-semibold text-primary mt-1 hover:underline"
-                          >
-                            Mostra tutto
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    
-                    {/* 1b. Thesis Content */}
-                    <div className="flex-shrink-0 text-xl sm:text-2xl font-medium text-white leading-tight px-1 mb-4 drop-shadow-md">
-                      <MentionText content={post.challenge.thesis} />
-                    </div>
+                    {/* Challenge Content Hierarchy - 4 scenarios */}
+                    {(() => {
+                      const hasTitle = Boolean(post.challenge?.title);
+                      const hasBodyText = Boolean(post.challenge?.body_text);
+
+                      if (hasTitle) {
+                        return (
+                          <div className={cn(
+                            "flex flex-col mb-4",
+                            hasBodyText ? "items-start text-left px-2" : "items-center text-center justify-center flex-1 px-4 min-h-0"
+                          )}>
+                            <h2 
+                              style={{
+                                fontFamily: 'Impact, sans-serif',
+                                fontSize: 'clamp(30px, 8vw, 42px)',
+                                lineHeight: 0.92,
+                                letterSpacing: '-0.02em',
+                                color: '#FFFFFF',
+                                textTransform: 'uppercase'
+                              }}
+                              className={cn(
+                                "drop-shadow-xl w-full",
+                                hasBodyText ? "mb-3" : "text-center mb-6"
+                              )}
+                            >
+                              {post.challenge?.title}
+                            </h2>
+                            {hasBodyText && (
+                              <div 
+                                style={{
+                                  fontSize: '14px',
+                                  color: '#7A8FA6',
+                                  lineHeight: 1.55
+                                }}
+                              >
+                                <MentionText content={post.challenge?.body_text!} />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      }
+
+                      // Fallback per i post precedenti (senza title o body_text)
+                      return (
+                        <>
+                          {/* 1. Solo corpo o testo utente */}
+                          {post.content && post.content !== post.challenge?.thesis && (
+                            <div className="flex-shrink-0 mb-4 px-1">
+                              <div 
+                                style={{
+                                  fontSize: '15px',
+                                  color: '#E2EAF4',
+                                  lineHeight: 1.55
+                                }}
+                                className="whitespace-pre-wrap line-clamp-3"
+                              >
+                                <MentionText content={post.content} />
+                              </div>
+                              {post.content.length > 150 && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                                  className="text-sm font-semibold text-primary mt-1 hover:underline"
+                                >
+                                  Mostra tutto
+                                </button>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* 1b. Thesis Content fallback */}
+                          {!post.content && (
+                            <div 
+                              style={{
+                                fontSize: '15px',
+                                color: '#E2EAF4',
+                                lineHeight: 1.55
+                              }}
+                              className="px-1 mb-4"
+                            >
+                              <MentionText content={post.challenge?.thesis || ''} />
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
 
                     {/* 2. Media Image (Cropped flexibly taking remaining space) */}
                     {post.media && post.media.length > 0 && (
@@ -1783,19 +1900,19 @@ const ImmersivePostCardInner = ({
                         accentColor="#E41E52"
                       />
                     </div>
-                   {/* Polarization bar */}
+                   {/* Polarization bar - V2 CSS */}
                    <div className="mt-4 px-1">
-                     <div className="flex items-end justify-between mb-1.5">
-                       <span style={{ fontSize: 14, fontWeight: 900, color: '#3B9FFF', textShadow: '0 0 8px rgba(59,159,255,0.4)' }}>
-                         {Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}% A favore
+                     <div className="flex items-end justify-between mb-1.5" style={{ fontFamily: 'JetBrains Mono', fontSize: '10px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                       <span style={{ color: '#0A7AFF' }}>
+                         A FAVORE ({Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%)
                        </span>
-                       <span style={{ fontSize: 14, fontWeight: 900, color: '#FFD464', textShadow: '0 0 8px rgba(255,212,100,0.4)' }}>
-                         Contro {Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%
+                       <span style={{ color: '#FFD464' }}>
+                         CONTRO ({Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%)
                        </span>
                      </div>
-                     <div className="flex overflow-hidden" style={{ height: 8, borderRadius: 4 }}>
-                       <div style={{ width: `${Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #3B9FFF, #3B9FFFCC)', borderRadius: '4px 0 0 4px' }} />
-                       <div style={{ width: `${Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #FFD464CC, #FFD464)', borderRadius: '0 4px 4px 0' }} />
+                     <div className="flex overflow-hidden" style={{ height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }}>
+                       <div style={{ width: `${Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #0A7AFF, #3D9AFF)', borderRadius: '4px 0 0 4px' }} />
+                       <div style={{ width: `${Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #F5C842, #FFD464)', borderRadius: '0 4px 4px 0' }} />
                      </div>
                    </div>
 

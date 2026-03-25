@@ -1,6 +1,6 @@
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
-import { Heart, MessageCircle, X, Bookmark, Layers, ChevronRight } from "lucide-react";
+import { Heart, MessageCircle, X, Bookmark, Layers, ChevronRight, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFocusReactions, useToggleFocusReaction } from "@/hooks/useFocusReactions";
 import { useFocusBookmark, useToggleFocusBookmark } from "@/hooks/useFocusBookmarks";
@@ -159,39 +159,62 @@ export const FocusDetailSheet = ({
           hideClose={true}
         >
           {/* Header fisso con badge e X allineati orizzontalmente */}
-          <div className="shrink-0 bg-background pt-4 pb-3 border-b border-border">
+          <div className="shrink-0 bg-background/95 backdrop-blur-md pt-4 pb-3 px-5 border-b border-border sticky top-0 z-50">
             <div className="flex items-center justify-between">
-              <Badge className="bg-[#0A7AFF] text-white font-semibold px-3 py-1 border-0 font-mono">
+              <Badge className="bg-[#0A7AFF] hover:bg-[#0A7AFF] text-white font-bold px-3 py-1.5 border-0 font-mono tracking-widest text-[11px] shadow-sm">
                 ◉ IL PUNTO
               </Badge>
               
               {/* X custom più grande e cliccabile */}
               <button 
                 onClick={() => onOpenChange(false)}
-                className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted/50 transition-colors"
+                className="w-9 h-9 flex items-center justify-center rounded-full bg-muted/50 hover:bg-muted transition-colors active:scale-95"
                 aria-label="Chiudi"
               >
-                <X className="w-6 h-6 text-muted-foreground" />
+                <X className="w-5 h-5 text-foreground/80" />
               </button>
             </div>
           </div>
 
           {/* Contenuto scrollabile */}
-          <div className="flex-1 min-h-0 overflow-y-auto pb-20 force-scrollbar">
-            <h2 className="text-foreground text-2xl font-bold text-left leading-tight mt-4 pb-4 border-b border-border">
+          <div className="flex-1 min-h-0 overflow-y-auto w-full force-scrollbar">
+            <h2 
+              style={{
+                fontFamily: 'Impact, sans-serif',
+                fontSize: '28px',
+                lineHeight: 1.05,
+                color: '#FFFFFF',
+                letterSpacing: '-0.01em'
+              }}
+              className="mt-6 pb-6 border-b border-border drop-shadow-sm px-5"
+            >
               {title}
             </h2>
           
-            <div className="py-6 space-y-6">
+            <div className="py-6 space-y-8 px-5">
               {/* Deep Content - show skeleton if not loaded */}
               {!deepContent ? (
                 <FocusDetailSkeleton />
               ) : (
-                <div>
-                  <h4 className="text-muted-foreground text-sm font-semibold mb-3">Approfondimento</h4>
-                  <p className="text-foreground text-base leading-relaxed whitespace-pre-wrap">
-                    {renderCleanContent(deepContent)}
-                  </p>
+                <div className="relative">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="h-px bg-border flex-1" />
+                    <h4 
+                      style={{ fontFamily: 'JetBrains Mono', fontSize: '10px', color: '#0A7AFF', textTransform: 'uppercase', letterSpacing: '0.06em' }}
+                      className="font-bold shrink-0"
+                    >
+                      Approfondimento
+                    </h4>
+                    <div className="h-px bg-border flex-1" />
+                  </div>
+                  <div 
+                    style={{ fontSize: '16px', lineHeight: 1.7, color: '#E2EAF4' }}
+                    className="space-y-5"
+                  >
+                    {renderCleanContent(deepContent).split('\n').map((paragraph, idx) => (
+                      paragraph.trim() ? <p key={idx}>{paragraph}</p> : null
+                    ))}
+                  </div>
                 </div>
               )}
               
@@ -199,125 +222,178 @@ export const FocusDetailSheet = ({
               {sources.length === 0 ? (
                 <SourcesSkeleton />
               ) : (
-                <div className="py-4 border-t border-border">
-                  <h4 className="text-sm font-semibold text-muted-foreground mb-3">
-                    Fonti consultate per questa sintesi
-                  </h4>
-                  <button
-                    onClick={() => setSourcesDrawerOpen(true)}
-                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-muted/30 hover:bg-muted/50 transition-all"
+                <div className="pt-8 border-t border-border">
+                  <h4 
+                    style={{ fontFamily: 'JetBrains Mono', fontSize: '10px', color: '#0A7AFF', textTransform: 'uppercase', letterSpacing: '0.06em' }}
+                    className="font-bold mb-4"
                   >
-                    <div className="flex items-center gap-3">
-                      <Layers className="w-5 h-5 text-[#0A7AFF]" />
-                      <div className="text-left">
-                        <p className="text-sm font-medium text-foreground">
-                          Vedi le {sources.length} fonti
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          L'analisi incrocia contenuti da più testate
-                        </p>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-muted-foreground/50" />
-                  </button>
+                    Fonti consultate ({sources.length})
+                  </h4>
+                  <div 
+                    className="mb-8 pointer-events-auto flex flex-col"
+                    style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', overflow: 'hidden' }}
+                  >
+                    {sources.map((source: any, idx: number, arr: any[]) => {
+                      const colors = ['#0A7AFF', '#E41E52', '#FFD464', '#10B981', '#A78BFA'];
+                      const barColor = colors[idx % colors.length];
+                      const domainName = (source.name || new URL(source.url || 'https://link').hostname).replace('www.', '');
+                      const headline = source.title || source.headline || source.description;
+                      
+                      return (
+                        <button 
+                          key={idx}
+                          onClick={(e) => {
+                             e.stopPropagation();
+                             if (source.url) window.open(source.url, '_blank', 'noopener,noreferrer');
+                          }}
+                          className="w-full flex items-center group hover:bg-white/5 transition-all outline-none"
+                          style={{ 
+                            borderBottom: idx !== arr.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                            padding: '12px'
+                          }}
+                        >
+                          <div className="flex items-center min-w-0 flex-1">
+                            <div style={{ width: '3px', height: '24px', borderRadius: '2px', backgroundColor: barColor, flexShrink: 0 }} />
+                            <div className="flex flex-col items-start px-3 min-w-0 flex-1">
+                              <span style={{ fontFamily: 'JetBrains Mono', fontSize: '9px', color: '#7A8FA6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                {domainName}
+                              </span>
+                              {headline && (
+                                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#E2EAF4', width: '100%', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '1px' }}>
+                                  {headline}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div style={{ color: '#7A8FA6', fontSize: '12px', flexShrink: 0 }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
             
-              {/* Action Bar */}
-              <div className="py-4 flex items-center justify-between gap-3 border-y border-border">
-                {/* Primary Share Button */}
-                <button 
-                  onClick={handleShareFromDrawer}
-                  disabled={isProcessing}
-                  className="h-10 px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50"
-                >
-                  <Logo variant="icon" size="sm" className="h-4 w-4" />
-                  <span className="text-sm font-semibold">
-                    {isProcessing ? 'Caricamento...' : 'Condividi'}
-                  </span>
-                </button>
-
-                {/* Reactions Bar */}
-                <div className="flex items-center gap-1 bg-muted/30 backdrop-blur-xl h-10 px-3 rounded-2xl border border-border">
-                  {/* Like with long press for reaction picker */}
-                  <div className="relative flex items-center">
-                    <button 
-                      ref={likeButtonRef}
-                      {...likeHandlers}
-                      className="flex items-center gap-1.5 h-full px-2 rounded-xl hover:bg-muted/50 transition-colors select-none"
-                      style={{ WebkitTapHighlightColor: 'transparent' }}
-                    >
-                      {reactionsData?.myReactionType && reactionsData.myReactionType !== 'heart' ? (
-                        <span className="text-lg transition-all">
-                          {reactionToEmoji(reactionsData.myReactionType as ReactionType)}
-                        </span>
-                      ) : (
-                        <Heart
-                          className={cn(
-                            "w-5 h-5 transition-all",
-                            reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-foreground"
-                          )} 
-                        />
-                      )}
-                    </button>
-                    
-                    <ReactionPicker
-                      isOpen={showReactionPicker}
-                      onClose={() => setShowReactionPicker(false)}
-                      onSelect={(reactionType) => {
-                        if (!user) {
-                          sonnerToast.error('Devi effettuare il login per mettere like');
-                          return;
-                        }
-                        toggleReaction.mutate({ focusId, focusType: type, reactionType });
-                        setShowReactionPicker(false);
-                      }}
-                      currentReaction={reactionsData?.myReactionType as ReactionType | undefined}
-                      triggerRef={likeButtonRef}
-                      dragPosition={dragPosition}
-                      onDragRelease={() => setDragPosition(null)}
-                    />
+              {/* AI Disclaimer */}
+              <div className="bg-purple-500/5 border border-purple-500/10 rounded-2xl p-5 mb-6">
+                <div className="flex items-start gap-4">
+                  <div className="bg-purple-500/10 p-2 rounded-full shrink-0">
+                    <Sparkles className="w-5 h-5 text-purple-400" />
                   </div>
-                  {/* Like Counter - tappable to open reactions sheet */}
-                  <button
-                    onClick={() => setReactionsSheetOpen(true)}
-                    className="text-xs font-bold text-foreground px-1 hover:underline"
-                  >
-                    {reactionsData?.likes || reactions.likes || 0}
-                  </button>
+                  <div className="space-y-1.5 pt-0.5">
+                    <p className="text-sm font-bold text-purple-900 dark:text-purple-300 tracking-wide uppercase">Sintesi Algoritmica</p>
+                    <p className="text-[13px] text-purple-800/80 dark:text-purple-300/80 leading-relaxed">
+                      Questo contenuto è stato generato automaticamente analizzando e incrociando le fonti citate. Non è un articolo redazionale. Ti invitiamo sempre a verificare le fonti originali per approfondire.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            
+            </div>
+          </div>
+          
+          {/* Action Bar Background Layer */}
+          <div className="absolute bottom-0 left-0 right-0 bg-background/80 backdrop-blur-xl border-t border-border p-4 pb-[env(safe-area-inset-bottom)]">
+            <div className="flex items-center justify-between gap-3">
+              {/* Primary Share Button */}
+              <button 
+                onClick={handleShareFromDrawer}
+                disabled={isProcessing}
+                className="h-11 px-5 bg-foreground hover:bg-foreground/90 text-background font-bold rounded-full shadow-lg flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 flex-1"
+              >
+                <Logo variant="icon" size="sm" className="h-4 w-4" />
+                <span className="text-sm font-semibold">
+                  {isProcessing ? 'Caricamento...' : 'Condividi post'}
+                </span>
+              </button>
 
-                  {/* Comments - now delegates to parent via onComment */}
+              {/* Reactions Bar */}
+              <div className="flex items-center gap-1.5 bg-muted/50 h-11 px-3.5 rounded-full border border-border/50 shadow-sm shrink-0">
+                {/* Like with long press for reaction picker */}
+                <div className="relative flex items-center">
                   <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onComment?.();
-                    }}
-                    className="flex items-center gap-1.5 h-full px-2 rounded-xl hover:bg-muted/50 transition-colors"
+                    ref={likeButtonRef}
+                    {...likeHandlers}
+                    className="flex items-center gap-1.5 h-full px-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors select-none"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
                   >
-                    <MessageCircle className="w-5 h-5 text-foreground" />
-                    <span className="text-xs font-bold text-foreground">{comments.length}</span>
+                    {reactionsData?.myReactionType && reactionsData.myReactionType !== 'heart' ? (
+                      <span className="text-lg transition-all">
+                        {reactionToEmoji(reactionsData.myReactionType as ReactionType)}
+                      </span>
+                    ) : (
+                      <Heart
+                        className={cn(
+                          "w-5 h-5 transition-all",
+                          reactionsData?.likedByMe ? "text-red-500 fill-red-500" : "text-foreground"
+                        )} 
+                      />
+                    )}
                   </button>
-
-                  {/* Bookmark */}
-                  <button
-                    onClick={() => {
+                  
+                  <ReactionPicker
+                    isOpen={showReactionPicker}
+                    onClose={() => setShowReactionPicker(false)}
+                    onSelect={(reactionType) => {
                       if (!user) {
-                        sonnerToast.error('Devi effettuare il login per salvare');
+                        sonnerToast.error('Devi effettuare il login per mettere like');
                         return;
                       }
-                      toggleBookmark.mutate({ focusId, focusType: type });
-                      haptics.light();
+                      toggleReaction.mutate({ focusId, focusType: type, reactionType });
+                      setShowReactionPicker(false);
                     }}
-                    className="flex items-center h-full px-2 rounded-xl hover:bg-muted/50 transition-colors"
-                  >
-                    <Bookmark 
-                      className={cn(
-                        "w-5 h-5 transition-all",
-                        isBookmarked ? "text-primary fill-primary" : "text-foreground"
-                      )} 
-                    />
-                  </button>
+                    currentReaction={reactionsData?.myReactionType as ReactionType | undefined}
+                    triggerRef={likeButtonRef}
+                    dragPosition={dragPosition}
+                    onDragRelease={() => setDragPosition(null)}
+                  />
                 </div>
+                {/* Like Counter - tappable to open reactions sheet */}
+                <button
+                  onClick={() => setReactionsSheetOpen(true)}
+                  className="text-xs font-bold text-foreground px-1 hover:underline"
+                >
+                  {reactionsData?.likes || reactions.likes || 0}
+                </button>
+
+                <div className="w-px h-4 bg-border mx-1" />
+
+                {/* Comments - now delegates to parent via onComment */}
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onComment?.();
+                  }}
+                  className="flex items-center gap-1.5 h-full px-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                >
+                  <MessageCircle className="w-5 h-5 text-foreground" />
+                  <span className="text-xs font-bold text-foreground">{comments.length}</span>
+                </button>
+
+                <div className="w-px h-4 bg-border mx-1" />
+
+                {/* Bookmark */}
+                <button
+                  onClick={() => {
+                    if (!user) {
+                      sonnerToast.error('Devi effettuare il login per salvare');
+                      return;
+                    }
+                    toggleBookmark.mutate({ focusId, focusType: type });
+                    haptics.light();
+                  }}
+                  className="flex items-center h-full px-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                >
+                  <Bookmark 
+                    className={cn(
+                      "w-5 h-5 transition-all",
+                      isBookmarked ? "text-primary fill-primary" : "text-foreground"
+                    )} 
+                  />
+                </button>
               </div>
             </div>
           </div>

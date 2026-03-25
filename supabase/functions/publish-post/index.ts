@@ -172,10 +172,14 @@ type PublishPostBody = {
     audioUrl: string
     durationSeconds: number
     waveform: number[] | null
+    title?: string | null
+    bodyText?: string | null
   }
   challengeData?: {
     thesis: string
     durationHours: number
+    title?: string | null
+    bodyText?: string | null
   }
 }
 
@@ -486,6 +490,8 @@ Deno.serve(async (req) => {
             audio_url: body.voiceData.audioUrl,
             duration_seconds: body.voiceData.durationSeconds,
             waveform_data: body.voiceData.waveform || null,
+            title: body.voiceData.title || null,
+            body_text: body.voiceData.bodyText || null,
           })
           .select('id')
           .single();
@@ -519,7 +525,9 @@ Deno.serve(async (req) => {
               .insert({
                 post_id: inserted.id,
                 voice_post_id: voicePost.id,
-                thesis: body.challengeData.thesis.substring(0, 140),
+                thesis: body.challengeData.thesis?.substring(0, 140) || null,
+                title: body.challengeData.title || null,
+                body_text: body.challengeData.bodyText || null,
                 duration_hours: body.challengeData.durationHours,
                 expires_at: expDate.toISOString(),
               });

@@ -32,6 +32,8 @@ export interface Post {
     waveform_data: number[];
     transcript?: string;
     transcript_status?: string;
+    title?: string;
+    body_text?: string;
   } | null;
   _originalSources?: string[];
   /** Flag to bypass gate - set when quiz was already passed in Feed Reader */
@@ -50,6 +52,8 @@ export interface Post {
       waveform_data: number[];
       transcript?: string;
       transcript_status?: string;
+      title?: string;
+      body_text?: string;
     } | null;
     is_intent?: boolean;
     author: {
@@ -105,12 +109,16 @@ export interface Post {
     expires_at: string;
     votes_for: number;
     votes_against: number;
+    title?: string;
+    body_text?: string;
     voice_post?: {
       audio_url: string;
       duration_seconds: number;
       waveform_data: number[];
       transcript?: string;
       transcript_status?: string;
+      title?: string;
+      body_text?: string;
     } | null;
   } | null;
 }
@@ -257,6 +265,8 @@ export const usePosts = () => {
           expires_at: post.challenges[0].expires_at,
           votes_for: post.challenges[0].votes_for || 0,
           votes_against: post.challenges[0].votes_against || 0,
+          title: post.challenges[0].title,
+          body_text: post.challenges[0].body_text,
           voice_post: post.challenges[0].voice_posts || null,
         } : null,
         media: (post.post_media || [])
@@ -717,7 +727,9 @@ export const useQuotedPost = (quotedPostId: string | null) => {
             duration_seconds,
             waveform_data,
             transcript,
-            transcript_status
+            transcript_status,
+            title,
+            body_text
           ),
           is_intent,
           author:public_profiles!author_id (

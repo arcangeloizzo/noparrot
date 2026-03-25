@@ -383,12 +383,10 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
             onClick={handleConfirm}
             className="flex-1 py-3.5 rounded-[14px] text-[14px] font-bold text-white"
             style={{
-              background: thesisReminder
-                ? 'linear-gradient(135deg, #E41E52, #0A7AFF)'
-                : accentColor,
+              background: '#0A7AFF',
             }}
           >
-            {thesisReminder ? '⚡ Lancia Challenge' : '🎙 Pubblica'}
+            Avanti →
           </button>
         </div>
       </div>
