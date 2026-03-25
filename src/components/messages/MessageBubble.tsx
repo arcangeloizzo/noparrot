@@ -347,7 +347,7 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
                     <div key={media.id} className="rounded-lg overflow-hidden">
                       {media.type === 'image' ? (
                         <img
-                          src={media.url}
+                          src={media.thumbnail_url || media.url}
                           alt=""
                           loading="lazy"
                           className="max-w-full h-auto rounded-lg"

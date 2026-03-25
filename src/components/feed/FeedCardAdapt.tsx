@@ -50,7 +50,7 @@ import { useChallengeResponses } from "@/hooks/useChallengeResponses";
 import { useAuth } from "@/contexts/AuthContext";
 import { detectPlatformFromUrl } from "@/components/media/utils/mediaUtils";
 import { AnalysisOverlay } from "@/components/ui/AnalysisOverlay";
-import { cn, getDisplayUsername } from "@/lib/utils";
+import { cn, getDisplayUsername, decodeHTMLEntities } from "@/lib/utils";
 import { fetchTrustScore } from "@/lib/comprehension-gate";
 import { generateQA, fetchArticlePreview } from "@/lib/ai-helpers";
 import { supabase } from "@/integrations/supabase/client";
@@ -157,7 +157,7 @@ export const FeedCard = ({
           ? { ...(preview as any), platform }
           : {
             platform,
-            title: post.shared_title || getHostnameFromUrl(post.shared_url),
+            title: decodeHTMLEntities(post.shared_title || getHostnameFromUrl(post.shared_url)),
             description: '',
             image: post.preview_img || '',
           };
@@ -167,7 +167,7 @@ export const FeedCard = ({
         console.error('Error fetching article preview:', error);
         setArticlePreview({
           platform: detectPlatformFromUrl(post.shared_url),
-          title: post.shared_title || getHostnameFromUrl(post.shared_url),
+          title: decodeHTMLEntities(post.shared_title || getHostnameFromUrl(post.shared_url)),
           description: '',
           image: post.preview_img || '',
         });
@@ -461,7 +461,7 @@ export const FeedCard = ({
       id: post.id,
       state: 'reading' as const,
       url: post.shared_url,
-      title: preview?.title || post.shared_title || `Contenuto da ${hostname}`,
+      title: decodeHTMLEntities(preview?.title || post.shared_title || `Contenuto da ${hostname}`),
       content:
         preview?.content ||
         preview?.description ||
@@ -1087,7 +1087,7 @@ export const FeedCard = ({
                   {(articlePreview?.image || articlePreview?.previewImg || post.preview_img) ? (
                     <img
                       src={articlePreview?.image || articlePreview?.previewImg || post.preview_img}
-                      alt={articlePreview?.title || post.shared_title || ''}
+                      alt={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
                       className="w-full h-full object-cover opacity-80"
                     />
                   ) : (
@@ -1134,7 +1134,7 @@ export const FeedCard = ({
                 {/* Metadata below image */}
                 <div className="p-3 space-y-1">
                   <h4 className="font-semibold text-sm text-white line-clamp-2">
-                    {articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url)}
+                    {decodeHTMLEntities(articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url))}
                   </h4>
 
                   {(articlePreview?.description || articlePreview?.summary || articlePreview?.excerpt) ? (

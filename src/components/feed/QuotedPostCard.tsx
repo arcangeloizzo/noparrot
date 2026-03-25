@@ -1,6 +1,6 @@
 import { memo, useState } from "react";
 import { ExternalLink } from "lucide-react";
-import { cn, getDisplayUsername } from "@/lib/utils";
+import { cn, getDisplayUsername, decodeHTMLEntities } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { normalizeUrl } from "@/lib/url";
@@ -198,7 +198,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
                     <ExternalLink className="w-3 h-3 text-slate-400 dark:text-white/40" />
                   </div>
                   <h3 className="text-slate-900 dark:text-white font-medium text-sm leading-snug line-clamp-2">
-                    {quotedPost.shared_title || quotedPost.shared_url}
+                    {decodeHTMLEntities(quotedPost.shared_title || quotedPost.shared_url)}
                   </h3>
                 </div>
               </div>
@@ -323,7 +323,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
                   <div className="aspect-video w-full overflow-hidden bg-slate-100 dark:bg-muted">
                     <img
                       src={quotedPost.preview_img}
-                      alt={quotedPost.shared_title || ''}
+                      alt={decodeHTMLEntities(quotedPost.shared_title || '')}
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -334,7 +334,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
                     <ExternalLink className="w-2.5 h-2.5" />
                   </div>
                   <div className="font-medium text-xs text-foreground line-clamp-1">
-                    {quotedPost.shared_title}
+                    {decodeHTMLEntities(quotedPost.shared_title)}
                   </div>
                 </div>
               </div>

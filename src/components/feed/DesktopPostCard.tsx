@@ -15,7 +15,7 @@ import {
 import { MediaGallery } from "@/components/media/MediaGallery";
 import { Post, useDeletePost, useToggleReaction } from "@/hooks/usePosts";
 import { useAuth } from "@/contexts/AuthContext";
-import { cn } from "@/lib/utils";
+import { cn, decodeHTMLEntities } from "@/lib/utils";
 import { toast } from "sonner";
 import { useCreateThread } from "@/hooks/useMessageThreads";
 import { useSendMessage } from "@/hooks/useMessages";
@@ -149,14 +149,14 @@ export const DesktopPostCard = ({ post, onRemove, onQuoteShare }: DesktopPostCar
                                 <div className="h-40 overflow-hidden relative">
                                     <img
                                         src={post.preview_img}
-                                        alt={post.shared_title || "Link preview"}
+                                        alt={decodeHTMLEntities(post.shared_title || "Link preview")}
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                     />
                                 </div>
                             )}
                             <div className="p-3 bg-card/50">
                                 <h4 className="font-semibold text-sm line-clamp-1 group-hover:text-primary transition-colors">
-                                    {post.shared_title || post.shared_url}
+                                    {decodeHTMLEntities(post.shared_title || post.shared_url)}
                                 </h4>
                                 <p className="text-xs text-muted-foreground line-clamp-1 mt-1">
                                     {new URL(post.shared_url).hostname}

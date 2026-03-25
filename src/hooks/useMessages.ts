@@ -21,6 +21,7 @@ export interface Message {
     url: string;
     type: string;
     mime: string;
+    thumbnail_url?: string | null;
   }[];
 }
 
@@ -60,24 +61,41 @@ export function useMessages(threadId: string | undefined) {
       // Filter out deleted messages
       const visibleMessages = (data || []).filter(msg => !deletedMessageIds.has(msg.id));
 
-      // Fetch media per ogni messaggio
-      const messagesWithMedia = await Promise.all(
-        visibleMessages.map(async (msg) => {
-          const { data: mediaData } = await supabase
-            .from('message_media')
-            .select(`
-              id,
-              media:media(id, url, type, mime)
-            `)
-            .eq('message_id', msg.id)
-            .order('order_idx', { ascending: true });
+      // Fetch media per ogni messaggio in blocco per evitare N+1 queries
+      const visibleMessageIds = visibleMessages.map(msg => msg.id);
+      
+      let allMediaData: any[] = [];
+      if (visibleMessageIds.length > 0) {
+        const { data: mediaData } = await supabase
+          .from('message_media')
+          .select(`
+            message_id,
+            order_idx,
+            media:media(id, url, type, mime, thumbnail_url)
+          `)
+          .in('message_id', visibleMessageIds);
+          
+        allMediaData = mediaData || [];
+      }
 
-          return {
-            ...msg,
-            media: mediaData?.map((m: any) => m.media).filter(Boolean) || []
-          };
-        })
-      );
+      // Raggruppa i media per messaggio
+      const mediaByMessageId = allMediaData.reduce((acc, row) => {
+        if (!acc[row.message_id]) acc[row.message_id] = [];
+        if (row.media) {
+          acc[row.message_id].push({ ...row.media, order_idx: row.order_idx });
+        }
+        return acc;
+      }, {} as Record<string, any[]>);
+
+      const messagesWithMedia = visibleMessages.map(msg => {
+        const messageMedia = mediaByMessageId[msg.id] || [];
+        // Ordina in base all'order_idx
+        messageMedia.sort((a: any, b: any) => (a.order_idx || 0) - (b.order_idx || 0));
+        return {
+          ...msg,
+          media: messageMedia
+        };
+      });
 
       return messagesWithMedia as Message[];
     },

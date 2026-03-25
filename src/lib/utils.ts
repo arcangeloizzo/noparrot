@@ -12,3 +12,10 @@ export const getDisplayUsername = (username: string | undefined | null): string 
   }
   return username;
 };
+
+export const decodeHTMLEntities = (text: string | null | undefined): string => {
+  if (!text) return '';
+  const textArea = document.createElement('textarea');
+  textArea.innerHTML = text;
+  return textArea.value;
+};

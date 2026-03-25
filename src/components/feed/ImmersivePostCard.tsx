@@ -78,7 +78,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { TOASTS } from "@/constants/toast-messages";
 import { AnalysisOverlay } from "@/components/ui/AnalysisOverlay";
-import { cn, getDisplayUsername } from "@/lib/utils";
+import { cn, getDisplayUsername, decodeHTMLEntities } from "@/lib/utils";
 import { generateQA, fetchArticlePreview } from "@/lib/ai-helpers";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreateThread } from "@/hooks/useMessageThreads";
@@ -448,7 +448,7 @@ const ImmersivePostCardInner = ({
   // Get source from quoted post if current post doesn't have one (2 levels)
   const effectiveSharedUrl = post.shared_url || quotedPost?.shared_url;
   const effectivePreviewImg = post.preview_img || quotedPost?.preview_img;
-  const effectiveSharedTitle = post.shared_title || quotedPost?.shared_title;
+  const effectiveSharedTitle = decodeHTMLEntities(post.shared_title || quotedPost?.shared_title);
 
   // For multi-level reshares, find the original source deep in the chain
   // NOTE: Hook called unconditionally first, condition handled inside
@@ -1336,7 +1336,7 @@ const ImmersivePostCardInner = ({
   // Ensure text-only really means NO media and NO link in either post
   const isTextOnly = !hasMedia && !hasLink && !quotedPost?.shared_url && !isAudioPost;
   const isIntentPost = !!post.is_intent;
-  const articleTitle = articlePreview?.title || post.shared_title || '';
+  const articleTitle = decodeHTMLEntities(articlePreview?.title || post.shared_title || '');
   // Show user text ONLY if it's genuinely different from title AND extracted content
   const shouldShowUserText = hasLink && post.content &&
     !isTextSimilarToTitle(post.content, articleTitle) &&
@@ -2520,7 +2520,7 @@ const ImmersivePostCardInner = ({
 
                   {/* Video Title */}
                   <h1 className="text-xl font-bold text-immersive-foreground leading-tight mt-4 mb-2 drop-shadow-sm">
-                    {articlePreview?.title || post.shared_title}
+                    {decodeHTMLEntities(articlePreview?.title || post.shared_title)}
                   </h1>
 
                   {/* Open on YouTube CTA */}
@@ -2558,7 +2558,7 @@ const ImmersivePostCardInner = ({
 
                   {/* Spotify Title - Fixed shrink-0 */}
                   <h1 className="flex-shrink-0 text-2xl font-bold text-slate-900 dark:text-white leading-tight mb-2 text-center drop-shadow-sm dark:drop-shadow-xl line-clamp-2">
-                    {articlePreview?.title || post.shared_title}
+                    {decodeHTMLEntities(articlePreview?.title || post.shared_title)}
                   </h1>
 
                   {/* Artist name - Fixed shrink-0 */}
@@ -2581,7 +2581,7 @@ const ImmersivePostCardInner = ({
               ) : hasLink && post.shared_url?.startsWith('focus://') ? (
                 /* Editorial Share - Internal navigation, Trust Score always ALTO */
                 <QuotedEditorialCard
-                  title={post.shared_title || 'Il Punto'}
+                  title={decodeHTMLEntities(post.shared_title || 'Il Punto')}
                   summary={(() => {
                     // Priority: article_content > editorialSummary (fetched from DB)
                     const raw = post.article_content || '';
@@ -2648,7 +2648,7 @@ const ImmersivePostCardInner = ({
                       <div className="w-12 h-1 bg-slate-200 dark:bg-white/30 rounded-full mb-4 shrink-0" />
                       {/* Caption/Title with truncation for long social captions */}
                       {(() => {
-                        const displayTitle = articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url);
+                        const displayTitle = decodeHTMLEntities(articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url));
                         const isCaptionLong = displayTitle && displayTitle.length > CAPTION_TRUNCATE_LENGTH;
                         const truncatedCaption = isCaptionLong
                           ? displayTitle.slice(0, CAPTION_TRUNCATE_LENGTH).trim() + '...'
@@ -2798,7 +2798,7 @@ const ImmersivePostCardInner = ({
                   {/* Detect if quoted post is an editorial (Il Punto) - ONLY if directly from system, otherwise render as user post with link */}
                   {(quotedPost.author?.username === 'ilpunto' || quotedPost.author?.username === 'Il Punto' || quotedPost.author?.id === 'system') ? (
                     <QuotedEditorialCard
-                      title={quotedPost.shared_title || quotedPost.content}
+                      title={decodeHTMLEntities(quotedPost.shared_title || quotedPost.content)}
                       onClick={() => {
                         const focusId = quotedPost.shared_url?.replace('focus://daily/', '');
                         if (focusId) {
@@ -3068,7 +3068,13 @@ const ImmersivePostCardInner = ({
       <FullTextModal
         isOpen={showFullText}
         onClose={() => setShowFullText(false)}
-        content={post.content}
+        content={
+          isChallengePost 
+            ? (post.challenge?.voice_post?.transcript || post.challenge?.body_text || post.content)
+            : isAudioPost 
+              ? (post.voice_post?.transcript || post.voice_post?.body_text || post.content)
+              : post.content
+        }
         author={{
           name: post.author.full_name || post.author.username,
           username: post.author.username,
@@ -3096,7 +3102,7 @@ const ImmersivePostCardInner = ({
       <FullTextModal
         isOpen={showFullCaption}
         onClose={() => setShowFullCaption(false)}
-        content={articlePreview?.title || post.shared_title || ''}
+        content={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
         source={{
           hostname: getHostnameFromUrl(post.shared_url),
           url: post.shared_url || undefined,

@@ -32,6 +32,7 @@ import { getWordCount, getTestModeWithSource } from '@/lib/gate-utils';
 import { generateQA, fetchArticlePreview } from '@/lib/ai-helpers';
 import { addBreadcrumb } from '@/lib/crashBreadcrumbs';
 import { useLongPress } from '@/hooks/useLongPress';
+import { useVisualViewportOffset } from '@/hooks/useVisualViewportOffset';
 import { ReactionPicker, type ReactionType, reactionToEmoji } from '@/components/ui/reaction-picker';
 import { ReactionSummary, getReactionCounts } from '@/components/feed/ReactionSummary';
 import { haptics } from '@/lib/haptics';
@@ -97,6 +98,9 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
   const [showCommentTypeChoice, setShowCommentTypeChoice] = useState(false);
   const [selectedCommentType, setSelectedCommentType] = useState<'spontaneous' | 'informed' | null>(null);
   const [isProcessingGate, setIsProcessingGate] = useState(false);
+
+  const keyboardOffset = useVisualViewportOffset();
+  const isKeyboardOpen = keyboardOffset > 0;
 
   console.log('[CommentsDrawer] Current state:', {
     postHasSource,
@@ -214,6 +218,9 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
       setReplyingTo(null);
       setSelectedCommentType(null);
       clearMedia();
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
     };
 
     if (linkUrl) {
@@ -233,6 +240,10 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     const cursorPos = e.target.selectionStart;
+    
+    // Auto-resize
+    e.target.style.height = 'auto';
+    e.target.style.height = `${e.target.scrollHeight}px`;
     
     setNewComment(value);
     setCursorPosition(cursorPos);
@@ -335,8 +346,14 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
 
   return (
     <>
-      <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DrawerContent className="max-h-[90vh] bg-background/95 backdrop-blur-xl border-t border-border rounded-t-3xl pb-[env(safe-area-inset-bottom)]">
+      <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()} repositionInputs={false}>
+        <DrawerContent 
+          className={cn(
+            "max-h-[90vh] bg-background/95 backdrop-blur-xl border-t border-border rounded-t-3xl",
+            !isKeyboardOpen && "pb-[env(safe-area-inset-bottom)]"
+          )}
+          style={{ paddingBottom: isKeyboardOpen ? Math.max(0, keyboardOffset) : undefined }}
+        >
           {/* Drawer handle */}
           <div className="flex justify-center pt-3 pb-1">
             <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
@@ -465,7 +482,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
           </div>
 
           {/* Fixed Bottom Composer - Compact inline style */}
-          <div className="sticky bottom-0 bg-card border-t border-border/50 z-30 pb-[env(safe-area-inset-bottom)]">
+          <div className={cn("sticky bottom-0 bg-card border-t border-border/50 z-30", !isKeyboardOpen && "pb-[env(safe-area-inset-bottom)]")}>
             <div className="px-3 py-3">
               {/* Reply indicator */}
               {replyingTo && (
@@ -565,12 +582,12 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                     className={cn(
                       "flex-1 bg-transparent border-none focus:outline-none focus:ring-0 resize-none",
                       "text-sm text-foreground placeholder:text-muted-foreground/50",
-                      "min-h-[42px] py-3 pl-4 pr-2",
+                      "min-h-[42px] max-h-[120px] py-3 pl-4 pr-2",
                       postHasSource && selectedCommentType === null && "opacity-50 cursor-not-allowed"
                     )}
                     maxLength={500}
                     rows={1}
-                    style={{ overflow: 'hidden' }}
+                    style={{ overflowY: newComment.length > 100 ? 'auto' : 'hidden' }}
                   />
                   
                   {/* Media button inline */}
