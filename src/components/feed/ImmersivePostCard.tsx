@@ -1672,7 +1672,7 @@ const ImmersivePostCardInner = ({
 
               {/* Voice Post Body (non-challenge) */}
               {!useStackLayout && isAudioPost && !isChallengePost && post.voice_post && (
-                <div className="w-full h-full flex flex-col justify-center pt-2 pb-8">
+                <div className="w-full flex flex-col pt-2 pb-8">
                     {/* VoiceCast Content Hierarchy - 4 scenarios */}
                     {(() => {
                       const hasTitle = Boolean(post.voice_post?.title);
