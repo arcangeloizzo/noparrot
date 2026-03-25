@@ -210,7 +210,9 @@ export const usePosts = () => {
               duration_seconds,
               waveform_data,
               transcript,
-              transcript_status
+              transcript_status,
+              title,
+              body_text
             ),
             is_intent,
             author:public_profiles!author_id (
