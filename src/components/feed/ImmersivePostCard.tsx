@@ -1778,7 +1778,7 @@ const ImmersivePostCardInner = ({
 
               {/* Challenge Post Body (condensed in immersive) */}
               {!useStackLayout && isChallengePost && post.voice_post && post.challenge && (
-                <div className="w-full h-full flex flex-col pt-2 pb-6">
+                <div className="w-full h-full flex flex-col justify-center pt-2 pb-6">
                     {/* Challenge Content Hierarchy - 4 scenarios */}
                     {(() => {
                       const hasTitle = Boolean(post.challenge?.title);
