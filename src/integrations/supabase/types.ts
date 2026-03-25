@@ -169,6 +169,7 @@ export type Database = {
       }
       challenges: {
         Row: {
+          body_text: string | null
           created_at: string | null
           duration_hours: number
           expires_at: string
@@ -176,11 +177,13 @@ export type Database = {
           post_id: string | null
           status: Database["public"]["Enums"]["challenge_status_enum"] | null
           thesis: string
+          title: string | null
           voice_post_id: string | null
           votes_against: number | null
           votes_for: number | null
         }
         Insert: {
+          body_text?: string | null
           created_at?: string | null
           duration_hours: number
           expires_at: string
@@ -188,11 +191,13 @@ export type Database = {
           post_id?: string | null
           status?: Database["public"]["Enums"]["challenge_status_enum"] | null
           thesis: string
+          title?: string | null
           voice_post_id?: string | null
           votes_against?: number | null
           votes_for?: number | null
         }
         Update: {
+          body_text?: string | null
           created_at?: string | null
           duration_hours?: number
           expires_at?: string
@@ -200,6 +205,7 @@ export type Database = {
           post_id?: string | null
           status?: Database["public"]["Enums"]["challenge_status_enum"] | null
           thesis?: string
+          title?: string | null
           voice_post_id?: string | null
           votes_against?: number | null
           votes_for?: number | null
@@ -2039,10 +2045,12 @@ export type Database = {
       voice_posts: {
         Row: {
           audio_url: string
+          body_text: string | null
           created_at: string | null
           duration_seconds: number
           id: string
           post_id: string | null
+          title: string | null
           transcript: string | null
           transcript_status:
             | Database["public"]["Enums"]["transcript_status_enum"]
@@ -2051,10 +2059,12 @@ export type Database = {
         }
         Insert: {
           audio_url: string
+          body_text?: string | null
           created_at?: string | null
           duration_seconds: number
           id?: string
           post_id?: string | null
+          title?: string | null
           transcript?: string | null
           transcript_status?:
             | Database["public"]["Enums"]["transcript_status_enum"]
@@ -2063,10 +2073,12 @@ export type Database = {
         }
         Update: {
           audio_url?: string
+          body_text?: string | null
           created_at?: string | null
           duration_seconds?: number
           id?: string
           post_id?: string | null
+          title?: string | null
           transcript?: string | null
           transcript_status?:
             | Database["public"]["Enums"]["transcript_status_enum"]
