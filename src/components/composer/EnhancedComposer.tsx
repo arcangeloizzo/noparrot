@@ -249,7 +249,8 @@ export function EnhancedComposer({
       onPostCreated?.(insertedPost);
 
       toast({
-        title: "Condiviso."
+        title: "Condiviso.",
+        duration: 3000,
       });
 
       // Invalida e refetch queries DOPO il toast per mostrare subito il post
