@@ -1666,13 +1666,13 @@ const ImmersivePostCardInner = ({
 
             <div className={cn(
               "w-full flex flex-col relative z-[1]", 
-              (!isAudioPost && !isChallengePost) ? "max-h-full my-auto" : "flex-1 min-h-0 justify-center"
+              (!isAudioPost && !isChallengePost) ? "max-h-full my-auto" : "flex-1 min-h-0 flex justify-center"
             )}>
 
 
               {/* Voice Post Body (non-challenge) */}
               {!useStackLayout && isAudioPost && !isChallengePost && post.voice_post && (
-                <div className="w-full h-full flex flex-col justify-center pt-2 pb-8">
+                <div className="w-full flex flex-col pt-2 pb-8">
                     {/* VoiceCast Content Hierarchy - 4 scenarios */}
                     {(() => {
                       const hasTitle = Boolean(post.voice_post?.title);
@@ -1778,7 +1778,7 @@ const ImmersivePostCardInner = ({
 
               {/* Challenge Post Body (condensed in immersive) */}
               {!useStackLayout && isChallengePost && post.voice_post && post.challenge && (
-                <div className="w-full h-full flex flex-col justify-center pt-2 pb-6">
+                <div className="w-full flex flex-col pt-2 pb-6">
                     {/* Challenge Content Hierarchy - 4 scenarios */}
                     {(() => {
                       const hasTitle = Boolean(post.challenge?.title);
