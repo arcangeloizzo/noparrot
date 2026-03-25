@@ -1524,6 +1524,7 @@ export type Database = {
           shares_count: number | null
           sources: Json | null
           stance: string | null
+          title: string | null
           topic_tag: string | null
           transcript: string | null
           transcript_source: string | null
@@ -1554,6 +1555,7 @@ export type Database = {
           shares_count?: number | null
           sources?: Json | null
           stance?: string | null
+          title?: string | null
           topic_tag?: string | null
           transcript?: string | null
           transcript_source?: string | null
@@ -1584,6 +1586,7 @@ export type Database = {
           shares_count?: number | null
           sources?: Json | null
           stance?: string | null
+          title?: string | null
           topic_tag?: string | null
           transcript?: string | null
           transcript_source?: string | null
