@@ -33,7 +33,7 @@ export const Header = ({ variant = "default" }: HeaderProps) => {
     )}>
       <div className="container flex h-14 max-w-screen-xl items-center justify-center px-4 relative">
         {/* Logo centrale */}
-        <LogoHorizontal className="h-7" />
+        <LogoHorizontal className="h-8" />
 
         {/* Icona notifiche a destra (posizione assoluta) */}
         <div className="absolute right-4 top-1/2 -translate-y-1/2">

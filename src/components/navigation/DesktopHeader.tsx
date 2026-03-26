@@ -50,7 +50,7 @@ export const DesktopHeader = () => {
                 {/* Left: Logo & Profile */}
                 <div className="flex items-center gap-6 w-[300px]">
                     <Link to="/" className="flex-shrink-0">
-                        <LogoHorizontal className="h-8" />
+                        <LogoHorizontal className="h-9" />
                     </Link>
 
                     {user && (
