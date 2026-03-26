@@ -690,6 +690,27 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                   setShowCommentTypeChoice(false);
                   return;
                 }
+
+                // [BYPASS] Se l'utente ha già superato il gate per questo post, salta il quiz
+                if (user) {
+                  const { data: existingAttempt } = await supabase
+                    .from('post_gate_attempts')
+                    .select('id')
+                    .eq('user_id', user.id)
+                    .eq('post_id', post.id)
+                    .eq('passed', true)
+                    .limit(1)
+                    .maybeSingle();
+                  
+                  if (existingAttempt) {
+                    console.log('[CommentsDrawer] User already passed gate for this post, skipping quiz');
+                    setShowCommentTypeChoice(false);
+                    setSelectedCommentType('informed');
+                    sonnerToast.success('Gate già superato! Puoi commentare.');
+                    setTimeout(() => textareaRef.current?.focus(), 150);
+                    return;
+                  }
+                }
                 
                 setShowCommentTypeChoice(false);
                 setIsProcessingGate(true);
