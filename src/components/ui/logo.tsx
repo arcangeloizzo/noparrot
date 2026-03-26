@@ -27,6 +27,13 @@ export const Logo = ({ className, size = "md", variant = "icon", dark = false, i
 
   const clickableClasses = onClick ? "cursor-pointer hover:opacity-80 transition-opacity" : "";
 
+  const fontSizes = {
+    sm: "16px",
+    md: "24px",
+    lg: "32px",
+    xl: "40px"
+  };
+
   if (variant === "icon") {
     return (
       <img 
@@ -42,24 +49,44 @@ export const Logo = ({ className, size = "md", variant = "icon", dark = false, i
   if (variant === "wordmark") {
     return (
       <div 
-        className={cn("font-semibold text-foreground", clickableClasses, className)}
+        className={cn("uppercase", clickableClasses, className)}
+        style={{
+          fontFamily: 'Impact, sans-serif',
+          fontSize: fontSizes[size],
+          lineHeight: 0.92,
+          letterSpacing: '0.02em',
+        }}
         onClick={onClick}
       >
-        <span className="text-muted-foreground">NO</span>
-        <span className="text-primary-blue">PARROT</span>
+        <span className="text-[#2465d2]">NO</span>
+        <span className="text-foreground dark:text-white">PARROT</span>
       </div>
     );
   }
 
   if (variant === "extended") {
     return (
-      <img 
+      <div 
         id={id}
-        src={LOGO_EXTENDED} 
-        alt="NOPARROT" 
-        className={cn(heightClasses[size], "w-auto", clickableClasses, className)}
+        className={cn("flex items-center gap-1.5 uppercase", clickableClasses, className)}
+        style={{
+          fontFamily: 'Impact, sans-serif',
+          fontSize: fontSizes[size],
+          lineHeight: 0.92,
+          letterSpacing: '0.02em',
+        }}
         onClick={onClick}
-      />
+      >
+        <img 
+          src={LOGO_BASE} 
+          alt="" 
+          className={cn(heightClasses[size], "w-auto")}
+        />
+        <div>
+          <span className="text-[#2465d2]">NO</span>
+          <span className="text-foreground dark:text-white">PARROT</span>
+        </div>
+      </div>
     );
   }
 
@@ -77,19 +104,39 @@ export const Logo = ({ className, size = "md", variant = "icon", dark = false, i
 
   if (variant === "white-extended") {
     return (
-      <img 
+      <div 
         id={id}
-        src={LOGO_WHITE_EXTENDED} 
-        alt="NOPARROT" 
-        className={cn(heightClasses[size], "w-auto", clickableClasses, className)}
+        className={cn("flex items-center gap-1.5 uppercase", clickableClasses, className)}
+        style={{
+          fontFamily: 'Impact, sans-serif',
+          fontSize: fontSizes[size],
+          lineHeight: 0.92,
+          letterSpacing: '0.02em',
+        }}
         onClick={onClick}
-      />
+      >
+        <img 
+          src={LOGO_WHITE} 
+          alt="" 
+          className={cn(heightClasses[size], "w-auto")}
+        />
+        <div>
+          <span className="text-white">NO</span>
+          <span className="text-white">PARROT</span>
+        </div>
+      </div>
     );
   }
 
   return (
     <div 
-      className={cn("flex items-center space-x-2", clickableClasses, className)}
+      className={cn("flex items-center gap-1.5 uppercase", clickableClasses, className)}
+      style={{
+        fontFamily: 'Impact, sans-serif',
+        fontSize: fontSizes[size],
+        lineHeight: 0.92,
+        letterSpacing: '0.02em',
+      }}
       onClick={onClick}
     >
       <img 
@@ -97,9 +144,9 @@ export const Logo = ({ className, size = "md", variant = "icon", dark = false, i
         alt="NOPARROT" 
         className={sizeClasses[size]}
       />
-      <div className="font-semibold text-foreground">
-        <span className="text-muted-foreground">NO</span>
-        <span className="text-primary-blue">PARROT</span>
+      <div>
+        <span className="text-[#2465d2]">NO</span>
+        <span className="text-foreground dark:text-white">PARROT</span>
       </div>
     </div>
   );
