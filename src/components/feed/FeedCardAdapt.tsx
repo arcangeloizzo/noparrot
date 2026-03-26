@@ -1026,9 +1026,21 @@ export const FeedCard = ({
               </div>
             )}
             
+            {/* Post Title */}
+            {!isVoicePost && post.title && post.title.trim().length > 0 && (
+              <h2 className="text-lg font-bold text-white mb-1 uppercase tracking-wide">
+                {post.title}
+              </h2>
+            )}
+
             {/* User Comment - Interlinea rilassata (hidden for voice posts since content shown above player) */}
-            {!isVoicePost && (
-            <div className="text-[15px] leading-relaxed text-gray-100 mb-3 whitespace-pre-wrap break-words">
+            {!isVoicePost && post.content && (
+            <div className={cn(
+              "leading-relaxed mb-3 whitespace-pre-wrap break-words",
+              post.title && post.title.trim().length > 0
+                ? "text-[14px] text-[#7A8FA6]"
+                : "text-[15px] text-gray-100"
+            )}>
               {post.content.length > 300 && !isExpanded ? (
                 <>
                   <MentionText content={post.content.slice(0, 300) + '...'} />
