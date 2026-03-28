@@ -27,6 +27,7 @@ import { useLongPress } from "@/hooks/useLongPress";
 import { ReactionPicker, reactionToEmoji, type ReactionType } from "@/components/ui/reaction-picker";
 import { ReactionSummary } from "@/components/feed/ReactionSummary";
 import { ReactionsSheet } from "@/components/feed/ReactionsSheet";
+import { ShareSheet } from "@/components/share/ShareSheet";
 
 interface ImmersiveEditorialCarouselProps {
   items: DailyFocus[];
@@ -85,6 +86,10 @@ const ImmersiveEditorialCarouselInner = ({
   const [quizLoading, setQuizLoading] = useState(false);
   const pendingShareItemRef = useRef<DailyFocus | null>(null);
 
+  const [showShareSheet, setShowShareSheet] = useState(false);
+  const [itemToShare, setItemToShare] = useState<DailyFocus | null>(null);
+  const [shareAction, setShareAction] = useState<'feed' | 'friend'>('feed');
+
   const handleDialogChange = (open: boolean) => {
     if (!open) {
       suppressUntilRef.current = Date.now() + 400;
@@ -119,13 +124,14 @@ const ImmersiveEditorialCarouselInner = ({
   };
 
   // Handle share with comprehension gate
-  const handleShareWithGate = async (item: DailyFocus) => {
+  const handleShareWithGate = async (item: DailyFocus, action: 'feed' | 'friend') => {
     if (!user) {
       toast.error("Devi effettuare il login per condividere");
       return;
     }
 
     pendingShareItemRef.current = item;
+    setShareAction(action);
 
     // Build reader source from editorial deep_content
     const content = item.deep_content || item.summary;
@@ -257,7 +263,10 @@ const ImmersiveEditorialCarouselInner = ({
                 isActive={index === selectedIndex}
                 onClick={() => handleCardClick(item)}
                 onOpenInfoDialog={() => setInfoDialogOpen(true)}
-                onShare={() => handleShareWithGate(item)}
+                onShare={() => {
+                  setItemToShare(item);
+                  setShowShareSheet(true);
+                }}
                 onOpenSources={() => handleOpenSources(item)}
                 onComment={onComment}
                 reactionsData={index === selectedIndex ? reactionsData : null}
@@ -430,6 +439,37 @@ const ImmersiveEditorialCarouselInner = ({
         focusId={reactionsSheetItem?.id}
         focusType="daily"
       />
+
+      {itemToShare && (
+        <ShareSheet
+          isOpen={showShareSheet}
+          onClose={() => {
+            setShowShareSheet(false);
+            setItemToShare(null);
+          }}
+          onShareToFeed={() => handleShareWithGate(itemToShare, 'feed')}
+          onShareToFriend={() => handleShareWithGate(itemToShare, 'friend')}
+          onShareNatively={async () => {
+            const shareUrl = `${window.location.origin}/?focus=${itemToShare.id}`;
+            const shareData = {
+              title: itemToShare.title || 'Il Punto su NoParrot',
+              text: itemToShare.summary?.substring(0, 100) || '',
+              url: shareUrl,
+            };
+            if (navigator.share && navigator.canShare?.(shareData)) {
+              try { await navigator.share(shareData); } catch (err: any) {
+                if (err instanceof Error && err.name !== 'AbortError') {
+                  await navigator.clipboard.writeText(shareUrl);
+                  toast.success('Link copiato!');
+                }
+              }
+            } else {
+              await navigator.clipboard.writeText(shareUrl);
+              toast.success('Link copiato!');
+            }
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -673,30 +713,10 @@ const EditorialSlideInner = ({
             <div className="flex items-center justify-between gap-6">
               {/* Primary Share Button - Pill shape with consistent height */}
               <button
-                onClick={async (e) => {
+                onClick={(e) => {
                   e.stopPropagation();
                   haptics.light();
-                  
-                  const shareUrl = `${window.location.origin}/?focus=${item.id}`;
-                  const shareData = {
-                    title: item.title || 'Il Punto su NoParrot',
-                    text: item.summary?.substring(0, 100) || '',
-                    url: shareUrl,
-                  };
-
-                  if (navigator.share && navigator.canShare?.(shareData)) {
-                    try {
-                      await navigator.share(shareData);
-                    } catch (err: any) {
-                      if (err instanceof Error && err.name !== 'AbortError') {
-                        await navigator.clipboard.writeText(shareUrl);
-                        toast.success('Link copiato!');
-                      }
-                    }
-                  } else {
-                    await navigator.clipboard.writeText(shareUrl);
-                    toast.success('Link copiato!');
-                  }
+                  onShare?.();
                 }}
                 className="h-11 px-5 bg-blue-50 hover:bg-blue-100 dark:bg-white dark:hover:bg-gray-200 text-blue-600 dark:text-[#1F3347] rounded-full shadow-sm dark:shadow-md border border-blue-100 dark:border-transparent flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
               >

@@ -8,13 +8,15 @@ interface ShareSheetProps {
   onClose: () => void;
   onShareToFeed: () => void;
   onShareToFriend: () => void;
+  onShareNatively?: () => void;
 }
 
 export const ShareSheet = ({
   isOpen,
   onClose,
   onShareToFeed,
-  onShareToFriend
+  onShareToFriend,
+  onShareNatively
 }: ShareSheetProps) => {
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -59,6 +61,28 @@ export const ShareSheet = ({
               </div>
             </div>
           </Button>
+
+          {onShareNatively && (
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 h-14"
+              onClick={() => {
+                haptics.light();
+                onShareNatively();
+                onClose();
+              }}
+            >
+              <div className="h-5 w-5 flex items-center justify-center">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+              </div>
+              <div className="text-left">
+                <div className="font-semibold">Condividi all'esterno</div>
+                <div className="text-xs text-muted-foreground">
+                  Altre app o copia il link
+                </div>
+              </div>
+            </Button>
+          )}
         </div>
       </SheetContent>
     </Sheet>

@@ -2985,30 +2985,10 @@ const ImmersivePostCardInner = ({
             {/* Primary Share Button - Pill shape with consistent height */}
             <motion.button
               whileTap={{ scale: 0.95 }}
-              onClick={async (e) => {
+              onClick={(e) => {
                 e.stopPropagation();
                 haptics.light();
-                
-                const shareUrl = `${window.location.origin}/post/${post.id}`;
-                const shareData = {
-                  title: post.shared_title || 'Post su NoParrot',
-                  text: post.content?.substring(0, 100) || '',
-                  url: shareUrl,
-                };
-
-                if (navigator.share && navigator.canShare?.(shareData)) {
-                  try {
-                    await navigator.share(shareData);
-                  } catch (err: any) {
-                    if (err instanceof Error && err.name !== 'AbortError') {
-                      await navigator.clipboard.writeText(shareUrl);
-                      toast.success('Link copiato!');
-                    }
-                  }
-                } else {
-                  await navigator.clipboard.writeText(shareUrl);
-                  toast.success('Link copiato!');
-                }
+                handleShareClick(e);
               }}
               className="h-11 px-5 bg-blue-50 hover:bg-blue-100 dark:bg-white dark:hover:bg-gray-200 text-blue-600 dark:text-[#1F3347] rounded-full shadow-sm dark:shadow-md border border-blue-100 dark:border-transparent flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
             >
@@ -3192,6 +3172,25 @@ const ImmersivePostCardInner = ({
         onClose={() => setShowShareSheet(false)}
         onShareToFeed={handleShareToFeed}
         onShareToFriend={handleShareToFriend}
+        onShareNatively={async () => {
+          const shareUrl = `${window.location.origin}/post/${post.id}`;
+          const shareData = {
+            title: post.shared_title || 'Post su NoParrot',
+            text: post.content?.substring(0, 100) || '',
+            url: shareUrl,
+          };
+          if (navigator.share && navigator.canShare?.(shareData)) {
+            try { await navigator.share(shareData); } catch (err: any) {
+              if (err instanceof Error && err.name !== 'AbortError') {
+                await navigator.clipboard.writeText(shareUrl);
+                toast.success('Link copiato!');
+              }
+            }
+          } else {
+            await navigator.clipboard.writeText(shareUrl);
+            toast.success('Link copiato!');
+          }
+        }}
       />
 
       {/* People Picker */}
