@@ -131,8 +131,11 @@ export default function SettingsPrivacy() {
   };
 
   const handleForceSync = async () => {
-    if (!isSupported) {
-      if (isIOS && !isPWA) {
+    // On iOS PWA, isSupported may initially be false due to timing issues
+    // with PushManager availability. Always try forceSync and let it fail
+    // gracefully if truly unsupported.
+    if (!isSupported && !isPWA) {
+      if (isIOS) {
         toast.error("Su iOS le notifiche push funzionano solo con l'app installata (Aggiungi alla schermata Home)");
       } else {
         toast.error("Le notifiche push non sono supportate su questo browser");
@@ -140,10 +143,15 @@ export default function SettingsPrivacy() {
       return;
     }
     toast.info("Sincronizzazione in corso...");
-    const success = await forceSync();
-    if (success) {
-      toast.success("Notifiche push sincronizzate!");
-    } else {
+    try {
+      const success = await forceSync();
+      if (success) {
+        toast.success("Notifiche push sincronizzate!");
+      } else {
+        toast.error("Errore durante la sincronizzazione. Verifica di aver concesso i permessi per le notifiche nelle Impostazioni di iOS.");
+      }
+    } catch (err) {
+      console.error('[Sync] Force sync error:', err);
       toast.error("Errore durante la sincronizzazione");
     }
   };

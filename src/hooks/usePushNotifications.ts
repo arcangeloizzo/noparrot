@@ -34,11 +34,15 @@ export const usePushNotifications = () => {
   const [isSupported, setIsSupported] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
 
-  // iOS/PWA detection
+  // iOS/PWA detection - check multiple signals for reliability
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const isPWA = typeof window !== 'undefined' &&
-    (window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone === true);
+  const isPWA = typeof window !== 'undefined' && (
+    (window.navigator as any).standalone === true ||
+    window.matchMedia('(display-mode: standalone)').matches ||
+    document.referrer.includes('android-app://') ||
+    // iOS sometimes doesn't set standalone but runs without browser chrome
+    (isIOS && !window.navigator.userAgent.includes('Safari') && window.navigator.userAgent.includes('AppleWebKit'))
+  );
   const iOSVersion = isIOS ? parseIOSVersion(navigator.userAgent) : null;
 
   useEffect(() => {
