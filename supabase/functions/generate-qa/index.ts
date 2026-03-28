@@ -671,6 +671,12 @@ serve(async (req) => {
         
         case 'tweetId':
         case 'url': {
+          const isInternalEditorial = sourceUrl?.startsWith('editorial://') || sourceUrl?.startsWith('focus://daily/');
+          if (isInternalEditorial) {
+            console.log(`[generate-qa] Skipping Jina/Firecrawl extraction for internal editorial URL`);
+            break;
+          }
+          
           // Fetch from content_cache - NORMALIZE URL for consistent cache key
           const rawCacheUrl = effectiveQaSourceRef.url || sourceUrl;
           const cacheUrl = rawCacheUrl ? safeNormalizeUrl(rawCacheUrl) : null;

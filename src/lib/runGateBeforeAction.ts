@@ -98,21 +98,34 @@ export async function runGateBeforeAction({
     // STANDARD FLOW: Fetch article preview and generate questions from source
     // Wrap both Edge Function calls with sessionGuard
 
-    // 1. Fetch article preview
-    const previewData = await withSessionGuard(async () => {
-      const { data, error } = await supabase.functions.invoke(
-        'fetch-article-preview',
-        { body: { url: linkUrl } }
-      );
-      
-      if (error || !data?.success) {
-        const errorMsg = data?.error || error?.message || 'Failed to fetch article preview';
-        console.error('[runGateBeforeAction] Preview fetch failed:', errorMsg);
-        throw new Error(errorMsg);
-      }
-      
-      return data;
-    }, { label: 'runGateBeforeAction_preview' });
+    // 1. Fetch article preview (skip for internal schemas)
+    const isInternalSchema = linkUrl.startsWith('editorial://') || linkUrl.startsWith('focus://daily/');
+    
+    let previewData: any = {};
+    
+    if (isInternalSchema) {
+      console.log('[runGateBeforeAction] Internal schema detected, skipping preview fetch');
+      previewData = {
+        success: true,
+        title: 'Il Punto', // Fallback title, generate-qa will fetch the real one
+        qaSourceRef: { kind: 'url' as const, id: linkUrl, url: linkUrl }
+      };
+    } else {
+      previewData = await withSessionGuard(async () => {
+        const { data, error } = await supabase.functions.invoke(
+          'fetch-article-preview',
+          { body: { url: linkUrl } }
+        );
+        
+        if (error || !data?.success) {
+          const errorMsg = data?.error || error?.message || 'Failed to fetch article preview';
+          console.error('[runGateBeforeAction] Preview fetch failed:', errorMsg);
+          throw new Error(errorMsg);
+        }
+        
+        return data;
+      }, { label: 'runGateBeforeAction_preview' });
+    }
 
     console.log('[runGateBeforeAction] Preview response:', { previewData });
 
