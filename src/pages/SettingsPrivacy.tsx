@@ -131,9 +131,6 @@ export default function SettingsPrivacy() {
   };
 
   const handleForceSync = async () => {
-    // On iOS PWA, isSupported may initially be false due to timing issues
-    // with PushManager availability. Always try forceSync and let it fail
-    // gracefully if truly unsupported.
     if (!isSupported && !isPWA) {
       if (isIOS) {
         toast.error("Su iOS le notifiche push funzionano solo con l'app installata (Aggiungi alla schermata Home)");
@@ -144,15 +141,22 @@ export default function SettingsPrivacy() {
     }
     toast.info("Sincronizzazione in corso...");
     try {
-      const success = await forceSync();
-      if (success) {
+      const result = await forceSync();
+      if (result.success) {
         toast.success("Notifiche push sincronizzate!");
       } else {
-        toast.error("Errore durante la sincronizzazione. Verifica di aver concesso i permessi per le notifiche nelle Impostazioni di iOS.");
+        const errorMessages: Record<string, string> = {
+          unsupported: "PushManager non disponibile su questo dispositivo",
+          permission_denied: "Permesso notifiche negato. Vai in Impostazioni iOS → NoParrot → Notifiche e abilitale.",
+          no_keys: "Impossibile estrarre le chiavi di cifratura dalla subscription push. Prova a reinstallare la PWA.",
+          db_error: "Errore nel salvataggio della subscription nel backend. Riprova tra qualche secondo.",
+          unknown: "Errore sconosciuto durante la sincronizzazione."
+        };
+        toast.error(errorMessages[result.error || 'unknown']);
       }
     } catch (err) {
       console.error('[Sync] Force sync error:', err);
-      toast.error("Errore durante la sincronizzazione");
+      toast.error("Errore imprevisto durante la sincronizzazione");
     }
   };
 

@@ -22,11 +22,64 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+// Convert ArrayBuffer to base64url string (Safari-safe)
+function arrayBufferToBase64Url(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return window.btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+// Extract subscription keys using getKey() first, then toJSON() fallback
+function extractSubscriptionKeys(subscription: PushSubscription): { p256dh: string; auth: string } | null {
+  let p256dh = '';
+  let auth = '';
+
+  // Primary: use getKey() — more reliable on Safari/iOS
+  try {
+    const p256dhKey = subscription.getKey('p256dh');
+    const authKey = subscription.getKey('auth');
+    if (p256dhKey && authKey) {
+      p256dh = arrayBufferToBase64Url(p256dhKey);
+      auth = arrayBufferToBase64Url(authKey);
+      console.log('[Push] Keys extracted via getKey() ✓', { p256dhLen: p256dh.length, authLen: auth.length });
+    }
+  } catch (e) {
+    console.warn('[Push] getKey() failed, trying toJSON fallback:', e);
+  }
+
+  // Fallback: toJSON().keys
+  if (!p256dh || !auth) {
+    try {
+      const json = subscription.toJSON();
+      p256dh = json.keys?.p256dh || '';
+      auth = json.keys?.auth || '';
+      console.log('[Push] Keys extracted via toJSON() fallback', { p256dhLen: p256dh.length, authLen: auth.length });
+    } catch (e) {
+      console.error('[Push] toJSON() also failed:', e);
+    }
+  }
+
+  if (!p256dh || !auth) {
+    console.error('[Push] Could not extract subscription keys');
+    return null;
+  }
+
+  return { p256dh, auth };
+}
+
 // Parse iOS version from user agent
 function parseIOSVersion(userAgent: string): number | null {
   const match = userAgent.match(/OS (\d+)_/);
   return match ? parseInt(match[1], 10) : null;
 }
+
+export type PushSyncError = 'unsupported' | 'permission_denied' | 'no_keys' | 'db_error' | 'unknown';
 
 export const usePushNotifications = () => {
   const { user } = useAuth();
@@ -34,13 +87,12 @@ export const usePushNotifications = () => {
   const [isSupported, setIsSupported] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
 
-  // iOS/PWA detection - check multiple signals for reliability
+  // iOS/PWA detection
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
   const isPWA = typeof window !== 'undefined' && (
     (window.navigator as any).standalone === true ||
     window.matchMedia('(display-mode: standalone)').matches ||
     document.referrer.includes('android-app://') ||
-    // iOS sometimes doesn't set standalone but runs without browser chrome
     (isIOS && !window.navigator.userAgent.includes('Safari') && window.navigator.userAgent.includes('AppleWebKit'))
   );
   const iOSVersion = isIOS ? parseIOSVersion(navigator.userAgent) : null;
@@ -73,8 +125,7 @@ export const usePushNotifications = () => {
       const registration = await navigator.serviceWorker.ready;
       const browserSubscription = await (registration as any).pushManager.getSubscription();
 
-      // VAPID key mismatch detection: if the browser subscription was created
-      // with a different applicationServerKey, force re-subscribe
+      // VAPID key mismatch detection
       if (browserSubscription) {
         try {
           const currentKeyBytes = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
@@ -90,17 +141,14 @@ export const usePushNotifications = () => {
             }
             if (mismatch) {
               console.log('[Push] ⚠️ VAPID key mismatch detected! Forcing re-subscribe...');
-              // Unsubscribe from browser
               await browserSubscription.unsubscribe();
-              // Delete stale DB record
               await supabase
                 .from('push_subscriptions')
                 .delete()
                 .eq('user_id', user.id)
                 .eq('endpoint', browserSubscription.endpoint);
-              // Re-subscribe with correct key
-              const success = await subscribeToPush();
-              console.log('[Push] VAPID key re-subscribe result:', success);
+              const result = await subscribeToPush();
+              console.log('[Push] VAPID key re-subscribe result:', result.success);
               return;
             }
           }
@@ -128,14 +176,14 @@ export const usePushNotifications = () => {
 
       if (dbSubscription && browserSubscription.endpoint !== dbSubscription.endpoint) {
         console.log('[Push] ⚠️ Domain change detected! Forcing re-sync...');
-        const success = await subscribeToPush();
-        console.log('[Push] Re-sync result:', success);
+        const result = await subscribeToPush();
+        console.log('[Push] Re-sync result:', result.success);
         return;
       }
 
       if (!dbSubscription) {
-        const success = await subscribeToPush();
-        console.log('[Push] Auto-registration result:', success);
+        const result = await subscribeToPush();
+        console.log('[Push] Auto-registration result:', result.success);
         return;
       }
 
@@ -159,8 +207,8 @@ export const usePushNotifications = () => {
       setPermission(result);
 
       if (result === 'granted') {
-        const subscribed = await subscribeToPush();
-        if (subscribed) {
+        const syncResult = await subscribeToPush();
+        if (syncResult.success) {
           toast.success('Notifiche attivate! Riceverai notifiche per nuovi like, commenti, menzioni e messaggi');
           return true;
         }
@@ -175,8 +223,64 @@ export const usePushNotifications = () => {
     }
   };
 
-  const subscribeToPush = async (): Promise<boolean> => {
-    if (!user) return false;
+  /** Persist subscription to DB with fallback for legacy single-row conflicts */
+  const persistSubscription = async (
+    userId: string,
+    endpoint: string,
+    p256dh: string,
+    auth: string
+  ): Promise<{ success: boolean; error?: PushSyncError }> => {
+    const payload = {
+      user_id: userId,
+      endpoint,
+      p256dh,
+      auth,
+      created_at: new Date().toISOString()
+    };
+
+    // Try upsert with composite key first
+    const { error: upsertError } = await supabase
+      .from('push_subscriptions')
+      .upsert(payload, { onConflict: 'user_id,endpoint' });
+
+    if (!upsertError) {
+      return { success: true };
+    }
+
+    console.warn('[Push] Upsert failed, trying fallback:', upsertError.message);
+
+    // Fallback: delete all user's subscriptions and insert fresh
+    // This handles the case where a legacy unique index on user_id alone
+    // blocks the upsert (even though we're migrating it away)
+    try {
+      const { error: deleteError } = await supabase
+        .from('push_subscriptions')
+        .delete()
+        .eq('user_id', userId);
+
+      if (deleteError) {
+        console.error('[Push] Fallback delete failed:', deleteError);
+        return { success: false, error: 'db_error' };
+      }
+
+      const { error: insertError } = await supabase
+        .from('push_subscriptions')
+        .insert(payload);
+
+      if (insertError) {
+        console.error('[Push] Fallback insert failed:', insertError);
+        return { success: false, error: 'db_error' };
+      }
+
+      return { success: true };
+    } catch (e) {
+      console.error('[Push] Fallback exception:', e);
+      return { success: false, error: 'db_error' };
+    }
+  };
+
+  const subscribeToPush = async (): Promise<{ success: boolean; error?: PushSyncError }> => {
+    if (!user) return { success: false, error: 'unknown' };
 
     try {
       const registration = await navigator.serviceWorker.register('/sw.js');
@@ -185,7 +289,7 @@ export const usePushNotifications = () => {
       const pm = (registration as any).pushManager;
       if (!pm) {
         console.error('[Push] PushManager unavailable on service worker registration');
-        return false;
+        return { success: false, error: 'unsupported' };
       }
 
       // Check if already subscribed in browser
@@ -196,7 +300,7 @@ export const usePushNotifications = () => {
       if (!subscription) {
         if (!('Notification' in window)) {
           console.error('[Push] Notification API unavailable');
-          return false;
+          return { success: false, error: 'unsupported' };
         }
 
         let currentPermission: NotificationPermission = Notification.permission;
@@ -207,7 +311,7 @@ export const usePushNotifications = () => {
 
         if (currentPermission !== 'granted') {
           console.error('[Push] Notification permission not granted:', currentPermission);
-          return false;
+          return { success: false, error: 'permission_denied' };
         }
 
         const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
@@ -218,74 +322,26 @@ export const usePushNotifications = () => {
         });
       }
 
-      const subscriptionJson = subscription.toJSON();
-      const endpoint = subscription.endpoint;
-      const p256dh = subscriptionJson.keys?.p256dh || '';
-      const auth = subscriptionJson.keys?.auth || '';
-
-      if (!p256dh || !auth) {
-        console.error('[Push] Missing subscription keys');
-        return false;
+      // Extract keys using Safari-safe method
+      const keys = extractSubscriptionKeys(subscription);
+      if (!keys) {
+        return { success: false, error: 'no_keys' };
       }
 
+      const endpoint = subscription.endpoint;
       console.log('[Push] Saving subscription endpoint:', endpoint.slice(0, 80));
 
-      // [FIX] Multi-device support: Do NOT delete all user subscriptions.
-      // Check if THIS SPECIFIC endpoint already exists in DB.
-      const { data: existingDbSub, error: existingDbSubError } = await supabase
-        .from('push_subscriptions')
-        .select('id')
-        .eq('endpoint', endpoint)
-        .maybeSingle();
+      const result = await persistSubscription(user.id, endpoint, keys.p256dh, keys.auth);
 
-      if (existingDbSubError) {
-        console.error('[Push] Error checking existing endpoint:', existingDbSubError);
-        return false;
+      if (result.success) {
+        setIsSubscribed(true);
+        console.log('[Push] Subscription synced successfully ✓');
       }
 
-      if (existingDbSub) {
-        // Update existing (e.g. if user_id changed or keys refreshed)
-        const { error } = await supabase
-          .from('push_subscriptions')
-          .update({
-            user_id: user.id,
-            p256dh,
-            auth,
-            created_at: new Date().toISOString()
-          })
-          .eq('id', existingDbSub.id);
-
-        if (error) {
-          console.error('[Push] Error updating subscription:', error);
-          return false;
-        }
-      } else {
-        // Multi-device support: allow multiple endpoints per user.
-        // Conflict target must match the real unique constraint (user_id, endpoint).
-        const { error } = await supabase
-          .from('push_subscriptions')
-          .upsert({
-            user_id: user.id,
-            endpoint,
-            p256dh,
-            auth,
-            created_at: new Date().toISOString()
-          }, {
-            onConflict: 'user_id,endpoint'
-          });
-
-        if (error) {
-          console.error('[Push] Error inserting subscription:', error);
-          return false;
-        }
-      }
-
-      setIsSubscribed(true);
-      console.log('[Push] Subscription synced successfully');
-      return true;
+      return result;
     } catch (error) {
       console.error('[Push] Error subscribing to push:', error);
-      return false;
+      return { success: false, error: 'unknown' };
     }
   };
 
@@ -327,9 +383,8 @@ export const usePushNotifications = () => {
     }
   };
 
-  const forceSync = async (): Promise<boolean> => {
-    const result = await subscribeToPush();
-    return result;
+  const forceSync = async (): Promise<{ success: boolean; error?: PushSyncError }> => {
+    return await subscribeToPush();
   };
 
   return {
