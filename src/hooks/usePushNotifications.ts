@@ -183,13 +183,35 @@ export const usePushNotifications = () => {
       await navigator.serviceWorker.ready;
 
       const pm = (registration as any).pushManager;
+      if (!pm) {
+        console.error('[Push] PushManager unavailable on service worker registration');
+        return false;
+      }
 
       // Check if already subscribed in browser
       let subscription = await pm.getSubscription();
+      console.log('[Push] Existing browser subscription:', !!subscription);
 
       // If not, subscribe new
       if (!subscription) {
+        if (!('Notification' in window)) {
+          console.error('[Push] Notification API unavailable');
+          return false;
+        }
+
+        let currentPermission: NotificationPermission = Notification.permission;
+        if (currentPermission !== 'granted') {
+          currentPermission = await Notification.requestPermission();
+          setPermission(currentPermission);
+        }
+
+        if (currentPermission !== 'granted') {
+          console.error('[Push] Notification permission not granted:', currentPermission);
+          return false;
+        }
+
         const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+        console.log('[Push] Creating new push subscription');
         subscription = await pm.subscribe({
           userVisibleOnly: true,
           applicationServerKey: applicationServerKey.buffer as ArrayBuffer
@@ -206,13 +228,20 @@ export const usePushNotifications = () => {
         return false;
       }
 
+      console.log('[Push] Saving subscription endpoint:', endpoint.slice(0, 80));
+
       // [FIX] Multi-device support: Do NOT delete all user subscriptions.
       // Check if THIS SPECIFIC endpoint already exists in DB.
-      const { data: existingDbSub } = await supabase
+      const { data: existingDbSub, error: existingDbSubError } = await supabase
         .from('push_subscriptions')
         .select('id')
         .eq('endpoint', endpoint)
         .maybeSingle();
+
+      if (existingDbSubError) {
+        console.error('[Push] Error checking existing endpoint:', existingDbSubError);
+        return false;
+      }
 
       if (existingDbSub) {
         // Update existing (e.g. if user_id changed or keys refreshed)
@@ -222,7 +251,6 @@ export const usePushNotifications = () => {
             user_id: user.id,
             p256dh,
             auth,
-            // Update timestamp to keep it fresh
             created_at: new Date().toISOString()
           })
           .eq('id', existingDbSub.id);
@@ -253,6 +281,7 @@ export const usePushNotifications = () => {
       }
 
       setIsSubscribed(true);
+      console.log('[Push] Subscription synced successfully');
       return true;
     } catch (error) {
       console.error('[Push] Error subscribing to push:', error);
