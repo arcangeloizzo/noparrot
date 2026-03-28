@@ -2985,15 +2985,35 @@ const ImmersivePostCardInner = ({
             {/* Primary Share Button - Pill shape with consistent height */}
             <motion.button
               whileTap={{ scale: 0.95 }}
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.stopPropagation();
                 haptics.light();
-                handleShareClick(e);
+                
+                const shareUrl = `${window.location.origin}/post/${post.id}`;
+                const shareData = {
+                  title: post.shared_title || 'Post su NoParrot',
+                  text: post.content?.substring(0, 100) || '',
+                  url: shareUrl,
+                };
+
+                if (navigator.share && navigator.canShare?.(shareData)) {
+                  try {
+                    await navigator.share(shareData);
+                  } catch (err: any) {
+                    if (err instanceof Error && err.name !== 'AbortError') {
+                      await navigator.clipboard.writeText(shareUrl);
+                      toast.success('Link copiato!');
+                    }
+                  }
+                } else {
+                  await navigator.clipboard.writeText(shareUrl);
+                  toast.success('Link copiato!');
+                }
               }}
-              className="h-11 px-5 bg-blue-50 hover:bg-blue-100 dark:bg-white dark:hover:bg-gray-200 text-blue-600 dark:text-[#1F3347] font-bold rounded-full shadow-sm dark:shadow-md border border-blue-100 dark:border-transparent flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              className="h-11 px-5 bg-blue-50 hover:bg-blue-100 dark:bg-white dark:hover:bg-gray-200 text-blue-600 dark:text-[#1F3347] rounded-full shadow-sm dark:shadow-md border border-blue-100 dark:border-transparent flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
             >
-              <Logo variant="icon" size="sm" className="h-5 w-5" />
-              <span className="text-sm font-semibold leading-none">Condividi</span>
+              <Logo variant="icon" className="w-5 h-5 object-contain" />
+              <span className="text-sm font-medium leading-none">Condividi</span>
               {(post.shares_count ?? 0) > 0 && (
                 <span className="text-xs opacity-70">({post.shares_count})</span>
               )}

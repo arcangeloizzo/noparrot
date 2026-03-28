@@ -80,7 +80,50 @@ export const useNotifications = () => {
         .limit(50);
 
       if (error) throw error;
-      return data as Notification[];
+      
+      const notifications = data as Notification[];
+      
+      // Resolving email mentions to display names for notification previews
+      const emailRegex = /@([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/g;
+      const emailsToFetch = new Set<string>();
+      
+      notifications.forEach(n => {
+        const content = n.comment?.content || n.post?.content || '';
+        let match;
+        while ((match = emailRegex.exec(content)) !== null) {
+          emailsToFetch.add(match[1]);
+        }
+      });
+      
+      if (emailsToFetch.size > 0) {
+        const emailsArray = Array.from(emailsToFetch);
+        const { data: profiles } = await supabase
+          .from('public_profiles')
+          .select('id, username, full_name')
+          .in('username', emailsArray);
+          
+        const profileMap = new Map();
+        if (profiles) {
+          profiles.forEach(p => {
+            profileMap.set(p.username, p.full_name || p.username.split('@')[0]);
+          });
+        }
+        
+        notifications.forEach(n => {
+          if (n.comment?.content) {
+            n.comment.content = n.comment.content.replace(emailRegex, (match, email) => {
+              return '@' + (profileMap.get(email) || email.split('@')[0]);
+            });
+          }
+          if (n.post?.content) {
+            n.post.content = n.post.content.replace(emailRegex, (match, email) => {
+              return '@' + (profileMap.get(email) || email.split('@')[0]);
+            });
+          }
+        });
+      }
+
+      return notifications;
     },
     enabled: !!user
   });

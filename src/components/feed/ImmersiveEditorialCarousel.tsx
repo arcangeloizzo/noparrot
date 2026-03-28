@@ -607,24 +607,44 @@ const EditorialSlideInner = ({
             </h1>
 
             {/* Abstract/Lead */}
-            <p 
-              style={{ fontSize: '14px', color: '#7A8FA6', lineHeight: 1.55 }}
-              className="mb-5 line-clamp-3"
-            >
-              {item.summary.replace(/\[SOURCE:[\d,\s]+\]/g, "").trim()}
-            </p>
+            {(() => {
+              const fullText = item.summary.replace(/\[SOURCE:[\d,\s]+\]/g, "").trim();
+              const maxInitialLength = 160;
+              const needsTruncation = fullText.length > maxInitialLength;
+              const displayText = needsTruncation ? fullText.substring(0, maxInitialLength).trim() : fullText;
+              
+              return (
+                <div className="mb-5">
+                  <p 
+                    style={{ fontSize: '14px', color: '#7A8FA6', lineHeight: 1.55 }}
+                    className="inline"
+                  >
+                    {displayText}
+                  </p>
+                  {needsTruncation && (
+                    <div className="mt-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onClick();
+                        }}
+                        className="text-sm font-bold text-[#0A7AFF] cursor-pointer hover:underline transition-all outline-none"
+                      >
+                        Leggi tutto
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
-            {/* Blocco Fonti (max 5) - V2 */}
+            {/* Fonti as Compact Tags */}
             {item.sources && item.sources.length > 0 && (
-              <div 
-                className="mb-6 pointer-events-auto flex flex-col"
-                style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px', overflow: 'hidden' }}
-              >
-                {item.sources.slice(0, 5).map((source: any, idx: number, arr: any[]) => {
+              <div className="mb-6 pointer-events-auto flex flex-wrap gap-2">
+                {item.sources.slice(0, 5).map((source: any, idx: number) => {
                   const colors = ['#0A7AFF', '#E41E52', '#FFD464', '#10B981', '#A78BFA'];
                   const barColor = colors[idx % colors.length];
                   const domainName = (source.name || new URL(source.url || 'https://link').hostname).replace('www.', '');
-                  const headline = source.title || source.headline || source.description;
                   
                   return (
                     <button 
@@ -633,30 +653,16 @@ const EditorialSlideInner = ({
                          e.stopPropagation();
                          if (source.url) window.open(source.url, '_blank');
                       }}
-                      className="w-full flex items-center group hover:bg-white/5 transition-all outline-none"
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-sm border outline-none hover:bg-white/10 transition-colors"
                       style={{ 
-                        borderBottom: idx !== arr.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
-                        padding: '10px 12px'
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        borderColor: 'rgba(255, 255, 255, 0.1)'
                       }}
                     >
-                      <div className="flex items-center min-w-0 flex-1">
-                        <div style={{ width: '3px', height: '24px', borderRadius: '2px', backgroundColor: barColor, flexShrink: 0 }} />
-                        <div className="flex flex-col items-start px-3 min-w-0 flex-1">
-                          <span style={{ fontFamily: 'JetBrains Mono', fontSize: '9px', color: '#7A8FA6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            {domainName}
-                          </span>
-                          {headline && (
-                            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: '12px', color: '#E2EAF4', width: '100%', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: '1px' }}>
-                              {headline}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div style={{ color: '#7A8FA6', fontSize: '12px', flexShrink: 0 }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="9 18 15 12 9 6"></polyline>
-                        </svg>
-                      </div>
+                      <div style={{ width: '3px', height: '12px', borderRadius: '1.5px', backgroundColor: barColor, flexShrink: 0 }} />
+                      <span style={{ fontFamily: 'JetBrains Mono', fontSize: '10px', color: '#E2EAF4', textTransform: 'uppercase', letterSpacing: '0.02em', fontWeight: 600 }}>
+                        {domainName}
+                      </span>
                     </button>
                   );
                 })}

@@ -228,14 +228,17 @@ export const usePushNotifications = () => {
           return false;
         }
       } else {
-        // Insert new subscription
+        // Upsert subscription to avoid duplicate key violations
         const { error } = await supabase
           .from('push_subscriptions')
-          .insert({
+          .upsert({
             user_id: user.id,
             endpoint,
             p256dh,
             auth,
+            created_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id'
           });
 
         if (error) {

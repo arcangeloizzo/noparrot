@@ -245,31 +245,32 @@ export default function SettingsPrivacy() {
             </div>
 
             {/* Push Status */}
-            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border mb-4">
-              <div className="space-y-1 flex-1 mr-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">Stato notifiche push:</span>
-                  <span className={`text-sm font-medium ${pushStatus.color}`}>
-                    {pushStatus.label}
-                  </span>
-                </div>
-                {pushStatus.status === 'denied' && (
-                  <p className="text-xs text-muted-foreground">
-                    Abilita le notifiche nelle impostazioni del browser
-                  </p>
-                )}
+            <div className="flex flex-col gap-2 p-3 bg-muted/30 rounded-lg border border-border mb-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium">Stato notifiche push:</span>
+                <span className={`text-sm font-medium ${pushStatus.color}`}>
+                  {pushStatus.label}
+                </span>
               </div>
+              
+              {pushStatus.status === 'denied' && (
+                <p className="text-xs text-muted-foreground">
+                  Abilita le notifiche nelle impostazioni del browser
+                </p>
+              )}
+              
               {pushStatus.status === 'not-requested' && (
-                <Button size="sm" onClick={requestPermission}>
+                <Button size="sm" onClick={requestPermission} className="min-w-fit whitespace-nowrap w-max mt-1">
                   Attiva
                 </Button>
               )}
+              
               {(pushStatus.status === 'active' || pushStatus.status === 'permission-granted') && (
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2 mt-1">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
+                    className="bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 min-w-fit whitespace-nowrap"
                     onClick={() => {
                       if (!user) return;
                       toast.info("Vai alla schermata Home del telefono. La notifica arriverà tra 5 secondi...", { duration: 5000 });
@@ -284,7 +285,7 @@ export default function SettingsPrivacy() {
                   >
                     Test Notifica
                   </Button>
-                  <Button size="sm" variant="outline" onClick={handleForceSync}>
+                  <Button size="sm" variant="outline" onClick={handleForceSync} className="min-w-fit whitespace-nowrap">
                     <RefreshCw className="w-4 h-4 mr-1" />
                     Sinc
                   </Button>
