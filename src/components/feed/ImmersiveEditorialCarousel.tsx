@@ -673,14 +673,35 @@ const EditorialSlideInner = ({
             <div className="flex items-center justify-between gap-6">
               {/* Primary Share Button - Pill shape with consistent height */}
               <button
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation();
-                  onShare?.();
+                  haptics.light();
+                  
+                  const shareUrl = `${window.location.origin}/?focus=${item.id}`;
+                  const shareData = {
+                    title: item.title || 'Il Punto su NoParrot',
+                    text: item.summary?.substring(0, 100) || '',
+                    url: shareUrl,
+                  };
+
+                  if (navigator.share && navigator.canShare?.(shareData)) {
+                    try {
+                      await navigator.share(shareData);
+                    } catch (err: any) {
+                      if (err instanceof Error && err.name !== 'AbortError') {
+                        await navigator.clipboard.writeText(shareUrl);
+                        toast.success('Link copiato!');
+                      }
+                    }
+                  } else {
+                    await navigator.clipboard.writeText(shareUrl);
+                    toast.success('Link copiato!');
+                  }
                 }}
-                className="h-11 px-5 bg-blue-50 hover:bg-blue-100 dark:bg-white dark:hover:bg-gray-200 text-blue-600 dark:text-[#1F3347] font-bold rounded-full shadow-sm dark:shadow-md border border-blue-100 dark:border-transparent flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                className="h-11 px-5 bg-blue-50 hover:bg-blue-100 dark:bg-white dark:hover:bg-gray-200 text-blue-600 dark:text-[#1F3347] rounded-full shadow-sm dark:shadow-md border border-blue-100 dark:border-transparent flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
               >
-                <Logo variant="icon" size="sm" className="h-5 w-5" />
-                <span className="text-sm font-semibold leading-none">Condividi</span>
+                <Logo variant="icon" className="w-5 h-5 object-contain" />
+                <span className="text-sm font-medium leading-none">Condividi</span>
                 {(item.reactions?.shares ?? 0) > 0 && (
                   <span className="text-xs opacity-70">({item.reactions?.shares})</span>
                 )}
