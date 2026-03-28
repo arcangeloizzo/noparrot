@@ -232,7 +232,8 @@ export const usePushNotifications = () => {
           return false;
         }
       } else {
-        // Upsert subscription to avoid duplicate key violations
+        // Multi-device support: allow multiple endpoints per user.
+        // Conflict target must match the real unique constraint (user_id, endpoint).
         const { error } = await supabase
           .from('push_subscriptions')
           .upsert({
@@ -242,7 +243,7 @@ export const usePushNotifications = () => {
             auth,
             created_at: new Date().toISOString()
           }, {
-            onConflict: 'user_id'
+            onConflict: 'user_id,endpoint'
           });
 
         if (error) {
