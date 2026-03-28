@@ -158,8 +158,8 @@ export default function SettingsPrivacy() {
 
   // Push status indicator
   const getPushStatus = () => {
-    if (!isSupported) {
-      if (isIOS && !isPWA) {
+    if (!isSupported && !isPWA) {
+      if (isIOS) {
         return { status: 'ios-browser', label: 'Installa l\'app per ricevere notifiche', color: 'text-amber-500' };
       }
       return { status: 'unsupported', label: 'Non supportato', color: 'text-muted-foreground' };
