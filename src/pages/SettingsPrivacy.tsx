@@ -131,6 +131,14 @@ export default function SettingsPrivacy() {
   };
 
   const handleForceSync = async () => {
+    if (!isSupported) {
+      if (isIOS && !isPWA) {
+        toast.error("Su iOS le notifiche push funzionano solo con l'app installata (Aggiungi alla schermata Home)");
+      } else {
+        toast.error("Le notifiche push non sono supportate su questo browser");
+      }
+      return;
+    }
     toast.info("Sincronizzazione in corso...");
     const success = await forceSync();
     if (success) {
