@@ -1,64 +1,94 @@
 
-Problema reale
+Obiettivo: chiudere il loop degli “hai risolto” e intervenire solo sul vero punto che continua a rompere la sincronizzazione push in iOS PWA.
 
-- L’account di Ornella non è il problema: i log di autenticazione mostrano login password riusciti con `status=200`, quindi le credenziali e il backend stanno funzionando.
-- Il blocco è client-side sul telefono Android/webapp: il login riesce, ma appena l’app entra nel feed le query iniziali si piantano e dopo 12 secondi compare la schermata “Sessione scaduta”.
-- Ho verificato il codice e il punto critico è ancora in `AuthContext.tsx`: subito dopo eventi auth (`SIGNED_IN` / `USER_UPDATED`) vengono avviate altre chiamate al backend (`syncPendingConsents` + query su `profiles` dentro `syncPostAuthState`).
-- Inoltre `signIn()` richiama di nuovo `syncPostAuthState()` immediatamente dopo `signInWithPassword`.
-- Questo combacia con un problema noto del client auth su mobile/PWA: fare chiamate backend dentro o immediatamente attorno a `onAuthStateChange` può lasciare bloccate le query successive. In questo progetto le query che poi restano appese sono soprattutto `usePosts` e `useDailyFocus`, che fanno scattare il fallback del feed.
+1. Problema reale individuato
+Ho ricontrollato sia il codice frontend sia la configurazione del database/notifiche.
 
-Do I know what the issue is? Yes.
+Do I know what the issue is? Sì.
 
-Piano
+Il problema più probabile e coerente con tutto quello che vedo non è la policy UPDATE aggiunta prima: quella ora esiste già su `push_subscriptions`.
 
-1. Pulire il bootstrap auth
-- In `src/contexts/AuthContext.tsx` introdurre uno stato separato tipo `authReady` / `isHydrated`.
-- Completare prima il ripristino sessione (`restoreSessionFromUrlHash` + `getSession`) e solo dopo sbloccare le query.
-- Lasciare `onAuthStateChange` “puro”: aggiornamento di `session`, `user`, `loading/authReady` e basta.
+Il vero conflitto è questo:
+- il codice attuale di `src/hooks/usePushNotifications.ts` è stato scritto per supportare più endpoint per utente e usa `upsert(..., { onConflict: 'user_id,endpoint' })`
+- nel database però esiste ancora una vecchia migration che crea un indice univoco legacy su `push_subscriptions(user_id)`:
+  `supabase/migrations/20260110034545_8a943a1c-432e-4d7b-ae4f-22617de835fc.sql`
+- quindi, se esiste già una subscription per quell’utente e iOS genera/usa un endpoint diverso o la logica prova a reinserire la subscription, il salvataggio va comunque in errore anche se la policy RLS è corretta
 
-2. Spostare le side effect fuori dal callback auth
-- Rimuovere le chiamate a `syncPostAuthState()`:
-  - dal callback `onAuthStateChange`
-  - da `signIn()`
-- Eseguire sync consensi / check profilo in un `useEffect` separato, dopo che l’autenticazione è stabile, eventualmente differito di un tick.
-- Fare in modo che giri una sola volta per login/reset, non su refresh token o eventi ripetuti.
+In breve: frontend “multi-endpoint”, database ancora “single-endpoint”. Questo mismatch spiega perfettamente il fatto che tu continui a vedere lo stesso errore.
 
-3. Bloccare le query finché auth non è davvero pronta
-- Aggiornare `src/hooks/usePosts.ts` e `src/hooks/useDailyFocus.ts` per usare `enabled: authReady && !!user`.
-- Se necessario, ritardare anche altri hook di startup che interrogano subito il backend dopo il login, in particolare `usePushNotifications`.
+2. File/aree da toccare
+Interverrò solo qui:
+- `src/hooks/usePushNotifications.ts`
+- `src/pages/SettingsPrivacy.tsx`
+- nuova migration in `supabase/migrations/` per correggere lo schema di `push_subscriptions`
 
-4. Rendere il Feed meno aggressivo nel recovery
-- In `src/pages/Feed.tsx` sostituire il comportamento attuale “se entrambe le query falliscono => logout immediato” con un recupero a due step:
-  1) tentare un `refreshSession()` + invalidazione query,
-  2) mostrare logout solo se anche il secondo tentativo fallisce o resta appeso.
-- Tenere il bottone “Esci e riaccedi” come ultima spiaggia, non come prima reazione.
+3. Modifica principale da fare
+A. Correggere il database
+Creerò una migration che:
+- rimuove l’indice legacy `idx_push_subscriptions_unique_user` su `push_subscriptions(user_id)`
+- lascia valida la chiave unica corretta già coerente col codice: `(user_id, endpoint)`
 
-5. Verifica finale mirata al caso Ornella
-- Login da webapp Android
-- cambio password da link email
-- riapertura app con sessione già esistente
-- logout -> login di nuovo
-- controllo che non ricompaiano né skeleton infiniti né “Sessione scaduta” dopo login riuscito
+Questo è il fix strutturale più importante.
 
-File da toccare
-- `src/contexts/AuthContext.tsx`
-- `src/hooks/usePosts.ts`
-- `src/hooks/useDailyFocus.ts`
-- `src/pages/Feed.tsx`
-- probabilmente `src/hooks/usePushNotifications.ts`
+4. Hardening del flusso sync per non ricadere nello stesso punto
+In `usePushNotifications.ts` renderò il salvataggio più robusto senza toccare le altre logiche push:
+- quando esiste già una subscription browser, non mi baserò solo sulla ricerca per `endpoint`
+- aggiungerò un fallback che gestisce anche il caso “utente ha già una riga legacy”
+- se il salvataggio fallisce per conflitto, tenterò una sostituzione/aggiornamento controllato della subscription dell’utente invece di restituire solo `false`
 
-Dettaglio tecnico
+Così il sistema non dipenderà da un solo scenario ideale.
+
+5. Hardening Safari/iOS
+Aggiungerò una protezione Safari-safe durante l’estrazione delle chiavi della subscription:
+- prima provo `subscription.getKey('p256dh')` e `subscription.getKey('auth')`
+- poi converto in base64url
+- uso `toJSON().keys` solo come fallback
+
+Questo evita edge case in cui la serializzazione di Safari/iOS non sia affidabile al 100%.
+
+6. Miglioria UX/debug
+In `SettingsPrivacy.tsx` non lascerò più un errore generico indistinto.
+Classificherò i casi:
+- browser/PWA non supportato
+- permesso non concesso
+- chiavi subscription mancanti
+- errore di persistenza nel backend
+- subscription già presente ma non allineata
+
+Così, se dovesse fallire ancora, il messaggio ci dirà davvero dove si rompe.
+
+7. Verifica che farò dopo l’implementazione
+Farò una verifica mirata del percorso:
 ```text
-Flusso attuale che si rompe
-login / update password riuscito
-  -> onAuthStateChange(SIGNED_IN o USER_UPDATED)
-  -> syncPostAuthState()
-      -> syncPendingConsents()  [backend]
-      -> profiles select        [backend]
-  -> Feed monta
-  -> usePosts / useDailyFocus partono
-  -> su Android/PWA il client resta appeso
-  -> dopo 12s compare "Sessione scaduta"
+PWA iOS installata
+→ apri Impostazioni/Privacy
+→ tap su “Sinc”
+→ subscription ottenuta dal service worker
+→ chiavi p256dh/auth estratte
+→ record salvato/aggiornato in push_subscriptions
+→ stato passa da “Sincronizzazione richiesta” a “Attive ✓”
 ```
 
-Non serve nessuna migrazione database: è un fix di orchestrazione auth lato frontend.
+8. Impatto sulle altre logiche
+La modifica resta isolata al sistema push:
+- non tocco feed, commenti, gate, post, auth o notifiche applicative
+- non cambio i secret
+- non altero la funzione `send-push-notification`, salvo necessità diagnostiche minime
+
+9. Nota importante emersa dall’analisi
+I console log allegati finora arrivano dal preview/editor e mostrano:
+- `hasNotification: false`
+- `hasPushManager: false`
+- `isPWA: false`
+
+Questi log non sono rappresentativi della tua app installata su iPhone, quindi hanno confuso il debugging precedente. Per questo la correzione deve concentrarsi su schema + logica di sync, non su quei log del preview.
+
+10. Dettagli tecnici
+- RLS su `push_subscriptions`: già presente anche per UPDATE, quindi non è più il collo di bottiglia
+- conflitto strutturale trovato: indice univoco legacy su `user_id`
+- codice corrente già dichiaratamente orientato a multi-device/multi-endpoint
+- fix previsto:
+  - migration: drop indice legacy
+  - hook: fallback save/update più robusto
+  - hook: estrazione chiavi via `getKey()`
+  - UI: error handling più diagnostico
