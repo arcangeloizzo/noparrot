@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/popover";
 import { useLongPress } from "@/hooks/useLongPress";
 import { ReactionPicker, type ReactionType, reactionToEmoji } from "@/components/ui/reaction-picker";
+import { InternalPostPreview } from "./InternalPostPreview";
 
 const getHostnameFromUrl = (url: string): string => {
   try {
@@ -66,7 +67,8 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
   // Fetch article preview for link_url
   useEffect(() => {
     const loadPreview = async () => {
-      if (!message.link_url) {
+      // Don't fetch OP preview if it's an internal post link
+      if (!message.link_url || message.link_url.includes('/post/')) {
         setArticlePreview(null);
         return;
       }
@@ -83,6 +85,14 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
 
     loadPreview();
   }, [message.link_url]);
+
+  // Extract internal post ID if applicable
+  const getInternalPostId = (url: string | undefined): string | null => {
+    if (!url) return null;
+    const match = url.match(/\/post\/([a-zA-Z0-9-]+)/);
+    return match ? match[1] : null;
+  };
+  const internalPostId = getInternalPostId(message.link_url);
 
   // Shake animation for error feedback
   const shakeAnimation = () => {
@@ -249,7 +259,15 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
 
               <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
 
-              {message.link_url && articlePreview && (
+              {/* Internal Post Preview (Natively rendered) */}
+              {internalPostId && (
+                <div className="mt-2 w-full max-w-sm" onClick={e => e.stopPropagation()}>
+                  <InternalPostPreview postId={internalPostId} />
+                </div>
+              )}
+
+              {/* External Article Preview */}
+              {message.link_url && articlePreview && !internalPostId && (
                 <div
                   className={cn(
                     'mt-2 rounded-xl overflow-hidden cursor-pointer group/link',
@@ -324,7 +342,8 @@ export const MessageBubble = memo(({ message }: MessageBubbleProps) => {
                 </div>
               )}
 
-              {message.link_url && !articlePreview && (
+              {/* Basic URL link if no preview and not internal */}
+              {message.link_url && !articlePreview && !internalPostId && (
                 <a
                   href={message.link_url}
                   target="_blank"

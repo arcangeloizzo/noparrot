@@ -4,7 +4,7 @@ import { perfStore } from "@/lib/perfStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap, Flag, ShieldAlert } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, Edit2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap, Flag, ShieldAlert } from "lucide-react";
 import { ReportContentDialog } from "./ReportContentDialog";
 import { AdminRemoveDialog } from "./AdminRemoveDialog";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -139,6 +139,7 @@ interface ImmersivePostCardProps {
   post: Post;
   onRemove?: (postId: string) => void;  // Accepts postId for stable callback reference
   onQuoteShare?: (post: Post) => void;
+  onEdit?: (post: Post) => void;
   /** Open comments drawer automatically when navigating from notifications */
   initialOpenComments?: boolean;
   /** Scroll to specific comment when opening drawer */
@@ -275,6 +276,7 @@ const ImmersivePostCardInner = ({
   post,
   onRemove,
   onQuoteShare,
+  onEdit,
   initialOpenComments = false,
   scrollToCommentId,
   index = 0
@@ -296,6 +298,10 @@ const ImmersivePostCardInner = ({
   const createThread = useCreateThread();
   const sendMessage = useSendMessage();
   const isOwnPost = user?.id === post.author.id;
+  const canEdit = isOwnPost &&
+    (post.reactions?.hearts || 0) === 0 &&
+    (post.reactions?.comments || 0) === 0 &&
+    (post.shares_count || 0) === 0;
 
   // Image gating: only load images for cards near the active index
   const { activeIndex } = useFeedContext();
@@ -1574,6 +1580,18 @@ const ImmersivePostCardInner = ({
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
+                  {canEdit && (
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit?.(post);
+                      }}
+                      className="text-foreground focus:text-foreground mb-1"
+                    >
+                      <Edit2 className="w-4 h-4 mr-2" />
+                      Modifica
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();

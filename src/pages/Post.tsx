@@ -100,6 +100,8 @@ export const Post = () => {
       return {
         id: data.id,
         author: data.author,
+        title: (data as any).title,
+        body_text: (data as any).body_text,
         content: data.content,
         topic_tag: data.topic_tag,
         shared_title: data.shared_title,
@@ -216,6 +218,9 @@ export const Post = () => {
             // Signal legitimate navigation for crash detection to ignore quiz cleanup
             addBreadcrumb('share_navigation_to_composer', { from: 'post_page' });
             navigate('/', { state: { quotePost: quotedPost } });
+          }}
+          onEdit={(editPost) => {
+            navigate('/', { state: { editPost } });
           }}
         />
       </div>

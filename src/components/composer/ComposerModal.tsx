@@ -28,6 +28,7 @@ import { haptics } from "@/lib/haptics";
 import { TiptapEditor, TiptapEditorRef } from "./TiptapEditor";
 import { useVisualViewportOffset } from "@/hooks/useVisualViewportOffset";
 import { useComposerPersistence } from "@/hooks/useComposerPersistence"; // [NEW] Persistence hook
+import { useEditPost } from "@/hooks/usePosts";
 import { X, Image as ImageIcon, Sparkles, Loader2, Music, Youtube, Hash, ImagePlus, ChevronDown, Check, Video, ZoomIn, Search, FileText, Share2, Zap, Mic } from 'lucide-react';
 import {
   AlertDialog,
@@ -50,6 +51,7 @@ interface ComposerModalProps {
   isOpen: boolean;
   onClose: () => void;
   quotedPost?: any;
+  editPost?: any;
   /** Callback fired with new post ID after successful publish (for scroll-to-post) */
   onPublishSuccess?: (newPostId: string) => void;
 }
@@ -102,10 +104,11 @@ const sanitizeUrl = (rawUrl: string): string => {
   return url;
 };
 
-export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }: ComposerModalProps) {
+export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublishSuccess }: ComposerModalProps) {
   const { user } = useAuth();
   const { data: profile } = useCurrentProfile();
   const queryClient = useQueryClient();
+  const editPostHook = useEditPost();
   const [content, setContent] = useState("");
   const [postTitle, setPostTitle] = useState("");
   const [isPublishing, setIsPublishing] = useState(false);
@@ -440,13 +443,24 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
   // Reset state when modal opens to ensure clean state for new posts
   useEffect(() => {
     if (isOpen) {
-      // Only reset if there's residual state from previous session
-      if (showReader || showQuiz || quizData || readerClosing || showVoiceRecorder || voicePostData || postType !== 'standard' || composerMode !== 'idle') {
-        console.log('[ComposerModal] Resetting residual state on open');
-        resetAllState();
+      if (editPost) {
+        setContent(editPost.content || "");
+        setPostTitle(editPost.title || "");
+        setComposerMode('text-editing');
+        setTimeout(() => {
+          if (editorRef.current) {
+            editorRef.current.setContent(editPost.content || "");
+          }
+        }, 100);
+      } else {
+        // Only reset if there's residual state from previous session
+        if (showReader || showQuiz || quizData || readerClosing || showVoiceRecorder || voicePostData || postType !== 'standard' || composerMode !== 'idle') {
+          console.log('[ComposerModal] Resetting residual state on open');
+          resetAllState();
+        }
       }
     }
-  }, [isOpen]);
+  }, [isOpen, editPost]);
 
   // [NEW] Handle forced intent mode from quoted post (Spotify/transcript fallback)
   useEffect(() => {
@@ -607,6 +621,27 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
     overridePostType?: 'voice' | 'challenge' | 'standard',
     overrideChallengeData?: { duration_hours: number }
   ) => {
+    if (editPost) {
+      if (!user || (!content.trim() && !postTitle.trim())) return;
+      setIsPublishing(true);
+      try {
+        await editPostHook.mutateAsync({
+          postId: editPost.id,
+          title: postTitle.trim(),
+          content: content
+        });
+        toast.success("Post aggiornato!");
+        resetAllState();
+        onClose();
+      } catch (err: any) {
+        console.error('[ComposerModal] Edit error:', err);
+        toast.error(`Errore: ${err.message || 'imprevisto'}`);
+      } finally {
+        setIsPublishing(false);
+      }
+      return;
+    }
+
     // Validate Voice/Challenge Title
     if (voicePostData && (overridePostType || postType) !== 'standard') {
       if (!voiceTitle.trim()) {
@@ -2148,7 +2183,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, onPublishSuccess }:
                       <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
                       Attendere...
                     </>
-                  ) : isPreviewLoading ? 'Caricamento...' : isLoading ? (isGeneratingQuiz ? 'Generazione...' : 'Pubblicazione...') : 'Pubblica'}
+                  ) : isPreviewLoading ? 'Caricamento...' : isLoading ? (isGeneratingQuiz ? 'Generazione...' : (editPost ? 'Salvataggio...' : 'Pubblicazione...')) : (editPost ? 'Salva' : 'Pubblica')}
                 </Button>
               ) : (
                 <div /> /* empty spacer */

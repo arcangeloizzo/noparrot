@@ -245,7 +245,8 @@ export const usePosts = () => {
         id: post.id,
         author: post.author,
         content: post.content,
-        title: post.title || undefined,
+        title: post.title,
+        body_text: post.body_text,
         topic_tag: post.topic_tag,
         shared_title: post.shared_title,
         shared_url: post.shared_url,
@@ -675,6 +676,8 @@ export const useSavedPosts = () => {
         return {
           id: post.id,
           author: post.author,
+          title: post.title,
+          body_text: post.body_text,
           content: post.content,
           shared_url: post.shared_url,
           shared_title: post.shared_title,
@@ -729,6 +732,8 @@ export const useQuotedPost = (quotedPostId: string | null) => {
         .select(`
           id,
           content,
+          title,
+          body_text,
           created_at,
           shared_url,
           shared_title,
@@ -774,6 +779,8 @@ export const useQuotedPost = (quotedPostId: string | null) => {
       const post = data as any;
       return {
         ...post,
+        title: post.title,
+        body_text: post.body_text,
         media: (post.post_media || [])
           .sort((a: any, b: any) => a.order_idx - b.order_idx)
           .map((pm: any) => pm.media)
@@ -781,5 +788,35 @@ export const useQuotedPost = (quotedPostId: string | null) => {
       };
     },
     enabled: !!quotedPostId
+  });
+};
+
+export const useEditPost = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ postId, title, content }: { postId: string; title?: string; content: string }) => {
+      if (!user) throw new Error('Devi essere loggato');
+
+      const { data, error } = await supabase
+        .from('posts')
+        .update({ title, content })
+        .eq('id', postId)
+        .eq('author_id', user.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[useEditPost] update error:', error);
+        throw error;
+      }
+      return data;
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
+      queryClient.invalidateQueries({ queryKey: ['post', variables.postId] });
+      queryClient.invalidateQueries({ queryKey: ['saved-posts'] });
+    }
   });
 };

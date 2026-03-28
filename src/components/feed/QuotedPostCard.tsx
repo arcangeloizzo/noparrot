@@ -9,6 +9,8 @@ import { FullTextModal } from "./FullTextModal";
 interface QuotedPost {
   id: string;
   content: string;
+  title?: string | null;
+  body_text?: string | null;
   created_at: string;
   shared_url?: string | null;
   shared_title?: string | null;
@@ -167,10 +169,18 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
 
             {/* PROTAGONISTA: Testo utente con Quote Block style */}
             <div className="border-l-4 border-primary/60 bg-white dark:bg-white/5 pl-3 py-2 rounded-r-lg mb-3 shadow-sm dark:shadow-none border-y border-r border-slate-200 dark:border-transparent">
+              {quotedPost.title && (
+                <h2 
+                  className="font-black tracking-tight text-foreground uppercase mb-1.5 line-clamp-2"
+                  style={{ fontFamily: 'Impact, sans-serif', fontSize: 'clamp(18px, 5vw, 24px)', lineHeight: '1.1' }}
+                >
+                  {quotedPost.title}
+                </h2>
+              )}
               <p className="text-slate-900 dark:text-white text-sm leading-relaxed line-clamp-3 sm:line-clamp-4 whitespace-pre-wrap font-medium">
-                {content}
+                {quotedPost.title ? (quotedPost.body_text || content) : content}
               </p>
-              {content.length > 200 && (
+              {((quotedPost.title ? (quotedPost.body_text || "") : content).length > 200 || (quotedPost.title && content.length > 100)) && (
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
                   className="mt-2 text-xs text-primary font-semibold hover:underline"
@@ -297,10 +307,18 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
 
             {/* Truncated Comment */}
             <div className="mb-2">
+              {quotedPost.title && (
+                <h2 
+                  className="font-black tracking-tight text-foreground uppercase mb-1 line-clamp-2"
+                  style={{ fontFamily: 'Impact, sans-serif', fontSize: 'clamp(16px, 4vw, 20px)', lineHeight: '1.1' }}
+                >
+                  {quotedPost.title}
+                </h2>
+              )}
               <div className="text-slate-900 dark:text-white/90 text-xs leading-normal whitespace-pre-wrap line-clamp-3 sm:line-clamp-4 break-words font-medium">
-                {truncatedContent}
+                {quotedPost.title ? (quotedPost.body_text || content) : truncatedContent}
               </div>
-              {needsTruncation && (
+              {((quotedPost.title ? (quotedPost.body_text || "") : content).length > 280) && (
                 <button
                   onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
                   className="mt-1 text-xs text-primary font-semibold hover:underline"

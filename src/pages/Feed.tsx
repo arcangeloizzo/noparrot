@@ -168,6 +168,7 @@ export const Feed = () => {
   const [showSimilarContent, setShowSimilarContent] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const [quotedPost, setQuotedPost] = useState<Post | null>(null);
+  const [editPost, setEditPost] = useState<Post | null>(null);
   const { toast } = useToast();
   const [focusDetailOpen, setFocusDetailOpen] = useState(false);
   const [selectedFocus, setSelectedFocus] = useState<any>(null);
@@ -194,6 +195,10 @@ export const Feed = () => {
       setQuotedPost(location.state.quotePost);
       setShowComposer(true);
       // Clear state to prevent re-triggering on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    } else if (location.state?.editPost) {
+      setEditPost(location.state.editPost);
+      setShowComposer(true);
       navigate(location.pathname, { replace: true, state: {} });
     } else if (location.state?.openComposer) {
       setShowComposer(true);
@@ -369,11 +374,18 @@ export const Feed = () => {
   // Stabilized Handlers
   const handleCreatePost = useCallback(() => {
     setQuotedPost(null);
+    setEditPost(null);
+    setShowComposer(true);
+  }, []);
+
+  const handleEditPost = useCallback((post: Post) => {
+    setEditPost(post);
     setShowComposer(true);
   }, []);
 
   const handleQuoteShare = useCallback((post: Post & { _originalSources?: string[] }) => {
     setQuotedPost(post);
+    setEditPost(null);
     setShowComposer(true);
   }, []);
 
@@ -568,6 +580,7 @@ export const Feed = () => {
                     index={feedIndex}
                     onRemove={handleRemovePost}
                     onQuoteShare={handleQuoteShare}
+                    onEdit={handleEditPost}
                   />
                 )
               ) : (
@@ -601,8 +614,10 @@ export const Feed = () => {
         onClose={() => {
           setShowComposer(false);
           setQuotedPost(null);
+          setEditPost(null);
         }}
         quotedPost={quotedPost}
+        editPost={editPost}
         onPublishSuccess={handlePublishSuccess}
       />
 

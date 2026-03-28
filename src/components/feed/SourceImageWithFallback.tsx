@@ -131,44 +131,10 @@ export function SourceImageWithFallback({
 
   // Branded Fallback UI
   if (shouldShowFallback) {
-    const gradientClass = platformGradients[detectedPlatform] || platformGradients.default;
-
-    return (
-      <div className={cn(
-        "relative mb-2 sm:mb-3 rounded-2xl overflow-hidden border border-white/10 shadow-xl aspect-[1.91/1] max-h-[20vh] sm:max-h-none",
-        className
-      )}>
-        {/* Gradient Background */}
-        <div className={cn(
-          "absolute inset-0 bg-gradient-to-br",
-          gradientClass
-        )} />
-
-        {/* Urban noise texture */}
-        <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay urban-noise-overlay" />
-
-        {/* Centered content */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-          <PlatformIcon platform={detectedPlatform} />
-          <span className="text-white/40 text-xs font-medium uppercase tracking-widest">
-            {displayHostname}
-          </span>
-        </div>
-
-        {/* Trust Score Badge Overlay */}
-        {!hideOverlay && (
-          isIntent ? (
-            <UnanalyzableBadge className="absolute bottom-3 right-3" />
-          ) : trustScore ? (
-            <TrustBadgeOverlay
-              band={trustScore.band}
-              score={trustScore.score}
-              reasons={trustScore.reasons}
-            />
-          ) : null
-        )}
-      </div>
-    );
+    // Replaced the huge gradient fallback block with null.
+    // The domain and external link indicator are already rendered in the parent component (ImmersivePostCard)
+    // right below where the image would be. Showing nothing keeps the UI cleaner and draws focus to text.
+    return null;
   }
 
   return (

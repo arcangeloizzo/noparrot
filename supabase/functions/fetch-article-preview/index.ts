@@ -303,6 +303,13 @@ async function stealthFirecrawlFetch(url: string): Promise<{
         url,
         formats: ['markdown'],
         onlyMainContent: true,
+        // STEALTH PARAMS: Aggiunto excludeTags per ignorare commenti lato social
+        excludeTags: [
+          '.comments', '#comments', '.comment-list', 
+          '[data-test-id="pin-comment"]', '.social-comments',
+          '[data-testid="comments"]', 'aside', 'footer',
+          '.pinterest-comment'
+        ],
         // STEALTH PARAMS: moderate wait for anti-bot bypass
         waitFor: 3000,
         timeout: 20000,
