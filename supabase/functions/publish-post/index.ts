@@ -182,6 +182,10 @@ type PublishPostBody = {
     title?: string | null
     bodyText?: string | null
   }
+  pollData?: {
+    options: string[]
+    durationPreset: '1h' | '6h' | '12h' | '24h' | '3d' | '7d' | null
+  }
 }
 
 Deno.serve(async (req) => {
