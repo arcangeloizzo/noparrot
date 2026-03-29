@@ -658,8 +658,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
       }
     }
 
-    // Allow publish if user has text, media, a detected URL, a quoted post (reshare), or a voice recording
-    if (!user || (!content.trim() && !detectedUrl && uploadedMedia.length === 0 && !quotedPost && !voicePostData)) return;
+    // Allow publish if user has title, text, media, a detected URL, a quoted post, a valid poll, or a voice recording
+    if (!user || (!content.trim() && !postTitle.trim() && !detectedUrl && uploadedMedia.length === 0 && !quotedPost && !hasValidPoll && !voicePostData)) return;
 
     addBreadcrumb('publish_attempt', { hasUrl: !!detectedUrl, hasMediaOCR: !!mediaWithExtractedText, isIOS, overridePostType });
 
@@ -1973,7 +1973,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
       localStorage.setItem('publish_flow_at', String(Date.now()));
 
       haptics.success();
-      toast.success(wasIdempotent ? 'Post già pubblicato.' : 'Condiviso.');
+      toast.success(wasIdempotent ? 'Post già pubblicato.' : 'Condiviso.', { duration: 1800 });
 
       if (postId) {
         addBreadcrumb('publish_optimistic_cache', { postId });
@@ -2151,10 +2151,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    const hasContent = content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!voicePostData || composerMode !== 'idle';
+                    const hasContent = content.trim().length > 0 || postTitle.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!voicePostData || hasValidPoll || composerMode !== 'idle';
                     if (hasContent && composerMode !== 'idle') {
                       setShowCancelConfirm(true);
-                    } else if (content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl) {
+                    } else if (content.trim().length > 0 || postTitle.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || hasValidPoll) {
                       setShowCancelConfirm(true);
                     } else {
                       onClose();
@@ -2169,7 +2169,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    const hasContent = content.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!voicePostData;
+                    const hasContent = content.trim().length > 0 || postTitle.trim().length > 0 || uploadedMedia.length > 0 || !!detectedUrl || !!voicePostData || hasValidPoll;
                     if (hasContent) {
                       setShowCancelConfirm(true);
                     } else {
@@ -2182,8 +2182,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                 </Button>
               )}
 
-              {/* Right: Pubblica only when text-editing with content */}
-              {composerMode === 'text-editing' && (content.trim().length > 0 || voicePostData) ? (
+              {/* Right: Pubblica when text-editing with title/body/poll/voice */}
+              {composerMode === 'text-editing' && (content.trim().length > 0 || postTitle.trim().length > 0 || hasValidPoll || voicePostData) ? (
                 <Button
                   onClick={() => handlePublish()}
                   disabled={!canPublish || isLoading || isPreviewLoading || isTranscriptionInProgress}
