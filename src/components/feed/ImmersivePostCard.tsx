@@ -3173,9 +3173,11 @@ const ImmersivePostCardInner = ({
         onShareToFeed={handleShareToFeed}
         onShareToFriend={handleShareToFriend}
         onShareNatively={async () => {
-          const shareUrl = `${window.location.origin}/post/${post.id}`;
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          const shareType = post.post_type === 'challenge' ? 'challenge' : 'post';
+          const shareUrl = `${supabaseUrl}/functions/v1/share?id=${post.id}&type=${shareType}`;
           const shareData = {
-            title: post.shared_title || 'Post su NoParrot',
+            title: post.title || post.shared_title || 'Post su NoParrot',
             text: post.content?.substring(0, 100) || '',
             url: shareUrl,
           };

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 1200px;
+      height: 630px;
+      overflow: hidden;
+      background: linear-gradient(135deg, #060E18 0%, #0A1628 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: sans-serif;
+    }
+    .container {
+      display: flex;
+      align-items: center;
+      gap: 60px;
+      padding: 0 80px;
+      width: 100%;
+    }
+    .logo-side {
+      position: relative;
+      flex-shrink: 0;
+    }
+    .logo-glow {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(10, 122, 255, 0.08) 0%, transparent 70%);
+    }
+    .logo-img {
+      position: relative;
+      width: 220px;
+      height: 220px;
+      border-radius: 40px;
+      object-fit: contain;
+      filter: drop-shadow(0 8px 32px rgba(10, 122, 255, 0.25));
+    }
+    .text-side {
+      flex: 1;
+    }
+    .title {
+      font-family: Impact, 'Arial Black', sans-serif;
+      font-size: 96px;
+      color: #FFFFFF;
+      letter-spacing: 4px;
+      line-height: 1;
+      text-transform: uppercase;
+      text-shadow: 0 4px 24px rgba(0,0,0,0.5);
+    }
+    .accent-line {
+      width: 200px;
+      height: 4px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, #0A7AFF, #3B93FF, #0A7AFF);
+      margin: 16px 0 20px;
+    }
+    .subtitle {
+      font-family: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 24px;
+      color: #7A8FA6;
+      letter-spacing: 1px;
+    }
+    .brand {
+      font-family: Impact, 'Arial Black', sans-serif;
+      font-size: 22px;
+      color: #4A6580;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-top: 8px;
+    }
+    .bottom-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 6px;
+      background: linear-gradient(90deg, #0A7AFF, #3B93FF, #0A7AFF);
+    }
+    /* Subtle grid lines */
+    .grid-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none;
+      background-image: repeating-linear-gradient(
+        0deg,
+        rgba(255,255,255,0.015) 0px,
+        rgba(255,255,255,0.015) 1px,
+        transparent 1px,
+        transparent 100px
+      );
+    }
+  </style>
+</head>
+<body>
+  <div class="grid-overlay"></div>
+  <div class="container">
+    <div class="logo-side">
+      <div class="logo-glow"></div>
+      <img src="apple-touch-icon.png" class="logo-img" alt="NoParrot">
+    </div>
+    <div class="text-side">
+      <div class="title">IL PUNTO</div>
+      <div class="accent-line"></div>
+      <div class="subtitle">Approfondimento quotidiano</div>
+      <div class="brand">NOPARROT</div>
+    </div>
+  </div>
+  <div class="bottom-bar"></div>
+</body>
+</html>

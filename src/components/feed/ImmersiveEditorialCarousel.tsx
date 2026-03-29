@@ -450,9 +450,10 @@ const ImmersiveEditorialCarouselInner = ({
           onShareToFeed={() => handleShareWithGate(itemToShare, 'feed')}
           onShareToFriend={() => handleShareWithGate(itemToShare, 'friend')}
           onShareNatively={async () => {
-            const shareUrl = `${window.location.origin}/?focus=${itemToShare.id}`;
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const shareUrl = `${supabaseUrl}/functions/v1/share?id=${itemToShare.id}&type=il_punto`;
             const shareData = {
-              title: itemToShare.title || 'Il Punto su NoParrot',
+              title: `Il Punto di Oggi: ${itemToShare.title || 'NoParrot'}`,
               text: itemToShare.summary?.substring(0, 100) || '',
               url: shareUrl,
             };

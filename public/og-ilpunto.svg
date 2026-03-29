@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#060E18"/>
+      <stop offset="100%" style="stop-color:#0A1628"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#0A7AFF"/>
+      <stop offset="50%" style="stop-color:#3B93FF"/>
+      <stop offset="100%" style="stop-color:#0A7AFF"/>
+    </linearGradient>
+    <linearGradient id="parrotBody" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1565C0"/>
+      <stop offset="100%" style="stop-color:#0D47A1"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <!-- Subtle grid pattern -->
+  <g opacity="0.03">
+    <line x1="0" y1="0" x2="1200" y2="0" stroke="white" stroke-width="1"/>
+    <line x1="0" y1="100" x2="1200" y2="100" stroke="white" stroke-width="1"/>
+    <line x1="0" y1="200" x2="1200" y2="200" stroke="white" stroke-width="1"/>
+    <line x1="0" y1="300" x2="1200" y2="300" stroke="white" stroke-width="1"/>
+    <line x1="0" y1="400" x2="1200" y2="400" stroke="white" stroke-width="1"/>
+    <line x1="0" y1="500" x2="1200" y2="500" stroke="white" stroke-width="1"/>
+    <line x1="0" y1="600" x2="1200" y2="600" stroke="white" stroke-width="1"/>
+  </g>
+  <!-- Decorative circle glow -->
+  <circle cx="300" cy="315" r="200" fill="#0A7AFF" opacity="0.04"/>
+  <!-- Parrot icon - simplified -->
+  <g transform="translate(200, 195) scale(0.25)">
+    <!-- Parrot head silhouette -->
+    <path d="M540 100 C620 80, 700 120, 720 200 C740 280, 700 340, 660 380 C640 400, 600 440, 560 500 C520 560, 460 580, 400 560 C340 540, 300 480, 280 420 C260 360, 280 300, 320 260 C360 220, 420 200, 460 180 C500 160, 520 120, 540 100Z" fill="url(#parrotBody)"/>
+    <!-- Eye -->
+    <circle cx="520" cy="260" r="40" fill="white" opacity="0.9"/>
+    <circle cx="520" cy="260" r="20" fill="#0A7AFF"/>
+    <circle cx="530" cy="250" r="6" fill="white"/>
+    <!-- Beak -->
+    <path d="M340 320 C320 340, 280 350, 260 340 C240 330, 250 310, 280 300 C310 290, 340 300, 340 320Z" fill="#2C3E50"/>
+    <!-- Crest -->
+    <path d="M540 100 C560 60, 600 30, 640 50 C680 70, 690 100, 700 130 C710 160, 720 180, 720 200 C700 160, 660 120, 620 100 C580 80, 560 90, 540 100Z" fill="#1976D2"/>
+  </g>
+  <!-- Text content -->
+  <!-- "IL PUNTO" -->
+  <text x="560" y="270" font-family="Impact, 'Arial Black', sans-serif" font-size="96" fill="white" letter-spacing="4" font-weight="bold">IL PUNTO</text>
+  <!-- Accent line -->
+  <rect x="560" y="295" width="200" height="4" rx="2" fill="url(#accent)"/>
+  <!-- Subtitle -->
+  <text x="560" y="345" font-family="'Inter', 'Helvetica Neue', sans-serif" font-size="24" fill="#7A8FA6" letter-spacing="1">Approfondimento quotidiano</text>
+  <!-- NoParrot brand -->
+  <text x="560" y="385" font-family="'Inter', 'Helvetica Neue', sans-serif" font-size="20" fill="#4A6580" letter-spacing="2" font-weight="600">NOPARROT</text>
+  <!-- Bottom accent bar -->
+  <rect x="0" y="620" width="1200" height="10" fill="url(#accent)"/>
+</svg>

@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Share2 } from "lucide-react";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { CompactNebula } from "@/components/profile/CompactNebula";
 import { NebulaExpandedSheet } from "@/components/profile/NebulaExpandedSheet";
@@ -285,15 +285,44 @@ export const UserProfile = () => {
       <div className="max-w-[600px] mx-auto">
         {/* Header - Back Button, Avatar, Name, Bio, Follow Button */}
         <div className="px-6 pt-6 pb-4">
-          {/* Back Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(-1)}
-            className="mb-4 -ml-2"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
+          {/* Back Button + Share */}
+          <div className="flex items-center justify-between mb-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(-1)}
+              className="-ml-2"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={async () => {
+                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                const shareUrl = `${supabaseUrl}/functions/v1/share?id=${userId}&type=profile`;
+                const shareData = {
+                  title: `Scopri i contributi di ${displayName} su NoParrot`,
+                  text: profile?.bio?.substring(0, 100) || `Segui ${displayName} su NoParrot`,
+                  url: shareUrl,
+                };
+                if (navigator.share && navigator.canShare?.(shareData)) {
+                  try { await navigator.share(shareData); } catch (err: any) {
+                    if (err instanceof Error && err.name !== 'AbortError') {
+                      await navigator.clipboard.writeText(shareUrl);
+                      toast({ title: 'Link copiato!' });
+                    }
+                  }
+                } else {
+                  await navigator.clipboard.writeText(shareUrl);
+                  toast({ title: 'Link copiato!' });
+                }
+              }}
+              className="-mr-2"
+            >
+              <Share2 className="w-5 h-5" />
+            </Button>
+          </div>
 
           <div className="flex items-start gap-4">
             {/* Avatar */}
