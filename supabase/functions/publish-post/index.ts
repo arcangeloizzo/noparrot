@@ -569,7 +569,61 @@ Deno.serve(async (req) => {
     }
 
     // ========================================================================
-    // LINK QUIZ TO POST: Update post_qa_questions.post_id for gate validation
+    // POLL CREATION: Insert poll + options if pollData is provided
+    // ========================================================================
+    if (body.pollData && Array.isArray(body.pollData.options) && body.pollData.options.length >= 2) {
+      try {
+        const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+        const adminSupabase = createClient(supabaseUrl, serviceKey)
+
+        // Calculate expires_at from preset
+        let pollExpiresAt: string | null = null
+        if (body.pollData.durationPreset) {
+          const now = new Date()
+          const presetMap: Record<string, number> = {
+            '1h': 1, '6h': 6, '12h': 12, '24h': 24,
+            '3d': 72, '7d': 168
+          }
+          const hours = presetMap[body.pollData.durationPreset] || 24
+          now.setHours(now.getHours() + hours)
+          pollExpiresAt = now.toISOString()
+        }
+
+        const { data: pollRow, error: pollErr } = await adminSupabase
+          .from('polls')
+          .insert({ post_id: inserted.id, expires_at: pollExpiresAt })
+          .select('id')
+          .single()
+
+        if (pollErr) {
+          console.warn(`[publish-post:${reqId}] stage=poll_insert_error`, pollErr.message)
+        } else if (pollRow?.id) {
+          // Insert options (max 8, sanitized)
+          const optionRows = body.pollData.options
+            .slice(0, 8)
+            .filter((o: string) => typeof o === 'string' && o.trim().length > 0)
+            .map((label: string, idx: number) => ({
+              poll_id: pollRow.id,
+              label: sanitizeContent(label).substring(0, 200),
+              order_idx: idx,
+            }))
+
+          const { error: optionsErr } = await adminSupabase
+            .from('poll_options')
+            .insert(optionRows)
+
+          if (optionsErr) {
+            console.warn(`[publish-post:${reqId}] stage=poll_options_error`, optionsErr.message)
+          } else {
+            console.log(`[publish-post:${reqId}] stage=poll_created options=${optionRows.length} expires=${pollExpiresAt || 'never'}`)
+          }
+        }
+      } catch (pollCatchErr) {
+        console.warn(`[publish-post:${reqId}] stage=poll_exception`, pollCatchErr)
+      }
+    }
+
+    // ========================================================================
     // This enables reshare lookup (Strategy 2.5 in generate-qa)
     // ========================================================================
     try {
