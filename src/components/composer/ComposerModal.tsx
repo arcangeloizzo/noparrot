@@ -1779,7 +1779,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
               idempotencyKey,
               isIntent: isIntentPost,
               pollData: snapshotHasValidPoll
-                ? { options: snapshotPollData!.options.filter(o => o.trim()), durationPreset: snapshotPollData!.durationPreset }
+                ? { options: snapshotPollData!.options.filter(o => o.trim()), durationPreset: snapshotPollData!.durationPreset, allowMultiple: snapshotPollData!.allowMultiple }
                 : undefined,
             }
           });
@@ -1801,7 +1801,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
               idempotencyKey,
               isIntent: isIntentPost,
               pollData: snapshotHasValidPoll
-                ? { options: snapshotPollData!.options.filter(o => o.trim()), durationPreset: snapshotPollData!.durationPreset }
+                ? { options: snapshotPollData!.options.filter(o => o.trim()), durationPreset: snapshotPollData!.durationPreset, allowMultiple: snapshotPollData!.allowMultiple }
                 : undefined,
             },
           });
@@ -2621,7 +2621,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                    onGenerateInfographic={handleGenerateInfographic}
                    infographicEnabled={wordCount >= 50}
                    isGeneratingInfographic={isGeneratingInfographic}
-                   onCreatePoll={postType !== 'challenge' ? () => !pollData && setPollData({ options: ['', ''], durationPreset: '24h' }) : undefined}
+                   onCreatePoll={postType !== 'challenge' ? () => !pollData && setPollData({ options: ['', ''], durationPreset: '24h', allowMultiple: false }) : undefined}
                    hasPoll={!!pollData}
                 />
               </div>

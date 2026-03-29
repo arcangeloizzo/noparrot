@@ -185,6 +185,7 @@ type PublishPostBody = {
   pollData?: {
     options: string[]
     durationPreset: '1h' | '6h' | '12h' | '24h' | '3d' | '7d' | null
+    allowMultiple?: boolean
   }
 }
 
@@ -598,7 +599,7 @@ Deno.serve(async (req) => {
 
         const { data: pollRow, error: pollErr } = await adminSupabase
           .from('polls')
-          .insert({ post_id: inserted.id, expires_at: pollExpiresAt })
+          .insert({ post_id: inserted.id, expires_at: pollExpiresAt, allow_multiple: body.pollData.allowMultiple || false })
           .select('id')
           .single()
 

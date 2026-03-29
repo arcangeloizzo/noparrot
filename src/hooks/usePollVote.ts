@@ -17,8 +17,12 @@ export interface PollData {
   created_at: string;
   options: PollOption[];
   total_votes: number;
+  /** For single-select polls, the voted option id (null if not voted) */
   user_vote_option_id: string | null;
+  /** For multi-select polls, all voted option ids */
+  user_vote_option_ids: string[];
   is_expired: boolean;
+  allow_multiple: boolean;
 }
 
 export const usePollForPost = (postId: string | undefined) => {
@@ -32,16 +36,14 @@ export const usePollForPost = (postId: string | undefined) => {
     queryFn: async (): Promise<PollData | null> => {
       if (!postId) return null;
 
-      // Fetch poll
       const { data: poll, error: pollErr } = await (supabase
         .from('polls')
-        .select('id, post_id, expires_at, created_at')
+        .select('id, post_id, expires_at, created_at, allow_multiple')
         .eq('post_id', postId)
         .maybeSingle() as any);
 
       if (pollErr || !poll) return null;
 
-      // Fetch options
       const { data: options, error: optErr } = await (supabase
         .from('poll_options')
         .select('id, label, order_idx')
@@ -50,28 +52,24 @@ export const usePollForPost = (postId: string | undefined) => {
 
       if (optErr || !options) return null;
 
-      // Fetch vote counts
-      const { data: votes, error: votesErr } = await (supabase
+      const { data: votes } = await (supabase
         .from('poll_votes')
         .select('option_id')
         .eq('poll_id', poll.id) as any);
 
-      // Count per option
       const voteCounts: Record<string, number> = {};
       (votes || []).forEach((v: any) => {
         voteCounts[v.option_id] = (voteCounts[v.option_id] || 0) + 1;
       });
 
-      // User's vote
-      let userVoteOptionId: string | null = null;
+      let userVoteOptionIds: string[] = [];
       if (user) {
-        const { data: userVote } = await (supabase
+        const { data: userVotes } = await (supabase
           .from('poll_votes')
           .select('option_id')
           .eq('poll_id', poll.id)
-          .eq('user_id', user.id)
-          .maybeSingle() as any);
-        userVoteOptionId = userVote?.option_id || null;
+          .eq('user_id', user.id) as any);
+        userVoteOptionIds = (userVotes || []).map((v: any) => v.option_id);
       }
 
       const totalVotes = (votes || []).length;
@@ -82,18 +80,19 @@ export const usePollForPost = (postId: string | undefined) => {
         post_id: poll.post_id,
         expires_at: poll.expires_at,
         created_at: poll.created_at,
+        allow_multiple: poll.allow_multiple ?? false,
         options: options.map((o: any) => ({
           ...o,
           vote_count: voteCounts[o.id] || 0,
         })),
         total_votes: totalVotes,
-        user_vote_option_id: userVoteOptionId,
+        user_vote_option_id: userVoteOptionIds[0] || null,
+        user_vote_option_ids: userVoteOptionIds,
         is_expired: isExpired,
       };
     },
   });
 
-  // Realtime subscription for live vote updates
   useEffect(() => {
     if (!query.data?.id) return;
 
@@ -126,38 +125,58 @@ export const useVotePoll = () => {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ pollId, optionId, postId }: { pollId: string; optionId: string; postId: string }) => {
+    mutationFn: async ({ pollId, optionId, postId, allowMultiple }: { pollId: string; optionId: string; postId: string; allowMultiple?: boolean }) => {
       if (!user) throw new Error('Not authenticated');
 
-      // Check if user already voted
-      const { data: existing } = await (supabase
-        .from('poll_votes')
-        .select('id, option_id')
-        .eq('poll_id', pollId)
-        .eq('user_id', user.id)
-        .maybeSingle() as any);
+      if (allowMultiple) {
+        // Multi-select: toggle this specific option
+        const { data: existing } = await (supabase
+          .from('poll_votes')
+          .select('id')
+          .eq('poll_id', pollId)
+          .eq('user_id', user.id)
+          .eq('option_id', optionId)
+          .maybeSingle() as any);
 
-      if (existing) {
-        if (existing.option_id === optionId) {
-          // Same option - remove vote
+        if (existing) {
           await (supabase.from('poll_votes').delete().eq('id', existing.id) as any);
           return { action: 'removed' as const };
         } else {
-          // Different option - change vote
-          await (supabase
-            .from('poll_votes')
-            .update({ option_id: optionId })
-            .eq('id', existing.id) as any);
-          return { action: 'changed' as const };
+          await (supabase.from('poll_votes').insert({
+            poll_id: pollId,
+            option_id: optionId,
+            user_id: user.id,
+          }) as any);
+          return { action: 'voted' as const };
         }
       } else {
-        // New vote
-        await (supabase.from('poll_votes').insert({
-          poll_id: pollId,
-          option_id: optionId,
-          user_id: user.id,
-        }) as any);
-        return { action: 'voted' as const };
+        // Single-select: existing logic
+        const { data: existing } = await (supabase
+          .from('poll_votes')
+          .select('id, option_id')
+          .eq('poll_id', pollId)
+          .eq('user_id', user.id)
+          .maybeSingle() as any);
+
+        if (existing) {
+          if (existing.option_id === optionId) {
+            await (supabase.from('poll_votes').delete().eq('id', existing.id) as any);
+            return { action: 'removed' as const };
+          } else {
+            await (supabase
+              .from('poll_votes')
+              .update({ option_id: optionId })
+              .eq('id', existing.id) as any);
+            return { action: 'changed' as const };
+          }
+        } else {
+          await (supabase.from('poll_votes').insert({
+            poll_id: pollId,
+            option_id: optionId,
+            user_id: user.id,
+          }) as any);
+          return { action: 'voted' as const };
+        }
       }
     },
     onSuccess: (_, variables) => {

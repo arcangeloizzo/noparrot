@@ -2977,10 +2977,12 @@ const ImmersivePostCardInner = ({
             </div>
           </div>
 
-          {/* Poll Widget */}
+          {/* Poll Widget - centered vertically in remaining space */}
           {pollData && (
-            <div className="px-5 flex-shrink-0">
-              <PollWidget poll={pollData} postId={post.id} />
+            <div className="px-5 flex-1 flex items-center justify-center min-h-0">
+              <div className="w-full">
+                <PollWidget poll={pollData} postId={post.id} />
+              </div>
             </div>
           )}
 
