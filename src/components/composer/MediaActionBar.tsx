@@ -167,6 +167,26 @@ export const MediaActionBar = ({
           </button>
         )}
 
+        {/* Poll: create survey */}
+        {onCreatePoll && (
+          <button
+            type="button"
+            onClick={() => {
+              if (hasPoll || disabled) return;
+              haptics.light();
+              onCreatePoll();
+            }}
+            disabled={disabled}
+            className={cn(
+              iconButtonClass,
+              hasPoll && "text-primary"
+            )}
+            aria-label="Crea sondaggio"
+            title={hasPoll ? 'Sondaggio aggiunto' : 'Aggiungi sondaggio'}
+          >
+            <ListChecks className="w-5 h-5" strokeWidth={1.5} />
+          </button>
+        )}
 
         {/* Camera: direct capture - opens camera directly */}
         <button
