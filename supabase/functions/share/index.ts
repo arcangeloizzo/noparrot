@@ -1,7 +1,11 @@
 // Supabase Edge Function: share
 // Generates dynamic OpenGraph HTML for shared NoParrot links
 // Supports: post, il_punto, challenge, profile
-// Redirects real users to the app; crawlers get rich meta tags
+// 
+// WORKAROUND: Supabase Edge Functions with --no-verify-jwt force
+// Content-Type: text/plain, which prevents crawlers from parsing OG tags.
+// Solution: Upload the HTML to Supabase Storage (which serves correct Content-Type)
+// and redirect the crawler to that Storage URL.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
 
@@ -11,6 +15,7 @@ const corsHeaders = {
 }
 
 const APP_URL = 'https://noparrot.lovable.app';
+const STORAGE_BUCKET = 'share-previews';
 
 // Escape HTML entities to prevent XSS in meta tags
 function escapeHtml(str: string): string {
@@ -30,7 +35,7 @@ function truncate(text: string, maxLen: number): string {
   return clean.substring(0, maxLen).trim() + '…';
 }
 
-// Build the full HTML response with OG meta tags + redirect
+// Build the full HTML with OG meta tags + redirect
 function buildOgHtml({
   title,
   description,
@@ -98,7 +103,6 @@ Deno.serve(async (req) => {
     const type = url.searchParams.get('type') || 'post';
 
     if (!id) {
-      // No id: redirect to homepage
       return new Response(null, {
         status: 302,
         headers: { ...corsHeaders, Location: APP_URL },
@@ -109,7 +113,7 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Default fallback image: app logo (hosted on the app domain)
+    // Default fallback image: app logo
     const defaultImage = `${APP_URL}/apple-touch-icon.png`;
     // Il Punto editorial image
     const ilPuntoImage = `${APP_URL}/og-ilpunto.png`;
@@ -157,18 +161,12 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (!error && post) {
-        // Title priority: post title > shared_title > generic
         title = post.title || post.shared_title || 'Post su NoParrot';
         title = truncate(title, 90);
-
-        // Description: first 160 chars of content
         description = truncate(post.content || 'Leggi e condividi su NoParrot', 160);
-
-        // Image: preview_img or app logo fallback
         if (post.preview_img) {
           image = post.preview_img;
         }
-        // else keep defaultImage (app logo)
       } else {
         title = 'Post su NoParrot';
         description = 'Leggi e condividi su NoParrot';
@@ -181,7 +179,6 @@ Deno.serve(async (req) => {
     else if (type === 'challenge') {
       redirectUrl = `${APP_URL}/post/${id}`;
 
-      // Challenges are linked to posts, so we query the post + challenge data
       const { data: post, error } = await supabase
         .from('posts')
         .select('title, content, preview_img, challenges(thesis, title, body_text)')
@@ -193,16 +190,12 @@ Deno.serve(async (req) => {
           ? post.challenges[0]
           : post.challenges;
 
-        // Title: "Challenge: [title or thesis or content]"
         const challengeLabel = challenge?.title || challenge?.thesis || post.title || post.content;
         title = `Challenge: ${truncate(challengeLabel || 'Mettiti alla prova', 80)}`;
-
         description = truncate(
           challenge?.body_text || post.content || 'Mettiti alla prova su NoParrot e verifica le tue conoscenze!',
           160
         );
-
-        // Image: preview_img if available, else app logo
         if (post.preview_img) {
           image = post.preview_img;
         }
@@ -228,7 +221,6 @@ Deno.serve(async (req) => {
         const displayName = profile.full_name || profile.username || 'Utente';
         title = `Scopri i contributi di ${displayName} su NoParrot`;
         description = truncate(profile.bio || `Segui ${displayName} su NoParrot`, 160);
-
         if (profile.avatar_url) {
           image = profile.avatar_url;
         }
@@ -239,12 +231,10 @@ Deno.serve(async (req) => {
     }
 
     // ========================================================================
-    // Unknown type fallback
+    // Fallback
     // ========================================================================
     else {
       redirectUrl = `${APP_URL}/?focus=${id}`;
-      title = 'NoParrot';
-      description = 'Read. Understand. Then share.';
     }
 
     // Build the canonical URL for this share page
@@ -258,17 +248,47 @@ Deno.serve(async (req) => {
       redirectUrl,
     });
 
-    return new Response(html, {
-      status: 200,
+    // ========================================================================
+    // STORAGE WORKAROUND: Supabase Edge Functions with --no-verify-jwt
+    // force Content-Type: text/plain, which breaks OG parsing.
+    // We upload the HTML to Supabase Storage, which serves text/html correctly.
+    // ========================================================================
+    const fileName = `${type}_${id}.html`;
+
+    // Upload to storage (upsert: overwrite if exists)
+    const { error: uploadError } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .upload(fileName, html, {
+        contentType: 'text/html; charset=utf-8',
+        upsert: true,
+        cacheControl: '300',
+      });
+
+    if (uploadError) {
+      console.error('[share] Storage upload error:', uploadError);
+      // Fallback: redirect directly to app
+      return new Response(null, {
+        status: 302,
+        headers: { ...corsHeaders, Location: redirectUrl },
+      });
+    }
+
+    // Get public URL for the uploaded HTML
+    const { data: publicUrlData } = supabase.storage
+      .from(STORAGE_BUCKET)
+      .getPublicUrl(fileName);
+
+    // Redirect crawler to the Storage-hosted HTML page
+    return new Response(null, {
+      status: 302,
       headers: {
         ...corsHeaders,
-        'Content-Type': 'text/html; charset=utf-8',
+        Location: publicUrlData.publicUrl,
         'Cache-Control': 'public, max-age=300, s-maxage=600',
       },
     });
   } catch (err) {
     console.error('[share] Fatal error:', err);
-    // On error, redirect to homepage
     return new Response(null, {
       status: 302,
       headers: { ...corsHeaders, Location: APP_URL },
