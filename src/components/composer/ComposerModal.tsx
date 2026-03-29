@@ -1792,7 +1792,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
               quotedPostId: isQuotingEditorial ? null : (quotedPost?.id || null),
               mediaIds: mediaIdsSnapshot,
               idempotencyKey,
-              isIntent: isIntentPost, // Intent Gate flag
+              isIntent: isIntentPost,
+              pollData: pollData && pollData.options.filter(o => o.trim()).length >= 2
+                ? { options: pollData.options.filter(o => o.trim()), durationPreset: pollData.durationPreset }
+                : undefined,
             },
           });
 
