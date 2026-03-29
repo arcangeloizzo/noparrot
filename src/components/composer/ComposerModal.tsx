@@ -2597,9 +2597,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                   maxCharacters={3000}
                   onFormat={applyFormatting}
                   keyboardOffset={0}
-                  onGenerateInfographic={handleGenerateInfographic}
-                  infographicEnabled={wordCount >= 50}
-                  isGeneratingInfographic={isGeneratingInfographic}
+                   onGenerateInfographic={handleGenerateInfographic}
+                   infographicEnabled={wordCount >= 50}
+                   isGeneratingInfographic={isGeneratingInfographic}
+                   onCreatePoll={postType !== 'challenge' ? () => !pollData && setPollData({ options: ['', ''], durationPreset: '24h' }) : undefined}
+                   hasPoll={!!pollData}
                 />
               </div>
             )}
