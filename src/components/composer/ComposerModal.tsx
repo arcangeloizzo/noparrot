@@ -437,6 +437,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
     setChallengeStance(null);
     setShowPostTypeChooser(false);
     setChallengeData(null);
+    setPollData(null);
     setComposerMode('idle');
     setTextFocused(false);
     clearMedia();
