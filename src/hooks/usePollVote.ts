@@ -27,7 +27,7 @@ export const usePollForPost = (postId: string | undefined) => {
 
   const query = useQuery({
     queryKey: ['poll', postId],
-    enabled: !!postId && !!user,
+    enabled: !!postId,
     staleTime: 30_000,
     queryFn: async (): Promise<PollData | null> => {
       if (!postId) return null;
