@@ -144,6 +144,16 @@ export const DesktopComposer = ({ quotedPost, onClearQuote, onPublishSuccess }: 
                         </div>
                     )}
 
+                    {/* Poll Creator */}
+                    {pollData && (
+                        <PollCreator
+                            pollData={pollData}
+                            onChange={setPollData}
+                            onRemove={() => setPollData(null)}
+                            disabled={isPublishing}
+                        />
+                    )}
+
                     {uploadedMedia.length > 0 && (
                         <MediaPreviewTray
                             media={uploadedMedia}
@@ -155,6 +165,8 @@ export const DesktopComposer = ({ quotedPost, onClearQuote, onPublishSuccess }: 
                         <MediaActionBar
                             onFilesSelected={(files, type) => uploadMedia(files, type)}
                             disabled={isPublishing}
+                            onCreatePoll={() => !pollData && setPollData({ options: ['', ''], durationPreset: '24h' })}
+                            hasPoll={!!pollData}
                         />
 
                         <Button
