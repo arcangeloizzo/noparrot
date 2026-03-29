@@ -313,12 +313,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
   const isTranscriptionInProgress = !!transcribingMediaId || hasPendingTranscription;
 
   // [NEW] Block publish during transcription
+  const hasValidPoll = !!pollData && pollData.options.filter(o => o.trim()).length >= 2;
   const canPublish = !hasPendingExtraction && !transcribingMediaId && (
     content.trim().length > 0 || 
     postTitle.trim().length > 0 ||
     uploadedMedia.length > 0 || 
     !!detectedUrl || 
     !!quotedPost || 
+    hasValidPoll ||
     (!!voicePostData && voiceTitle.trim().length > 0)
   ) && intentWordsMet;
   const isLoading = isPublishing || isGeneratingQuiz || isFinalizingPublish;
@@ -1774,6 +1776,9 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
               mediaIds: mediaIdsSnapshot,
               idempotencyKey,
               isIntent: isIntentPost,
+              pollData: hasValidPoll
+                ? { options: pollData!.options.filter(o => o.trim()), durationPreset: pollData!.durationPreset }
+                : undefined,
             }
           });
 
@@ -1870,6 +1875,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
 
           // Determine post type for fallback
           const fallbackPostType = voicePostData ? (overridePostType || postType || 'voice') : 'standard';
+
+          if (hasValidPoll) {
+            throw new Error('publish_with_poll_requires_backend_success');
+          }
 
           const { data: directInsert, error: directErr } = await supabase
             .from('posts')

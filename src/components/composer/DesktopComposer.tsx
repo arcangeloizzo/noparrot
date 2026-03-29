@@ -7,12 +7,11 @@ import { MediaActionBar } from "./MediaActionBar";
 import { MediaPreviewTray } from "@/components/media/MediaPreviewTray";
 import { TiptapEditor, TiptapEditorRef } from "./TiptapEditor";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { Loader2, X } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { generateQA, fetchArticlePreview, classifyContent } from "@/lib/ai-helpers";
-import { getWordCount } from "@/lib/gate-utils";
-import { addBreadcrumb, clearPendingPublish } from "@/lib/crashBreadcrumbs";
+import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
 import { supabase } from "@/integrations/supabase/client";
 import { Post } from "@/hooks/usePosts";
 import { PollCreator, PollData } from "./PollCreator";
@@ -27,6 +26,7 @@ export const DesktopComposer = ({ quotedPost, onClearQuote, onPublishSuccess }: 
     const { user } = useAuth();
     const { data: profile } = useCurrentProfile();
     const [content, setContent] = useState("");
+    const [postTitle, setPostTitle] = useState("");
     const [isPublishing, setIsPublishing] = useState(false);
     const [pollData, setPollData] = useState<PollData | null>(null);
     const editorRef = useRef<TiptapEditorRef>(null);
@@ -35,14 +35,17 @@ export const DesktopComposer = ({ quotedPost, onClearQuote, onPublishSuccess }: 
         uploadMedia,
         uploadedMedia,
         removeMedia,
-        isUploading,
         clearMedia
     } = useMediaUpload();
 
-    // Basic validation (simplified for desktop MVP)
-    const canPublish = content.trim().length > 0 || uploadedMedia.length > 0 || !!quotedPost || (pollData && pollData.options.filter(o => o.trim()).length >= 2);
+    const hasValidPoll = !!pollData && pollData.options.filter((o) => o.trim()).length >= 2;
+    const canPublish =
+        content.trim().length > 0 ||
+        postTitle.trim().length > 0 ||
+        uploadedMedia.length > 0 ||
+        !!quotedPost ||
+        hasValidPoll;
 
-    // If quotedPost is present, scroll to composer
     useEffect(() => {
         if (quotedPost) {
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -60,31 +63,33 @@ export const DesktopComposer = ({ quotedPost, onClearQuote, onPublishSuccess }: 
             const { data, error } = await supabase.functions.invoke('publish-post', {
                 body: {
                     content,
-                    mediaIds: uploadedMedia.map(m => m.id),
+                    title: postTitle.trim() || undefined,
+                    mediaIds: uploadedMedia.map((m) => m.id),
                     quotedPostId: quotedPost?.id,
-                    pollData: pollData && pollData.options.filter(o => o.trim()).length >= 2
+                    pollData: hasValidPoll
                         ? {
-                            options: pollData.options.filter(o => o.trim()),
-                            durationPreset: pollData.durationPreset,
+                            options: pollData!.options.filter((o) => o.trim()),
+                            durationPreset: pollData!.durationPreset,
                         }
                         : undefined,
                 }
             });
 
             if (error) throw error;
+            if ((data as any)?.error) throw new Error((data as any).error);
 
             toast.success("Post pubblicato con successo!");
             setContent("");
-            // Reset editor by re-setting content
-            editorRef.current?.focus?.();
+            setPostTitle("");
             clearMedia();
             setPollData(null);
             onClearQuote?.();
+            editorRef.current?.focus?.();
 
-            if (data?.post_id) {
-                onPublishSuccess?.(data.post_id);
+            const createdPostId = (data as any)?.postId || (data as any)?.post_id;
+            if (createdPostId) {
+                onPublishSuccess?.(createdPostId);
             }
-
         } catch (error) {
             console.error("Publish error:", error);
             toast.error("Errore durante la pubblicazione. Riprova.");
@@ -106,14 +111,25 @@ export const DesktopComposer = ({ quotedPost, onClearQuote, onPublishSuccess }: 
                 </Avatar>
 
                 <div className="flex-1 space-y-4">
-                    <div className="min-h-[120px]">
-                        <TiptapEditor
-                            ref={editorRef}
-                            initialContent=""
-                            onChange={(markdown) => setContent(markdown)}
-                            placeholder={quotedPost ? "Aggiungi un commento..." : "Cosa c'è di nuovo? Condividi i tuoi pensieri..."}
-                            className="prose-lg"
+                    <div className="space-y-3">
+                        <Input
+                            value={postTitle}
+                            onChange={(e) => setPostTitle(e.target.value)}
+                            placeholder="Dai un titolo (opzionale)"
+                            maxLength={500}
+                            disabled={isPublishing}
+                            className="border-border/50 bg-background/60"
                         />
+
+                        <div className="min-h-[120px]">
+                            <TiptapEditor
+                                ref={editorRef}
+                                initialContent=""
+                                onChange={(markdown) => setContent(markdown)}
+                                placeholder={quotedPost ? "Aggiungi un commento..." : "Cosa c'è di nuovo? Condividi i tuoi pensieri..."}
+                                className="prose-lg"
+                            />
+                        </div>
                     </div>
 
                     {quotedPost && (
@@ -144,7 +160,6 @@ export const DesktopComposer = ({ quotedPost, onClearQuote, onPublishSuccess }: 
                         </div>
                     )}
 
-                    {/* Poll Creator */}
                     {pollData && (
                         <PollCreator
                             pollData={pollData}
