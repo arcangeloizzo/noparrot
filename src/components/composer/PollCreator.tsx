@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 export interface PollData {
   options: string[];
   durationPreset: '1h' | '6h' | '12h' | '24h' | '3d' | '7d' | null;
+  allowMultiple: boolean;
 }
 
 interface PollCreatorProps {
@@ -126,6 +127,32 @@ export const PollCreator = ({ pollData, onChange, onRemove, disabled }: PollCrea
         {!pollData.durationPreset && (
           <p className="text-[10px] text-muted-foreground mt-1 pl-0.5">Nessun limite di tempo</p>
         )}
+      </div>
+
+      {/* Multi-select toggle */}
+      <div className="pt-2 border-t border-border/40">
+        <p className="text-xs text-muted-foreground mb-2">Tipo di risposta</p>
+        <div className="flex gap-1.5">
+          {[
+            { value: false, label: 'Scelta singola' },
+            { value: true, label: 'Scelta multipla' },
+          ].map(({ value, label }) => (
+            <button
+              key={String(value)}
+              type="button"
+              onClick={() => onChange({ ...pollData, allowMultiple: value })}
+              disabled={disabled}
+              className={cn(
+                "px-2.5 py-1 rounded-full text-xs font-medium transition-colors",
+                pollData.allowMultiple === value
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
