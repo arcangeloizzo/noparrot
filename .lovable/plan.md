@@ -1,94 +1,132 @@
 
-Obiettivo: chiudere il loop degli “hai risolto” e intervenire solo sul vero punto che continua a rompere la sincronizzazione push in iOS PWA.
 
-1. Problema reale individuato
-Ho ricontrollato sia il codice frontend sia la configurazione del database/notifiche.
+# Piano: Sondaggi nei Post
 
-Do I know what the issue is? Sì.
+## Panoramica
+Aggiungere sondaggi (2-8 opzioni, durata configurabile, voto modificabile) ai post standard e voicecast. Per votare, l'utente deve superare il gate se applicabile (stesse regole esistenti). Il Punto editoriale non può avere sondaggi, ma un reshare di un post con sondaggio segue le regole gate standard.
 
-Il problema più probabile e coerente con tutto quello che vedo non è la policy UPDATE aggiunta prima: quella ora esiste già su `push_subscriptions`.
+---
 
-Il vero conflitto è questo:
-- il codice attuale di `src/hooks/usePushNotifications.ts` è stato scritto per supportare più endpoint per utente e usa `upsert(..., { onConflict: 'user_id,endpoint' })`
-- nel database però esiste ancora una vecchia migration che crea un indice univoco legacy su `push_subscriptions(user_id)`:
-  `supabase/migrations/20260110034545_8a943a1c-432e-4d7b-ae4f-22617de835fc.sql`
-- quindi, se esiste già una subscription per quell’utente e iOS genera/usa un endpoint diverso o la logica prova a reinserire la subscription, il salvataggio va comunque in errore anche se la policy RLS è corretta
+## 1. Database — 3 nuove tabelle + migration
 
-In breve: frontend “multi-endpoint”, database ancora “single-endpoint”. Questo mismatch spiega perfettamente il fatto che tu continui a vedere lo stesso errore.
+### `polls`
+| Colonna | Tipo | Note |
+|---|---|---|
+| id | uuid PK | gen_random_uuid() |
+| post_id | uuid NOT NULL UNIQUE | FK → posts(id) CASCADE |
+| expires_at | timestamptz NULL | Null = nessuna scadenza |
+| created_at | timestamptz | now() |
 
-2. File/aree da toccare
-Interverrò solo qui:
-- `src/hooks/usePushNotifications.ts`
-- `src/pages/SettingsPrivacy.tsx`
-- nuova migration in `supabase/migrations/` per correggere lo schema di `push_subscriptions`
+### `poll_options`
+| Colonna | Tipo | Note |
+|---|---|---|
+| id | uuid PK | gen_random_uuid() |
+| poll_id | uuid NOT NULL | FK → polls(id) CASCADE |
+| label | text NOT NULL | |
+| order_idx | integer NOT NULL | Ordine di visualizzazione |
 
-3. Modifica principale da fare
-A. Correggere il database
-Creerò una migration che:
-- rimuove l’indice legacy `idx_push_subscriptions_unique_user` su `push_subscriptions(user_id)`
-- lascia valida la chiave unica corretta già coerente col codice: `(user_id, endpoint)`
+### `poll_votes`
+| Colonna | Tipo | Note |
+|---|---|---|
+| id | uuid PK | gen_random_uuid() |
+| poll_id | uuid NOT NULL | FK → polls(id) CASCADE |
+| option_id | uuid NOT NULL | FK → poll_options(id) CASCADE |
+| user_id | uuid NOT NULL | |
+| created_at | timestamptz | now() |
+| UNIQUE | (poll_id, user_id) | Un voto per utente |
 
-Questo è il fix strutturale più importante.
+### RLS
+- **polls/poll_options**: SELECT per authenticated; INSERT solo autore del post (join polls→posts)
+- **poll_votes**: SELECT per authenticated; INSERT/UPDATE/DELETE per auth.uid() = user_id
 
-4. Hardening del flusso sync per non ricadere nello stesso punto
-In `usePushNotifications.ts` renderò il salvataggio più robusto senza toccare le altre logiche push:
-- quando esiste già una subscription browser, non mi baserò solo sulla ricerca per `endpoint`
-- aggiungerò un fallback che gestisce anche il caso “utente ha già una riga legacy”
-- se il salvataggio fallisce per conflitto, tenterò una sostituzione/aggiornamento controllato della subscription dell’utente invece di restituire solo `false`
-
-Così il sistema non dipenderà da un solo scenario ideale.
-
-5. Hardening Safari/iOS
-Aggiungerò una protezione Safari-safe durante l’estrazione delle chiavi della subscription:
-- prima provo `subscription.getKey('p256dh')` e `subscription.getKey('auth')`
-- poi converto in base64url
-- uso `toJSON().keys` solo come fallback
-
-Questo evita edge case in cui la serializzazione di Safari/iOS non sia affidabile al 100%.
-
-6. Miglioria UX/debug
-In `SettingsPrivacy.tsx` non lascerò più un errore generico indistinto.
-Classificherò i casi:
-- browser/PWA non supportato
-- permesso non concesso
-- chiavi subscription mancanti
-- errore di persistenza nel backend
-- subscription già presente ma non allineata
-
-Così, se dovesse fallire ancora, il messaggio ci dirà davvero dove si rompe.
-
-7. Verifica che farò dopo l’implementazione
-Farò una verifica mirata del percorso:
-```text
-PWA iOS installata
-→ apri Impostazioni/Privacy
-→ tap su “Sinc”
-→ subscription ottenuta dal service worker
-→ chiavi p256dh/auth estratte
-→ record salvato/aggiornato in push_subscriptions
-→ stato passa da “Sincronizzazione richiesta” a “Attive ✓”
+### Realtime
+```sql
+ALTER PUBLICATION supabase_realtime ADD TABLE public.poll_votes;
 ```
 
-8. Impatto sulle altre logiche
-La modifica resta isolata al sistema push:
-- non tocco feed, commenti, gate, post, auth o notifiche applicative
-- non cambio i secret
-- non altero la funzione `send-push-notification`, salvo necessità diagnostiche minime
+---
 
-9. Nota importante emersa dall’analisi
-I console log allegati finora arrivano dal preview/editor e mostrano:
-- `hasNotification: false`
-- `hasPushManager: false`
-- `isPWA: false`
+## 2. Backend — `publish-post` edge function
 
-Questi log non sono rappresentativi della tua app installata su iPhone, quindi hanno confuso il debugging precedente. Per questo la correzione deve concentrarsi su schema + logica di sync, non su quei log del preview.
+Aggiungere campo opzionale `pollData` al body type:
+```typescript
+pollData?: {
+  options: string[];  // 2-8 labels
+  durationPreset: '1h' | '6h' | '12h' | '24h' | '3d' | '7d' | null;
+}
+```
 
-10. Dettagli tecnici
-- RLS su `push_subscriptions`: già presente anche per UPDATE, quindi non è più il collo di bottiglia
-- conflitto strutturale trovato: indice univoco legacy su `user_id`
-- codice corrente già dichiaratamente orientato a multi-device/multi-endpoint
-- fix previsto:
-  - migration: drop indice legacy
-  - hook: fallback save/update più robusto
-  - hook: estrazione chiavi via `getKey()`
-  - UI: error handling più diagnostico
+Dopo l'inserimento del post, se pollData presente:
+1. Calcolare `expires_at` dal preset (o null)
+2. INSERT in `polls`
+3. INSERT bulk in `poll_options` con order_idx sequenziale
+
+---
+
+## 3. Composer — Creazione sondaggio
+
+### `MediaActionBar.tsx`
+- Nuova icona `ListChecks` (lucide) accanto all'icona infografica
+- Props: `onCreatePoll`, `hasPoll`
+- Se `hasPoll=true`, icona evidenziata/attiva
+
+### Nuovo: `src/components/composer/PollCreator.tsx`
+- UI inline sotto l'editor, sopra MediaPreviewTray
+- 2 opzioni iniziali + bottone "Aggiungi opzione" (max 8)
+- Input per ogni opzione con X per rimuovere (min 2)
+- Selector durata: chips per 1h, 6h, 12h, 24h, 3gg, 7gg
+- Bottone X in alto per rimuovere tutto il sondaggio
+
+### `ComposerModal.tsx` + `DesktopComposer.tsx`
+- Stato `pollData` nel composer
+- Passato nel body di `publish-post`
+- Non disponibile in modalità challenge
+
+---
+
+## 4. Feed — Visualizzazione e voto
+
+### Nuovo: `src/components/feed/PollWidget.tsx`
+Widget riutilizzabile con 3 stati:
+
+**Non votato**: bottoni pill per ogni opzione + timer scadenza
+**Votato**: barre percentuali animate, opzione scelta evidenziata, possibilità di cambiare voto (tap su altra opzione)
+**Scaduto**: solo risultati, nessuna interazione
+
+### Nuovo: `src/hooks/usePollVote.ts`
+- Fetch poll + options + conteggi aggregati + voto utente corrente
+- `vote(optionId)` → upsert in poll_votes
+- `changeVote(newOptionId)` → update option_id
+- Subscribe realtime su poll_votes per aggiornamento live conteggi
+
+### Integrazione nel feed
+- **ImmersivePostCard.tsx**: renderizzare `PollWidget` dopo il contenuto testuale, prima delle azioni
+- **DesktopPostCard.tsx**: idem
+- **QuotedPostCard.tsx**: mostrare sondaggio in modalità risultati read-only (per votare → navigare al post originale)
+
+### Gate pre-voto
+Quando l'utente tappa un'opzione del sondaggio:
+1. Controllare se il gate è applicabile (stesse regole esistenti: con fonte → gate sempre; senza fonte → gate se >30 parole)
+2. Verificare se l'utente ha già superato il gate per quel post (`post_gate_attempts`)
+3. Se non superato → aprire QuizModal
+4. Dopo superamento → registrare il voto
+5. Se gate non applicabile → registrare il voto direttamente
+
+---
+
+## 5. File coinvolti (riepilogo)
+
+| Area | File |
+|---|---|
+| Migration | nuova in `supabase/migrations/` |
+| Edge Function | `supabase/functions/publish-post/index.ts` |
+| Nuovo componente | `src/components/composer/PollCreator.tsx` |
+| Nuovo componente | `src/components/feed/PollWidget.tsx` |
+| Nuovo hook | `src/hooks/usePollVote.ts` |
+| Modifica | `src/components/composer/MediaActionBar.tsx` |
+| Modifica | `src/components/composer/ComposerModal.tsx` |
+| Modifica | `src/components/composer/DesktopComposer.tsx` |
+| Modifica | `src/components/feed/ImmersivePostCard.tsx` |
+| Modifica | `src/components/feed/DesktopPostCard.tsx` |
+| Modifica | `src/components/feed/QuotedPostCard.tsx` |
+
