@@ -1636,6 +1636,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
       const snapshotPreview = urlPreview;
       const snapshotContent = content;
       const snapshotUploadedMedia = [...uploadedMedia];
+      const snapshotPollData = pollData ? { ...pollData, options: [...pollData.options] } : null;
+      const snapshotHasValidPoll = !!snapshotPollData && snapshotPollData.options.filter(o => o.trim()).length >= 2;
 
       // If user pasted only a URL, stripping it would make content empty.
       // For reshares (quoted post) or media-only posts we allow an empty commentary.
@@ -1776,8 +1778,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
               mediaIds: mediaIdsSnapshot,
               idempotencyKey,
               isIntent: isIntentPost,
-              pollData: hasValidPoll
-                ? { options: pollData!.options.filter(o => o.trim()), durationPreset: pollData!.durationPreset }
+              pollData: snapshotHasValidPoll
+                ? { options: snapshotPollData!.options.filter(o => o.trim()), durationPreset: snapshotPollData!.durationPreset }
                 : undefined,
             }
           });
@@ -1798,8 +1800,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
               mediaIds: mediaIdsSnapshot,
               idempotencyKey,
               isIntent: isIntentPost,
-              pollData: pollData && pollData.options.filter(o => o.trim()).length >= 2
-                ? { options: pollData.options.filter(o => o.trim()), durationPreset: pollData.durationPreset }
+              pollData: snapshotHasValidPoll
+                ? { options: snapshotPollData!.options.filter(o => o.trim()), durationPreset: snapshotPollData!.durationPreset }
                 : undefined,
             },
           });
@@ -1876,7 +1878,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
           // Determine post type for fallback
           const fallbackPostType = voicePostData ? (overridePostType || postType || 'voice') : 'standard';
 
-          if (hasValidPoll) {
+          if (snapshotHasValidPoll) {
             throw new Error('publish_with_poll_requires_backend_success');
           }
 
@@ -2182,8 +2184,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                 </Button>
               )}
 
-              {/* Right: Pubblica when text-editing with title/body/poll/voice */}
-              {composerMode === 'text-editing' && (content.trim().length > 0 || postTitle.trim().length > 0 || hasValidPoll || voicePostData) ? (
+              {/* Right: Pubblica when there's publishable content */}
+              {(composerMode === 'text-editing' || composerMode === 'idle') && canPublish ? (
                 <Button
                   onClick={() => handlePublish()}
                   disabled={!canPublish || isLoading || isPreviewLoading || isTranscriptionInProgress}
@@ -2303,7 +2305,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                           onBlur={() => {
                             setTitleFocused(false);
                             setTimeout(() => {
-                              if (!content.trim() && !postTitle.trim() && !voicePostData) {
+                              if (!content.trim() && !postTitle.trim() && !voicePostData && uploadedMedia.length === 0 && !hasValidPoll && !detectedUrl) {
                                 setComposerMode('idle');
                               }
                             }, 150);
@@ -2334,7 +2336,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                           }}
                           onBlur={() => {
                             setTimeout(() => {
-                              if (!content.trim() && !postTitle.trim() && !voicePostData) {
+                              if (!content.trim() && !postTitle.trim() && !voicePostData && uploadedMedia.length === 0 && !hasValidPoll && !detectedUrl) {
                                 setTextFocused(false);
                                 setComposerMode('idle');
                               }
