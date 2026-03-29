@@ -15,6 +15,7 @@ import { getWordCount } from "@/lib/gate-utils";
 import { addBreadcrumb, clearPendingPublish } from "@/lib/crashBreadcrumbs";
 import { supabase } from "@/integrations/supabase/client";
 import { Post } from "@/hooks/usePosts";
+import { PollCreator, PollData } from "./PollCreator";
 
 interface DesktopComposerProps {
     quotedPost?: Post | null;
@@ -27,6 +28,7 @@ export const DesktopComposer = ({ quotedPost, onClearQuote, onPublishSuccess }: 
     const { data: profile } = useCurrentProfile();
     const [content, setContent] = useState("");
     const [isPublishing, setIsPublishing] = useState(false);
+    const [pollData, setPollData] = useState<PollData | null>(null);
     const editorRef = useRef<TiptapEditorRef>(null);
 
     const {
@@ -38,7 +40,7 @@ export const DesktopComposer = ({ quotedPost, onClearQuote, onPublishSuccess }: 
     } = useMediaUpload();
 
     // Basic validation (simplified for desktop MVP)
-    const canPublish = content.trim().length > 0 || uploadedMedia.length > 0 || !!quotedPost;
+    const canPublish = content.trim().length > 0 || uploadedMedia.length > 0 || !!quotedPost || (pollData && pollData.options.filter(o => o.trim()).length >= 2);
 
     // If quotedPost is present, scroll to composer
     useEffect(() => {
@@ -60,7 +62,12 @@ export const DesktopComposer = ({ quotedPost, onClearQuote, onPublishSuccess }: 
                     content,
                     mediaIds: uploadedMedia.map(m => m.id),
                     quotedPostId: quotedPost?.id,
-                    // Add other fields as necessary (metadata, etc.)
+                    pollData: pollData && pollData.options.filter(o => o.trim()).length >= 2
+                        ? {
+                            options: pollData.options.filter(o => o.trim()),
+                            durationPreset: pollData.durationPreset,
+                        }
+                        : undefined,
                 }
             });
 
@@ -71,6 +78,7 @@ export const DesktopComposer = ({ quotedPost, onClearQuote, onPublishSuccess }: 
             // Reset editor by re-setting content
             editorRef.current?.focus?.();
             clearMedia();
+            setPollData(null);
             onClearQuote?.();
 
             if (data?.post_id) {
@@ -136,6 +144,16 @@ export const DesktopComposer = ({ quotedPost, onClearQuote, onPublishSuccess }: 
                         </div>
                     )}
 
+                    {/* Poll Creator */}
+                    {pollData && (
+                        <PollCreator
+                            pollData={pollData}
+                            onChange={setPollData}
+                            onRemove={() => setPollData(null)}
+                            disabled={isPublishing}
+                        />
+                    )}
+
                     {uploadedMedia.length > 0 && (
                         <MediaPreviewTray
                             media={uploadedMedia}
@@ -147,6 +165,8 @@ export const DesktopComposer = ({ quotedPost, onClearQuote, onPublishSuccess }: 
                         <MediaActionBar
                             onFilesSelected={(files, type) => uploadMedia(files, type)}
                             disabled={isPublishing}
+                            onCreatePoll={() => !pollData && setPollData({ options: ['', ''], durationPreset: '24h' })}
+                            hasPoll={!!pollData}
                         />
 
                         <Button

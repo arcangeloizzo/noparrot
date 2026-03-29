@@ -28,6 +28,7 @@ import { haptics } from "@/lib/haptics";
 import { TiptapEditor, TiptapEditorRef } from "./TiptapEditor";
 import { useVisualViewportOffset } from "@/hooks/useVisualViewportOffset";
 import { useComposerPersistence } from "@/hooks/useComposerPersistence"; // [NEW] Persistence hook
+import { PollCreator, PollData } from "./PollCreator";
 import { useEditPost } from "@/hooks/usePosts";
 import { X, Image as ImageIcon, Sparkles, Loader2, Music, Youtube, Hash, ImagePlus, ChevronDown, Check, Video, ZoomIn, Search, FileText, Share2, Zap, Mic } from 'lucide-react';
 import {
@@ -148,6 +149,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
   const editorRef = useRef<TiptapEditorRef>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [previewMediaUrl, setPreviewMediaUrl] = useState<string | null>(null);
+  const [pollData, setPollData] = useState<PollData | null>(null);
   const [previewMediaType, setPreviewMediaType] = useState<'image' | 'video' | null>(null);
 
   // iOS keyboard: track visual viewport height to resize container
@@ -435,6 +437,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
     setChallengeStance(null);
     setShowPostTypeChooser(false);
     setChallengeData(null);
+    setPollData(null);
     setComposerMode('idle');
     setTextFocused(false);
     clearMedia();
@@ -1789,7 +1792,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
               quotedPostId: isQuotingEditorial ? null : (quotedPost?.id || null),
               mediaIds: mediaIdsSnapshot,
               idempotencyKey,
-              isIntent: isIntentPost, // Intent Gate flag
+              isIntent: isIntentPost,
+              pollData: pollData && pollData.options.filter(o => o.trim()).length >= 2
+                ? { options: pollData.options.filter(o => o.trim()), durationPreset: pollData.durationPreset }
+                : undefined,
             },
           });
 
@@ -2553,6 +2559,16 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                       )
                     )}
 
+                    {/* Poll Creator */}
+                    {pollData && postType !== 'challenge' && (
+                      <PollCreator
+                        pollData={pollData}
+                        onChange={setPollData}
+                        onRemove={() => setPollData(null)}
+                        disabled={isPublishing}
+                      />
+                    )}
+
                     {/* Media Preview */}
                     {uploadedMedia.length > 0 && (
                       <MediaPreviewTray
@@ -2591,9 +2607,11 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                   maxCharacters={3000}
                   onFormat={applyFormatting}
                   keyboardOffset={0}
-                  onGenerateInfographic={handleGenerateInfographic}
-                  infographicEnabled={wordCount >= 50}
-                  isGeneratingInfographic={isGeneratingInfographic}
+                   onGenerateInfographic={handleGenerateInfographic}
+                   infographicEnabled={wordCount >= 50}
+                   isGeneratingInfographic={isGeneratingInfographic}
+                   onCreatePoll={postType !== 'challenge' ? () => !pollData && setPollData({ options: ['', ''], durationPreset: '24h' }) : undefined}
+                   hasPoll={!!pollData}
                 />
               </div>
             )}

@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Camera, Plus, Bold, Italic, Underline, BarChart3, Loader2 } from 'lucide-react';
+import { Camera, Plus, Bold, Italic, Underline, BarChart3, Loader2, ListChecks } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -16,6 +16,8 @@ interface MediaActionBarProps {
   onGenerateInfographic?: () => void;
   infographicEnabled?: boolean;
   isGeneratingInfographic?: boolean;
+  onCreatePoll?: () => void;
+  hasPoll?: boolean;
 }
 
 export const MediaActionBar = ({
@@ -30,6 +32,8 @@ export const MediaActionBar = ({
   onGenerateInfographic,
   infographicEnabled = false,
   isGeneratingInfographic = false,
+  onCreatePoll,
+  hasPoll = false,
 }: MediaActionBarProps) => {
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
@@ -163,6 +167,26 @@ export const MediaActionBar = ({
           </button>
         )}
 
+        {/* Poll: create survey */}
+        {onCreatePoll && (
+          <button
+            type="button"
+            onClick={() => {
+              if (hasPoll || disabled) return;
+              haptics.light();
+              onCreatePoll();
+            }}
+            disabled={disabled}
+            className={cn(
+              iconButtonClass,
+              hasPoll && "text-primary"
+            )}
+            aria-label="Crea sondaggio"
+            title={hasPoll ? 'Sondaggio aggiunto' : 'Aggiungi sondaggio'}
+          >
+            <ListChecks className="w-5 h-5" strokeWidth={1.5} />
+          </button>
+        )}
 
         {/* Camera: direct capture - opens camera directly */}
         <button

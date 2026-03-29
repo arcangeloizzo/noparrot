@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { usePollForPost } from "@/hooks/usePollVote";
 import { Link, useNavigate } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
@@ -13,6 +14,7 @@ import {
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { MediaGallery } from "@/components/media/MediaGallery";
+import { PollWidget } from "./PollWidget";
 import { Post, useDeletePost, useToggleReaction } from "@/hooks/usePosts";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn, decodeHTMLEntities } from "@/lib/utils";
@@ -39,6 +41,7 @@ export const DesktopPostCard = ({ post, onRemove, onQuoteShare }: DesktopPostCar
     const createThread = useCreateThread();
     const sendMessage = useSendMessage();
     const navigate = useNavigate();
+    const { data: pollData } = usePollForPost(post.id);
 
     const handleLike = () => {
         toggleReaction.mutate({ postId: post.id, reactionType: 'heart' });
@@ -172,6 +175,14 @@ export const DesktopPostCard = ({ post, onRemove, onQuoteShare }: DesktopPostCar
                                 media={post.media}
                             />
                         </div>
+                    )}
+
+                    {/* 4. Poll Widget */}
+                    {pollData && (
+                        <PollWidget
+                            poll={pollData}
+                            postId={post.id}
+                        />
                     )}
                 </div>
             </CardContent>
