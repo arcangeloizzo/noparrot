@@ -1316,18 +1316,21 @@ export type Database = {
       }
       polls: {
         Row: {
+          allow_multiple: boolean
           created_at: string
           expires_at: string | null
           id: string
           post_id: string
         }
         Insert: {
+          allow_multiple?: boolean
           created_at?: string
           expires_at?: string | null
           id?: string
           post_id: string
         }
         Update: {
+          allow_multiple?: boolean
           created_at?: string
           expires_at?: string | null
           id?: string
