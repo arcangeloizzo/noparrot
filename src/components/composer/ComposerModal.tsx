@@ -2559,6 +2559,16 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                       )
                     )}
 
+                    {/* Poll Creator */}
+                    {pollData && postType !== 'challenge' && (
+                      <PollCreator
+                        pollData={pollData}
+                        onChange={setPollData}
+                        onRemove={() => setPollData(null)}
+                        disabled={isPublishing}
+                      />
+                    )}
+
                     {/* Media Preview */}
                     {uploadedMedia.length > 0 && (
                       <MediaPreviewTray
