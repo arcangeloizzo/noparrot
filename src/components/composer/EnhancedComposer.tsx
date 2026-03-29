@@ -250,7 +250,7 @@ export function EnhancedComposer({
 
       toast({
         title: "Condiviso.",
-        duration: 3000,
+        duration: 1800,
       });
 
       // Invalida e refetch queries DOPO il toast per mostrare subito il post
