@@ -10,7 +10,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       expand={false}
       richColors={false}
       closeButton={false}
-      duration={3000}
+      duration={1800}
       gap={8}
       offset="calc(env(safe-area-inset-top, 0px) + 16px)"
       toastOptions={{

@@ -571,7 +571,14 @@ Deno.serve(async (req) => {
     // ========================================================================
     // POLL CREATION: Insert poll + options if pollData is provided
     // ========================================================================
-    if (body.pollData && Array.isArray(body.pollData.options) && body.pollData.options.length >= 2) {
+    const hasPollData = !!body.pollData;
+    const pollOptionsCount = hasPollData && Array.isArray(body.pollData?.options) ? body.pollData!.options.length : 0;
+    const filteredPollOptions = hasPollData && Array.isArray(body.pollData?.options)
+      ? body.pollData!.options.filter((o: string) => typeof o === 'string' && o.trim().length > 0)
+      : [];
+    console.log(`[publish-post:${reqId}] stage=poll_check hasPollData=${hasPollData} rawOptions=${pollOptionsCount} validOptions=${filteredPollOptions.length}`);
+
+    if (hasPollData && filteredPollOptions.length >= 2) {
       try {
         const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
         const adminSupabase = createClient(supabaseUrl, serviceKey)
