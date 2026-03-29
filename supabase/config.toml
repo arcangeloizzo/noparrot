@@ -80,6 +80,8 @@ verify_jwt = true
 
 [functions.submit-challenge-response]
 verify_jwt = false
-# For example, if you want to serve static HTML pages in your function:
-# static_files = [ "./functions/transcribe-audio/*.html" ]
+
+[functions.share]
+verify_jwt = false
+
 
