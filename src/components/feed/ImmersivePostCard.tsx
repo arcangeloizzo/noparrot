@@ -57,6 +57,8 @@ import { SpotifyGradientBackground } from "./SpotifyGradientBackground";
 import { SourceImageWithFallback } from "./SourceImageWithFallback";
 import { FullTextModal } from "./FullTextModal";
 import { AcceptChallengeFlow } from "./AcceptChallengeFlow";
+import { PollWidget } from "./PollWidget";
+import { usePollForPost } from "@/hooks/usePollVote";
 
 // Media Components
 import { MediaGallery } from "@/components/media/MediaGallery";
@@ -298,6 +300,7 @@ const ImmersivePostCardInner = ({
   const createThread = useCreateThread();
   const sendMessage = useSendMessage();
   const isOwnPost = user?.id === post.author.id;
+  const { data: pollData } = usePollForPost(post.id);
   const canEdit = isOwnPost &&
     (post.reactions?.hearts || 0) === 0 &&
     (post.reactions?.comments || 0) === 0 &&
@@ -2974,7 +2977,12 @@ const ImmersivePostCardInner = ({
             </div>
           </div>
 
-          {/* Flexible spacer removed - Rail system handles spacing */}
+          {/* Poll Widget */}
+          {pollData && (
+            <div className="px-5 flex-shrink-0">
+              <PollWidget poll={pollData} postId={post.id} />
+            </div>
+          )}
 
           {/* Bottom Actions - Single horizontal axis alignment */}
           {/* [Rail 3] ActionRail: Fixed bottom, stable height, no shrinking */}
