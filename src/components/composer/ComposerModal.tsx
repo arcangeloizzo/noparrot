@@ -28,6 +28,7 @@ import { haptics } from "@/lib/haptics";
 import { TiptapEditor, TiptapEditorRef } from "./TiptapEditor";
 import { useVisualViewportOffset } from "@/hooks/useVisualViewportOffset";
 import { useComposerPersistence } from "@/hooks/useComposerPersistence"; // [NEW] Persistence hook
+import { PollCreator, PollData } from "./PollCreator";
 import { useEditPost } from "@/hooks/usePosts";
 import { X, Image as ImageIcon, Sparkles, Loader2, Music, Youtube, Hash, ImagePlus, ChevronDown, Check, Video, ZoomIn, Search, FileText, Share2, Zap, Mic } from 'lucide-react';
 import {
@@ -148,6 +149,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
   const editorRef = useRef<TiptapEditorRef>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [previewMediaUrl, setPreviewMediaUrl] = useState<string | null>(null);
+  const [pollData, setPollData] = useState<PollData | null>(null);
   const [previewMediaType, setPreviewMediaType] = useState<'image' | 'video' | null>(null);
 
   // iOS keyboard: track visual viewport height to resize container
