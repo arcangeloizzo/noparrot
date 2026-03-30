@@ -21,7 +21,7 @@ const ALL_TAB = 'all';
 
 const FollowButton = ({ userId }: { userId: string }) => {
   const { user: currentUser } = useAuth();
-  const { data: isFollowing } = useIsFollowing(currentUser?.id, userId);
+  const { data: isFollowing } = useIsFollowing(userId);
   const toggleFollow = useToggleFollow();
 
   if (!currentUser || currentUser.id === userId) return null;
@@ -33,7 +33,7 @@ const FollowButton = ({ userId }: { userId: string }) => {
       className="h-7 text-xs rounded-full px-3"
       onClick={(e) => {
         e.stopPropagation();
-        toggleFollow.mutate({ followerId: currentUser.id, followingId: userId });
+        toggleFollow.mutate({ targetUserId: userId, isCurrentlyFollowing: !!isFollowing });
       }}
     >
       {isFollowing ? "Seguiti" : "Segui"}
