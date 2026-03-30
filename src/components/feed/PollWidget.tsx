@@ -6,6 +6,7 @@ import { PollData, useVotePoll } from "@/hooks/usePollVote";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
+import { PollVotersSheet } from "./PollVotersSheet";
 
 interface PollWidgetProps {
   poll: PollData;
@@ -17,6 +18,7 @@ interface PollWidgetProps {
 const PollWidgetInner = ({ poll, postId, readOnly = false, onVoteAttempt }: PollWidgetProps) => {
   const votePoll = useVotePoll();
   const [pendingOptionId, setPendingOptionId] = useState<string | null>(null);
+  const [votersOpen, setVotersOpen] = useState(false);
 
   const hasVoted = poll.user_vote_option_ids.length > 0;
   const showResults = hasVoted || poll.is_expired || readOnly;
@@ -122,13 +124,17 @@ const PollWidgetInner = ({ poll, postId, readOnly = false, onVoteAttempt }: Poll
 
       {/* Footer: total votes + expiry */}
       <div className="flex items-center justify-between px-1 pt-1">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <button
+          type="button"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          onClick={(e) => { e.stopPropagation(); setVotersOpen(true); }}
+        >
           <BarChart3 className="h-3 w-3" />
           <span>
             {poll.total_votes} {poll.total_votes === 1 ? 'voto' : 'voti'}
             {poll.allow_multiple && ' · Scelta multipla'}
           </span>
-        </div>
+        </button>
         {expiresLabel && (
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" />
@@ -136,6 +142,12 @@ const PollWidgetInner = ({ poll, postId, readOnly = false, onVoteAttempt }: Poll
           </div>
         )}
       </div>
+
+      <PollVotersSheet
+        isOpen={votersOpen}
+        onClose={() => setVotersOpen(false)}
+        pollId={poll.id}
+      />
     </div>
   );
 };
