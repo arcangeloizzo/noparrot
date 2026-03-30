@@ -115,7 +115,7 @@ export const PollVotersSheet = ({ isOpen, onClose, pollId }: PollVotersSheetProp
               {displayedVoters.map((voter) => {
                 if (!voter.user) return null;
                 const u = voter.user;
-                const displayName = getDisplayUsername(u.username, u.full_name);
+                const displayName = getDisplayUsername(u.full_name || u.username);
                 return (
                   <div
                     key={voter.id}
