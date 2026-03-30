@@ -18,6 +18,7 @@ interface PollWidgetProps {
 const PollWidgetInner = ({ poll, postId, readOnly = false, onVoteAttempt }: PollWidgetProps) => {
   const votePoll = useVotePoll();
   const [pendingOptionId, setPendingOptionId] = useState<string | null>(null);
+  const [votersOpen, setVotersOpen] = useState(false);
 
   const hasVoted = poll.user_vote_option_ids.length > 0;
   const showResults = hasVoted || poll.is_expired || readOnly;
