@@ -49,7 +49,7 @@ export const usePollVoters = (pollId: string | undefined, enabled: boolean = tru
       }
 
       // Fetch profiles
-      const userIds: string[] = [...new Set(votes.map((v: any) => v.user_id as string))];
+      const userIds: string[] = Array.from(new Set(votes.map((v: any) => String(v.user_id))));
       const { data: profiles } = await supabase
         .from('public_profiles')
         .select('id, username, full_name, avatar_url')
