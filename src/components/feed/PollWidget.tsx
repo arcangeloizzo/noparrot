@@ -124,13 +124,17 @@ const PollWidgetInner = ({ poll, postId, readOnly = false, onVoteAttempt }: Poll
 
       {/* Footer: total votes + expiry */}
       <div className="flex items-center justify-between px-1 pt-1">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <button
+          type="button"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          onClick={(e) => { e.stopPropagation(); setVotersOpen(true); }}
+        >
           <BarChart3 className="h-3 w-3" />
           <span>
             {poll.total_votes} {poll.total_votes === 1 ? 'voto' : 'voti'}
             {poll.allow_multiple && ' · Scelta multipla'}
           </span>
-        </div>
+        </button>
         {expiresLabel && (
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" />
@@ -138,6 +142,12 @@ const PollWidgetInner = ({ poll, postId, readOnly = false, onVoteAttempt }: Poll
           </div>
         )}
       </div>
+
+      <PollVotersSheet
+        isOpen={votersOpen}
+        onClose={() => setVotersOpen(false)}
+        pollId={poll.id}
+      />
     </div>
   );
 };
