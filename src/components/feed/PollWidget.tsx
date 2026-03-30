@@ -6,6 +6,7 @@ import { PollData, useVotePoll } from "@/hooks/usePollVote";
 import { Checkbox } from "@/components/ui/checkbox";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
+import { PollVotersSheet } from "./PollVotersSheet";
 
 interface PollWidgetProps {
   poll: PollData;
