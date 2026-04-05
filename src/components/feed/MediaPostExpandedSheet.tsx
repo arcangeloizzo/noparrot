@@ -3,9 +3,9 @@ import { X } from 'lucide-react';
 import { Post } from '@/hooks/usePosts';
 import { MentionText } from './MentionText';
 import { ExternalLink } from 'lucide-react';
-import { getHostnameFromUrl, decodeHTMLEntities } from '@/lib/utils';
+import { decodeHTMLEntities } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { VoicePlayer } from '@/components/ui/voice-player';
+import { VoicePlayer } from '@/components/media/VoicePlayer';
 
 interface MediaPostExpandedSheetProps {
   post: Post;
@@ -14,6 +14,16 @@ interface MediaPostExpandedSheetProps {
   activeVoicePost?: any;
   articlePreview?: any;
 }
+
+const getHostnameFromUrl = (url: string | undefined): string => {
+  if (!url) return 'Fonte';
+  try {
+    const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
+    return new URL(urlWithProtocol).hostname;
+  } catch {
+    return 'Fonte';
+  }
+};
 
 export const MediaPostExpandedSheet = ({ post, isOpen, onClose, activeVoicePost, articlePreview }: MediaPostExpandedSheetProps) => {
   useEffect(() => {
@@ -104,9 +114,9 @@ export const MediaPostExpandedSheet = ({ post, isOpen, onClose, activeVoicePost,
               <VoicePlayer
                 audioUrl={activeVoicePost.audio_url}
                 waveformData={activeVoicePost.waveform_data}
-                duration={activeVoicePost.duration_seconds}
-                isChallenge={isChallengePost}
-                postId={post.id}
+                durationSeconds={activeVoicePost.duration_seconds}
+                transcript={activeVoicePost.transcript}
+                transcriptStatus={activeVoicePost.transcript_status}
               />
             </div>
           )}
