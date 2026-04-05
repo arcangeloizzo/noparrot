@@ -570,9 +570,14 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
           const host = urlObj.hostname.toLowerCase();
 
           if (platform === 'youtube' || host.includes('youtube') || host.includes('youtu.be')) {
-            const videoId = host.includes('youtu.be')
-              ? urlObj.pathname.slice(1).split('?')[0]
-              : urlObj.searchParams.get('v');
+            let videoId;
+            if (host.includes('youtu.be')) {
+              videoId = urlObj.pathname.slice(1).split('?')[0];
+            } else if (urlObj.pathname.startsWith('/shorts/')) {
+              videoId = urlObj.pathname.split('/shorts/')[1].split('?')[0];
+            } else {
+              videoId = urlObj.searchParams.get('v');
+            }
             if (videoId) return { kind: 'youtubeId' as const, id: videoId, url };
           }
           if (platform === 'spotify' || host.includes('spotify')) {

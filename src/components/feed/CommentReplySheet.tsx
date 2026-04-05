@@ -54,7 +54,7 @@ export const CommentReplySheet = ({ post, parentComment, isOpen, onClose }: Comm
   }, [isOpen]);
 
   const handleSubmit = async () => {
-    if (!newComment.trim() || addComment.isPending) return;
+    if ((!newComment.trim() && uploadedMedia.length === 0) || addComment.isPending) return;
 
     const parentId = parentComment?.id || null;
     const level = parentComment ? (parentComment.level || 0) + 1 : 0;
@@ -177,7 +177,7 @@ export const CommentReplySheet = ({ post, parentComment, isOpen, onClose }: Comm
         <span className="font-semibold">Indietro</span>
         <Button
           onClick={handleSubmit}
-          disabled={!newComment.trim() || addComment.isPending}
+          disabled={(!newComment.trim() && uploadedMedia.length === 0) || addComment.isPending}
           size="sm"
           className="rounded-full px-4 font-bold"
         >

@@ -182,8 +182,11 @@ const extractYoutubeVideoId = (url: string): string | null => {
     if (urlObj.hostname.includes('youtu.be')) {
       return urlObj.pathname.slice(1).split('?')[0];
     }
-    // youtube.com/watch?v=VIDEO_ID
+    // youtube.com/watch?v=VIDEO_ID or youtube.com/shorts/VIDEO_ID
     if (urlObj.hostname.includes('youtube.com')) {
+      if (urlObj.pathname.startsWith('/shorts/')) {
+        return urlObj.pathname.split('/shorts/')[1].split('?')[0];
+      }
       return urlObj.searchParams.get('v');
     }
     return null;
@@ -1311,8 +1314,10 @@ const ImmersivePostCardInner = ({
   const isVideoMedia = post.media?.[0]?.type === 'video' || quotedPost?.media?.[0]?.type === 'video';
   const backgroundImage = !isMediaOnlyPost ? (articlePreview?.image || post.preview_img || (hasMedia && (post.media?.[0]?.url || quotedPost?.media?.[0]?.url))) : undefined;
   const isVoicePost = post.post_type === 'voice';
-  const isChallengePost = post.post_type === 'challenge';
+  const hasValidChallengeData = !!post.challenge && !!(post.challenge.voice_post || post.voice_post);
+  const isChallengePost = post.post_type === 'challenge' && hasValidChallengeData;
   const isAudioPost = isVoicePost || isChallengePost;
+  const activeVoicePost = isChallengePost ? (post.challenge?.voice_post || post.voice_post) : post.voice_post;
   const challengeIdForResponses = isChallengePost ? post.challenge?.id || null : null;
   const { responses: challengeResponses, userVote, voteForResponse, removeVote } = useChallengeResponses(challengeIdForResponses);
   const [challengeDrawerOpen, setChallengeDrawerOpen] = useState(false);
@@ -1692,12 +1697,12 @@ const ImmersivePostCardInner = ({
 
 
               {/* Voice Post Body (non-challenge) */}
-              {!useStackLayout && isAudioPost && !isChallengePost && post.voice_post && (
+              {!useStackLayout && isAudioPost && !isChallengePost && activeVoicePost && (
                 <div className="w-full flex flex-col pt-2 pb-8">
                     {/* VoiceCast Content Hierarchy - 4 scenarios */}
                     {(() => {
-                      const hasTitle = Boolean(post.voice_post?.title);
-                      const hasBodyText = Boolean(post.voice_post?.body_text);
+                      const hasTitle = Boolean(activeVoicePost?.title);
+                      const hasBodyText = Boolean(activeVoicePost?.body_text);
 
                       if (hasTitle) {
                         return (
@@ -1719,7 +1724,7 @@ const ImmersivePostCardInner = ({
                                 hasBodyText ? "mb-3" : "text-center mb-6"
                               )}
                             >
-                              {post.voice_post?.title}
+                              {activeVoicePost?.title}
                             </h2>
                             {hasBodyText && (
                               <div 
@@ -1729,7 +1734,7 @@ const ImmersivePostCardInner = ({
                                   lineHeight: 1.55
                                 }}
                               >
-                                <MentionText content={post.voice_post?.body_text!} />
+                                <MentionText content={activeVoicePost?.body_text!} />
                               </div>
                             )}
                           </div>
@@ -1789,16 +1794,16 @@ const ImmersivePostCardInner = ({
 
                     {/* 3. Animated Big Waveform Player */}
                     <ImmersiveVoicePlayerV2
-                      audioUrl={post.voice_post?.audio_url || ''}
-                      durationSeconds={post.voice_post?.duration_seconds || 0}
-                      transcriptStatus={post.voice_post?.transcript_status as any}
+                      audioUrl={activeVoicePost?.audio_url || ''}
+                      durationSeconds={activeVoicePost?.duration_seconds || 0}
+                      transcriptStatus={activeVoicePost?.transcript_status as any}
                       onShowTranscript={() => setShowFullText(true)}
                     />
                 </div>
               )}
 
               {/* Challenge Post Body (condensed in immersive) */}
-              {!useStackLayout && isChallengePost && post.voice_post && post.challenge && (
+              {!useStackLayout && isChallengePost && activeVoicePost && post.challenge && (
                 <div className="w-full flex flex-col pt-2 pb-6">
                     {/* Challenge Content Hierarchy - 4 scenarios */}
                     {(() => {
@@ -1913,11 +1918,11 @@ const ImmersivePostCardInner = ({
                     {/* 3. Audio Player */}
                     <div className="relative w-full shadow-2xl rounded-2xl flex-shrink-0">
                       <VoicePlayer
-                        audioUrl={post.voice_post.audio_url}
-                        durationSeconds={post.voice_post.duration_seconds}
-                        waveformData={post.voice_post.waveform_data}
-                        transcript={post.voice_post.transcript}
-                        transcriptStatus={post.voice_post.transcript_status as any}
+                        audioUrl={activeVoicePost.audio_url}
+                        durationSeconds={activeVoicePost.duration_seconds}
+                        waveformData={activeVoicePost.waveform_data}
+                        transcript={activeVoicePost.transcript}
+                        transcriptStatus={activeVoicePost.transcript_status as any}
                         accentColor="#E41E52"
                       />
                     </div>
@@ -2052,7 +2057,7 @@ const ImmersivePostCardInner = ({
                           if (isDisabled) return;
                           // Trigger challenge respond flow
                           const handleRespond = async () => {
-                            const transcriptText = post.voice_post?.transcript || post.content;
+                            const transcriptText = activeVoicePost?.transcript || post.content;
                             const wordCount = getWordCount(transcriptText);
                             const questionCount = getQuestionCountWithoutSource(wordCount);
                             if (questionCount === 0) {
@@ -3255,7 +3260,7 @@ const ImmersivePostCardInner = ({
           isChallengePost 
             ? (post.challenge?.voice_post?.transcript || post.challenge?.body_text || post.content)
             : isAudioPost 
-              ? (post.voice_post?.transcript || post.voice_post?.body_text || post.content)
+              ? (activeVoicePost?.transcript || activeVoicePost?.body_text || post.content)
               : post.content
         }
         author={{

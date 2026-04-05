@@ -169,7 +169,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
   }, [isOpen]);
 
   const handleSubmit = async () => {
-    if (!newComment.trim() || addComment.isPending || addFocusComment.isPending || isProcessing) return;
+    if ((!newComment.trim() && uploadedMedia.length === 0) || addComment.isPending || addFocusComment.isPending || isProcessing) return;
 
     const linkUrl = extractFirstUrl(newComment);
     
@@ -604,7 +604,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                 {/* Send button */}
                 <Button
                   onClick={handleSubmit}
-                  disabled={!newComment.trim() || addComment.isPending}
+                  disabled={(!newComment.trim() && uploadedMedia.length === 0) || addComment.isPending}
                   size="sm"
                   className={cn(
                     "rounded-full px-5 h-[42px] font-semibold text-sm",

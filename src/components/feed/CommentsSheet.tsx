@@ -140,7 +140,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
   };
 
   const handleSubmit = async () => {
-    if (!newComment.trim() || addComment.isPending || isProcessing) return;
+    if ((!newComment.trim() && uploadedMedia.length === 0) || addComment.isPending || isProcessing) return;
 
     const linkUrl = extractFirstUrl(newComment);
 
@@ -540,7 +540,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
                   
                   <Button
                     onClick={handleSubmit}
-                    disabled={!newComment.trim() || addComment.isPending}
+                    disabled={(!newComment.trim() && uploadedMedia.length === 0) || addComment.isPending}
                     size="sm"
                     className="rounded-full px-4 font-bold"
                   >
