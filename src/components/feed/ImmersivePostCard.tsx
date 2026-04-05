@@ -56,6 +56,7 @@ import { ReshareContextStack } from "./ReshareContextStack";
 import { SpotifyGradientBackground } from "./SpotifyGradientBackground";
 import { SourceImageWithFallback } from "./SourceImageWithFallback";
 import { FullTextModal } from "./FullTextModal";
+import { MediaPostExpandedSheet } from "./MediaPostExpandedSheet";
 import { AcceptChallengeFlow } from "./AcceptChallengeFlow";
 import { PollWidget } from "./PollWidget";
 import { usePollForPost } from "@/hooks/usePollVote";
@@ -387,6 +388,7 @@ const ImmersivePostCardInner = ({
 
   // Full text modal for long posts
   const [showFullText, setShowFullText] = useState(false);
+  const [showMediaExpandedSheet, setShowMediaExpandedSheet] = useState(false);
 
   // Caption expansion state for long Instagram/social captions
   const [showFullCaption, setShowFullCaption] = useState(false);
@@ -1388,6 +1390,76 @@ const ImmersivePostCardInner = ({
   // Extract dominant colors from media - skip for cards not near active index
   const { primary: dominantPrimary, secondary: dominantSecondary } = useDominantColors(isMediaOnlyPost ? mediaUrl : undefined, { skip: !isNearActive });
 
+  // D. Media text block replacement
+  const hasAnyVisualMedia = !!(post.media?.[0]?.url || quotedPost?.media?.[0]?.url || post.shared_url || post.voice_post || post.challenge?.voice_post);
+  const renderBodyText = (content: string | undefined | null, hasTitle: boolean) => {
+    if (!content || content.trim().length === 0) return null;
+    
+    if (hasAnyVisualMedia) {
+      const shouldTruncateMediaPost = content.length > 120;
+      return (
+        <div style={{ zIndex: 10, position: 'relative' }}>
+          <div style={{
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '14px',
+            lineHeight: 1.45,
+            color: 'rgba(255, 255, 255, 0.55)',
+            textAlign: 'left',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word'
+          }}>
+            <MentionText content={content} />
+          </div>
+          {shouldTruncateMediaPost && (
+            <div
+              style={{
+                fontFamily: 'Inter, sans-serif',
+                fontSize: '13px',
+                color: '#0A7AFF',
+                fontWeight: 600,
+                marginTop: '4px',
+                cursor: 'pointer'
+              }}
+              onClick={(e) => { e.stopPropagation(); setShowMediaExpandedSheet(true); }}
+            >
+              Mostra tutto
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div 
+        className={cn(
+          "whitespace-pre-wrap break-words drop-shadow-md",
+          hasTitle ? "text-[14px] text-[#7A8FA6]" : "text-lg sm:text-xl font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide text-pretty"
+        )}
+        style={hasTitle ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
+      >
+        {content.length > 400 ? (
+          <>
+            <MentionText content={content.slice(0, 400) + '...'} />
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+              className="mt-2 text-sm text-primary font-semibold hover:underline block"
+            >
+              Mostra tutto
+            </button>
+          </>
+        ) : (
+          <div className={hasTitle ? "line-clamp-4" : "line-clamp-6"}>
+            <MentionText content={content} />
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <>
       <div
@@ -1738,17 +1810,7 @@ const ImmersivePostCardInner = ({
                             >
                               {activeVoicePost?.title}
                             </h2>
-                            {hasBodyText && (
-                              <div 
-                                style={{
-                                  fontSize: '14px',
-                                  color: '#7A8FA6',
-                                  lineHeight: 1.55
-                                }}
-                              >
-                                <MentionText content={activeVoicePost?.body_text!} />
-                              </div>
-                            )}
+                            {hasBodyText && renderBodyText(activeVoicePost?.body_text, true)}
                           </div>
                         );
                       }
@@ -1756,26 +1818,7 @@ const ImmersivePostCardInner = ({
                       // Fallback per vecchi post che hanno solo il body text (post.content)
                       return (
                         <div className="flex-shrink-0 mb-4 px-1">
-                          {post.content && (
-                            <div 
-                              style={{
-                                fontSize: '15px',
-                                color: '#E2EAF4',
-                                lineHeight: 1.55
-                              }}
-                              className="whitespace-pre-wrap line-clamp-3"
-                            >
-                              <MentionText content={post.content} />
-                            </div>
-                          )}
-                          {post.content && post.content.length > 150 && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                              className="text-sm font-semibold text-primary mt-1 hover:underline"
-                            >
-                              Mostra tutto
-                            </button>
-                          )}
+                          {renderBodyText(post.content, false)}
                         </div>
                       );
                     })()}
@@ -1844,17 +1887,7 @@ const ImmersivePostCardInner = ({
                             >
                               {post.challenge?.title}
                             </h2>
-                            {hasBodyText && (
-                              <div 
-                                style={{
-                                  fontSize: '14px',
-                                  color: '#7A8FA6',
-                                  lineHeight: 1.55
-                                }}
-                              >
-                                <MentionText content={post.challenge?.body_text!} />
-                              </div>
-                            )}
+                            {hasBodyText && renderBodyText(post.challenge?.body_text, true)}
                           </div>
                         );
                       }
@@ -2214,31 +2247,7 @@ const ImmersivePostCardInner = ({
                     </h2>
                   )}
                   {/* Content */}
-                  {shouldShowUserText && post.content && post.content.trim().length > 0 && (
-                    <div 
-                      className={cn(
-                        "whitespace-pre-wrap break-words drop-shadow-md",
-                        post.title && post.title.trim().length > 0 ? "text-[14px] text-[#7A8FA6]" : "text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide"
-                      )}
-                      style={post.title && post.title.trim().length > 0 ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
-                    >
-                      {post.content.length > 400 ? (
-                        <>
-                          <MentionText content={post.content.slice(0, 400) + '...'} />
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                            className="mt-2 text-sm text-primary font-semibold hover:underline block"
-                          >
-                            Mostra tutto
-                          </button>
-                        </>
-                      ) : (
-                        <div className={post.title && post.title.trim().length > 0 ? "line-clamp-4" : "line-clamp-3"}>
-                          <MentionText content={post.content} />
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {shouldShowUserText && post.content && post.content.trim().length > 0 && renderBodyText(post.content, !!(post.title && post.title.trim().length > 0))}
                 </div>
               )}
 
@@ -2261,29 +2270,7 @@ const ImmersivePostCardInner = ({
                       {post.title}
                     </h2>
                   )}
-                  {post.content && post.content.trim().length > 0 && (
-                    <div 
-                      className={cn(
-                        "whitespace-pre-wrap break-words drop-shadow-md",
-                        post.title && post.title.trim().length > 0 ? "text-[14px] text-[#7A8FA6]" : "text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide"
-                      )}
-                      style={post.title && post.title.trim().length > 0 ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
-                    >
-                      {post.content.length > 400 ? (
-                        <>
-                          <MentionText content={post.content.slice(0, 400) + '...'} />
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                            className="mt-2 text-sm text-primary font-semibold hover:underline block"
-                          >
-                            Mostra tutto
-                          </button>
-                        </>
-                      ) : (
-                        <MentionText content={post.content} />
-                      )}
-                    </div>
-                  )}
+                  {post.content && post.content.trim().length > 0 && renderBodyText(post.content, !!(post.title && post.title.trim().length > 0))}
                 </div>
               )}
 
@@ -2369,29 +2356,7 @@ const ImmersivePostCardInner = ({
                       {post.title}
                     </h2>
                   )}
-                  {post.content && post.content.trim().length > 0 && (
-                    <div 
-                      className={cn(
-                        "whitespace-pre-wrap break-words drop-shadow-lg",
-                        post.title && post.title.trim().length > 0 ? "text-[14px] text-[#7A8FA6]" : "text-xl font-medium text-immersive-foreground leading-snug tracking-wide"
-                      )}
-                      style={post.title && post.title.trim().length > 0 ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
-                    >
-                      {post.content.length > 200 ? (
-                        <>
-                          <MentionText content={post.content.slice(0, 200) + '...'} />
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                            className="mt-2 text-sm text-primary font-semibold hover:underline block drop-shadow-md"
-                          >
-                            Mostra tutto
-                          </button>
-                        </>
-                      ) : (
-                        <MentionText content={post.content} />
-                      )}
-                    </div>
-                  )}
+                  {post.content && post.content.trim().length > 0 && renderBodyText(post.content, !!(post.title && post.title.trim().length > 0))}
                 </div>
               )}
 
@@ -3290,6 +3255,14 @@ const ImmersivePostCardInner = ({
           setShowPeoplePicker(false);
           setShareAction(null);
         }}
+      />
+
+      <MediaPostExpandedSheet
+        isOpen={showMediaExpandedSheet}
+        onClose={() => setShowMediaExpandedSheet(false)}
+        post={post}
+        activeVoicePost={activeVoicePost}
+        articlePreview={articlePreview}
       />
 
       {/* Full Text Modal for long posts */}
