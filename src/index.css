@@ -1836,32 +1836,3 @@ html:not(.light) .liquid-glass-navbar {
   object-fit: cover;
 }
 
-/* F. Internal scroll for dense cards */
-@keyframes bounceDown {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(4px); }
-}
-
-.inner-scroll-zone {
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
-}
-
-.inner-scroll-zone::-webkit-scrollbar {
-  width: 2px;
-}
-
-.inner-scroll-zone::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.inner-scroll-zone::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 2px;
-}
-
-/* Firefox scrollbar */
-.inner-scroll-zone {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
-}

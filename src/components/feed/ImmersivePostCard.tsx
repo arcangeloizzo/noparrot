@@ -4,7 +4,7 @@ import { perfStore } from "@/lib/perfStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, Edit2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap, Flag, ShieldAlert, ChevronDown } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, Edit2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap, Flag, ShieldAlert } from "lucide-react";
 import { ReportContentDialog } from "./ReportContentDialog";
 import { AdminRemoveDialog } from "./AdminRemoveDialog";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -400,19 +400,16 @@ const ImmersivePostCardInner = ({
   // Challenge flow state
   const [showChallengeFlow, setShowChallengeFlow] = useState(false);
 
-  // F. Internal scroll state for dense cards
+  // F. Internal scroll — ONLY for dense audio/challenge cards
   const contentRailRef = useRef<HTMLDivElement>(null);
   const [isContentOverflowing, setIsContentOverflowing] = useState(false);
-  const [showScrollFade, setShowScrollFade] = useState(false);
 
-  // F. Overflow detection via ResizeObserver
   useLayoutEffect(() => {
     const el = contentRailRef.current;
     if (!el) return;
     const check = () => {
-      const overflows = el.scrollHeight > el.clientHeight + 4;
-      setIsContentOverflowing(overflows);
-      setShowScrollFade(overflows && el.scrollTop < el.scrollHeight - el.clientHeight - 10);
+      // Use generous threshold to avoid false positives
+      setIsContentOverflowing(el.scrollHeight > el.clientHeight + 30);
     };
     check();
     const ro = new ResizeObserver(check);
@@ -420,12 +417,6 @@ const ImmersivePostCardInner = ({
     return () => ro.disconnect();
   }, [post]);
 
-  // F. Scroll handler for fade dismissal
-  const handleContentScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 10;
-    setShowScrollFade(!atBottom);
-  };
 
   // Trigger refetch for missing preview images on active cards
   // This helps recover from temporary extraction failures
@@ -1346,6 +1337,9 @@ const ImmersivePostCardInner = ({
   const hasValidChallengeData = !!post.challenge && !!(post.challenge.voice_post || post.voice_post);
   const isChallengePost = post.post_type === 'challenge' && hasValidChallengeData;
   const isAudioPost = isVoicePost || isChallengePost;
+
+  // F. Only allow internal scroll on audio/challenge posts that actually overflow
+  const enableInternalScroll = isAudioPost && isContentOverflowing;
   const activeVoicePost = isChallengePost ? (post.challenge?.voice_post || post.voice_post) : post.voice_post;
   const challengeIdForResponses = isChallengePost ? post.challenge?.id || null : null;
 
@@ -1516,8 +1510,8 @@ const ImmersivePostCardInner = ({
             }}
           />
         )}
-        {/* Background Layer */}
-        {isMediaOnlyPost && mediaUrl ? (
+        {/* Background Layer — never use dominant colors for audio posts */}
+        {isMediaOnlyPost && mediaUrl && !isAudioPost ? (
           <>
             {/* Dynamic gradient background from dominant colors */}
             {/* Dynamic gradient background from dominant colors - Dark Mode Only */}
@@ -1766,43 +1760,33 @@ const ImmersivePostCardInner = ({
           </div>
 
           {/* Center Content */}
-          {/* [Rail 2] ContentRail: Adaptive height, scrollable if overflowing */}
+          {/* [Rail 2] ContentRail: scrollable ONLY for dense audio/challenge cards */}
           <div
             ref={contentRailRef}
-            onScroll={handleContentScroll}
             className={cn(
               "flex-1 min-h-0 relative flex flex-col px-4 pt-4",
-              isContentOverflowing ? "overflow-y-auto overscroll-contain inner-scroll-zone" : "overflow-hidden"
+              enableInternalScroll ? "overflow-y-auto overscroll-contain scrollbar-none" : "overflow-hidden"
             )}
+            style={enableInternalScroll ? { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } : undefined}
           >
 
-            {/* Badges strictly pinned to the top of the content area for uniform height */}
-            {(isAudioPost || isChallengePost) && !useStackLayout && (
+            {/* Challenge badge at top of content area */}
+            {isChallengePost && !useStackLayout && (
               <div className="w-full flex justify-center mt-2 mb-6 shrink-0 z-10">
                 <div className="flex items-center gap-2">
-                  {isAudioPost && !isChallengePost && (
-                    <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm backdrop-blur-md"
-                      style={{ color: '#0A7AFF', background: 'rgba(10,122,255,0.06)', borderColor: 'rgba(10,122,255,0.2)' }}>
-                      🎙 VOICECAST
+                  <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm backdrop-blur-md"
+                    style={{ color: '#E41E52', background: 'rgba(228,30,82,0.06)', borderColor: 'rgba(228,30,82,0.2)' }}>
+                    ⚡ CHALLENGE
+                  </span>
+                  {challengeCountdown && (
+                    <span style={{ 
+                      color: isChallengeExpired ? 'rgba(241,245,249,0.4)' : isChallengeUrgent ? '#FF8A3D' : 'rgba(241,245,249,0.4)', 
+                      fontSize: 13,
+                      fontWeight: isChallengeUrgent ? 700 : 500,
+                      marginLeft: 4
+                    }}>
+                      · {isChallengeExpired ? '⏱ Chiusa' : `⏱ Scade tra ${challengeCountdown}`}
                     </span>
-                  )}
-                  {isChallengePost && (
-                    <>
-                      <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm backdrop-blur-md"
-                        style={{ color: '#E41E52', background: 'rgba(228,30,82,0.06)', borderColor: 'rgba(228,30,82,0.2)' }}>
-                        ⚡ CHALLENGE
-                      </span>
-                      {challengeCountdown && (
-                        <span style={{ 
-                          color: isChallengeExpired ? 'rgba(241,245,249,0.4)' : isChallengeUrgent ? '#FF8A3D' : 'rgba(241,245,249,0.4)', 
-                          fontSize: 13,
-                          fontWeight: isChallengeUrgent ? 700 : 500,
-                          marginLeft: 4
-                        }}>
-                          · {isChallengeExpired ? '⏱ Chiusa' : `⏱ Scade tra ${challengeCountdown}`}
-                        </span>
-                      )}
-                    </>
                   )}
                 </div>
               </div>
@@ -1810,13 +1794,20 @@ const ImmersivePostCardInner = ({
 
             <div className={cn(
               "w-full flex flex-col relative z-[1]", 
-              (!isAudioPost && !isChallengePost) ? "max-h-full my-auto" : "flex-1 min-h-0 flex justify-center"
+              (!isAudioPost && !isChallengePost) ? "max-h-full my-auto" : "flex-1 min-h-0"
             )}>
 
 
               {/* Voice Post Body (non-challenge) */}
               {!useStackLayout && isAudioPost && !isChallengePost && activeVoicePost && (
                 <div className="w-full flex flex-col pt-2 pb-8">
+                    {/* Badge VoiceCast — first element */}
+                    <div className="w-full flex justify-center mb-5 shrink-0">
+                      <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm backdrop-blur-md"
+                        style={{ color: '#0A7AFF', background: 'rgba(10,122,255,0.06)', borderColor: 'rgba(10,122,255,0.2)' }}>
+                        🎙 VOICECAST
+                      </span>
+                    </div>
                     {/* VoiceCast Content Hierarchy - 4 scenarios */}
                     {(() => {
                       const hasTitle = Boolean(activeVoicePost?.title);
@@ -3021,19 +3012,7 @@ const ImmersivePostCardInner = ({
 
             </div>
 
-            {/* F. Fade gradient indicator for scrollable content */}
-            {showScrollFade && (
-              <div
-                className="sticky bottom-0 left-0 right-0 h-12 flex items-end justify-center pb-1.5 z-20 pointer-events-none"
-                style={{
-                  background: 'linear-gradient(transparent, #0D1B2A)',
-                  transition: 'opacity 200ms ease',
-                  marginTop: '-48px',
-                }}
-              >
-                <ChevronDown className="w-5 h-5 text-white/60 animate-[bounceDown_1.5s_ease-in-out_infinite]" />
-              </div>
-            )}
+
           </div>
 
           {/* Poll Widget - centered vertically in remaining space */}

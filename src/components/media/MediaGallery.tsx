@@ -200,20 +200,22 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
         "flex justify-center gap-1.5",
         fillHeight ? "shrink-0 py-2" : "mt-2"
       )}>
-        {media.map((_, idx) => (
-          <button
-            key={idx}
-            type="button"
-            onClick={() => handleDotClick(idx)}
-            className={cn(
-              "w-2 h-2 rounded-full transition-all duration-200 shadow-sm",
-              idx === currentIndex
-                ? "bg-white w-4 scale-110"
-                : "bg-white/40 hover:bg-white/60 backdrop-blur-[1px]"
-            )}
-            aria-label={`Vai a media ${idx + 1}`}
-          />
-        ))}
+        <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-full px-2.5 py-1">
+          {media.map((_, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => handleDotClick(idx)}
+              className={cn(
+                "rounded-full transition-all duration-200 shadow-sm",
+                idx === currentIndex
+                  ? "bg-white w-5 h-2.5 scale-110"
+                  : "bg-white/50 w-2.5 h-2.5 hover:bg-white/70"
+              )}
+              aria-label={`Vai a media ${idx + 1}`}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
