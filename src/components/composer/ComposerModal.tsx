@@ -120,6 +120,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
   const [showPostTypeChooser, setShowPostTypeChooser] = useState(false);
   const [challengeStance, setChallengeStance] = useState<'agree' | 'disagree' | null>(null);
   const [voiceTitle, setVoiceTitle] = useState("");
+  const [voiceTitleFocused, setVoiceTitleFocused] = useState(false);
   const [voiceBodyText, setVoiceBodyText] = useState("");
   const [showTitleError, setShowTitleError] = useState(false);
   const isChallengeResponse = quotedPost?.post_type === 'challenge';
@@ -2301,6 +2302,7 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                         <input
                           type="text"
                           placeholder="Dai un titolo (opzionale)"
+                          maxLength={100}
                           value={postTitle}
                           onChange={(e) => setPostTitle(e.target.value)}
                           onFocus={() => {
@@ -2326,6 +2328,19 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                             textAlign: 'left'
                           }}
                         />
+                        {(titleFocused || postTitle.length > 0) && (
+                          <div 
+                            style={{ 
+                              fontFamily: "'JetBrains Mono', monospace", 
+                              fontSize: '11px', 
+                              textAlign: 'right', 
+                              marginTop: '4px',
+                              color: postTitle.length === 100 ? '#E41E52' : postTitle.length >= 80 ? '#FFD464' : 'rgba(255, 255, 255, 0.35)'
+                            }}
+                          >
+                            {postTitle.length}/100
+                          </div>
+                        )}
 
                         <TiptapEditor
                           ref={editorRef}
@@ -2393,7 +2408,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                       id="voice-title-input"
                       type="text"
                       placeholder={postType === 'challenge' ? "Dai un titolo alla tua sfida" : "Dai un titolo al tuo pensiero"}
+                      maxLength={100}
                       value={voiceTitle}
+                      onFocus={() => setVoiceTitleFocused(true)}
+                      onBlur={() => setVoiceTitleFocused(false)}
                       onChange={(e) => {
                         setVoiceTitle(e.target.value);
                         if (showTitleError && e.target.value.trim().length > 0) setShowTitleError(false);
@@ -2407,9 +2425,26 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                         padding: '12px 0'
                       }}
                     />
-                    {showTitleError && (
-                      <p className="mt-1" style={{ color: '#E41E52', fontSize: '12px' }}>Il titolo è obbligatorio</p>
-                    )}
+                    <div className="flex justify-between items-start mt-1">
+                      <div>
+                        {showTitleError && (
+                          <p style={{ color: '#E41E52', fontSize: '12px' }}>Il titolo è obbligatorio</p>
+                        )}
+                      </div>
+                      {(voiceTitleFocused || voiceTitle.length > 0) && (
+                        <div 
+                          style={{ 
+                            fontFamily: "'JetBrains Mono', monospace", 
+                            fontSize: '11px', 
+                            textAlign: 'right', 
+                            marginTop: '4px',
+                            color: voiceTitle.length === 100 ? '#E41E52' : voiceTitle.length >= 80 ? '#FFD464' : 'rgba(255, 255, 255, 0.35)'
+                          }}
+                        >
+                          {voiceTitle.length}/100
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Body Text Input (Optional) */}

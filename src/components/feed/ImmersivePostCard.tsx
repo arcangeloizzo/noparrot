@@ -1319,6 +1319,18 @@ const ImmersivePostCardInner = ({
   const isAudioPost = isVoicePost || isChallengePost;
   const activeVoicePost = isChallengePost ? (post.challenge?.voice_post || post.voice_post) : post.voice_post;
   const challengeIdForResponses = isChallengePost ? post.challenge?.id || null : null;
+
+  // B. Adaptive Image Height
+  const hasAudioPlayer = !!(activeVoicePost);
+  const cardHasTitle = !!(post.title || activeVoicePost?.title);
+  const hasLongBody = (post.content?.length || 0) > 120 || (activeVoicePost?.body_text?.length || 0) > 120;
+  
+  let imageHeightClass = 'img-default';
+  if (hasAudioPlayer && cardHasTitle) {
+    imageHeightClass = 'img-minimal';
+  } else if (hasLongBody || hasAudioPlayer) {
+    imageHeightClass = 'img-compact';
+  }
   const { responses: challengeResponses, userVote, voteForResponse, removeVote } = useChallengeResponses(challengeIdForResponses);
   const [challengeDrawerOpen, setChallengeDrawerOpen] = useState(false);
 
@@ -2606,7 +2618,7 @@ const ImmersivePostCardInner = ({
                         <img
                           src={articlePreview?.image || post.preview_img}
                           alt=""
-                          className="w-full h-auto max-h-24 sm:max-h-40 object-cover"
+                          className={cn(useStackLayout ? "w-full h-auto max-h-24 sm:max-h-40 object-cover" : imageHeightClass)}
                         />
                       </div>
                     )}
@@ -2762,6 +2774,35 @@ const ImmersivePostCardInner = ({
                   }}
                   trustScore={{ band: 'ALTO', score: 90 }}
                 />
+              ) : hasLink && ((post.content?.length || 0) > 0) ? (
+                /* Compact Link Preview (when user text is present) */
+                <div className="w-full flex justify-center mb-[6px] mt-2 shrink-0">
+                  <div 
+                    className="flex flex-row items-center gap-2 bg-[rgba(255,255,255,0.06)] rounded-[8px] p-[8px_10px] w-full cursor-pointer"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (post.shared_url) {
+                        window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                      }
+                    }}
+                  >
+                    <div className="w-[48px] h-[48px] rounded-[6px] bg-[rgba(255,255,255,0.06)] shrink-0 flex items-center justify-center overflow-hidden">
+                      {articlePreview?.image || post.preview_img ? (
+                        <img src={articlePreview?.image || post.preview_img} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <ExternalLink className="w-5 h-5 text-white/40" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-sans text-[11px] font-semibold text-white line-clamp-2 leading-tight">
+                        {decodeHTMLEntities(articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url))}
+                      </p>
+                      <p className="font-sans text-[9px] text-[rgba(255,255,255,0.4)] mt-[2px] truncate">
+                        {getHostnameFromUrl(post.shared_url)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               ) : hasLink && (
                 <div className={cn("flex-1 min-h-0 flex flex-col justify-start pt-4 w-full", post.is_intent && "min-h-0")}>
                   {isWaitingForPreview && !post.shared_title && !post.preview_img ? (
@@ -2799,7 +2840,7 @@ const ImmersivePostCardInner = ({
                             hideOverlay={true}
                             platform={articlePreview?.platform}
                             hostname={getHostnameFromUrl(post.shared_url)}
-                            className="max-h-full w-full object-contain rounded-xl"
+                            className={useStackLayout ? "max-h-full w-full object-contain rounded-xl" : imageHeightClass}
                           />
                         </div>
                       )}
