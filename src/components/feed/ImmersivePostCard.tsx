@@ -1,10 +1,10 @@
-import { useState, useEffect, useRef, useMemo, memo } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, memo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { perfStore } from "@/lib/perfStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, Edit2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap, Flag, ShieldAlert } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, Edit2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap, Flag, ShieldAlert, ChevronDown } from "lucide-react";
 import { ReportContentDialog } from "./ReportContentDialog";
 import { AdminRemoveDialog } from "./AdminRemoveDialog";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -399,6 +399,33 @@ const ImmersivePostCardInner = ({
 
   // Challenge flow state
   const [showChallengeFlow, setShowChallengeFlow] = useState(false);
+
+  // F. Internal scroll state for dense cards
+  const contentRailRef = useRef<HTMLDivElement>(null);
+  const [isContentOverflowing, setIsContentOverflowing] = useState(false);
+  const [showScrollFade, setShowScrollFade] = useState(false);
+
+  // F. Overflow detection via ResizeObserver
+  useLayoutEffect(() => {
+    const el = contentRailRef.current;
+    if (!el) return;
+    const check = () => {
+      const overflows = el.scrollHeight > el.clientHeight + 4;
+      setIsContentOverflowing(overflows);
+      setShowScrollFade(overflows && el.scrollTop < el.scrollHeight - el.clientHeight - 10);
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [post]);
+
+  // F. Scroll handler for fade dismissal
+  const handleContentScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 10;
+    setShowScrollFade(!atBottom);
+  };
 
   // Trigger refetch for missing preview images on active cards
   // This helps recover from temporary extraction failures
@@ -1739,8 +1766,15 @@ const ImmersivePostCardInner = ({
           </div>
 
           {/* Center Content */}
-          {/* [Rail 2] ContentRail: Adaptive height, clips overflow, no scroll */}
-          <div className="flex-1 min-h-0 relative flex flex-col px-4 overflow-hidden pt-4">
+          {/* [Rail 2] ContentRail: Adaptive height, scrollable if overflowing */}
+          <div
+            ref={contentRailRef}
+            onScroll={handleContentScroll}
+            className={cn(
+              "flex-1 min-h-0 relative flex flex-col px-4 pt-4",
+              isContentOverflowing ? "overflow-y-auto overscroll-contain inner-scroll-zone" : "overflow-hidden"
+            )}
+          >
 
             {/* Badges strictly pinned to the top of the content area for uniform height */}
             {(isAudioPost || isChallengePost) && !useStackLayout && (
@@ -2986,6 +3020,20 @@ const ImmersivePostCardInner = ({
 
 
             </div>
+
+            {/* F. Fade gradient indicator for scrollable content */}
+            {showScrollFade && (
+              <div
+                className="sticky bottom-0 left-0 right-0 h-12 flex items-end justify-center pb-1.5 z-20 pointer-events-none"
+                style={{
+                  background: 'linear-gradient(transparent, #0D1B2A)',
+                  transition: 'opacity 200ms ease',
+                  marginTop: '-48px',
+                }}
+              >
+                <ChevronDown className="w-5 h-5 text-white/60 animate-[bounceDown_1.5s_ease-in-out_infinite]" />
+              </div>
+            )}
           </div>
 
           {/* Poll Widget - centered vertically in remaining space */}
