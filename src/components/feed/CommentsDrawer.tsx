@@ -186,7 +186,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
         commentId = await addFocusComment.mutateAsync({
           focusId: post.id,
           focusType,
-          content: newComment.trim(),
+          content: newComment.trim() || "\u200B",
           parentId: replyingTo,
           level: parentComment ? parentComment.level + 1 : 0,
           isVerified: passedGate,
@@ -195,7 +195,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
         // Use regular comments for posts
         commentId = await addComment.mutateAsync({
           postId: post.id,
-          content: newComment.trim(),
+          content: newComment.trim() || "\u200B",
           parentId: replyingTo,
           level: parentComment ? parentComment.level + 1 : 0,
           passedGate,

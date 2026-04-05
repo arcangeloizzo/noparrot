@@ -74,7 +74,7 @@ export const CommentReplySheet = ({ post, parentComment, isOpen, onClose }: Comm
 
     const commentId = await addComment.mutateAsync({
       postId: post.id,
-      content: newComment.trim(),
+      content: newComment.trim() || "\u200B",
       parentId,
       level
     });

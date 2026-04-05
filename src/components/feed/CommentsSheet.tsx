@@ -153,7 +153,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
         commentId = await addFocusComment.mutateAsync({
           focusId: post.id,
           focusType: focusType,
-          content: newComment.trim(),
+          content: newComment.trim() || "\u200B",
           parentId: replyingTo,
           level: parentComment ? parentComment.level + 1 : 0,
           isVerified: commentMode === 'read'
@@ -161,7 +161,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
       } else {
         commentId = await addComment.mutateAsync({
           postId: post.id,
-          content: newComment.trim(),
+          content: newComment.trim() || "\u200B",
           parentId: replyingTo,
           level: parentComment ? parentComment.level + 1 : 0,
           passedGate: commentMode === 'read'
