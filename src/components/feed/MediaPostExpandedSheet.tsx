@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { Post } from '@/hooks/usePosts';
 import { MentionText } from './MentionText';
@@ -26,45 +26,145 @@ const getHostnameFromUrl = (url: string | undefined): string => {
 };
 
 export const MediaPostExpandedSheet = ({ post, isOpen, onClose, activeVoicePost, articlePreview }: MediaPostExpandedSheetProps) => {
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const touchStartY = useRef(0);
+  const scrollTopAtStart = useRef(0);
+  const isDraggingRef = useRef(false);
+  const dragYRef = useRef(0);
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      setDragY(0);
+      setIsClosing(false);
+      isDraggingRef.current = false;
+      dragYRef.current = 0;
     } else {
       document.body.style.overflow = 'unset';
     }
     return () => { document.body.style.overflow = 'unset'; };
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  const handleClose = useCallback(() => {
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+      setIsClosing(false);
+      setDragY(0);
+      isDraggingRef.current = false;
+      dragYRef.current = 0;
+    }, 250);
+  }, [onClose]);
+
+  // Use native event listeners with { passive: false } so e.preventDefault() works
+  useEffect(() => {
+    const el = sheetRef.current;
+    if (!el || !isOpen) return;
+
+    const scrollArea = el.querySelector('.sheet-scroll-area') as HTMLElement;
+
+    const onTouchStart = (e: TouchEvent) => {
+      scrollTopAtStart.current = scrollArea?.scrollTop || 0;
+      touchStartY.current = e.touches[0].clientY;
+      isDraggingRef.current = false;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      const deltaY = e.touches[0].clientY - touchStartY.current;
+      const isAtTop = !scrollArea || scrollArea.scrollTop <= 0;
+
+      // Only drag if swiping down AND content is at the top
+      if (deltaY > 0 && isAtTop && scrollTopAtStart.current <= 0) {
+        e.preventDefault();
+        isDraggingRef.current = true;
+        setIsDragging(true);
+        const dampened = deltaY > 50 ? 50 + (deltaY - 50) * 0.4 : deltaY;
+        dragYRef.current = dampened;
+        setDragY(dampened);
+      } else if (isDraggingRef.current && deltaY > 0) {
+        e.preventDefault();
+        const dampened = deltaY > 50 ? 50 + (deltaY - 50) * 0.4 : deltaY;
+        dragYRef.current = dampened;
+        setDragY(dampened);
+      }
+    };
+
+    const onTouchEnd = () => {
+      if (!isDraggingRef.current) return;
+      
+      if (dragYRef.current > 100) {
+        handleClose();
+      } else {
+        setDragY(0);
+        dragYRef.current = 0;
+      }
+      isDraggingRef.current = false;
+      setIsDragging(false);
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [isOpen, handleClose]);
+
+  if (!isOpen && !isClosing) return null;
 
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   const authorName = post.author.full_name || post.author.username;
   const isChallengePost = post.post_type === 'challenge';
   const displayTitle = post.title || activeVoicePost?.title || post.challenge?.title;
 
+  const sheetTransform = isClosing 
+    ? 'translateY(100%)' 
+    : isDragging 
+      ? `translateY(${dragY}px)` 
+      : 'translateY(0)';
+  
+  const sheetTransition = isDragging ? 'none' : 'transform 250ms ease-out';
+
+  // Determine body text — the full, untruncated text
+  const bodyText = activeVoicePost?.body_text || post.content;
+
   return (
     <>
       <div 
         className="fixed inset-0 z-50" 
-        style={{ backgroundColor: 'rgba(0, 0, 0, 0.55)' }} 
-        onClick={onClose} 
+        style={{ 
+          backgroundColor: 'rgba(0, 0, 0, 0.55)',
+          opacity: isClosing ? 0 : isDragging ? Math.max(0.3, 1 - dragY / 300) : 1,
+          transition: isDragging ? 'none' : 'opacity 250ms ease-out',
+        }} 
+        onClick={handleClose} 
       />
       <div 
+        ref={sheetRef}
         className="fixed left-0 right-0 bottom-0 z-[51] flex flex-col"
         style={{
           backgroundColor: '#111d2e',
           borderRadius: '16px 16px 0 0',
           borderTop: '1px solid rgba(255, 255, 255, 0.1)',
           maxHeight: '85vh',
-          animation: 'slideUp 300ms ease-out'
+          transform: sheetTransform,
+          transition: sheetTransition,
+          willChange: 'transform',
         }}
       >
-        <div className="flex-1 overflow-y-auto px-4 pb-6">
-          {/* 1. Handle */}
+        <div className="sheet-scroll-area flex-1 overflow-y-auto px-4 pb-6">
+          {/* 1. Handle — draggable indicator */}
           <div 
             style={{
               width: '36px', height: '4px', backgroundColor: 'rgba(255,255,255,0.2)',
-              borderRadius: '2px', margin: '10px auto 8px'
+              borderRadius: '2px', margin: '10px auto 8px',
+              cursor: 'grab',
             }}
           />
 
@@ -81,7 +181,7 @@ export const MediaPostExpandedSheet = ({ post, isOpen, onClose, activeVoicePost,
               </div>
             </div>
             <button 
-              onClick={onClose}
+              onClick={handleClose}
               className="w-[28px] h-[28px] flex items-center justify-center rounded-full"
               style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
             >
@@ -93,7 +193,7 @@ export const MediaPostExpandedSheet = ({ post, isOpen, onClose, activeVoicePost,
           {activeVoicePost && (
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md mb-3" style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
               <span className="text-[10px] uppercase font-bold tracking-wider" style={{ color: isChallengePost ? '#FFD464' : '#0A7AFF' }}>
-                {isChallengePost ? 'CHALLENGE' : 'VOICECAST'}
+                {isChallengePost ? '⚡ CHALLENGE' : '🎙 VOICECAST'}
               </span>
             </div>
           )}
@@ -108,7 +208,7 @@ export const MediaPostExpandedSheet = ({ post, isOpen, onClose, activeVoicePost,
             </h2>
           )}
 
-          {/* 5. Player audio */}
+          {/* 5. Player audio — full component with waveform */}
           {activeVoicePost && (
             <div className="mb-5 bg-white/5 rounded-xl border border-white/10 p-3">
               <VoicePlayer
@@ -121,19 +221,30 @@ export const MediaPostExpandedSheet = ({ post, isOpen, onClose, activeVoicePost,
             </div>
           )}
 
-          {/* 6. Immagine */}
-          {(post.media?.[0]?.url || post.preview_img || articlePreview?.image) && !activeVoicePost && (
+          {/* 6. Immagine — full width, no height limit, ALWAYS shown if media exists */}
+          {post.media && post.media.length > 0 && (
             <div className="mb-5 rounded-lg overflow-hidden w-full">
               <img 
-                src={post.media?.[0]?.url || articlePreview?.image || post.preview_img} 
+                src={post.media[0].thumbnail_url || post.media[0].url} 
                 alt="" 
-                style={{ width: '100%', borderRadius: '8px', objectFit: 'cover' }} 
+                style={{ width: '100%', borderRadius: '8px' }} 
+              />
+            </div>
+          )}
+
+          {/* 6b. Preview image (when no media but preview_img exists) */}
+          {!post.media?.length && (post.preview_img || articlePreview?.image) && !activeVoicePost && (
+            <div className="mb-5 rounded-lg overflow-hidden w-full">
+              <img 
+                src={articlePreview?.image || post.preview_img} 
+                alt="" 
+                style={{ width: '100%', borderRadius: '8px' }} 
               />
             </div>
           )}
 
           {/* 7. Link preview espansa */}
-          {post.shared_url && !activeVoicePost && !post.media?.length && (
+          {post.shared_url && !post.media?.length && (
             <div 
               className="flex items-center gap-3 bg-[rgba(255,255,255,0.04)] rounded-lg p-2 mb-5 cursor-pointer border border-white/5"
               onClick={() => window.open(post.shared_url, '_blank')}
@@ -161,8 +272,8 @@ export const MediaPostExpandedSheet = ({ post, isOpen, onClose, activeVoicePost,
             </div>
           )}
 
-          {/* 8. Corpo testo COMPLETO */}
-          {post.content && (
+          {/* 8. Corpo testo COMPLETO — NO truncation */}
+          {bodyText && (
             <div 
               className="whitespace-pre-wrap break-words"
               style={{
@@ -172,12 +283,12 @@ export const MediaPostExpandedSheet = ({ post, isOpen, onClose, activeVoicePost,
                 color: 'rgba(255, 255, 255, 0.8)'
               }}
             >
-              <MentionText content={post.content} />
+              <MentionText content={bodyText} />
             </div>
           )}
           
-          {/* 9. Padding bottom */}
-          <div className="h-[24px]" />
+          {/* 9. Padding bottom for safe area */}
+          <div style={{ height: 'calc(24px + env(safe-area-inset-bottom, 0px))' }} />
         </div>
       </div>
       <style>{`

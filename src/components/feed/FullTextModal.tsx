@@ -1,7 +1,6 @@
-import { memo } from "react";
-import { Heart, MessageCircle, Bookmark, ExternalLink } from "lucide-react";
+import { memo, useRef, useState, useCallback, useEffect } from "react";
+import { Heart, MessageCircle, Bookmark, ExternalLink, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Logo } from "@/components/ui/logo";
 import { MentionText } from "./MentionText";
 
@@ -52,15 +51,104 @@ const FullTextModalInner = ({
   actions,
 }: FullTextModalProps) => {
   const isCaption = variant === 'caption';
-  const isEditorial = variant === 'editorial';
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [dragY, setDragY] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const touchStartY = useRef(0);
+  const scrollTopAtStart = useRef(0);
+  const isDraggingRef = useRef(false);
+  const dragYRef = useRef(0);
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      setDragY(0);
+      setIsClosing(false);
+      isDraggingRef.current = false;
+      dragYRef.current = 0;
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [isOpen]);
+
+  const handleClose = useCallback(() => {
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+      setIsClosing(false);
+      setDragY(0);
+      isDraggingRef.current = false;
+      dragYRef.current = 0;
+    }, 250);
+  }, [onClose]);
+
+  // Use native event listeners with { passive: false } so e.preventDefault() works
+  useEffect(() => {
+    const el = sheetRef.current;
+    if (!el || !isOpen) return;
+
+    const scrollArea = el.querySelector('.sheet-scroll-area') as HTMLElement;
+
+    const onTouchStart = (e: TouchEvent) => {
+      scrollTopAtStart.current = scrollArea?.scrollTop || 0;
+      touchStartY.current = e.touches[0].clientY;
+      isDraggingRef.current = false;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      const deltaY = e.touches[0].clientY - touchStartY.current;
+      const isAtTop = !scrollArea || scrollArea.scrollTop <= 0;
+
+      if (deltaY > 0 && isAtTop && scrollTopAtStart.current <= 0) {
+        e.preventDefault();
+        isDraggingRef.current = true;
+        setIsDragging(true);
+        const dampened = deltaY > 50 ? 50 + (deltaY - 50) * 0.4 : deltaY;
+        dragYRef.current = dampened;
+        setDragY(dampened);
+      } else if (isDraggingRef.current && deltaY > 0) {
+        e.preventDefault();
+        const dampened = deltaY > 50 ? 50 + (deltaY - 50) * 0.4 : deltaY;
+        dragYRef.current = dampened;
+        setDragY(dampened);
+      }
+    };
+
+    const onTouchEnd = () => {
+      if (!isDraggingRef.current) return;
+      
+      if (dragYRef.current > 100) {
+        handleClose();
+      } else {
+        setDragY(0);
+        dragYRef.current = 0;
+      }
+      isDraggingRef.current = false;
+      setIsDragging(false);
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [isOpen, handleClose]);
+
+  if (!isOpen && !isClosing) return null;
 
   // Render header based on variant
   const renderHeader = () => {
     if (isCaption && source) {
       return (
-        <div className="relative z-10 px-6 pt-6 pb-4 border-b border-white/[0.06]">
+        <div className="flex items-center justify-between mb-4 mt-2">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500/40 via-purple-500/40 to-orange-500/40 flex items-center justify-center border border-white/20 dark:border-white/20">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-500/40 via-purple-500/40 to-orange-500/40 flex items-center justify-center border border-white/20">
               <ExternalLink className="w-4 h-4 text-white/80" />
             </div>
             <div className="flex flex-col">
@@ -72,46 +160,70 @@ const FullTextModalInner = ({
               </span>
             </div>
           </div>
+          <button 
+            onClick={handleClose}
+            className="w-[28px] h-[28px] flex items-center justify-center rounded-full"
+            style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+          >
+            <X className="w-4 h-4 text-white/70" />
+          </button>
         </div>
       );
     }
 
     if (author) {
       return (
-        <div className="relative z-10 px-6 pt-6 pb-4 border-b border-border">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between mb-4 mt-2">
+          <div className="flex items-center gap-2">
             {author.avatar ? (
               <img
                 src={author.avatar}
                 alt=""
-                className="w-10 h-10 rounded-full object-cover border border-border"
+                className="w-[26px] h-[26px] rounded-full object-cover border border-border"
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/40 to-primary/20 flex items-center justify-center border border-border">
-                <span className="text-primary-foreground font-semibold text-sm">
+              <div className="w-[26px] h-[26px] rounded-full bg-gradient-to-br from-primary/40 to-primary/20 flex items-center justify-center border border-border">
+                <span className="text-primary-foreground font-semibold text-[10px]">
                   {author.name?.[0]?.toUpperCase() || '?'}
                 </span>
               </div>
             )}
-            <div className="flex flex-col">
-              <span className="font-semibold text-foreground text-sm">
+            <div className="flex items-baseline gap-1" style={{ fontFamily: 'Inter, sans-serif' }}>
+              <span className="text-[12px] font-bold text-white">
                 {author.name}
               </span>
               {author.username && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-[11px] text-white/50">
                   @{author.username}
                 </span>
               )}
             </div>
           </div>
+          <button 
+            onClick={handleClose}
+            className="w-[28px] h-[28px] flex items-center justify-center rounded-full"
+            style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+          >
+            <X className="w-4 h-4 text-white/70" />
+          </button>
         </div>
       );
     }
 
-    return null;
+    return (
+      <div className="flex justify-end mb-2 mt-2">
+        <button 
+          onClick={handleClose}
+          className="w-[28px] h-[28px] flex items-center justify-center rounded-full"
+          style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}
+        >
+          <X className="w-4 h-4 text-white/70" />
+        </button>
+      </div>
+    );
   };
 
-  // Render content with paragraph breaks
+  // Render content with paragraph breaks — COMPLETE, no truncation
   const renderContent = () => {
     const paragraphs = (content || "").split(/\n\n+/);
     return (
@@ -121,11 +233,10 @@ const FullTextModalInner = ({
             className="uppercase mb-4"
             style={{
               fontFamily: 'Impact, sans-serif',
-              fontSize: 'clamp(30px, 8vw, 42px)',
-              lineHeight: 0.92,
-              letterSpacing: '-0.02em',
+              fontSize: '18px',
+              lineHeight: 1.2,
               color: '#FFFFFF',
-              textAlign: 'left'
+              margin: '0 0 16px 0',
             }}
           >
             {title}
@@ -134,15 +245,16 @@ const FullTextModalInner = ({
         <div className="flex flex-col">
           {paragraphs.map((paragraph, idx) => (
             <div key={idx} className={cn(idx > 0 && "mt-5")}>
-              <p className={cn(
-                "font-normal text-foreground leading-[1.7] tracking-[0.01em] whitespace-pre-wrap",
-                title && title.trim().length > 0 ? "text-[15px] text-[#7A8FA6]" : "text-[16px] sm:text-[17px]"
-              )}>
+              <p
+                className="font-normal leading-[1.55] tracking-[0.01em] whitespace-pre-wrap"
+                style={{
+                  fontFamily: 'Inter, sans-serif',
+                  fontSize: '15px',
+                  color: 'rgba(255, 255, 255, 0.8)',
+                }}
+              >
                 <MentionText content={paragraph} />
               </p>
-              {idx < paragraphs.length - 1 && (
-                <div className="mt-5 h-px bg-border" />
-              )}
             </div>
           ))}
         </div>
@@ -150,20 +262,19 @@ const FullTextModalInner = ({
     );
   };
 
-  // Render action bar if post and actions are provided
+  // Render action bar
   const renderActionBar = () => {
     if (!post || !actions) return null;
 
     return (
       <div className="mt-8 pt-6 border-t border-white/[0.08]">
         <div className="flex items-center justify-between gap-3">
-          {/* Primary Share Button */}
           {actions.onShare && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onClose();
-                actions.onShare?.();
+                handleClose();
+                setTimeout(() => actions.onShare?.(), 300);
               }}
               className="h-10 px-4 bg-blue-50 hover:bg-blue-100 dark:bg-white dark:hover:bg-gray-200 text-blue-600 dark:text-[#1F3347] font-bold rounded-2xl shadow-sm dark:shadow-md border border-blue-100 dark:border-transparent flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
             >
@@ -175,7 +286,6 @@ const FullTextModalInner = ({
             </button>
           )}
 
-          {/* Reactions */}
           <div className="flex items-center gap-1 bg-slate-100 dark:bg-black/20 h-10 px-3 rounded-2xl border border-slate-200 dark:border-white/5">
             {actions.onHeart && (
               <button
@@ -193,7 +303,7 @@ const FullTextModalInner = ({
             {actions.onComment && (
               <button
                 className="flex items-center justify-center gap-1.5 h-full px-2"
-                onClick={(e) => { e.stopPropagation(); onClose(); setTimeout(() => actions.onComment?.(), 100); }}
+                onClick={(e) => { e.stopPropagation(); handleClose(); setTimeout(() => actions.onComment?.(), 300); }}
               >
                 <MessageCircle className="w-5 h-5 text-slate-500 dark:text-white transition-transform active:scale-90" />
                 <span className="text-xs font-bold text-slate-700 dark:text-white">{post.reactions?.comments || 0}</span>
@@ -237,17 +347,55 @@ const FullTextModalInner = ({
     );
   };
 
+  const sheetTransform = isClosing 
+    ? 'translateY(100%)' 
+    : isDragging 
+      ? `translateY(${dragY}px)` 
+      : 'translateY(0)';
+  
+  const sheetTransition = isDragging ? 'none' : 'transform 250ms ease-out';
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-h-[85vh] max-w-lg p-0 border-0 shadow-none overflow-hidden bg-background dark:bg-gradient-to-br dark:from-[#1F3347] dark:to-[#0f1a24] rounded-3xl border border-border dark:border-white/10 shadow-2xl dark:shadow-[0_20px_60px_rgba(0,0,0,0.7),_0_0_40px_rgba(31,51,71,0.4)] [&>button]:z-20 [&>button]:text-foreground dark:[&>button]:text-white [&>button]:opacity-90 [&>button]:hover:opacity-100 [&>button]:bg-muted dark:[&>button]:bg-white/15 [&>button]:rounded-full [&>button]:p-1.5 [&>button]:w-8 [&>button]:h-8">
-        {/* Urban texture overlay - GPU optimized */}
-        <div className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay urban-noise-overlay rounded-3xl" />
+    <>
+      {/* Overlay backdrop */}
+      <div 
+        className="fixed inset-0 z-50" 
+        style={{ 
+          backgroundColor: 'rgba(0, 0, 0, 0.55)',
+          opacity: isClosing ? 0 : isDragging ? Math.max(0.3, 1 - dragY / 300) : 1,
+          transition: isDragging ? 'none' : 'opacity 250ms ease-out',
+        }} 
+        onClick={handleClose} 
+      />
 
-        {/* Header */}
-        {renderHeader()}
+      {/* Bottom sheet */}
+      <div 
+        ref={sheetRef}
+        className="fixed left-0 right-0 bottom-0 z-[51] flex flex-col"
+        style={{
+          backgroundColor: '#111d2e',
+          borderRadius: '16px 16px 0 0',
+          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+          maxHeight: '85vh',
+          transform: sheetTransform,
+          transition: sheetTransition,
+          willChange: 'transform',
+        }}
+      >
+        <div className="sheet-scroll-area flex-1 overflow-y-auto px-5 pb-6">
+          {/* 1. Handle */}
+          <div 
+            style={{
+              width: '36px', height: '4px', backgroundColor: 'rgba(255,255,255,0.2)',
+              borderRadius: '2px', margin: '10px auto 8px',
+              cursor: 'grab',
+            }}
+          />
 
-        {/* Scrollable content area */}
-        <div className="relative px-6 py-5 max-h-[55vh] overflow-y-auto no-scrollbar">
+          {/* 2. Header */}
+          {renderHeader()}
+
+          {/* Content */}
           {renderContent()}
 
           {/* External link for caption variant */}
@@ -256,18 +404,11 @@ const FullTextModalInner = ({
           {/* Action bar */}
           {renderActionBar()}
 
-          {/* Footer CTA */}
-          <div className="mt-6">
-            <button
-              onClick={() => onClose()}
-              className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-white/[0.08] dark:hover:bg-white/[0.12] border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white/90 font-medium text-sm transition-all active:scale-[0.98]"
-            >
-              Torna al feed
-            </button>
-          </div>
+          {/* Padding bottom for safe area */}
+          <div style={{ height: 'calc(24px + env(safe-area-inset-bottom, 0px))' }} />
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </>
   );
 };
 
