@@ -1768,27 +1768,7 @@ const ImmersivePostCardInner = ({
             style={(isAudioPost && isContentOverflowing) ? { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } : undefined}
           >
 
-            {/* Challenge badge at top of content area */}
-            {isChallengePost && !useStackLayout && (
-              <div className="w-full flex justify-center mt-2 mb-6 shrink-0 z-10">
-                <div className="flex items-center gap-2">
-                  <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm backdrop-blur-md"
-                    style={{ color: '#E41E52', background: 'rgba(228,30,82,0.06)', borderColor: 'rgba(228,30,82,0.2)' }}>
-                    ⚡ CHALLENGE
-                  </span>
-                  {challengeCountdown && (
-                    <span style={{ 
-                      color: isChallengeExpired ? 'rgba(241,245,249,0.4)' : isChallengeUrgent ? '#FF8A3D' : 'rgba(241,245,249,0.4)', 
-                      fontSize: 13,
-                      fontWeight: isChallengeUrgent ? 700 : 500,
-                      marginLeft: 4
-                    }}>
-                      · {isChallengeExpired ? '⏱ Chiusa' : `⏱ Scade tra ${challengeCountdown}`}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
+
 
             <div className={cn(
               "w-full flex flex-col relative z-[1]", 
@@ -1883,6 +1863,25 @@ const ImmersivePostCardInner = ({
               {/* Challenge Post Body (condensed in immersive) */}
               {!useStackLayout && isChallengePost && activeVoicePost && post.challenge && (
                 <div className="w-full flex flex-col pt-2 pb-6">
+                    {/* Badge Challenge — first element in the flow */}
+                    <div className="w-full flex justify-center mb-5 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm backdrop-blur-md"
+                          style={{ color: '#E41E52', background: 'rgba(228,30,82,0.06)', borderColor: 'rgba(228,30,82,0.2)' }}>
+                          ⚡ CHALLENGE
+                        </span>
+                        {challengeCountdown && (
+                          <span style={{ 
+                            color: isChallengeExpired ? 'rgba(241,245,249,0.4)' : isChallengeUrgent ? '#FF8A3D' : 'rgba(241,245,249,0.4)', 
+                            fontSize: 13,
+                            fontWeight: isChallengeUrgent ? 700 : 500,
+                            marginLeft: 4
+                          }}>
+                            · {isChallengeExpired ? '⏱ Chiusa' : `⏱ Scade tra ${challengeCountdown}`}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                     {/* Challenge Content Hierarchy - 4 scenarios */}
                     {(() => {
                       const hasTitle = Boolean(post.challenge?.title);
@@ -2762,7 +2761,7 @@ const ImmersivePostCardInner = ({
                   }}
                   trustScore={{ band: 'ALTO', score: 90 }}
                 />
-              ) : hasLink && ((post.content?.length || 0) > 0) ? (
+              ) : hasLink && ((post.content?.trim()?.length || 0) > 0 || (post.title?.trim()?.length || 0) > 0) ? (
                 /* Compact Link Preview (when user text is present) */
                 <div className="w-full flex justify-center mb-[6px] mt-2 shrink-0">
                   <div 
