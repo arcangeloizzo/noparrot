@@ -1774,8 +1774,8 @@ const ImmersivePostCardInner = ({
               isContentOverflowing ? "overflow-y-auto scrollbar-none" : "overflow-hidden"
             )}
             style={{
-              paddingTop: 'calc(env(safe-area-inset-top) + 42px + 72px)',
-              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 12px + 64px)',
+              paddingTop: 'calc(env(safe-area-inset-top) + 42px + 80px)',
+              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 12px + 72px)',
               ...(isContentOverflowing ? { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as any : {})
             }}
           >
@@ -2437,7 +2437,7 @@ const ImmersivePostCardInner = ({
 
               {/* Stack Layout: Source Preview LAST (Media OR Link) - Only show ONE source at bottom */}
               {useStackLayout && (finalSourceUrl || (finalSourceMedia && finalSourceMedia.length > 0)) && (
-                <div className="mt-4 flex-1 min-h-[15rem] flex flex-col justify-end">
+                <div className="mt-4 flex-1 min-h-0 flex flex-col justify-end" style={{ maxHeight: '45vh' }}>
                   {finalSourceUrl?.startsWith('focus://') ? (
                     /* Editorial source */
                     <QuotedEditorialCard
@@ -2465,7 +2465,8 @@ const ImmersivePostCardInner = ({
                           e.stopPropagation();
                           setSelectedMediaIndex(0);
                         }}
-                        className="relative w-full h-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
+                        className="relative w-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
+                        style={{ maxHeight: '45vh' }}
                       >
                         {finalSourceMedia[0].type === 'video' ? (
                           <>
@@ -2489,15 +2490,14 @@ const ImmersivePostCardInner = ({
                         )}
                       </button>
                     ) : (
-                      /* Gallery: fill available space */
-                      <div className="w-full h-full">
+                      /* Gallery: constrained height */
+                      <div className="w-full" style={{ maxHeight: '45vh' }}>
                         <MediaGallery
                           media={finalSourceMedia}
                           onClick={(_, index) => setSelectedMediaIndex(index)}
                           initialIndex={0}
                           onIndexChange={() => { }}
-                          className="h-full w-full object-contain rounded-2xl border border-white/10"
-                          fillHeight={true}
+                          className="w-full object-contain rounded-2xl border border-white/10"
                         />
                       </div>
                     )
