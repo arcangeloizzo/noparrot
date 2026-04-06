@@ -1603,7 +1603,7 @@ const ImmersivePostCardInner = ({
 
           {/* [Rail 1] HeaderRail: Fixed top overlay with gradient fade */}
           <div className="absolute top-0 left-0 right-0 z-50" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}>
-            <div className="flex justify-between items-start pt-[calc(env(safe-area-inset-top)+42px)] px-5 pb-4">
+            <div className="flex justify-between items-start pt-[calc(env(safe-area-inset-top)+56px)] px-5 pb-4">
             <div className="flex flex-col items-center gap-2">
               <div
                 className="flex items-center gap-3 cursor-pointer"
@@ -1774,8 +1774,8 @@ const ImmersivePostCardInner = ({
               isContentOverflowing ? "overflow-y-auto scrollbar-none" : "overflow-hidden"
             )}
             style={{
-              paddingTop: 'calc(env(safe-area-inset-top) + 42px + 80px)',
-              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 12px + 72px)',
+              paddingTop: 'calc(env(safe-area-inset-top) + 56px + 80px)',
+              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 24px + 72px)',
               ...(isContentOverflowing ? { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as any : {})
             }}
           >
@@ -2577,7 +2577,7 @@ const ImmersivePostCardInner = ({
           {/* Bottom Actions - Single horizontal axis alignment */}
           {/* [Rail 3] ActionRail: Fixed bottom overlay with gradient fade */}
           <div className="absolute bottom-0 left-0 right-0 z-50" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}>
-            <div className="flex items-center justify-between gap-6 px-5 pb-[calc(4rem+env(safe-area-inset-bottom)+12px)] pt-3">
+            <div className="flex items-center justify-between gap-6 px-5 pb-[calc(4rem+env(safe-area-inset-bottom)+24px)] pt-3">
 
             {/* Primary Share Button - Pill shape with consistent height */}
             {/* Primary Share Button - Pill shape with consistent height */}
