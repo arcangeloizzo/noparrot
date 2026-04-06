@@ -1338,8 +1338,6 @@ const ImmersivePostCardInner = ({
   const isChallengePost = post.post_type === 'challenge' && hasValidChallengeData;
   const isAudioPost = isVoicePost || isChallengePost;
 
-  // F. Only allow internal scroll on audio/challenge posts that actually overflow
-  const enableInternalScroll = isAudioPost && isContentOverflowing;
   const activeVoicePost = isChallengePost ? (post.challenge?.voice_post || post.voice_post) : post.voice_post;
   const challengeIdForResponses = isChallengePost ? post.challenge?.id || null : null;
 
@@ -1760,14 +1758,14 @@ const ImmersivePostCardInner = ({
           </div>
 
           {/* Center Content */}
-          {/* [Rail 2] ContentRail: scrollable ONLY for dense audio/challenge cards */}
+          {/* [Rail 2] ContentRail */}
           <div
-            ref={contentRailRef}
+            ref={isAudioPost ? contentRailRef : undefined}
             className={cn(
               "flex-1 min-h-0 relative flex flex-col px-4 pt-4",
-              enableInternalScroll ? "overflow-y-auto overscroll-contain scrollbar-none" : "overflow-hidden"
+              (isAudioPost && isContentOverflowing) ? "overflow-y-auto overscroll-contain scrollbar-none" : "overflow-hidden"
             )}
-            style={enableInternalScroll ? { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } : undefined}
+            style={(isAudioPost && isContentOverflowing) ? { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } : undefined}
           >
 
             {/* Challenge badge at top of content area */}
