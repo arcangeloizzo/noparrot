@@ -1601,8 +1601,9 @@ const ImmersivePostCardInner = ({
 
           {/* Top Bar */}
 
-          {/* [Rail 1] HeaderRail: Fixed top, stable height, no shrinking */}
-          <div className="absolute top-0 left-0 right-0 flex justify-between items-start pt-[calc(env(safe-area-inset-top)+42px)] px-5 pb-2 z-50">
+          {/* [Rail 1] HeaderRail: Fixed top overlay with gradient fade */}
+          <div className="absolute top-0 left-0 right-0 z-50" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}>
+            <div className="flex justify-between items-start pt-[calc(env(safe-area-inset-top)+42px)] px-5 pb-4">
             <div className="flex flex-col items-center gap-2">
               <div
                 className="flex items-center gap-3 cursor-pointer"
@@ -1762,6 +1763,7 @@ const ImmersivePostCardInner = ({
               </DropdownMenu>
             )}
           </div>
+          </div>
 
           {/* Center Content */}
           {/* [Rail 2] ContentRail */}
@@ -1769,11 +1771,11 @@ const ImmersivePostCardInner = ({
             ref={contentRailRef}
             className={cn(
               "absolute inset-0 flex flex-col px-4",
-              isContentOverflowing ? "overflow-y-auto overscroll-contain scrollbar-none" : "overflow-hidden"
+              isContentOverflowing ? "overflow-y-auto scrollbar-none" : "overflow-hidden"
             )}
             style={{
-              paddingTop: 'calc(env(safe-area-inset-top) + 42px + 60px)',
-              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 12px + 56px)',
+              paddingTop: 'calc(env(safe-area-inset-top) + 42px + 72px)',
+              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 12px + 64px)',
               ...(isContentOverflowing ? { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as any : {})
             }}
           >
@@ -2035,6 +2037,7 @@ const ImmersivePostCardInner = ({
                       setSelectedMediaIndex(0);
                     }}
                     className="relative flex-1 min-h-0 flex items-center justify-center w-full px-1 py-1 active:scale-[0.98] transition-transform overflow-hidden"
+                    style={{ maxHeight: '50vh' }}
                   >
                     {isVideoMedia ? (
                       <>
@@ -2066,8 +2069,8 @@ const ImmersivePostCardInner = ({
                     )}
                   </button>
                 ) : (
-                  /* Multi-media: adaptive gallery */
-                  <div className="flex-1 min-h-0 w-full flex flex-col justify-center overflow-hidden px-1">
+                  /* Multi-media: adaptive gallery with max height */
+                  <div className="flex-1 min-h-0 w-full flex flex-col justify-center overflow-hidden px-1" style={{ maxHeight: '50vh' }}>
                     <MediaGallery
                       media={post.media}
                       onClick={(_, index) => setSelectedMediaIndex(index)}
@@ -2572,8 +2575,9 @@ const ImmersivePostCardInner = ({
           </div>
 
           {/* Bottom Actions - Single horizontal axis alignment */}
-          {/* [Rail 3] ActionRail: Fixed bottom, stable height, no shrinking */}
-          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between gap-6 px-5 pb-[calc(4rem+env(safe-area-inset-bottom)+12px)] pt-2 z-50">
+          {/* [Rail 3] ActionRail: Fixed bottom overlay with gradient fade */}
+          <div className="absolute bottom-0 left-0 right-0 z-50" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}>
+            <div className="flex items-center justify-between gap-6 px-5 pb-[calc(4rem+env(safe-area-inset-bottom)+12px)] pt-3">
 
             {/* Primary Share Button - Pill shape with consistent height */}
             {/* Primary Share Button - Pill shape with consistent height */}
@@ -2675,6 +2679,7 @@ const ImmersivePostCardInner = ({
               </motion.button>
 
             </div>
+          </div>
           </div>
 
         </div>
