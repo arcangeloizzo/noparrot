@@ -403,31 +403,19 @@ const ImmersivePostCardInner = ({
   // F. Internal scroll — ONLY for dense audio/challenge cards
   const contentRailRef = useRef<HTMLDivElement>(null);
   const [isContentOverflowing, setIsContentOverflowing] = useState(false);
-  const [showScrollFade, setShowScrollFade] = useState(false);
 
   useLayoutEffect(() => {
     const el = contentRailRef.current;
     if (!el) return;
     const check = () => {
-      const overflows = el.scrollHeight > el.clientHeight + 20;
-      setIsContentOverflowing(overflows);
-      if (overflows) {
-        setShowScrollFade(el.scrollTop < el.scrollHeight - el.clientHeight - 10);
-      } else {
-        setShowScrollFade(false);
-      }
+      // Use generous threshold to avoid false positives
+      setIsContentOverflowing(el.scrollHeight > el.clientHeight + 30);
     };
     check();
     const ro = new ResizeObserver(check);
     ro.observe(el);
     return () => ro.disconnect();
   }, [post]);
-
-  const handleContentScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const el = e.currentTarget;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 10;
-    setShowScrollFade(!atBottom);
-  };
 
 
   // Trigger refetch for missing preview images on active cards
@@ -1602,20 +1590,13 @@ const ImmersivePostCardInner = ({
           onAnimationComplete={() => setShowHeartAnimation(false)}
         />
 
-        {/* LAYER 1: Scrollable content area — full card with padding for header/action */}
-        <div
-          ref={isAudioPost ? contentRailRef : undefined}
-          onScroll={isAudioPost ? handleContentScroll : undefined}
-          className={cn(
-            "absolute inset-0 z-10 flex flex-col px-4",
-            (isAudioPost && isContentOverflowing) ? "overflow-y-auto scrollbar-none" : "overflow-hidden"
-          )}
-          style={(isAudioPost && isContentOverflowing) ? { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } : undefined}
-        >
-          {/* Spacer for header — content starts below header */}
-          <div className="shrink-0" style={{ height: 'calc(env(safe-area-inset-top) + 110px)' }} />
+        {/* Content Layer */}
+        <div className="relative z-10 w-full h-full flex flex-col">
 
+          {/* Top Bar */}
 
+          {/* [Rail 1] HeaderRail: Fixed top, stable height, no shrinking */}
+          <div className="flex justify-between items-start flex-shrink-0 pt-[calc(env(safe-area-inset-top)+42px)] px-5 pb-2 z-50">
             <div className="flex flex-col items-center gap-2">
               <div
                 className="flex items-center gap-3 cursor-pointer"
@@ -1776,12 +1757,16 @@ const ImmersivePostCardInner = ({
             )}
           </div>
 
-
-          {/* Content area */}
-          <div className={cn(
-            "flex-1 min-h-0 relative flex flex-col px-0",
-            (isAudioPost && isContentOverflowing) ? "" : "overflow-hidden"
-          )}>
+          {/* Center Content */}
+          {/* [Rail 2] ContentRail */}
+          <div
+            ref={isAudioPost ? contentRailRef : undefined}
+            className={cn(
+              "flex-1 min-h-0 relative flex flex-col px-4 pt-4",
+              (isAudioPost && isContentOverflowing) ? "overflow-y-auto overscroll-contain scrollbar-none" : "overflow-hidden"
+            )}
+            style={(isAudioPost && isContentOverflowing) ? { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } : undefined}
+          >
 
 
 
@@ -3035,34 +3020,10 @@ const ImmersivePostCardInner = ({
               </div>
             </div>
           )}
-          {/* Spacer for action bar — content ends above action bar */}
-          <div className="shrink-0" style={{ height: 'calc(4rem + env(safe-area-inset-bottom) + 24px)' }} />
 
-        </div>
-
-        {/* LAYER 2: Header overlay */}
-        <div
-          className="absolute top-0 left-0 right-0 z-20 px-5 pb-2"
-          style={{
-            paddingTop: 'calc(env(safe-area-inset-top) + 42px)',
-            background: 'linear-gradient(to bottom, var(--card-bg, #0D1B2A) 70%, transparent)',
-          }}
-        >
-          <div className="flex justify-between items-start">
-            {/* Header content is rendered separately above in Layer 1, but we overlay this gradient mask */}
-          </div>
-        </div>
-
-        {/* LAYER 3: Action bar overlay */}
           {/* Bottom Actions - Single horizontal axis alignment */}
-          {/* [Rail 3] ActionRail: Absolute bottom, overlaid on content */}
-          <div
-            className="absolute bottom-0 left-0 right-0 z-20 flex items-center justify-between gap-6 px-5 pt-2"
-            style={{
-              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 12px)',
-              background: 'linear-gradient(to top, var(--card-bg, #0D1B2A) 60%, transparent)',
-            }}
-          >
+          {/* [Rail 3] ActionRail: Fixed bottom, stable height, no shrinking */}
+          <div className="flex items-center justify-between gap-6 px-5 pb-[calc(4rem+env(safe-area-inset-bottom)+12px)] pt-2 flex-shrink-0 z-50">
 
             {/* Primary Share Button - Pill shape with consistent height */}
             {/* Primary Share Button - Pill shape with consistent height */}
@@ -3162,23 +3123,12 @@ const ImmersivePostCardInner = ({
                   fill={post.user_reactions.has_bookmarked ? "currentColor" : "none"}
                 />
               </motion.button>
+
+            </div>
           </div>
 
-          {/* Fade gradient indicator above action bar */}
-          {showScrollFade && (
-            <div
-              className="absolute left-0 right-0 z-20 pointer-events-none"
-              style={{
-                bottom: 'calc(4rem + env(safe-area-inset-bottom) + 12px)',
-                height: '32px',
-                background: 'linear-gradient(transparent, var(--card-bg, #0D1B2A))',
-                opacity: showScrollFade ? 1 : 0,
-                transition: 'opacity 200ms',
-              }}
-            />
-          )}
-
-      </div>
+        </div>
+      </div >
 
       {/* Reader Modal */}
       {
