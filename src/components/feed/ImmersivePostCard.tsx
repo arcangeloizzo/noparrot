@@ -411,12 +411,15 @@ const ImmersivePostCardInner = ({
     const el = contentRailRef.current;
     if (!el) return;
     const check = () => {
-      // Use generous threshold to avoid false positives
-      setIsContentOverflowing(el.scrollHeight > el.clientHeight + 30);
+      // Threshold di 10px per evitare flicker su misurazioni borderline
+      setIsContentOverflowing(el.scrollHeight > el.clientHeight + 10);
     };
     check();
     const ro = new ResizeObserver(check);
     ro.observe(el);
+    // Osserva anche il primo figlio per catturare cambi di contenuto interni
+    const firstChild = el.firstElementChild;
+    if (firstChild) ro.observe(firstChild);
     return () => ro.disconnect();
   }, [post]);
 
@@ -1485,7 +1488,7 @@ const ImmersivePostCardInner = ({
   return (
     <>
       <div
-        className="h-[100dvh] w-full snap-start relative flex flex-col p-6 overflow-hidden bg-immersive transition-colors duration-500"
+        className="h-[100dvh] w-full snap-start relative overflow-hidden bg-immersive transition-colors duration-500"
         onClick={handleDoubleTap}
       >
         {/* Background for voice/challenge posts without PNGs */}
@@ -1594,12 +1597,12 @@ const ImmersivePostCardInner = ({
         />
 
         {/* Content Layer */}
-        <div className="relative z-10 w-full h-full flex flex-col">
+        <div className="relative z-10 w-full h-full">
 
           {/* Top Bar */}
 
           {/* [Rail 1] HeaderRail: Fixed top, stable height, no shrinking */}
-          <div className="flex justify-between items-start flex-shrink-0 pt-[calc(env(safe-area-inset-top)+42px)] px-5 pb-2 z-50">
+          <div className="absolute top-0 left-0 right-0 flex justify-between items-start pt-[calc(env(safe-area-inset-top)+42px)] px-5 pb-2 z-50">
             <div className="flex flex-col items-center gap-2">
               <div
                 className="flex items-center gap-3 cursor-pointer"
@@ -1763,12 +1766,16 @@ const ImmersivePostCardInner = ({
           {/* Center Content */}
           {/* [Rail 2] ContentRail */}
           <div
-            ref={isAudioPost ? contentRailRef : undefined}
+            ref={contentRailRef}
             className={cn(
-              "flex-1 min-h-0 relative flex flex-col px-4 pt-4",
-              (isAudioPost && isContentOverflowing) ? "overflow-y-auto overscroll-contain scrollbar-none" : "overflow-hidden"
+              "absolute inset-0 flex flex-col px-4",
+              isContentOverflowing ? "overflow-y-auto overscroll-contain scrollbar-none" : "overflow-hidden"
             )}
-            style={(isAudioPost && isContentOverflowing) ? { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } : undefined}
+            style={{
+              paddingTop: 'calc(env(safe-area-inset-top) + 42px + 60px)',
+              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 12px + 56px)',
+              ...(isContentOverflowing ? { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as any : {})
+            }}
           >
 
 
@@ -2552,24 +2559,21 @@ const ImmersivePostCardInner = ({
               )}
 
 
+              {/* Poll Widget - inside content rail */}
+              {pollData && (
+                <div className="mt-6 px-1">
+                  <PollWidget poll={pollData} postId={post.id} />
+                </div>
+              )}
 
             </div>
 
 
           </div>
 
-          {/* Poll Widget - centered vertically in remaining space */}
-          {pollData && (
-            <div className="px-5 flex-1 flex items-center justify-center min-h-0">
-              <div className="w-full">
-                <PollWidget poll={pollData} postId={post.id} />
-              </div>
-            </div>
-          )}
-
           {/* Bottom Actions - Single horizontal axis alignment */}
           {/* [Rail 3] ActionRail: Fixed bottom, stable height, no shrinking */}
-          <div className="flex items-center justify-between gap-6 px-5 pb-[calc(4rem+env(safe-area-inset-bottom)+12px)] pt-2 flex-shrink-0 z-50">
+          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between gap-6 px-5 pb-[calc(4rem+env(safe-area-inset-bottom)+12px)] pt-2 z-50">
 
             {/* Primary Share Button - Pill shape with consistent height */}
             {/* Primary Share Button - Pill shape with consistent height */}
