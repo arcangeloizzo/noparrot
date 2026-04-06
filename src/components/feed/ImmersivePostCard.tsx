@@ -2605,7 +2605,7 @@ const ImmersivePostCardInner = ({
                         <img
                           src={articlePreview?.image || post.preview_img}
                           alt=""
-                          className={cn(useStackLayout ? "w-full h-auto max-h-24 sm:max-h-40 object-cover" : imageHeightClass)}
+                          className={useStackLayout ? "w-full h-auto max-h-24 sm:max-h-40 object-cover" : "w-full h-auto object-cover rounded-xl"}
                         />
                       </div>
                     )}
@@ -2827,7 +2827,7 @@ const ImmersivePostCardInner = ({
                             hideOverlay={true}
                             platform={articlePreview?.platform}
                             hostname={getHostnameFromUrl(post.shared_url)}
-                            className={useStackLayout ? "max-h-full w-full object-contain rounded-xl" : imageHeightClass}
+                            className="max-h-full w-full object-contain rounded-xl"
                           />
                         </div>
                       )}
