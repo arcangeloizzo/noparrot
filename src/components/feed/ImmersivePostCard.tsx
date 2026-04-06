@@ -2587,7 +2587,7 @@ const ImmersivePostCardInner = ({
                     </div>
 
                     {/* Post Text - cleaned and clamped */}
-                    <p className="text-white text-base leading-relaxed mb-2 sm:mb-4 line-clamp-3 sm:line-clamp-4 flex-shrink">
+                    <p className="text-white text-base leading-relaxed mb-2 sm:mb-4 line-clamp-4">
                       {(articlePreview?.content || articlePreview?.description || articlePreview?.summary || '')
                         .replace(/https?:\/\/[^\s]+/g, '')
                         .replace(/\s{2,}/g, ' ')
