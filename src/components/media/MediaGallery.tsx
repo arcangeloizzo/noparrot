@@ -153,7 +153,8 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
         style={{
           WebkitOverflowScrolling: 'touch',
           scrollbarWidth: 'none',
-          msOverflowStyle: 'none'
+          msOverflowStyle: 'none',
+          ...(!fillHeight ? { maxHeight: '45vh' } : {})
         }}
       >
         {media.map((item, idx) => (
@@ -172,7 +173,7 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
                 alt=""
                 className={cn(
                   "w-full bg-black/40",
-                  fillHeight ? "h-full" : "aspect-auto"
+                  fillHeight ? "h-full" : "max-h-[45vh]"
                 )}
                 loading={idx <= 1 ? 'eager' : 'lazy'}
               />

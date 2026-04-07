@@ -1775,7 +1775,7 @@ const ImmersivePostCardInner = ({
             )}
             style={{
               paddingTop: 'calc(env(safe-area-inset-top) + 56px + 80px)',
-              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 24px + 72px)',
+              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 24px + 96px)',
               ...(isContentOverflowing ? { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as any : {})
             }}
           >
@@ -2070,13 +2070,13 @@ const ImmersivePostCardInner = ({
                   </button>
                 ) : (
                   /* Multi-media: adaptive gallery with max height */
-                  <div className="flex-1 min-h-0 w-full flex flex-col justify-center overflow-hidden px-1" style={{ maxHeight: '50vh' }}>
+                  <div className="w-full overflow-hidden rounded-2xl px-1" style={{ maxHeight: '50vh', flexShrink: 0 }}>
                     <MediaGallery
                       media={post.media}
                       onClick={(_, index) => setSelectedMediaIndex(index)}
                       initialIndex={carouselIndex}
                       onIndexChange={setCarouselIndex}
-                      className="h-full w-full object-contain"
+                      className="w-full"
                     />
                   </div>
                 )
