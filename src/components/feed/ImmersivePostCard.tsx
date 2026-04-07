@@ -1615,7 +1615,7 @@ const ImmersivePostCardInner = ({
             }}
           />
 
-          <div className="absolute inset-y-0 left-10 right-10 z-50">
+          <div className="absolute inset-y-0 left-12 right-12 z-50">
 
           {/* Top Bar */}
 
