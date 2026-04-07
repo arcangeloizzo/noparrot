@@ -1603,7 +1603,7 @@ const ImmersivePostCardInner = ({
 
           {/* [Rail 1] HeaderRail: Fixed top overlay with gradient fade */}
           <div className="absolute top-0 left-0 right-0 z-50" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}>
-            <div className="flex justify-between items-start pt-[calc(env(safe-area-inset-top)+42px)] px-5 pb-4">
+            <div className="flex justify-between items-start pt-[calc(env(safe-area-inset-top)+52px)] px-5 pb-4">
             <div className="flex flex-col items-center gap-2">
               <div
                 className="flex items-center gap-3 cursor-pointer"
@@ -1774,8 +1774,8 @@ const ImmersivePostCardInner = ({
               isContentOverflowing ? "overflow-y-auto scrollbar-none" : "overflow-hidden"
             )}
             style={{
-              paddingTop: 'calc(env(safe-area-inset-top) + 42px + 72px)',
-              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 12px + 64px)',
+              paddingTop: 'calc(env(safe-area-inset-top) + 52px + 82px)',
+              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 24px + 64px)',
               ...(isContentOverflowing ? { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as any : {})
             }}
           >
@@ -1832,7 +1832,7 @@ const ImmersivePostCardInner = ({
               {/* Stack Layout: User comment first - Plain text for standard */}
               {useStackLayout && !isAudioPost && !isChallengePost && (post.content || post.title) && post.content !== post.shared_title && (
                 <div className={cn(
-                  "mb-4 px-1 flex flex-col gap-1",
+                  "mb-4 flex flex-col gap-1",
                   isChallengePost ? "font-normal" : "font-normal"
                 )}>
                   {/* Title */}
@@ -1894,7 +1894,7 @@ const ImmersivePostCardInner = ({
               {/* User Text Content - Show for link posts (if different from article title) - NON stack layout */}
               {/* User Text - Skip for intent posts (already rendered above) */}
               {!useStackLayout && ((shouldShowUserText) || (post.title && post.title.trim().length > 0)) && !post.is_intent && !isTextOnly && hasLink && (
-                <div className="mb-4 flex-shrink-0 flex flex-col gap-1 px-1 z-10 relative">
+                <div className="mb-4 flex-shrink-0 flex flex-col gap-1 z-10 relative">
                   {/* Title */}
                   {post.title && post.title.trim().length > 0 && (
                     <h2 
@@ -1918,7 +1918,7 @@ const ImmersivePostCardInner = ({
 
               {/* User Text for normal reshares (long quoted comment, no source): show current user's comment ABOVE the QuotedPostCard */}
               {!useStackLayout && quotedPost && !hasLink && (post.content || post.title) && (
-                <div className="mb-6 flex flex-col gap-1 px-1 flex-shrink-0 relative z-10">
+                <div className="mb-6 flex flex-col gap-1 flex-shrink-0 relative z-10">
                   {/* Title */}
                   {post.title && post.title.trim().length > 0 && (
                     <h2 
@@ -1941,7 +1941,7 @@ const ImmersivePostCardInner = ({
 
               {/* Pure Text-Only Posts - Immersive editorial-style card - Hide if using stack layout */}
               {!useStackLayout && isTextOnly && (post.content || post.title) && (
-                <div className="relative w-full max-w-lg mx-auto">
+                <div className="relative w-full">
                   {/* Card container with glassmorphism and urban texture - GPU optimized */}
                   <div className="relative immersive-card rounded-3xl p-6 sm:p-8 shadow-2xl overflow-hidden">
 
@@ -2004,7 +2004,7 @@ const ImmersivePostCardInner = ({
 
               {/* User Text for media-only posts - ABOVE the media */}
               {!useStackLayout && !isAudioPost && !isChallengePost && isMediaOnlyPost && (post.content || post.title) && (
-                <div className="mb-6 flex flex-col gap-1 px-1 flex-shrink-0 z-10 relative">
+                <div className="mb-6 flex flex-col gap-1 flex-shrink-0 z-10 relative">
                   {/* Title */}
                   {post.title && post.title.trim().length > 0 && (
                     <h2 
@@ -2036,7 +2036,7 @@ const ImmersivePostCardInner = ({
                       e.stopPropagation();
                       setSelectedMediaIndex(0);
                     }}
-                    className="relative flex-1 min-h-0 flex items-center justify-center w-full px-1 py-1 active:scale-[0.98] transition-transform overflow-hidden"
+                    className="relative flex-1 min-h-0 flex items-center justify-center w-full py-1 active:scale-[0.98] transition-transform overflow-hidden"
                     style={{ maxHeight: '50vh' }}
                   >
                     {isVideoMedia ? (
@@ -2070,7 +2070,7 @@ const ImmersivePostCardInner = ({
                   </button>
                 ) : (
                   /* Multi-media: adaptive gallery with max height */
-                  <div className="flex-1 min-h-0 w-full flex flex-col justify-center overflow-hidden px-1" style={{ maxHeight: '50vh' }}>
+                  <div className="flex-1 min-h-0 w-full flex flex-col justify-center overflow-hidden" style={{ maxHeight: '50vh' }}>
                     <MediaGallery
                       media={post.media}
                       onClick={(_, index) => setSelectedMediaIndex(index)}
@@ -2084,7 +2084,7 @@ const ImmersivePostCardInner = ({
 
               {/* Twitter/X Card - Unified glassmorphic container */}
               {hasLink && isTwitter ? (
-                <div className="flex-1 min-h-0 flex flex-col justify-center w-full max-w-md mx-auto px-1">
+                <div className="flex-1 min-h-0 flex flex-col justify-center w-full">
                   {/* Unified Twitter Card - Author + Content in one container */}
                   <div
                     className="bg-gradient-to-br from-[#1DA1F2]/5 to-white/90 dark:from-[#15202B] dark:to-[#0d1117] rounded-3xl p-5 border border-black/5 dark:border-white/15 shadow-xl dark:shadow-2xl cursor-pointer active:scale-[0.98] transition-transform flex flex-col max-h-full"
@@ -2183,7 +2183,7 @@ const ImmersivePostCardInner = ({
                 />
               ) : hasLink && isYoutube ? (
                 /* YouTube Video Card - Tap to play */
-                <div className="w-full max-w-md mx-auto mt-4">
+                <div className="w-full mt-4">
                   {!youtubeEmbedActive ? (
                     /* Thumbnail with Play button */
                     <button
@@ -2564,7 +2564,7 @@ const ImmersivePostCardInner = ({
 
               {/* Poll Widget - inside content rail */}
               {pollData && (
-                <div className="mt-6 px-1">
+                <div className="mt-6">
                   <PollWidget poll={pollData} postId={post.id} />
                 </div>
               )}
@@ -2579,7 +2579,7 @@ const ImmersivePostCardInner = ({
           {/* Bottom Actions - Single horizontal axis alignment */}
           {/* [Rail 3] ActionRail: Fixed bottom overlay with gradient fade */}
           <div className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}>
-            <div className="flex items-center justify-between gap-6 px-5 pb-[calc(4rem+env(safe-area-inset-bottom)+12px)] pt-3 pointer-events-auto">
+            <div className="flex items-center justify-between gap-6 px-5 pb-[calc(4rem+env(safe-area-inset-bottom)+24px)] pt-3 pointer-events-auto">
 
             {/* Primary Share Button - Pill shape with consistent height */}
             {/* Primary Share Button - Pill shape with consistent height */}
