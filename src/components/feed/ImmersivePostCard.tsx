@@ -1775,6 +1775,7 @@ const ImmersivePostCardInner = ({
             )}
             style={{
               paddingTop: 'calc(env(safe-area-inset-top) + 56px + 80px)',
+              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 24px + 120px)',
               ...(isContentOverflowing ? { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as any : {})
             }}
           >
@@ -2570,8 +2571,8 @@ const ImmersivePostCardInner = ({
 
             </div>
 
-            {/* Scroll spacer: physical div to push content above action bar */}
-            <div style={{ minHeight: 'calc(4rem + env(safe-area-inset-bottom) + 48px)', flexShrink: 0 }} aria-hidden="true" />
+
+
 
           </div>
 
