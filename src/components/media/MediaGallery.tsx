@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { useState, useRef, useEffect, useCallback } from 'react';
 
 // Smooth image loading component
-const FadeInImage = ({ src, alt, className, loading = 'lazy' }: { src: string; alt: string; className?: string; loading?: 'lazy' | 'eager' }) => {
+const FadeInImage = ({ src, alt, className, loading = 'lazy', objectFit = 'cover' }: { src: string; alt: string; className?: string; loading?: 'lazy' | 'eager'; objectFit?: 'cover' | 'contain' }) => {
   const [isLoaded, setIsLoaded] = useState(false);
 
   return (
@@ -12,7 +12,7 @@ const FadeInImage = ({ src, alt, className, loading = 'lazy' }: { src: string; a
       <motion.img
         src={src}
         alt={alt}
-        className="w-full h-full object-cover"
+        className={cn("w-full h-full", objectFit === 'contain' ? 'object-contain' : 'object-cover')}
         initial={{ opacity: 0 }}
         animate={{ opacity: isLoaded ? 1 : 0 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
@@ -154,7 +154,7 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
           WebkitOverflowScrolling: 'touch',
           scrollbarWidth: 'none',
           msOverflowStyle: 'none',
-          ...(!fillHeight ? { maxHeight: '45vh' } : {})
+          ...(!fillHeight ? { maxHeight: '40vh' } : {})
         }}
       >
         {media.map((item, idx) => (
@@ -173,8 +173,9 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
                 alt=""
                 className={cn(
                   "w-full bg-black/40",
-                  fillHeight ? "h-full" : "max-h-[45vh]"
+                  fillHeight ? "h-full" : "max-h-[40vh]"
                 )}
+                objectFit={fillHeight ? 'cover' : 'contain'}
                 loading={idx <= 1 ? 'eager' : 'lazy'}
               />
             ) : (
@@ -196,12 +197,12 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
         ))}
       </div>
 
-      {/* Dots indicator */}
+      {/* Dots indicator - overlay at bottom of carousel */}
       <div className={cn(
         "flex justify-center gap-1.5",
-        fillHeight ? "shrink-0 py-2" : "mt-2"
+        fillHeight ? "shrink-0 py-2" : "absolute bottom-3 left-0 right-0 z-10"
       )}>
-        <div className="flex items-center gap-1.5 bg-black/40 backdrop-blur-sm rounded-full px-2.5 py-1">
+        <div className="flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-full px-2.5 py-1">
           {media.map((_, idx) => (
             <button
               key={idx}

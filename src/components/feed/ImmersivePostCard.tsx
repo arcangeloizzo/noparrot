@@ -1775,7 +1775,7 @@ const ImmersivePostCardInner = ({
             )}
             style={{
               paddingTop: 'calc(env(safe-area-inset-top) + 56px + 80px)',
-              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 24px + 96px)',
+              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 24px + 120px)',
               ...(isContentOverflowing ? { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as any : {})
             }}
           >
@@ -2037,7 +2037,7 @@ const ImmersivePostCardInner = ({
                       setSelectedMediaIndex(0);
                     }}
                     className="relative flex-1 min-h-0 flex items-center justify-center w-full px-1 py-1 active:scale-[0.98] transition-transform overflow-hidden"
-                    style={{ maxHeight: '50vh' }}
+                    style={{ maxHeight: '40vh' }}
                   >
                     {isVideoMedia ? (
                       <>
@@ -2070,7 +2070,7 @@ const ImmersivePostCardInner = ({
                   </button>
                 ) : (
                   /* Multi-media: adaptive gallery with max height */
-                  <div className="w-full overflow-hidden rounded-2xl px-1" style={{ maxHeight: '50vh', flexShrink: 0 }}>
+                  <div className="w-full overflow-hidden rounded-2xl px-1" style={{ maxHeight: '40vh', flexShrink: 0 }}>
                     <MediaGallery
                       media={post.media}
                       onClick={(_, index) => setSelectedMediaIndex(index)}
@@ -2437,7 +2437,7 @@ const ImmersivePostCardInner = ({
 
               {/* Stack Layout: Source Preview LAST (Media OR Link) - Only show ONE source at bottom */}
               {useStackLayout && (finalSourceUrl || (finalSourceMedia && finalSourceMedia.length > 0)) && (
-                <div className="mt-4 flex-1 min-h-0 flex flex-col justify-end" style={{ maxHeight: '45vh' }}>
+                <div className="mt-4 flex-1 min-h-0 flex flex-col justify-end" style={{ maxHeight: '40vh' }}>
                   {finalSourceUrl?.startsWith('focus://') ? (
                     /* Editorial source */
                     <QuotedEditorialCard
@@ -2466,7 +2466,7 @@ const ImmersivePostCardInner = ({
                           setSelectedMediaIndex(0);
                         }}
                         className="relative w-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
-                        style={{ maxHeight: '45vh' }}
+                        style={{ maxHeight: '40vh' }}
                       >
                         {finalSourceMedia[0].type === 'video' ? (
                           <>
@@ -2491,7 +2491,7 @@ const ImmersivePostCardInner = ({
                       </button>
                     ) : (
                       /* Gallery: constrained height */
-                      <div className="w-full" style={{ maxHeight: '45vh' }}>
+                      <div className="w-full" style={{ maxHeight: '40vh' }}>
                         <MediaGallery
                           media={finalSourceMedia}
                           onClick={(_, index) => setSelectedMediaIndex(index)}
