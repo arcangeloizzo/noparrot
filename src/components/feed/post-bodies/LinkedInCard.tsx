@@ -13,7 +13,7 @@ export const LinkedInCard = ({
   useStackLayout,
 }: LinkedInCardProps) => {
   return (
-    <div className="w-full max-w-md mx-auto mt-2 sm:mt-6 flex-shrink min-h-0 flex flex-col justify-center">
+    <div className="w-full mt-2 sm:mt-6 flex-shrink min-h-0 flex flex-col justify-center">
       {/* Unified LinkedIn Card */}
       <div
         className="bg-gradient-to-br from-[#0A66C2]/10 to-white/90 dark:from-[#0A66C2]/20 dark:to-[#1a1a2e]/95 backdrop-blur-xl rounded-3xl p-4 sm:p-5 border border-black/5 dark:border-white/15 shadow-[0_12px_48px_rgba(0,0,0,0.1),_0_0_16px_rgba(10,102,194,0.1)] dark:shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_16px_rgba(10,102,194,0.15)] cursor-pointer active:scale-[0.98] transition-transform max-h-full flex flex-col"
