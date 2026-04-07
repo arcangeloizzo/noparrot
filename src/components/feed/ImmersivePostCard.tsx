@@ -1603,7 +1603,7 @@ const ImmersivePostCardInner = ({
 
           {/* [Rail 1] HeaderRail: Fixed top overlay with gradient fade */}
           <div className="absolute top-0 left-0 right-0 z-50" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}>
-            <div className="flex justify-between items-start pt-[calc(env(safe-area-inset-top)+72px)] px-5 pb-5">
+            <div className="flex justify-between items-start pt-[calc(env(safe-area-inset-top)+72px)] px-6 pb-5">
             <div className="flex flex-col items-center gap-2">
               <div
                 className="flex items-center gap-3 cursor-pointer"
@@ -1770,7 +1770,7 @@ const ImmersivePostCardInner = ({
           <div
             ref={contentRailRef}
             className={cn(
-              "absolute inset-0 flex flex-col px-5",
+              "absolute inset-0 flex flex-col px-6",
               isContentOverflowing ? "overflow-y-auto scrollbar-none" : "overflow-hidden"
             )}
             style={{
@@ -2036,7 +2036,7 @@ const ImmersivePostCardInner = ({
                       e.stopPropagation();
                       setSelectedMediaIndex(0);
                     }}
-                    className="relative flex-1 min-h-0 flex items-start justify-start w-full py-1 active:scale-[0.98] transition-transform overflow-hidden"
+                    className="relative flex-1 min-h-0 flex items-center justify-center w-full py-1 active:scale-[0.98] transition-transform overflow-hidden"
                     style={{ maxHeight: '50vh' }}
                   >
                     {isVideoMedia ? (
@@ -2070,7 +2070,7 @@ const ImmersivePostCardInner = ({
                   </button>
                 ) : (
                   /* Multi-media: adaptive gallery with max height */
-                  <div className="flex-1 min-h-0 w-full flex flex-col justify-start overflow-hidden" style={{ maxHeight: '50vh' }}>
+                  <div className="flex-1 min-h-0 w-full flex flex-col justify-center overflow-hidden" style={{ maxHeight: '50vh' }}>
                     <MediaGallery
                       media={post.media}
                       onClick={(_, index) => setSelectedMediaIndex(index)}
@@ -2168,7 +2168,7 @@ const ImmersivePostCardInner = ({
                         window.open(post.shared_url, '_blank', 'noopener,noreferrer');
                       }
                     }}
-                    className="mt-3 self-start flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors flex-shrink-0"
+                    className="mt-3 mx-auto flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors flex-shrink-0"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span className="text-xs uppercase tracking-wider">Apri su X</span>
@@ -2364,7 +2364,7 @@ const ImmersivePostCardInner = ({
                     </div>
                   ) : (
                     <div
-                      className="cursor-pointer active:scale-[0.98] transition-transform w-full flex flex-col items-start justify-start max-h-full"
+                      className="cursor-pointer active:scale-[0.98] transition-transform w-full flex flex-col items-center max-h-full"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (post.shared_url) {
@@ -2374,7 +2374,7 @@ const ImmersivePostCardInner = ({
                     >
                       {/* Visible Metadata Image - Uses max-h to fit available space */}
                       {!post.is_intent && (
-                        <div className="flex-1 min-h-0 w-full flex items-start justify-start mb-4">
+                        <div className="flex-1 min-h-0 w-full flex items-center justify-center mb-4">
                           <SourceImageWithFallback
                             src={articlePreview?.image || post.preview_img}
                             sharedUrl={post.shared_url}
@@ -2579,7 +2579,7 @@ const ImmersivePostCardInner = ({
           {/* Bottom Actions - Single horizontal axis alignment */}
           {/* [Rail 3] ActionRail: Fixed bottom overlay with gradient fade */}
           <div className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}>
-            <div className="flex items-center justify-between gap-6 px-5 pb-[calc(4rem+env(safe-area-inset-bottom)+36px)] pt-4 pointer-events-auto">
+            <div className="flex items-center justify-between gap-6 px-6 pb-[calc(4rem+env(safe-area-inset-bottom)+36px)] pt-4 pointer-events-auto">
 
             {/* Primary Share Button - Pill shape with consistent height */}
             {/* Primary Share Button - Pill shape with consistent height */}
