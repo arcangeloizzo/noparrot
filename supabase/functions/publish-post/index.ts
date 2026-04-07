@@ -586,20 +586,20 @@ Deno.serve(async (req) => {
 
         // Calculate expires_at from preset
         let pollExpiresAt: string | null = null
-        if (body.pollData.durationPreset) {
+        if (body.pollData!.durationPreset) {
           const now = new Date()
           const presetMap: Record<string, number> = {
             '1h': 1, '6h': 6, '12h': 12, '24h': 24,
             '3d': 72, '7d': 168
           }
-          const hours = presetMap[body.pollData.durationPreset] || 24
+          const hours = presetMap[body.pollData!.durationPreset] || 24
           now.setHours(now.getHours() + hours)
           pollExpiresAt = now.toISOString()
         }
 
         const { data: pollRow, error: pollErr } = await adminSupabase
           .from('polls')
-          .insert({ post_id: inserted.id, expires_at: pollExpiresAt, allow_multiple: body.pollData.allowMultiple || false })
+          .insert({ post_id: inserted.id, expires_at: pollExpiresAt, allow_multiple: body.pollData!.allowMultiple || false })
           .select('id')
           .single()
 
@@ -607,7 +607,7 @@ Deno.serve(async (req) => {
           console.warn(`[publish-post:${reqId}] stage=poll_insert_error`, pollErr.message)
         } else if (pollRow?.id) {
           // Insert options (max 8, sanitized)
-          const optionRows = body.pollData.options
+          const optionRows = body.pollData!.options
             .slice(0, 8)
             .filter((o: string) => typeof o === 'string' && o.trim().length > 0)
             .map((label: string, idx: number) => ({

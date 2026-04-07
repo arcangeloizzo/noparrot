@@ -2571,8 +2571,8 @@ const ImmersivePostCardInner = ({
 
             </div>
 
-            {/* Scroll spacer: physical div to push content above action bar */}
-            <div style={{ minHeight: 'calc(4rem + env(safe-area-inset-bottom) + 48px)', flexShrink: 0 }} aria-hidden="true" />
+
+
 
           </div>
 
