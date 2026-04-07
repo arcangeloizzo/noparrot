@@ -1603,7 +1603,7 @@ const ImmersivePostCardInner = ({
 
           {/* [Rail 1] HeaderRail: Fixed top overlay with gradient fade */}
           <div className="absolute top-0 left-0 right-0 z-50" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}>
-            <div className="flex justify-between items-start pt-[calc(env(safe-area-inset-top)+56px)] px-5 pb-4">
+            <div className="flex justify-between items-start pt-[calc(env(safe-area-inset-top)+42px)] px-5 pb-4">
             <div className="flex flex-col items-center gap-2">
               <div
                 className="flex items-center gap-3 cursor-pointer"
@@ -1774,8 +1774,8 @@ const ImmersivePostCardInner = ({
               isContentOverflowing ? "overflow-y-auto scrollbar-none" : "overflow-hidden"
             )}
             style={{
-              paddingTop: 'calc(env(safe-area-inset-top) + 56px + 80px)',
-              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 24px + 120px)',
+              paddingTop: 'calc(env(safe-area-inset-top) + 42px + 72px)',
+              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 12px + 64px)',
               ...(isContentOverflowing ? { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as any : {})
             }}
           >
@@ -2037,7 +2037,7 @@ const ImmersivePostCardInner = ({
                       setSelectedMediaIndex(0);
                     }}
                     className="relative flex-1 min-h-0 flex items-center justify-center w-full px-1 py-1 active:scale-[0.98] transition-transform overflow-hidden"
-                    style={{ maxHeight: '40vh' }}
+                    style={{ maxHeight: '50vh' }}
                   >
                     {isVideoMedia ? (
                       <>
@@ -2070,13 +2070,13 @@ const ImmersivePostCardInner = ({
                   </button>
                 ) : (
                   /* Multi-media: adaptive gallery with max height */
-                  <div className="w-full overflow-hidden rounded-2xl px-1" style={{ maxHeight: '40vh', flexShrink: 0 }}>
+                  <div className="flex-1 min-h-0 w-full flex flex-col justify-center overflow-hidden px-1" style={{ maxHeight: '50vh' }}>
                     <MediaGallery
                       media={post.media}
                       onClick={(_, index) => setSelectedMediaIndex(index)}
                       initialIndex={carouselIndex}
                       onIndexChange={setCarouselIndex}
-                      className="w-full"
+                      className="h-full w-full object-contain"
                     />
                   </div>
                 )
@@ -2437,7 +2437,7 @@ const ImmersivePostCardInner = ({
 
               {/* Stack Layout: Source Preview LAST (Media OR Link) - Only show ONE source at bottom */}
               {useStackLayout && (finalSourceUrl || (finalSourceMedia && finalSourceMedia.length > 0)) && (
-                <div className="mt-4 flex-1 min-h-0 flex flex-col justify-end" style={{ maxHeight: '40vh' }}>
+                <div className="mt-4 flex-1 min-h-[15rem] flex flex-col justify-end">
                   {finalSourceUrl?.startsWith('focus://') ? (
                     /* Editorial source */
                     <QuotedEditorialCard
@@ -2465,8 +2465,7 @@ const ImmersivePostCardInner = ({
                           e.stopPropagation();
                           setSelectedMediaIndex(0);
                         }}
-                        className="relative w-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
-                        style={{ maxHeight: '40vh' }}
+                        className="relative w-full h-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
                       >
                         {finalSourceMedia[0].type === 'video' ? (
                           <>
@@ -2490,14 +2489,15 @@ const ImmersivePostCardInner = ({
                         )}
                       </button>
                     ) : (
-                      /* Gallery: constrained height */
-                      <div className="w-full" style={{ maxHeight: '40vh' }}>
+                      /* Gallery: fill available space */
+                      <div className="w-full h-full">
                         <MediaGallery
                           media={finalSourceMedia}
                           onClick={(_, index) => setSelectedMediaIndex(index)}
                           initialIndex={0}
                           onIndexChange={() => { }}
-                          className="w-full object-contain rounded-2xl border border-white/10"
+                          className="h-full w-full object-contain rounded-2xl border border-white/10"
+                          fillHeight={true}
                         />
                       </div>
                     )
@@ -2579,7 +2579,7 @@ const ImmersivePostCardInner = ({
           {/* Bottom Actions - Single horizontal axis alignment */}
           {/* [Rail 3] ActionRail: Fixed bottom overlay with gradient fade */}
           <div className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}>
-            <div className="flex items-center justify-between gap-6 px-5 pb-[calc(4rem+env(safe-area-inset-bottom)+24px)] pt-3 pointer-events-auto">
+            <div className="flex items-center justify-between gap-6 px-5 pb-[calc(4rem+env(safe-area-inset-bottom)+12px)] pt-3 pointer-events-auto">
 
             {/* Primary Share Button - Pill shape with consistent height */}
             {/* Primary Share Button - Pill shape with consistent height */}
