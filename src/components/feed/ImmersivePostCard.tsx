@@ -2467,7 +2467,6 @@ const ImmersivePostCardInner = ({
                         }}
                         className="relative w-full h-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
                       >
-                      >
                         {finalSourceMedia[0].type === 'video' ? (
                           <>
                             <img
