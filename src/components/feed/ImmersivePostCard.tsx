@@ -1775,6 +1775,7 @@ const ImmersivePostCardInner = ({
             )}
             style={{
               paddingTop: 'calc(env(safe-area-inset-top) + 56px + 80px)',
+              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 24px + 120px)',
               ...(isContentOverflowing ? { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as any : {})
             }}
           >
