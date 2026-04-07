@@ -1599,11 +1599,29 @@ const ImmersivePostCardInner = ({
         {/* Content Layer */}
         <div className="relative z-10 w-full h-full">
 
+          <div
+            className="absolute top-0 left-0 right-0 z-40 pointer-events-none"
+            style={{
+              background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)',
+              height: 'calc(env(safe-area-inset-top) + 180px)'
+            }}
+          />
+
+          <div
+            className="absolute bottom-0 left-0 right-0 z-40 pointer-events-none"
+            style={{
+              background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)',
+              height: 'calc(4rem + env(safe-area-inset-bottom) + 120px)'
+            }}
+          />
+
+          <div className="absolute inset-y-0 left-6 right-6 z-50">
+
           {/* Top Bar */}
 
           {/* [Rail 1] HeaderRail: Fixed top overlay with gradient fade */}
-          <div className="absolute top-0 left-0 right-0 z-50" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}>
-            <div className="mx-6 flex justify-between items-start pt-[calc(env(safe-area-inset-top)+72px)] pb-5">
+          <div className="absolute top-0 left-0 right-0">
+            <div className="flex justify-between items-start pt-[calc(env(safe-area-inset-top)+72px)] pb-5">
             <div className="flex flex-col items-center gap-2">
               <div
                 className="flex items-center gap-3 cursor-pointer"
@@ -1770,7 +1788,7 @@ const ImmersivePostCardInner = ({
           <div
             ref={contentRailRef}
             className={cn(
-              "absolute top-0 bottom-0 left-6 right-6 flex flex-col",
+              "absolute top-0 bottom-0 left-0 right-0 flex flex-col",
               isContentOverflowing ? "overflow-y-auto scrollbar-none" : "overflow-hidden"
             )}
             style={{
@@ -2578,8 +2596,8 @@ const ImmersivePostCardInner = ({
 
           {/* Bottom Actions - Single horizontal axis alignment */}
           {/* [Rail 3] ActionRail: Fixed bottom overlay with gradient fade */}
-          <div className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}>
-            <div className="mx-6 flex items-center justify-between gap-6 pb-[calc(4rem+env(safe-area-inset-bottom)+36px)] pt-4 pointer-events-auto">
+          <div className="absolute bottom-0 left-0 right-0 pointer-events-none">
+            <div className="flex items-center justify-between gap-6 pb-[calc(4rem+env(safe-area-inset-bottom)+36px)] pt-4 pointer-events-auto">
 
             {/* Primary Share Button - Pill shape with consistent height */}
             {/* Primary Share Button - Pill shape with consistent height */}
@@ -2681,6 +2699,7 @@ const ImmersivePostCardInner = ({
               </motion.button>
 
             </div>
+          </div>
           </div>
           </div>
 
