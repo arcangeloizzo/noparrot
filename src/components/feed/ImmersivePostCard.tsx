@@ -1603,7 +1603,7 @@ const ImmersivePostCardInner = ({
 
           {/* [Rail 1] HeaderRail: Fixed top overlay with gradient fade */}
           <div className="absolute top-0 left-0 right-0 z-50" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}>
-            <div className="flex justify-between items-start pt-[calc(env(safe-area-inset-top)+72px)] px-6 pb-5">
+            <div className="mx-6 flex justify-between items-start pt-[calc(env(safe-area-inset-top)+72px)] pb-5">
             <div className="flex flex-col items-center gap-2">
               <div
                 className="flex items-center gap-3 cursor-pointer"
@@ -2168,7 +2168,7 @@ const ImmersivePostCardInner = ({
                         window.open(post.shared_url, '_blank', 'noopener,noreferrer');
                       }
                     }}
-                    className="mt-3 mx-auto flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors flex-shrink-0"
+                    className="mt-3 inline-flex self-start items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors flex-shrink-0"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span className="text-xs uppercase tracking-wider">Apri su X</span>
@@ -2243,7 +2243,7 @@ const ImmersivePostCardInner = ({
                       e.stopPropagation();
                       window.open(post.shared_url, '_blank', 'noopener,noreferrer');
                     }}
-                    className="flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors"
+                    className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span className="text-xs uppercase tracking-wider">Apri su YouTube</span>
@@ -2364,7 +2364,7 @@ const ImmersivePostCardInner = ({
                     </div>
                   ) : (
                     <div
-                      className="cursor-pointer active:scale-[0.98] transition-transform w-full flex flex-col items-center max-h-full"
+                      className="cursor-pointer active:scale-[0.98] transition-transform w-full flex flex-col items-start max-h-full"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (post.shared_url) {
@@ -2579,7 +2579,7 @@ const ImmersivePostCardInner = ({
           {/* Bottom Actions - Single horizontal axis alignment */}
           {/* [Rail 3] ActionRail: Fixed bottom overlay with gradient fade */}
           <div className="absolute bottom-0 left-0 right-0 z-50 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.3) 60%, transparent 100%)' }}>
-            <div className="flex items-center justify-between gap-6 px-6 pb-[calc(4rem+env(safe-area-inset-bottom)+36px)] pt-4 pointer-events-auto">
+            <div className="mx-6 flex items-center justify-between gap-6 pb-[calc(4rem+env(safe-area-inset-bottom)+36px)] pt-4 pointer-events-auto">
 
             {/* Primary Share Button - Pill shape with consistent height */}
             {/* Primary Share Button - Pill shape with consistent height */}

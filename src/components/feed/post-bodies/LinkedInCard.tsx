@@ -100,7 +100,7 @@ export const LinkedInCard = ({
             window.open(post.shared_url, '_blank', 'noopener,noreferrer');
           }
         }}
-        className="mt-3 mx-auto flex items-center gap-2 text-white/50 hover:text-white transition-colors"
+        className="mt-3 inline-flex self-start items-center gap-2 text-white/50 hover:text-white transition-colors"
       >
         <ExternalLink className="w-3.5 h-3.5" />
         <span className="text-xs uppercase tracking-wider">Apri su LinkedIn</span>
