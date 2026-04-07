@@ -168,16 +168,23 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
             onClick={(e) => handleMediaClick(e, item, idx)}
           >
             {item.type === 'image' ? (
-              <FadeInImage
-                src={item.url}
-                alt=""
-                className={cn(
-                  "w-full bg-black/40",
-                  fillHeight ? "h-full" : "max-h-[40vh]"
-                )}
-                objectFit={fillHeight ? 'cover' : 'contain'}
-                loading={idx <= 1 ? 'eager' : 'lazy'}
-              />
+              fillHeight ? (
+                <FadeInImage
+                  src={item.url}
+                  alt=""
+                  className="w-full h-full bg-black/40"
+                  objectFit="cover"
+                  loading={idx <= 1 ? 'eager' : 'lazy'}
+                />
+              ) : (
+                <img
+                  src={item.url}
+                  alt=""
+                  className="w-full object-contain rounded-2xl"
+                  style={{ maxHeight: '40vh' }}
+                  loading={idx <= 1 ? 'eager' : 'lazy'}
+                />
+              )
             ) : (
               <div className={cn("relative bg-black", fillHeight ? "h-full w-full" : "aspect-video")}>
                 <video
