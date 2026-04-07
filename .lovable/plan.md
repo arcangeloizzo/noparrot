@@ -1,38 +1,47 @@
 
-Ho ricontrollato il codice: no, il padding laterale “come prima” non è davvero stato ripristinato.
+Problema confermato
 
-Diagnosi
-- In `src/components/feed/ImmersivePostCard.tsx` il `px-6` c’è già su header/content/action rail (`1606`, `1773`, `2582`), quindi il problema non è “manca il padding” ma “è applicato nel punto sbagliato”.
-- I tre rail sono ancora overlay assoluti agganciati ai bordi dello schermo (`top-0 left-0 right-0`, `absolute inset-0`, `bottom-0 left-0 right-0`), mentre il wrapper principale della card resta full-bleed (`h-[100dvh] w-full ... overflow-hidden`).
-- Quindi oggi stiamo solo aggiungendo spazio interno ai rail, ma non stiamo ricreando l’inset laterale reale che avevi prima.
-- In più alcuni fix successivi falsano la composizione: ci sono wrapper/CTA con `items-center` e `mx-auto` che compensano male e fanno sembrare testo, preview e immagini “spostati”.
+- Sì: il padding laterale “come prima” non è ancora ripristinato.
+- Nel codice attuale è stato insettato davvero solo il content rail (`left-6 right-6` in `src/components/feed/ImmersivePostCard.tsx`), mentre header e action rail sono ancora full-width (`top-0 left-0 right-0` / `bottom-0 left-0 right-0`) con solo `px-6` interno.
+- Quindi il gutter reale non esiste ancora a livello di card: esiste solo come spazio interno di alcuni blocchi.
+- In più restano compensazioni locali che falsano il layout (`mx-auto` sulle CTA, `items-center` su alcune preview), ed è per questo che in alcuni casi testo e immagini sembrano fuori asse.
 
-Piano
-1. Ripristinare il gutter al livello corretto
-- In `ImmersivePostCard.tsx` introdurre/ripristinare un inner shell full-height con inset laterale fisso equivalente al layout precedente.
-- Spostare dentro questo shell header rail, content rail e action rail, invece di lasciarli edge-to-edge sul viewport.
-- Così avatar, titolo, media, pulsante “Condividi” e action icon erediteranno lo stesso padding reale.
+Piano corretto
 
-2. Riallineare i blocchi che oggi bypassano quel gutter
-- Sempre in `ImmersivePostCard.tsx`, togliere i compensatori introdotti nei tentativi precedenti (`mx-auto`, centrature forzate, eventuali allineamenti puntuali) dove rompono il bordo percepito.
-- Lasciare che media, preview e CTA si allineino al nuovo shell, non a fix separati per singolo blocco.
-- Verificare in particolare: media singolo, gallery, preview link generica, CTA “Apri su X”, CTA “Apri su YouTube”.
+1. Ripristinare il gutter al livello giusto
+- In `src/components/feed/ImmersivePostCard.tsx` introdurre un inner shell unico, full-height, con inset laterale fisso uguale al layout precedente.
+- Mettere dentro questo shell tutti e tre i rail:
+  - header
+  - content
+  - action bar
+- Lasciare full-bleed solo background e fade, non i contenuti interattivi.
 
-3. Toccare `LinkedInCard.tsx` solo se necessario
-- Se il blocco LinkedIn continua a ignorare il nuovo gutter, riallineare anche `src/components/feed/post-bodies/LinkedInCard.tsx` allo stesso shell.
-- Nessun cambio grafico ai titoli.
+2. Riallineare i blocchi che oggi bypassano il gutter
+- Sempre in `ImmersivePostCard.tsx`, rimuovere i compensatori introdotti nei tentativi precedenti:
+  - `mx-auto` su “Apri su X”
+  - `items-center` sul container preview generica
+  - altri centraggi puntuali solo dove rompono il bordo comune
+- Obiettivo: avatar, titolo, media, preview e pulsante “Condividi” devono partire tutti dallo stesso bordo sinistro.
 
-4. Vincolo esplicito
-- Nessuna modifica a font, dimensioni, peso, uppercase, interlinea o stile dei titoli.
+3. Correggere il sottocomponente che resta fuori asse
+- Verificare `src/components/feed/post-bodies/LinkedInCard.tsx`, perché oggi il CTA è ancora `mx-auto`.
+- Toccarlo solo se, dopo il nuovo shell, continua a risultare disallineato.
 
-5. Verifica prima di confermare
-- Confrontare il risultato con gli screenshot allegati prima di dichiarare il fix chiuso.
+4. Non toccare i titoli
+- Nessuna modifica a font, dimensioni, peso, uppercase, line-height o stile dei titoli.
+
+5. Verifica finale obbligatoria
+- Confronto diretto con gli screenshot annotati prima di chiudere il fix.
 - Checklist:
-  - stesso spazio laterale percepito dei post di qualche giorno fa;
-  - stesso bordo sinistro tra profilo, titolo, media e pulsante “Condividi”;
-  - nessun decentramento di testo, titoli o immagini;
-  - titoli invariati.
+  - stesso padding laterale percepito dei post di qualche giorno fa;
+  - stesso bordo sinistro tra profilo, titolo, media e share;
+  - più spazio sopra il blocco profilo;
+  - più spazio sotto la action bar verso la navbar;
+  - nessun decentramento di testi o immagini.
+
+Riferimento interno utile
+- `src/components/feed/ImmersiveEditorialCarousel.tsx` ha già il pattern giusto: il gutter è applicato al wrapper della slide (`px-6`), non come compensazione interna ai singoli rail. Userò quello come riferimento visivo/strutturale, senza modificarlo.
 
 File coinvolti
 - `src/components/feed/ImmersivePostCard.tsx`
-- `src/components/feed/post-bodies/LinkedInCard.tsx` solo se il CTA/link resta fuori asse.
+- `src/components/feed/post-bodies/LinkedInCard.tsx` solo se necessario
