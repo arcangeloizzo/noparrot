@@ -1770,7 +1770,7 @@ const ImmersivePostCardInner = ({
           <div
             ref={contentRailRef}
             className={cn(
-              "absolute inset-0 flex flex-col px-4",
+              "absolute inset-0 flex flex-col px-5",
               isContentOverflowing ? "overflow-y-auto scrollbar-none" : "overflow-hidden"
             )}
             style={{
