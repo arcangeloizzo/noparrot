@@ -1,46 +1,53 @@
 
-Obiettivo
 
-Ripristinare il feed come negli screenshot “prima”: stesso respiro laterale percepito e più spazio verticale sopra il blocco profilo e sotto la action bar, senza toccare i titoli.
+# Piano: Ripristinare il padding laterale originale del feed
 
-Cosa ho verificato
+## Causa radice identificata
 
-- In `src/components/feed/ImmersivePostCard.tsx` il content rail è già `px-5` alla riga ~1773. Quindi il fix approvato è già presente, ma da solo non può riportare il layout “come prima”.
-- Il mismatch visivo rimasto viene da due cause:
-  1. alcuni wrapper interni continuano a stringere o falsare il rail (`px-1`, `max-w-md mx-auto`, `max-w-lg mx-auto`);
-  2. i rail alto/basso hanno troppo poco respiro rispetto a header globale e navbar (`pt-[calc(env(safe-area-inset-top)+42px)]` in alto, `pb-[calc(4rem+env(safe-area-inset-bottom)+12px)]` in basso).
+Ho trovato il vero problema. Nella versione originale (prima del 6 aprile), il wrapper esterno della card aveva **`p-6`** (24px di padding su tutti i lati):
 
-Piano di intervento
+```text
+// Versione PRIMA (0af44b4 - 5 aprile):
+<div className="... p-6 overflow-hidden ...">   ← 24px padding tutt'intorno
 
-1. Ripristinare la spaziatura verticale del guscio della card in `ImmersivePostCard.tsx`
-- aumentare il distacco tra header globale e riga profilo intervenendo sul rail superiore (blocco ~1605-1606);
-- aumentare il distacco tra action bar e navbar intervenendo sul rail inferiore (blocco ~2581-2582);
-- lasciare invariati titolo, font e tipografia.
+// Versione ATTUALE:
+<div className="... overflow-hidden ...">        ← NESSUN padding
+```
 
-2. Uniformare davvero il padding laterale percepito
-- mantenere `px-5` sul rail principale;
-- rimuovere o neutralizzare i micro-offset interni `px-1` che oggi cambiano il bordo percepito dei blocchi contenuto;
-- punti principali in `ImmersivePostCard.tsx`: wrapper testo/media/poll attorno a ~1835, ~1897, ~1921, ~2007, ~2039, ~2073, ~2567.
+Quando la card è stata ristrutturata con l'architettura a overlay (header, content, action bar tutti `absolute`), il `p-6` è stato rimosso. Ma i figli `absolute inset-0` ignorano il padding del genitore, quindi anche se fosse rimasto non funzionerebbe.
 
-3. Eliminare i vincoli di larghezza che rendono alcuni post più stretti di prima
-- sostituire i wrapper centrati `max-w-md mx-auto` / `max-w-lg mx-auto` con contenitori allineati al rail quando il post deve occupare la larghezza piena del feed;
-- punti principali:
-  - `ImmersivePostCard.tsx` ~1944 (text-only card),
-  - ~2087 (X card),
-  - ~2186 (YouTube card),
-  - `src/components/feed/post-bodies/LinkedInCard.tsx` riga ~16.
-- risultato atteso: media, preview e card social devono partire dalle stesse linee di allineamento di avatar e bottone “Condividi”.
+La soluzione corretta è applicare un inset maggiore a tutti e tre i rail (header, content, action) per ricreare quei 24px di respiro laterale.
 
-4. Verifica finale
-- confrontare i due post esempio prima/dopo;
-- controllare questi 4 aspetti:
-  - bordo sinistro coerente tra profilo, titolo, media e share;
-  - più spazio tra header globale e profilo;
-  - più spazio tra action bar e navbar;
-  - nessuna modifica ai titoli.
+## Interventi
 
-Dettagli tecnici
+### 1. Ripristinare il respiro laterale (il problema principale)
 
-- File principale: `src/components/feed/ImmersivePostCard.tsx`
-- File secondario da riallineare: `src/components/feed/post-bodies/LinkedInCard.tsx`
-- Nessuna modifica a contenuti, titoli o logica dati: solo layout e spacing.
+**File: `src/components/feed/ImmersivePostCard.tsx`**
+
+Tutti e tre i rail overlay devono avere padding laterale equivalente al vecchio `p-6` (24px):
+
+- **Content rail** (~riga 1773): cambiare `px-5` → `px-6` (da 20px a 24px)
+- **Header rail** (~riga 1606): cambiare `px-5` → `px-6`
+- **Action rail** (~riga 2582): cambiare `px-5` → `px-6`
+
+### 2. Ripristinare il centraggio di testi e immagini
+
+Le modifiche precedenti hanno cambiato `items-center/justify-center` in `items-start/justify-start`. Ripristinare:
+
+- Media singolo (~riga 2039): tornare a `items-center justify-center`
+- Media gallery (~riga 2073): tornare a `justify-center`
+- Link preview image (~riga 2374): tornare a `items-center justify-center`
+- Link preview container (~riga 2364): tornare a `items-center`
+- X/Twitter CTA (~riga 2168): tornare a `mx-auto` (centrato)
+
+### 3. Non toccare
+
+- Titoli: nessuna modifica a font size o stile
+- Logica dati: nessuna modifica
+
+## Risultato atteso
+
+- Padding laterale di 24px su tutti i lati (come il vecchio `p-6`)
+- Contenuti (testo, media, card social) centrati come prima
+- Più respiro visivo tra contenuto e bordo schermo
+
