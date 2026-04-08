@@ -2528,6 +2528,7 @@ export type Database = {
           created_at: string | null
           full_name: string | null
           id: string | null
+          is_ai_institutional: boolean | null
           username: string | null
         }
         Insert: {
@@ -2536,6 +2537,7 @@ export type Database = {
           created_at?: string | null
           full_name?: string | null
           id?: string | null
+          is_ai_institutional?: boolean | null
           username?: string | null
         }
         Update: {
@@ -2544,6 +2546,7 @@ export type Database = {
           created_at?: string | null
           full_name?: string | null
           id?: string | null
+          is_ai_institutional?: boolean | null
           username?: string | null
         }
         Relationships: []
