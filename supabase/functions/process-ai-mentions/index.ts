@@ -296,8 +296,8 @@ Deno.serve(async (req) => {
             threadStr += `- @${h}: ${c.content}\n`;
           });
 
-          // Prompt construction
-          const fullSystemPrompt = NOPARROT_BASE_PROMPT + '\n\n---\n\n' + profile.system_prompt;
+          // Prompt construction — enforce 480 char limit for comments table CHECK constraint (<=500)
+          const fullSystemPrompt = NOPARROT_BASE_PROMPT + '\n\n---\n\n' + profile.system_prompt + '\n\nVINCOLO TECNICO ASSOLUTO: la tua risposta deve essere MASSIMO 480 caratteri (spazi inclusi). Se serve, sintetizza. Non superare MAI questo limite.';
 
           const userContextBlock = `
 [CONTESTO_REACTIVE]
@@ -328,7 +328,7 @@ utente_che_ti_menziona: @${mentioningUserHandle}
               ],
               temperature: 0.7,
               top_p: 0.9,
-              max_tokens: 800
+              max_tokens: 250
             })
           }, TIMEOUT_MS);
 
@@ -343,8 +343,12 @@ utente_che_ti_menziona: @${mentioningUserHandle}
 
           // Validation
           if (!responseText) throw new Error("Empty response from model");
-          if (responseText.length < 50 || responseText.length > 2500) {
-            throw new Error(`Output out of bounds. Length: ${responseText.length}`);
+          if (responseText.length < 20) {
+            throw new Error(`Output too short. Length: ${responseText.length}`);
+          }
+          // Hard truncate to 500 chars (comments CHECK constraint)
+          if (responseText.length > 500) {
+            responseText = responseText.substring(0, 497) + '...';
           }
 
           // Safety bounds detection
