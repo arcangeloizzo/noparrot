@@ -160,17 +160,18 @@ Deno.serve(async (req) => {
       throw new Error("Missing LOVABLE_API_KEY environment variable");
     }
 
-    // Determine current CET window using toZonedTime for correct local extraction
+    // Determine current CET window using formatInTimeZone for correct local extraction
     const nowUtc = new Date();
-    const nowInRome = toZonedTime(nowUtc, 'Europe/Rome');
-    const dayOfWeekNow = nowInRome.getDay();
-    const hourNow = nowInRome.getHours();
-    const minuteNow = nowInRome.getMinutes();
+    const dayOfWeekNow = parseInt(formatInTimeZone(nowUtc, 'Europe/Rome', 'e')) - 1; // 'e' is 1=Mon..7=Sun, convert to JS 0=Sun
+    // Fix: formatInTimeZone 'e' gives 1=Mon...7=Sun (ISO), convert to JS getDay() 0=Sun...6=Sat
+    const isoDay = parseInt(formatInTimeZone(nowUtc, 'Europe/Rome', 'i')); // 1=Mon...7=Sun
+    const jsDayOfWeek = isoDay === 7 ? 0 : isoDay; // Convert to 0=Sun...6=Sat
+    const hourNow = parseInt(formatInTimeZone(nowUtc, 'Europe/Rome', 'HH'));
+    const minuteNow = parseInt(formatInTimeZone(nowUtc, 'Europe/Rome', 'mm'));
 
-    // Midnight today in CET, expressed as UTC timestamp
-    const startOfTodayRome = new Date(nowInRome);
-    startOfTodayRome.setHours(0, 0, 0, 0);
-    const startOfTodayCet = fromZonedTime(startOfTodayRome, 'Europe/Rome');
+    // Midnight today in CET: format today's date at 00:00 in Rome, parse as UTC
+    const todayDateStr = formatInTimeZone(nowUtc, 'Europe/Rome', 'yyyy-MM-dd');
+    const startOfTodayCet = new Date(todayDateStr + 'T00:00:00+' + formatInTimeZone(nowUtc, 'Europe/Rome', 'XXX').replace('+', ''));
 
     // Load matching slots
     const { data: todaySlots, error: slotsErr } = await supabase
