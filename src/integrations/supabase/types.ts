@@ -14,6 +14,232 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_generation_log: {
+        Row: {
+          completion_tokens: number | null
+          created_at: string
+          duration_ms: number | null
+          generation_type: string
+          id: string
+          model_used: string
+          moderation_notes: string | null
+          moderation_passed: boolean
+          profile_id: string
+          prompt_tokens: number | null
+          queue_id: string | null
+          response_text: string
+          system_prompt_version: number
+          total_cost_usd: number | null
+          total_tokens: number | null
+        }
+        Insert: {
+          completion_tokens?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          generation_type: string
+          id?: string
+          model_used?: string
+          moderation_notes?: string | null
+          moderation_passed?: boolean
+          profile_id: string
+          prompt_tokens?: number | null
+          queue_id?: string | null
+          response_text: string
+          system_prompt_version: number
+          total_cost_usd?: number | null
+          total_tokens?: number | null
+        }
+        Update: {
+          completion_tokens?: number | null
+          created_at?: string
+          duration_ms?: number | null
+          generation_type?: string
+          id?: string
+          model_used?: string
+          moderation_notes?: string | null
+          moderation_passed?: boolean
+          profile_id?: string
+          prompt_tokens?: number | null
+          queue_id?: string | null
+          response_text?: string
+          system_prompt_version?: number
+          total_cost_usd?: number | null
+          total_tokens?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_generation_log_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "ai_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_generation_log_queue_id_fkey"
+            columns: ["queue_id"]
+            isOneToOne: false
+            referencedRelation: "ai_mention_queue"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_mention_queue: {
+        Row: {
+          attempts: number
+          context_payload: Json
+          created_at: string
+          error_message: string | null
+          id: string
+          mentioning_user_id: string
+          processed_at: string | null
+          profile_id: string
+          result_comment_id: string | null
+          source_comment_id: string
+          source_post_id: string
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          context_payload?: Json
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          mentioning_user_id: string
+          processed_at?: string | null
+          profile_id: string
+          result_comment_id?: string | null
+          source_comment_id: string
+          source_post_id: string
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          context_payload?: Json
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          mentioning_user_id?: string
+          processed_at?: string | null
+          profile_id?: string
+          result_comment_id?: string | null
+          source_comment_id?: string
+          source_post_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_mention_queue_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "ai_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_posting_schedule: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          hour: number
+          id: string
+          is_active: boolean
+          jitter_minutes: number
+          last_executed_at: string | null
+          minute: number
+          profile_id: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          hour: number
+          id?: string
+          is_active?: boolean
+          jitter_minutes?: number
+          last_executed_at?: string | null
+          minute?: number
+          profile_id: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          hour?: number
+          id?: string
+          is_active?: boolean
+          jitter_minutes?: number
+          last_executed_at?: string | null
+          minute?: number
+          profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_posting_schedule_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "ai_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_profiles: {
+        Row: {
+          accent_color: string
+          area: string
+          avatar_url: string | null
+          bio: string
+          created_at: string
+          display_name: string
+          handle: string
+          id: string
+          is_active: boolean
+          rate_limit_daily: number
+          rate_limit_per_thread: number
+          rate_limit_per_user_daily: number
+          role: string
+          system_prompt: string
+          system_prompt_version: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          accent_color: string
+          area: string
+          avatar_url?: string | null
+          bio: string
+          created_at?: string
+          display_name: string
+          handle: string
+          id?: string
+          is_active?: boolean
+          rate_limit_daily?: number
+          rate_limit_per_thread?: number
+          rate_limit_per_user_daily?: number
+          role: string
+          system_prompt: string
+          system_prompt_version?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          accent_color?: string
+          area?: string
+          avatar_url?: string | null
+          bio?: string
+          created_at?: string
+          display_name?: string
+          handle?: string
+          id?: string
+          is_active?: boolean
+          rate_limit_daily?: number
+          rate_limit_per_thread?: number
+          rate_limit_per_user_daily?: number
+          role?: string
+          system_prompt?: string
+          system_prompt_version?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       ai_usage_logs: {
         Row: {
           cache_hit: boolean
@@ -1731,8 +1957,65 @@ export type Database = {
           },
         ]
       }
+      profile_source_feed: {
+        Row: {
+          article_published_at: string | null
+          article_summary: string | null
+          article_title: string
+          article_url: string
+          fetched_at: string
+          id: string
+          is_relevant: boolean | null
+          profile_id: string
+          raw_content: string | null
+          relevance_score: number | null
+          source_name: string
+          source_url: string
+          used_in_post_id: string | null
+        }
+        Insert: {
+          article_published_at?: string | null
+          article_summary?: string | null
+          article_title: string
+          article_url: string
+          fetched_at?: string
+          id?: string
+          is_relevant?: boolean | null
+          profile_id: string
+          raw_content?: string | null
+          relevance_score?: number | null
+          source_name: string
+          source_url: string
+          used_in_post_id?: string | null
+        }
+        Update: {
+          article_published_at?: string | null
+          article_summary?: string | null
+          article_title?: string
+          article_url?: string
+          fetched_at?: string
+          id?: string
+          is_relevant?: boolean | null
+          profile_id?: string
+          raw_content?: string | null
+          relevance_score?: number | null
+          source_name?: string
+          source_url?: string
+          used_in_post_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_source_feed_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "ai_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
+          ai_profile_handle: string | null
           avatar_url: string | null
           bio: string | null
           cognitive_density: Json | null
@@ -1743,6 +2026,7 @@ export type Database = {
           full_name: string | null
           has_dismissed_tutorial: boolean | null
           id: string
+          is_ai_institutional: boolean
           last_seen_at: string | null
           notifications_comments_enabled: boolean | null
           notifications_follows_enabled: boolean | null
@@ -1753,6 +2037,7 @@ export type Database = {
           username: string
         }
         Insert: {
+          ai_profile_handle?: string | null
           avatar_url?: string | null
           bio?: string | null
           cognitive_density?: Json | null
@@ -1763,6 +2048,7 @@ export type Database = {
           full_name?: string | null
           has_dismissed_tutorial?: boolean | null
           id: string
+          is_ai_institutional?: boolean
           last_seen_at?: string | null
           notifications_comments_enabled?: boolean | null
           notifications_follows_enabled?: boolean | null
@@ -1773,6 +2059,7 @@ export type Database = {
           username: string
         }
         Update: {
+          ai_profile_handle?: string | null
           avatar_url?: string | null
           bio?: string | null
           cognitive_density?: Json | null
@@ -1783,6 +2070,7 @@ export type Database = {
           full_name?: string | null
           has_dismissed_tutorial?: boolean | null
           id?: string
+          is_ai_institutional?: boolean
           last_seen_at?: string | null
           notifications_comments_enabled?: boolean | null
           notifications_follows_enabled?: boolean | null
