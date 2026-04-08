@@ -296,8 +296,8 @@ Deno.serve(async (req) => {
             threadStr += `- @${h}: ${c.content}\n`;
           });
 
-          // Prompt construction — enforce 480 char limit for comments table CHECK constraint (<=500)
-          const fullSystemPrompt = NOPARROT_BASE_PROMPT + '\n\n---\n\n' + profile.system_prompt + '\n\nVINCOLO TECNICO ASSOLUTO: la tua risposta deve essere MASSIMO 480 caratteri (spazi inclusi). Se serve, sintetizza. Non superare MAI questo limite.';
+          // Prompt construction
+          const fullSystemPrompt = NOPARROT_BASE_PROMPT + '\n\n---\n\n' + profile.system_prompt;
 
           const userContextBlock = `
 [CONTESTO_REACTIVE]
@@ -328,7 +328,7 @@ utente_che_ti_menziona: @${mentioningUserHandle}
               ],
               temperature: 0.7,
               top_p: 0.9,
-              max_tokens: 250
+              max_tokens: 800
             })
           }, TIMEOUT_MS);
 
@@ -346,9 +346,9 @@ utente_che_ti_menziona: @${mentioningUserHandle}
           if (responseText.length < 20) {
             throw new Error(`Output too short. Length: ${responseText.length}`);
           }
-          // Hard truncate to 500 chars (comments CHECK constraint)
-          if (responseText.length > 500) {
-            responseText = responseText.substring(0, 497) + '...';
+          // Hard truncate to 1500 chars (comments CHECK constraint)
+          if (responseText.length > 1500) {
+            responseText = responseText.substring(0, 1497) + '...';
           }
 
           // Safety bounds detection
