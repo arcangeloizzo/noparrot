@@ -266,7 +266,7 @@ export const Profile = () => {
                   : getDisplayUsername(profile?.username || '')}
               </h1>
               {profile?.bio && (
-                <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
+                <p className={`text-sm text-muted-foreground mt-0.5 ${profile.is_ai_institutional ? '' : 'line-clamp-2'}`}>
                   {profile.bio}
                 </p>
               )}
