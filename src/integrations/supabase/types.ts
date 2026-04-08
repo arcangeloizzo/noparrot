@@ -2567,6 +2567,8 @@ export type Database = {
         Returns: string
       }
       execute_process_ai_mentions_cron: { Args: never; Returns: undefined }
+      execute_profile_compose_post_cron: { Args: never; Returns: undefined }
+      execute_profile_ingest_cron: { Args: never; Returns: undefined }
       extract_mentions: {
         Args: { content: string }
         Returns: {
