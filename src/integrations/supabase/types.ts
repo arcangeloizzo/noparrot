@@ -2566,6 +2566,7 @@ export type Database = {
         Args: { participant_ids: string[] }
         Returns: string
       }
+      execute_process_ai_mentions_cron: { Args: never; Returns: undefined }
       extract_mentions: {
         Args: { content: string }
         Returns: {
