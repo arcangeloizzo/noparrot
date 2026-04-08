@@ -115,17 +115,33 @@ Deno.serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const authHeader = req.headers.get('authorization') || '';
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const authHeader = req.headers.get('authorization') || '';
+    const internalSecret = req.headers.get('x-internal-secret') || '';
 
-    if (!authHeader.includes(serviceRoleKey)) {
+    // Auth: accept either service_role bearer OR internal secret (used by pg_cron)
+    let authorized = false;
+    if (authHeader.includes(serviceRoleKey)) {
+      authorized = true;
+    } else if (internalSecret) {
+      // Validate internal secret against app_config (same pattern as send-push-notification)
+      const tmpClient = createClient(supabaseUrl, serviceRoleKey);
+      const { data: secretRow } = await tmpClient
+        .from('app_config')
+        .select('value')
+        .eq('key', 'push_internal_secret')
+        .maybeSingle();
+      if (secretRow?.value && secretRow.value === internalSecret) {
+        authorized = true;
+      }
+    }
+
+    if (!authorized) {
       console.warn(`[process-ai-mentions:${reqId}] Unauthorized invocation attempt`);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
     }
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
