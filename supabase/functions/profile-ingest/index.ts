@@ -68,17 +68,32 @@ Deno.serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const authHeader = req.headers.get('authorization') || '';
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const authHeader = req.headers.get('authorization') || '';
+    const internalSecret = req.headers.get('x-internal-secret') || '';
 
-    if (!authHeader.includes(serviceRoleKey)) {
+    // Auth: accept either service_role bearer OR internal secret (used by pg_cron)
+    let authorized = false;
+    if (authHeader.includes(serviceRoleKey)) {
+      authorized = true;
+    } else if (internalSecret) {
+      const tmpClient = createClient(supabaseUrl, serviceRoleKey);
+      const { data: secretRow } = await tmpClient
+        .from('app_config')
+        .select('value')
+        .eq('key', 'push_internal_secret')
+        .maybeSingle();
+      if (secretRow?.value && secretRow.value === internalSecret) {
+        authorized = true;
+      }
+    }
+
+    if (!authorized) {
       console.warn(`[profile-ingest:${reqId}] Unauthorized invocation attempt`);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
     }
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -108,7 +123,6 @@ Deno.serve(async (req) => {
 
       for (const feed of feeds) {
         try {
-          // fetch XML manually via fetchWithTimeout to pass it to parser
           const response = await fetchWithTimeout(feed.url, {
             headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NoParrotBot/1.0)' }
           }, 15000);
@@ -148,11 +162,11 @@ Deno.serve(async (req) => {
       
       const validArticles = articlesList.filter(a => a.article_url !== '');
 
-      // Upsert raw articles using minimal columns required. Assuming profile_source_feed table structure
+      // Upsert raw articles
       const { data: upsertedData, error: upsertErr } = await supabase
         .from('profile_source_feed')
         .upsert(validArticles, { onConflict: 'profile_id,article_url' })
-        .select('id, article_title, article_summary, is_relevant'); // Note: if the row existed, is_relevant won't be modified but returned.
+        .select('id, article_title, article_summary, is_relevant');
 
       if (upsertErr) {
         const errMsg = `Upsert failed for ${profile.handle}: ${upsertErr.message}`;
@@ -161,9 +175,7 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Filter to only new candidate articles (is_relevant is usually NULL, assuming default is null)
-      // Since upsert updates existing ones if we don't handle columns specific, wait! The prompt says: "prendi gli articoli appena inseriti (NON quelli già esistenti ...)"
-      // To strictly pick newly inserted candidates that are not yet evaluated.
+      // Filter to only new candidate articles (is_relevant is NULL = not yet evaluated)
       const candidateArticles = (upsertedData || []).filter(a => a.is_relevant === null);
 
       if (candidateArticles.length === 0) {
@@ -176,9 +188,9 @@ Deno.serve(async (req) => {
       // Create relevance filter prompt
       const sysPrompt = `Sei un filtro di rilevanza editoriale. Devi valutare quali articoli sono più rilevanti per la voce editoriale del profilo ${profile.handle}, la cui area è ${profile.area}. Riceverai una lista di articoli con titolo e sommario. Devi restituire un JSON valido con questa struttura: {"selected": [{"index": <int>, "score": <0.0-1.0>, "reason": "<short reason>"}]}. Seleziona da 5 a 10 articoli (al massimo). Lo score è la tua valutazione di rilevanza (0=irrilevante, 1=perfetto). Ordina per score decrescente. NON includere altro nel JSON, solo questa struttura.`;
 
-      let userPrompt = `Profilo: ${profile.handle} — Area: ${profile.area}\\n\\nArticoli:\\n`;
+      let userPrompt = `Profilo: ${profile.handle} — Area: ${profile.area}\n\nArticoli:\n`;
       candidateArticles.forEach((art, idx) => {
-        userPrompt += `[${idx}] ${art.article_title}\\n   ${art.article_summary.substring(0, 300)}\\n`;
+        userPrompt += `[${idx}] ${art.article_title}\n   ${art.article_summary.substring(0, 300)}\n`;
       });
 
       console.log(`[profile-ingest:${reqId}] Evaluating ${candidateArticles.length} candidates for ${profile.handle}...`);
@@ -188,7 +200,7 @@ Deno.serve(async (req) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': \`Bearer \${LOVABLE_API_KEY}\`
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`
           },
           body: JSON.stringify({
             model: 'google/gemini-2.5-flash',
@@ -202,15 +214,14 @@ Deno.serve(async (req) => {
           })
         }, 30000);
 
-        if (!response.ok) throw new Error(\`Gateway HTTP \${response.status}\`);
+        if (!response.ok) throw new Error(`Gateway HTTP ${response.status}`);
         
         const completionData = await response.json();
         const responseText = completionData.choices?.[0]?.message?.content?.trim() || completionData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
 
         let parsedResponse: any;
         try {
-          // Gemini formatting sometimes includes markdown code blocks
-          const cleanText = responseText.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '').trim();
+          const cleanText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
           parsedResponse = JSON.parse(cleanText);
         } catch (e) {
           throw new Error('Invalid JSON format from AI');

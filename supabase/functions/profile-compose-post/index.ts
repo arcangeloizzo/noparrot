@@ -102,6 +102,22 @@ const fetchWithTimeout = async (url: string, options: RequestInit, timeout: numb
   return response;
 };
 
+function extractTitle(text: string, maxLen: number = 80): string {
+  // Prima frase: fino al primo . ? ! (dopo almeno 10 caratteri)
+  const match = text.match(/^[^.?!]{10,}[.?!]/);
+  let title = match ? match[0] : text.substring(0, maxLen);
+  
+  if (title.length > maxLen) {
+    // Taglia all'ultima parola completa prima di maxLen
+    title = title.substring(0, maxLen);
+    const lastSpace = title.lastIndexOf(' ');
+    if (lastSpace > 40) title = title.substring(0, lastSpace);
+    title += '...';
+  }
+  
+  return title.trim();
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -112,38 +128,53 @@ Deno.serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const authHeader = req.headers.get('authorization') || '';
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const authHeader = req.headers.get('authorization') || '';
+    const internalSecret = req.headers.get('x-internal-secret') || '';
 
-    if (!authHeader.includes(serviceRoleKey)) {
+    // Auth: accept either service_role bearer OR internal secret (used by pg_cron)
+    let authorized = false;
+    if (authHeader.includes(serviceRoleKey)) {
+      authorized = true;
+    } else if (internalSecret) {
+      const tmpClient = createClient(supabaseUrl, serviceRoleKey);
+      const { data: secretRow } = await tmpClient
+        .from('app_config')
+        .select('value')
+        .eq('key', 'push_internal_secret')
+        .maybeSingle();
+      if (secretRow?.value && secretRow.value === internalSecret) {
+        authorized = true;
+      }
+    }
+
+    if (!authorized) {
       console.warn(`[profile-compose:${reqId}] Unauthorized invocation attempt`);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
     }
 
-    const supabase = createClient(supabaseUrl, serviceRoleKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    const supabase = createClient(supabaseUrl, serviceRoleKey);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error("Missing LOVABLE_API_KEY environment variable");
     }
 
-    // Determine current CET window
+    // Determine current CET window using formatInTimeZone for correct local extraction
     const nowUtc = new Date();
-    // formatInTimeZone provides string, we can parse it to extract parts
-    const cetDateString = formatInTimeZone(nowUtc, 'Europe/Rome', "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
-    const cetDate = new Date(cetDateString);
-    const dayOfWeekNow = cetDate.getDay(); // 0 = Sunday
-    const hourNow = cetDate.getHours();
-    const minuteNow = cetDate.getMinutes();
-    
-    const startOfTodayCet = new Date(cetDateString);
-    startOfTodayCet.setHours(0, 0, 0, 0);
+    const isoDay = parseInt(formatInTimeZone(nowUtc, 'Europe/Rome', 'i')); // 1=Mon...7=Sun
+    const dayOfWeekNow = isoDay === 7 ? 0 : isoDay; // Convert to JS 0=Sun...6=Sat
+    const hourNow = parseInt(formatInTimeZone(nowUtc, 'Europe/Rome', 'HH'));
+    const minuteNow = parseInt(formatInTimeZone(nowUtc, 'Europe/Rome', 'mm'));
+
+    // Midnight today in CET expressed as UTC
+    const offsetStr = formatInTimeZone(nowUtc, 'Europe/Rome', 'XXX'); // e.g. "+02:00"
+    const todayDateStr = formatInTimeZone(nowUtc, 'Europe/Rome', 'yyyy-MM-dd');
+    const startOfTodayCet = new Date(todayDateStr + 'T00:00:00' + offsetStr);
+
+    console.log(`[profile-compose:] CET debug: day=${dayOfWeekNow} hour=${hourNow} min=${minuteNow}`);
 
     // Load matching slots
-    // Since we need ABS calculation natively in supabase, we'll do the math locally after fetching
-    // Fetch all active slots for today
     const { data: todaySlots, error: slotsErr } = await supabase
       .from('ai_posting_schedule')
       .select('*, ai_profiles!inner(id, handle, display_name, system_prompt, system_prompt_version, user_id, is_active, area)')
@@ -223,7 +254,7 @@ brief: componi un post spontaneo nella tua voce editoriale, scegliendo UN tema d
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': \`Bearer \${LOVABLE_API_KEY}\`
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`
           },
           body: JSON.stringify({
             model: 'google/gemini-2.5-flash',
@@ -239,7 +270,7 @@ brief: componi un post spontaneo nella tua voce editoriale, scegliendo UN tema d
 
         const geminiCallDurationMs = Date.now() - geminiCallStart;
 
-        if (!response.ok) throw new Error(\`Gateway HTTP \${response.status}\`);
+        if (!response.ok) throw new Error(`Gateway HTTP ${response.status}`);
         
         const completionData = await response.json();
         let responseText = completionData.choices?.[0]?.message?.content?.trim() || completionData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
@@ -258,21 +289,20 @@ brief: componi un post spontaneo nella tua voce editoriale, scegliendo UN tema d
         for (const rx of blockedPhrases) {
           if (rx.test(responseText)) {
             moderationPassed = false;
-            moderationNotes += \`Matched blocked phrase \${rx}. \`;
+            moderationNotes += `Matched blocked phrase ${rx}. `;
           }
         }
 
-        // Identify used candidate (simplest: top score i.e index 0)
+        // Identify used candidate (top score i.e index 0)
         const topCandidate = candidates[0];
 
-        // Format post title (first sentence up to period, max 80 chars)
-        let postTitle = responseText.split('.')[0];
-        if (postTitle.length > 80) postTitle = postTitle.substring(0, 77) + '...';
+        // Extract title using robust helper
+        const postTitle = extractTitle(responseText, 80);
         
         // Remove title from content if it is exactly the first line
         let postContent = responseText;
-        const firstLine = responseText.split('\\n')[0];
-        if (firstLine === postTitle || firstLine === postTitle + '.') {
+        const firstLine = responseText.split('\n')[0];
+        if (firstLine === postTitle || firstLine === postTitle + '.' || firstLine === postTitle + '?' || firstLine === postTitle + '!') {
           postContent = responseText.substring(firstLine.length).trim();
         }
 
@@ -287,14 +317,14 @@ brief: componi un post spontaneo nella tua voce editoriale, scegliendo UN tema d
             author_id: profile.user_id,
             title: postTitle,
             content: postContent,
-            post_type: 'standard', // Use standard based on Enum values [standard, voice, challenge]
+            post_type: 'standard',
             category: profile.area,
             shared_url: null
           })
           .select('id')
           .single();
 
-        if (postErr || !newPost) throw new Error(\`Failed to publish post: \${postErr?.message}\`);
+        if (postErr || !newPost) throw new Error(`Failed to publish post: ${postErr?.message}`);
 
         // Mark candidate as used
         await supabase
@@ -322,8 +352,8 @@ brief: componi un post spontaneo nella tua voce editoriale, scegliendo UN tema d
         console.log(`[profile-compose:${reqId}] Successfully published post ${newPost.id} for ${profile.handle}`);
 
       } catch (slotErr: any) {
-        console.error(`[profile-compose:${reqId}] Error processing slot ${slot.id}: \${slotErr.message}`);
-        stats.errors.push(\`Slot \${slot.id}: \${slotErr.message}\`);
+        console.error(`[profile-compose:${reqId}] Error processing slot ${slot.id}: ${slotErr.message}`);
+        stats.errors.push(`Slot ${slot.id}: ${slotErr.message}`);
       }
     }
 
