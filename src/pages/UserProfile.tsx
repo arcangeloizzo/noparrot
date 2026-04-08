@@ -41,7 +41,7 @@ export const UserProfile = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("public_profiles")
-        .select("id, username, full_name, avatar_url, bio, created_at")
+        .select("id, username, full_name, avatar_url, bio, created_at, is_ai_institutional")
         .eq("id", userId)
         .single();
 
@@ -344,7 +344,7 @@ export const UserProfile = () => {
             <div className="flex-1 min-w-0 pt-1">
               <h1 className="text-xl font-bold truncate">{displayName}</h1>
               {profile?.bio && (
-                <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
+                <p className={`text-sm text-muted-foreground mt-0.5 ${profile.is_ai_institutional ? '' : 'line-clamp-2'}`}>
                   {profile.bio}
                 </p>
               )}
