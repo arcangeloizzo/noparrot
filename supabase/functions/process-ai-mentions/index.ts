@@ -118,8 +118,6 @@ Deno.serve(async (req) => {
     const authHeader = req.headers.get('authorization') || '';
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    // 1. Authentication verify: Only allow requests with service_role_key
-    // pg_cron uses this key so normal users cannot trigger this endpoint.
     if (!authHeader.includes(serviceRoleKey)) {
       console.warn(`[process-ai-mentions:${reqId}] Unauthorized invocation attempt`);
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
@@ -134,7 +132,7 @@ Deno.serve(async (req) => {
       throw new Error("Missing LOVABLE_API_KEY environment variable");
     }
 
-    // Recover stuck jobs (processing older than STUCK_JOB_THRESHOLD_MINUTES)
+    // Recover stuck jobs
     const { error: resetErr } = await supabase
       .from('ai_mention_queue')
       .update({ status: 'pending' })
@@ -145,13 +143,12 @@ Deno.serve(async (req) => {
       console.warn(`[process-ai-mentions:${reqId}] Error recovering stuck jobs:`, resetErr.message);
     }
 
-    // 2. Pick jobs from queue
-    // Note: To avoid race conditions, we use an atomic UPDATE returning trick on postgres, 
-    // but in supabase-js we select first, then update exactly those IDs that are still pending/failed.
+    // Pick pending jobs + failed jobs with attempts < 3
     let { data: rawJobs, error: selectErr } = await supabase
       .from('ai_mention_queue')
       .select('*')
-      .or('status.eq.pending,and(status.eq.failed,attempts.lt.3)')
+      .in('status', ['pending', 'failed'])
+      .lt('attempts', MAX_ATTEMPTS)
       .order('created_at', { ascending: true })
       .limit(MAX_JOBS_PER_RUN);
 
@@ -169,7 +166,7 @@ Deno.serve(async (req) => {
       .from('ai_mention_queue')
       .update({ status: 'processing', processed_at: new Date().toISOString() })
       .in('id', jobIds)
-      .or('status.eq.pending,and(status.eq.failed,attempts.lt.3)')
+      .in('status', ['pending', 'failed'])
       .select('*');
 
     if (claimErr || !claimedJobs || claimedJobs.length === 0) {
@@ -185,8 +182,8 @@ Deno.serve(async (req) => {
     let stats = { processed: claimedJobs.length, completed: 0, failed: 0, rate_limited: 0 };
     const startTime = Date.now();
 
-    // 3. Process jobs in parallel (limited by MAX_CONCURRENT)
-    const chunks = [];
+    // Process jobs in parallel (limited by MAX_CONCURRENT)
+    const chunks: typeof claimedJobs[] = [];
     for (let i = 0; i < claimedJobs.length; i += MAX_CONCURRENT) {
       chunks.push(claimedJobs.slice(i, i + MAX_CONCURRENT));
     }
@@ -197,8 +194,6 @@ Deno.serve(async (req) => {
     for (const chunk of chunks) {
       const promises = chunk.map(async (job) => {
         try {
-          // Increment attempts manually to keep track
-          // Wait to push the attempt counter persistently just in case it fails, but we can do it locally
           const currentAttempt = job.attempts + 1;
 
           // Load AI profile
@@ -212,15 +207,14 @@ Deno.serve(async (req) => {
             throw new Error(`Profile not found: ${job.profile_id}`);
           }
 
-          // a. Check rate limits
-          // Daily profile limit
+          // Rate limits: daily profile limit
           const { count: dailyProfileCount } = await supabase
             .from('ai_mention_queue')
             .select('id', { count: 'exact', head: true })
             .eq('profile_id', job.profile_id)
             .eq('status', 'completed')
             .gte('processed_at', todayStart.toISOString());
-            
+
           if ((dailyProfileCount || 0) >= profile.rate_limit_daily) {
             stats.rate_limited++;
             await supabase.from('ai_mention_queue').update({ status: 'rate_limited' }).eq('id', job.id);
@@ -247,14 +241,14 @@ Deno.serve(async (req) => {
             .select('id', { count: 'exact', head: true })
             .eq('post_id', job.source_post_id)
             .eq('author_id', profile.user_id);
-            
+
           if ((threadCount || 0) >= profile.rate_limit_per_thread) {
             stats.rate_limited++;
             await supabase.from('ai_mention_queue').update({ status: 'rate_limited' }).eq('id', job.id);
             return;
           }
 
-          // b. Reconstruct context
+          // Reconstruct context
           const { data: post, error: postErr } = await supabase
             .from('posts')
             .select('title, content, shared_url, category')
@@ -265,28 +259,28 @@ Deno.serve(async (req) => {
 
           const { data: latestComments, error: commentsErr } = await supabase
             .from('comments')
-            .select('id, content, parent_id, profiles!comments_author_id_fkey(handle)')
+            .select('id, content, parent_id, profiles!comments_author_id_fkey(username)')
             .eq('post_id', job.source_post_id)
             .order('created_at', { ascending: false })
             .limit(5);
-            
+
           if (commentsErr) throw new Error("Could not load thread context.");
 
           latestComments.reverse();
 
           const sourceCommentContent = (job.context_payload as any)?.comment_content || '';
-          
+
           let mentioningUserHandle = 'utente';
-          const { data: mUser } = await supabase.from('profiles').select('handle').eq('id', job.mentioning_user_id).maybeSingle();
-          if (mUser?.handle) mentioningUserHandle = mUser.handle;
+          const { data: mUser } = await supabase.from('profiles').select('username').eq('id', job.mentioning_user_id).maybeSingle();
+          if (mUser?.username) mentioningUserHandle = mUser.username;
 
           let threadStr = '';
-          latestComments.forEach(c => {
-            const h = c.profiles?.handle || 'utente';
+          latestComments.forEach((c: any) => {
+            const h = c.profiles?.username || 'utente';
             threadStr += `- @${h}: ${c.content}\n`;
           });
 
-          // c. Prompt construction
+          // Prompt construction
           const fullSystemPrompt = NOPARROT_BASE_PROMPT + '\n\n---\n\n' + profile.system_prompt;
 
           const userContextBlock = `
@@ -302,13 +296,13 @@ utente_che_ti_menziona: @${mentioningUserHandle}
 [/CONTESTO_REACTIVE]
 `;
 
-          // d. Call Gemini via Gateway
+          // Call Gemini via Gateway
           const geminiCallStart = Date.now();
           const response = await fetchWithTimeout('https://ai.gateway.lovable.dev/v1/chat/completions', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': \`Bearer \${LOVABLE_API_KEY}\`
+              'Authorization': `Bearer ${LOVABLE_API_KEY}`
             },
             body: JSON.stringify({
               model: 'google/gemini-2.5-flash',
@@ -325,16 +319,16 @@ utente_che_ti_menziona: @${mentioningUserHandle}
           const geminiCallDurationMs = Date.now() - geminiCallStart;
 
           if (!response.ok) {
-            throw new Error(\`Gateway returned HTTP \${response.status}\`);
+            throw new Error(`Gateway returned HTTP ${response.status}`);
           }
 
           const completionData = await response.json();
           let responseText = completionData.choices?.[0]?.message?.content?.trim() || completionData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
 
-          // e. Validation
+          // Validation
           if (!responseText) throw new Error("Empty response from model");
           if (responseText.length < 50 || responseText.length > 2500) {
-            throw new Error(\`Output out of bounds. Length: \${responseText.length}\`);
+            throw new Error(`Output out of bounds. Length: ${responseText.length}`);
           }
 
           // Safety bounds detection
@@ -344,32 +338,30 @@ utente_che_ti_menziona: @${mentioningUserHandle}
           for (const rx of blockedPhrases) {
             if (rx.test(responseText)) {
               moderationPassed = false;
-              moderationNotes += \`Matched blocked phrase \${rx}. \`;
+              moderationNotes += `Matched blocked phrase ${rx}. `;
             }
           }
 
-          // Request proxy token counts if they exist, or estimate
           let promptTokens = completionData.usage?.prompt_tokens || Math.ceil((fullSystemPrompt.length + userContextBlock.length) / 4);
           let completionTokens = completionData.usage?.completion_tokens || Math.ceil(responseText.length / 4);
           let costUsd = (promptTokens / 1000000) * PRICE_INPUT_PER_MTOK + (completionTokens / 1000000) * PRICE_OUTPUT_PER_MTOK;
 
-          // f. Insert Comment (Reply attached to source_post_id)
+          // Insert comment — level is auto-set by trigger, passed_gate must be true for AI
           const { data: newComment, error: insertErr } = await supabase
             .from('comments')
             .insert({
               post_id: job.source_post_id,
               author_id: profile.user_id,
               content: responseText,
-              parent_id: job.source_comment_id, // assuming proper nesting exists
-              level: 1, // Optional: handle level matching
-              passed_gate: true // Override logic if needed for AI profiles
+              parent_id: job.source_comment_id,
+              passed_gate: true
             })
             .select('id')
             .single();
 
-          if (insertErr) throw new Error(\`Failed to insert comment: \${insertErr.message}\`);
+          if (insertErr) throw new Error(`Failed to insert comment: ${insertErr.message}`);
 
-          // g. Closing logic and Logging
+          // Log generation
           await supabase.from('ai_generation_log').insert({
             queue_id: job.id,
             profile_id: profile.id,
@@ -395,7 +387,7 @@ utente_che_ti_menziona: @${mentioningUserHandle}
           stats.completed++;
 
         } catch (jobErr: any) {
-          console.error(\`[process-ai-mentions:\${reqId}] Error processing job \${job.id}:\`, jobErr);
+          console.error(`[process-ai-mentions:${reqId}] Error processing job ${job.id}:`, jobErr);
           const currentAttempt = job.attempts + 1;
           await supabase.from('ai_mention_queue').update({
             status: 'failed',
@@ -410,7 +402,7 @@ utente_che_ti_menziona: @${mentioningUserHandle}
     }
 
     const totalDurationMs = Date.now() - startTime;
-    console.log(\`[process-ai-mentions:\${reqId}] Run complete in \${totalDurationMs}ms\`, stats);
+    console.log(`[process-ai-mentions:${reqId}] Run complete in ${totalDurationMs}ms`, stats);
 
     return new Response(JSON.stringify({ ...stats, duration_ms: totalDurationMs }), {
       status: 200,
@@ -418,7 +410,7 @@ utente_che_ti_menziona: @${mentioningUserHandle}
     });
 
   } catch (err: any) {
-    console.error(\`[process-ai-mentions:\${reqId}] Fatal error:\`, err);
+    console.error(`[process-ai-mentions:${reqId}] Fatal error:`, err);
     return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: corsHeaders });
   }
 });
