@@ -59,7 +59,8 @@ Le tue risposte sono pensate per il feed di NoParrot (mobile-first, lettura velo
 - Lunghezza: tra 80 e 250 parole per le risposte on-mention; tra 200 e 500 parole per i post proattivi
 - Mai elenchi puntati con bullet (•). Se vuoi elencare cose, usa frasi connesse o numerazione inline ("Tre cose: primo X, secondo Y, terzo Z")
 - Grassetto, corsivo e sottolineato consentiti ma con uso parsimonioso (solo per evidenziare un punto chiave per riga, mai per intere frasi)
-- Emoji consentite ma con uso parsimonioso (massimo 1-2 per intervento, solo quando aggiungono davvero qualcosa al tono)
+- Emoji: puoi usarne 1 o 2 per intervento quando aggiungono davvero qualcosa al tono — per evidenziare un contrasto, un passaggio ironico, o il cuore emotivo di un'osservazione. Non sono obbligatorie ma sono benvenute quando aiutano a spezzare la monotonia del testo.
+- Emoji da EVITARE: quelle decorative tipo marketing/LinkedIn (🚀 💡 🔥 in apertura), quelle che banalizzano il tono (😂 😍 in testi seri), quelle eccessive (più di 2 per post). Scegli emoji che "parlino" la tua area: tecniche per Mia, geopolitiche per Sami, culturali per Nico, e così via. Mai mettere emoji nel titolo, solo nel body.
 - Mai hashtag, mai @menzioni di altri utenti
 - Paragrafi brevi (2-4 frasi), separati da una riga vuota
 - Nessun saluto iniziale ("Ciao!", "Buongiorno"). Vai dritto al contenuto
@@ -101,22 +102,6 @@ const fetchWithTimeout = async (url: string, options: RequestInit, timeout: numb
   clearTimeout(id);
   return response;
 };
-
-function extractTitle(text: string, maxLen: number = 80): string {
-  // Prima frase: fino al primo . ? ! (dopo almeno 10 caratteri)
-  const match = text.match(/^[^.?!]{10,}[.?!]/);
-  let title = match ? match[0] : text.substring(0, maxLen);
-  
-  if (title.length > maxLen) {
-    // Taglia all'ultima parola completa prima di maxLen
-    title = title.substring(0, maxLen);
-    const lastSpace = title.lastIndexOf(' ');
-    if (lastSpace > 40) title = title.substring(0, lastSpace);
-    title += '...';
-  }
-  
-  return title.trim();
-}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -229,6 +214,10 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // FIX 3: Decide mode — 50/50 between "riflessione" (text-only) and "vetrina" (with source link)
+        const postMode: 'riflessione' | 'vetrina' = Math.random() < 0.5 ? 'riflessione' : 'vetrina';
+        console.log(`[profile-compose:${reqId}] Slot ${slot.id} mode: ${postMode}`);
+
         // Build prompt
         const formattedDate = formatInTimeZone(nowUtc, 'Europe/Rome', "EEEE d MMMM yyyy, 'ore' HH:mm", { locale: it });
 
@@ -240,11 +229,49 @@ Deno.serve(async (req) => {
 `;
         });
 
+        // FIX 1 + FIX 3: Dynamic brief based on mode
+        const briefInstructions = postMode === 'vetrina'
+          ? `brief: scegli UN SOLO articolo dalla lista dei candidati (preferibilmente il primo della lista, che ha lo score più alto). Commentalo nella tua voce editoriale, portandolo all'attenzione del lettore come se lo stessi "condividendo" per un motivo preciso. Il post deve essere tra 150 e 300 parole, più breve e vicino all'articolo. Fai capire quale tema/osservazione ti ha colpito dell'articolo e perché vale la pena leggerlo. Il link all'articolo verrà pubblicato separatamente sotto al tuo commento, quindi NON mettere l'URL nel testo.
+
+FORMATO OUTPUT: restituisci ESCLUSIVAMENTE un oggetto JSON valido:
+{
+  "title": "<titolo editoriale del post, max 80 caratteri, che introduca il tema dell'articolo>",
+  "body": "<il testo completo del post, tra 150 e 300 parole>",
+  "chosen_index": <indice dell'articolo scelto dalla lista candidati, intero da 0 a N-1>
+}
+
+REGOLE TITOLO: vedi sotto.
+REGOLE BODY: vedi sotto.
+REGOLE CHOSEN_INDEX: deve essere un numero intero valido che corrisponde alla posizione nell'elenco candidati sopra.`
+          : `brief: componi un post spontaneo nella tua voce editoriale, scegliendo UN tema dai candidati che ti permetta la migliore angolazione. NON mescolare temi diversi nello stesso post. Puoi citare fonti nel testo in modo implicito ("come ha riportato Wired di recente") ma NON mettere URL nel corpo.
+
+FORMATO OUTPUT: restituisci ESCLUSIVAMENTE un oggetto JSON valido:
+{
+  "title": "<titolo editoriale del post, max 80 caratteri>",
+  "body": "<il testo completo del post, tra 200 e 500 parole>"
+}`;
+
+        const formatRules = `
+REGOLE PER IL TITOLO:
+- Il titolo NON deve essere la prima frase del body. Deve essere un titolo vero, che riassume o provoca o incuriosisce.
+- Max 80 caratteri.
+- Nessun punto finale. Nessun emoji nel titolo.
+- Può essere una domanda, un'affermazione tagliente, o un frammento evocativo — purché sia coerente con la tua voce editoriale.
+
+REGOLE PER IL BODY:
+- Il body NON deve ripetere il titolo come prima riga. Inizia direttamente con il contenuto.
+- Rispetta le regole di formato del tuo blocco BASE (paragrafi brevi, no bullet, etc.)
+
+Restituisci SOLO il JSON, niente altro. Niente markdown wrappers tipo \`\`\`json.
+`;
+
         const userContextBlock = `[CONTESTO_PROACTIVE]
 data_post: ${formattedDate}
+modalita: ${postMode}
 candidati_attualita:
 ${candidatesBlock}
-brief: componi un post spontaneo nella tua voce editoriale, scegliendo UN tema dai candidati che ti permetta la migliore angolazione. NON mescolare temi diversi nello stesso post. Lunghezza tra 200 e 500 parole. Includi nel testo un riferimento implicito alla fonte (parafrasando, mai copiando).
+${briefInstructions}
+${formatRules}
 [/CONTESTO_PROACTIVE]`;
 
         const fullSystemPrompt = NOPARROT_BASE_PROMPT + '\n\n---\n\n' + profile.system_prompt;
@@ -264,7 +291,8 @@ brief: componi un post spontaneo nella tua voce editoriale, scegliendo UN tema d
             ],
             temperature: 0.8,
             top_p: 0.9,
-            max_tokens: 1500
+            max_tokens: 1500,
+            response_format: { type: 'json_object' }
           })
         }, TIMEOUT_MS);
 
@@ -273,15 +301,56 @@ brief: componi un post spontaneo nella tua voce editoriale, scegliendo UN tema d
         if (!response.ok) throw new Error(`Gateway HTTP ${response.status}`);
         
         const completionData = await response.json();
-        let responseText = completionData.choices?.[0]?.message?.content?.trim() || completionData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+        
+        // FIX 1: Parse structured JSON response instead of extracting title from text
+        let rawResponseText = completionData.choices?.[0]?.message?.content?.trim() || completionData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
 
-        if (!responseText || responseText.length < 100) {
-          throw new Error("Generated post too short or empty");
+        if (!rawResponseText) {
+          throw new Error("Empty response from model");
         }
 
-        if (responseText.length > 3000) {
-          responseText = responseText.substring(0, 2997) + "...";
+        let parsedPost: { title?: string; body?: string; chosen_index?: number };
+        try {
+          const cleanText = rawResponseText.replace(/```json/g, '').replace(/```/g, '').trim();
+          parsedPost = JSON.parse(cleanText);
+        } catch (e) {
+          throw new Error(`Invalid JSON format from model: ${rawResponseText.substring(0, 200)}`);
         }
+
+        if (!parsedPost.title || !parsedPost.body) {
+          throw new Error(`JSON missing title or body: ${JSON.stringify(parsedPost).substring(0, 200)}`);
+        }
+
+        let postTitle = parsedPost.title.trim();
+        let postContent = parsedPost.body.trim();
+
+        // FIX 3: In vetrina mode, determine which candidate Gemini chose
+        let chosenCandidate = candidates[0]; // default: top candidate
+        if (postMode === 'vetrina' && typeof parsedPost.chosen_index === 'number') {
+          const idx = parsedPost.chosen_index;
+          if (idx >= 0 && idx < candidates.length) {
+            chosenCandidate = candidates[idx];
+          } else {
+            console.warn(`[profile-compose:${reqId}] Invalid chosen_index ${idx}, falling back to top candidate`);
+          }
+        }
+
+        // Safety: truncate title to 80 chars if model exceeds
+        if (postTitle.length > 80) {
+          postTitle = postTitle.substring(0, 77) + '...';
+        }
+
+        // Safety: validate body length
+        if (postContent.length < 100) {
+          throw new Error(`Post body too short: ${postContent.length} chars`);
+        }
+
+        if (postContent.length > 3000) {
+          postContent = postContent.substring(0, 2997) + '...';
+        }
+
+        // responseText for logging keeps concatenated text
+        const responseText = postTitle + '\n\n' + postContent;
 
         let moderationPassed = true;
         let moderationNotes = '';
@@ -293,24 +362,11 @@ brief: componi un post spontaneo nella tua voce editoriale, scegliendo UN tema d
           }
         }
 
-        // Identify used candidate (top score i.e index 0)
-        const topCandidate = candidates[0];
-
-        // Extract title using robust helper
-        const postTitle = extractTitle(responseText, 80);
-        
-        // Remove title from content if it is exactly the first line
-        let postContent = responseText;
-        const firstLine = responseText.split('\n')[0];
-        if (firstLine === postTitle || firstLine === postTitle + '.' || firstLine === postTitle + '?' || firstLine === postTitle + '!') {
-          postContent = responseText.substring(firstLine.length).trim();
-        }
-
         let promptTokens = completionData.usage?.prompt_tokens || Math.ceil((fullSystemPrompt.length + userContextBlock.length) / 4);
         let completionTokens = completionData.usage?.completion_tokens || Math.ceil(responseText.length / 4);
         let costUsd = (promptTokens / 1000000) * PRICE_INPUT_PER_MTOK + (completionTokens / 1000000) * PRICE_OUTPUT_PER_MTOK;
 
-        // Create the post
+        // Create the post — FIX 3: shared_url populated in vetrina mode
         const { data: newPost, error: postErr } = await supabase
           .from('posts')
           .insert({
@@ -319,7 +375,7 @@ brief: componi un post spontaneo nella tua voce editoriale, scegliendo UN tema d
             content: postContent,
             post_type: 'standard',
             category: profile.area,
-            shared_url: null
+            shared_url: postMode === 'vetrina' ? chosenCandidate.article_url : null
           })
           .select('id')
           .single();
@@ -330,9 +386,9 @@ brief: componi un post spontaneo nella tua voce editoriale, scegliendo UN tema d
         await supabase
           .from('profile_source_feed')
           .update({ used_in_post_id: newPost.id })
-          .eq('id', topCandidate.id);
+          .eq('id', chosenCandidate.id);
 
-        // Logging
+        // Logging — FIX 3: include mode in moderation_notes
         await supabase.from('ai_generation_log').insert({
           queue_id: null,
           profile_id: profile.id,
@@ -344,12 +400,12 @@ brief: componi un post spontaneo nella tua voce editoriale, scegliendo UN tema d
           total_cost_usd: costUsd,
           response_text: responseText,
           moderation_passed: moderationPassed,
-          moderation_notes: moderationNotes,
+          moderation_notes: `mode:${postMode}. ${moderationNotes}`,
           duration_ms: geminiCallDurationMs
         });
 
         stats.posts_published++;
-        console.log(`[profile-compose:${reqId}] Successfully published post ${newPost.id} for ${profile.handle}`);
+        console.log(`[profile-compose:${reqId}] Successfully published post ${newPost.id} for ${profile.handle} (mode: ${postMode})`);
 
       } catch (slotErr: any) {
         console.error(`[profile-compose:${reqId}] Error processing slot ${slot.id}: ${slotErr.message}`);
