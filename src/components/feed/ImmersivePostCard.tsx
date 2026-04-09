@@ -1628,7 +1628,6 @@ const ImmersivePostCardInner = ({
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  console.log('[DEBUG] Avatar clicked, navigating to /profile/' + post.author.id);
                   navigate(`/profile/${post.author.id}`);
                 }}
               >
