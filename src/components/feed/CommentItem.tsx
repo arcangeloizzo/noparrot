@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Heart, MessageCircle, Trash2, Link2, Flag, ShieldAlert } from 'lucide-react';
 import { Comment } from '@/hooks/useComments';
 import { useCommentReactions, useToggleCommentReaction } from '@/hooks/useCommentReactions';
@@ -244,14 +245,14 @@ export const CommentItem = ({
 
         {/* Header: Avatar + Name + Timestamp */}
         <div className="flex gap-3">
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author.id}`); }}>
             {getAvatar()}
           </div>
           
           <div className="flex-1 min-w-0">
             {/* Name row - compact */}
             <div className="flex items-center gap-2 flex-wrap mb-0.5">
-              <span className="font-bold text-sm text-foreground">
+              <span className="font-bold text-sm text-foreground cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${comment.author.id}`); }}>
                 {comment.author.full_name || getDisplayUsername(comment.author.username)}
               </span>
               
