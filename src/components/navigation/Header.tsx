@@ -28,15 +28,15 @@ export const Header = ({ variant = "default" }: HeaderProps) => {
   return (
     <header className={cn(
       isImmersive 
-        ? "fixed top-0 left-0 right-0 z-50 bg-transparent" 
+        ? "fixed top-0 left-0 right-0 z-50 bg-transparent pointer-events-none" 
         : "cognitive-header liquid-glass-navbar border-b-0"
     )}>
       <div className="container flex h-14 max-w-screen-xl items-center justify-center px-4 relative">
         {/* Logo centrale */}
-        <LogoHorizontal className="h-8" />
+        <LogoHorizontal className={cn("h-8", isImmersive && "pointer-events-auto")} />
 
         {/* Icona notifiche a destra (posizione assoluta) */}
-        <div className="absolute right-4 top-1/2 -translate-y-1/2">
+        <div className={cn("absolute right-4 top-1/2 -translate-y-1/2", isImmersive && "pointer-events-auto")}>
           <Link
             to="/notifications"
             className="relative flex items-center justify-center w-10 h-10 rounded-full hover:bg-muted/50 transition-colors"

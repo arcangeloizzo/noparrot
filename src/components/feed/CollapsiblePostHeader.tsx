@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MoreHorizontal, ArrowLeft } from 'lucide-react';
 import { Post } from '@/hooks/usePosts';
 import { Comment } from '@/hooks/useComments';
@@ -21,8 +22,10 @@ export const CollapsiblePostHeader = ({
   focusComment,
   onBackToPost
 }: CollapsiblePostHeaderProps) => {
+  const navigate = useNavigate();
   const content = focusComment || post;
   const isComment = !!focusComment;
+  const authorId = isComment ? (focusComment as Comment).author.id : post.author.id;
   
   const getInitials = (name: string) => {
     return name
@@ -126,12 +129,12 @@ export const CollapsiblePostHeader = ({
       )}
       <div className="px-4 py-3">
         <div className="flex gap-3">
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 cursor-pointer" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${authorId}`); }}>
             {getAvatar()}
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <span className="font-semibold text-base">
+              <span className="font-semibold text-base cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); navigate(`/profile/${authorId}`); }}>
                 {displayName}
               </span>
               <span className="text-muted-foreground text-sm">
