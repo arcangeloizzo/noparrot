@@ -540,6 +540,7 @@ export const Feed = () => {
 
       {/* Immersive transparent header with notifications + long-press for perf toggle */}
       <div
+        className="pointer-events-none [&>*]:pointer-events-none"
         onTouchStart={handleHeaderPressStart}
         onTouchEnd={handleHeaderPressEnd}
         onMouseDown={handleHeaderPressStart}
