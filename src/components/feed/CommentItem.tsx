@@ -56,6 +56,7 @@ export const CommentItem = ({
   commentKind = 'post'
 }: CommentItemProps) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   
   // Use correct hooks based on commentKind
   const postReactionsQuery = useCommentReactions(commentKind === 'post' ? comment.id : '');

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MoreHorizontal, ArrowLeft } from 'lucide-react';
 import { Post } from '@/hooks/usePosts';
 import { Comment } from '@/hooks/useComments';
