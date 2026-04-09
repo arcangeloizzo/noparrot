@@ -1624,9 +1624,10 @@ const ImmersivePostCardInner = ({
             <div className="flex justify-between items-start pt-[calc(env(safe-area-inset-top)+72px)] pb-5">
             <div className="flex flex-col items-center gap-2">
               <div
-                className="flex items-center gap-3 cursor-pointer"
+                className="flex items-center gap-3 cursor-pointer relative z-[60]"
                 onClick={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   navigate(`/profile/${post.author.id}`);
                 }}
               >
