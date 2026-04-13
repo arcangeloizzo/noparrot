@@ -54,6 +54,7 @@ import { QuotedEditorialCard } from "./QuotedEditorialCard";
 import { MentionText } from "./MentionText";
 import { ReshareContextStack } from "./ReshareContextStack";
 import { SpotifyGradientBackground } from "./SpotifyGradientBackground";
+import { SpotifyPodcastCompactCard } from "./SpotifyPodcastCompactCard";
 import { SourceImageWithFallback } from "./SourceImageWithFallback";
 import { FullTextModal } from "./FullTextModal";
 import { MediaPostExpandedSheet } from "./MediaPostExpandedSheet";
@@ -1331,6 +1332,12 @@ const ImmersivePostCardInner = ({
   const hasMedia = (post.media && post.media.length > 0) || (quotedPost?.media && quotedPost.media.length > 0);
   const hasLink = !!post.shared_url;
   const isSpotify = articlePreview?.platform === 'spotify';
+  const isSpotifyEpisode = isSpotify && (
+    post.shared_url?.includes('/episode/') ||
+    post.shared_url?.includes('/show/') ||
+    false
+  );
+  const isSpotifyTrack = isSpotify && !isSpotifyEpisode;
   const isTwitter = articlePreview?.platform === 'twitter' || detectPlatformFromUrl(post.shared_url || '') === 'twitter';
   const isLinkedIn = articlePreview?.platform === 'linkedin' || detectPlatformFromUrl(post.shared_url || '') === 'linkedin';
   const isYoutube = articlePreview?.platform === 'youtube' ||
