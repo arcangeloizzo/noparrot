@@ -1547,12 +1547,16 @@ const ImmersivePostCardInner = ({
             <div className="absolute inset-0 opacity-[0.08] mix-blend-overlay urban-noise-overlay" />
             <div className="absolute inset-0 bg-noparrot-blue/5 pointer-events-none" />
           </div>
-        ) : isSpotify ? (
+        ) : isSpotifyTrack ? (
           <SpotifyGradientBackground
             albumArtUrl={articlePreview?.image || post.preview_img || ''}
             audioFeatures={articlePreview?.audioFeatures}
           />
-        ) : isTwitter ? (
+        ) : isSpotifyEpisode ? (
+          /* Podcast episodes: standard dark background, no full-screen gradient */
+          <div className="absolute inset-0 bg-immersive">
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-[0.03] dark:opacity-10" />
+          </div>
           <div className="absolute inset-0 bg-gradient-to-b from-[#1DA1F2]/5 via-white to-slate-100 dark:from-[#15202B] dark:via-[#192734] dark:to-[#0d1117]">
             <div className="absolute inset-0 bg-gradient-to-br from-[#1DA1F2]/5 to-transparent dark:from-[#1DA1F2]/10" />
           </div>
