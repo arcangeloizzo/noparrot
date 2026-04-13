@@ -23,6 +23,8 @@ interface FullTextModalProps {
   author?: FullTextModalAuthor;
   source?: FullTextModalSource;
   variant?: 'post' | 'caption' | 'editorial' | 'quoted';
+  /** Optional link card rendered between content and action bar */
+  linkCard?: React.ReactNode;
   /** Post data for action bar */
   post?: {
     id: string;
@@ -47,6 +49,7 @@ const FullTextModalInner = ({
   author,
   source,
   variant = 'post',
+  linkCard,
   post,
   actions,
 }: FullTextModalProps) => {
