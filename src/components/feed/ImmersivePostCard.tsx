@@ -2964,7 +2964,7 @@ const ImmersivePostCardInner = ({
       {/* Full Text Modal for long posts */}
       <FullTextModal
         isOpen={showFullText}
-        onClose={() => setShowFullText(false)}
+        onClose={() => { setShowFullText(false); setYoutubeEmbedActive(false); }}
         title={post.title}
         content={
           isChallengePost 
