@@ -2650,7 +2650,7 @@ const ImmersivePostCardInner = ({
 
           {/* Bottom Actions - Single horizontal axis alignment */}
           {/* [Rail 3] ActionRail: Fixed bottom overlay with gradient fade */}
-          <div className="absolute bottom-0 left-0 right-0 pointer-events-none">
+          <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none">
             <div className="flex items-center justify-between gap-6 pb-[calc(4rem+env(safe-area-inset-bottom)+36px)] pt-4 pointer-events-auto">
 
             {/* Primary Share Button - Pill shape with consistent height */}
