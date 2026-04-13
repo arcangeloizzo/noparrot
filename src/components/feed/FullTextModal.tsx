@@ -401,6 +401,13 @@ const FullTextModalInner = ({
           {/* Content */}
           {renderContent()}
 
+          {/* Link card (Spotify episode, article card, etc.) */}
+          {linkCard && (
+            <div className="mt-6" onClick={(e) => e.stopPropagation()}>
+              {linkCard}
+            </div>
+          )}
+
           {/* External link for caption variant */}
           {renderExternalLink()}
 
