@@ -1632,7 +1632,7 @@ const ImmersivePostCardInner = ({
           {/* Top Bar */}
 
           {/* [Rail 1] HeaderRail: Fixed top overlay with gradient fade */}
-          <div className="absolute top-0 left-0 right-0">
+          <div className="absolute top-0 left-0 right-0 z-10">
             <div className="flex justify-between items-start pt-[calc(env(safe-area-inset-top)+72px)] pb-5">
             <div className="flex flex-col items-center gap-2">
               <div
@@ -2650,7 +2650,7 @@ const ImmersivePostCardInner = ({
 
           {/* Bottom Actions - Single horizontal axis alignment */}
           {/* [Rail 3] ActionRail: Fixed bottom overlay with gradient fade */}
-          <div className="absolute bottom-0 left-0 right-0 pointer-events-none">
+          <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none">
             <div className="flex items-center justify-between gap-6 pb-[calc(4rem+env(safe-area-inset-bottom)+36px)] pt-4 pointer-events-auto">
 
             {/* Primary Share Button - Pill shape with consistent height */}
