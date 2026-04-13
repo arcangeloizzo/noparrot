@@ -1662,7 +1662,7 @@ const ImmersivePostCardInner = ({
             )}
 
             {/* PULSE Badge for Spotify / Trust Score / Category - Hide Trust Score for editorial shares (shown in card) */}
-            {hasLink && isSpotify && articlePreview?.popularity !== undefined ? (
+            {hasLink && isSpotifyTrack && articlePreview?.popularity !== undefined ? (
               <PulseBadge
                 popularity={articlePreview.popularity}
                 size="sm"
@@ -2280,7 +2280,48 @@ const ImmersivePostCardInner = ({
                     <span className="text-xs uppercase tracking-wider">Apri su YouTube</span>
                   </button>
                 </div>
-              ) : hasLink && isSpotify ? (
+              ) : hasLink && isSpotifyEpisode ? (
+                /* Spotify Podcast Episode: show title + body + compact card */
+                <div className="flex-1 min-h-0 flex flex-col justify-start w-full">
+                  {/* Title */}
+                  {post.title && post.title.trim().length > 0 && (
+                    <h2 
+                      className="uppercase mb-2 flex-shrink-0"
+                      style={{
+                        fontFamily: 'Impact, sans-serif',
+                        fontSize: 'clamp(30px, 8vw, 42px)',
+                        lineHeight: 0.92,
+                        letterSpacing: '-0.02em',
+                        color: '#FFFFFF',
+                        textAlign: 'left'
+                      }}
+                    >
+                      {post.title}
+                    </h2>
+                  )}
+                  {/* Body content */}
+                  {post.content && post.content.trim().length > 0 && (
+                    <div 
+                      className={cn(
+                        "whitespace-pre-wrap break-words drop-shadow-md flex-1 min-h-0 overflow-y-auto scrollbar-none mb-3",
+                        post.title && post.title.trim().length > 0 ? "text-[14px] text-[#7A8FA6]" : "text-base text-slate-600 dark:text-white/90 leading-snug tracking-wide"
+                      )}
+                      style={post.title && post.title.trim().length > 0 ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
+                    >
+                      <MentionText content={post.content} />
+                    </div>
+                  )}
+                  {/* Compact Spotify card at the bottom */}
+                  <div className="flex-shrink-0 mt-auto">
+                    <SpotifyPodcastCompactCard
+                      imageUrl={articlePreview?.image || post.preview_img || ''}
+                      podcastName={articlePreview?.description || getHostnameFromUrl(post.shared_url)}
+                      episodeTitle={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
+                      spotifyUrl={post.shared_url || ''}
+                    />
+                  </div>
+                </div>
+              ) : hasLink && isSpotifyTrack ? (
                 <div
                   className="flex-1 min-h-0 flex flex-col items-center justify-center cursor-pointer active:scale-[0.98] transition-transform w-full"
                   onClick={(e) => {
