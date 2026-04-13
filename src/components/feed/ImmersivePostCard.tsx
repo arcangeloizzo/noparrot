@@ -1924,7 +1924,7 @@ const ImmersivePostCardInner = ({
 
               {/* User Text Content - Show for link posts (if different from article title) - NON stack layout */}
               {/* User Text - Skip for intent posts (already rendered above) */}
-              {!useStackLayout && ((shouldShowUserText) || (post.title && post.title.trim().length > 0)) && !post.is_intent && !isTextOnly && hasLink && (
+              {!useStackLayout && ((shouldShowUserText) || (post.title && post.title.trim().length > 0)) && !post.is_intent && !isTextOnly && !isSpotifyEpisode && hasLink && (
                 <div className="mb-4 flex-shrink-0 flex flex-col gap-1 z-10 relative">
                   {/* Title */}
                   {post.title && post.title.trim().length > 0 && (
