@@ -286,7 +286,164 @@ Deno.serve(async (req) => {
         await supabase.from('ai_posting_schedule').update({ last_executed_at: new Date().toISOString() }).eq('id', slot.id);
         stats.slots_executed++;
 
-        // Load candidates
+        // ── BRANCH MIC: flusso isolato podcast ──
+        if (profile.handle === 'mic') {
+          const { data: micCandidates, error: micCandErr } = await supabase
+            .from('profile_source_feed')
+            .select('*')
+            .eq('profile_id', profile.id)
+            .eq('is_relevant', true)
+            .is('used_in_post_id', null)
+            .order('article_published_at', { ascending: false })
+            .limit(5);
+
+          if (micCandErr || !micCandidates || micCandidates.length === 0) {
+            console.warn(`[profile-compose:${reqId} mic] No candidates available, skipping`);
+            continue;
+          }
+
+          const micCandidate = micCandidates[0];
+          console.log(`[profile-compose:${reqId} mic] Selected: "${micCandidate.article_title}" from ${micCandidate.source_name}`);
+
+          const YOUTUBE_API_KEY = Deno.env.get('YOUTUBE_API_KEY');
+          let transcript: string | null = null;
+          let transcriptSource = 'not_attempted';
+
+          if (YOUTUBE_API_KEY) {
+            const youtubeUrl = await searchYouTubeForPodcastEpisode(
+              micCandidate.source_name,
+              micCandidate.article_title,
+              YOUTUBE_API_KEY,
+              reqId
+            );
+            if (youtubeUrl) {
+              const result = await fetchTranscriptFromYouTube(youtubeUrl, supabaseUrl, serviceRoleKey, reqId);
+              transcript = result.transcript;
+              transcriptSource = result.source;
+            } else {
+              transcriptSource = 'youtube_not_found';
+            }
+          } else {
+            transcriptSource = 'no_api_key';
+          }
+
+          const isRassegnaMinima = transcript === null;
+          const micMode = isRassegnaMinima ? 'rassegna_minima' : 'digest_completo';
+          console.log(`[profile-compose:${reqId} mic] Mode: ${micMode}, source: ${transcriptSource}, len: ${transcript?.length || 0}`);
+
+          const formattedDateMic = formatInTimeZone(nowUtc, 'Europe/Rome', "EEEE d MMMM yyyy, 'ore' HH:mm", { locale: it });
+
+          let micContextBlock = `[CONTESTO_MIC_PROACTIVE]
+data_post: ${formattedDateMic}
+modalita: ${micMode}
+podcast_scelto:
+- nome: ${micCandidate.source_name}
+- titolo_episodio: ${micCandidate.article_title}
+- descrizione_ufficiale: ${(micCandidate.article_summary || '').substring(0, 800)}
+- data_pubblicazione: ${micCandidate.article_published_at}
+- link_spotify: ${micCandidate.article_url}
+`;
+
+          if (transcript) {
+            const truncated = transcript.length > 50000
+              ? transcript.substring(0, 50000) + '\n\n[TRASCRIZIONE TRONCATA]'
+              : transcript;
+            micContextBlock += `trascrizione_completa:\n${truncated}\nbrief_specifico: scrivi un post digest su questo episodio seguendo le tue regole. Scegli UN angolo/tesi dalla trascrizione e costruisci un post tra 200 e 400 parole. Max 15 parole per citazione letterale, preferisci parafrasare, chiudi SEMPRE con invito all'ascolto completo variando la forma.\n[/CONTESTO_MIC_PROACTIVE]`;
+          } else {
+            micContextBlock += `trascrizione_completa: TRANSCRIPTION_UNAVAILABLE\nbrief_specifico: Sei in MODALITÀ RASSEGNA MINIMA. Scrivi un post più breve (150-200 parole) basandoti SOLO su titolo e descrizione ufficiale. Non fingere di aver ascoltato, esprimi curiosità o aspettativa. Chiudi SEMPRE con invito all'ascolto completo.\n[/CONTESTO_MIC_PROACTIVE]`;
+          }
+
+          const fullSysMic = NOPARROT_BASE_PROMPT + '\n\n---\n\n' + profile.system_prompt;
+          const micGeminiStart = Date.now();
+
+          const micResp = await fetchWithTimeout('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${LOVABLE_API_KEY}` },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash',
+              messages: [
+                { role: 'system', content: fullSysMic },
+                { role: 'user', content: micContextBlock }
+              ],
+              temperature: 0.8,
+              top_p: 0.9,
+              max_tokens: 1200,
+              response_format: { type: 'json_object' }
+            })
+          }, 45000);
+
+          const micDurationMs = Date.now() - micGeminiStart;
+          if (!micResp.ok) throw new Error(`Gateway HTTP ${micResp.status}`);
+
+          const micCompletion = await micResp.json();
+          let micRaw = micCompletion.choices?.[0]?.message?.content?.trim() || micCompletion.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+          if (!micRaw) throw new Error('Empty response from Gemini for Mic');
+
+          let micParsed: { title?: string; body?: string };
+          try {
+            micParsed = JSON.parse(micRaw.replace(/```json/g, '').replace(/```/g, '').trim());
+          } catch (_e) {
+            throw new Error(`Invalid JSON from Gemini for Mic: ${micRaw.substring(0, 200)}`);
+          }
+          if (!micParsed.title || !micParsed.body) throw new Error(`Mic JSON missing title/body`);
+
+          let micTitle = micParsed.title.trim();
+          let micBody = micParsed.body.trim();
+          if (micTitle.length > 80) micTitle = micTitle.substring(0, 77) + '...';
+          if (micBody.length < 100) throw new Error(`Mic body too short: ${micBody.length}`);
+          if (micBody.length > 3500) micBody = micBody.substring(0, 3497) + '...';
+
+          const micResponseText = micTitle + '\n\n' + micBody;
+
+          let micModPassed = true;
+          let micModNotes = '';
+          const blockedPhrasesMic = [/è falso che/i, /non è vero/i, /il dato corretto è/i, /in realtà/i, /smentisco/i, /ti sbagli/i];
+          for (const rx of blockedPhrasesMic) {
+            if (rx.test(micResponseText)) { micModPassed = false; micModNotes += `Matched ${rx}. `; }
+          }
+
+          const micPT = micCompletion.usage?.prompt_tokens || Math.ceil((fullSysMic.length + micContextBlock.length) / 4);
+          const micCT = micCompletion.usage?.completion_tokens || Math.ceil(micResponseText.length / 4);
+          const micCost = (micPT / 1000000) * PRICE_INPUT_PER_MTOK + (micCT / 1000000) * PRICE_OUTPUT_PER_MTOK;
+
+          const { data: micPost, error: micPostErr } = await supabase
+            .from('posts')
+            .insert({
+              author_id: profile.user_id,
+              title: micTitle,
+              content: micBody,
+              post_type: 'standard',
+              category: profile.area,
+              shared_url: micCandidate.article_url
+            })
+            .select('id')
+            .single();
+
+          if (micPostErr || !micPost) throw new Error(`Failed to publish Mic post: ${micPostErr?.message}`);
+
+          await supabase.from('profile_source_feed').update({ used_in_post_id: micPost.id }).eq('id', micCandidate.id);
+
+          await supabase.from('ai_generation_log').insert({
+            queue_id: null,
+            profile_id: profile.id,
+            generation_type: 'proactive',
+            model_used: 'google/gemini-2.5-flash',
+            system_prompt_version: profile.system_prompt_version,
+            prompt_tokens: micPT,
+            completion_tokens: micCT,
+            total_cost_usd: micCost,
+            response_text: micResponseText,
+            moderation_passed: micModPassed,
+            moderation_notes: `mode:${micMode}. transcript_source:${transcriptSource}. transcript_chars:${transcript?.length || 0}. ${micModNotes}`,
+            duration_ms: micDurationMs
+          });
+
+          stats.posts_published++;
+          console.log(`[profile-compose:${reqId} mic] Published ${micPost.id} (${micMode}, ${transcript?.length || 0} chars)`);
+          continue;
+        }
+        // ── END BRANCH MIC ──
+
         const { data: candidates, error: candErr } = await supabase
           .from('profile_source_feed')
           .select('*')
