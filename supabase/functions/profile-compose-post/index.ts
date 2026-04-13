@@ -103,6 +103,94 @@ const fetchWithTimeout = async (url: string, options: RequestInit, timeout: numb
   return response;
 };
 
+// ── Mic-specific helpers ──
+
+async function searchYouTubeForPodcastEpisode(
+  podcastName: string,
+  episodeTitle: string,
+  apiKey: string,
+  reqId: string
+): Promise<string | null> {
+  const tag = `[profile-compose:${reqId} mic-yt-search]`;
+  try {
+    let query = `${podcastName} ${episodeTitle}`;
+    if (query.length > 100) query = query.substring(0, 100);
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=3&key=${apiKey}`;
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timer);
+
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.warn(`${tag} YouTube API error ${res.status}: ${errBody.substring(0, 200)}`);
+      return null;
+    }
+
+    const data = await res.json();
+    const items = data.items || [];
+    if (items.length === 0) {
+      console.warn(`${tag} No results for query: "${query}"`);
+      return null;
+    }
+
+    const videoId = items[0].id?.videoId;
+    if (!videoId) {
+      console.warn(`${tag} First result has no videoId`);
+      return null;
+    }
+
+    const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    console.log(`${tag} Found video: ${ytUrl} ("${items[0].snippet?.title?.substring(0, 60)}")`);
+    return ytUrl;
+  } catch (e: any) {
+    console.error(`${tag} Error: ${e.message}`);
+    return null;
+  }
+}
+
+async function fetchTranscriptFromYouTube(
+  youtubeUrl: string,
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  reqId: string
+): Promise<{ transcript: string | null; source: string }> {
+  const tag = `[profile-compose:${reqId} mic-transcribe]`;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 35000);
+    const res = await fetch(`${supabaseUrl}/functions/v1/transcribe-youtube`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ url: youtubeUrl }),
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.warn(`${tag} transcribe-youtube HTTP ${res.status}: ${errBody.substring(0, 200)}`);
+      return { transcript: null, source: 'error' };
+    }
+
+    const data = await res.json();
+    if (data.transcript && data.transcript.length > 500) {
+      console.log(`${tag} Got transcript: ${data.transcript.length} chars, source: ${data.source}`);
+      return { transcript: data.transcript, source: data.source || 'unknown' };
+    } else {
+      console.warn(`${tag} Transcript too short or missing: ${data.transcript?.length || 0} chars`);
+      return { transcript: null, source: 'unavailable' };
+    }
+  } catch (e: any) {
+    console.error(`${tag} Error: ${e.message}`);
+    return { transcript: null, source: 'error' };
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
