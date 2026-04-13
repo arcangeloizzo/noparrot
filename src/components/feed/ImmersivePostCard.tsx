@@ -2957,7 +2957,7 @@ const ImmersivePostCardInner = ({
               episodeTitle={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
               spotifyUrl={post.shared_url}
             />
-          ) : !isSpotifyTrack && !isTwitter && !isLinkedIn && !isYouTube && hasLink && post.shared_url ? (
+          ) : !isSpotifyTrack && !isTwitter && !isLinkedIn && !isYoutube && hasLink && post.shared_url ? (
             <a
               href={post.shared_url}
               target="_blank"
