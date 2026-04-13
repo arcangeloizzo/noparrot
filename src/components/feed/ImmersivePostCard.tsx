@@ -2979,6 +2979,22 @@ const ImmersivePostCardInner = ({
           avatar: post.author.avatar_url,
         }}
         variant="post"
+        mediaBeforeContent={
+          isYoutube && post.shared_url ? (
+            <div className="w-full rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_16px_rgba(255,0,0,0.1)]">
+              <div className="aspect-video">
+                <iframe
+                  src={`https://www.youtube.com/embed/${extractYoutubeVideoId(post.shared_url)}?rel=0`}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+                  title="YouTube video"
+                />
+              </div>
+            </div>
+          ) : undefined
+        }
         linkCard={
           isSpotifyEpisode && post.shared_url ? (
             <SpotifyPodcastCompactCard
