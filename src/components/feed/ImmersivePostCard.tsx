@@ -2299,16 +2299,28 @@ const ImmersivePostCardInner = ({
                       {post.title}
                     </h2>
                   )}
-                  {/* Body content */}
+                  {/* Body content - truncated with "Mostra tutto" like standard editorial posts */}
                   {post.content && post.content.trim().length > 0 && (
                     <div 
                       className={cn(
-                        "whitespace-pre-wrap break-words drop-shadow-md flex-1 min-h-0 overflow-y-auto scrollbar-none mb-3",
+                        "whitespace-pre-wrap break-words drop-shadow-md mb-3",
                         post.title && post.title.trim().length > 0 ? "text-[14px] text-[#7A8FA6]" : "text-base text-slate-600 dark:text-white/90 leading-snug tracking-wide"
                       )}
                       style={post.title && post.title.trim().length > 0 ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
                     >
-                      <MentionText content={post.content} />
+                      {post.content.length > 400 ? (
+                        <>
+                          <MentionText content={post.content.slice(0, 400) + '...'} />
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                            className="mt-2 text-sm text-primary font-semibold hover:underline block"
+                          >
+                            Mostra tutto
+                          </button>
+                        </>
+                      ) : (
+                        <MentionText content={post.content} />
+                      )}
                     </div>
                   )}
                   {/* Compact Spotify card at the bottom */}
@@ -2937,6 +2949,40 @@ const ImmersivePostCardInner = ({
           avatar: post.author.avatar_url,
         }}
         variant="post"
+        linkCard={
+          isSpotifyEpisode && post.shared_url ? (
+            <SpotifyPodcastCompactCard
+              imageUrl={articlePreview?.image || post.preview_img || ''}
+              podcastName={articlePreview?.description || getHostnameFromUrl(post.shared_url)}
+              episodeTitle={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
+              spotifyUrl={post.shared_url}
+            />
+          ) : !isSpotifyTrack && !isTwitter && !isLinkedIn && !isYoutube && hasLink && post.shared_url ? (
+            <a
+              href={post.shared_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-2xl overflow-hidden border border-white/10 bg-white/[0.05] hover:bg-white/[0.08] transition-colors no-underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {(articlePreview?.image || post.preview_img) && (
+                <img
+                  src={articlePreview?.image || post.preview_img}
+                  alt=""
+                  className="w-full h-40 object-cover"
+                />
+              )}
+              <div className="p-3">
+                <h4 className="font-semibold text-sm text-white line-clamp-2">
+                  {decodeHTMLEntities(articlePreview?.title || post.shared_title || post.shared_url)}
+                </h4>
+                <p className="text-xs text-white/50 mt-1 line-clamp-1">
+                  {getHostnameFromUrl(post.shared_url)}
+                </p>
+              </div>
+            </a>
+          ) : undefined
+        }
         post={{
           id: post.id,
           reactions: post.reactions,
