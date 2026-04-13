@@ -1632,7 +1632,7 @@ const ImmersivePostCardInner = ({
           {/* Top Bar */}
 
           {/* [Rail 1] HeaderRail: Fixed top overlay with gradient fade */}
-          <div className="absolute top-0 left-0 right-0">
+          <div className="absolute top-0 left-0 right-0 z-10">
             <div className="flex justify-between items-start pt-[calc(env(safe-area-inset-top)+72px)] pb-5">
             <div className="flex flex-col items-center gap-2">
               <div
