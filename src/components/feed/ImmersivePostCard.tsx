@@ -2949,6 +2949,40 @@ const ImmersivePostCardInner = ({
           avatar: post.author.avatar_url,
         }}
         variant="post"
+        linkCard={
+          isSpotifyEpisode && post.shared_url ? (
+            <SpotifyPodcastCompactCard
+              imageUrl={articlePreview?.image || post.preview_img || ''}
+              podcastName={articlePreview?.description || getHostnameFromUrl(post.shared_url)}
+              episodeTitle={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
+              spotifyUrl={post.shared_url}
+            />
+          ) : !isSpotifyTrack && !isTwitter && !isLinkedIn && !isYouTube && hasLink && post.shared_url ? (
+            <a
+              href={post.shared_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-2xl overflow-hidden border border-white/10 bg-white/[0.05] hover:bg-white/[0.08] transition-colors no-underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {(articlePreview?.image || post.preview_img) && (
+                <img
+                  src={articlePreview?.image || post.preview_img}
+                  alt=""
+                  className="w-full h-40 object-cover"
+                />
+              )}
+              <div className="p-3">
+                <h4 className="font-semibold text-sm text-white line-clamp-2">
+                  {decodeHTMLEntities(articlePreview?.title || post.shared_title || post.shared_url)}
+                </h4>
+                <p className="text-xs text-white/50 mt-1 line-clamp-1">
+                  {getHostnameFromUrl(post.shared_url)}
+                </p>
+              </div>
+            </a>
+          ) : undefined
+        }
         post={{
           id: post.id,
           reactions: post.reactions,
