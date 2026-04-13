@@ -2299,16 +2299,28 @@ const ImmersivePostCardInner = ({
                       {post.title}
                     </h2>
                   )}
-                  {/* Body content */}
+                  {/* Body content - truncated with "Mostra tutto" like standard editorial posts */}
                   {post.content && post.content.trim().length > 0 && (
                     <div 
                       className={cn(
-                        "whitespace-pre-wrap break-words drop-shadow-md flex-1 min-h-0 overflow-y-auto scrollbar-none mb-3",
+                        "whitespace-pre-wrap break-words drop-shadow-md mb-3",
                         post.title && post.title.trim().length > 0 ? "text-[14px] text-[#7A8FA6]" : "text-base text-slate-600 dark:text-white/90 leading-snug tracking-wide"
                       )}
                       style={post.title && post.title.trim().length > 0 ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
                     >
-                      <MentionText content={post.content} />
+                      {post.content.length > 400 ? (
+                        <>
+                          <MentionText content={post.content.slice(0, 400) + '...'} />
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                            className="mt-2 text-sm text-primary font-semibold hover:underline block"
+                          >
+                            Mostra tutto
+                          </button>
+                        </>
+                      ) : (
+                        <MentionText content={post.content} />
+                      )}
                     </div>
                   )}
                   {/* Compact Spotify card at the bottom */}
