@@ -4,7 +4,7 @@ import { perfStore } from "@/lib/perfStore";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, Edit2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap, Flag, ShieldAlert } from "lucide-react";
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, Edit2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap, Flag, ShieldAlert, Repeat } from "lucide-react";
 import { ReportContentDialog } from "./ReportContentDialog";
 import { AdminRemoveDialog } from "./AdminRemoveDialog";
 import { useAdminRole } from "@/hooks/useAdminRole";
@@ -1917,9 +1917,12 @@ const ImmersivePostCardInner = ({
                 </div>
               )}
 
-              {/* Stack Layout: show context stack (reshare chain) for ALL reshares except Intent posts */}
-              {quotedPost && contextStack.length > 0 && !isQuotedIntentPost && (
-                <ReshareContextStack stack={contextStack} />
+              {/* Reshare indicator label — content shown via QuotedPostCard below */}
+              {quotedPost && !isQuotedIntentPost && (
+                <div className="mt-4 pt-2 flex items-center gap-1.5 text-white/40">
+                  <Repeat className="w-3 h-3" />
+                  <span className="text-[11px] font-medium">ha condiviso</span>
+                </div>
               )}
 
               {/* User Text Content - Show for link posts (if different from article title) - NON stack layout */}
