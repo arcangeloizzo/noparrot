@@ -510,7 +510,9 @@ const ImmersivePostCardInner = ({
   });
 
   // Use cached trust score for reshares, or calculated for original posts
-  const displayTrustScore = cachedTrustScore || calculatedTrustScore;
+  // Hide trust score entirely for AI institutional profiles
+  const isAiAuthor = !!post.author.is_ai_institutional;
+  const displayTrustScore = isAiAuthor ? undefined : (cachedTrustScore || calculatedTrustScore);
 
   // Reaction picker state
   const [showReactionPicker, setShowReactionPicker] = useState(false);
@@ -1644,64 +1646,101 @@ const ImmersivePostCardInner = ({
               <div className="hidden" />
             )}
 
-            {/* PULSE Badge for Spotify / Trust Score / Category - Hide Trust Score for editorial shares (shown in card) */}
-            {hasLink && isSpotifyTrack && articlePreview?.popularity !== undefined ? (
-              <PulseBadge
-                popularity={articlePreview.popularity}
-                size="sm"
-              />
-            ) : hasLink && (post.is_intent || (post as any).verified_by === 'user_intent') && !post.shared_url?.startsWith('focus://') ? (
-              <UnanalyzableBadge />
-            ) : hasLink && displayTrustScore && !post.shared_url?.startsWith('focus://') ? (
+            {/* VOCE AI Badge for AI profiles (mutually exclusive with Trust Score) */}
+            {post.author.is_ai_institutional ? (
               <Dialog>
                 <DialogTrigger asChild>
                   <button
                     onClick={(e) => e.stopPropagation()}
-                    className={cn(
-                      "flex items-center gap-1.5 bg-slate-100 border border-slate-200 dark:bg-black/30 dark:border-white/10 px-3 py-1.5 rounded-full cursor-pointer hover:bg-slate-200 dark:hover:bg-black/40 transition-colors shadow-sm dark:shadow-xl",
-                      displayTrustScore.band === 'ALTO' && "text-emerald-600 dark:text-emerald-400",
-                      displayTrustScore.band === 'MEDIO' && "text-amber-600 dark:text-amber-400",
-                      displayTrustScore.band === 'BASSO' && "text-red-600 dark:text-red-400"
-                    )}
+                    className="flex items-center gap-1.5 bg-[#A78BFA]/20 border border-[#A78BFA]/30 px-3 py-1.5 rounded-full cursor-pointer hover:bg-[#A78BFA]/30 transition-colors shadow-sm dark:shadow-xl text-white"
                   >
-                    <ShieldCheck className="w-4 h-4" />
                     <span className="text-[10px] font-bold tracking-wider uppercase">
-                      TRUST {displayTrustScore.band}
+                      ◆ VOCE AI
                     </span>
                   </button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                   <DialogHeader>
-                    <DialogTitle>Trust Score</DialogTitle>
+                    <DialogTitle>Voce AI</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4 text-sm text-muted-foreground">
                     <p>
-                      Il Trust Score indica il livello di affidabilità delle fonti citate,
-                      <strong className="text-foreground"> non la verità o la qualità del contenuto</strong>.
+                      Questo profilo è una <strong className="text-foreground">Voce AI di NoParrot</strong>: un'identità editoriale alimentata da intelligenza artificiale che seleziona, approfondisce e commenta contenuti nel proprio ambito tematico.
                     </p>
-                    <p>È calcolato automaticamente e può contenere errori.</p>
-
-                    {displayTrustScore.reasons && displayTrustScore.reasons.length > 0 && (
-                      <div className="pt-3 border-t border-border">
-                        <p className="font-medium text-foreground mb-2">Perché questo punteggio:</p>
-                        <ul className="space-y-1.5">
-                          {displayTrustScore.reasons.map((reason: string, i: number) => (
-                            <li key={i} className="flex items-start gap-2">
-                              <span className="text-primary mt-0.5">•</span>
-                              <span>{reason}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
+                    <p>
+                      <strong className="text-foreground">Come funziona:</strong> ogni Voce AI ha una personalità, un tono e un'area di competenza definiti. I post vengono generati a partire da fonti verificabili — articoli, podcast, report — che vengono letti e analizzati integralmente prima della pubblicazione. Le fonti sono sempre linkate e consultabili.
+                    </p>
+                    <p>
+                      <strong className="text-foreground">Cosa non è:</strong> le Voci AI non fanno fact-checking, non producono giornalismo e non sostituiscono la lettura delle fonti originali. Sono spunti editoriali per stimolare la curiosità e il confronto.
+                    </p>
                     <p className="text-xs pt-2 border-t border-border text-muted-foreground">
-                      Valuta la qualità delle fonti e la coerenza col contenuto. Non è fact-checking.
+                      Il Comprehension Gate si applica anche ai contenuti delle Voci AI: per commentare o ricondividere, devi prima dimostrare di aver compreso.
                     </p>
                   </div>
                 </DialogContent>
               </Dialog>
-            ) : null}
+            ) : (
+              <>
+                {/* PULSE Badge for Spotify / Trust Score / Category - Hide Trust Score for editorial shares (shown in card) */}
+                {hasLink && isSpotifyTrack && articlePreview?.popularity !== undefined ? (
+                  <PulseBadge
+                    popularity={articlePreview.popularity}
+                    size="sm"
+                  />
+                ) : hasLink && (post.is_intent || (post as any).verified_by === 'user_intent') && !post.shared_url?.startsWith('focus://') ? (
+                  <UnanalyzableBadge />
+                ) : hasLink && displayTrustScore && !post.shared_url?.startsWith('focus://') ? (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <button
+                        onClick={(e) => e.stopPropagation()}
+                        className={cn(
+                          "flex items-center gap-1.5 bg-slate-100 border border-slate-200 dark:bg-black/30 dark:border-white/10 px-3 py-1.5 rounded-full cursor-pointer hover:bg-slate-200 dark:hover:bg-black/40 transition-colors shadow-sm dark:shadow-xl",
+                          displayTrustScore.band === 'ALTO' && "text-emerald-600 dark:text-emerald-400",
+                          displayTrustScore.band === 'MEDIO' && "text-amber-600 dark:text-amber-400",
+                          displayTrustScore.band === 'BASSO' && "text-red-600 dark:text-red-400"
+                        )}
+                      >
+                        <ShieldCheck className="w-4 h-4" />
+                        <span className="text-[10px] font-bold tracking-wider uppercase">
+                          TRUST {displayTrustScore.band}
+                        </span>
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Trust Score</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 text-sm text-muted-foreground">
+                        <p>
+                          Il Trust Score indica il livello di affidabilità delle fonti citate,
+                          <strong className="text-foreground"> non la verità o la qualità del contenuto</strong>.
+                        </p>
+                        <p>È calcolato automaticamente e può contenere errori.</p>
+
+                        {displayTrustScore.reasons && displayTrustScore.reasons.length > 0 && (
+                          <div className="pt-3 border-t border-border">
+                            <p className="font-medium text-foreground mb-2">Perché questo punteggio:</p>
+                            <ul className="space-y-1.5">
+                              {displayTrustScore.reasons.map((reason: string, i: number) => (
+                                <li key={i} className="flex items-start gap-2">
+                                  <span className="text-primary mt-0.5">•</span>
+                                  <span>{reason}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        <p className="text-xs pt-2 border-t border-border text-muted-foreground">
+                          Valuta la qualità delle fonti e la coerenza col contenuto. Non è fact-checking.
+                        </p>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                ) : null}
+              </>
+            )}
 
             {/* Menu */}
             {isOwnPost ? (

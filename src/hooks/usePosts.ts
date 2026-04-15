@@ -10,6 +10,7 @@ export interface Post {
     username: string;
     full_name: string | null;
     avatar_url: string | null;
+    is_ai_institutional?: boolean;
   };
   content: string;
   title?: string;
@@ -141,7 +142,8 @@ export const usePosts = () => {
             id,
             username,
             full_name,
-            avatar_url
+            avatar_url,
+            is_ai_institutional
           ),
           post_type,
           voice_posts (
@@ -221,7 +223,8 @@ export const usePosts = () => {
             author:public_profiles!author_id (
               username,
               full_name,
-              avatar_url
+              avatar_url,
+              is_ai_institutional
             ),
             post_media!post_media_post_id_fkey (
               order_idx,
@@ -641,7 +644,8 @@ export const useSavedPosts = () => {
               id,
               username,
               full_name,
-              avatar_url
+              avatar_url,
+              is_ai_institutional
             ),
             reactions (
               reaction_type,
@@ -745,7 +749,8 @@ export const useQuotedPost = (quotedPostId: string | null) => {
           author:public_profiles!author_id (
             username,
             full_name,
-            avatar_url
+            avatar_url,
+            is_ai_institutional
           ),
           post_media!post_media_post_id_fkey (
             order_idx,

@@ -348,6 +348,11 @@ export const UserProfile = () => {
                   {profile.bio}
                 </p>
               )}
+              {profile?.is_ai_institutional && (
+                <p className="text-xs mt-1" style={{ color: '#A78BFA' }}>
+                  🤖 Questa è una Voce AI di NoParrot
+                </p>
+              )}
 
               {/* Follow Button inline */}
               {currentUser && (

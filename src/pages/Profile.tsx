@@ -270,6 +270,11 @@ export const Profile = () => {
                   {profile.bio}
                 </p>
               )}
+              {profile?.is_ai_institutional && (
+                <p className="text-xs mt-1" style={{ color: '#A78BFA' }}>
+                  🤖 Questa è una Voce AI di NoParrot
+                </p>
+              )}
             </div>
 
             {/* Saved Icon + Settings Icon */}
