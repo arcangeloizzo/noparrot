@@ -103,6 +103,19 @@ const fetchWithTimeout = async (url: string, options: RequestInit, timeout: numb
   return response;
 };
 
+// ── Fix 1B: Title similarity helper ──
+function titleSimilarity(a: string, b: string): number {
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-zà-ú0-9\s]/g, '').split(/\s+/).filter(w => w.length > 2);
+  const wordsA = normalize(a);
+  const wordsB = normalize(b);
+  if (wordsA.length === 0 || wordsB.length === 0) return 0;
+  const setA = new Set(wordsA);
+  const setB = new Set(wordsB);
+  const union = new Set([...setA, ...setB]);
+  const intersection = [...setA].filter(w => setB.has(w));
+  return union.size === 0 ? 0 : intersection.length / union.size;
+}
+
 // ── Mic-specific helpers ──
 
 async function searchYouTubeForPodcastEpisode(
@@ -118,7 +131,8 @@ async function searchYouTubeForPodcastEpisode(
 
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 10000);
-    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=3&key=${apiKey}`;
+    // Fix 1B: maxResults 3 → 5
+    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${encodeURIComponent(query)}&type=video&maxResults=5&key=${apiKey}`;
     const res = await fetch(url, { signal: controller.signal });
     clearTimeout(timer);
 
@@ -135,14 +149,29 @@ async function searchYouTubeForPodcastEpisode(
       return null;
     }
 
-    const videoId = items[0].id?.videoId;
-    if (!videoId) {
-      console.warn(`${tag} First result has no videoId`);
+    // Fix 1B: iterate all results, pick best with similarity >= 40%
+    let bestVideoId: string | null = null;
+    let bestScore = 0;
+    let bestTitle = '';
+
+    for (const item of items) {
+      const snippetTitle = item.snippet?.title || '';
+      const score = titleSimilarity(episodeTitle, snippetTitle);
+      console.log(`${tag} Candidate: "${snippetTitle.substring(0, 80)}" | similarity: ${(score * 100).toFixed(1)}% (searched: "${episodeTitle.substring(0, 60)}")`);
+      if (score >= 0.40 && score > bestScore && item.id?.videoId) {
+        bestScore = score;
+        bestVideoId = item.id.videoId;
+        bestTitle = snippetTitle;
+      }
+    }
+
+    if (!bestVideoId) {
+      console.warn(`${tag} No result exceeded 40% similarity threshold for: "${episodeTitle.substring(0, 80)}"`);
       return null;
     }
 
-    const ytUrl = `https://www.youtube.com/watch?v=${videoId}`;
-    console.log(`${tag} Found video: ${ytUrl} ("${items[0].snippet?.title?.substring(0, 60)}")`);
+    const ytUrl = `https://www.youtube.com/watch?v=${bestVideoId}`;
+    console.log(`${tag} Best match: ${ytUrl} ("${bestTitle.substring(0, 60)}") score: ${(bestScore * 100).toFixed(1)}%`);
     return ytUrl;
   } catch (e: any) {
     console.error(`${tag} Error: ${e.message}`);
@@ -188,6 +217,14 @@ async function fetchTranscriptFromYouTube(
   } catch (e: any) {
     console.error(`${tag} Error: ${e.message}`);
     return { transcript: null, source: 'error' };
+  }
+}
+
+// ── Fix 1E: Validate output word count ──
+function validateOutputWordCount(body: string, profileHandle: string, source: string): void {
+  const wordCount = body.split(/\s+/).filter(w => w.length > 0).length;
+  if (wordCount < 50) {
+    throw new Error(`Output validation failed for ${profileHandle}: body has only ${wordCount} words (min 50). Source: ${source}. Raw: ${body.substring(0, 200)}`);
   }
 }
 
@@ -288,70 +325,114 @@ Deno.serve(async (req) => {
 
         // ── BRANCH MIC: flusso isolato podcast ──
         if (profile.handle === 'mic') {
-          const { data: micCandidates, error: micCandErr } = await supabase
+          // Fix 1A: fetch up to 7 candidates (one per source)
+          const { data: micCandidatesRaw, error: micCandErr } = await supabase
             .from('profile_source_feed')
             .select('*')
             .eq('profile_id', profile.id)
             .eq('is_relevant', true)
             .is('used_in_post_id', null)
             .order('article_published_at', { ascending: false })
-            .limit(5);
+            .limit(7);
 
-          if (micCandErr || !micCandidates || micCandidates.length === 0) {
+          if (micCandErr || !micCandidatesRaw || micCandidatesRaw.length === 0) {
             console.warn(`[profile-compose:${reqId} mic] No candidates available, skipping`);
             continue;
           }
 
-          const micCandidate = micCandidates[0];
-          console.log(`[profile-compose:${reqId} mic] Selected: "${micCandidate.article_title}" from ${micCandidate.source_name}`);
+          // Fix 1C: Source rotation cooldown — max 3 posts per source per week
+          const weekAgo = new Date(nowUtc.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          const { data: recentMicPosts } = await supabase
+            .from('profile_source_feed')
+            .select('source_name')
+            .eq('profile_id', profile.id)
+            .not('used_in_post_id', 'is', null)
+            .gte('fetched_at', weekAgo);
+
+          const sourceCounts: Record<string, number> = {};
+          for (const row of recentMicPosts || []) {
+            sourceCounts[row.source_name] = (sourceCounts[row.source_name] || 0) + 1;
+          }
+
+          const micCandidates = micCandidatesRaw.filter(c => {
+            const count = sourceCounts[c.source_name] || 0;
+            if (count >= 3) {
+              console.log(`[profile-compose:${reqId} mic] Skipping "${c.source_name}" — already ${count} posts this week (max 3)`);
+              return false;
+            }
+            return true;
+          });
+
+          if (micCandidates.length === 0) {
+            console.warn(`[profile-compose:${reqId} mic] All candidates filtered by cooldown, skipping`);
+            continue;
+          }
 
           const YOUTUBE_API_KEY = Deno.env.get('YOUTUBE_API_KEY');
+          if (!YOUTUBE_API_KEY) {
+            console.warn(`[profile-compose:${reqId} mic] No YOUTUBE_API_KEY, cannot transcribe — skipping`);
+            continue;
+          }
+
+          // Fix 1A: iterate candidates until one has a transcript
+          let selectedCandidate: typeof micCandidates[0] | null = null;
           let transcript: string | null = null;
           let transcriptSource = 'not_attempted';
 
-          if (YOUTUBE_API_KEY) {
+          for (const candidate of micCandidates) {
+            console.log(`[profile-compose:${reqId} mic] Trying candidate: "${candidate.article_title}" from ${candidate.source_name}`);
+
             const youtubeUrl = await searchYouTubeForPodcastEpisode(
-              micCandidate.source_name,
-              micCandidate.article_title,
+              candidate.source_name,
+              candidate.article_title,
               YOUTUBE_API_KEY,
               reqId
             );
-            if (youtubeUrl) {
-              const result = await fetchTranscriptFromYouTube(youtubeUrl, supabaseUrl, serviceRoleKey, reqId);
+
+            if (!youtubeUrl) {
+              console.warn(`[profile-compose:${reqId} mic] No YouTube match for "${candidate.article_title}", trying next`);
+              continue;
+            }
+
+            const result = await fetchTranscriptFromYouTube(youtubeUrl, supabaseUrl, serviceRoleKey, reqId);
+            if (result.transcript) {
+              selectedCandidate = candidate;
               transcript = result.transcript;
               transcriptSource = result.source;
+              console.log(`[profile-compose:${reqId} mic] ✓ Got transcript for "${candidate.article_title}" (${transcript.length} chars)`);
+              break;
             } else {
-              transcriptSource = 'youtube_not_found';
+              console.warn(`[profile-compose:${reqId} mic] Transcript unavailable for "${candidate.article_title}" (${result.source}), trying next`);
             }
-          } else {
-            transcriptSource = 'no_api_key';
           }
 
-          const isRassegnaMinima = transcript === null;
-          const micMode = isRassegnaMinima ? 'rassegna_minima' : 'digest_completo';
-          console.log(`[profile-compose:${reqId} mic] Mode: ${micMode}, source: ${transcriptSource}, len: ${transcript?.length || 0}`);
+          // Fix 1A: No fallback — if no transcript, skip entirely
+          if (!selectedCandidate || !transcript) {
+            console.warn(`[profile-compose:${reqId} mic] No candidate with transcript available — skipping slot (no rassegna minima)`);
+            continue;
+          }
+
+          console.log(`[profile-compose:${reqId} mic] Selected: "${selectedCandidate.article_title}" from ${selectedCandidate.source_name}, transcript: ${transcript.length} chars`);
 
           const formattedDateMic = formatInTimeZone(nowUtc, 'Europe/Rome', "EEEE d MMMM yyyy, 'ore' HH:mm", { locale: it });
 
-          let micContextBlock = `[CONTESTO_MIC_PROACTIVE]
-data_post: ${formattedDateMic}
-modalita: ${micMode}
-podcast_scelto:
-- nome: ${micCandidate.source_name}
-- titolo_episodio: ${micCandidate.article_title}
-- descrizione_ufficiale: ${(micCandidate.article_summary || '').substring(0, 800)}
-- data_pubblicazione: ${micCandidate.article_published_at}
-- link_spotify: ${micCandidate.article_url}
-`;
+          const truncatedTranscript = transcript.length > 50000
+            ? transcript.substring(0, 50000) + '\n\n[TRASCRIZIONE TRONCATA]'
+            : transcript;
 
-          if (transcript) {
-            const truncated = transcript.length > 50000
-              ? transcript.substring(0, 50000) + '\n\n[TRASCRIZIONE TRONCATA]'
-              : transcript;
-            micContextBlock += `trascrizione_completa:\n${truncated}\nbrief_specifico: scrivi un post digest su questo episodio seguendo le tue regole. Scegli UN angolo/tesi dalla trascrizione e costruisci un post tra 200 e 400 parole. Max 15 parole per citazione letterale, preferisci parafrasare, chiudi SEMPRE con invito all'ascolto completo variando la forma.\n[/CONTESTO_MIC_PROACTIVE]`;
-          } else {
-            micContextBlock += `trascrizione_completa: TRANSCRIPTION_UNAVAILABLE\nbrief_specifico: Sei in MODALITÀ RASSEGNA MINIMA. Scrivi un post più breve (150-200 parole) basandoti SOLO su titolo e descrizione ufficiale. Non fingere di aver ascoltato, esprimi curiosità o aspettativa. Chiudi SEMPRE con invito all'ascolto completo.\n[/CONTESTO_MIC_PROACTIVE]`;
-          }
+          const micContextBlock = `[CONTESTO_MIC_PROACTIVE]
+data_post: ${formattedDateMic}
+modalita: digest_completo
+podcast_scelto:
+- nome: ${selectedCandidate.source_name}
+- titolo_episodio: ${selectedCandidate.article_title}
+- descrizione_ufficiale: ${(selectedCandidate.article_summary || '').substring(0, 800)}
+- data_pubblicazione: ${selectedCandidate.article_published_at}
+- link_spotify: ${selectedCandidate.article_url}
+trascrizione_completa:
+${truncatedTranscript}
+brief_specifico: scrivi un post digest su questo episodio seguendo le tue regole. Scegli UN angolo/tesi dalla trascrizione e costruisci un post tra 200 e 400 parole. Max 15 parole per citazione letterale, preferisci parafrasare, chiudi SEMPRE con invito all'ascolto completo variando la forma.
+[/CONTESTO_MIC_PROACTIVE]`;
 
           const fullSysMic = NOPARROT_BASE_PROMPT + '\n\n---\n\n' + profile.system_prompt;
           const micGeminiStart = Date.now();
@@ -393,6 +474,9 @@ podcast_scelto:
           if (micBody.length < 100) throw new Error(`Mic body too short: ${micBody.length}`);
           if (micBody.length > 3500) micBody = micBody.substring(0, 3497) + '...';
 
+          // Fix 1E: validate min 50 words
+          validateOutputWordCount(micBody, profile.handle, selectedCandidate.article_title);
+
           const micResponseText = micTitle + '\n\n' + micBody;
 
           let micModPassed = true;
@@ -414,14 +498,14 @@ podcast_scelto:
               content: micBody,
               post_type: 'standard',
               category: profile.area,
-              shared_url: micCandidate.article_url
+              shared_url: selectedCandidate.article_url
             })
             .select('id')
             .single();
 
           if (micPostErr || !micPost) throw new Error(`Failed to publish Mic post: ${micPostErr?.message}`);
 
-          await supabase.from('profile_source_feed').update({ used_in_post_id: micPost.id }).eq('id', micCandidate.id);
+          await supabase.from('profile_source_feed').update({ used_in_post_id: micPost.id }).eq('id', selectedCandidate.id);
 
           await supabase.from('ai_generation_log').insert({
             queue_id: null,
@@ -434,12 +518,12 @@ podcast_scelto:
             total_cost_usd: micCost,
             response_text: micResponseText,
             moderation_passed: micModPassed,
-            moderation_notes: `mode:${micMode}. transcript_source:${transcriptSource}. transcript_chars:${transcript?.length || 0}. ${micModNotes}`,
+            moderation_notes: `mode:digest_completo. transcript_source:${transcriptSource}. transcript_chars:${transcript.length}. ${micModNotes}`,
             duration_ms: micDurationMs
           });
 
           stats.posts_published++;
-          console.log(`[profile-compose:${reqId} mic] Published ${micPost.id} (${micMode}, ${transcript?.length || 0} chars)`);
+          console.log(`[profile-compose:${reqId} mic] Published ${micPost.id} (digest_completo, ${transcript.length} chars)`);
           continue;
         }
         // ── END BRANCH MIC ──
@@ -593,6 +677,9 @@ ${formatRules}
         if (postContent.length > 3000) {
           postContent = postContent.substring(0, 2997) + '...';
         }
+
+        // Fix 1E: validate min 50 words
+        validateOutputWordCount(postContent, profile.handle, chosenCandidate.article_title);
 
         // responseText for logging keeps concatenated text
         const responseText = postTitle + '\n\n' + postContent;
