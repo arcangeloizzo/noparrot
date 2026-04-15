@@ -154,7 +154,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
           {/* Content layer */}
           <div className="relative z-10">
             {/* Header Autore */}
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-1.5">
               <div className="w-6 h-6 rounded-full overflow-hidden bg-muted flex-shrink-0">
                 {getAvatarContent()}
               </div>
@@ -168,7 +168,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
             </div>
 
             {/* PROTAGONISTA: Testo utente con Quote Block style */}
-            <div className="border-l-4 border-primary/60 bg-white dark:bg-white/5 pl-3 py-2 rounded-r-lg mb-3 shadow-sm dark:shadow-none border-y border-r border-slate-200 dark:border-transparent">
+            <div className="border-l-4 border-primary/60 bg-white dark:bg-white/5 pl-3 py-1.5 rounded-r-lg mb-2 shadow-sm dark:shadow-none border-y border-r border-slate-200 dark:border-transparent">
               {quotedPost.title && (
                 <h2 
                   className="font-black tracking-tight text-foreground uppercase mb-1.5 line-clamp-2"
@@ -194,7 +194,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
             {/* SECONDARIO: Link card ricca ma senza immagine (stile Intent) */}
             {quotedPost.shared_url && (
               <div
-                className="mt-3 bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 overflow-hidden cursor-pointer hover:bg-slate-50 dark:hover:bg-white/10 transition-colors shadow-sm dark:shadow-none"
+                className="mt-2 bg-white dark:bg-white/5 rounded-xl border border-slate-200 dark:border-white/10 overflow-hidden cursor-pointer hover:bg-slate-50 dark:hover:bg-white/10 transition-colors shadow-sm dark:shadow-none"
                 onClick={(e) => {
                   e.stopPropagation();
                   window.open(quotedPost.shared_url!, '_blank', 'noopener,noreferrer');
@@ -306,7 +306,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
             </div>
 
             {/* Truncated Comment */}
-            <div className="mb-2">
+            <div className="mb-1.5">
               {quotedPost.title && (
                 <h2 
                   className="font-black tracking-tight text-foreground uppercase mb-1 line-clamp-2"
