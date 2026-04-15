@@ -1800,15 +1800,14 @@ const ImmersivePostCardInner = ({
           {/* [Rail 2] ContentRail */}
           <div
             ref={contentRailRef}
-            className={cn(
-              "absolute top-0 bottom-0 left-0 right-0 flex flex-col",
-              isContentOverflowing ? "overflow-y-auto scrollbar-none" : "overflow-hidden"
-            )}
+            className="absolute top-0 bottom-0 left-0 right-0 flex flex-col overflow-y-auto scrollbar-none"
             style={{
               paddingTop: 'calc(env(safe-area-inset-top) + 72px + 82px)',
               paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 36px + 64px)',
-              ...(isContentOverflowing ? { WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' } as any : {})
-            }}
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+            } as any}
           >
 
 
@@ -1863,7 +1862,7 @@ const ImmersivePostCardInner = ({
               {/* Stack Layout: User comment first - Plain text for standard */}
               {useStackLayout && !isAudioPost && !isChallengePost && (post.content || post.title) && post.content !== post.shared_title && (
                 <div className={cn(
-                  "mb-4 flex flex-col gap-1",
+                  "mb-2 flex flex-col gap-1",
                   isChallengePost ? "font-normal" : "font-normal"
                 )}>
                   {/* Title */}
@@ -1919,7 +1918,7 @@ const ImmersivePostCardInner = ({
 
               {/* Reshare indicator label — content shown via QuotedPostCard below */}
               {quotedPost && !isQuotedIntentPost && (
-                <div className="mt-4 pt-2 flex items-center gap-1.5 text-white/40">
+                <div className="mt-2 flex items-center gap-1.5 text-white/40">
                   <Repeat className="w-3 h-3" />
                   <span className="text-[11px] font-medium">ha condiviso</span>
                 </div>
@@ -2624,7 +2623,7 @@ const ImmersivePostCardInner = ({
 
               {/* Quoted Post - Show for ALL reshares (stack and non-stack) */}
               {quotedPost && (
-                <div className="mt-4">
+                <div className="mt-2">
                   {/* Detect if quoted post is an editorial (Il Punto) - ONLY if directly from system, otherwise render as user post with link */}
                   {(quotedPost.author?.username === 'ilpunto' || quotedPost.author?.username === 'Il Punto' || quotedPost.author?.id === 'system') ? (
                     <QuotedEditorialCard
