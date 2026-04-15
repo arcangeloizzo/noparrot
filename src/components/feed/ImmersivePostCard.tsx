@@ -404,25 +404,8 @@ const ImmersivePostCardInner = ({
   // Challenge flow state
   const [showChallengeFlow, setShowChallengeFlow] = useState(false);
 
-  // F. Internal scroll — ONLY for dense audio/challenge cards
+  // F. Internal scroll ref for content rail
   const contentRailRef = useRef<HTMLDivElement>(null);
-  const [isContentOverflowing, setIsContentOverflowing] = useState(false);
-
-  useLayoutEffect(() => {
-    const el = contentRailRef.current;
-    if (!el) return;
-    const check = () => {
-      // Threshold di 10px per evitare flicker su misurazioni borderline
-      setIsContentOverflowing(el.scrollHeight > el.clientHeight + 10);
-    };
-    check();
-    const ro = new ResizeObserver(check);
-    ro.observe(el);
-    // Osserva anche il primo figlio per catturare cambi di contenuto interni
-    const firstChild = el.firstElementChild;
-    if (firstChild) ro.observe(firstChild);
-    return () => ro.disconnect();
-  }, [post]);
 
 
   // Trigger refetch for missing preview images on active cards
