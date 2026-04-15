@@ -338,7 +338,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
                 }}
               >
                 {quotedPost.preview_img && (
-                  <div className="aspect-video w-full overflow-hidden bg-slate-100 dark:bg-muted">
+                  <div className="w-full max-h-28 overflow-hidden bg-slate-100 dark:bg-muted">
                     <img
                       src={quotedPost.preview_img}
                       alt={decodeHTMLEntities(quotedPost.shared_title || '')}
