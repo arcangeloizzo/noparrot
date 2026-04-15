@@ -1652,10 +1652,11 @@ const ImmersivePostCardInner = ({
                 <DialogTrigger asChild>
                   <button
                     onClick={(e) => e.stopPropagation()}
-                    className="flex items-center gap-1.5 bg-[#A78BFA]/20 border border-[#A78BFA]/30 px-3 py-1.5 rounded-full cursor-pointer hover:bg-[#A78BFA]/30 transition-colors shadow-sm dark:shadow-xl text-white"
+                    className="inline-flex items-center justify-center gap-x-1.5 min-h-[32px] py-1 px-2.5 rounded-xl border border-[#A78BFA]/40 bg-black/30 backdrop-blur-md text-white shadow-[0_0_12px_rgba(167,139,250,0.15)] transition-all duration-200 active:scale-[0.97] cursor-pointer"
                   >
-                    <span className="text-[10px] font-bold tracking-wider uppercase">
-                      ◆ VOCE AI
+                    <span className="font-bold tracking-wide opacity-60 text-[10px]">✦</span>
+                    <span className="text-[10px] font-bold tracking-wider">
+                      VOCE AI
                     </span>
                   </button>
                 </DialogTrigger>
