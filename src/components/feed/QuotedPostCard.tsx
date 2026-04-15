@@ -134,7 +134,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
       <>
         <div
           className={cn(
-            "relative border border-white/10 rounded-xl p-3 mt-3 overflow-hidden cursor-pointer active:scale-[0.98] transition-transform",
+            "relative border border-white/10 rounded-xl p-2.5 overflow-hidden cursor-pointer active:scale-[0.98] transition-transform",
             className
           )}
           onClick={(e) => {
@@ -273,7 +273,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
     <>
       <div
         className={cn(
-          "border border-slate-200 dark:border-border/60 rounded-xl p-3 mt-3 bg-white dark:bg-muted/30 cursor-pointer active:scale-[0.98] transition-all hover:bg-slate-50 dark:hover:bg-muted/50 shadow-sm dark:shadow-none",
+          "border border-slate-200 dark:border-border/60 rounded-xl p-2.5 bg-white dark:bg-muted/30 cursor-pointer active:scale-[0.98] transition-all hover:bg-slate-50 dark:hover:bg-muted/50 shadow-sm dark:shadow-none",
           className
         )}
         onClick={(e) => {
