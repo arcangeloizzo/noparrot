@@ -2619,8 +2619,8 @@ const ImmersivePostCardInner = ({
                 </div>
               )}
 
-              {/* Quoted Post - Only for reshares WITHOUT source (pure comment reshares) - OR Intent posts */}
-              {quotedPost && !useStackLayout && (
+              {/* Quoted Post - Show for ALL reshares (stack and non-stack) */}
+              {quotedPost && (
                 <div className="mt-4">
                   {/* Detect if quoted post is an editorial (Il Punto) - ONLY if directly from system, otherwise render as user post with link */}
                   {(quotedPost.author?.username === 'ilpunto' || quotedPost.author?.username === 'Il Punto' || quotedPost.author?.id === 'system') ? (
