@@ -2606,7 +2606,7 @@ const ImmersivePostCardInner = ({
 
               {/* Quoted Post - Show for ALL reshares (stack and non-stack) */}
               {quotedPost && (
-                <div className="mt-2">
+                <div className="mt-1">
                   {/* Detect if quoted post is an editorial (Il Punto) - ONLY if directly from system, otherwise render as user post with link */}
                   {(quotedPost.author?.username === 'ilpunto' || quotedPost.author?.username === 'Il Punto' || quotedPost.author?.id === 'system') ? (
                     <QuotedEditorialCard
@@ -2624,7 +2624,7 @@ const ImmersivePostCardInner = ({
                       quotedPost={quotedPost}
                       parentSources={post.shared_url ? [post.shared_url, ...(post.sources || [])] : (post.sources || [])}
                       onNavigate={() => navigate(`/post/${quotedPost.id}`)}
-                      className="flex-shrink min-h-0 overflow-hidden mt-2"
+                      className="flex-shrink min-h-0 overflow-hidden"
                     />
                   )}
                 </div>
