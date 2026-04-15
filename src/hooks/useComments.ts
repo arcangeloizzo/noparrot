@@ -60,6 +60,7 @@ export const useComments = (postId: string, sortMode: 'relevance' | 'recent' | '
 
   return useQuery({
     queryKey: ['comments', postId, sortMode],
+    refetchInterval: 15_000, // 15s polling fallback if realtime drops
     queryFn: async () => {
       const { data: commentsData, error: commentsError } = await (supabase
         .from('comments')

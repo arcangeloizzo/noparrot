@@ -15,6 +15,8 @@ export function useGlobalRealtime() {
         (payload: any) => {
           // Invalidate global posts query to update comment counts
           queryClient.invalidateQueries({ queryKey: ['posts'] });
+          // Invalidate notifications so the bell updates
+          queryClient.invalidateQueries({ queryKey: ['notifications'] });
           
           const postId = payload.new?.post_id || payload.old?.post_id;
           if (postId) {
