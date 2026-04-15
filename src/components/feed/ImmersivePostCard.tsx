@@ -510,7 +510,9 @@ const ImmersivePostCardInner = ({
   });
 
   // Use cached trust score for reshares, or calculated for original posts
-  const displayTrustScore = cachedTrustScore || calculatedTrustScore;
+  // Hide trust score entirely for AI institutional profiles
+  const isAiAuthor = !!post.author.is_ai_institutional;
+  const displayTrustScore = isAiAuthor ? undefined : (cachedTrustScore || calculatedTrustScore);
 
   // Reaction picker state
   const [showReactionPicker, setShowReactionPicker] = useState(false);
