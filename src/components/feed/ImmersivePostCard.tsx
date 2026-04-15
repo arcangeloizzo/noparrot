@@ -2215,57 +2215,52 @@ const ImmersivePostCardInner = ({
               ) : hasLink && isYoutube ? (
                 /* YouTube Video Card - Tap to play */
                 <div className="w-full mt-4">
-                  {/* Video player - unmount when FullTextModal is open to avoid double audio */}
-                  {!showFullText && (
-                    <>
-                      {!youtubeEmbedActive ? (
-                        /* Thumbnail with Play button */
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setYoutubeEmbedActive(true);
-                          }}
-                          className="relative w-full rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_16px_rgba(255,0,0,0.1)] active:scale-[0.98] transition-transform"
-                        >
-                          {/* Video Thumbnail */}
-                          <img
-                            src={articlePreview?.image || post.preview_img || `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url!)}/maxresdefault.jpg`}
-                            alt=""
-                            className="w-full aspect-video max-h-[25vh] sm:max-h-none object-cover"
-                          />
+                  {!youtubeEmbedActive ? (
+                    /* Thumbnail with Play button */
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setYoutubeEmbedActive(true);
+                      }}
+                      className="relative w-full rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_16px_rgba(255,0,0,0.1)] active:scale-[0.98] transition-transform"
+                    >
+                      {/* Video Thumbnail */}
+                      <img
+                        src={articlePreview?.image || post.preview_img || `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url!)}/maxresdefault.jpg`}
+                        alt=""
+                        className="w-full aspect-video max-h-[25vh] sm:max-h-none object-cover"
+                      />
 
-                          {/* Play Button Overlay */}
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                            <div className="bg-red-600 p-4 rounded-full shadow-xl">
-                              <Play className="w-8 h-8 text-white fill-white" />
-                            </div>
-                          </div>
-
-                          {/* YouTube Badge */}
-                          <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-2">
-                            <svg className="w-4 h-4 text-red-600" viewBox="0 0 24 24" fill="currentColor">
-                              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
-                              <polygon fill="white" points="9.545,15.568 15.818,12 9.545,8.432" />
-                            </svg>
-                            <span className="text-white text-xs font-medium">YouTube</span>
-                          </div>
-                        </button>
-                      ) : (
-                        /* Active YouTube Embed */
-                        <div className="w-full rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_16px_rgba(255,0,0,0.1)]">
-                          <div className="aspect-video">
-                            <iframe
-                              src={`https://www.youtube.com/embed/${extractYoutubeVideoId(post.shared_url!)}?autoplay=1&mute=1&cc_load_policy=1&rel=0`}
-                              className="w-full h-full"
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                              allowFullScreen
-                              sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
-                              title="YouTube video"
-                            />
-                          </div>
+                      {/* Play Button Overlay */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <div className="bg-red-600 p-4 rounded-full shadow-xl">
+                          <Play className="w-8 h-8 text-white fill-white" />
                         </div>
-                      )}
-                    </>
+                      </div>
+
+                      {/* YouTube Badge */}
+                      <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-2">
+                        <svg className="w-4 h-4 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
+                          <polygon fill="white" points="9.545,15.568 15.818,12 9.545,8.432" />
+                        </svg>
+                        <span className="text-white text-xs font-medium">YouTube</span>
+                      </div>
+                    </button>
+                  ) : (
+                    /* Active YouTube Embed */
+                    <div className="w-full rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_16px_rgba(255,0,0,0.1)]">
+                      <div className="aspect-video">
+                        <iframe
+                          src={`https://www.youtube.com/embed/${extractYoutubeVideoId(post.shared_url!)}?autoplay=1&mute=1&cc_load_policy=1&rel=0`}
+                          className="w-full h-full"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+                          title="YouTube video"
+                        />
+                      </div>
+                    </div>
                   )}
 
                   {/* Video Title */}
@@ -2284,31 +2279,6 @@ const ImmersivePostCardInner = ({
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span className="text-xs uppercase tracking-wider">Apri su YouTube</span>
                   </button>
-
-                  {/* Body text with line-clamp for long content */}
-                  {post.content && post.content.trim().length > 0 && post.content.length > 400 && (
-                    <div 
-                      className="whitespace-pre-wrap break-words drop-shadow-md mt-3 text-[14px] text-[#7A8FA6]"
-                      style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
-                    >
-                      <MentionText content={post.content.slice(0, 200) + '...'} />
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setYoutubeEmbedActive(false); setShowFullText(true); }}
-                        className="mt-2 text-sm text-primary font-semibold hover:underline block"
-                      >
-                        Mostra tutto
-                      </button>
-                    </div>
-                  )}
-                  {/* Short body shown inline without truncation */}
-                  {post.content && post.content.trim().length > 0 && post.content.length <= 400 && (
-                    <div 
-                      className="whitespace-pre-wrap break-words drop-shadow-md mt-3 text-[14px] text-[#7A8FA6]"
-                      style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
-                    >
-                      <MentionText content={post.content} />
-                    </div>
-                  )}
                 </div>
               ) : hasLink && isSpotifyEpisode ? (
                 /* Spotify Podcast Episode: show title + body + compact card */
@@ -2964,7 +2934,7 @@ const ImmersivePostCardInner = ({
       {/* Full Text Modal for long posts */}
       <FullTextModal
         isOpen={showFullText}
-        onClose={() => { setShowFullText(false); setYoutubeEmbedActive(false); }}
+        onClose={() => setShowFullText(false)}
         title={post.title}
         content={
           isChallengePost 
@@ -2979,22 +2949,6 @@ const ImmersivePostCardInner = ({
           avatar: post.author.avatar_url,
         }}
         variant="post"
-        mediaBeforeContent={
-          isYoutube && post.shared_url ? (
-            <div className="w-full rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_16px_rgba(255,0,0,0.1)]">
-              <div className="aspect-video">
-                <iframe
-                  src={`https://www.youtube.com/embed/${extractYoutubeVideoId(post.shared_url)}?rel=0`}
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
-                  title="YouTube video"
-                />
-              </div>
-            </div>
-          ) : undefined
-        }
         linkCard={
           isSpotifyEpisode && post.shared_url ? (
             <SpotifyPodcastCompactCard

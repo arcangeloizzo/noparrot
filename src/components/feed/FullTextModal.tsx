@@ -23,9 +23,7 @@ interface FullTextModalProps {
   author?: FullTextModalAuthor;
   source?: FullTextModalSource;
   variant?: 'post' | 'caption' | 'editorial' | 'quoted';
-  /** Optional media rendered BEFORE the body (e.g. YouTube embed) */
-  mediaBeforeContent?: React.ReactNode;
-  /** Optional link card rendered AFTER content and before action bar */
+  /** Optional link card rendered between content and action bar */
   linkCard?: React.ReactNode;
   /** Post data for action bar */
   post?: {
@@ -51,7 +49,6 @@ const FullTextModalInner = ({
   author,
   source,
   variant = 'post',
-  mediaBeforeContent,
   linkCard,
   post,
   actions,
@@ -400,13 +397,6 @@ const FullTextModalInner = ({
 
           {/* 2. Header */}
           {renderHeader()}
-
-          {/* Media before content (e.g. YouTube embed) */}
-          {mediaBeforeContent && (
-            <div className="mb-4" onClick={(e) => e.stopPropagation()}>
-              {mediaBeforeContent}
-            </div>
-          )}
 
           {/* Content */}
           {renderContent()}
