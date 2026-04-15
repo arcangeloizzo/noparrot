@@ -768,8 +768,7 @@ export const useQuotedPost = (quotedPostId: string | null) => {
       const post = data as any;
       return {
         ...post,
-        title: post.title,
-        body_text: post.body_text,
+        sources: Array.isArray(post.sources) ? post.sources : [],
         media: (post.post_media || [])
           .sort((a: any, b: any) => a.order_idx - b.order_idx)
           .map((pm: any) => pm.media)
