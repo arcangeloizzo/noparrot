@@ -733,23 +733,15 @@ export const useQuotedPost = (quotedPostId: string | null) => {
           id,
           content,
           title,
-          body_text,
           created_at,
           shared_url,
           shared_title,
           preview_img,
           post_type,
-          voice_posts (
-            id,
-            audio_url,
-            duration_seconds,
-            waveform_data,
-            transcript,
-            transcript_status,
-            title,
-            body_text
-          ),
           is_intent,
+          sources,
+          embed_html,
+          hostname,
           author:public_profiles!author_id (
             username,
             full_name,
@@ -761,10 +753,7 @@ export const useQuotedPost = (quotedPostId: string | null) => {
               id,
               type,
               url,
-              thumbnail_url,
-              extracted_status,
-              extracted_text,
-              extracted_kind
+              thumbnail_url
             )
           )
         `)
@@ -779,8 +768,7 @@ export const useQuotedPost = (quotedPostId: string | null) => {
       const post = data as any;
       return {
         ...post,
-        title: post.title,
-        body_text: post.body_text,
+        sources: Array.isArray(post.sources) ? post.sources : [],
         media: (post.post_media || [])
           .sort((a: any, b: any) => a.order_idx - b.order_idx)
           .map((pm: any) => pm.media)

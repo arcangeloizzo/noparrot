@@ -10,7 +10,7 @@ interface QuotedPost {
   id: string;
   content: string;
   title?: string | null;
-  body_text?: string | null;
+  body_text?: string | null; // deprecated, kept for compat
   created_at: string;
   shared_url?: string | null;
   shared_title?: string | null;
