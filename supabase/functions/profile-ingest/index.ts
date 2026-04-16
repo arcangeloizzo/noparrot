@@ -231,6 +231,7 @@ Deno.serve(async (req) => {
       // ── BRANCH VINILE: Spotify playlist tracks ──
       if (profile.handle === 'vinile') {
         const vToken = await getSpotifyToken(reqId);
+        console.log(`[profile-ingest:${reqId}] Vinile Spotify token: ${vToken ? 'OK (' + vToken.substring(0,10) + '...)' : 'FAILED'}`);
         if (!vToken) {
           console.warn(`[profile-ingest:${reqId}] No Spotify token for Vinile, skipping`);
           continue;
