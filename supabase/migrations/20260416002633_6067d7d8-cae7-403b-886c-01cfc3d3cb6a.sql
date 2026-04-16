@@ -1,0 +1,1 @@
+UPDATE public.ai_posting_schedule SET last_executed_at = NULL, hour = 2, minute = 30 WHERE id = 'eb39ed74-ca91-4b21-b8f5-8a0dcf334008';
