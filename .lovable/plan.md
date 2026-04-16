@@ -1,79 +1,38 @@
 
 
-# Batch Fix Qualità Risposte AI — Piano
+## Diagnosi
 
-## Flusso attuale (dalla mia analisi del codice)
+Ho controllato il post di Vinile nel DB (id `60d714a4...`, "Quando l'amore non è una hit estiva"): il `content` esiste eccome, **633 caratteri** ben formati. Anche il post precedente ("La gabbia che ci forma e ci consuma") ha 791 caratteri di body. Il problema è puramente di **rendering frontend**.
 
-```text
-Utente scrive commento con @handle
-  → trigger DB `trg_enqueue_ai_mentions` (funzione `enqueue_ai_mentions()`)
-  → inserisce riga in `ai_mention_queue` (status: pending)
-  → pg_cron ogni minuto → `execute_process_ai_mentions_cron()`
-  → chiama Edge Function `process-ai-mentions`
-  → carica profilo AI + post originale + ultimi 5 commenti thread
-  → costruisce prompt: NOPARROT_BASE_PROMPT + profile.system_prompt + contesto reactive
-  → chiama Gemini (gemini-2.5-flash) via Lovable AI Gateway
-  → inserisce risposta come commento (parent_id = commento sorgente)
-  → logga in ai_generation_log
-```
+### Causa root
 
-**File unico da modificare**: `supabase/functions/process-ai-mentions/index.ts`
+In `src/components/feed/ImmersivePostCard.tsx`, il branch `isSpotifyTrack` (righe **2361–2403**) usato per i brani Spotify (Vinile) renderizza solo:
+- artwork dell'album
+- titolo Spotify (nome canzone)
+- nome artista
+- pill "Spotify"
 
----
+**Non viene mai stampato `post.title` (titolo editoriale di Vinile, "QUANDO L'AMORE NON È UNA HIT ESTIVA") né `post.content` (body)**. Infatti nello screenshot vediamo il titolo editoriale (renderizzato dal layer "header" del card, fuori dal branch shared_url) ma sotto l'artwork compare solo "Canzone Estiva" + badge Spotify, e zero body.
 
-## Fix 2A — Contesto post più strutturato
+Confronto col branch `isSpotifyEpisode` (righe 2308–2360, usato per @mic): quello sì renderizza correttamente `post.title` + `post.content` (con truncation a 400 char + "Mostra tutto") + una `SpotifyPodcastCompactCard` compatta in basso. È il layout "Vetrina" già memorizzato per i podcast.
 
-Il codice GIÀ include titolo + content del post (linee 302-313), ma in modo poco leggibile per il modello: titolo e body sono su righe consecutive senza separazione chiara. Ristrutturerò il blocco `[CONTESTO_REACTIVE]` così:
+## Fix proposto
 
-```
-[POST_ORIGINALE]
-Titolo: ...
-Body:
-...
-Link: ...
-Categoria: ...
-[/POST_ORIGINALE]
+Allineare il branch **`isSpotifyTrack`** al layout Vetrina del branch `isSpotifyEpisode`, così Vinile mostra:
 
-[THREAD_COMMENTI]
-...
-[/THREAD_COMMENTI]
+1. **Titolo editoriale** (`post.title`) in alto in stile Impact (già presente nel layout episode)
+2. **Body** (`post.content`) con truncation a 400 char + "Mostra tutto" via `MentionText`
+3. **Card compatta Spotify** in basso (artwork + nome canzone + artista + pill verde) → riusare `SpotifyPodcastCompactCard` oppure creare/usare un componente equivalente per i brani musicali (l'attuale è già visivamente adatto: immagine quadrata + titolo + sottotitolo + pill).
 
-[COMMENTO_CHE_TI_MENZIONA]
-@utente: "..."
-[/COMMENTO_CHE_TI_MENZIONA]
-```
+In pratica il branch `isSpotifyTrack` diventa quasi identico a `isSpotifyEpisode`, con la sola differenza semantica del componente compatto in basso (track vs episode — ma a livello visuale `SpotifyPodcastCompactCard` funziona benissimo anche per le canzoni: mostra immagine + nome + sottotitolo + click su Spotify).
 
-Inoltre aumenterò il truncate del body da 3000 a 4000 caratteri per post lunghi come quelli di Mic.
+### File da modificare
 
-## Fix 2B — Riscrittura confini tematici
+- `src/components/feed/ImmersivePostCard.tsx` → sostituire il blocco righe **2361–2403** con un layout Vetrina analogo a quello degli episodi (titolo + body + card compatta in basso).
 
-Nel `NOPARROT_BASE_PROMPT` (linee 17-98), sostituirò:
-- Linea 84: `"Se il thread riguarda un tema fuori dalla tua area di competenza, dichiaralo con onestà"` 
-- Linea 42: `"Quando non hai informazioni sufficienti, lo dici esplicitamente: 'Su questo punto specifico non ho elementi sufficienti...'"`
-- Linea 47: `"se la tua aggiunta sarebbe ridondante, dì semplicemente 'Su questo thread non ho elementi...'"`
-- Linea 96: `"Il contesto che ho ricevuto non mi permette di aggiungere qualcosa di utile..."`
+### Note
 
-Con la logica a 3 livelli richiesta:
-1. **Tema nel tuo ambito** → rispondi con profondità
-2. **Tema adiacente** → rispondi brevemente dalla tua angolazione specifica
-3. **Tema completamente fuori** → rispondi con pensiero genuino, domanda curiosa, o osservazione da persona interessata. Mai rifiutare.
-
-Rimuoverò anche linea 52: `"Sono un profilo AI, non ho un ieri"` e simili auto-dichiarazioni da bot nei commenti.
-
-## Fix 2C — Tono conversazionale e lunghezza
-
-Nella sezione `# FORMATO OUTPUT` (linee 59-70), cambierò:
-- `"tra 80 e 250 parole per le risposte on-mention"` → `"tra 50 e 150 parole per le risposte on-mention, idealmente 50-100"`
-- Aggiungerò: `"Le risposte ai commenti devono avere lo stesso registro e tono dei tuoi post. Sei conversazionale, non enciclopedico. Scrivi come parleresti, non come scriveresti un paper."`
-- Aggiungerò: `"Usa emoji coerenti con il tuo stile di posting (1-2 max). Non iniziare con formule tipo 'Ottima domanda' o 'Interessante punto'."`
-
-## Riepilogo
-
-| Fix | Cosa cambia | Dove nel file |
-|-----|------------|---------------|
-| 2A | Ristruttura blocco contesto, body a 4000 chars | Linee 302-313 |
-| 2B | Riscrive regole su confini tematici nel base prompt | Linee 17-98 (NOPARROT_BASE_PROMPT) |
-| 2C | Riduce lunghezza, aggiunge istruzioni tono | Linee 59-70 nel base prompt |
-
-Nessun altro file viene toccato. Deploy della sola edge function `process-ai-mentions`.
+- Nessuna modifica al DB, edge function, o system prompt: il body c'è e viene generato correttamente.
+- Nessuna modifica al ramo `isSpotifyEpisode` (Mic) né ad altri rami.
+- Il fix è puramente di presentazione e si limita a un singolo file.
 
