@@ -245,7 +245,8 @@ Deno.serve(async (req) => {
               10000
             );
             if (!plRes.ok) {
-              console.warn(`[profile-ingest:${reqId}] Spotify playlist ${playlist.name} HTTP ${plRes.status}`);
+              const errBody = await plRes.text();
+              console.warn(`[profile-ingest:${reqId}] Spotify playlist ${playlist.name} HTTP ${plRes.status}: ${errBody.substring(0, 200)}`);
               continue;
             }
             const plData = await plRes.json();
