@@ -530,12 +530,6 @@ brief_specifico: scrivi un post digest su questo episodio seguendo le tue regole
 
         // ── BRANCH VINILE: flusso musica/testi ──
         if (profile.handle === 'vinile') {
-          const GENIUS_API_KEY = Deno.env.get('GENIUS_API_KEY');
-          if (!GENIUS_API_KEY) {
-            console.warn(`[profile-compose:${reqId} vinile] No GENIUS_API_KEY, skipping`);
-            continue;
-          }
-
           // Fetch candidates from profile_source_feed
           const { data: vinileCandidatesRaw, error: vinileCandErr } = await supabase
             .from('profile_source_feed')
@@ -553,14 +547,6 @@ brief_specifico: scrivi un post digest su questo episodio seguendo le tue regole
 
           // Artist cooldown: max 2 posts per artist per week
           const weekAgoVinile = new Date(nowUtc.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-          const { data: recentVinilePosts } = await supabase
-            .from('posts')
-            .select('shared_url')
-            .eq('author_id', profile.user_id)
-            .gte('created_at', weekAgoVinile);
-
-          // Extract artist names from recent posts' shared_urls (Spotify track URLs)
-          // We'll track by source_name from profile_source_feed (which contains the artist/playlist)
           const { data: recentVinileFeed } = await supabase
             .from('profile_source_feed')
             .select('source_name')
@@ -570,11 +556,9 @@ brief_specifico: scrivi un post digest su questo episodio seguendo le tue regole
 
           const artistCounts: Record<string, number> = {};
           for (const row of recentVinileFeed || []) {
-            // source_name for Vinile will contain the artist name
             artistCounts[row.source_name] = (artistCounts[row.source_name] || 0) + 1;
           }
 
-          // Filter by artist cooldown
           const vinileCandidates = vinileCandidatesRaw.filter(c => {
             const count = artistCounts[c.source_name] || 0;
             if (count >= 2) {
@@ -589,103 +573,56 @@ brief_specifico: scrivi un post digest su questo episodio seguendo le tue regole
             continue;
           }
 
-          // Try each candidate until one has lyrics via Genius
+          // Try each candidate until one has lyrics via fetch-lyrics edge function
           let selectedVinile: typeof vinileCandidates[0] | null = null;
           let lyrics: string | null = null;
-          let geniusUrl: string | null = null;
 
           for (const candidate of vinileCandidates) {
             const tag = `[profile-compose:${reqId} vinile]`;
-            // Parse artist and track from article_title (format: "Artist - Track" or "Track" with source_name as artist)
-            let searchQuery = candidate.article_title;
-            if (candidate.source_name && !candidate.article_title.includes(candidate.source_name)) {
-              searchQuery = `${candidate.source_name} ${candidate.article_title}`;
-            }
+            // Parse artist and track title
+            const artistName = candidate.source_name || '';
+            const trackTitle = candidate.article_title || '';
 
-            console.log(`${tag} Searching Genius for: "${searchQuery}"`);
+            // Try to extract trackId from Spotify URL
+            const trackIdMatch = candidate.article_url?.match(/track\/([a-zA-Z0-9]+)/);
+            const trackId = trackIdMatch?.[1] || null;
+
+            console.log(`${tag} Trying lyrics for: "${artistName} - ${trackTitle}" (trackId: ${trackId || 'none'})`);
 
             try {
-              // Search Genius
-              const geniusSearchUrl = `https://api.genius.com/search?q=${encodeURIComponent(searchQuery.substring(0, 100))}`;
-              const geniusSearchResp = await fetchWithTimeout(geniusSearchUrl, {
-                headers: { 'Authorization': `Bearer ${GENIUS_API_KEY}` }
-              }, 10000);
-
-              if (!geniusSearchResp.ok) {
-                console.warn(`${tag} Genius search HTTP ${geniusSearchResp.status}`);
-                continue;
-              }
-
-              const geniusSearchData = await geniusSearchResp.json();
-              const hits = geniusSearchData.response?.hits || [];
-              if (hits.length === 0) {
-                console.warn(`${tag} No Genius results for "${searchQuery}"`);
-                continue;
-              }
-
-              // Pick best match
-              const bestHit = hits[0];
-              const songPath = bestHit.result?.path;
-              const songUrl = bestHit.result?.url;
-              if (!songPath) {
-                console.warn(`${tag} No song path in Genius result`);
-                continue;
-              }
-
-              console.log(`${tag} Found on Genius: "${bestHit.result?.full_title}" → ${songUrl}`);
-              geniusUrl = songUrl;
-
-              // Fetch lyrics page and extract text
-              // Use Genius API to get song details (lyrics are not in the API, need to scrape)
-              // Alternative: use the lyrics endpoint or scrape the page
-              const lyricsPageResp = await fetchWithTimeout(`https://genius.com${songPath}`, {
+              // Call the fetch-lyrics edge function which uses racing pattern (Lyrics.ovh + Genius + Musixmatch)
+              const lyricsResp = await fetchWithTimeout(`${supabaseUrl}/functions/v1/fetch-lyrics`, {
+                method: 'POST',
                 headers: {
-                  'Accept': 'text/html,application/xhtml+xml',
-                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                  'Accept-Language': 'it-IT,it;q=0.9,en;q=0.8',
-                }
-              }, 10000);
+                  'Authorization': `Bearer ${serviceRoleKey}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  artist: artistName,
+                  title: trackTitle,
+                  ...(trackId ? { trackId } : {})
+                })
+              }, 30000);
 
-              if (!lyricsPageResp.ok) {
-                console.warn(`${tag} Failed to fetch lyrics page: HTTP ${lyricsPageResp.status}`);
+              if (!lyricsResp.ok) {
+                const errText = await lyricsResp.text();
+                console.warn(`${tag} fetch-lyrics HTTP ${lyricsResp.status}: ${errText.substring(0, 200)}`);
                 continue;
               }
 
-              const lyricsHtml = await lyricsPageResp.text();
-              
-              // Extract lyrics from the HTML
-              // Genius lyrics are in <div data-lyrics-container="true"> elements
-              const lyricsMatches = lyricsHtml.match(/data-lyrics-container="true"[^>]*>([\s\S]*?)<\/div>/g) || [];
-              let extractedLyrics = '';
-              for (const match of lyricsMatches) {
-                // Strip HTML tags
-                let text = match
-                  .replace(/data-lyrics-container="true"[^>]*>/, '')
-                  .replace(/<\/div>$/, '')
-                  .replace(/<br\s*\/?>/gi, '\n')
-                  .replace(/<[^>]+>/g, '')
-                  .replace(/&amp;/g, '&')
-                  .replace(/&lt;/g, '<')
-                  .replace(/&gt;/g, '>')
-                  .replace(/&#x27;/g, "'")
-                  .replace(/&quot;/g, '"')
-                  .trim();
-                if (text) extractedLyrics += text + '\n\n';
-              }
+              const lyricsData = await lyricsResp.json();
 
-              extractedLyrics = extractedLyrics.trim();
-
-              if (extractedLyrics.length < 100) {
-                console.warn(`${tag} Lyrics too short (${extractedLyrics.length} chars), trying next candidate`);
+              if (!lyricsData.success || !lyricsData.lyrics || lyricsData.lyrics.length < 100) {
+                console.warn(`${tag} Lyrics not found or too short for "${trackTitle}" (${lyricsData.lyrics?.length || 0} chars)`);
                 continue;
               }
 
-              console.log(`${tag} ✓ Got lyrics: ${extractedLyrics.length} chars`);
+              console.log(`${tag} ✓ Got lyrics: ${lyricsData.lyrics.length} chars via ${lyricsData.source || 'racing'}`);
               selectedVinile = candidate;
-              lyrics = extractedLyrics;
+              lyrics = lyricsData.lyrics;
               break;
             } catch (e: any) {
-              console.warn(`${tag} Error fetching lyrics for "${searchQuery}": ${e.message}`);
+              console.warn(`${tag} Error fetching lyrics for "${trackTitle}": ${e.message}`);
               continue;
             }
           }
