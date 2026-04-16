@@ -76,12 +76,11 @@ const PROFILE_FEEDS: Record<string, FeedConfig[]> = {
 
 // Spotify editorial playlist IDs for Vinile
 const VINILE_PLAYLISTS: Array<{ name: string; id: string }> = [
-  { name: "New Music Friday Italia", id: "37i9dQZF1DWUO8b5ycWkhi" },
-  { name: "Cantautorato", id: "37i9dQZF1DX1MYPbVAfBiE" },
-  { name: "Pop Italia", id: "37i9dQZF1DWVUhMeFRfSMj" },
-  { name: "Indie Italia", id: "37i9dQZF1DX0FVhZvnuhwd" },
-  { name: "La Crème", id: "37i9dQZF1DX5lMKzSBaHgL" },
-  { name: "Hot Hits Italia", id: "37i9dQZF1DWT5lkChsPmpy" }
+  { name: "New Music Friday Italia", id: "37i9dQZF1DWVKDF4ycOESi" },
+  { name: "Hot Hits Italia", id: "37i9dQZF1DX6wfQutivYYr" },
+  { name: "Indie Italia", id: "37i9dQZF1DX6PSDDh80gxI" },
+  { name: "Fresh Finds Italia", id: "37i9dQZF1DX0KBgD4Jf5tY" },
+  { name: "Italian Music", id: "37i9dQZF1DX572PAi3rtlM" }
 ];
 
 // ---------- Spotify token cache ----------
