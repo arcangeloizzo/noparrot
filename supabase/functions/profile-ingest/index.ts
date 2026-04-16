@@ -238,41 +238,51 @@ Deno.serve(async (req) => {
         }
 
         const vinileArticles: any[] = [];
-        for (const playlist of VINILE_PLAYLISTS) {
+        // Use Spotify Search API to find popular Italian tracks instead of playlists
+        const searchQueries = [
+          'tag:new year:2026 genre:italian',
+          'tag:new year:2025 genre:pop italiano',
+          'tag:new year:2026 genre:indie italiano',
+          'musica italiana 2026',
+          'cantautorato italiano nuovo',
+        ];
+
+        for (const query of searchQueries) {
           try {
-            const plRes = await fetchWithTimeout(
-              `https://api.spotify.com/v1/playlists/${playlist.id}/tracks?market=IT&limit=20`,
-              { headers: { 'Authorization': `Bearer ${vToken}` } },
-              10000
-            );
-            if (!plRes.ok) {
-              const errBody = await plRes.text();
-              console.warn(`[profile-ingest:${reqId}] Spotify playlist ${playlist.name} HTTP ${plRes.status}: ${errBody.substring(0, 200)}`);
+            const searchUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&market=IT&limit=20`;
+            const searchRes = await fetchWithTimeout(searchUrl, {
+              headers: { 'Authorization': `Bearer ${vToken}` }
+            }, 10000);
+
+            if (!searchRes.ok) {
+              console.warn(`[profile-ingest:${reqId}] Spotify search "${query}" HTTP ${searchRes.status}`);
               continue;
             }
-            const plData = await plRes.json();
-            for (const item of plData.items || []) {
-              const track = item.track;
-              if (!track || !track.name) continue;
+
+            const searchData = await searchRes.json();
+            const tracks = searchData?.tracks?.items || [];
+            console.log(`[profile-ingest:${reqId}] Spotify search "${query}": ${tracks.length} results`);
+
+            for (const track of tracks) {
+              if (!track?.name) continue;
               const artistNames = (track.artists || []).map((a: any) => a.name).join(', ');
               const spotifyUrl = track.external_urls?.spotify || '';
               if (!spotifyUrl) continue;
 
               vinileArticles.push({
                 profile_id: profile.id,
-                source_name: artistNames, // Artist name for cooldown tracking
-                source_url: `https://open.spotify.com/playlist/${playlist.id}`,
+                source_name: artistNames,
+                source_url: 'https://open.spotify.com',
                 article_title: track.name,
                 article_url: spotifyUrl,
-                article_summary: `${artistNames} — ${track.name} (Album: ${track.album?.name || 'N/A'}). Dalla playlist ${playlist.name}.`,
-                article_published_at: item.added_at || new Date().toISOString(),
+                article_summary: `${artistNames} — ${track.name} (Album: ${track.album?.name || 'N/A'}, ${track.album?.release_date || 'N/A'}).`,
+                article_published_at: track.album?.release_date ? new Date(track.album.release_date).toISOString() : new Date().toISOString(),
                 raw_content: null
               });
             }
-            console.log(`[profile-ingest:${reqId}] Fetched ${plData.items?.length || 0} tracks from ${playlist.name}`);
             await delay(100);
           } catch (e: any) {
-            console.warn(`[profile-ingest:${reqId}] Error fetching playlist ${playlist.name}: ${e.message}`);
+            console.warn(`[profile-ingest:${reqId}] Error searching Spotify: ${e.message}`);
           }
         }
 
