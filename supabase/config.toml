@@ -81,6 +81,15 @@ verify_jwt = true
 [functions.submit-challenge-response]
 verify_jwt = false
 
+[functions.profile-compose-post]
+verify_jwt = false
+
+[functions.profile-ingest]
+verify_jwt = false
+
+[functions.process-ai-mentions]
+verify_jwt = false
+
 [functions.share]
 verify_jwt = false
 
