@@ -639,7 +639,11 @@ brief_specifico: scrivi un post digest su questo episodio seguendo le tue regole
               // Use Genius API to get song details (lyrics are not in the API, need to scrape)
               // Alternative: use the lyrics endpoint or scrape the page
               const lyricsPageResp = await fetchWithTimeout(`https://genius.com${songPath}`, {
-                headers: { 'Accept': 'text/html' }
+                headers: {
+                  'Accept': 'text/html,application/xhtml+xml',
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                  'Accept-Language': 'it-IT,it;q=0.9,en;q=0.8',
+                }
               }, 10000);
 
               if (!lyricsPageResp.ok) {
