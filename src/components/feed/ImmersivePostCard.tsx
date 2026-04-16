@@ -1383,9 +1383,12 @@ const ImmersivePostCardInner = ({
   const isIntentPost = !!post.is_intent;
   const articleTitle = decodeHTMLEntities(articlePreview?.title || post.shared_title || '');
   // Show user text ONLY if it's genuinely different from title AND extracted content
-  const shouldShowUserText = hasLink && post.content &&
-    !isTextSimilarToTitle(post.content, articleTitle) &&
-    !isTextSimilarToArticleContent(post.content, articlePreview);
+  // AI institutional profiles bypass these heuristics: their bodies are always editorially distinct
+  const shouldShowUserText = hasLink && post.content && (
+    isAiAuthor ||
+    (!isTextSimilarToTitle(post.content, articleTitle) &&
+     !isTextSimilarToArticleContent(post.content, articlePreview))
+  );
 
   // Reshare Stack logic: detect if this is a reshare where the QUOTED POST has short comment (<30 words)
   // (quotedPostWordCount already computed early for hook ordering)
