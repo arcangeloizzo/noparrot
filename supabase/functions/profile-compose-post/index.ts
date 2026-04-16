@@ -528,6 +528,287 @@ brief_specifico: scrivi un post digest su questo episodio seguendo le tue regole
         }
         // ── END BRANCH MIC ──
 
+        // ── BRANCH VINILE: flusso musica/testi ──
+        if (profile.handle === 'vinile') {
+          const GENIUS_API_KEY = Deno.env.get('GENIUS_API_KEY');
+          if (!GENIUS_API_KEY) {
+            console.warn(`[profile-compose:${reqId} vinile] No GENIUS_API_KEY, skipping`);
+            continue;
+          }
+
+          // Fetch candidates from profile_source_feed
+          const { data: vinileCandidatesRaw, error: vinileCandErr } = await supabase
+            .from('profile_source_feed')
+            .select('*')
+            .eq('profile_id', profile.id)
+            .eq('is_relevant', true)
+            .is('used_in_post_id', null)
+            .order('article_published_at', { ascending: false })
+            .limit(15);
+
+          if (vinileCandErr || !vinileCandidatesRaw || vinileCandidatesRaw.length === 0) {
+            console.warn(`[profile-compose:${reqId} vinile] No candidates available, skipping`);
+            continue;
+          }
+
+          // Artist cooldown: max 2 posts per artist per week
+          const weekAgoVinile = new Date(nowUtc.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          const { data: recentVinilePosts } = await supabase
+            .from('posts')
+            .select('shared_url')
+            .eq('author_id', profile.user_id)
+            .gte('created_at', weekAgoVinile);
+
+          // Extract artist names from recent posts' shared_urls (Spotify track URLs)
+          // We'll track by source_name from profile_source_feed (which contains the artist/playlist)
+          const { data: recentVinileFeed } = await supabase
+            .from('profile_source_feed')
+            .select('source_name')
+            .eq('profile_id', profile.id)
+            .not('used_in_post_id', 'is', null)
+            .gte('fetched_at', weekAgoVinile);
+
+          const artistCounts: Record<string, number> = {};
+          for (const row of recentVinileFeed || []) {
+            // source_name for Vinile will contain the artist name
+            artistCounts[row.source_name] = (artistCounts[row.source_name] || 0) + 1;
+          }
+
+          // Filter by artist cooldown
+          const vinileCandidates = vinileCandidatesRaw.filter(c => {
+            const count = artistCounts[c.source_name] || 0;
+            if (count >= 2) {
+              console.log(`[profile-compose:${reqId} vinile] Skipping "${c.source_name}" — already ${count} posts this week (max 2)`);
+              return false;
+            }
+            return true;
+          });
+
+          if (vinileCandidates.length === 0) {
+            console.warn(`[profile-compose:${reqId} vinile] All candidates filtered by artist cooldown, skipping`);
+            continue;
+          }
+
+          // Try each candidate until one has lyrics via Genius
+          let selectedVinile: typeof vinileCandidates[0] | null = null;
+          let lyrics: string | null = null;
+          let geniusUrl: string | null = null;
+
+          for (const candidate of vinileCandidates) {
+            const tag = `[profile-compose:${reqId} vinile]`;
+            // Parse artist and track from article_title (format: "Artist - Track" or "Track" with source_name as artist)
+            let searchQuery = candidate.article_title;
+            if (candidate.source_name && !candidate.article_title.includes(candidate.source_name)) {
+              searchQuery = `${candidate.source_name} ${candidate.article_title}`;
+            }
+
+            console.log(`${tag} Searching Genius for: "${searchQuery}"`);
+
+            try {
+              // Search Genius
+              const geniusSearchUrl = `https://api.genius.com/search?q=${encodeURIComponent(searchQuery.substring(0, 100))}`;
+              const geniusSearchResp = await fetchWithTimeout(geniusSearchUrl, {
+                headers: { 'Authorization': `Bearer ${GENIUS_API_KEY}` }
+              }, 10000);
+
+              if (!geniusSearchResp.ok) {
+                console.warn(`${tag} Genius search HTTP ${geniusSearchResp.status}`);
+                continue;
+              }
+
+              const geniusSearchData = await geniusSearchResp.json();
+              const hits = geniusSearchData.response?.hits || [];
+              if (hits.length === 0) {
+                console.warn(`${tag} No Genius results for "${searchQuery}"`);
+                continue;
+              }
+
+              // Pick best match
+              const bestHit = hits[0];
+              const songPath = bestHit.result?.path;
+              const songUrl = bestHit.result?.url;
+              if (!songPath) {
+                console.warn(`${tag} No song path in Genius result`);
+                continue;
+              }
+
+              console.log(`${tag} Found on Genius: "${bestHit.result?.full_title}" → ${songUrl}`);
+              geniusUrl = songUrl;
+
+              // Fetch lyrics page and extract text
+              // Use Genius API to get song details (lyrics are not in the API, need to scrape)
+              // Alternative: use the lyrics endpoint or scrape the page
+              const lyricsPageResp = await fetchWithTimeout(`https://genius.com${songPath}`, {
+                headers: { 'Accept': 'text/html' }
+              }, 10000);
+
+              if (!lyricsPageResp.ok) {
+                console.warn(`${tag} Failed to fetch lyrics page: HTTP ${lyricsPageResp.status}`);
+                continue;
+              }
+
+              const lyricsHtml = await lyricsPageResp.text();
+              
+              // Extract lyrics from the HTML
+              // Genius lyrics are in <div data-lyrics-container="true"> elements
+              const lyricsMatches = lyricsHtml.match(/data-lyrics-container="true"[^>]*>([\s\S]*?)<\/div>/g) || [];
+              let extractedLyrics = '';
+              for (const match of lyricsMatches) {
+                // Strip HTML tags
+                let text = match
+                  .replace(/data-lyrics-container="true"[^>]*>/, '')
+                  .replace(/<\/div>$/, '')
+                  .replace(/<br\s*\/?>/gi, '\n')
+                  .replace(/<[^>]+>/g, '')
+                  .replace(/&amp;/g, '&')
+                  .replace(/&lt;/g, '<')
+                  .replace(/&gt;/g, '>')
+                  .replace(/&#x27;/g, "'")
+                  .replace(/&quot;/g, '"')
+                  .trim();
+                if (text) extractedLyrics += text + '\n\n';
+              }
+
+              extractedLyrics = extractedLyrics.trim();
+
+              if (extractedLyrics.length < 100) {
+                console.warn(`${tag} Lyrics too short (${extractedLyrics.length} chars), trying next candidate`);
+                continue;
+              }
+
+              console.log(`${tag} ✓ Got lyrics: ${extractedLyrics.length} chars`);
+              selectedVinile = candidate;
+              lyrics = extractedLyrics;
+              break;
+            } catch (e: any) {
+              console.warn(`${tag} Error fetching lyrics for "${searchQuery}": ${e.message}`);
+              continue;
+            }
+          }
+
+          if (!selectedVinile || !lyrics) {
+            console.warn(`[profile-compose:${reqId} vinile] No candidate with lyrics available — skipping`);
+            continue;
+          }
+
+          console.log(`[profile-compose:${reqId} vinile] Selected: "${selectedVinile.article_title}" from ${selectedVinile.source_name}, lyrics: ${lyrics.length} chars`);
+
+          const formattedDateVinile = formatInTimeZone(nowUtc, 'Europe/Rome', "EEEE d MMMM yyyy, 'ore' HH:mm", { locale: it });
+
+          // Truncate lyrics if too long
+          const truncatedLyrics = lyrics.length > 5000
+            ? lyrics.substring(0, 5000) + '\n\n[TESTO TRONCATO]'
+            : lyrics;
+
+          const vinileContextBlock = `[CONTESTO_VINILE_PROACTIVE]
+data_post: ${formattedDateVinile}
+modalita: canzone_del_giorno
+canzone_scelta:
+- artista: ${selectedVinile.source_name}
+- titolo: ${selectedVinile.article_title}
+- descrizione: ${(selectedVinile.article_summary || '').substring(0, 500)}
+- data_pubblicazione: ${selectedVinile.article_published_at}
+- link_spotify: ${selectedVinile.article_url}
+testo_completo:
+${truncatedLyrics}
+brief_specifico: Scrivi un post sulla canzone del giorno seguendo le tue regole. Parti dal testo, elabora con la tua voce, chiudi con invito all'ascolto. Ricorda: max UN verso breve (sotto 15 parole) come citazione, il resto è la tua voce. Output in JSON con title e body.
+[/CONTESTO_VINILE_PROACTIVE]`;
+
+          const fullSysVinile = NOPARROT_BASE_PROMPT + '\n\n---\n\n' + profile.system_prompt;
+          const vinileGeminiStart = Date.now();
+
+          const vinileResp = await fetchWithTimeout('https://ai.gateway.lovable.dev/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${LOVABLE_API_KEY}` },
+            body: JSON.stringify({
+              model: 'google/gemini-2.5-flash',
+              messages: [
+                { role: 'system', content: fullSysVinile },
+                { role: 'user', content: vinileContextBlock }
+              ],
+              temperature: 0.8,
+              top_p: 0.9,
+              max_tokens: 800,
+              response_format: { type: 'json_object' }
+            })
+          }, 45000);
+
+          const vinileDurationMs = Date.now() - vinileGeminiStart;
+          if (!vinileResp.ok) throw new Error(`Gateway HTTP ${vinileResp.status}`);
+
+          const vinileCompletion = await vinileResp.json();
+          let vinileRaw = vinileCompletion.choices?.[0]?.message?.content?.trim() || vinileCompletion.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+          if (!vinileRaw) throw new Error('Empty response from Gemini for Vinile');
+
+          let vinileParsed: { title?: string; body?: string };
+          try {
+            vinileParsed = JSON.parse(vinileRaw.replace(/```json/g, '').replace(/```/g, '').trim());
+          } catch (_e) {
+            throw new Error(`Invalid JSON from Gemini for Vinile: ${vinileRaw.substring(0, 200)}`);
+          }
+          if (!vinileParsed.title || !vinileParsed.body) throw new Error('Vinile JSON missing title/body');
+
+          let vinileTitle = vinileParsed.title.trim();
+          let vinileBody = vinileParsed.body.trim();
+          if (vinileTitle.length > 80) vinileTitle = vinileTitle.substring(0, 77) + '...';
+          if (vinileBody.length < 100) throw new Error(`Vinile body too short: ${vinileBody.length}`);
+          if (vinileBody.length > 3500) vinileBody = vinileBody.substring(0, 3497) + '...';
+
+          // Validate min 50 words
+          validateOutputWordCount(vinileBody, profile.handle, selectedVinile.article_title);
+
+          const vinileResponseText = vinileTitle + '\n\n' + vinileBody;
+
+          let vinileModPassed = true;
+          let vinileModNotes = '';
+          const blockedPhrasesVinile = [/è falso che/i, /non è vero/i, /il dato corretto è/i, /in realtà/i, /smentisco/i, /ti sbagli/i];
+          for (const rx of blockedPhrasesVinile) {
+            if (rx.test(vinileResponseText)) { vinileModPassed = false; vinileModNotes += `Matched ${rx}. `; }
+          }
+
+          const vinilePT = vinileCompletion.usage?.prompt_tokens || Math.ceil((fullSysVinile.length + vinileContextBlock.length) / 4);
+          const vinileCT = vinileCompletion.usage?.completion_tokens || Math.ceil(vinileResponseText.length / 4);
+          const vinileCost = (vinilePT / 1000000) * PRICE_INPUT_PER_MTOK + (vinileCT / 1000000) * PRICE_OUTPUT_PER_MTOK;
+
+          const { data: vinilePost, error: vinilePostErr } = await supabase
+            .from('posts')
+            .insert({
+              author_id: profile.user_id,
+              title: vinileTitle,
+              content: vinileBody,
+              post_type: 'standard',
+              category: 'musica',
+              shared_url: selectedVinile.article_url
+            })
+            .select('id')
+            .single();
+
+          if (vinilePostErr || !vinilePost) throw new Error(`Failed to publish Vinile post: ${vinilePostErr?.message}`);
+
+          await supabase.from('profile_source_feed').update({ used_in_post_id: vinilePost.id }).eq('id', selectedVinile.id);
+
+          await supabase.from('ai_generation_log').insert({
+            queue_id: null,
+            profile_id: profile.id,
+            generation_type: 'proactive',
+            model_used: 'google/gemini-2.5-flash',
+            system_prompt_version: profile.system_prompt_version,
+            prompt_tokens: vinilePT,
+            completion_tokens: vinileCT,
+            total_cost_usd: vinileCost,
+            response_text: vinileResponseText,
+            moderation_passed: vinileModPassed,
+            moderation_notes: `mode:canzone_del_giorno. lyrics_chars:${lyrics.length}. ${vinileModNotes}`,
+            duration_ms: vinileDurationMs
+          });
+
+          stats.posts_published++;
+          console.log(`[profile-compose:${reqId} vinile] Published ${vinilePost.id} (canzone_del_giorno, ${lyrics.length} chars lyrics)`);
+          continue;
+        }
+        // ── END BRANCH VINILE ──
+
+
         const { data: candidates, error: candErr } = await supabase
           .from('profile_source_feed')
           .select('*')

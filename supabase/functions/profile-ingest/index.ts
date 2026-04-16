@@ -74,6 +74,15 @@ const PROFILE_FEEDS: Record<string, FeedConfig[]> = {
   ]
 };
 
+// Spotify editorial playlist IDs for Vinile
+const VINILE_PLAYLISTS: Array<{ name: string; id: string }> = [
+  { name: "New Music Friday Italia", id: "37i9dQZF1DWVKDF4ycOESi" },
+  { name: "Hot Hits Italia", id: "37i9dQZF1DX6wfQutivYYr" },
+  { name: "Indie Italia", id: "37i9dQZF1DX6PSDDh80gxI" },
+  { name: "Fresh Finds Italia", id: "37i9dQZF1DX0KBgD4Jf5tY" },
+  { name: "Italian Music", id: "37i9dQZF1DX572PAi3rtlM" }
+];
+
 // ---------- Spotify token cache ----------
 let spotifyToken: string | null = null;
 let spotifyTokenExpiry = 0;
@@ -218,6 +227,102 @@ Deno.serve(async (req) => {
     // 3. Process each profile in series
     for (const profile of profiles) {
       console.log(`[profile-ingest:${reqId}] Processing profile ${profile.handle} for area: ${profile.area}`);
+
+      // ── BRANCH VINILE: Spotify playlist tracks ──
+      if (profile.handle === 'vinile') {
+        const vToken = await getSpotifyToken(reqId);
+        console.log(`[profile-ingest:${reqId}] Vinile Spotify token: ${vToken ? 'OK (' + vToken.substring(0,10) + '...)' : 'FAILED'}`);
+        if (!vToken) {
+          console.warn(`[profile-ingest:${reqId}] No Spotify token for Vinile, skipping`);
+          continue;
+        }
+
+        const vinileArticles: any[] = [];
+        // Use Spotify Search API to find popular Italian tracks instead of playlists
+        const searchQueries = [
+          'tag:new year:2026 genre:italian',
+          'tag:new year:2025 genre:pop italiano',
+          'tag:new year:2026 genre:indie italiano',
+          'musica italiana 2026',
+          'cantautorato italiano nuovo',
+        ];
+
+        for (const query of searchQueries) {
+          try {
+            const searchUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&market=IT&limit=20`;
+            const searchRes = await fetchWithTimeout(searchUrl, {
+              headers: { 'Authorization': `Bearer ${vToken}` }
+            }, 10000);
+
+            if (!searchRes.ok) {
+              console.warn(`[profile-ingest:${reqId}] Spotify search "${query}" HTTP ${searchRes.status}`);
+              continue;
+            }
+
+            const searchData = await searchRes.json();
+            const tracks = searchData?.tracks?.items || [];
+            console.log(`[profile-ingest:${reqId}] Spotify search "${query}": ${tracks.length} results`);
+
+            for (const track of tracks) {
+              if (!track?.name) continue;
+              const artistNames = (track.artists || []).map((a: any) => a.name).join(', ');
+              const spotifyUrl = track.external_urls?.spotify || '';
+              if (!spotifyUrl) continue;
+
+              vinileArticles.push({
+                profile_id: profile.id,
+                source_name: artistNames,
+                source_url: 'https://open.spotify.com',
+                article_title: track.name,
+                article_url: spotifyUrl,
+                article_summary: `${artistNames} — ${track.name} (Album: ${track.album?.name || 'N/A'}, ${track.album?.release_date || 'N/A'}).`,
+                article_published_at: track.album?.release_date ? new Date(track.album.release_date).toISOString() : new Date().toISOString(),
+                raw_content: null
+              });
+            }
+            await delay(100);
+          } catch (e: any) {
+            console.warn(`[profile-ingest:${reqId}] Error searching Spotify: ${e.message}`);
+          }
+        }
+
+        if (vinileArticles.length === 0) {
+          console.log(`[profile-ingest:${reqId}] No tracks found for Vinile`);
+          continue;
+        }
+
+        // Deduplicate by article_url
+        const seen = new Set<string>();
+        const uniqueArticles = vinileArticles.filter(a => {
+          if (seen.has(a.article_url)) return false;
+          seen.add(a.article_url);
+          return true;
+        });
+
+        const { data: upsertedVinile, error: upsertErrVinile } = await supabase
+          .from('profile_source_feed')
+          .upsert(uniqueArticles, { onConflict: 'profile_id,article_url' })
+          .select('id, article_title, is_relevant');
+
+        if (upsertErrVinile) {
+          console.error(`[profile-ingest:${reqId}] Vinile upsert failed: ${upsertErrVinile.message}`);
+          continue;
+        }
+
+        // Auto-mark new ones as relevant
+        const newVinile = (upsertedVinile || []).filter(a => a.is_relevant === null);
+        for (const art of newVinile) {
+          await supabase.from('profile_source_feed')
+            .update({ is_relevant: true, relevance_score: 0.8 })
+            .eq('id', art.id);
+          stats.total_articles_relevant++;
+        }
+        stats.total_articles_fetched += uniqueArticles.length;
+        console.log(`[profile-ingest:${reqId}] Vinile: ${uniqueArticles.length} tracks ingested, ${newVinile.length} new`);
+        continue;
+      }
+      // ── END BRANCH VINILE ──
+
       const feeds = PROFILE_FEEDS[profile.handle] || [];
       const isPodcastProfile = feeds.some(f => f.type === 'podcast');
       const timeThreshold = isPodcastProfile ? time96HoursAgo : time48HoursAgo;
