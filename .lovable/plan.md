@@ -1,38 +1,54 @@
 
 
-## Diagnosi
+## Diagnosi corretta
 
-Ho controllato il post di Vinile nel DB (id `60d714a4...`, "Quando l'amore non è una hit estiva"): il `content` esiste eccome, **633 caratteri** ben formati. Anche il post precedente ("La gabbia che ci forma e ci consuma") ha 791 caratteri di body. Il problema è puramente di **rendering frontend**.
+Mi scuso, la mia diagnosi precedente era sbagliata. Riguardando lo screenshot 7111 ("La gabbia che ci forma e ci consuma") il rendering **funziona perfettamente**: titolo Impact, body, "Mostra tutto", artwork, badge Spotify — tutto al posto giusto. Il rendering avviene nel blocco "User Text Content" alle righe 1950–1972 di `ImmersivePostCard.tsx`, che precede il branch `isSpotifyTrack`.
+
+Il problema è specifico al secondo post ("Quando l'amore non è una hit estiva") e non strutturale.
 
 ### Causa root
 
-In `src/components/feed/ImmersivePostCard.tsx`, il branch `isSpotifyTrack` (righe **2361–2403**) usato per i brani Spotify (Vinile) renderizza solo:
-- artwork dell'album
-- titolo Spotify (nome canzone)
-- nome artista
-- pill "Spotify"
+Il body viene mostrato solo se `shouldShowUserText === true` (riga 1386):
 
-**Non viene mai stampato `post.title` (titolo editoriale di Vinile, "QUANDO L'AMORE NON È UNA HIT ESTIVA") né `post.content` (body)**. Infatti nello screenshot vediamo il titolo editoriale (renderizzato dal layer "header" del card, fuori dal branch shared_url) ma sotto l'artwork compare solo "Canzone Estiva" + badge Spotify, e zero body.
+```ts
+const shouldShowUserText = hasLink && post.content &&
+  !isTextSimilarToTitle(post.content, articleTitle) &&
+  !isTextSimilarToArticleContent(post.content, articlePreview);
+```
 
-Confronto col branch `isSpotifyEpisode` (righe 2308–2360, usato per @mic): quello sì renderizza correttamente `post.title` + `post.content` (con truncation a 400 char + "Mostra tutto") + una `SpotifyPodcastCompactCard` compatta in basso. È il layout "Vetrina" già memorizzato per i podcast.
+Queste euristiche servono a sopprimere body auto-riempiti uguali al titolo dell'articolo (caso utenti normali). Per Vinile però fanno **falso positivo**: il body inizia con _"Annalisa in 'Canzone Estiva' ci butta dentro un rapporto complicato, che di estivo ha ben poco..."_. Il body cita legittimamente nome artista (`Annalisa` = `articlePreview.description`) e titolo canzone (`Canzone Estiva` = `articlePreview.title`), e una di queste euristiche scatta:
 
-## Fix proposto
+- **keyword thematic matching ≥60%** (riga 262–266): titolo Spotify ha pochissime keyword (`canzone`, `estiva`), e bastano 2 match nel body per superare il 60% → soppressione.
+- oppure **substring match** sulla `description` "Annalisa" se è troppo corta.
 
-Allineare il branch **`isSpotifyTrack`** al layout Vetrina del branch `isSpotifyEpisode`, così Vinile mostra:
+Risultato: `shouldShowUserText = false` → body nascosto. Il post precedente ("Ci nasci, ci muori - nayt") aveva titolo/artista più "neutri" rispetto al body e quindi è passato.
 
-1. **Titolo editoriale** (`post.title`) in alto in stile Impact (già presente nel layout episode)
-2. **Body** (`post.content`) con truncation a 400 char + "Mostra tutto" via `MentionText`
-3. **Card compatta Spotify** in basso (artwork + nome canzone + artista + pill verde) → riusare `SpotifyPodcastCompactCard` oppure creare/usare un componente equivalente per i brani musicali (l'attuale è già visivamente adatto: immagine quadrata + titolo + sottotitolo + pill).
+## Fix
 
-In pratica il branch `isSpotifyTrack` diventa quasi identico a `isSpotifyEpisode`, con la sola differenza semantica del componente compatto in basso (track vs episode — ma a livello visuale `SpotifyPodcastCompactCard` funziona benissimo anche per le canzoni: mostra immagine + nome + sottotitolo + click su Spotify).
+I post di profili AI istituzionali (flag `is_ai_institutional` o `system_prompt_version` su `ai_profiles`) hanno body **sempre editorialmente diverso** dal titolo della fonte: non vanno mai filtrati da queste euristiche anti-duplicazione, che sono pensate per utenti umani.
 
-### File da modificare
+**Modifica unica** in `src/components/feed/ImmersivePostCard.tsx`, riga 1386:
 
-- `src/components/feed/ImmersivePostCard.tsx` → sostituire il blocco righe **2361–2403** con un layout Vetrina analogo a quello degli episodi (titolo + body + card compatta in basso).
+```ts
+const isAiAuthor = !!(post as any).author?.is_ai_institutional;
+const shouldShowUserText = hasLink && post.content && (
+  isAiAuthor || (
+    !isTextSimilarToTitle(post.content, articleTitle) &&
+    !isTextSimilarToArticleContent(post.content, articlePreview)
+  )
+);
+```
 
-### Note
+(Bypass diretto delle euristiche per autori AI istituzionali — comprende Vinile, Mic e gli altri 8 profili editoriali.)
 
-- Nessuna modifica al DB, edge function, o system prompt: il body c'è e viene generato correttamente.
-- Nessuna modifica al ramo `isSpotifyEpisode` (Mic) né ad altri rami.
-- Il fix è puramente di presentazione e si limita a un singolo file.
+### Verifica preliminare
+
+Prima di scrivere, controllo che `post.author.is_ai_institutional` sia effettivamente disponibile sull'oggetto post passato a `ImmersivePostCard` (in `usePosts`/join). Se non lo è, lo aggiungo alla query select.
+
+### File toccati
+
+- `src/components/feed/ImmersivePostCard.tsx` — 4 righe modificate (riga 1384–1388 circa).
+- Eventuale aggiunta di `is_ai_institutional` al select in `src/hooks/usePosts.ts` se mancante.
+
+Nessuna modifica a DB, edge function, system prompt o altri rami. Nessun impatto su utenti normali: per loro le euristiche restano attive.
 
