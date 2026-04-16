@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
         for (const playlist of VINILE_PLAYLISTS) {
           try {
             const plRes = await fetchWithTimeout(
-              `https://api.spotify.com/v1/playlists/${playlist.id}/tracks?market=IT&limit=20&fields=items(added_at,track(name,artists(name),album(name,release_date),external_urls,id,preview_url))`,
+              `https://api.spotify.com/v1/playlists/${playlist.id}/tracks?market=IT&limit=20`,
               { headers: { 'Authorization': `Bearer ${vToken}` } },
               10000
             );
