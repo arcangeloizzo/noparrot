@@ -11,6 +11,7 @@ import { NebulaExpandedSheet } from "@/components/profile/NebulaExpandedSheet";
 import { ConnectionsSheet } from "@/components/profile/ConnectionsSheet";
 import { DiaryEntry, DiaryEntryData, DiaryEntryType } from "@/components/profile/DiaryEntry";
 import { DiaryFilters, DiaryFilterType } from "@/components/profile/DiaryFilters";
+import { AvatarWithRing } from "@/components/profile/AvatarWithRing";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getDisplayUsername } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -324,42 +325,52 @@ export const UserProfile = () => {
             </Button>
           </div>
 
-          <div className="flex items-start gap-4">
-            {/* Avatar */}
-            <div className="flex-shrink-0">
-              {profile?.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt="Avatar"
-                  className="w-20 h-20 rounded-full object-cover shadow-[0_0_20px_rgba(10,122,255,0.15)] ring-2 ring-white/10"
-                />
-              ) : (
-                <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-2xl font-semibold text-primary-foreground shadow-[0_0_20px_rgba(10,122,255,0.15)] ring-2 ring-white/10">
-                  {getInitials(displayName)}
-                </div>
-              )}
-            </div>
+          {/* Identity block: avatar + name/handle/bio */}
+          <div
+            className="flex flex-row items-start gap-4"
+            style={{ padding: "0 0", paddingTop: 0 }}
+          >
+            <AvatarWithRing
+              src={profile?.avatar_url}
+              alt={displayName}
+              fallback={getInitials(displayName)}
+              size={88}
+            />
 
-            {/* Name, Bio & Follow Button */}
             <div className="flex-1 min-w-0 pt-1">
-              <h1 className="text-xl font-bold truncate">{displayName}</h1>
+              <h1
+                className="font-inter font-bold text-foreground truncate"
+                style={{ fontSize: 22, letterSpacing: "-0.02em", lineHeight: 1.1 }}
+              >
+                {displayName}
+              </h1>
+              <p
+                className="text-muted-foreground"
+                style={{ fontSize: 14, fontWeight: 400, marginTop: 2 }}
+              >
+                @{getDisplayUsername(profile?.username || '')}
+              </p>
+
               {profile?.bio && (
-                <p className={`text-sm text-muted-foreground mt-0.5 ${profile.is_ai_institutional ? '' : 'line-clamp-2'}`}>
+                <p
+                  className={`text-foreground ${profile.is_ai_institutional ? '' : 'line-clamp-3'}`}
+                  style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.45, marginTop: 10 }}
+                >
                   {profile.bio}
                 </p>
               )}
+
               {profile?.is_ai_institutional && (
-                <p className="text-xs mt-1" style={{ color: '#A78BFA' }}>
+                <p className="text-xs mt-2" style={{ color: '#A78BFA' }}>
                   🤖 Questa è una Voce AI di NoParrot
                 </p>
               )}
 
-              {/* Follow Button inline */}
               {currentUser && (
                 <Button
                   variant={isFollowing ? "outline" : "default"}
                   size="sm"
-                  className="mt-2 rounded-full"
+                  className="mt-3 rounded-full"
                   onClick={() => toggleFollowMutation.mutate()}
                   disabled={toggleFollowMutation.isPending}
                 >
@@ -367,56 +378,6 @@ export const UserProfile = () => {
                 </Button>
               )}
             </div>
-          </div>
-
-          {/* Metrics - New Hierarchy */}
-          <div className="flex justify-around items-center mt-6 w-full px-2">
-
-            {/* Cose comprese -> Scroll to Diary */}
-            <button
-              onClick={() => scrollToSection(diaryRef)}
-              className="flex flex-col items-center group"
-            >
-              <span className="text-xl font-bold text-foreground group-active:scale-95 transition-transform">
-                {Math.round(totalPaths)}
-              </span>
-              <span className="text-xs text-muted-foreground/80 font-medium lowercase">
-                cose comprese
-              </span>
-            </button>
-
-            {/* Vertical Divider */}
-            <div className="h-8 w-[1px] bg-border/50" />
-
-            {/* Ambiti esplorati -> Scroll to Nebula */}
-            <button
-              onClick={() => scrollToSection(nebulaRef)}
-              className="flex flex-col items-center group"
-            >
-              <span className="text-xl font-bold text-foreground group-active:scale-95 transition-transform">
-                {activeTopics}
-              </span>
-              <span className="text-xs text-muted-foreground/80 font-medium lowercase">
-                ambiti esplorati
-              </span>
-            </button>
-
-            {/* Vertical Divider */}
-            <div className="h-8 w-[1px] bg-border/50" />
-
-            {/* Follower -> Open Connections */}
-            <button
-              onClick={openFollowers}
-              className="flex flex-col items-center group"
-            >
-              <span className="text-xl font-bold text-foreground group-active:scale-95 transition-transform">
-                {stats?.followers || 0}
-              </span>
-              <span className="text-xs text-muted-foreground/80 font-medium lowercase">
-                follower
-              </span>
-            </button>
-
           </div>
         </div>
 

@@ -10,6 +10,7 @@ import { ProfileSettingsSheet } from "@/components/profile/ProfileSettingsSheet"
 import { ConnectionsSheet } from "@/components/profile/ConnectionsSheet";
 import { CompactNebula } from "@/components/profile/CompactNebula";
 import { NebulaExpandedSheet } from "@/components/profile/NebulaExpandedSheet";
+import { AvatarWithRing } from "@/components/profile/AvatarWithRing";
 import { getDisplayUsername } from "@/lib/utils";
 import { recalculateCognitiveDensityFromPosts } from "@/lib/cognitiveDensity";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -241,109 +242,75 @@ export const Profile = () => {
     <div className="min-h-screen bg-background pb-24 urban-texture">
       <div className="max-w-[600px] mx-auto">
         {/* Header - Avatar, Name, Bio, Settings */}
-        <div className="px-6 pt-10 pb-4">
-          <div className="flex items-start gap-4">
-            {/* Avatar */}
-            <div className="flex-shrink-0">
-              {profile?.avatar_url ? (
-                <img
-                  src={profile.avatar_url}
-                  alt="Avatar"
-                  className="w-20 h-20 rounded-full object-cover shadow-[0_0_20px_rgba(10,122,255,0.15)] ring-2 ring-border"
-                />
-              ) : (
-                <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-2xl font-semibold text-primary-foreground shadow-[0_0_20px_rgba(10,122,255,0.15)] ring-2 ring-border">
-                  {getInitials(getDisplayUsername(profile?.username || "U"))}
-                </div>
-              )}
-            </div>
+        <div className="pt-10 pb-4">
+          {/* Top-right action buttons */}
+          <div className="px-5 flex justify-end items-center gap-2 mb-3">
+            <button
+              onClick={() => navigate('/saved')}
+              className="flex-shrink-0 p-2.5 rounded-full bg-secondary border border-border hover:border-border/50 transition-colors"
+              aria-label="Contenuti salvati"
+            >
+              <Bookmark className="w-5 h-5 text-muted-foreground" />
+            </button>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="flex-shrink-0 p-2.5 rounded-full bg-secondary border border-border hover:border-border/50 transition-colors"
+              aria-label="Impostazioni"
+            >
+              <Settings className="w-5 h-5 text-muted-foreground" />
+            </button>
+          </div>
 
-            {/* Name & Bio */}
+          {/* Identity block: avatar + name/handle/bio */}
+          <div
+            className="flex flex-row items-start gap-4"
+            style={{ padding: "0 20px" }}
+          >
+            <AvatarWithRing
+              src={profile?.avatar_url}
+              alt={profile?.full_name || profile?.username || "Avatar"}
+              fallback={getInitials(getDisplayUsername(profile?.username || "U"))}
+              size={88}
+            />
+
             <div className="flex-1 min-w-0 pt-1">
-              <h1 className="text-xl font-bold truncate">
+              <h1
+                className="font-inter font-bold text-foreground truncate"
+                style={{ fontSize: 22, letterSpacing: "-0.02em", lineHeight: 1.1 }}
+              >
                 {profile?.full_name?.trim() && !profile.full_name.includes('@') && profile.full_name.includes(' ')
                   ? profile.full_name
                   : getDisplayUsername(profile?.username || '')}
               </h1>
-              {profile?.bio && (
-                <p className={`text-sm text-muted-foreground mt-0.5 ${profile.is_ai_institutional ? '' : 'line-clamp-2'}`}>
+              <p
+                className="text-muted-foreground"
+                style={{ fontSize: 14, fontWeight: 400, marginTop: 2 }}
+              >
+                @{getDisplayUsername(profile?.username || '')}
+              </p>
+
+              {profile?.bio ? (
+                <p
+                  className={`text-foreground ${profile.is_ai_institutional ? '' : 'line-clamp-3'}`}
+                  style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.45, marginTop: 10 }}
+                >
                   {profile.bio}
                 </p>
+              ) : (
+                <p
+                  className="italic text-muted-foreground/60"
+                  style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.45, marginTop: 10 }}
+                >
+                  In questo periodo sto cercando di capire meglio…
+                </p>
               )}
+
               {profile?.is_ai_institutional && (
-                <p className="text-xs mt-1" style={{ color: '#A78BFA' }}>
+                <p className="text-xs mt-2" style={{ color: '#A78BFA' }}>
                   🤖 Questa è una Voce AI di NoParrot
                 </p>
               )}
             </div>
-
-            {/* Saved Icon + Settings Icon */}
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => navigate('/saved')}
-                className="flex-shrink-0 p-2.5 rounded-full bg-secondary border border-border hover:border-border/50 transition-colors"
-                aria-label="Contenuti salvati"
-              >
-                <Bookmark className="w-5 h-5 text-muted-foreground" />
-              </button>
-              <button
-                onClick={() => setShowSettings(true)}
-                className="flex-shrink-0 p-2.5 rounded-full bg-secondary border border-border hover:border-border/50 transition-colors"
-                aria-label="Impostazioni"
-              >
-                <Settings className="w-5 h-5 text-muted-foreground" />
-              </button>
-            </div>
-          </div>
-
-          {/* Metrics - New Hierarchy */}
-          <div className="flex justify-around items-center mt-6 w-full px-2">
-
-            {/* Cose comprese -> Scroll to Diary */}
-            <button
-              onClick={() => scrollToSection(diaryRef)}
-              className="flex flex-col items-center group"
-            >
-              <span className="text-xl font-bold text-foreground group-active:scale-95 transition-transform">
-                {Math.round(totalPaths)}
-              </span>
-              <span className="text-xs text-muted-foreground/80 font-medium lowercase">
-                cose comprese
-              </span>
-            </button>
-
-            {/* Vertical Divider */}
-            <div className="h-8 w-[1px] bg-border/50" />
-
-            {/* Ambiti esplorati -> Scroll to Nebula */}
-            <button
-              onClick={() => scrollToSection(nebulaRef)}
-              className="flex flex-col items-center group"
-            >
-              <span className="text-xl font-bold text-foreground group-active:scale-95 transition-transform">
-                {activeTopics}
-              </span>
-              <span className="text-xs text-muted-foreground/80 font-medium lowercase">
-                ambiti esplorati
-              </span>
-            </button>
-
-            {/* Vertical Divider */}
-            <div className="h-8 w-[1px] bg-border/50" />
-
-            {/* Persone seguite -> Open Connections */}
-            <button
-              onClick={openConnections}
-              className="flex flex-col items-center group"
-            >
-              <span className="text-xl font-bold text-foreground group-active:scale-95 transition-transform">
-                {stats?.following || 0}
-              </span>
-              <span className="text-xs text-muted-foreground/80 font-medium lowercase">
-                persone seguite
-              </span>
-            </button>
-
           </div>
         </div>
 
