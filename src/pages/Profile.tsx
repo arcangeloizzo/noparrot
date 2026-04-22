@@ -263,8 +263,7 @@ export const Profile = () => {
 
           {/* Identity block: avatar + name/handle/bio */}
           <div
-            className="flex flex-row items-start gap-4"
-            style={{ padding: "0 20px" }}
+            className="flex flex-row items-start gap-4 px-5"
           >
             <AvatarWithRing
               src={profile?.avatar_url}
