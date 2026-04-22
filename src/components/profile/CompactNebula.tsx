@@ -1,69 +1,27 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { ChevronDown } from 'lucide-react';
+import {
+  CATEGORY_NAMES as CATEGORIES,
+  CATEGORY_COLORS,
+  CATEGORY_SHORT_NAMES,
+  normalizeCategory,
+} from '@/config/categories';
 
 interface CompactNebulaProps {
   data: Record<string, number>;
   onClick: () => void;
 }
 
-const CATEGORIES = [
-  'Società & Politica',
-  'Economia & Business',
-  'Scienza & Tecnologia',
-  'Cultura & Arte',
-  'Pianeta & Ambiente',
-  'Sport & Lifestyle',
-  'Salute & Benessere',
-  'Media & Comunicazione',
-];
+// Radar-style angles for the 8 canonical categories (distributed around center).
+// Order matches the CATEGORIES export from @/config/categories.
+const CATEGORY_ANGLES: Record<string, number> = Object.fromEntries(
+  CATEGORIES.map((name, i) => [name, (Math.PI * 2 * i) / CATEGORIES.length])
+);
 
-const CATEGORY_COLORS: Record<string, string> = {
-  'Società & Politica': '#E76A6A',
-  'Economia & Business': '#FFD464',
-  'Scienza & Tecnologia': '#2AD2C9',
-  'Cultura & Arte': '#A98FF8',
-  'Pianeta & Ambiente': '#65D08C',
-  'Sport & Lifestyle': '#FFB273',
-  'Salute & Benessere': '#F28DB7',
-  'Media & Comunicazione': '#9AA3AB',
-};
-
-// Short display names for the labels
-const CATEGORY_SHORT_NAMES: Record<string, string> = {
-  'Società & Politica': 'Società',
-  'Economia & Business': 'Economia',
-  'Scienza & Tecnologia': 'Scienza',
-  'Cultura & Arte': 'Cultura',
-  'Pianeta & Ambiente': 'Pianeta',
-  'Sport & Lifestyle': 'Sport',
-  'Salute & Benessere': 'Salute',
-  'Media & Comunicazione': 'Media',
-};
-
-// Radar-style angles for 8 categories (distributed around center)
-const CATEGORY_ANGLES: Record<string, number> = {
-  'Società & Politica': 0,                    // Right
-  'Economia & Business': Math.PI * 0.25,      // Bottom-right
-  'Scienza & Tecnologia': Math.PI * 0.5,      // Bottom
-  'Cultura & Arte': Math.PI * 0.75,           // Bottom-left
-  'Pianeta & Ambiente': Math.PI,              // Left
-  'Sport & Lifestyle': Math.PI * 1.25,        // Top-left
-  'Salute & Benessere': Math.PI * 1.5,        // Top
-  'Media & Comunicazione': Math.PI * 1.75,    // Top-right
-};
-
-// Circular positions for 8 categories around the nebula (like a radar chart)
-// Angles: 0=right, 45=bottom-right, 90=bottom, etc., going clockwise
-const LABEL_POSITIONS: { name: string; angle: number }[] = [
-  { name: 'Società & Politica', angle: 0 },          // Right
-  { name: 'Economia & Business', angle: 45 },        // Bottom-right
-  { name: 'Scienza & Tecnologia', angle: 90 },       // Bottom
-  { name: 'Cultura & Arte', angle: 135 },            // Bottom-left
-  { name: 'Pianeta & Ambiente', angle: 180 },        // Left
-  { name: 'Sport & Lifestyle', angle: 225 },         // Top-left
-  { name: 'Salute & Benessere', angle: 270 },        // Top
-  { name: 'Media & Comunicazione', angle: 315 },     // Top-right
-];
+// Circular label positions (degrees) — 8 evenly-spaced spokes, clockwise from right.
+const LABEL_POSITIONS: { name: string; angle: number }[] = CATEGORIES.map(
+  (name, i) => ({ name, angle: (360 * i) / CATEGORIES.length })
+);
 
 // Helper to get label position based on angle and radius
 const getLabelStyle = (angle: number, containerWidth: number, containerHeight: number) => {
@@ -237,11 +195,21 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
   }, []);
 
   useEffect(() => {
-    const values = CATEGORIES.map(cat => data[cat] || 0);
+    // Normalize the incoming density data: legacy keys (e.g. "Salute") are
+    // collapsed into their new canonical buckets ("Benessere"), summing weights.
+    const normalizedData: Record<string, number> = {};
+    Object.entries(data || {}).forEach(([rawKey, value]) => {
+      const key = normalizeCategory(rawKey) ?? rawKey;
+      if (CATEGORIES.includes(key)) {
+        normalizedData[key] = (normalizedData[key] || 0) + (value || 0);
+      }
+    });
+
+    const values = CATEGORIES.map(cat => normalizedData[cat] || 0);
     const maxValue = Math.max(...values, 1);
     const weights: Record<string, number> = {};
     CATEGORIES.forEach(cat => {
-      weights[cat] = (data[cat] || 0) / maxValue;
+      weights[cat] = (normalizedData[cat] || 0) / maxValue;
     });
 
     const dataKey = JSON.stringify(weights);
@@ -264,8 +232,15 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
   }, [data, handleResize, initializeParticles, animate]);
 
   // Get categories that have data for showing labels
+  const normalizedDataForLabels: Record<string, number> = {};
+  Object.entries(data || {}).forEach(([rawKey, value]) => {
+    const key = normalizeCategory(rawKey) ?? rawKey;
+    if (CATEGORIES.includes(key)) {
+      normalizedDataForLabels[key] = (normalizedDataForLabels[key] || 0) + (value || 0);
+    }
+  });
   const activeCategories = CATEGORIES
-    .map(cat => ({ name: cat, value: data[cat] || 0 }))
+    .map(cat => ({ name: cat, value: normalizedDataForLabels[cat] || 0 }))
     .filter(c => c.value > 0);
 
   // Get labels to show - only active categories
