@@ -11,6 +11,7 @@ import { NebulaExpandedSheet } from "@/components/profile/NebulaExpandedSheet";
 import { ConnectionsSheet } from "@/components/profile/ConnectionsSheet";
 import { DiaryEntry, DiaryEntryData, DiaryEntryType } from "@/components/profile/DiaryEntry";
 import { DiaryFilters, DiaryFilterType } from "@/components/profile/DiaryFilters";
+import { AvatarWithRing } from "@/components/profile/AvatarWithRing";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getDisplayUsername } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
