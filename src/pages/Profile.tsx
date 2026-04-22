@@ -11,6 +11,7 @@ import { ConnectionsSheet } from "@/components/profile/ConnectionsSheet";
 import { CompactNebula } from "@/components/profile/CompactNebula";
 import { NebulaExpandedSheet } from "@/components/profile/NebulaExpandedSheet";
 import { AvatarWithRing } from "@/components/profile/AvatarWithRing";
+import { PulseCard } from "@/components/profile/PulseCard";
 import { getDisplayUsername } from "@/lib/utils";
 import { recalculateCognitiveDensityFromPosts } from "@/lib/cognitiveDensity";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -382,6 +383,11 @@ export const Profile = () => {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Weekly Pulse */}
+        <div className="px-5 mt-5">
+          <PulseCard />
         </div>
 
         {/* Compact Cognitive Nebula (expandable) */}
