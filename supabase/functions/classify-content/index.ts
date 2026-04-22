@@ -7,6 +7,45 @@ const corsHeaders = {
 };
 
 // ============================================================================
+// CATEGORY TAXONOMY (mirror of src/config/categories.ts — keep in sync!)
+// 8 canonical categories. Edge Functions cannot import from src/, so the
+// constants are duplicated here intentionally.
+// ============================================================================
+const CANONICAL_CATEGORIES = [
+  'Società',
+  'Politica',
+  'Economia',
+  'Tecnologia',
+  'Scienza',
+  'Cultura',
+  'Ambiente',
+  'Benessere',
+] as const;
+
+const LEGACY_TO_NEW: Record<string, string> = {
+  'Salute': 'Benessere',
+  'Pianeta': 'Ambiente',
+  'Esteri': 'Politica',
+  'Sport': 'Cultura',
+  'Media': 'Società',
+  'Società & Politica': 'Società',
+  'Economia & Business': 'Economia',
+  'Scienza & Tecnologia': 'Tecnologia',
+  'Cultura & Arte': 'Cultura',
+  'Pianeta & Ambiente': 'Ambiente',
+  'Sport & Lifestyle': 'Cultura',
+  'Salute & Benessere': 'Benessere',
+  'Media & Comunicazione': 'Società',
+};
+
+function normalizeCategory(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  if ((CANONICAL_CATEGORIES as readonly string[]).includes(trimmed)) return trimmed;
+  return LEGACY_TO_NEW[trimmed] ?? null;
+}
+
+// ============================================================================
 // HMAC TELEMETRY HELPERS
 // ============================================================================
 async function hashUserId(userId: string, secret: string): Promise<string> {
@@ -82,18 +121,18 @@ serve(async (req) => {
     const contentToClassify = [title, text, summary].filter(Boolean).join('\n\n');
     const inputChars = contentToClassify.length;
 
-    const systemPrompt = `Sei un sistema di classificazione di contenuti. Devi classificare il contenuto fornito in UNA SOLA delle seguenti macro-categorie:
+    const systemPrompt = `Sei un sistema di classificazione di contenuti per NoParrot. Devi classificare il contenuto fornito in UNA SOLA delle seguenti 8 macro-categorie:
 
-- Società & Politica
-- Economia & Business
-- Scienza & Tecnologia
-- Cultura & Arte
-- Pianeta & Ambiente
-- Sport & Lifestyle
-- Salute & Benessere
-- Media & Comunicazione
+1. Società — questioni sociali, dibattito pubblico, costumi, generazioni, lavoro come fenomeno sociale
+2. Politica — istituzioni, partiti, geopolitica, diritti civili, elezioni, conflitti internazionali
+3. Economia — mercati, finanza, imprese, lavoro come dato macroeconomico, business
+4. Tecnologia — AI, software, hardware, prodotti digitali, internet, startup tech
+5. Scienza — ricerca, biologia, fisica, medicina (la pratica scientifica, non la policy sanitaria)
+6. Cultura — arte, libri, cinema, musica, sport come fenomeno culturale, spettacolo
+7. Ambiente — clima, sostenibilità, biodiversità, ecologia, energia
+8. Benessere — salute fisica, salute mentale, lifestyle, alimentazione, fitness
 
-Rispondi SOLO con il nome della categoria, nient'altro.`;
+Rispondi SOLO con il nome esatto della categoria (una parola: Società, Politica, Economia, Tecnologia, Scienza, Cultura, Ambiente o Benessere), nient'altro.`;
 
     const aiStartTime = Date.now();
     
@@ -147,8 +186,15 @@ Rispondi SOLO con il nome della categoria, nient'altro.`;
     }
 
     const data = await response.json();
-    const category = data.choices[0].message.content.trim();
-    const outputChars = category.length;
+    const rawCategory = data.choices[0].message.content.trim();
+    // Normalize the AI output: strip any extra punctuation, accept legacy labels.
+    const cleaned = rawCategory.replace(/[^A-Za-zÀ-ú&\s]/g, '').trim();
+    const category = normalizeCategory(cleaned) ?? normalizeCategory(rawCategory);
+    const outputChars = (category ?? rawCategory).length;
+
+    if (!category) {
+      console.warn('[classify-content] Could not normalize AI output:', rawCategory);
+    }
 
     // Log successful AI call
     await logAiUsage(supabase, {
