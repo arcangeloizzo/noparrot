@@ -385,6 +385,11 @@ export const Profile = () => {
           </div>
         </div>
 
+        {/* Weekly Pulse */}
+        <div className="px-5 mt-5">
+          <PulseCard />
+        </div>
+
         {/* Compact Cognitive Nebula (expandable) */}
         <div ref={nebulaRef} className="px-4 mb-4 scroll-mt-20" data-tutorial="nebulosa">
           <CompactNebula
