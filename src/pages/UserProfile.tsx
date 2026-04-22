@@ -285,7 +285,7 @@ export const UserProfile = () => {
     <div className="min-h-screen bg-background pb-24 urban-texture">
       <div className="max-w-[600px] mx-auto">
         {/* Header - Back Button, Avatar, Name, Bio, Follow Button */}
-        <div className="px-6 pt-6 pb-4">
+        <div className="px-5 pt-6 pb-4">
           {/* Back Button + Share */}
           <div className="flex items-center justify-between mb-4">
             <Button
@@ -328,7 +328,6 @@ export const UserProfile = () => {
           {/* Identity block: avatar + name/handle/bio */}
           <div
             className="flex flex-row items-start gap-4"
-            style={{ padding: "0 0", paddingTop: 0 }}
           >
             <AvatarWithRing
               src={profile?.avatar_url}
