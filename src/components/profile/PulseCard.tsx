@@ -187,7 +187,7 @@ export const PulseCard = () => {
             color: "#A78BFA",
           }}
         >
-          ✦ Pulse della settimana
+          {"\u2726"} Pulse della settimana
         </span>
       </div>
 
