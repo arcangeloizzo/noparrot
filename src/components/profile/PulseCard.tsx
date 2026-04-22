@@ -187,7 +187,7 @@ export const PulseCard = () => {
             color: "#A78BFA",
           }}
         >
-          ✦ Pulse della settimana
+          {"\u2726"} Pulse della settimana
         </span>
       </div>
 
@@ -220,35 +220,56 @@ export const PulseCard = () => {
       </div>
 
       {/* STREAK FOOTER */}
-      {!isLoading && !isError && data && (data.streak_days > 0 || data.count_week > 0) && (
+      {!isLoading && !isError && data && (
         <div
           style={{
             marginTop: 12,
+            paddingTop: 12,
+            borderTop: "1px solid rgba(167, 139, 250, 0.12)",
             fontSize: 12,
             fontWeight: 500,
             color: "hsl(var(--muted-foreground))",
             display: "flex",
             alignItems: "center",
+            justifyContent: "space-between",
             gap: 10,
             flexWrap: "wrap",
           }}
         >
-          {data.streak_days > 0 && (
-            <span>
-              🔥 <b style={{ color: "hsl(var(--foreground))", fontWeight: 600 }}>{data.streak_days}</b>{" "}
-              {data.streak_days === 1 ? "giorno consecutivo" : "giorni consecutivi"}
-            </span>
-          )}
-          {data.streak_days > 0 && data.count_week > 0 && (
-            <span aria-hidden style={{ opacity: 0.4 }}>·</span>
-          )}
-          {data.count_week > 0 && (
-            <span>
-              <b style={{ color: "hsl(var(--foreground))", fontWeight: 600 }}>{data.count_week}</b>{" "}
-              {data.count_week === 1 ? "comprensione" : "comprensioni"} questa settimana
-            </span>
-          )}
-          {/* TODO: Esplora correlati → (future step) */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            {data.streak_days > 0 && (
+              <span>
+                🔥 <b style={{ color: "hsl(var(--foreground))", fontWeight: 600 }}>{data.streak_days}</b>{" "}
+                {data.streak_days === 1 ? "giorno consecutivo" : "giorni consecutivi"}
+              </span>
+            )}
+            {data.streak_days > 0 && data.count_week > 0 && (
+              <span aria-hidden style={{ opacity: 0.4 }}>·</span>
+            )}
+            {data.count_week > 0 && (
+              <span>
+                <b style={{ color: "hsl(var(--foreground))", fontWeight: 600 }}>{data.count_week}</b>{" "}
+                {data.count_week === 1 ? "comprensione" : "comprensioni"} questa settimana
+              </span>
+            )}
+          </div>
+          <button
+            type="button"
+            // TODO: Esplora correlati → (future step) — navigation not yet wired
+            onClick={() => {}}
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#0A7AFF",
+              background: "transparent",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Esplora correlati →
+          </button>
         </div>
       )}
     </div>

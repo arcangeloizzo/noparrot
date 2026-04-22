@@ -36,6 +36,15 @@ Tono richiesto:
 - Mai esclamativi.
 - Mai banale (evita "stai esplorando vari temi").
 - Italiano colto ma non oscuro.
+- Parla SEMPRE all'utente in seconda persona singolare ("tu", "tua", "stai", "ti"). Mai in terza persona ("la sua", "lui/lei", "rivelandosi"). L'utente sta leggendo una riflessione su se stesso, non un profilo di terzi.
+- Niente giudizi morali sui temi esplorati. Descrivi cosa l'utente sta esplorando, non valutarlo (no "particolarmente oscure", "preoccupanti", "controverse"). Lascia che sia l'utente a interpretare.
+- Verbi al presente indicativo, mai al gerundio iniziale ("rivelandosi", "diventando" come prima parola sono pesanti).
+
+ESEMPIO DI BUONA NARRATIVE (per calibrare il tono):
+"La tua attenzione si concentra su come l'attenzione diventa merce. Stai diventando un osservatore della polarizzazione che cerca pattern dove altri vedono solo rumore."
+
+ESEMPIO DA EVITARE:
+"La sua curiosità si rivolge a temi oscuri della società contemporanea, rivelando un osservatore attento ma forse troppo concentrato sulla negatività."
 
 Output JSON STRETTO con questo schema:
 {
