@@ -2415,6 +2415,57 @@ export type Database = {
           },
         ]
       }
+      user_pulse_snapshots: {
+        Row: {
+          comprehensions_analyzed: Json | null
+          count_week: number
+          focus_phrase: string
+          generated_at: string
+          id: string
+          narrative: string
+          streak_days: number
+          trajectory_label: string
+          user_id: string
+        }
+        Insert: {
+          comprehensions_analyzed?: Json | null
+          count_week?: number
+          focus_phrase: string
+          generated_at?: string
+          id?: string
+          narrative: string
+          streak_days?: number
+          trajectory_label: string
+          user_id: string
+        }
+        Update: {
+          comprehensions_analyzed?: Json | null
+          count_week?: number
+          focus_phrase?: string
+          generated_at?: string
+          id?: string
+          narrative?: string
+          streak_days?: number
+          trajectory_label?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_pulse_snapshots_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_pulse_snapshots_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
