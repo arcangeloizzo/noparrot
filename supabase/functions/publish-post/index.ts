@@ -9,11 +9,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const CATEGORIES = [
-  'Politica', 'Economia', 'Tecnologia', 'Sport', 'Cultura',
-  'Scienza', 'Ambiente', 'Società', 'Esteri', 'Salute'
-];
-
 // ========================================================================
 // INPUT SANITIZATION UTILITIES
 // ========================================================================
@@ -90,53 +85,36 @@ function isValidUuid(id: string | null | undefined): boolean {
 // CLASSIFICATION LOGIC
 // ========================================================================
 
+/**
+ * Delegates to the centralized `classify-content` Edge Function so the
+ * taxonomy (8 canonical categories) lives in ONE place. We invoke it
+ * fire-and-forget; failures are logged but never block publishing.
+ */
 async function classifyAndUpdatePost(
   supabase: any,
   postId: string,
-  content: string,
-  reqId: string
+  payload: { text?: string; title?: string; summary?: string },
+  reqId: string,
+  supabaseUrl: string,
+  serviceRoleKey: string
 ) {
   try {
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      console.warn(`[publish-post:${reqId}] stage=classify no API key`);
-      return;
-    }
-
-    const prompt = `Classifica il seguente contenuto in UNA di queste categorie: ${CATEGORIES.join(', ')}.
-
-Contenuto:
-"""
-${content.substring(0, 2000)}
-"""
-
-Rispondi con UNA SOLA PAROLA: la categoria più appropriata.`;
-
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch(`${supabaseUrl}/functions/v1/classify-content`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${serviceRoleKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-lite',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 20,
-      }),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {
-      console.warn(`[publish-post:${reqId}] stage=classify API error ${response.status}`);
+      console.warn(`[publish-post:${reqId}] stage=classify classify-content HTTP ${response.status}`);
       return;
     }
 
     const data = await response.json();
-    const rawCategory = data.choices?.[0]?.message?.content?.trim();
-
-    // Match to valid category
-    const category = CATEGORIES.find(c =>
-      c.toLowerCase() === rawCategory?.toLowerCase()
-    );
+    const category = data?.category as string | null;
 
     if (category) {
       const { error } = await supabase
@@ -150,7 +128,7 @@ Rispondi con UNA SOLA PAROLA: la categoria più appropriata.`;
         console.log(`[publish-post:${reqId}] stage=classify done category=${category}`);
       }
     } else {
-      console.log(`[publish-post:${reqId}] stage=classify no match raw="${rawCategory}"`);
+      console.log(`[publish-post:${reqId}] stage=classify no category returned`);
     }
   } catch (err) {
     console.warn(`[publish-post:${reqId}] stage=classify error`, err);
@@ -729,16 +707,27 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Background classification (non-blocking)
-    const contentToClassify = [
-      insertPayload.content,
-      insertPayload.shared_title,
-      insertPayload.article_content
-    ].filter(Boolean).join('\n\n');
+    // Background classification (non-blocking) — delegated to classify-content
+    const totalLen =
+      (insertPayload.content?.length || 0) +
+      (insertPayload.shared_title?.length || 0) +
+      (insertPayload.article_content?.length || 0);
 
-    if (contentToClassify.length > 20) {
+    if (totalLen > 20) {
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || supabaseAnonKey;
       // Fire and forget - don't await
-      classifyAndUpdatePost(supabase, inserted.id, contentToClassify, reqId);
+      classifyAndUpdatePost(
+        supabase,
+        inserted.id,
+        {
+          text: insertPayload.content || undefined,
+          title: insertPayload.shared_title || undefined,
+          summary: insertPayload.article_content || undefined,
+        },
+        reqId,
+        supabaseUrl,
+        serviceRoleKey
+      );
 
       // Also assign semantic topic for trending (non-blocking)
       fetch(`${supabaseUrl}/functions/v1/assign-post-topic`, {

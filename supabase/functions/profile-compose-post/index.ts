@@ -228,6 +228,50 @@ function validateOutputWordCount(body: string, profileHandle: string, source: st
   }
 }
 
+// ── Fix Phase 2: AI posts must use the centralized classifier, not profile.area ──
+// The legacy code wrote `profile.area` (a free-text bio fragment) directly into
+// posts.category, polluting the taxonomy. We now insert with category=null and
+// fire a background call to classify-content to assign one of the 8 canonical
+// categories. Failures are logged but never block publishing.
+async function classifyAiPostInBackground(
+  supabase: any,
+  postId: string,
+  payload: { text?: string; title?: string; summary?: string },
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  profileHandle: string,
+  reqId: string
+): Promise<void> {
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/classify-content`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      console.warn(`[profile-compose:${reqId} classify] HTTP ${res.status} for @${profileHandle} post ${postId}`);
+      return;
+    }
+    const data = await res.json();
+    const category = data?.category as string | null;
+    if (category) {
+      const { error } = await supabase.from('posts').update({ category }).eq('id', postId);
+      if (error) {
+        console.warn(`[profile-compose:${reqId} classify] update failed for ${postId}: ${error.message}`);
+      } else {
+        console.log(`[profile-compose:${reqId} classify] @${profileHandle} post ${postId} → ${category}`);
+      }
+    } else {
+      console.warn(`[profile-compose:${reqId} classify] no category returned for ${postId}`);
+    }
+  } catch (err: any) {
+    console.warn(`[profile-compose:${reqId} classify] error for ${postId}: ${err?.message || err}`);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -497,7 +541,7 @@ brief_specifico: scrivi un post digest su questo episodio seguendo le tue regole
               title: micTitle,
               content: micBody,
               post_type: 'standard',
-              category: profile.area,
+              category: null, // Will be set by classify-content in background
               shared_url: selectedCandidate.article_url
             })
             .select('id')
@@ -506,6 +550,17 @@ brief_specifico: scrivi un post digest su questo episodio seguendo le tue regole
           if (micPostErr || !micPost) throw new Error(`Failed to publish Mic post: ${micPostErr?.message}`);
 
           await supabase.from('profile_source_feed').update({ used_in_post_id: micPost.id }).eq('id', selectedCandidate.id);
+
+          // Fire-and-forget classification using the centralized taxonomy
+          classifyAiPostInBackground(
+            supabase,
+            micPost.id,
+            { title: micTitle, text: micBody, summary: selectedCandidate.article_summary || undefined },
+            supabaseUrl,
+            serviceRoleKey,
+            profile.handle,
+            reqId
+          );
 
           await supabase.from('ai_generation_log').insert({
             queue_id: null,
@@ -718,7 +773,7 @@ brief_specifico: Scrivi un post sulla canzone del giorno seguendo le tue regole.
               title: vinileTitle,
               content: vinileBody,
               post_type: 'standard',
-              category: 'musica',
+              category: null, // Will be set by classify-content in background
               shared_url: selectedVinile.article_url
             })
             .select('id')
@@ -727,6 +782,17 @@ brief_specifico: Scrivi un post sulla canzone del giorno seguendo le tue regole.
           if (vinilePostErr || !vinilePost) throw new Error(`Failed to publish Vinile post: ${vinilePostErr?.message}`);
 
           await supabase.from('profile_source_feed').update({ used_in_post_id: vinilePost.id }).eq('id', selectedVinile.id);
+
+          // Fire-and-forget classification using the centralized taxonomy
+          classifyAiPostInBackground(
+            supabase,
+            vinilePost.id,
+            { title: vinileTitle, text: vinileBody, summary: selectedVinile.article_summary || undefined },
+            supabaseUrl,
+            serviceRoleKey,
+            profile.handle,
+            reqId
+          );
 
           await supabase.from('ai_generation_log').insert({
             queue_id: null,
@@ -928,7 +994,7 @@ ${formatRules}
             title: postTitle,
             content: postContent,
             post_type: 'standard',
-            category: profile.area,
+            category: null, // Will be set by classify-content in background
             shared_url: postMode === 'vetrina' ? chosenCandidate.article_url : null
           })
           .select('id')
@@ -941,6 +1007,19 @@ ${formatRules}
           .from('profile_source_feed')
           .update({ used_in_post_id: newPost.id })
           .eq('id', chosenCandidate.id);
+
+        // Fire-and-forget classification using the centralized taxonomy.
+        // Replaces the legacy behaviour where profile.area (a bio fragment)
+        // was written verbatim into posts.category.
+        classifyAiPostInBackground(
+          supabase,
+          newPost.id,
+          { title: postTitle, text: postContent, summary: chosenCandidate?.article_summary || undefined },
+          supabaseUrl,
+          serviceRoleKey,
+          profile.handle,
+          reqId
+        );
 
         // Logging — FIX 3: include mode in moderation_notes
         await supabase.from('ai_generation_log').insert({

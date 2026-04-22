@@ -1,47 +1,5 @@
 import { cn } from "@/lib/utils";
-
-const CATEGORIES = [
-  { 
-    name: 'Società & Politica', 
-    color: 'from-red-500 to-pink-500',
-    emoji: '🏛️'
-  },
-  { 
-    name: 'Economia & Business', 
-    color: 'from-amber-500 to-yellow-500',
-    emoji: '💼'
-  },
-  { 
-    name: 'Scienza & Tecnologia', 
-    color: 'from-blue-500 to-cyan-500',
-    emoji: '🔬'
-  },
-  { 
-    name: 'Cultura & Arte', 
-    color: 'from-purple-500 to-pink-500',
-    emoji: '🎨'
-  },
-  { 
-    name: 'Pianeta & Ambiente', 
-    color: 'from-green-500 to-emerald-500',
-    emoji: '🌍'
-  },
-  { 
-    name: 'Sport & Lifestyle', 
-    color: 'from-orange-500 to-red-500',
-    emoji: '⚽'
-  },
-  { 
-    name: 'Salute & Benessere', 
-    color: 'from-pink-400 to-rose-400',
-    emoji: '🩺'
-  },
-  { 
-    name: 'Media & Comunicazione', 
-    color: 'from-gray-400 to-slate-500',
-    emoji: '📡'
-  },
-];
+import { CATEGORIES } from "@/config/categories";
 
 interface CategoryExplorerProps {
   selectedCategory: string | null;
@@ -65,16 +23,15 @@ export const CategoryExplorer = ({ selectedCategory, onCategorySelect }: Categor
                 "flex flex-col items-start justify-between min-h-[120px]",
                 "border-2",
                 isSelected 
-                  ? "border-primary shadow-lg scale-105" 
+                  ? "shadow-lg scale-105"
                   : "border-border hover:border-border/60 hover:scale-102"
               )}
+              style={isSelected ? { borderColor: category.color } : undefined}
             >
-              {/* Gradient Background */}
-              <div 
-                className={cn(
-                  "absolute inset-0 bg-gradient-to-br opacity-10",
-                  category.color
-                )}
+              {/* Solid color tint background, derived from canonical palette */}
+              <div
+                className="absolute inset-0 opacity-10"
+                style={{ backgroundColor: category.color }}
               />
               
               {/* Content */}
@@ -87,8 +44,11 @@ export const CategoryExplorer = ({ selectedCategory, onCategorySelect }: Categor
               
               {/* Selection Indicator */}
               {isSelected && (
-                <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
-                  <svg className="w-4 h-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div
+                  className="absolute top-3 right-3 w-6 h-6 rounded-full flex items-center justify-center"
+                  style={{ backgroundColor: category.color }}
+                >
+                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>

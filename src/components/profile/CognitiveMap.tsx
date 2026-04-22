@@ -1,35 +1,27 @@
 import { CognitiveNebulaCanvas } from './CognitiveNebulaCanvas';
+import {
+  CATEGORY_NAMES as CATEGORIES,
+  CATEGORY_COLORS,
+  normalizeCategory,
+} from '@/config/categories';
 
 interface CognitiveMapProps {
   cognitiveDensity: Record<string, number>;
 }
 
-const CATEGORIES = [
-  'Società & Politica',
-  'Economia & Business',
-  'Scienza & Tecnologia',
-  'Cultura & Arte',
-  'Pianeta & Ambiente',
-  'Sport & Lifestyle',
-  'Salute & Benessere',
-  'Media & Comunicazione',
-];
-
-const CATEGORY_COLORS: Record<string, string> = {
-  'Società & Politica': '#E76A6A',
-  'Economia & Business': '#FFD464',
-  'Scienza & Tecnologia': '#2AD2C9',
-  'Cultura & Arte': '#A98FF8',
-  'Pianeta & Ambiente': '#65D08C',
-  'Sport & Lifestyle': '#FFB273',
-  'Salute & Benessere': '#F28DB7',
-  'Media & Comunicazione': '#9AA3AB',
-};
-
 export const CognitiveMap = ({ cognitiveDensity = {} }: CognitiveMapProps) => {
-  // Lista ordinata per densità
+  // Normalize legacy keys into the new canonical buckets, then build the
+  // ordered list (descending by weight) for the summary.
+  const normalizedDensity: Record<string, number> = {};
+  Object.entries(cognitiveDensity || {}).forEach(([rawKey, value]) => {
+    const key = normalizeCategory(rawKey) ?? rawKey;
+    if (CATEGORIES.includes(key)) {
+      normalizedDensity[key] = (normalizedDensity[key] || 0) + (value || 0);
+    }
+  });
+
   const sortedCategories = CATEGORIES
-    .map(cat => ({ name: cat, value: cognitiveDensity[cat] || 0 }))
+    .map(cat => ({ name: cat, value: normalizedDensity[cat] || 0 }))
     .filter(cat => cat.value > 0)
     .sort((a, b) => b.value - a.value);
 
@@ -73,7 +65,7 @@ export const CognitiveMap = ({ cognitiveDensity = {} }: CognitiveMapProps) => {
       <div className="mt-6 p-4 bg-muted/30 rounded-xl">
         <div className="text-center">
           <div className="text-3xl font-bold text-primary">
-            {Math.round(Object.values(cognitiveDensity).reduce((sum, val) => sum + val, 0))}
+            {Math.round(Object.values(normalizedDensity).reduce((sum, val) => sum + val, 0))}
           </div>
           <div className="text-sm text-muted-foreground mt-1">
             Percorsi cognitivi completati
