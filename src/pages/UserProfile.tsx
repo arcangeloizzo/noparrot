@@ -255,6 +255,11 @@ export const UserProfile = () => {
     setShowConnections(true);
   };
 
+  const openFollowing = () => {
+    setConnectionsTab("following");
+    setShowConnections(true);
+  };
+
   if (!userId) {
     navigate('/');
     return null;
@@ -376,6 +381,72 @@ export const UserProfile = () => {
                   {isFollowing ? "Non seguire più" : "Segui"}
                 </Button>
               )}
+            </div>
+          </div>
+
+          {/* Metrics block — hierarchical */}
+          <div className="px-5 pt-5">
+            {/* Hero row: total comprehensions */}
+            <button
+              type="button"
+              onClick={() => scrollToSection(diaryRef)}
+              className="flex items-baseline gap-2.5 text-left"
+            >
+              <span
+                style={{
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 44,
+                  fontWeight: 800,
+                  letterSpacing: "-0.03em",
+                  lineHeight: 1,
+                  background: "linear-gradient(135deg, #FFFFFF 0%, #A78BFA 100%)",
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  color: "transparent",
+                }}
+              >
+                {Math.round(totalPaths)}
+              </span>
+              <span
+                className="text-muted-foreground"
+                style={{ fontSize: 14, fontWeight: 500 }}
+              >
+                cose{" "}
+                <strong className="text-foreground" style={{ fontWeight: 600 }}>
+                  comprese
+                </strong>
+              </span>
+            </button>
+
+            {/* Secondary row */}
+            <div
+              className="mt-2.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-muted-foreground"
+              style={{ fontSize: 13 }}
+            >
+              <button
+                type="button"
+                onClick={() => scrollToSection(nebulaRef)}
+                className="hover:text-foreground transition-colors"
+              >
+                <b className="text-foreground/80" style={{ fontWeight: 600 }}>{activeTopics}</b> territori esplorati
+              </button>
+              <span aria-hidden style={{ opacity: 0.4 }}>·</span>
+              <button
+                type="button"
+                onClick={openFollowers}
+                className="hover:text-foreground transition-colors"
+              >
+                <b className="text-foreground/80" style={{ fontWeight: 600 }}>{stats?.followers || 0}</b> follower
+              </button>
+              <span aria-hidden style={{ opacity: 0.4 }}>·</span>
+              <button
+                type="button"
+                onClick={openFollowing}
+                className="hover:text-foreground transition-colors"
+              >
+                <b className="text-foreground/80" style={{ fontWeight: 600 }}>{stats?.following || 0}</b> seguiti
+              </button>
             </div>
           </div>
         </div>
