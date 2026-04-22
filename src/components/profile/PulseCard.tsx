@@ -187,8 +187,7 @@ export const PulseCard = () => {
             color: "#A78BFA",
           }}
         >
-          <span style={{ fontFamily: '"Apple Color Emoji", "Segoe UI Emoji", system-ui, sans-serif' }}>✦</span>
-          {" Pulse della settimana"}
+          ◆ Pulse della settimana
         </span>
       </div>
 
