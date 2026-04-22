@@ -1,15 +1,5 @@
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
-
-const CATEGORIES = [
-  { name: 'society', emoji: '🏛️', label: 'Società', color: '#E76A6A' },
-  { name: 'economy', emoji: '💼', label: 'Economia', color: '#FFD464' },
-  { name: 'science', emoji: '🔬', label: 'Scienza', color: '#2AD2C9' },
-  { name: 'culture', emoji: '🎨', label: 'Cultura', color: '#A98FF8' },
-  { name: 'planet', emoji: '🌍', label: 'Pianeta', color: '#65D08C' },
-  { name: 'sport', emoji: '⚽', label: 'Sport', color: '#FFB273' },
-  { name: 'health', emoji: '💊', label: 'Salute', color: '#F28DB7' },
-  { name: 'media', emoji: '📡', label: 'Media', color: '#9AA3AB' },
-];
+import { CATEGORIES } from "@/config/categories";
 
 interface CategoryFilterDrawerProps {
   open: boolean;
@@ -48,7 +38,7 @@ export const CategoryFilterDrawer = ({
             >
               <span className="text-3xl mb-2">{cat.emoji}</span>
               <span className="text-xs text-center text-[#D1D5DB] font-medium">
-                {cat.label}
+                {cat.shortName}
               </span>
             </button>
           ))}
