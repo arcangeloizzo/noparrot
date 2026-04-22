@@ -42,7 +42,7 @@ export const AvatarWithRing = ({
 
   return (
     <div
-      className={cn("relative flex-shrink-0", className)}
+      className={cn("relative flex-shrink-0 rounded-full", className)}
       style={{ width: size, height: size }}
     >
       {/* Anello gradient — sporge 3px oltre l'avatar */}
@@ -58,7 +58,7 @@ export const AvatarWithRing = ({
       />
       {/* Avatar Radix con bordo background per "stacco" dall'anello */}
       <Avatar
-        className="absolute inset-0 border-[3px] border-background"
+        className="absolute inset-0 h-auto w-auto rounded-full border-[3px] border-background"
         style={{ width: size, height: size }}
       >
         {src ? <AvatarImage src={src} alt={alt} /> : null}
