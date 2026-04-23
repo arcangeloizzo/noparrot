@@ -1,0 +1,2 @@
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS legacy_category TEXT;
+COMMENT ON COLUMN public.posts.legacy_category IS 'Original category before Phase 3 reclassification. Kept for 90 days for audit/rollback.';
