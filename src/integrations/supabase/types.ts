@@ -1838,6 +1838,7 @@ export type Database = {
           id: string
           is_intent: boolean
           is_removed: boolean | null
+          legacy_category: string | null
           post_type: Database["public"]["Enums"]["post_type_enum"] | null
           preview_fetched_at: string | null
           preview_img: string | null
@@ -1869,6 +1870,7 @@ export type Database = {
           id?: string
           is_intent?: boolean
           is_removed?: boolean | null
+          legacy_category?: string | null
           post_type?: Database["public"]["Enums"]["post_type_enum"] | null
           preview_fetched_at?: string | null
           preview_img?: string | null
@@ -1900,6 +1902,7 @@ export type Database = {
           id?: string
           is_intent?: boolean
           is_removed?: boolean | null
+          legacy_category?: string | null
           post_type?: Database["public"]["Enums"]["post_type_enum"] | null
           preview_fetched_at?: string | null
           preview_img?: string | null
