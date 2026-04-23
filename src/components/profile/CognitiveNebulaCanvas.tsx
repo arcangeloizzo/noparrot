@@ -1,43 +1,24 @@
 import { useEffect, useRef, useCallback } from 'react';
+import {
+  CATEGORIES as CATEGORY_DEFS,
+  CATEGORY_NAMES,
+  CATEGORY_COLORS,
+  CATEGORY_SHORT_NAMES,
+  normalizeCategory,
+} from '@/config/categories';
 
 interface CognitiveNebulaCanvasProps {
   data: Record<string, number>;
   showCounts?: boolean;
 }
 
-const CATEGORIES = [
-  'Società & Politica',
-  'Economia & Business',
-  'Scienza & Tecnologia',
-  'Cultura & Arte',
-  'Pianeta & Ambiente',
-  'Sport & Lifestyle',
-  'Salute & Benessere',
-  'Media & Comunicazione',
-];
+// Use the 8 new canonical category names from the central config.
+const CATEGORIES = CATEGORY_NAMES;
 
-const CATEGORY_COLORS: Record<string, string> = {
-  'Società & Politica': '#E76A6A',
-  'Economia & Business': '#FFD464',
-  'Scienza & Tecnologia': '#2AD2C9',
-  'Cultura & Arte': '#A98FF8',
-  'Pianeta & Ambiente': '#65D08C',
-  'Sport & Lifestyle': '#FFB273',
-  'Salute & Benessere': '#F28DB7',
-  'Media & Comunicazione': '#9AA3AB',
-};
-
-// Angular positions for each category (radians) - distributed around the circle
-const CATEGORY_ANGLES: Record<string, number> = {
-  'Società & Politica': 0,
-  'Economia & Business': Math.PI * 0.25,
-  'Scienza & Tecnologia': Math.PI * 0.5,
-  'Cultura & Arte': Math.PI * 0.75,
-  'Pianeta & Ambiente': Math.PI,
-  'Sport & Lifestyle': Math.PI * 1.25,
-  'Salute & Benessere': Math.PI * 1.5,
-  'Media & Comunicazione': Math.PI * 1.75,
-};
+// Distribute the 8 categories evenly around the circle (0, π/4, π/2, ...).
+const CATEGORY_ANGLES: Record<string, number> = Object.fromEntries(
+  CATEGORY_DEFS.map((c, i) => [c.name, (Math.PI * 2 * i) / CATEGORY_DEFS.length])
+);
 
 // Parse hex color to RGB
 const hexToRgb = (hex: string) => {
@@ -67,6 +48,16 @@ export const CognitiveNebulaCanvas = ({ data, showCounts = false }: CognitiveNeb
   const timeRef = useRef(0);
   const particlesRef = useRef<Particle[]>([]);
   const prevDataRef = useRef<string>('');
+
+  // Normalize incoming density keys (legacy "& double" labels, "Salute", "Pianeta",
+  // "Esteri", etc.) into the 8 canonical buckets so historical data renders correctly.
+  const normalizedData: Record<string, number> = {};
+  Object.entries(data || {}).forEach(([rawKey, value]) => {
+    const key = normalizeCategory(rawKey);
+    if (key && CATEGORIES.includes(key)) {
+      normalizedData[key] = (normalizedData[key] || 0) + (value || 0);
+    }
+  });
 
   // Initialize particles based on weights
   const initializeParticles = useCallback((weights: Record<string, number>) => {
