@@ -4,16 +4,27 @@ import {
   CATEGORY_COLORS,
   normalizeCategory,
 } from '@/config/categories';
+import type { CognitiveDensityData } from '@/hooks/useCognitiveDensity';
 
 interface CognitiveMapProps {
-  cognitiveDensity: Record<string, number>;
+  cognitiveDensity: CognitiveDensityData | Record<string, number>;
 }
 
-export const CognitiveMap = ({ cognitiveDensity = {} }: CognitiveMapProps) => {
+function isStructured(
+  d: CognitiveDensityData | Record<string, number> | undefined | null
+): d is CognitiveDensityData {
+  return !!d && typeof d === 'object' && 'byMacroFlat' in (d as object);
+}
+
+export const CognitiveMap = ({ cognitiveDensity }: CognitiveMapProps) => {
+  const flatSource: Record<string, number> = isStructured(cognitiveDensity)
+    ? cognitiveDensity.byMacroFlat
+    : ((cognitiveDensity as Record<string, number>) || {});
+
   // Normalize legacy keys into the new canonical buckets, then build the
   // ordered list (descending by weight) for the summary.
   const normalizedDensity: Record<string, number> = {};
-  Object.entries(cognitiveDensity || {}).forEach(([rawKey, value]) => {
+  Object.entries(flatSource).forEach(([rawKey, value]) => {
     const key = normalizeCategory(rawKey) ?? rawKey;
     if (CATEGORIES.includes(key)) {
       normalizedDensity[key] = (normalizedDensity[key] || 0) + (value || 0);

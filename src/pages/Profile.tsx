@@ -13,8 +13,9 @@ import { NebulaExpandedSheet } from "@/components/profile/NebulaExpandedSheet";
 import { AvatarWithRing } from "@/components/profile/AvatarWithRing";
 import { PulseCard } from "@/components/profile/PulseCard";
 import { getDisplayUsername } from "@/lib/utils";
-import { recalculateCognitiveDensityFromPosts } from "@/lib/cognitiveDensity";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useCognitiveDensity } from "@/hooks/useCognitiveDensity";
+import { useUserComprehensionCount } from "@/hooks/useUserComprehensionCount";
 import { Settings, Bookmark } from "lucide-react";
 
 export const Profile = () => {
@@ -49,23 +50,9 @@ export const Profile = () => {
     enabled: !!user,
   });
 
-  // Recalculate cognitive density if empty
-  useEffect(() => {
-    const recalculateIfNeeded = async () => {
-      if (profile && user?.id) {
-        const density = profile.cognitive_density as Record<string, number> | null;
-        const isEmpty = !density || Object.keys(density).length === 0;
-
-        if (isEmpty) {
-          const result = await recalculateCognitiveDensityFromPosts(user.id);
-          if (result && Object.keys(result).length > 0) {
-            queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
-          }
-        }
-      }
-    };
-    recalculateIfNeeded();
-  }, [profile?.id, user?.id, queryClient]);
+  // Nebulosa derivata (RPC) — sostituisce profiles.cognitive_density
+  const { data: cognitiveDensity } = useCognitiveDensity(user?.id);
+  const { data: comprehensionCount = 0 } = useUserComprehensionCount(user?.id);
 
   const { data: stats } = useQuery({
     queryKey: ["profile-stats", user?.id],
@@ -80,14 +67,11 @@ export const Profile = () => {
 
       console.log('Stats Debug:', { following: followingRes.count, followers: followersRes.count, posts: postsRes.count, error: followingRes.error || followersRes.error || postsRes.error });
 
-      const cognitiveDensity = (profile?.cognitive_density as Record<string, number>) || {};
-      const activeTopics = Object.values(cognitiveDensity).filter(val => val > 0).length;
-
       return {
         following: followingRes.count || 0,
         followers: followersRes.count || 0,
         posts: postsRes.count || 0,
-        activeTopics,
+        activeTopics: 0, // calcolato sotto da cognitiveDensity derivata
       };
     },
     enabled: !!user && !!profile,
@@ -240,9 +224,8 @@ export const Profile = () => {
     );
   }
 
-  const cognitiveDensity = (profile?.cognitive_density as Record<string, number>) || {};
-  const totalPaths = Object.values(cognitiveDensity).reduce((sum, val) => sum + val, 0);
-  const activeTopics = Object.values(cognitiveDensity).filter(val => val > 0).length;
+  const totalPaths = comprehensionCount;
+  const activeTopics = cognitiveDensity.rows.filter(r => r.density > 0).length;
 
   return (
     <div className="min-h-screen bg-background pb-24 urban-texture">
