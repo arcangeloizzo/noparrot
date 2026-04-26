@@ -272,6 +272,40 @@ async function classifyAiPostInBackground(
   }
 }
 
+// ── Fire-and-forget semantic topic assignment for AI posts ──
+// Calls assign-post-topic AFTER the post row exists, so the function can fetch
+// content+title+article+transcript itself. Failures are logged, never block publishing.
+async function assignTopicInBackground(
+  postId: string,
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  profileHandle: string,
+  reqId: string
+): Promise<void> {
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/assign-post-topic`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ post_id: postId }),
+    });
+    if (!res.ok) {
+      console.warn(`[profile-compose:${reqId} topic] HTTP ${res.status} for @${profileHandle} post ${postId}`);
+      return;
+    }
+    const data = await res.json();
+    if (data?.success) {
+      console.log(`[profile-compose:${reqId} topic] @${profileHandle} post ${postId} → ${data.topic_id} (macro=${data.macro_category})`);
+    } else {
+      console.log(`[profile-compose:${reqId} topic] @${profileHandle} post ${postId} skipped: ${data?.reason ?? 'unknown'}`);
+    }
+  } catch (err: any) {
+    console.warn(`[profile-compose:${reqId} topic] error for ${postId}: ${err?.message || err}`);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
