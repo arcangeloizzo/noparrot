@@ -15,6 +15,29 @@ const MIN_AGGREGATE_LEN = 50;
 const SUMMARY_MAX = 3000;
 const THROTTLE_MS = 200;
 
+const KNOWN_HOSTS: Record<string, { hint: string }> = {
+  'open.spotify.com': { hint: 'contenuto musicale o podcast su Spotify' },
+  'spotify.com': { hint: 'contenuto musicale o podcast su Spotify' },
+  'youtube.com': { hint: 'video YouTube' },
+  'youtu.be': { hint: 'video YouTube' },
+  'music.youtube.com': { hint: 'contenuto musicale YouTube' },
+  'genius.com': { hint: 'testi musicali' },
+  'wired.it': { hint: 'articolo Wired (tech/scienza/cultura)' },
+  'wired.com': { hint: 'articolo Wired (tech/scienza/cultura)' },
+  'ilpost.it': { hint: 'articolo de Il Post' },
+  'corriere.it': { hint: 'articolo Corriere della Sera' },
+  'repubblica.it': { hint: 'articolo La Repubblica' },
+  'ansa.it': { hint: 'notizia ANSA' },
+  'reuters.com': { hint: 'notizia Reuters' },
+  'theguardian.com': { hint: 'articolo The Guardian' },
+  'nytimes.com': { hint: 'articolo New York Times' },
+  'lefigaro.fr': { hint: 'articolo Le Figaro' },
+  'internazionale.it': { hint: 'articolo Internazionale' },
+  'valigiablu.it': { hint: 'articolo Valigia Blu' },
+  'substack.com': { hint: 'newsletter Substack' },
+  'medium.com': { hint: 'articolo Medium' },
+};
+
 interface PostRow {
   id: string;
   content: string | null;
@@ -140,7 +163,17 @@ serve(async (req) => {
 
         const aggregate = Object.values(fields).filter(v => v.length > 0).join(' ');
 
-        if (aggregate.length < MIN_AGGREGATE_LEN) {
+        const normalizedHostname = (post.hostname || '').replace(/^www\./i, '').toLowerCase();
+        const knownHost = KNOWN_HOSTS[normalizedHostname];
+        const significantLength = aggregate.length - (post.hostname?.length || 0);
+
+        const shouldSkipShort = (!knownHost && significantLength < MIN_AGGREGATE_LEN)
+          || (knownHost && significantLength < 10);
+
+        breakdown.host_known = knownHost ? 1 : 0;
+        breakdown.significant_length = significantLength;
+
+        if (shouldSkipShort) {
           await supabase.from('reclassification_audit').insert({
             post_id: post.id,
             previous_category: post.category,
@@ -156,15 +189,22 @@ serve(async (req) => {
             new: null,
             decision: 'skipped_short',
             content_length: aggregate.length,
+            significant_length: significantLength,
+            host_known: !!knownHost,
             source: Object.entries(breakdown).filter(([, n]) => n > 0).map(([k]) => k).join(' + ') || '<empty>',
           });
-          console.log(`Skip-short post ${post.id}: aggregate_length=${aggregate.length}`);
+          console.log(`Skip-short post ${post.id}: aggregate=${aggregate.length} significant=${significantLength} host_known=${!!knownHost}`);
           continue;
         }
 
         // Build classify-content payload
-        const summaryText = [articleContent, transcript, mediaText]
-          .filter(s => s && s.length > 0)
+        const summaryText = [
+          knownHost ? `[Fonte: ${knownHost.hint}]` : null,
+          articleContent,
+          transcript,
+          mediaText,
+        ]
+          .filter((s): s is string => !!s && s.length > 0)
           .join('\n\n')
           .slice(0, SUMMARY_MAX);
 
