@@ -303,7 +303,18 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
 
       {/* Main nebula area with circular radar-style labels */}
       <div className="relative h-[135px] z-10" style={{ width: `${containerWidth}px`, margin: '0 auto' }}>
-        {/* Circular labels positioned around the nebula */}
+        {/* Center canvas for particle nebula (renderizzato PRIMA così le label restano sopra e cliccabili) */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="w-[50%] h-[70%]">
+            <canvas
+              ref={canvasRef}
+              className="w-full h-full"
+              style={{ background: 'transparent' }}
+            />
+          </div>
+        </div>
+
+        {/* Circular labels positioned around the nebula (z-20 + pointer-events-auto per garantire i click) */}
         {labelsToShow.map((pos) => {
           const style = getLabelStyle(pos.angle, containerWidth, containerHeight);
           const isSelected = selectedMacro === pos.name;
@@ -316,7 +327,7 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
                 e.stopPropagation();
                 onMacroClick?.(pos.name);
               }}
-              className="absolute text-[11px] font-semibold whitespace-nowrap transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer"
+              className="absolute z-20 text-[11px] font-semibold whitespace-nowrap transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer px-1.5 py-0.5"
               style={{ 
                 color: CATEGORY_COLORS[pos.name],
                 left: style.left,
@@ -333,17 +344,6 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
             </button>
           );
         })}
-
-        {/* Center canvas for particle nebula */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-[50%] h-[70%]">
-            <canvas
-              ref={canvasRef}
-              className="w-full h-full"
-              style={{ background: 'transparent' }}
-            />
-          </div>
-        </div>
       </div>
 
       {/* Empty state */}
