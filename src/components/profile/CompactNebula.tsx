@@ -370,23 +370,39 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
       </div>
 
       {/* Main nebula area with circular radar-style labels */}
-      <div className="relative h-[135px] z-10" style={{ width: `${containerWidth}px`, margin: '0 auto' }}>
-        {/* Center canvas for particle nebula (renderizzato PRIMA così le label restano sopra e cliccabili) */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-[50%] h-[70%]">
-            <canvas
-              ref={canvasRef}
-              className="w-full h-full"
-              style={{ background: 'transparent' }}
-            />
-          </div>
+      <div className="relative h-[160px] z-10" style={{ width: `${containerWidth}px`, margin: '0 auto' }}>
+        {/* Phase 4.6a — canvas a piena dimensione (no più riquadro centrale) */}
+        <div className="absolute inset-0 pointer-events-none">
+          <canvas
+            ref={canvasRef}
+            className="w-full h-full"
+            style={{ background: 'transparent' }}
+          />
         </div>
 
         {/* Circular labels positioned around the nebula (z-20 + pointer-events-auto per garantire i click) */}
         {labelsToShow.map((pos) => {
-          const style = getLabelStyle(pos.angle, containerWidth, containerHeight);
           const isSelected = selectedMacro === pos.name;
           const isDimmed = !!selectedMacro && !isSelected;
+
+          // Phase 4.6a — posizione label = bordo del pianeta + offset
+          const angleRad = (pos.angle * Math.PI) / 180;
+          const cw = containerWidth;
+          const ch = 160;
+          const cx = cw / 2;
+          const cy = ch / 2;
+          const maxR = Math.min(cw, ch) * 0.45;
+          const planetCenterDist = maxR * PLANET_DISTANCE_RATIO;
+          const planetR = planetRadii[pos.name] ?? PLANET_MIN_RADIUS;
+          const labelOffset = planetR + 10;
+          const lx = cx + Math.cos(angleRad) * (planetCenterDist + labelOffset);
+          const ly = cy + Math.sin(angleRad) * (planetCenterDist + labelOffset);
+
+          // Allineamento orizzontale in base al quadrante
+          let translateX = '-50%';
+          if (pos.angle >= 135 && pos.angle <= 225) translateX = '-100%';
+          else if (pos.angle > 315 || pos.angle < 45) translateX = '0%';
+
           return (
             <button
               key={pos.name}
@@ -396,11 +412,11 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
                 onMacroClick?.(pos.name);
               }}
               className="absolute z-20 text-[11px] font-semibold whitespace-nowrap transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer px-1.5 py-0.5"
-              style={{ 
+              style={{
                 color: CATEGORY_COLORS[pos.name],
-                left: style.left,
-                top: style.top,
-                transform: `${style.transform} ${isSelected ? 'scale(1.15)' : 'scale(1)'}`,
+                left: `${lx}px`,
+                top: `${ly}px`,
+                transform: `translate(${translateX}, -50%) ${isSelected ? 'scale(1.15)' : 'scale(1)'}`,
                 textShadow: '0 1px 3px rgba(0,0,0,0.8)',
                 opacity: isDimmed ? 0.45 : 1,
                 fontWeight: isSelected ? 800 : 600,
