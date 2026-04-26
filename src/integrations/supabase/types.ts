@@ -2727,6 +2727,10 @@ export type Database = {
           macro_category: string
         }[]
       }
+      get_user_comprehension_count: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
