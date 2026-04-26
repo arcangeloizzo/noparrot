@@ -16,6 +16,9 @@ import { getDisplayUsername } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCognitiveDensity } from "@/hooks/useCognitiveDensity";
 import { useUserComprehensionCount } from "@/hooks/useUserComprehensionCount";
+import { useNebulaFilter } from "@/hooks/useNebulaFilter";
+import { DiarioFilterChip } from "@/components/profile/DiarioFilterChip";
+import { normalizeCategory } from "@/config/categories";
 import { Settings, Bookmark } from "lucide-react";
 
 export const Profile = () => {
@@ -54,6 +57,16 @@ export const Profile = () => {
   // isOwnProfile=true → usa wrapper fresh che fa refresh on-demand della MV
   const { data: cognitiveDensity } = useCognitiveDensity(user?.id, true);
   const { data: comprehensionCount = 0 } = useUserComprehensionCount(user?.id);
+
+  // Phase 4.5 — filtro Nebulosa → Diario (persistente in sessionStorage per utente)
+  const { selectedMacro, setSelectedMacro, clearFilter } = useNebulaFilter(user?.id);
+
+  const handleMacroClick = (macro: string) => {
+    setSelectedMacro(macro);
+    setTimeout(() => {
+      diaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  };
 
   const { data: stats } = useQuery({
     queryKey: ["profile-stats", user?.id],
@@ -172,6 +185,11 @@ export const Profile = () => {
 
   // Filter diary entries
   const filteredEntries = diaryEntries.filter(entry => {
+    // Phase 4.5: filtro per macro-categoria (Nebulosa)
+    if (selectedMacro) {
+      const norm = normalizeCategory(entry.category);
+      if (norm !== selectedMacro) return false;
+    }
     if (diaryFilter === 'all') return true;
     if (diaryFilter === 'original') return entry.type === 'original';
     if (diaryFilter === 'reshared') return entry.type === 'reshared';
