@@ -393,7 +393,7 @@ export const Profile = () => {
         </div>
 
         {/* Compact Cognitive Nebula (expandable) */}
-        <div ref={nebulaRef} className="px-4 mb-4 scroll-mt-20" data-tutorial="nebulosa">
+        <div ref={nebulaRef} className="px-4 mt-6 mb-4 scroll-mt-20" data-tutorial="nebulosa">
           <CompactNebula
             data={cognitiveDensity}
             onExpand={() => setShowNebulaExpanded(true)}

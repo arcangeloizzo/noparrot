@@ -93,6 +93,9 @@ export const NebulaExpandedSheet = ({
           <p className="text-sm text-muted-foreground text-left">
             La mappa dei tuoi percorsi di comprensione
           </p>
+          <p className="text-xs text-muted-foreground/70 text-left mt-1">
+            Tap su un pianeta per filtrare il diario
+          </p>
         </SheetHeader>
 
         <div className="relative z-10 flex flex-col gap-6">
