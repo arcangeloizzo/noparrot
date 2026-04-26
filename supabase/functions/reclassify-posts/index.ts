@@ -102,11 +102,12 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // 1) Get IDs of posts already successfully reclassified — exclude them
+    // 1) Get IDs of posts already processed (any decision) — exclude them
+    // This avoids re-processing skipped_short / skipped_invalid_ai posts on each batch
     const { data: doneRows } = await supabase
       .from('reclassification_audit')
       .select('post_id')
-      .eq('decision', 'reclassified');
+      .in('decision', ['reclassified', 'skipped_short', 'skipped_invalid_ai']);
     const excludeIds = new Set<string>((doneRows ?? []).map((r: any) => r.post_id));
 
     // 2) Build candidate query based on target
