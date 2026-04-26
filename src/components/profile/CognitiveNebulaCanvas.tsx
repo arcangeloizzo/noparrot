@@ -79,6 +79,12 @@ export const CognitiveNebulaCanvas = ({
   const timeRef = useRef(0);
   const particlesRef = useRef<Particle[]>([]);
   const prevDataRef = useRef<string>('');
+  // Phase 4.6a — geometria pianeti calcolata in useEffect quando i weights cambiano
+  const planetGeometryRef = useRef<Record<string, {
+    angle: number;
+    radius: number;
+    color: { r: number; g: number; b: number };
+  }> | null>(null);
   // Ref live per dim/highlight nel render loop
   const selectedMacroRef = useRef<string | null>(selectedMacro ?? null);
   selectedMacroRef.current = selectedMacro ?? null;
