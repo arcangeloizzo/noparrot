@@ -325,10 +325,13 @@ export const CognitiveNebulaCanvas = ({
 
             const centerX = canvasSize.w / 2;
             const centerY = canvasSize.h / 2;
-            const maxRadius = Math.min(canvasSize.w, canvasSize.h) * 0.32;
-            const labelRadius = maxRadius + 24;
-            const x = centerX + Math.cos(angle) * labelRadius;
-            const y = centerY + Math.sin(angle) * labelRadius;
+            const maxRadius = Math.min(canvasSize.w, canvasSize.h) * 0.42;
+            // Phase 4.6a — label posizionata FUORI dal bordo del pianeta
+            const planetCenterDistance = maxRadius * PLANET_DISTANCE_RATIO;
+            const planetRadius = planetRadii[category] ?? PLANET_MIN_RADIUS;
+            const labelOffset = planetRadius + 14;
+            const x = centerX + Math.cos(angle) * (planetCenterDistance + labelOffset);
+            const y = centerY + Math.sin(angle) * (planetCenterDistance + labelOffset);
 
             // Allineamento orizzontale
             const normalizedAngle = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
