@@ -2252,6 +2252,53 @@ export type Database = {
           },
         ]
       }
+      reclassification_audit: {
+        Row: {
+          ai_raw_response: string | null
+          decision: string
+          error_message: string | null
+          id: string
+          new_category: string | null
+          post_id: string
+          previous_category: string | null
+          processed_at: string
+          source_breakdown: Json | null
+          source_snippet: string | null
+        }
+        Insert: {
+          ai_raw_response?: string | null
+          decision: string
+          error_message?: string | null
+          id?: string
+          new_category?: string | null
+          post_id: string
+          previous_category?: string | null
+          processed_at?: string
+          source_breakdown?: Json | null
+          source_snippet?: string | null
+        }
+        Update: {
+          ai_raw_response?: string | null
+          decision?: string
+          error_message?: string | null
+          id?: string
+          new_category?: string | null
+          post_id?: string
+          previous_category?: string | null
+          processed_at?: string
+          source_breakdown?: Json | null
+          source_snippet?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reclassification_audit_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       thread_participants: {
         Row: {
           id: string

@@ -96,4 +96,7 @@ verify_jwt = false
 [functions.generate-pulse-narrative]
 verify_jwt = true
 
+[functions.reclassify-posts]
+verify_jwt = false
+
 
