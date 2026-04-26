@@ -27,6 +27,9 @@ export interface DiaryEntryData {
   passed_gate?: boolean;
   category?: string | null;
   type: DiaryEntryType;
+  /** Phase 4.6c — topic-tag associato al post (per filtro topic). */
+  topic_id?: string | null;
+  topic_label?: string | null;
 }
 
 interface DiaryEntryProps {
