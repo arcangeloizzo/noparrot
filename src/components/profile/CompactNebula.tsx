@@ -357,7 +357,12 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
       
       {/* Header with title and explicit expand button (4.5 bug-fix) */}
       <div className="flex items-center justify-between mb-2 relative z-10">
-        <h4 className="text-base font-semibold text-foreground">Nebulosa Cognitiva</h4>
+        <div>
+          <h4 className="text-base font-semibold text-foreground">Nebulosa Cognitiva</h4>
+          <p className="text-xs text-muted-foreground/70 mt-0.5">
+            Tap su un pianeta per filtrare il diario
+          </p>
+        </div>
         <button
           type="button"
           onClick={onExpand}
