@@ -18,7 +18,7 @@ import { SourceReaderGate } from "./SourceReaderGate";
 import { QuizModal } from "@/components/ui/quiz-modal";
 import { getWordCount, getTestModeWithSource, getMediaTestMode, getMediaGateForComposer, getQuestionCountForIntentReshare } from '@/lib/gate-utils';
 import { useQueryClient } from "@tanstack/react-query";
-import { updateCognitiveDensityWeighted } from "@/lib/cognitiveDensity";
+// Phase 4.4: rimosso import updateCognitiveDensityWeighted (sistema density refactored a vista derivata).
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useCurrentProfile } from "@/hooks/useCurrentProfile";
 import { cn } from "@/lib/utils";

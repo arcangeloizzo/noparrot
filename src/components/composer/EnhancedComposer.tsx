@@ -18,7 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { MentionDropdown } from "@/components/feed/MentionDropdown";
 import { useUserSearch } from "@/hooks/useUserSearch";
 import { useQueryClient } from "@tanstack/react-query";
-import { updateCognitiveDensityWeighted } from "@/lib/cognitiveDensity";
+// Phase 4.4: rimosso import updateCognitiveDensityWeighted (sistema density refactored a vista derivata).
 import { classifyContent } from "@/lib/ai-helpers";
 
 interface EnhancedComposerProps {
@@ -229,17 +229,9 @@ export function EnhancedComposer({
         }
       }
 
-      // Classifica il contenuto e aggiorna cognitive density
-      const category = await classifyContent({
-        text: text,
-        title: urlPreview?.title,
-        summary: urlPreview?.content || urlPreview?.summary
-      });
-
-      if (category) {
-        const action = quotedPost?.id ? 'SHARE_POST' : 'CREATE_POST';
-        await updateCognitiveDensityWeighted(user.id, category, action);
-      }
+      // Phase 4.4: la cognitive density è ora derivata dalla vista user_cognitive_density.
+      // Non serve più aggiornare manualmente. La classificazione del contenuto avviene
+      // server-side via Edge Function classify-content / assign-post-topic.
 
       setPublishedPost({
         ...insertedPost,

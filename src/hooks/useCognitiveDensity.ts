@@ -23,19 +23,27 @@ const EMPTY: CognitiveDensityData = {
     byMacroFlat: {},
 };
 
-export function useCognitiveDensity(userId?: string) {
+export function useCognitiveDensity(userId?: string, isOwnProfile: boolean = false) {
     const { user } = useAuth();
     const targetUserId = userId || user?.id;
 
+    // Se non specificato, deduce isOwnProfile dal confronto con auth user
+    const ownProfile = isOwnProfile || (!!targetUserId && targetUserId === user?.id);
+
     const { data, isLoading } = useQuery<CognitiveDensityData>({
-        queryKey: ["cognitive-density-derived", targetUserId],
+        queryKey: ["cognitive-density-derived", targetUserId, ownProfile],
         queryFn: async () => {
             if (!targetUserId) return EMPTY;
 
-            const { data: rpcData, error } = await supabase.rpc(
-                "get_user_cognitive_density",
-                { p_user_id: targetUserId }
-            );
+            // Wrapper fresh solo per profilo proprio (refresh on-demand della MV).
+            // Profili altrui: lettura diretta (più veloce, può essere stale ~5 min).
+            const rpcName = ownProfile
+                ? "get_user_cognitive_density_fresh"
+                : "get_user_cognitive_density";
+
+            const { data: rpcData, error } = await supabase.rpc(rpcName, {
+                p_user_id: targetUserId,
+            });
 
             if (error) {
                 console.error("[useCognitiveDensity] RPC error:", error);
