@@ -90,6 +90,8 @@ export const CognitiveNebulaCanvas = ({
   selectedMacroRef.current = selectedMacro ?? null;
   // Layout corrente del canvas (per posizionare le label HTML overlay)
   const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  // Phase 4.6a — raggi pianeti per posizionare le label fuori dal bordo
+  const [planetRadii, setPlanetRadii] = useState<Record<string, number>>({});
 
   // Source flat map: nuovo formato (RPC) → byMacroFlat; vecchio → record diretto.
   const flatSource: Record<string, number> = isStructured(data)
