@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { Maximize2 } from 'lucide-react';
 import {
   CATEGORY_NAMES as CATEGORIES,
   CATEGORY_COLORS,
@@ -10,7 +10,8 @@ import type { CognitiveDensityData } from '@/hooks/useCognitiveDensity';
 
 interface CompactNebulaProps {
   data: CognitiveDensityData | Record<string, number>;
-  onClick: () => void;
+  /** Apre lo Sheet espanso. Triggerato SOLO dal bottone "Espandi" (4.5 bug-fix). */
+  onExpand: () => void;
   /** Phase 4.5: macro selezionata (per highlight + dim altre) */
   selectedMacro?: string | null;
   /** Phase 4.5: tap su una label di pianeta → filtra Diario */
@@ -95,7 +96,7 @@ interface Particle {
   color: { r: number; g: number; b: number };
 }
 
-export const CompactNebula = ({ data, onClick, selectedMacro, onMacroClick }: CompactNebulaProps) => {
+export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: CompactNebulaProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
   const timeRef = useRef(0);
