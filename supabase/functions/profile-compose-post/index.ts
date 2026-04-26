@@ -595,6 +595,8 @@ brief_specifico: scrivi un post digest su questo episodio seguendo le tue regole
             profile.handle,
             reqId
           );
+          // Fire-and-forget semantic topic assignment (Fase 3C)
+          assignTopicInBackground(micPost.id, supabaseUrl, serviceRoleKey, profile.handle, reqId);
 
           await supabase.from('ai_generation_log').insert({
             queue_id: null,
@@ -827,6 +829,8 @@ brief_specifico: Scrivi un post sulla canzone del giorno seguendo le tue regole.
             profile.handle,
             reqId
           );
+          // Fire-and-forget semantic topic assignment (Fase 3C)
+          assignTopicInBackground(vinilePost.id, supabaseUrl, serviceRoleKey, profile.handle, reqId);
 
           await supabase.from('ai_generation_log').insert({
             queue_id: null,
@@ -1054,6 +1058,8 @@ ${formatRules}
           profile.handle,
           reqId
         );
+        // Fire-and-forget semantic topic assignment (Fase 3C)
+        assignTopicInBackground(newPost.id, supabaseUrl, serviceRoleKey, profile.handle, reqId);
 
         // Logging — FIX 3: include mode in moderation_notes
         await supabase.from('ai_generation_log').insert({
