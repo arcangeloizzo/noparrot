@@ -12,6 +12,7 @@ import {
 import type { CognitiveDensityData } from "@/hooks/useCognitiveDensity";
 import { CATEGORY_COLORS } from "@/config/categories";
 import { useUserTopicsByMacro } from "@/hooks/useUserTopicsByMacro";
+import type { TopicData } from "@/hooks/useUserTopicsByMacro";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface NebulaExpandedSheetProps {
@@ -23,6 +24,8 @@ interface NebulaExpandedSheetProps {
   selectedMacro?: string | null;
   /** Phase 4.5: callback al tap su pianeta — il parent gestisce filter + scroll */
   onMacroClick?: (macro: string) => void;
+  /** Phase 4.6c: callback al tap su un sub-dot → filtro per topic_id specifico */
+  onTopicSelect?: (topic: { id: string; label: string; macro: string }) => void;
   /** Phase 4.6b: id dell'utente di cui mostrare i topic (default = utente loggato) */
   userId?: string;
 }
@@ -53,6 +56,7 @@ export const NebulaExpandedSheet = ({
   cognitiveDensity,
   selectedMacro,
   onMacroClick,
+  onTopicSelect,
   userId,
 }: NebulaExpandedSheetProps) => {
   const structured = isStructured(cognitiveDensity) ? cognitiveDensity : null;
@@ -89,6 +93,25 @@ export const NebulaExpandedSheet = ({
     onMacroClick?.(macro);
     onOpenChange(false);
     // Auto-scroll al Diario dopo che lo Sheet si è chiuso (animazione ~300ms)
+    setTimeout(() => {
+      const diario = document.querySelector('[data-section="diario"]');
+      if (diario) {
+        diario.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 320);
+  };
+
+  // Phase 4.6c — tap su sub-dot nello ZoomedPlanetView.
+  // Imposta entrambi i filtri (macro + topic), chiude lo Sheet e scrolla al Diario.
+  const handleTopicClick = (topic: TopicData) => {
+    if (!zoomedMacro) return;
+    onMacroClick?.(zoomedMacro);
+    onTopicSelect?.({
+      id: topic.topic_id,
+      label: topic.topic_label,
+      macro: zoomedMacro,
+    });
+    onOpenChange(false);
     setTimeout(() => {
       const diario = document.querySelector('[data-section="diario"]');
       if (diario) {
@@ -168,6 +191,7 @@ export const NebulaExpandedSheet = ({
                     isLoading={topicsLoading}
                     onClose={() => setZoomedMacro(null)}
                     onFilterDiary={() => handleMacroClick(zoomedMacro)}
+                    onTopicClick={handleTopicClick}
                   />
                 </motion.div>
               )}

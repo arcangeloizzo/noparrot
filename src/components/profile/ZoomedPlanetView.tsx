@@ -9,13 +9,15 @@ interface ZoomedPlanetViewProps {
   isLoading?: boolean;
   onClose: () => void;
   onFilterDiary: () => void;
+  /** Phase 4.6c — tap su un sub-dot → filtra Diario per topic_id specifico. */
+  onTopicClick?: (topic: TopicData) => void;
 }
 
 /**
- * Phase 4.6b — vista zoom-in di un singolo pianeta della Nebulosa.
+ * Phase 4.6b/4.6c — vista zoom-in di un singolo pianeta della Nebulosa.
  * Mostra il pianeta protagonista al centro con i sub-dot dei topic-tag
  * disposti in cerchi concentrici (3 tier: hero / inner ring / outer ring).
- * I sub-dot sono STATICI (non clickable) — il filtro per topic_id arriverà in 4.6c.
+ * Phase 4.6c: i sub-dot sono cliccabili → filtro Diario per topic_id.
  */
 
 const PLANET_SIZE = 280;
@@ -198,6 +200,7 @@ export const ZoomedPlanetView = ({
   isLoading,
   onClose,
   onFilterDiary,
+  onTopicClick,
 }: ZoomedPlanetViewProps) => {
   const colorHex = CATEGORY_COLORS[macro] ?? "#888888";
   const rgb = hexToRgb(colorHex);
@@ -292,32 +295,47 @@ export const ZoomedPlanetView = ({
           </div>
         )}
 
-        {/* Sub-dot statici (puntini senza label) */}
+        {/* Sub-dot interattivi — Phase 4.6c.
+            Hit-area minima ~24px tramite padding invisibile per i dot piccoli. */}
         {!isLoading &&
           positioned.map((dot) => {
-            const left = PLANET_RADIUS + dot.x - dot.size / 2;
-            const top = PLANET_RADIUS + dot.y - dot.size / 2;
+            // Garantisce hit-area di almeno ~24px attorno al centro del dot.
+            const hitAreaPad = Math.max(0, 12 - dot.size / 2);
+            const buttonSize = dot.size + hitAreaPad * 2;
+            const left = PLANET_RADIUS + dot.x - buttonSize / 2;
+            const top = PLANET_RADIUS + dot.y - buttonSize / 2;
+            const isInteractive = !!onTopicClick;
             return (
-              <div
+              <button
                 key={`dot-${dot.topic.topic_id}`}
+                type="button"
                 data-planet="true"
-                className="absolute pointer-events-none"
+                data-subdot="true"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onTopicClick?.(dot.topic);
+                }}
+                disabled={!isInteractive}
+                aria-label={`Filtra Diario per ${dot.topic.topic_label} (${dot.topic.frequency} post)`}
+                className={`absolute p-0 m-0 bg-transparent border-0 flex items-center justify-center group transition-transform duration-150 ${isInteractive ? 'cursor-pointer hover:scale-125 active:scale-95' : 'cursor-default'}`}
                 style={{
                   left,
                   top,
-                  width: dot.size,
-                  height: dot.size,
+                  width: buttonSize,
+                  height: buttonSize,
                 }}
               >
-                <div
-                  className="w-full h-full rounded-full"
+                <span
+                  className="block rounded-full transition-all duration-150 group-hover:brightness-125"
                   style={{
+                    width: dot.size,
+                    height: dot.size,
                     backgroundColor: colorHex,
                     opacity: dot.opacity,
                     boxShadow: `0 0 ${dot.size * 0.6}px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)`,
                   }}
                 />
-              </div>
+              </button>
             );
           })}
 

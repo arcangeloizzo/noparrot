@@ -2699,6 +2699,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      count_user_posts_by_topic: {
+        Args: { p_topic_id: string; p_user_id: string }
+        Returns: number
+      }
       create_or_get_thread: {
         Args: { participant_ids: string[] }
         Returns: string
