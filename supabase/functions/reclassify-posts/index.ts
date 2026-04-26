@@ -15,6 +15,29 @@ const MIN_AGGREGATE_LEN = 50;
 const SUMMARY_MAX = 3000;
 const THROTTLE_MS = 200;
 
+const KNOWN_HOSTS: Record<string, { hint: string }> = {
+  'open.spotify.com': { hint: 'contenuto musicale o podcast su Spotify' },
+  'spotify.com': { hint: 'contenuto musicale o podcast su Spotify' },
+  'youtube.com': { hint: 'video YouTube' },
+  'youtu.be': { hint: 'video YouTube' },
+  'music.youtube.com': { hint: 'contenuto musicale YouTube' },
+  'genius.com': { hint: 'testi musicali' },
+  'wired.it': { hint: 'articolo Wired (tech/scienza/cultura)' },
+  'wired.com': { hint: 'articolo Wired (tech/scienza/cultura)' },
+  'ilpost.it': { hint: 'articolo de Il Post' },
+  'corriere.it': { hint: 'articolo Corriere della Sera' },
+  'repubblica.it': { hint: 'articolo La Repubblica' },
+  'ansa.it': { hint: 'notizia ANSA' },
+  'reuters.com': { hint: 'notizia Reuters' },
+  'theguardian.com': { hint: 'articolo The Guardian' },
+  'nytimes.com': { hint: 'articolo New York Times' },
+  'lefigaro.fr': { hint: 'articolo Le Figaro' },
+  'internazionale.it': { hint: 'articolo Internazionale' },
+  'valigiablu.it': { hint: 'articolo Valigia Blu' },
+  'substack.com': { hint: 'newsletter Substack' },
+  'medium.com': { hint: 'articolo Medium' },
+};
+
 interface PostRow {
   id: string;
   content: string | null;
