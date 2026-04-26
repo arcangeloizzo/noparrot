@@ -49,7 +49,7 @@ export const DesktopLeftSidebar = () => {
                     La tua Nebulosa
                 </h3>
                 <div className="w-full h-[300px] relative">
-                    <CognitiveNebulaCanvas data={cognitiveDensity || {}} />
+                    <CognitiveNebulaCanvas data={cognitiveDensity} />
                 </div>
             </div>
         </div>
