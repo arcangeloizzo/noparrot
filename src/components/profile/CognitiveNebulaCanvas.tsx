@@ -273,6 +273,26 @@ export const CognitiveNebulaCanvas = ({
       initializeParticles(weights);
     }
 
+    // Phase 4.6a — calcola geometria pianeti (angle + radius + color) e salva in ref
+    const geometry: Record<string, { angle: number; radius: number; color: { r: number; g: number; b: number } }> = {};
+    const radiiState: Record<string, number> = {};
+    CATEGORIES.forEach(cat => {
+      const w = weights[cat] || 0;
+      const radius = computePlanetRadius(w, PLANET_MIN_RADIUS, PLANET_MAX_RADIUS);
+      geometry[cat] = {
+        angle: CATEGORY_ANGLES[cat],
+        radius,
+        color: hexToRgb(CATEGORY_COLORS[cat]),
+      };
+      radiiState[cat] = radius;
+    });
+    planetGeometryRef.current = geometry;
+    setPlanetRadii(prev => {
+      // evita re-render inutili se identico
+      const same = CATEGORIES.every(c => Math.abs((prev[c] ?? -1) - radiiState[c]) < 0.5);
+      return same ? prev : radiiState;
+    });
+
     handleResize();
     
     window.addEventListener('resize', handleResize);
