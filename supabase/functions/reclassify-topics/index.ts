@@ -130,7 +130,13 @@ serve(async (req) => {
       .filter((p: any) => !excludeIds.has(p.id))
       .slice(0, batchSize) as PostRow[];
 
-    console.log(`[reclassify-topics] pool=${allCandidates?.length ?? 0} excluded=${excludeIds.size} candidates=${candidates.length}`);
+    const debugInfo = {
+      pool_size_requested: poolSize,
+      pool_returned: allCandidates?.length ?? 0,
+      excluded_count: excludeIds.size,
+      candidates_count: candidates.length,
+    };
+    console.log(`[reclassify-topics] ${JSON.stringify(debugInfo)}`);
 
     const details: any[] = [];
     let topicAssigned = 0;
