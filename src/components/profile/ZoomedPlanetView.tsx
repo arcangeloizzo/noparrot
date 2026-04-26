@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import { CATEGORY_COLORS } from "@/config/categories";
 import type { TopicData } from "@/hooks/useUserTopicsByMacro";
 
@@ -20,6 +20,7 @@ interface ZoomedPlanetViewProps {
 
 const PLANET_SIZE = 280;
 const PLANET_RADIUS = PLANET_SIZE / 2;
+const MAX_VISIBLE_LABELS = 5;
 
 interface Tier {
   startIdx: number;
@@ -32,6 +33,7 @@ interface Tier {
 const TIERS: Tier[] = [
   { startIdx: 0, endIdx: 1, radiusRatio: 0, dotSize: 24, opacity: 1.0 },
   { startIdx: 1, endIdx: 7, radiusRatio: 0.45, dotSize: 16, opacity: 0.85 },
+  // Tier 2 (idx >= 7): distribuito su 2 sub-anelli concentrici (vedi layoutDots)
   { startIdx: 7, endIdx: Infinity, radiusRatio: 0.85, dotSize: 8, opacity: 0.55 },
 ];
 
@@ -57,6 +59,8 @@ interface PositionedDot {
   showLabel: boolean;
   tierIdx: number;
   angle: number;
+  /** Distanza del dot dal centro del pianeta (px). Usata per la label radiale. */
+  dotRadius: number;
 }
 
 function layoutDots(topics: TopicData[]): PositionedDot[] {
@@ -88,14 +92,14 @@ function layoutDots(topics: TopicData[]): PositionedDot[] {
           showLabel: true,
           tierIdx,
           angle: 0,
+          dotRadius: 0,
         });
       });
-    } else {
+    } else if (tierIdx === 1) {
       const radius = tier.radiusRatio * PLANET_RADIUS;
       const count = tierTopics.length;
       tierTopics.forEach((topic, i) => {
-        // Distribuzione angolare equispaziata + leggero offset per evitare allineamenti monotoni
-        const angle = (i / count) * Math.PI * 2 - Math.PI / 2 + (tierIdx === 2 ? 0.15 : 0);
+        const angle = (i / count) * Math.PI * 2 - Math.PI / 2;
         const x = Math.cos(angle) * radius;
         const y = Math.sin(angle) * radius;
         const globalIdx = topics.indexOf(topic);
@@ -105,15 +109,86 @@ function layoutDots(topics: TopicData[]): PositionedDot[] {
           y,
           size: tier.dotSize,
           opacity: tier.opacity,
-          showLabel: globalIdx < 5,
+          showLabel: globalIdx < MAX_VISIBLE_LABELS,
           tierIdx,
           angle,
+          dotRadius: radius,
         });
       });
+    } else {
+      // Tier 2: distribuisci i puntini su 2 sub-anelli concentrici
+      // (sub-anello A: 0.78R, sub-anello B: 0.92R, sfasati di 15°).
+      const subRingARadius = 0.78 * PLANET_RADIUS;
+      const subRingBRadius = 0.92 * PLANET_RADIUS;
+      const halfA = Math.ceil(tierTopics.length / 2);
+      const ringATopics = tierTopics.slice(0, halfA);
+      const ringBTopics = tierTopics.slice(halfA);
+      const offsetB = (15 * Math.PI) / 180;
+
+      const placeRing = (
+        ringTopics: TopicData[],
+        ringRadius: number,
+        angleOffset: number
+      ) => {
+        const count = ringTopics.length;
+        ringTopics.forEach((topic, i) => {
+          const angle = (i / count) * Math.PI * 2 - Math.PI / 2 + angleOffset;
+          const x = Math.cos(angle) * ringRadius;
+          const y = Math.sin(angle) * ringRadius;
+          const globalIdx = topics.indexOf(topic);
+          positioned.push({
+            topic,
+            x,
+            y,
+            size: tier.dotSize,
+            opacity: tier.opacity,
+            // I top 5 sono sempre nei tier 0-1, quindi nel tier 2 nessuna label leggibile.
+            showLabel: globalIdx < MAX_VISIBLE_LABELS,
+            tierIdx,
+            angle,
+            dotRadius: ringRadius,
+          });
+        });
+      };
+
+      placeRing(ringATopics, subRingARadius, 0);
+      placeRing(ringBTopics, subRingBRadius, offsetB);
     }
   });
 
   return positioned;
+}
+
+/**
+ * Calcola posizione assoluta della label rispetto al centro del pianeta.
+ * - Hero dot (centrale): label sotto al dot.
+ * - Tier 1 (ring intermedio): label radiale, sulla stessa angolazione ma più lontano.
+ */
+function computeLabelPosition(dot: PositionedDot): {
+  left: number;
+  top: number;
+  align: "center" | "left" | "right";
+} {
+  // Hero centrale → label sotto, centrata.
+  if (dot.tierIdx === 0) {
+    return {
+      left: PLANET_RADIUS,
+      top: PLANET_RADIUS + dot.size / 2 + 12,
+      align: "center",
+    };
+  }
+  // Tier 1 → label radiale: stesso angolo del dot, distanza maggiore.
+  const labelRadius = dot.dotRadius + dot.size / 2 + 14;
+  const lx = PLANET_RADIUS + Math.cos(dot.angle) * labelRadius;
+  const ly = PLANET_RADIUS + Math.sin(dot.angle) * labelRadius;
+  // Allineamento orizzontale in base al quadrante (cos > 0 → label parte da sinistra).
+  const align: "left" | "right" | "center" =
+    Math.abs(Math.cos(dot.angle)) < 0.2
+      ? "center"
+      : Math.cos(dot.angle) > 0
+        ? "left"
+        : "right";
+  return { left: lx, top: ly, align };
 }
 
 export const ZoomedPlanetView = ({
@@ -169,14 +244,22 @@ export const ZoomedPlanetView = ({
 
       {/* Planet area */}
       <div
-        className="relative flex items-center justify-center my-4"
-        style={{ width: PLANET_SIZE, height: PLANET_SIZE }}
+        className="relative my-4 shrink-0"
+        style={{
+          width: PLANET_SIZE,
+          height: PLANET_SIZE,
+          aspectRatio: "1 / 1",
+        }}
       >
-        {/* Pianeta protagonista */}
+        {/* Pianeta protagonista — cerchio perfetto con radial gradient circolare */}
         <div
           data-planet="true"
-          className="absolute inset-0 rounded-full"
+          className="absolute inset-0"
           style={{
+            width: PLANET_SIZE,
+            height: PLANET_SIZE,
+            aspectRatio: "1 / 1",
+            borderRadius: "50%",
             background: `radial-gradient(circle at center, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.4) 0%, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.18) 55%, rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0) 100%)`,
             border: `2px solid rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.5)`,
             boxShadow: `0 0 40px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.25)`,
@@ -185,29 +268,38 @@ export const ZoomedPlanetView = ({
 
         {/* Empty state */}
         {!isLoading && topics.length === 0 && (
-          <div className="relative z-10 text-center px-6">
-            <p className="text-sm text-muted-foreground">
-              Non hai ancora topic specifici in questa categoria.
+          <div
+            className="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-8"
+            data-planet="true"
+          >
+            <Sparkles
+              className="w-8 h-8 mb-3 opacity-60"
+              style={{ color: colorHex }}
+            />
+            <p className="text-sm text-foreground/80 leading-snug">
+              Esplora contenuti per scoprire i tuoi sotto-temi in questa categoria.
             </p>
           </div>
         )}
 
         {/* Loading state */}
         {isLoading && (
-          <div className="relative z-10 text-center">
+          <div
+            className="absolute inset-0 z-10 flex items-center justify-center text-center"
+            data-planet="true"
+          >
             <p className="text-xs text-muted-foreground">Caricamento topic…</p>
           </div>
         )}
 
-        {/* Sub-dot statici */}
+        {/* Sub-dot statici (puntini senza label) */}
         {!isLoading &&
           positioned.map((dot) => {
-            // Posizionamento centrato dentro al pianeta
             const left = PLANET_RADIUS + dot.x - dot.size / 2;
             const top = PLANET_RADIUS + dot.y - dot.size / 2;
             return (
               <div
-                key={dot.topic.topic_id}
+                key={`dot-${dot.topic.topic_id}`}
                 data-planet="true"
                 className="absolute pointer-events-none"
                 style={{
@@ -225,22 +317,47 @@ export const ZoomedPlanetView = ({
                     boxShadow: `0 0 ${dot.size * 0.6}px rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.7)`,
                   }}
                 />
-                {dot.showLabel && (
-                  <div
-                    className="absolute left-1/2 -translate-x-1/2 mt-1 whitespace-nowrap"
-                    style={{ top: dot.size + 4 }}
-                  >
-                    <span className="text-[10px] font-medium text-foreground/85 bg-black/40 backdrop-blur-sm px-1.5 py-0.5 rounded">
-                      {dot.topic.topic_label}
-                      <sub className="ml-0.5 text-foreground/55 tabular-nums">
-                        {dot.topic.frequency}
-                      </sub>
-                    </span>
-                  </div>
-                )}
               </div>
             );
           })}
+
+        {/* Label dei top 5 — render separato sopra ai dot per evitare overlap */}
+        {!isLoading &&
+          positioned
+            .filter((d) => d.showLabel)
+            .map((dot) => {
+              const labelPos = computeLabelPosition(dot);
+              const transform =
+                labelPos.align === "center"
+                  ? "translate(-50%, 0)"
+                  : labelPos.align === "left"
+                    ? "translate(0, -50%)"
+                    : "translate(-100%, -50%)";
+              return (
+                <div
+                  key={`label-${dot.topic.topic_id}`}
+                  data-planet="true"
+                  className="absolute pointer-events-none whitespace-nowrap z-20"
+                  style={{
+                    left: labelPos.left,
+                    top: labelPos.top,
+                    transform,
+                  }}
+                >
+                  <span
+                    className="text-[10px] font-medium text-foreground/90 bg-black/55 backdrop-blur-sm px-1.5 py-0.5 rounded"
+                    style={{
+                      textShadow: "0 1px 2px rgba(0,0,0,0.8)",
+                    }}
+                  >
+                    {dot.topic.topic_label}
+                    <sub className="ml-0.5 text-foreground/60 tabular-nums">
+                      {dot.topic.frequency}
+                    </sub>
+                  </span>
+                </div>
+              );
+            })}
       </div>
 
       {/* CTA */}
