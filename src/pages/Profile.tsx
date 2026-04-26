@@ -59,7 +59,14 @@ export const Profile = () => {
   const { data: comprehensionCount = 0 } = useUserComprehensionCount(user?.id);
 
   // Phase 4.5 — filtro Nebulosa → Diario (persistente in sessionStorage per utente)
-  const { selectedMacro, setSelectedMacro, clearFilter } = useNebulaFilter(user?.id);
+  const {
+    selectedMacro,
+    selectedTopic,
+    setSelectedMacro,
+    setSelectedTopic,
+    clearFilter,
+    clearTopicOnly,
+  } = useNebulaFilter(user?.id);
 
   const handleMacroClick = (macro: string) => {
     setSelectedMacro(macro);
@@ -102,7 +109,8 @@ export const Profile = () => {
         .from("posts")
         .select(`
           id, content, shared_title, shared_url, quoted_post_id, 
-          sources, preview_img, created_at, category
+          sources, preview_img, created_at, category,
+          post_topics ( topic_id, topic_label )
         `)
         .eq("author_id", user.id)
         .order("created_at", { ascending: false });
@@ -118,7 +126,8 @@ export const Profile = () => {
         .select(`
           post_id, created_at,
           posts!inner(id, content, shared_title, shared_url, quoted_post_id, 
-            sources, preview_img, created_at, category, author_id)
+            sources, preview_img, created_at, category, author_id,
+            post_topics ( topic_id, topic_label ))
         `)
         .eq("user_id", user.id)
         .eq("passed", true)
@@ -134,6 +143,9 @@ export const Profile = () => {
         if (post.quoted_post_id) type = 'reshared';
         else if (post.shared_url || (post.sources && Array.isArray(post.sources) && post.sources.length > 0)) type = 'gated';
 
+        const pt = Array.isArray((post as any).post_topics)
+          ? (post as any).post_topics[0]
+          : (post as any).post_topics;
         return {
           id: post.id,
           content: post.content,
@@ -145,13 +157,19 @@ export const Profile = () => {
           created_at: post.created_at,
           category: post.category,
           type,
+          topic_id: pt?.topic_id ?? null,
+          topic_label: pt?.topic_label ?? null,
         };
       });
 
       // Map gated posts (not authored by user)
       const gatedEntries: DiaryEntryData[] = (gatedPosts || [])
         .filter(g => g.posts.author_id !== user.id)
-        .map(g => ({
+        .map(g => {
+          const pt = Array.isArray((g.posts as any).post_topics)
+            ? (g.posts as any).post_topics[0]
+            : (g.posts as any).post_topics;
+          return {
           id: g.posts.id,
           content: g.posts.content,
           shared_title: g.posts.shared_title,
@@ -163,7 +181,10 @@ export const Profile = () => {
           category: g.posts.category,
           type: 'gated' as DiaryEntryType,
           passed_gate: true,
-        }));
+          topic_id: pt?.topic_id ?? null,
+          topic_label: pt?.topic_label ?? null,
+          };
+        });
 
       // Merge and deduplicate
       const allEntries = [...userEntries, ...gatedEntries];
@@ -189,6 +210,10 @@ export const Profile = () => {
     if (selectedMacro) {
       const norm = normalizeCategory(entry.category);
       if (norm !== selectedMacro) return false;
+    }
+    // Phase 4.6c: filtro per topic_id specifico
+    if (selectedTopic) {
+      if (entry.topic_id !== selectedTopic.id) return false;
     }
     if (diaryFilter === 'all') return true;
     if (diaryFilter === 'original') return entry.type === 'original';
@@ -411,13 +436,31 @@ export const Profile = () => {
             </p>
           </div>
 
-          {/* Phase 4.5 — chip filtro macro-categoria */}
-          {selectedMacro && (
-            <DiarioFilterChip
-              macro={selectedMacro}
-              count={filteredEntries.length}
-              onClear={clearFilter}
-            />
+          {/* Phase 4.5 / 4.6c — chip filtri (macro + topic) */}
+          {(selectedMacro || selectedTopic) && (
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className="text-xs uppercase tracking-wider text-muted-foreground shrink-0">
+                Filtri:
+              </span>
+              {selectedMacro && (
+                <DiarioFilterChip
+                  variant="macro"
+                  macro={selectedMacro}
+                  count={filteredEntries.length}
+                  onClear={clearFilter}
+                />
+              )}
+              {selectedTopic && (
+                <DiarioFilterChip
+                  variant="topic"
+                  label={selectedTopic.label}
+                  color={undefined}
+                  macro={selectedTopic.macro}
+                  count={filteredEntries.length}
+                  onClear={clearTopicOnly}
+                />
+              )}
+            </div>
           )}
 
           {/* Filters */}
@@ -447,12 +490,23 @@ export const Profile = () => {
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <p className="text-sm">
-                {selectedMacro
+                {selectedTopic
+                  ? `Nessun post per il topic "${selectedTopic.label}".`
+                  : selectedMacro
                   ? `Non hai ancora interazioni in ${selectedMacro}. Esplora i contenuti per espandere la tua mappa.`
                   : diaryFilter === 'all'
                   ? 'Nessun contenuto nel tuo diario. Inizia a creare o condividere!'
                   : 'Nessun contenuto per questo filtro.'}
               </p>
+              {selectedTopic && (
+                <button
+                  type="button"
+                  onClick={clearTopicOnly}
+                  className="mt-2 text-sm text-primary hover:underline"
+                >
+                  Rimuovi filtro topic
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -483,6 +537,9 @@ export const Profile = () => {
         selectedMacro={selectedMacro}
         onMacroClick={(macro) => {
           setSelectedMacro(macro);
+        }}
+        onTopicSelect={(topic) => {
+          setSelectedTopic(topic);
         }}
       />
 
