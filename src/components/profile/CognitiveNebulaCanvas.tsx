@@ -12,6 +12,10 @@ interface CognitiveNebulaCanvasProps {
   /** Accetta sia il nuovo formato strutturato sia il vecchio Record per back-compat */
   data: CognitiveDensityData | Record<string, number>;
   showCounts?: boolean;
+  /** Phase 4.5: macro attualmente selezionata come filtro */
+  selectedMacro?: string | null;
+  /** Phase 4.5: callback al tap su una label di pianeta */
+  onMacroClick?: (macro: string) => void;
 }
 
 function isStructured(
@@ -50,12 +54,22 @@ interface Particle {
   color: { r: number; g: number; b: number };
 }
 
-export const CognitiveNebulaCanvas = ({ data, showCounts = false }: CognitiveNebulaCanvasProps) => {
+export const CognitiveNebulaCanvas = ({
+  data,
+  showCounts = false,
+  selectedMacro,
+  onMacroClick,
+}: CognitiveNebulaCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
   const timeRef = useRef(0);
   const particlesRef = useRef<Particle[]>([]);
   const prevDataRef = useRef<string>('');
+  // Ref live per dim/highlight nel render loop
+  const selectedMacroRef = useRef<string | null>(selectedMacro ?? null);
+  selectedMacroRef.current = selectedMacro ?? null;
+  // Layout corrente del canvas (per posizionare le label HTML overlay)
+  const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
 
   // Source flat map: nuovo formato (RPC) → byMacroFlat; vecchio → record diretto.
   const flatSource: Record<string, number> = isStructured(data)
@@ -149,11 +163,16 @@ export const CognitiveNebulaCanvas = ({ data, showCounts = false }: CognitiveNeb
 
       // Alpha: higher near center, fades with distance, plus twinkle
       const distanceAlpha = 1 - (particle.distanceRatio * 0.5);
-      const alpha = distanceAlpha * (0.55 + 0.45 * twinkle);
+      const baseAlpha = distanceAlpha * (0.55 + 0.45 * twinkle);
+      // Phase 4.5: dim particles non selezionate
+      const sel = selectedMacroRef.current;
+      const isDimmed = sel && sel !== particle.category;
+      const alpha = baseAlpha * (isDimmed ? 0.35 : 1);
+      const sizeMul = sel === particle.category ? 1.2 : 1;
 
       // Draw particle
       ctx.beginPath();
-      ctx.arc(x, y, particle.size, 0, Math.PI * 2);
+      ctx.arc(x, y, particle.size * sizeMul, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${alpha})`;
       ctx.fill();
     });
@@ -165,51 +184,8 @@ export const CognitiveNebulaCanvas = ({ data, showCounts = false }: CognitiveNeb
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
 
-    // Draw category labels at the edges
-    const labelRadius = maxRadius + 24;
-    ctx.textBaseline = 'middle';
-    
-    CATEGORIES.forEach(category => {
-      const angle = CATEGORY_ANGLES[category];
-      const color = CATEGORY_COLORS[category];
-      const categoryValue = normalizedData[category] || 0;
-      
-      const x = centerX + Math.cos(angle) * labelRadius;
-      const y = centerY + Math.sin(angle) * labelRadius;
-      
-      // Short label from central config, with optional count
-      const shortLabel = CATEGORY_SHORT_NAMES[category] ?? category;
-      const displayLabel = showCounts && categoryValue > 0 
-        ? `${shortLabel} (${Math.round(categoryValue)})`
-        : shortLabel;
-      
-      // Align text based on angular position
-      const normalizedAngle = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-      
-      if (normalizedAngle > Math.PI * 0.6 && normalizedAngle < Math.PI * 1.4) {
-        ctx.textAlign = 'right';
-      } else if (normalizedAngle >= Math.PI * 1.4 && normalizedAngle <= Math.PI * 1.6) {
-        ctx.textAlign = 'center';
-      } else if (normalizedAngle >= Math.PI * 0.4 && normalizedAngle <= Math.PI * 0.6) {
-        ctx.textAlign = 'center';
-      } else if (normalizedAngle > Math.PI * 1.6 || normalizedAngle < Math.PI * 0.4) {
-        ctx.textAlign = 'left';
-      } else {
-        ctx.textAlign = 'center';
-      }
-      
-      ctx.font = '600 11px system-ui, -apple-system, sans-serif';
-      
-      // Draw text shadow for better contrast
-      ctx.globalAlpha = 0.4;
-      ctx.fillStyle = 'rgba(0, 0, 0, 1)';
-      ctx.fillText(displayLabel, x + 1, y + 1);
-      
-      // Draw main text
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = color;
-      ctx.fillText(displayLabel, x, y);
-    });
+    // Phase 4.5: le label sono renderizzate come overlay HTML clickable
+    // (vedi return JSX più sotto). Sul canvas restano solo le particelle + glow.
 
     animationRef.current = requestAnimationFrame(animate);
   }, []);
@@ -228,6 +204,7 @@ export const CognitiveNebulaCanvas = ({ data, showCounts = false }: CognitiveNeb
     canvas.height = rect.height * dpr;
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
+    setCanvasSize({ w: rect.width, h: rect.height });
     
     const ctx = canvas.getContext('2d');
     if (ctx) {
@@ -271,6 +248,71 @@ export const CognitiveNebulaCanvas = ({ data, showCounts = false }: CognitiveNeb
         className="w-full h-full"
         style={{ background: 'transparent' }}
       />
+      {/* Phase 4.5: overlay HTML con label clickable per filtrare il Diario */}
+      {canvasSize.w > 0 && canvasSize.h > 0 && (
+        <div className="absolute inset-0 pointer-events-none">
+          {CATEGORIES.map((category) => {
+            const angle = CATEGORY_ANGLES[category];
+            const categoryValue = normalizedData[category] || 0;
+            const isActive = categoryValue > 0;
+            const isSelected = selectedMacro === category;
+            const isDimmed = !!selectedMacro && !isSelected;
+
+            const centerX = canvasSize.w / 2;
+            const centerY = canvasSize.h / 2;
+            const maxRadius = Math.min(canvasSize.w, canvasSize.h) * 0.32;
+            const labelRadius = maxRadius + 24;
+            const x = centerX + Math.cos(angle) * labelRadius;
+            const y = centerY + Math.sin(angle) * labelRadius;
+
+            // Allineamento orizzontale
+            const normalizedAngle = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+            let translateX = '-50%';
+            if (normalizedAngle > Math.PI * 0.6 && normalizedAngle < Math.PI * 1.4) {
+              translateX = '-100%';
+            } else if (normalizedAngle > Math.PI * 1.6 || normalizedAngle < Math.PI * 0.4) {
+              translateX = '0%';
+            }
+
+            const shortLabel = CATEGORY_SHORT_NAMES[category] ?? category;
+            const displayLabel = showCounts && categoryValue > 0
+              ? `${shortLabel} (${Math.round(categoryValue)})`
+              : shortLabel;
+
+            const color = CATEGORY_COLORS[category];
+            const clickable = isActive && !!onMacroClick;
+
+            return (
+              <button
+                key={category}
+                type="button"
+                disabled={!clickable}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (clickable) onMacroClick?.(category);
+                }}
+                className="absolute text-[11px] whitespace-nowrap transition-all duration-200 disabled:cursor-default enabled:hover:scale-110 enabled:active:scale-95 enabled:cursor-pointer"
+                style={{
+                  left: `${x}px`,
+                  top: `${y}px`,
+                  transform: `translate(${translateX}, -50%) ${isSelected ? 'scale(1.15)' : 'scale(1)'}`,
+                  color,
+                  fontWeight: isSelected ? 800 : 600,
+                  opacity: !isActive ? 0.35 : isDimmed ? 0.45 : 1,
+                  textShadow: '0 1px 3px rgba(0,0,0,0.85)',
+                  pointerEvents: clickable ? 'auto' : 'none',
+                  background: 'transparent',
+                  border: 'none',
+                  padding: 0,
+                }}
+                aria-label={clickable ? `Filtra Diario per ${category}` : category}
+              >
+                {displayLabel}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
