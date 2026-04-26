@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import {
   CATEGORIES as CATEGORY_DEFS,
   CATEGORY_NAMES,
