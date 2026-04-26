@@ -45,13 +45,27 @@ const hexToRgb = (hex: string) => {
 // Particle interface for radial distribution
 interface Particle {
   category: string;
-  baseAngle: number;
-  angleOffset: number;
-  distanceRatio: number;
+  /** Phase 4.6a — particella confinata DENTRO al pianeta (offset relativo al centro del pianeta) */
+  localAngle: number;
+  localDistanceRatio: number;
   size: number;
   driftPhase: number;
   twinklePhase: number;
   color: { r: number; g: number; b: number };
+}
+
+// Phase 4.6a — geometria pianeti: dal centro canvas verso il bordo, distanza fissa.
+// Layout angolare resta CATEGORY_ANGLES (verrà sostituito da force-directed in 4.7).
+const PLANET_DISTANCE_RATIO = 0.55; // % di maxRadius
+const PLANET_MIN_RADIUS = 12;
+const PLANET_MAX_RADIUS = 50;
+
+/** Raggio del pianeta proporzionale a sqrt(density / maxDensity). */
+function computePlanetRadius(weight: number, min: number, max: number): number {
+  if (weight <= 0) return 0;
+  // weight è già normalizzato 0..1 (density / maxDensity, vedi useEffect).
+  const scaled = Math.sqrt(weight);
+  return min + scaled * (max - min);
 }
 
 export const CognitiveNebulaCanvas = ({
@@ -65,11 +79,19 @@ export const CognitiveNebulaCanvas = ({
   const timeRef = useRef(0);
   const particlesRef = useRef<Particle[]>([]);
   const prevDataRef = useRef<string>('');
+  // Phase 4.6a — geometria pianeti calcolata in useEffect quando i weights cambiano
+  const planetGeometryRef = useRef<Record<string, {
+    angle: number;
+    radius: number;
+    color: { r: number; g: number; b: number };
+  }> | null>(null);
   // Ref live per dim/highlight nel render loop
   const selectedMacroRef = useRef<string | null>(selectedMacro ?? null);
   selectedMacroRef.current = selectedMacro ?? null;
   // Layout corrente del canvas (per posizionare le label HTML overlay)
   const [canvasSize, setCanvasSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  // Phase 4.6a — raggi pianeti per posizionare le label fuori dal bordo
+  const [planetRadii, setPlanetRadii] = useState<Record<string, number>>({});
 
   // Source flat map: nuovo formato (RPC) → byMacroFlat; vecchio → record diretto.
   const flatSource: Record<string, number> = isStructured(data)
@@ -87,33 +109,28 @@ export const CognitiveNebulaCanvas = ({
   // Initialize particles based on weights
   const initializeParticles = useCallback((weights: Record<string, number>) => {
     const particles: Particle[] = [];
-    
-    const baseCount = 12;
-    const extraCount = 48;
-    const angleSpread = Math.PI / 8; // ±22.5 degrees
+
+    // Phase 4.6a — particelle CONFINATE dentro al pianeta (atmosfera interna).
+    const baseCount = 6;
+    const extraCount = 24;
 
     CATEGORIES.forEach(category => {
       const weight = weights[category] || 0;
       // Niente più floor: pianeti vuoti restano invisibili (0 particelle).
       if (weight <= 0) return;
       const particleCount = Math.floor(baseCount + weight * extraCount);
-      const baseAngle = CATEGORY_ANGLES[category];
       const color = hexToRgb(CATEGORY_COLORS[category]);
 
       for (let i = 0; i < particleCount; i++) {
-        // Random angle within the category's cone
-        const angleOffset = (Math.random() - 0.5) * 2 * angleSpread;
-        
-        // Distance ratio: particles can only go as far as the weight allows
-        // Use power function for better distribution (more particles near center)
-        const distanceRatio = Math.pow(Math.random(), 0.6) * weight;
-        
+        // Particelle distribuite uniformemente DENTRO al pianeta (disco)
+        const localAngle = Math.random() * Math.PI * 2;
+        const localDistanceRatio = Math.sqrt(Math.random()) * 0.85;
+
         particles.push({
           category,
-          baseAngle,
-          angleOffset,
-          distanceRatio,
-          size: 1 + Math.random() * 2.5,
+          localAngle,
+          localDistanceRatio,
+          size: 0.8 + Math.random() * 1.8,
           driftPhase: Math.random() * Math.PI * 2,
           twinklePhase: Math.random() * Math.PI * 2,
           color
@@ -136,56 +153,84 @@ export const CognitiveNebulaCanvas = ({
     const height = canvas.height / dpr;
     const centerX = width / 2;
     const centerY = height / 2;
-    const maxRadius = Math.min(width, height) * 0.32; // Smaller to leave room for labels
-    
+    const maxRadius = Math.min(width, height) * 0.42; // più spazio: i pianeti hanno raggio proprio
+
     // Update time
     timeRef.current += 0.006;
     const time = timeRef.current;
-    
+
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw particles
+
+    const sel = selectedMacroRef.current;
+    const planetGeometry = planetGeometryRef.current;
+    if (!planetGeometry) {
+      animationRef.current = requestAnimationFrame(animate);
+      return;
+    }
+
+    // ---- 1) Disegna i PIANETI (gradient atmosfera + bordo) ----
+    CATEGORIES.forEach(category => {
+      const geom = planetGeometry[category];
+      if (!geom || geom.radius <= 0) return;
+      const isSelected = sel === category;
+      const isDimmed = !!sel && !isSelected;
+
+      const cx = centerX + Math.cos(geom.angle) * (maxRadius * PLANET_DISTANCE_RATIO);
+      const cy = centerY + Math.sin(geom.angle) * (maxRadius * PLANET_DISTANCE_RATIO);
+      const radius = geom.radius * (isSelected ? 1.1 : 1);
+      const { r, g, b } = geom.color;
+
+      // Atmosfera gradient
+      const innerAlpha = isSelected ? 0.55 : isDimmed ? 0.18 : 0.35;
+      const midAlpha = isSelected ? 0.3 : isDimmed ? 0.08 : 0.18;
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+      grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${innerAlpha})`);
+      grad.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, ${midAlpha})`);
+      grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Bordo sottile
+      const borderAlpha = isSelected ? 0.7 : isDimmed ? 0.2 : 0.4;
+      ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${borderAlpha})`;
+      ctx.lineWidth = isSelected ? 2 : 1.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+
+    // ---- 2) Disegna le PARTICELLE dentro ai pianeti ----
     particlesRef.current.forEach(particle => {
-      // Drift animation - small oscillation in position
-      const driftX = Math.sin(time * 0.4 + particle.driftPhase) * 2.5;
-      const driftY = Math.cos(time * 0.35 + particle.driftPhase * 1.2) * 2.5;
+      const geom = planetGeometry[particle.category];
+      if (!geom || geom.radius <= 0) return;
+      const isSelected = sel === particle.category;
+      const isDimmed = !!sel && !isSelected;
 
-      // Twinkle animation - alpha pulsing
+      const planetRadius = geom.radius * (isSelected ? 1.1 : 1);
+      const cx = centerX + Math.cos(geom.angle) * (maxRadius * PLANET_DISTANCE_RATIO);
+      const cy = centerY + Math.sin(geom.angle) * (maxRadius * PLANET_DISTANCE_RATIO);
+
+      // Drift ridotto per non sforare il bordo
+      const driftX = Math.sin(time * 0.4 + particle.driftPhase) * 1.5;
+      const driftY = Math.cos(time * 0.35 + particle.driftPhase * 1.2) * 1.5;
       const twinkle = 0.5 + 0.5 * Math.sin(time * 0.7 + particle.twinklePhase);
-      
-      // Calculate position
-      const angle = particle.baseAngle + particle.angleOffset;
-      const distance = particle.distanceRatio * maxRadius;
-      
-      const x = centerX + Math.cos(angle) * distance + driftX;
-      const y = centerY + Math.sin(angle) * distance + driftY;
 
-      // Alpha: higher near center, fades with distance, plus twinkle
-      const distanceAlpha = 1 - (particle.distanceRatio * 0.5);
-      const baseAlpha = distanceAlpha * (0.55 + 0.45 * twinkle);
-      // Phase 4.5: dim particles non selezionate
-      const sel = selectedMacroRef.current;
-      const isDimmed = sel && sel !== particle.category;
-      const alpha = baseAlpha * (isDimmed ? 0.35 : 1);
-      const sizeMul = sel === particle.category ? 1.2 : 1;
+      const distance = particle.localDistanceRatio * planetRadius;
+      const x = cx + Math.cos(particle.localAngle) * distance + driftX;
+      const y = cy + Math.sin(particle.localAngle) * distance + driftY;
 
-      // Draw particle
+      const baseAlpha = 0.55 + 0.45 * twinkle;
+      const alpha = baseAlpha * (isDimmed ? 0.3 : 1);
+      const sizeMul = isSelected ? 1.15 : 1;
+
       ctx.beginPath();
       ctx.arc(x, y, particle.size * sizeMul, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${alpha})`;
       ctx.fill();
     });
-
-    // Add subtle central glow
-    const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, maxRadius * 0.12);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.06)');
-    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
-
-    // Phase 4.5: le label sono renderizzate come overlay HTML clickable
-    // (vedi return JSX più sotto). Sul canvas restano solo le particelle + glow.
 
     animationRef.current = requestAnimationFrame(animate);
   }, []);
@@ -228,6 +273,26 @@ export const CognitiveNebulaCanvas = ({
       initializeParticles(weights);
     }
 
+    // Phase 4.6a — calcola geometria pianeti (angle + radius + color) e salva in ref
+    const geometry: Record<string, { angle: number; radius: number; color: { r: number; g: number; b: number } }> = {};
+    const radiiState: Record<string, number> = {};
+    CATEGORIES.forEach(cat => {
+      const w = weights[cat] || 0;
+      const radius = computePlanetRadius(w, PLANET_MIN_RADIUS, PLANET_MAX_RADIUS);
+      geometry[cat] = {
+        angle: CATEGORY_ANGLES[cat],
+        radius,
+        color: hexToRgb(CATEGORY_COLORS[cat]),
+      };
+      radiiState[cat] = radius;
+    });
+    planetGeometryRef.current = geometry;
+    setPlanetRadii(prev => {
+      // evita re-render inutili se identico
+      const same = CATEGORIES.every(c => Math.abs((prev[c] ?? -1) - radiiState[c]) < 0.5);
+      return same ? prev : radiiState;
+    });
+
     handleResize();
     
     window.addEventListener('resize', handleResize);
@@ -260,10 +325,13 @@ export const CognitiveNebulaCanvas = ({
 
             const centerX = canvasSize.w / 2;
             const centerY = canvasSize.h / 2;
-            const maxRadius = Math.min(canvasSize.w, canvasSize.h) * 0.32;
-            const labelRadius = maxRadius + 24;
-            const x = centerX + Math.cos(angle) * labelRadius;
-            const y = centerY + Math.sin(angle) * labelRadius;
+            const maxRadius = Math.min(canvasSize.w, canvasSize.h) * 0.42;
+            // Phase 4.6a — label posizionata FUORI dal bordo del pianeta
+            const planetCenterDistance = maxRadius * PLANET_DISTANCE_RATIO;
+            const planetRadius = planetRadii[category] ?? PLANET_MIN_RADIUS;
+            const labelOffset = planetRadius + 14;
+            const x = centerX + Math.cos(angle) * (planetCenterDistance + labelOffset);
+            const y = centerY + Math.sin(angle) * (planetCenterDistance + labelOffset);
 
             // Allineamento orizzontale
             const normalizedAngle = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { Maximize2 } from 'lucide-react';
 import {
   CATEGORY_NAMES as CATEGORIES,
@@ -87,13 +87,23 @@ const hexToRgb = (hex: string) => {
 
 interface Particle {
   category: string;
-  baseAngle: number;
-  angleOffset: number;
-  distanceRatio: number;
+  /** Phase 4.6a — particella confinata DENTRO al pianeta */
+  localAngle: number;
+  localDistanceRatio: number;
   size: number;
   driftPhase: number;
   twinklePhase: number;
   color: { r: number; g: number; b: number };
+}
+
+// Phase 4.6a — geometria pianeti per la versione compatta
+const PLANET_DISTANCE_RATIO = 0.5;
+const PLANET_MIN_RADIUS = 8;
+const PLANET_MAX_RADIUS = 28;
+
+function computePlanetRadius(weight: number, min: number, max: number): number {
+  if (weight <= 0) return 0;
+  return min + Math.sqrt(weight) * (max - min);
 }
 
 export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: CompactNebulaProps) => {
@@ -102,33 +112,37 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
   const timeRef = useRef(0);
   const particlesRef = useRef<Particle[]>([]);
   const prevDataRef = useRef<string>('');
+  // Phase 4.6a — geometria pianeti calcolata in useEffect
+  const planetGeometryRef = useRef<Record<string, {
+    angle: number;
+    radius: number;
+    color: { r: number; g: number; b: number };
+  }> | null>(null);
+  const [planetRadii, setPlanetRadii] = useState<Record<string, number>>({});
   // Ref aggiornato a ogni render per dare al loop d'animazione il valore live
   const selectedMacroRef = useRef<string | null>(selectedMacro ?? null);
   selectedMacroRef.current = selectedMacro ?? null;
 
   const initializeParticles = useCallback((weights: Record<string, number>) => {
     const particles: Particle[] = [];
-    const baseCount = 10;
-    const extraCount = 35;
-    const angleSpread = Math.PI / 6;
+    const baseCount = 3;
+    const extraCount = 14;
 
     CATEGORIES.forEach(category => {
       const weight = weights[category] || 0;
       if (weight <= 0) return;
       const particleCount = Math.floor(baseCount + weight * extraCount);
-      const baseAngle = CATEGORY_ANGLES[category];
       const color = hexToRgb(CATEGORY_COLORS[category]);
 
       for (let i = 0; i < particleCount; i++) {
-        const angleOffset = (Math.random() - 0.5) * 2 * angleSpread;
-        const distanceRatio = Math.pow(Math.random(), 0.5) * weight;
-        
+        const localAngle = Math.random() * Math.PI * 2;
+        const localDistanceRatio = Math.sqrt(Math.random()) * 0.85;
+
         particles.push({
           category,
-          baseAngle,
-          angleOffset,
-          distanceRatio,
-          size: 1.5 + Math.random() * 2.5,
+          localAngle,
+          localDistanceRatio,
+          size: 0.6 + Math.random() * 1.2,
           driftPhase: Math.random() * Math.PI * 2,
           twinklePhase: Math.random() * Math.PI * 2,
           color
@@ -151,44 +165,79 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
     const height = canvas.height / dpr;
     const centerX = width / 2;
     const centerY = height / 2;
-    const maxRadius = Math.min(width, height) * 0.35;
-    
+    const maxRadius = Math.min(width, height) * 0.45;
+
     timeRef.current += 0.006;
     const time = timeRef.current;
-    
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    particlesRef.current.forEach(particle => {
-      const driftX = Math.sin(time * 0.4 + particle.driftPhase) * 2;
-      const driftY = Math.cos(time * 0.35 + particle.driftPhase * 1.2) * 2;
-      const twinkle = 0.5 + 0.5 * Math.sin(time * 0.7 + particle.twinklePhase);
-      
-      const angle = particle.baseAngle + particle.angleOffset;
-      const distance = particle.distanceRatio * maxRadius;
-      
-      const x = centerX + Math.cos(angle) * distance + driftX;
-      const y = centerY + Math.sin(angle) * distance + driftY;
 
-      const distanceAlpha = 1 - (particle.distanceRatio * 0.4);
-      const baseAlpha = distanceAlpha * (0.6 + 0.4 * twinkle);
-      // Phase 4.5: dimmer per pianeti non selezionati
-      const sel = selectedMacroRef.current;
-      const isDimmed = sel && sel !== particle.category;
-      const alpha = baseAlpha * (isDimmed ? 0.35 : 1);
-      const sizeMultiplier = sel === particle.category ? 1.2 : 1;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const sel = selectedMacroRef.current;
+    const planetGeometry = planetGeometryRef.current;
+    if (!planetGeometry) {
+      animationRef.current = requestAnimationFrame(animate);
+      return;
+    }
+
+    // ---- 1) Pianeti (atmosfera gradient + bordo sottile) ----
+    CATEGORIES.forEach(category => {
+      const geom = planetGeometry[category];
+      if (!geom || geom.radius <= 0) return;
+      const isSelected = sel === category;
+      const isDimmed = !!sel && !isSelected;
+
+      const cx = centerX + Math.cos(geom.angle) * (maxRadius * PLANET_DISTANCE_RATIO);
+      const cy = centerY + Math.sin(geom.angle) * (maxRadius * PLANET_DISTANCE_RATIO);
+      const radius = geom.radius * (isSelected ? 1.1 : 1);
+      const { r, g, b } = geom.color;
+
+      const innerAlpha = isSelected ? 0.55 : isDimmed ? 0.18 : 0.35;
+      const midAlpha = isSelected ? 0.3 : isDimmed ? 0.08 : 0.18;
+      const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+      grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${innerAlpha})`);
+      grad.addColorStop(0.6, `rgba(${r}, ${g}, ${b}, ${midAlpha})`);
+      grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fill();
+
+      const borderAlpha = isSelected ? 0.7 : isDimmed ? 0.2 : 0.4;
+      ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${borderAlpha})`;
+      ctx.lineWidth = isSelected ? 1.5 : 1;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+
+    // ---- 2) Particelle dentro ai pianeti ----
+    particlesRef.current.forEach(particle => {
+      const geom = planetGeometry[particle.category];
+      if (!geom || geom.radius <= 0) return;
+      const isSelected = sel === particle.category;
+      const isDimmed = !!sel && !isSelected;
+
+      const planetRadius = geom.radius * (isSelected ? 1.1 : 1);
+      const cx = centerX + Math.cos(geom.angle) * (maxRadius * PLANET_DISTANCE_RATIO);
+      const cy = centerY + Math.sin(geom.angle) * (maxRadius * PLANET_DISTANCE_RATIO);
+
+      const driftX = Math.sin(time * 0.4 + particle.driftPhase) * 1;
+      const driftY = Math.cos(time * 0.35 + particle.driftPhase * 1.2) * 1;
+      const twinkle = 0.5 + 0.5 * Math.sin(time * 0.7 + particle.twinklePhase);
+
+      const distance = particle.localDistanceRatio * planetRadius;
+      const x = cx + Math.cos(particle.localAngle) * distance + driftX;
+      const y = cy + Math.sin(particle.localAngle) * distance + driftY;
+
+      const baseAlpha = 0.55 + 0.45 * twinkle;
+      const alpha = baseAlpha * (isDimmed ? 0.3 : 1);
+      const sizeMul = isSelected ? 1.15 : 1;
 
       ctx.beginPath();
-      ctx.arc(x, y, particle.size * sizeMultiplier, 0, Math.PI * 2);
+      ctx.arc(x, y, particle.size * sizeMul, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${alpha})`;
       ctx.fill();
     });
-
-    // Core glow
-    const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, maxRadius * 0.15);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.1)');
-    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
 
     animationRef.current = requestAnimationFrame(animate);
   }, []);
@@ -239,6 +288,25 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
       prevDataRef.current = dataKey;
       initializeParticles(weights);
     }
+
+    // Phase 4.6a — calcola geometria pianeti
+    const geometry: Record<string, { angle: number; radius: number; color: { r: number; g: number; b: number } }> = {};
+    const radiiState: Record<string, number> = {};
+    CATEGORIES.forEach(cat => {
+      const w = weights[cat] || 0;
+      const radius = computePlanetRadius(w, PLANET_MIN_RADIUS, PLANET_MAX_RADIUS);
+      geometry[cat] = {
+        angle: CATEGORY_ANGLES[cat],
+        radius,
+        color: hexToRgb(CATEGORY_COLORS[cat]),
+      };
+      radiiState[cat] = radius;
+    });
+    planetGeometryRef.current = geometry;
+    setPlanetRadii(prev => {
+      const same = CATEGORIES.every(c => Math.abs((prev[c] ?? -1) - radiiState[c]) < 0.5);
+      return same ? prev : radiiState;
+    });
 
     handleResize();
     
@@ -302,23 +370,39 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
       </div>
 
       {/* Main nebula area with circular radar-style labels */}
-      <div className="relative h-[135px] z-10" style={{ width: `${containerWidth}px`, margin: '0 auto' }}>
-        {/* Center canvas for particle nebula (renderizzato PRIMA così le label restano sopra e cliccabili) */}
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-[50%] h-[70%]">
-            <canvas
-              ref={canvasRef}
-              className="w-full h-full"
-              style={{ background: 'transparent' }}
-            />
-          </div>
+      <div className="relative h-[160px] z-10" style={{ width: `${containerWidth}px`, margin: '0 auto' }}>
+        {/* Phase 4.6a — canvas a piena dimensione (no più riquadro centrale) */}
+        <div className="absolute inset-0 pointer-events-none">
+          <canvas
+            ref={canvasRef}
+            className="w-full h-full"
+            style={{ background: 'transparent' }}
+          />
         </div>
 
         {/* Circular labels positioned around the nebula (z-20 + pointer-events-auto per garantire i click) */}
         {labelsToShow.map((pos) => {
-          const style = getLabelStyle(pos.angle, containerWidth, containerHeight);
           const isSelected = selectedMacro === pos.name;
           const isDimmed = !!selectedMacro && !isSelected;
+
+          // Phase 4.6a — posizione label = bordo del pianeta + offset
+          const angleRad = (pos.angle * Math.PI) / 180;
+          const cw = containerWidth;
+          const ch = 160;
+          const cx = cw / 2;
+          const cy = ch / 2;
+          const maxR = Math.min(cw, ch) * 0.45;
+          const planetCenterDist = maxR * PLANET_DISTANCE_RATIO;
+          const planetR = planetRadii[pos.name] ?? PLANET_MIN_RADIUS;
+          const labelOffset = planetR + 10;
+          const lx = cx + Math.cos(angleRad) * (planetCenterDist + labelOffset);
+          const ly = cy + Math.sin(angleRad) * (planetCenterDist + labelOffset);
+
+          // Allineamento orizzontale in base al quadrante
+          let translateX = '-50%';
+          if (pos.angle >= 135 && pos.angle <= 225) translateX = '-100%';
+          else if (pos.angle > 315 || pos.angle < 45) translateX = '0%';
+
           return (
             <button
               key={pos.name}
@@ -328,11 +412,11 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
                 onMacroClick?.(pos.name);
               }}
               className="absolute z-20 text-[11px] font-semibold whitespace-nowrap transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer px-1.5 py-0.5"
-              style={{ 
+              style={{
                 color: CATEGORY_COLORS[pos.name],
-                left: style.left,
-                top: style.top,
-                transform: `${style.transform} ${isSelected ? 'scale(1.15)' : 'scale(1)'}`,
+                left: `${lx}px`,
+                top: `${ly}px`,
+                transform: `translate(${translateX}, -50%) ${isSelected ? 'scale(1.15)' : 'scale(1)'}`,
                 textShadow: '0 1px 3px rgba(0,0,0,0.8)',
                 opacity: isDimmed ? 0.45 : 1,
                 fontWeight: isSelected ? 800 : 600,
