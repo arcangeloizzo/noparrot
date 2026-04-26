@@ -292,6 +292,7 @@ serve(async (req) => {
       JSON.stringify({
         target,
         total_candidates: candidates.length,
+        _debug: debugInfo,
         topic_assigned: topicAssigned,
         topic_skipped: topicSkipped,
         topic_error: topicError,
