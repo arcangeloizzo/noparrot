@@ -204,6 +204,57 @@ Deno.serve(async (req) => {
 
     console.log(`[assign-post-topic:${reqId}] analyzing post ${postId}, aggregate=${aggregate.length} chars`)
 
+    // ── ANTI-FRAGMENTATION: load existing topics as hint ──────────────
+    const postCategoryForLookup = (post as any).category as string | null
+    const isCanonicalMacro = postCategoryForLookup
+      && (CANONICAL_MACROS as readonly string[]).includes(postCategoryForLookup)
+
+    let existingTopics: Array<{ topic_id: string; topic_label: string; frequency: number }> = []
+    try {
+      let q = supabase
+        .from('post_topics')
+        .select('topic_id, topic_label')
+      if (isCanonicalMacro) {
+        q = q.eq('macro_category', postCategoryForLookup)
+      }
+      const { data: rawTopics, error: topicsErr } = await q.limit(500)
+      if (topicsErr) {
+        console.warn(`[assign-post-topic:${reqId}] existing topics lookup failed:`, topicsErr.message)
+      } else if (rawTopics && rawTopics.length > 0) {
+        // Aggregate frequency client-side (Supabase JS doesn't support GROUP BY directly)
+        const freqMap = new Map<string, { topic_id: string; topic_label: string; frequency: number }>()
+        for (const r of rawTopics as any[]) {
+          const key = r.topic_id
+          const existing = freqMap.get(key)
+          if (existing) {
+            existing.frequency += 1
+          } else {
+            freqMap.set(key, { topic_id: r.topic_id, topic_label: r.topic_label, frequency: 1 })
+          }
+        }
+        existingTopics = Array.from(freqMap.values())
+          .sort((a, b) => b.frequency - a.frequency || a.topic_label.localeCompare(b.topic_label))
+          .slice(0, 30)
+      }
+    } catch (e) {
+      console.warn(`[assign-post-topic:${reqId}] existing topics lookup threw:`, (e as Error).message)
+    }
+
+    const macroLabel = isCanonicalMacro ? postCategoryForLookup : 'globale'
+    const existingTopicsSection = existingTopics.length > 0
+      ? `
+
+TOPIC ESISTENTI per la macro "${macroLabel}" (ordinati per frequenza):
+${existingTopics.map(t => `- ${t.topic_id} (${t.topic_label}) — usato ${t.frequency}x`).join('\n')}
+
+REGOLA DI CONSOLIDAMENTO:
+Se UNO dei topic esistenti descrive bene il contenuto del post, RIUSALO esattamente (stesso topic_id e topic_label). Preferisci sempre il riuso quando possibile, anche se il post tratta solo parzialmente lo stesso tema.
+Crea un topic NUOVO solo se nessuno di quelli esistenti descrive il contenuto in modo accettabile.
+`
+      : ''
+
+    console.log(`[assign-post-topic:${reqId}] existing_topics_loaded=${existingTopics.length} macro="${macroLabel}"`)
+
     const systemPrompt = `Sei un classificatore semantico di NoParrot. Per ogni post, devi assegnare:
 
 1. Una MACRO_CATEGORY tra le 8 canoniche:
@@ -224,7 +275,7 @@ Deno.serve(async (req) => {
 3. Un TOPIC_LABEL (umano, max 40 char) versione leggibile del topic_id. Es. topic_id "guerra-ucraina" → topic_label "Guerra in Ucraina".
 
 4. Una CONFIDENCE (0.0-1.0) sulla scelta. Sotto 0.5 indica incertezza.
-
+${existingTopicsSection}
 Output JSON STRETTO:
 {
   "macro_category": "...",
@@ -324,7 +375,8 @@ Output JSON STRETTO:
       })
     }
 
-    console.log(`[assign-post-topic:${reqId}] ✓ Assigned topic "${sanitizedTopicId}" to post ${postId}`)
+    const wasReused = existingTopics.some(t => t.topic_id === sanitizedTopicId)
+    console.log(`[assign-post-topic:${reqId}] ✓ Assigned topic "${sanitizedTopicId}" to post ${postId} (existing_topics=${existingTopics.length}, reused=${wasReused})`)
 
     return new Response(JSON.stringify({
       success: true,
