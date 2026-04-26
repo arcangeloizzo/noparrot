@@ -14,6 +14,10 @@ interface NebulaExpandedSheetProps {
   onOpenChange: (open: boolean) => void;
   /** Accetta sia il nuovo formato strutturato sia il vecchio Record per back-compat */
   cognitiveDensity: CognitiveDensityData | Record<string, number>;
+  /** Phase 4.5: macro selezionata per highlight */
+  selectedMacro?: string | null;
+  /** Phase 4.5: callback al tap su pianeta — il parent gestisce filter + scroll */
+  onMacroClick?: (macro: string) => void;
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -40,11 +44,25 @@ export const NebulaExpandedSheet = ({
   open,
   onOpenChange,
   cognitiveDensity,
+  selectedMacro,
+  onMacroClick,
 }: NebulaExpandedSheetProps) => {
   const structured = isStructured(cognitiveDensity) ? cognitiveDensity : null;
   const sortedRows = structured
     ? [...structured.rows].filter((r) => r.density > 0).sort((a, b) => b.density - a.density)
     : [];
+
+  const handleMacroClick = (macro: string) => {
+    onMacroClick?.(macro);
+    onOpenChange(false);
+    // Auto-scroll al Diario dopo che lo Sheet si è chiuso (animazione ~300ms)
+    setTimeout(() => {
+      const diario = document.querySelector('[data-section="diario"]');
+      if (diario) {
+        diario.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 320);
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -79,7 +97,12 @@ export const NebulaExpandedSheet = ({
 
         <div className="relative z-10 flex flex-col gap-6">
           <div className="h-[400px] flex items-center justify-center">
-            <CognitiveNebulaCanvas data={cognitiveDensity} showCounts />
+            <CognitiveNebulaCanvas
+              data={cognitiveDensity}
+              showCounts
+              selectedMacro={selectedMacro}
+              onMacroClick={handleMacroClick}
+            />
           </div>
 
           {sortedRows.length > 0 && (
@@ -90,7 +113,16 @@ export const NebulaExpandedSheet = ({
               {sortedRows.map((row) => (
                 <div
                   key={row.macro_category}
-                  className="rounded-xl border border-white/10 bg-white/[0.03] p-3"
+                  className="rounded-xl border border-white/10 bg-white/[0.03] p-3 cursor-pointer hover:bg-white/[0.06] transition-colors"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleMacroClick(row.macro_category)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleMacroClick(row.macro_category);
+                    }
+                  }}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
