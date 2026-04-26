@@ -453,6 +453,33 @@ export type Database = {
           },
         ]
       }
+      cognitive_weights_config: {
+        Row: {
+          action_type: string
+          config_version: number
+          description: string
+          is_active: boolean
+          updated_at: string
+          weight: number
+        }
+        Insert: {
+          action_type: string
+          config_version?: number
+          description: string
+          is_active?: boolean
+          updated_at?: string
+          weight: number
+        }
+        Update: {
+          action_type?: string
+          config_version?: number
+          description?: string
+          is_active?: boolean
+          updated_at?: string
+          weight?: number
+        }
+        Relationships: []
+      }
       comment_cognitive_metrics: {
         Row: {
           comment_id: string
@@ -2652,6 +2679,15 @@ export type Database = {
         }
         Relationships: []
       }
+      user_cognitive_density: {
+        Row: {
+          action_breakdown: Json | null
+          density: number | null
+          macro_category: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_remove_content: {
@@ -2683,6 +2719,14 @@ export type Database = {
           shared_url: string
         }[]
       }
+      get_user_cognitive_density: {
+        Args: { p_user_id: string }
+        Returns: {
+          action_breakdown: Json
+          density: number
+          macro_category: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2695,6 +2739,7 @@ export type Database = {
         Returns: undefined
       }
       is_valid_username: { Args: { username: string }; Returns: boolean }
+      refresh_user_cognitive_density: { Args: never; Returns: undefined }
       update_last_seen: { Args: never; Returns: undefined }
       user_can_react_to_message: {
         Args: { _message_id: string; _user_id: string }
