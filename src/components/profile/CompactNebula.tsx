@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import { Maximize2 } from 'lucide-react';
 import {
   CATEGORY_NAMES as CATEGORIES,
