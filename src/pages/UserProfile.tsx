@@ -533,6 +533,7 @@ export const UserProfile = () => {
         onMacroClick={(macro) => {
           setSelectedMacro(macro);
         }}
+        userId={userId}
       />
 
       {/* Connections Sheet */}
