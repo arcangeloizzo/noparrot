@@ -463,17 +463,28 @@ export const UserProfile = () => {
           <CompactNebula
             data={cognitiveDensity}
             onClick={() => setShowNebulaExpanded(true)}
+            selectedMacro={selectedMacro}
+            onMacroClick={handleMacroClick}
           />
         </div>
 
         {/* Cognitive Diary */}
-        <div ref={diaryRef} className="px-4 pb-6 scroll-mt-20">
+        <div ref={diaryRef} className="px-4 pb-6 scroll-mt-20" data-section="diario">
           <div className="mb-3">
             <h3 className="text-base font-semibold">Diario Cognitivo</h3>
             <p className="text-xs text-muted-foreground">
               I percorsi di comprensione di {displayName}.
             </p>
           </div>
+
+          {/* Phase 4.5 — chip filtro macro-categoria */}
+          {selectedMacro && (
+            <DiarioFilterChip
+              macro={selectedMacro}
+              count={filteredEntries.length}
+              onClear={clearFilter}
+            />
+          )}
 
           {/* Filters */}
           <div className="mb-3">
@@ -502,7 +513,9 @@ export const UserProfile = () => {
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <p className="text-sm">
-                {diaryFilter === 'all'
+                {selectedMacro
+                  ? `Nessuna interazione di ${displayName} in ${selectedMacro}.`
+                  : diaryFilter === 'all'
                   ? 'Nessun contenuto nel diario.'
                   : 'Nessun contenuto per questo filtro.'}
               </p>
@@ -516,6 +529,10 @@ export const UserProfile = () => {
         open={showNebulaExpanded}
         onOpenChange={setShowNebulaExpanded}
         cognitiveDensity={cognitiveDensity}
+        selectedMacro={selectedMacro}
+        onMacroClick={(macro) => {
+          setSelectedMacro(macro);
+        }}
       />
 
       {/* Connections Sheet */}
