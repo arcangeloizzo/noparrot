@@ -16,6 +16,9 @@ import { getDisplayUsername } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCognitiveDensity } from "@/hooks/useCognitiveDensity";
 import { useUserComprehensionCount } from "@/hooks/useUserComprehensionCount";
+import { useNebulaFilter } from "@/hooks/useNebulaFilter";
+import { DiarioFilterChip } from "@/components/profile/DiarioFilterChip";
+import { normalizeCategory } from "@/config/categories";
 import { Settings, Bookmark } from "lucide-react";
 
 export const Profile = () => {
@@ -54,6 +57,16 @@ export const Profile = () => {
   // isOwnProfile=true → usa wrapper fresh che fa refresh on-demand della MV
   const { data: cognitiveDensity } = useCognitiveDensity(user?.id, true);
   const { data: comprehensionCount = 0 } = useUserComprehensionCount(user?.id);
+
+  // Phase 4.5 — filtro Nebulosa → Diario (persistente in sessionStorage per utente)
+  const { selectedMacro, setSelectedMacro, clearFilter } = useNebulaFilter(user?.id);
+
+  const handleMacroClick = (macro: string) => {
+    setSelectedMacro(macro);
+    setTimeout(() => {
+      diaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  };
 
   const { data: stats } = useQuery({
     queryKey: ["profile-stats", user?.id],
@@ -172,6 +185,11 @@ export const Profile = () => {
 
   // Filter diary entries
   const filteredEntries = diaryEntries.filter(entry => {
+    // Phase 4.5: filtro per macro-categoria (Nebulosa)
+    if (selectedMacro) {
+      const norm = normalizeCategory(entry.category);
+      if (norm !== selectedMacro) return false;
+    }
     if (diaryFilter === 'all') return true;
     if (diaryFilter === 'original') return entry.type === 'original';
     if (diaryFilter === 'reshared') return entry.type === 'reshared';
@@ -379,17 +397,28 @@ export const Profile = () => {
           <CompactNebula
             data={cognitiveDensity}
             onClick={() => setShowNebulaExpanded(true)}
+            selectedMacro={selectedMacro}
+            onMacroClick={handleMacroClick}
           />
         </div>
 
         {/* Cognitive Diary */}
-        <div ref={diaryRef} className="px-4 pb-6 scroll-mt-20">
+        <div ref={diaryRef} className="px-4 pb-6 scroll-mt-20" data-section="diario">
           <div className="mb-3">
             <h3 className="text-base font-semibold">Diario Cognitivo</h3>
             <p className="text-xs text-muted-foreground">
               Tutto ciò che hai compreso, condiviso e creato.
             </p>
           </div>
+
+          {/* Phase 4.5 — chip filtro macro-categoria */}
+          {selectedMacro && (
+            <DiarioFilterChip
+              macro={selectedMacro}
+              count={filteredEntries.length}
+              onClear={clearFilter}
+            />
+          )}
 
           {/* Filters */}
           <div className="mb-3">
@@ -418,7 +447,9 @@ export const Profile = () => {
           ) : (
             <div className="text-center py-12 text-muted-foreground">
               <p className="text-sm">
-                {diaryFilter === 'all'
+                {selectedMacro
+                  ? `Non hai ancora interazioni in ${selectedMacro}. Esplora i contenuti per espandere la tua mappa.`
+                  : diaryFilter === 'all'
                   ? 'Nessun contenuto nel tuo diario. Inizia a creare o condividere!'
                   : 'Nessun contenuto per questo filtro.'}
               </p>
@@ -449,6 +480,10 @@ export const Profile = () => {
         open={showNebulaExpanded}
         onOpenChange={setShowNebulaExpanded}
         cognitiveDensity={cognitiveDensity}
+        selectedMacro={selectedMacro}
+        onMacroClick={(macro) => {
+          setSelectedMacro(macro);
+        }}
       />
 
       <BottomNavigation

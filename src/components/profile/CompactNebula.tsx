@@ -11,6 +11,10 @@ import type { CognitiveDensityData } from '@/hooks/useCognitiveDensity';
 interface CompactNebulaProps {
   data: CognitiveDensityData | Record<string, number>;
   onClick: () => void;
+  /** Phase 4.5: macro selezionata (per highlight + dim altre) */
+  selectedMacro?: string | null;
+  /** Phase 4.5: tap su una label di pianeta → filtra Diario */
+  onMacroClick?: (macro: string) => void;
 }
 
 function isStructured(
@@ -91,12 +95,15 @@ interface Particle {
   color: { r: number; g: number; b: number };
 }
 
-export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
+export const CompactNebula = ({ data, onClick, selectedMacro, onMacroClick }: CompactNebulaProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
   const timeRef = useRef(0);
   const particlesRef = useRef<Particle[]>([]);
   const prevDataRef = useRef<string>('');
+  // Ref aggiornato a ogni render per dare al loop d'animazione il valore live
+  const selectedMacroRef = useRef<string | null>(selectedMacro ?? null);
+  selectedMacroRef.current = selectedMacro ?? null;
 
   const initializeParticles = useCallback((weights: Record<string, number>) => {
     const particles: Particle[] = [];
@@ -162,10 +169,15 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
       const y = centerY + Math.sin(angle) * distance + driftY;
 
       const distanceAlpha = 1 - (particle.distanceRatio * 0.4);
-      const alpha = distanceAlpha * (0.6 + 0.4 * twinkle);
+      const baseAlpha = distanceAlpha * (0.6 + 0.4 * twinkle);
+      // Phase 4.5: dimmer per pianeti non selezionati
+      const sel = selectedMacroRef.current;
+      const isDimmed = sel && sel !== particle.category;
+      const alpha = baseAlpha * (isDimmed ? 0.35 : 1);
+      const sizeMultiplier = sel === particle.category ? 1.2 : 1;
 
       ctx.beginPath();
-      ctx.arc(x, y, particle.size, 0, Math.PI * 2);
+      ctx.arc(x, y, particle.size * sizeMultiplier, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(${particle.color.r}, ${particle.color.g}, ${particle.color.b}, ${alpha})`;
       ctx.fill();
     });
@@ -286,20 +298,31 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
         {/* Circular labels positioned around the nebula */}
         {labelsToShow.map((pos) => {
           const style = getLabelStyle(pos.angle, containerWidth, containerHeight);
+          const isSelected = selectedMacro === pos.name;
+          const isDimmed = !!selectedMacro && !isSelected;
           return (
-            <span
+            <button
               key={pos.name}
-              className="absolute text-[11px] font-semibold whitespace-nowrap pointer-events-none"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMacroClick?.(pos.name);
+              }}
+              className="absolute text-[11px] font-semibold whitespace-nowrap transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer"
               style={{ 
                 color: CATEGORY_COLORS[pos.name],
                 left: style.left,
                 top: style.top,
-                transform: style.transform,
+                transform: `${style.transform} ${isSelected ? 'scale(1.15)' : 'scale(1)'}`,
                 textShadow: '0 1px 3px rgba(0,0,0,0.8)',
+                opacity: isDimmed ? 0.45 : 1,
+                fontWeight: isSelected ? 800 : 600,
+                pointerEvents: 'auto',
               }}
+              aria-label={`Filtra Diario per ${pos.name}`}
             >
               {CATEGORY_SHORT_NAMES[pos.name]}
-            </span>
+            </button>
           );
         })}
 
