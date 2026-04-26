@@ -17,6 +17,9 @@ import { getDisplayUsername } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { useCognitiveDensity } from "@/hooks/useCognitiveDensity";
 import { useUserComprehensionCount } from "@/hooks/useUserComprehensionCount";
+import { useNebulaFilter } from "@/hooks/useNebulaFilter";
+import { DiarioFilterChip } from "@/components/profile/DiarioFilterChip";
+import { normalizeCategory } from "@/config/categories";
 
 export const UserProfile = () => {
   const { userId } = useParams();
@@ -56,6 +59,16 @@ export const UserProfile = () => {
   // Nebulosa derivata via RPC (rispetta cognitive_tracking_enabled lato server)
   const { data: cognitiveDensityData } = useCognitiveDensity(userId);
   const { data: comprehensionCount = 0 } = useUserComprehensionCount(userId);
+
+  // Phase 4.5 — filtro Nebulosa → Diario (per-utente target)
+  const { selectedMacro, setSelectedMacro, clearFilter } = useNebulaFilter(userId);
+
+  const handleMacroClick = (macro: string) => {
+    setSelectedMacro(macro);
+    setTimeout(() => {
+      diaryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+  };
 
   const { data: stats } = useQuery({
     queryKey: ["user-stats", userId],
@@ -187,6 +200,10 @@ export const UserProfile = () => {
 
   // Filter diary entries
   const filteredEntries = diaryEntries.filter(entry => {
+    if (selectedMacro) {
+      const norm = normalizeCategory(entry.category);
+      if (norm !== selectedMacro) return false;
+    }
     if (diaryFilter === 'all') return true;
     if (diaryFilter === 'original') return entry.type === 'original';
     if (diaryFilter === 'reshared') return entry.type === 'reshared';
