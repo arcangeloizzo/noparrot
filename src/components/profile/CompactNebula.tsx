@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { Maximize2 } from 'lucide-react';
 import {
   CATEGORY_NAMES as CATEGORIES,
   CATEGORY_COLORS,
@@ -10,7 +10,8 @@ import type { CognitiveDensityData } from '@/hooks/useCognitiveDensity';
 
 interface CompactNebulaProps {
   data: CognitiveDensityData | Record<string, number>;
-  onClick: () => void;
+  /** Apre lo Sheet espanso. Triggerato SOLO dal bottone "Espandi" (4.5 bug-fix). */
+  onExpand: () => void;
   /** Phase 4.5: macro selezionata (per highlight + dim altre) */
   selectedMacro?: string | null;
   /** Phase 4.5: tap su una label di pianeta → filtra Diario */
@@ -95,7 +96,7 @@ interface Particle {
   color: { r: number; g: number; b: number };
 }
 
-export const CompactNebula = ({ data, onClick, selectedMacro, onMacroClick }: CompactNebulaProps) => {
+export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: CompactNebulaProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
   const timeRef = useRef(0);
@@ -277,9 +278,8 @@ export const CompactNebula = ({ data, onClick, selectedMacro, onMacroClick }: Co
   const containerHeight = 135;
 
   return (
-    <button
-      onClick={onClick}
-      className="w-full rounded-2xl bg-card border border-border p-4 transition-all hover:border-border/50 active:scale-[0.99] relative overflow-hidden"
+    <div
+      className="w-full rounded-2xl bg-card border border-border p-4 relative overflow-hidden"
     >
       {/* Strong urban texture background - GPU optimized */}
       <div className="absolute inset-0 pointer-events-none opacity-[0.08] urban-noise-overlay" />
@@ -287,10 +287,18 @@ export const CompactNebula = ({ data, onClick, selectedMacro, onMacroClick }: Co
       {/* Subtle gradient overlay for depth */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/[0.02] via-transparent to-black/20 pointer-events-none" />
       
-      {/* Header with title and expand icon */}
+      {/* Header with title and explicit expand button (4.5 bug-fix) */}
       <div className="flex items-center justify-between mb-2 relative z-10">
         <h4 className="text-base font-semibold text-foreground">Nebulosa Cognitiva</h4>
-        <ChevronDown className="w-5 h-5 text-muted-foreground" />
+        <button
+          type="button"
+          onClick={onExpand}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium text-muted-foreground border border-border/60 hover:bg-white/5 hover:text-foreground transition-colors"
+          aria-label="Espandi Nebulosa Cognitiva"
+        >
+          <Maximize2 className="w-3.5 h-3.5" />
+          <span>Espandi</span>
+        </button>
       </div>
 
       {/* Main nebula area with circular radar-style labels */}
@@ -346,6 +354,6 @@ export const CompactNebula = ({ data, onClick, selectedMacro, onMacroClick }: Co
           </p>
         </div>
       )}
-    </button>
+    </div>
   );
 };
