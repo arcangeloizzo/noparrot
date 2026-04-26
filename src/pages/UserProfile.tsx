@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -15,7 +15,8 @@ import { AvatarWithRing } from "@/components/profile/AvatarWithRing";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getDisplayUsername } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
-import { recalculateCognitiveDensityFromPosts } from "@/lib/cognitiveDensity";
+import { useCognitiveDensity } from "@/hooks/useCognitiveDensity";
+import { useUserComprehensionCount } from "@/hooks/useUserComprehensionCount";
 
 export const UserProfile = () => {
   const { userId } = useParams();
@@ -52,17 +53,9 @@ export const UserProfile = () => {
     enabled: !!userId,
   });
 
-  // Fetch cognitive density separately - this is allowed since it's in a user's public activity
-  // The cognitive density is calculated from public posts, not private profile data
-  const { data: cognitiveDensityData } = useQuery({
-    queryKey: ["user-cognitive-density", userId],
-    queryFn: async () => {
-      // Recalculate from posts instead of accessing private profile data
-      const result = await recalculateCognitiveDensityFromPosts(userId!);
-      return result || {};
-    },
-    enabled: !!userId && !!profile,
-  });
+  // Nebulosa derivata via RPC (rispetta cognitive_tracking_enabled lato server)
+  const { data: cognitiveDensityData } = useCognitiveDensity(userId);
+  const { data: comprehensionCount = 0 } = useUserComprehensionCount(userId);
 
   const { data: stats } = useQuery({
     queryKey: ["user-stats", userId],
@@ -75,17 +68,14 @@ export const UserProfile = () => {
         supabase.from("posts").select("id", { count: "exact" }).eq("author_id", userId),
       ]);
 
-      const cogDensity = cognitiveDensityData || {};
-      const activeTopics = Object.values(cogDensity).filter(val => val > 0).length;
-
       return {
         following: followingRes.count || 0,
         followers: followersRes.count || 0,
         posts: postsRes.count || 0,
-        activeTopics,
+        activeTopics: 0, // calcolato sotto da cognitiveDensity derivata
       };
     },
-    enabled: !!userId && !!profile && !!cognitiveDensityData,
+    enabled: !!userId && !!profile,
   });
 
   const { data: isFollowing } = useQuery({
@@ -278,9 +268,9 @@ export const UserProfile = () => {
     );
   }
 
-  const cognitiveDensity = cognitiveDensityData || {};
-  const totalPaths = Object.values(cognitiveDensity).reduce((sum, val) => sum + val, 0);
-  const activeTopics = Object.values(cognitiveDensity).filter(val => val > 0).length;
+  const cognitiveDensity = cognitiveDensityData;
+  const totalPaths = comprehensionCount;
+  const activeTopics = cognitiveDensity.rows.filter(r => r.density > 0).length;
 
   const displayName = profile?.full_name?.trim() && !profile.full_name.includes('@') && profile.full_name.includes(' ')
     ? profile.full_name
