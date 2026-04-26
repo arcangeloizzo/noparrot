@@ -462,7 +462,7 @@ export const UserProfile = () => {
         <div ref={nebulaRef} className="px-4 mb-4 scroll-mt-20">
           <CompactNebula
             data={cognitiveDensity}
-            onClick={() => setShowNebulaExpanded(true)}
+            onExpand={() => setShowNebulaExpanded(true)}
             selectedMacro={selectedMacro}
             onMacroClick={handleMacroClick}
           />
