@@ -56,13 +56,17 @@ serve(async (req) => {
   const startTime = Date.now();
 
   try {
-    // Auth: require service role key
-    const authHeader = req.headers.get('Authorization') || '';
-    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+    // Auth: accept either service role key (Authorization: Bearer ...) OR internal secret (x-internal-secret)
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    if (!token || token !== serviceRoleKey) {
+    const internalSecret = Deno.env.get('PUSH_INTERNAL_SECRET') ?? '';
+    const authHeader = req.headers.get('Authorization') || '';
+    const bearer = authHeader.replace(/^Bearer\s+/i, '').trim();
+    const xInternal = req.headers.get('x-internal-secret') || '';
+    const okBearer = bearer.length > 0 && bearer === serviceRoleKey;
+    const okInternal = internalSecret.length > 0 && xInternal === internalSecret;
+    if (!okBearer && !okInternal) {
       return new Response(
-        JSON.stringify({ error: 'Forbidden: requires service role key' }),
+        JSON.stringify({ error: 'Forbidden: requires service role key or internal secret' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
