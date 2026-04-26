@@ -729,19 +729,16 @@ Deno.serve(async (req) => {
         serviceRoleKey
       );
 
-      // Also assign semantic topic for trending (non-blocking)
+      // Also assign semantic topic for trending (non-blocking, Fase 3C)
+      // Use service role: assign-post-topic re-fetches the post and aggregates
+      // content + title + article + transcript + media OCR itself.
       fetch(`${supabaseUrl}/functions/v1/assign-post-topic`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Authorization': `Bearer ${serviceRoleKey}`,
         },
-        body: JSON.stringify({
-          postId: inserted.id,
-          content: insertPayload.content,
-          sharedTitle: insertPayload.shared_title,
-          sharedUrl: insertPayload.shared_url,
-        }),
+        body: JSON.stringify({ post_id: inserted.id }),
       }).catch(err => console.warn(`[publish-post:${reqId}] assign-post-topic call failed:`, err));
     }
 
