@@ -6,10 +6,18 @@ import {
   CATEGORY_SHORT_NAMES,
   normalizeCategory,
 } from '@/config/categories';
+import type { CognitiveDensityData } from '@/hooks/useCognitiveDensity';
 
 interface CognitiveNebulaCanvasProps {
-  data: Record<string, number>;
+  /** Accetta sia il nuovo formato strutturato sia il vecchio Record per back-compat */
+  data: CognitiveDensityData | Record<string, number>;
   showCounts?: boolean;
+}
+
+function isStructured(
+  d: CognitiveDensityData | Record<string, number> | undefined | null
+): d is CognitiveDensityData {
+  return !!d && typeof d === 'object' && 'byMacroFlat' in (d as object);
 }
 
 // Use the 8 new canonical category names from the central config.
@@ -49,10 +57,13 @@ export const CognitiveNebulaCanvas = ({ data, showCounts = false }: CognitiveNeb
   const particlesRef = useRef<Particle[]>([]);
   const prevDataRef = useRef<string>('');
 
-  // Normalize incoming density keys (legacy "& double" labels, "Salute", "Pianeta",
-  // "Esteri", etc.) into the 8 canonical buckets so historical data renders correctly.
+  // Source flat map: nuovo formato (RPC) → byMacroFlat; vecchio → record diretto.
+  const flatSource: Record<string, number> = isStructured(data)
+    ? data.byMacroFlat
+    : ((data as Record<string, number>) || {});
+
   const normalizedData: Record<string, number> = {};
-  Object.entries(data || {}).forEach(([rawKey, value]) => {
+  Object.entries(flatSource).forEach(([rawKey, value]) => {
     const key = normalizeCategory(rawKey);
     if (key && CATEGORIES.includes(key)) {
       normalizedData[key] = (normalizedData[key] || 0) + (value || 0);
@@ -69,8 +80,9 @@ export const CognitiveNebulaCanvas = ({ data, showCounts = false }: CognitiveNeb
 
     CATEGORIES.forEach(category => {
       const weight = weights[category] || 0;
-      const normalizedWeight = Math.max(0.08, weight); // Minimum visibility
-      const particleCount = Math.floor(baseCount + normalizedWeight * extraCount);
+      // Niente più floor: pianeti vuoti restano invisibili (0 particelle).
+      if (weight <= 0) return;
+      const particleCount = Math.floor(baseCount + weight * extraCount);
       const baseAngle = CATEGORY_ANGLES[category];
       const color = hexToRgb(CATEGORY_COLORS[category]);
 
@@ -80,7 +92,7 @@ export const CognitiveNebulaCanvas = ({ data, showCounts = false }: CognitiveNeb
         
         // Distance ratio: particles can only go as far as the weight allows
         // Use power function for better distribution (more particles near center)
-        const distanceRatio = Math.pow(Math.random(), 0.6) * normalizedWeight;
+        const distanceRatio = Math.pow(Math.random(), 0.6) * weight;
         
         particles.push({
           category,

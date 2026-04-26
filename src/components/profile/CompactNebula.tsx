@@ -6,10 +6,17 @@ import {
   CATEGORY_SHORT_NAMES,
   normalizeCategory,
 } from '@/config/categories';
+import type { CognitiveDensityData } from '@/hooks/useCognitiveDensity';
 
 interface CompactNebulaProps {
-  data: Record<string, number>;
+  data: CognitiveDensityData | Record<string, number>;
   onClick: () => void;
+}
+
+function isStructured(
+  d: CognitiveDensityData | Record<string, number> | undefined | null
+): d is CognitiveDensityData {
+  return !!d && typeof d === 'object' && 'byMacroFlat' in (d as object);
 }
 
 // Radar-style angles for the 8 canonical categories (distributed around center).
@@ -99,14 +106,14 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
 
     CATEGORIES.forEach(category => {
       const weight = weights[category] || 0;
-      const normalizedWeight = Math.max(0.1, weight);
-      const particleCount = Math.floor(baseCount + normalizedWeight * extraCount);
+      if (weight <= 0) return;
+      const particleCount = Math.floor(baseCount + weight * extraCount);
       const baseAngle = CATEGORY_ANGLES[category];
       const color = hexToRgb(CATEGORY_COLORS[category]);
 
       for (let i = 0; i < particleCount; i++) {
         const angleOffset = (Math.random() - 0.5) * 2 * angleSpread;
-        const distanceRatio = Math.pow(Math.random(), 0.5) * normalizedWeight;
+        const distanceRatio = Math.pow(Math.random(), 0.5) * weight;
         
         particles.push({
           category,
@@ -195,10 +202,12 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
   }, []);
 
   useEffect(() => {
-    // Normalize the incoming density data: legacy keys (e.g. "Salute") are
-    // collapsed into their new canonical buckets ("Benessere"), summing weights.
+    const flatSource: Record<string, number> = isStructured(data)
+      ? data.byMacroFlat
+      : ((data as Record<string, number>) || {});
+
     const normalizedData: Record<string, number> = {};
-    Object.entries(data || {}).forEach(([rawKey, value]) => {
+    Object.entries(flatSource).forEach(([rawKey, value]) => {
       const key = normalizeCategory(rawKey) ?? rawKey;
       if (CATEGORIES.includes(key)) {
         normalizedData[key] = (normalizedData[key] || 0) + (value || 0);
@@ -232,8 +241,11 @@ export const CompactNebula = ({ data, onClick }: CompactNebulaProps) => {
   }, [data, handleResize, initializeParticles, animate]);
 
   // Get categories that have data for showing labels
+  const flatSourceLabels: Record<string, number> = isStructured(data)
+    ? data.byMacroFlat
+    : ((data as Record<string, number>) || {});
   const normalizedDataForLabels: Record<string, number> = {};
-  Object.entries(data || {}).forEach(([rawKey, value]) => {
+  Object.entries(flatSourceLabels).forEach(([rawKey, value]) => {
     const key = normalizeCategory(rawKey) ?? rawKey;
     if (CATEGORIES.includes(key)) {
       normalizedDataForLabels[key] = (normalizedDataForLabels[key] || 0) + (value || 0);
