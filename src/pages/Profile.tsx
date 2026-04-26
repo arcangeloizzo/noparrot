@@ -51,7 +51,8 @@ export const Profile = () => {
   });
 
   // Nebulosa derivata (RPC) — sostituisce profiles.cognitive_density
-  const { data: cognitiveDensity } = useCognitiveDensity(user?.id);
+  // isOwnProfile=true → usa wrapper fresh che fa refresh on-demand della MV
+  const { data: cognitiveDensity } = useCognitiveDensity(user?.id, true);
   const { data: comprehensionCount = 0 } = useUserComprehensionCount(user?.id);
 
   const { data: stats } = useQuery({

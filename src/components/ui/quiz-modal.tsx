@@ -3,7 +3,7 @@ import { Button } from "./button";
 import { CheckCircle2, XCircle, Loader2, AlertTriangle, RefreshCw } from "lucide-react";
 import { QuizQuestion } from "@/lib/ai-helpers";
 import { cn } from "@/lib/utils";
-import { updateCognitiveDensityWeighted } from "@/lib/cognitiveDensity";
+// Phase 4.4: rimosso import updateCognitiveDensityWeighted (sistema density refactored a vista derivata).
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { lockBodyScroll, unlockBodyScroll, getCurrentLockOwner } from "@/lib/bodyScrollLock";
@@ -316,10 +316,7 @@ export function QuizModal({ questions, qaId, onSubmit, onCancel, onComplete, pos
         haptics.warning();
       }
       
-      // Update cognitive density if passed
-      if (validationResult.passed && user && postCategory) {
-        await updateCognitiveDensityWeighted(user.id, postCategory, 'COMMENT_WITH_GATE');
-      }
+      // Phase 4.4: la cognitive density è ora derivata da comments.passed_gate via vista materializzata.
 
       // AUTO-PUBLISH: if passed, call onComplete(true) after delay
       if (validationResult.passed && onComplete) {

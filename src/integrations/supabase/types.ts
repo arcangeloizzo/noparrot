@@ -2727,6 +2727,14 @@ export type Database = {
           macro_category: string
         }[]
       }
+      get_user_cognitive_density_fresh: {
+        Args: { p_user_id: string }
+        Returns: {
+          action_breakdown: Json
+          density: number
+          macro_category: string
+        }[]
+      }
       get_user_comprehension_count: {
         Args: { p_user_id: string }
         Returns: number

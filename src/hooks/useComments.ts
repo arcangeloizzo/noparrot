@@ -208,21 +208,14 @@ export const useAddComment = () => {
     }) => {
       if (!user) throw new Error('Not authenticated');
 
-      // Recupera categoria del post e cognitive_density dell'utente
+      // Recupera categoria del post (necessaria per comments.post_category)
       const { data: postData } = await supabase
         .from('posts')
         .select('category')
         .eq('id', postId)
         .single();
 
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('cognitive_density')
-        .eq('id', user.id)
-        .single();
-
       const postCategory = postData?.category || null;
-      const userDensity = profileData?.cognitive_density || {};
 
       // Step 1: Insert comment WITHOUT sensitive density data (public table)
       const { data, error } = await supabase
@@ -244,8 +237,11 @@ export const useAddComment = () => {
       
       const commentId = data.id;
 
-      // Step 2: Insert sensitive cognitive metrics into private table
-      // This is non-blocking - if it fails, the comment is still saved
+      // === LEGACY: snapshot in comment_cognitive_metrics ===
+      // Disabled in Phase 4.4 — sistema density refactored a vista derivata.
+      // Lasciato come riferimento per eventuale revert.
+      // Rimuovere completamente in 4.5+ se non emergono regressioni.
+      /*
       if (userDensity && Object.keys(userDensity).length > 0) {
         const { error: metricsError } = await supabase
           .from('comment_cognitive_metrics')
@@ -254,12 +250,12 @@ export const useAddComment = () => {
             user_id: user.id,
             density_data: userDensity
           });
-        
+
         if (metricsError) {
-          // Log error but don't block the user - comment was saved successfully
           console.warn('Failed to save cognitive metrics:', metricsError.message);
         }
       }
+      */
 
       return commentId;
     },

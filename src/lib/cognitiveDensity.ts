@@ -11,10 +11,10 @@ export const COGNITIVE_WEIGHTS = {
 export type CognitiveAction = keyof typeof COGNITIVE_WEIGHTS;
 
 /**
- * Aggiorna cognitive_density con peso specifico per tipo di azione
- * @param userId - ID dell'utente
- * @param category - Categoria del contenuto
- * @param action - Tipo di azione cognitiva
+ * @deprecated Phase 4.4: il sistema cognitive_density è stato refactored a vista derivata
+ * (user_cognitive_density + RPC get_user_cognitive_density). Questa funzione non è più
+ * chiamata da nessun call site. Lasciata per backward-compatibility temporanea.
+ * Rimuovere completamente in Fase 4.5 dopo 30 giorni di stabilità.
  */
 export async function updateCognitiveDensityWeighted(
   userId: string, 
@@ -79,9 +79,8 @@ export async function updateCognitiveDensityWeighted(
 }
 
 /**
- * Incrementa il cognitive_density dell'utente per una specifica categoria
- * Viene chiamato dopo il completamento con successo di un Cognitive Journey
- * @deprecated Usa updateCognitiveDensityWeighted invece
+ * @deprecated Phase 4.4: sistema density refactored a vista derivata. Non chiamare.
+ * Rimuovere completamente in Fase 4.5 dopo 30 giorni di stabilità.
  */
 export async function updateCognitiveDensity(userId: string, category: string) {
   console.log('🧠 [cognitiveDensity] Called with:', { userId, category });
@@ -133,8 +132,8 @@ export async function updateCognitiveDensity(userId: string, category: string) {
 }
 
 /**
- * Calcola la cognitive_density retroattivamente basandosi sui post pubblicati dall'utente
- * Utile per popolare la nebulosa per utenti che hanno già pubblicato post prima dell'implementazione del sistema
+ * @deprecated Phase 4.4: la density è ora derivata in tempo reale dalla vista materializzata
+ * user_cognitive_density. Non serve più ricalcolare manualmente. Rimuovere in Fase 4.5.
  */
 export async function recalculateCognitiveDensityFromPosts(userId: string) {
   console.log('🔄 [cognitiveDensity] Recalculating from posts for user:', userId);

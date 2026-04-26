@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { updateCognitiveDensityWeighted } from '@/lib/cognitiveDensity';
+// Phase 4.4: rimosso import updateCognitiveDensityWeighted (sistema density refactored a vista derivata).
 
 export interface Post {
   id: string;
@@ -392,18 +392,7 @@ export const useToggleReaction = () => {
           reaction_type: reactionType,
         });
 
-        // Cognitive density update for new likes
-        if (reactionType === 'heart') {
-          const { data: postData } = await supabase
-            .from('posts')
-            .select('category')
-            .eq('id', postId)
-            .single();
-
-          if (postData?.category) {
-            await updateCognitiveDensityWeighted(user.id, postData.category, 'LIKE');
-          }
-        }
+        // Phase 4.4: cognitive density derivata dalla tabella reactions via vista materializzata.
         return { action: 'added' as const };
       }
     },
