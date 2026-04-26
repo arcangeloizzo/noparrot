@@ -114,17 +114,29 @@ serve(async (req) => {
       excludeIds.add((r as any).post_id);
     }
 
+    // Pool large enough to cover the exclusion backlog (sorted deterministically
+    // by created_at desc so we walk through ALL posts, not always the same 120).
+    const poolSize = Math.max(batchSize * 4, excludeIds.size + batchSize * 2);
     const { data: allCandidates, error: candErr } = await supabase
       .from('posts')
-      .select('id, content, title, shared_title, shared_url, hostname, article_content, full_article, transcript, category')
+      .select('id, content, title, shared_title, shared_url, hostname, article_content, full_article, transcript, category, created_at')
       .or('is_removed.is.null,is_removed.eq.false')
-      .limit(batchSize * 4);
+      .order('created_at', { ascending: false })
+      .limit(poolSize);
 
     if (candErr) throw new Error(`Query error: ${candErr.message}`);
 
     const candidates = (allCandidates ?? [])
       .filter((p: any) => !excludeIds.has(p.id))
       .slice(0, batchSize) as PostRow[];
+
+    const debugInfo = {
+      pool_size_requested: poolSize,
+      pool_returned: allCandidates?.length ?? 0,
+      excluded_count: excludeIds.size,
+      candidates_count: candidates.length,
+    };
+    console.log(`[reclassify-topics] ${JSON.stringify(debugInfo)}`);
 
     const details: any[] = [];
     let topicAssigned = 0;
@@ -280,6 +292,7 @@ serve(async (req) => {
       JSON.stringify({
         target,
         total_candidates: candidates.length,
+        _debug: debugInfo,
         topic_assigned: topicAssigned,
         topic_skipped: topicSkipped,
         topic_error: topicError,
