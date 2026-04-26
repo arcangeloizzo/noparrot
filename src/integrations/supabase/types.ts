@@ -2739,6 +2739,14 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: number
       }
+      get_user_topics_by_macro: {
+        Args: { p_macro_category: string; p_user_id: string }
+        Returns: {
+          frequency: number
+          topic_id: string
+          topic_label: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
