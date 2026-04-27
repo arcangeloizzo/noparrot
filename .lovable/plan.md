@@ -1,54 +1,101 @@
+## Allineamento Gate Commenti per post lunghi senza fonte
 
+Estendo la logica del Comprehension Gate nel `CommentsDrawer` per attivare la scelta "commento consapevole / commento spontaneo" anche sui **post text-only lunghi (>30 parole)**, allineandola al comportamento già attivo nel reshare (`ComposerModal`). **Nessun altro flusso esistente verrà modificato.**
 
-## Diagnosi corretta
+---
 
-Mi scuso, la mia diagnosi precedente era sbagliata. Riguardando lo screenshot 7111 ("La gabbia che ci forma e ci consuma") il rendering **funziona perfettamente**: titolo Impact, body, "Mostra tutto", artwork, badge Spotify — tutto al posto giusto. Il rendering avviene nel blocco "User Text Content" alle righe 1950–1972 di `ImmersivePostCard.tsx`, che precede il branch `isSpotifyTrack`.
+### 1. `src/components/feed/CommentsDrawer.tsx` — unica modifica logica
 
-Il problema è specifico al secondo post ("Quando l'amore non è una hit estiva") e non strutturale.
-
-### Causa root
-
-Il body viene mostrato solo se `shouldShowUserText === true` (riga 1386):
+**Aggiungere** accanto alla variabile esistente `postHasSource`:
 
 ```ts
-const shouldShowUserText = hasLink && post.content &&
-  !isTextSimilarToTitle(post.content, articleTitle) &&
-  !isTextSimilarToArticleContent(post.content, articlePreview);
+import { getWordCount, getQuestionCountWithoutSource } from '@/lib/gate-utils';
+
+const postWordCount = getWordCount(post?.content || '');
+const postHasLongText = !postHasSource && postWordCount > 30;
+const requiresGateChoice = postHasSource || postHasLongText;
 ```
 
-Queste euristiche servono a sopprimere body auto-riempiti uguali al titolo dell'articolo (caso utenti normali). Per Vinile però fanno **falso positivo**: il body inizia con _"Annalisa in 'Canzone Estiva' ci butta dentro un rapporto complicato, che di estivo ha ben poco..."_. Il body cita legittimamente nome artista (`Annalisa` = `articlePreview.description`) e titolo canzone (`Canzone Estiva` = `articlePreview.title`), e una di queste euristiche scatta:
+**Sostituire** ogni occorrenza di `postHasSource` che governa l'apertura del `FocusCommentChoiceSheet` con `requiresGateChoice`. Le check che riguardano specificamente la **fonte esterna** (es. fetch preview, OCR media) restano legate a `postHasSource`.
 
-- **keyword thematic matching ≥60%** (riga 262–266): titolo Spotify ha pochissime keyword (`canzone`, `estiva`), e bastano 2 match nel body per superare il 60% → soppressione.
-- oppure **substring match** sulla `description` "Annalisa" se è troppo corta.
+**Bypass invariati** (NON tocco):
+- Autore del post
+- Tentativo precedente già superato (cache `comprehension_attempts`)
+- Commento senza link su post senza fonte e ≤30 parole → resta spontaneo diretto
+- Link nel commento → resta gestito da `shouldRequireGate(commentText)` esistente
 
-Risultato: `shouldShowUserText = false` → body nascosto. Il post precedente ("Ci nasci, ci muori - nayt") aveva titolo/artista più "neutri" rispetto al body e quindi è passato.
+---
 
-## Fix
+### 2. Branch QA per "commento consapevole" su post text-only lungo
 
-I post di profili AI istituzionali (flag `is_ai_institutional` o `system_prompt_version` su `ai_profiles`) hanno body **sempre editorialmente diverso** dal titolo della fonte: non vanno mai filtrati da queste euristiche anti-duplicazione, che sono pensate per utenti umani.
-
-**Modifica unica** in `src/components/feed/ImmersivePostCard.tsx`, riga 1386:
+Nel handler che oggi chiama `runGateBeforeAction` con `linkUrl = post.shared_url`, aggiungere un branch:
 
 ```ts
-const isAiAuthor = !!(post as any).author?.is_ai_institutional;
-const shouldShowUserText = hasLink && post.content && (
-  isAiAuthor || (
-    !isTextSimilarToTitle(post.content, articleTitle) &&
-    !isTextSimilarToArticleContent(post.content, articlePreview)
-  )
-);
+if (postHasLongText && !postHasSource) {
+  // Riusa il flow Intent reshare: testo del post come fonte cognitiva
+  await runGateBeforeAction({
+    linkUrl: `internal://post/${post.id}`, // placeholder, non usato
+    intentPostContent: post.content,       // ← chiave: triggera USER_ONLY
+    onSuccess,
+    onCancel,
+    setIsProcessing,
+    setQuizData,
+    setShowQuiz,
+  });
+  return;
+}
+// ...flow esistente per postHasSource invariato
 ```
 
-(Bypass diretto delle euristiche per autori AI istituzionali — comprende Vinile, Mic e gli altri 8 profili editoriali.)
+`runGateBeforeAction` ha già il branch `intentPostContent` che:
+- calcola `getQuestionCountForIntentReshare(originalWordCount)` → 1 domanda (31-120 parole) o 3 domande (>120)
+- chiama `generate-qa` con `testMode: 'USER_ONLY'`
+- mostra il quiz modal standard
 
-### Verifica preliminare
+Quindi **nessuna modifica** a `runGateBeforeAction.ts` né a `gate-utils.ts` né alla edge function `generate-qa`.
 
-Prima di scrivere, controllo che `post.author.is_ai_institutional` sia effettivamente disponibile sull'oggetto post passato a `ImmersivePostCard` (in `usePosts`/join). Se non lo è, lo aggiungo alla query select.
+---
 
-### File toccati
+### 3. Copy del `FocusCommentChoiceSheet` (micro-adeguamento condizionale)
 
-- `src/components/feed/ImmersivePostCard.tsx` — 4 righe modificate (riga 1384–1388 circa).
-- Eventuale aggiunta di `is_ai_institutional` al select in `src/hooks/usePosts.ts` se mancante.
+Quando la scelta è triggherata da `postHasLongText` (no fonte esterna), adattare la label del bottone "consapevole":
+- Default attuale (con fonte): "Verifica la fonte" / "Commento consapevole"
+- Nuovo caso (text-only lungo): "Rileggi il post" / "Commento consapevole"
 
-Nessuna modifica a DB, edge function, system prompt o altri rami. Nessun impatto su utenti normali: per loro le euristiche restano attive.
+Passare un prop opzionale `gateReason: 'source' | 'long-text'` allo sheet per scegliere la copy. Nessun cambio strutturale, solo testo.
 
+---
+
+### 4. Cosa NON viene toccato (esplicito)
+
+- ✅ `ComposerModal.tsx` — reshare flow (già corretto)
+- ✅ `runGateBeforeAction.ts` — branch Intent già esistente
+- ✅ `generate-qa` edge function
+- ✅ `gate-utils.ts` — utilities già pronte
+- ✅ Bypass autore, bypass tentativo precedente
+- ✅ Gate sui link nel commento (logica `shouldRequireGate`)
+- ✅ Gate sui media con OCR/trascrizione
+- ✅ Tutti i flussi del Composer, Messaggi, Sondaggi, Challenge
+
+---
+
+### 5. Verifica post-implementazione
+
+1. Commento sul post lungo di Nico (text-only, >30 parole, no link) → appare scelta consapevole/spontaneo ✅
+2. Commento consapevole → quiz USER_ONLY (1 o 3 domande sul testo del post) ✅
+3. Commento spontaneo → pubblica direttamente come oggi ✅
+4. Commento su post breve (≤30 parole) senza fonte → nessun gate (invariato) ✅
+5. Commento su post con `shared_url` → flow esistente invariato ✅
+6. Commento su post con media + OCR → flow esistente invariato ✅
+7. Reshare dello stesso post di Nico → gate invariato come oggi ✅
+8. Autore commenta sul proprio post → bypass invariato ✅
+9. Build TypeScript verde
+
+---
+
+### 6. File modificati
+
+- `src/components/feed/CommentsDrawer.tsx` — logica `requiresGateChoice` + branch Intent
+- `src/components/feed/FocusCommentChoiceSheet.tsx` — prop `gateReason` per copy condizionale
+
+Nessuna migration, nessuna edge function, nessun altro file toccato.
