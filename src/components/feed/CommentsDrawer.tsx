@@ -58,6 +58,14 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
   );
   const postHasSource = !!post.shared_url || !!postMediaWithExtractedText;
   const isFocusContent = post.shared_url === 'focus://internal';
+
+  // [GATE ALIGNMENT] Post text-only senza fonte: se >30 parole, attiva gate
+  // sulle parole del post stesso (allineato al reshare in ComposerModal).
+  const postOriginalWordCount = getWordCount(
+    [(post as any).title, post.content].filter(Boolean).join(' ')
+  );
+  const postHasLongText = !postHasSource && postOriginalWordCount > 30;
+  const requiresGateChoice = postHasSource || postHasLongText;
   
   // Determine focus type from post data
   const focusType: 'daily' | 'interest' = post.author?.username === 'Daily Focus' ? 'daily' : 'interest';
@@ -104,6 +112,9 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
 
   console.log('[CommentsDrawer] Current state:', {
     postHasSource,
+    postHasLongText,
+    postOriginalWordCount,
+    requiresGateChoice,
     postSharedUrl: post.shared_url,
     postId: post.id,
     isFocusContent,
