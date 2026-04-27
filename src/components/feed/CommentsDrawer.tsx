@@ -554,7 +554,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                         return;
                       }
                       
-                      if (postHasSource && selectedCommentType === null && !showCommentTypeChoice) {
+                      if (requiresGateChoice && selectedCommentType === null && !showCommentTypeChoice) {
                         setShowCommentTypeChoice(true);
                         textareaRef.current?.blur();
                       }
@@ -586,7 +586,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                       }
                     }}
                     placeholder={
-                      selectedCommentType === null && postHasSource
+                      selectedCommentType === null && requiresGateChoice
                         ? "Scegli come entrare..."
                         : "Scrivi un commento..."
                     }
@@ -594,7 +594,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                       "flex-1 bg-transparent border-none focus:outline-none focus:ring-0 resize-none",
                       "text-sm text-foreground placeholder:text-muted-foreground/50",
                       "min-h-[42px] max-h-[120px] py-3 pl-4 pr-2",
-                      postHasSource && selectedCommentType === null && "opacity-50 cursor-not-allowed"
+                      requiresGateChoice && selectedCommentType === null && "opacity-50 cursor-not-allowed"
                     )}
                     maxLength={500}
                     rows={1}
