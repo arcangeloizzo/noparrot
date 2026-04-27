@@ -38,6 +38,7 @@ interface CommentItemProps {
   onDelete: () => void;
   isHighlighted?: boolean;
   postHasSource?: boolean;
+  postHasLongText?: boolean;
   onMediaClick?: (media: any[], index: number) => void;
   getUserAvatar?: (avatarUrl: string | null | undefined, name: string | undefined, username?: string) => React.ReactNode;
   /** Determines which reaction table to use: 'post' for comment_reactions, 'focus' for focus_comment_reactions, 'media' for media_comment_reactions */
@@ -51,6 +52,7 @@ export const CommentItem = ({
   onDelete,
   isHighlighted,
   postHasSource = false,
+  postHasLongText = false,
   onMediaClick,
   getUserAvatar: externalGetUserAvatar,
   commentKind = 'post'
@@ -258,7 +260,7 @@ export const CommentItem = ({
               </span>
               
               {/* Aware badge */}
-              {postHasSource && comment.passed_gate && (
+              {(postHasSource || postHasLongText) && comment.passed_gate && (
                 isTouchDevice() ? (
                   // On touch devices: just show icon, no tooltip (avoids iOS Safari crash)
                   <img
@@ -278,7 +280,9 @@ export const CommentItem = ({
                       </TooltipTrigger>
                       <TooltipContent side="top" className="bg-[#1a2227] border-white/10">
                         <p className="text-xs">
-                          Ha letto la fonte prima di commentare
+                          {postHasSource
+                            ? 'Ha letto la fonte prima di commentare'
+                            : 'Ha riletto il post prima di commentare'}
                         </p>
                       </TooltipContent>
                     </Tooltip>

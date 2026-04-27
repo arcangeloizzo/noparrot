@@ -485,6 +485,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                     }}
                     getUserAvatar={getUserAvatar}
                     postHasSource={postHasSource}
+                    postHasLongText={postHasLongText}
                     commentKind={isFocusContent ? 'focus' : 'post'}
                   />
                 ))}

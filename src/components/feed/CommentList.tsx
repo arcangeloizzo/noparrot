@@ -10,6 +10,7 @@ interface CommentListProps {
   focusCommentId?: string | null;
   sortMode: 'relevance' | 'recent' | 'top';
   postHasSource?: boolean;
+  postHasLongText?: boolean;
   /** Determines which reaction table to use */
   commentKind?: 'post' | 'focus';
 }
@@ -27,6 +28,7 @@ export const CommentList = ({
   focusCommentId,
   sortMode,
   postHasSource = false,
+  postHasLongText = false,
   commentKind = 'post'
 }: CommentListProps) => {
   const [visibleCount, setVisibleCount] = useState(30);
@@ -142,6 +144,7 @@ export const CommentList = ({
             onDelete={() => onDelete(comment.id)}
             isHighlighted={comment.id === focusCommentId}
             postHasSource={postHasSource}
+            postHasLongText={postHasLongText}
             commentKind={commentKind}
           />
         </div>
