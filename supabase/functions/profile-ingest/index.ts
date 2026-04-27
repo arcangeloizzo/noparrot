@@ -238,36 +238,36 @@ Deno.serve(async (req) => {
         }
 
         const vinileArticles: any[] = [];
-        // Use Spotify Search API to find popular Italian tracks instead of playlists
-        const searchQueries = [
-          'tag:new year:2026 genre:italian',
-          'tag:new year:2025 genre:pop italiano',
-          'tag:new year:2026 genre:indie italiano',
-          'musica italiana 2026',
-          'cantautorato italiano nuovo',
-        ];
+        // Editorial playlist source (curated by user) — replaces the search API approach
+        // which was producing tracks without lyrics / generic mixes.
+        const PLAYLIST_ID = '37i9dQZF1DX7P3Ec4TfanK'; // "Morning Routine"
+        try {
+          const plUrl = `https://api.spotify.com/v1/playlists/${PLAYLIST_ID}/tracks?market=IT&limit=100`;
+          const plRes = await fetchWithTimeout(plUrl, {
+            headers: { 'Authorization': `Bearer ${vToken}` }
+          }, 15000);
 
-        for (const query of searchQueries) {
-          try {
-            const searchUrl = `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&market=IT&limit=20`;
-            const searchRes = await fetchWithTimeout(searchUrl, {
-              headers: { 'Authorization': `Bearer ${vToken}` }
-            }, 10000);
+          if (!plRes.ok) {
+            console.warn(`[profile-ingest:${reqId}] Spotify playlist HTTP ${plRes.status}`);
+          } else {
+            const plData = await plRes.json();
+            const items = plData?.items || [];
+            console.log(`[profile-ingest:${reqId}] Vinile playlist "Morning Routine": ${items.length} items`);
 
-            if (!searchRes.ok) {
-              console.warn(`[profile-ingest:${reqId}] Spotify search "${query}" HTTP ${searchRes.status}`);
-              continue;
-            }
-
-            const searchData = await searchRes.json();
-            const tracks = searchData?.tracks?.items || [];
-            console.log(`[profile-ingest:${reqId}] Spotify search "${query}": ${tracks.length} results`);
-
-            for (const track of tracks) {
-              if (!track?.name) continue;
-              const artistNames = (track.artists || []).map((a: any) => a.name).join(', ');
+            for (const item of items) {
+              const track = item?.track;
+              if (!track) continue;
+              if (track.is_local === true) continue;
+              if (!track.id || !track.name) continue;
+              if (typeof track.duration_ms === 'number' && track.duration_ms < 60_000) continue;
               const spotifyUrl = track.external_urls?.spotify || '';
               if (!spotifyUrl) continue;
+              const artistNames = (track.artists || []).map((a: any) => a.name).filter(Boolean).join(', ');
+              if (!artistNames) continue;
+
+              const publishedAt = item.added_at
+                ? new Date(item.added_at).toISOString()
+                : (track.album?.release_date ? new Date(track.album.release_date).toISOString() : new Date().toISOString());
 
               vinileArticles.push({
                 profile_id: profile.id,
@@ -276,14 +276,13 @@ Deno.serve(async (req) => {
                 article_title: track.name,
                 article_url: spotifyUrl,
                 article_summary: `${artistNames} — ${track.name} (Album: ${track.album?.name || 'N/A'}, ${track.album?.release_date || 'N/A'}).`,
-                article_published_at: track.album?.release_date ? new Date(track.album.release_date).toISOString() : new Date().toISOString(),
+                article_published_at: publishedAt,
                 raw_content: null
               });
             }
-            await delay(100);
-          } catch (e: any) {
-            console.warn(`[profile-ingest:${reqId}] Error searching Spotify: ${e.message}`);
           }
+        } catch (e: any) {
+          console.warn(`[profile-ingest:${reqId}] Error fetching Spotify playlist: ${e.message}`);
         }
 
         if (vinileArticles.length === 0) {
