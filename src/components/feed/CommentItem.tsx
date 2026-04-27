@@ -38,6 +38,7 @@ interface CommentItemProps {
   onDelete: () => void;
   isHighlighted?: boolean;
   postHasSource?: boolean;
+  postHasLongText?: boolean;
   onMediaClick?: (media: any[], index: number) => void;
   getUserAvatar?: (avatarUrl: string | null | undefined, name: string | undefined, username?: string) => React.ReactNode;
   /** Determines which reaction table to use: 'post' for comment_reactions, 'focus' for focus_comment_reactions, 'media' for media_comment_reactions */
@@ -51,6 +52,7 @@ export const CommentItem = ({
   onDelete,
   isHighlighted,
   postHasSource = false,
+  postHasLongText = false,
   onMediaClick,
   getUserAvatar: externalGetUserAvatar,
   commentKind = 'post'
