@@ -58,6 +58,14 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
   );
   const postHasSource = !!post.shared_url || !!postMediaWithExtractedText;
   const isFocusContent = post.shared_url === 'focus://internal';
+
+  // [GATE ALIGNMENT] Post text-only senza fonte: se >30 parole, attiva gate
+  // sulle parole del post stesso (allineato al reshare in ComposerModal).
+  const postOriginalWordCount = getWordCount(
+    [(post as any).title, post.content].filter(Boolean).join(' ')
+  );
+  const postHasLongText = !postHasSource && postOriginalWordCount > 30;
+  const requiresGateChoice = postHasSource || postHasLongText;
   
   // Determine focus type from post data
   const focusType: 'daily' | 'interest' = post.author?.username === 'Daily Focus' ? 'daily' : 'interest';
@@ -104,6 +112,9 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
 
   console.log('[CommentsDrawer] Current state:', {
     postHasSource,
+    postHasLongText,
+    postOriginalWordCount,
+    requiresGateChoice,
     postSharedUrl: post.shared_url,
     postId: post.id,
     isFocusContent,
@@ -543,7 +554,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                         return;
                       }
                       
-                      if (postHasSource && selectedCommentType === null && !showCommentTypeChoice) {
+                      if (requiresGateChoice && selectedCommentType === null && !showCommentTypeChoice) {
                         setShowCommentTypeChoice(true);
                         textareaRef.current?.blur();
                       }
@@ -575,7 +586,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                       }
                     }}
                     placeholder={
-                      selectedCommentType === null && postHasSource
+                      selectedCommentType === null && requiresGateChoice
                         ? "Scegli come entrare..."
                         : "Scrivi un commento..."
                     }
@@ -583,7 +594,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                       "flex-1 bg-transparent border-none focus:outline-none focus:ring-0 resize-none",
                       "text-sm text-foreground placeholder:text-muted-foreground/50",
                       "min-h-[42px] max-h-[120px] py-3 pl-4 pr-2",
-                      postHasSource && selectedCommentType === null && "opacity-50 cursor-not-allowed"
+                      requiresGateChoice && selectedCommentType === null && "opacity-50 cursor-not-allowed"
                     )}
                     maxLength={500}
                     rows={1}
@@ -680,12 +691,14 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                   hasSharedUrl: !!post.shared_url, 
                   sharedUrl: post.shared_url,
                   hasMediaOCR: !!postMediaWithExtractedText,
+                  postHasLongText,
+                  postOriginalWordCount,
                   isProcessing: isProcessingGate,
                   newCommentLength: newComment.length
                 });
                 
-                // [FIX] Allow if has URL OR media with OCR
-                if (!post.shared_url && !postMediaWithExtractedText) {
+                // [FIX] Allow if has URL OR media with OCR OR long text
+                if (!post.shared_url && !postMediaWithExtractedText && !postHasLongText) {
                   sonnerToast.error("Questo post non ha una fonte da verificare");
                   setShowCommentTypeChoice(false);
                   return;
@@ -714,6 +727,27 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                 
                 setShowCommentTypeChoice(false);
                 setIsProcessingGate(true);
+
+                // [LONG TEXT GATE] Post text-only senza fonte, >30 parole:
+                // genera quiz dal testo del post (USER_ONLY) tramite runGateBeforeAction.
+                if (postHasLongText && !post.shared_url && !postMediaWithExtractedText) {
+                  sonnerToast.info("Sto preparando ciò che ti serve per orientarti…");
+                  await runGateBeforeAction({
+                    linkUrl: `internal://post/${post.id}`,
+                    intentPostContent: [(post as any).title, post.content].filter(Boolean).join('\n\n'),
+                    onSuccess: () => {
+                      setSelectedCommentType('informed');
+                      setTimeout(() => textareaRef.current?.focus(), 150);
+                    },
+                    onCancel: () => {
+                      setSelectedCommentType(null);
+                    },
+                    setIsProcessing: setIsProcessingGate,
+                    setQuizData,
+                    setShowQuiz,
+                  });
+                  return;
+                }
                 
                 try {
                   // Calcola word count e testMode
