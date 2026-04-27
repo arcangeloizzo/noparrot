@@ -691,12 +691,14 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                   hasSharedUrl: !!post.shared_url, 
                   sharedUrl: post.shared_url,
                   hasMediaOCR: !!postMediaWithExtractedText,
+                  postHasLongText,
+                  postOriginalWordCount,
                   isProcessing: isProcessingGate,
                   newCommentLength: newComment.length
                 });
                 
-                // [FIX] Allow if has URL OR media with OCR
-                if (!post.shared_url && !postMediaWithExtractedText) {
+                // [FIX] Allow if has URL OR media with OCR OR long text
+                if (!post.shared_url && !postMediaWithExtractedText && !postHasLongText) {
                   sonnerToast.error("Questo post non ha una fonte da verificare");
                   setShowCommentTypeChoice(false);
                   return;
@@ -725,6 +727,27 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                 
                 setShowCommentTypeChoice(false);
                 setIsProcessingGate(true);
+
+                // [LONG TEXT GATE] Post text-only senza fonte, >30 parole:
+                // genera quiz dal testo del post (USER_ONLY) tramite runGateBeforeAction.
+                if (postHasLongText && !post.shared_url && !postMediaWithExtractedText) {
+                  sonnerToast.info("Sto preparando ciò che ti serve per orientarti…");
+                  await runGateBeforeAction({
+                    linkUrl: `internal://post/${post.id}`,
+                    intentPostContent: [(post as any).title, post.content].filter(Boolean).join('\n\n'),
+                    onSuccess: () => {
+                      setSelectedCommentType('informed');
+                      setTimeout(() => textareaRef.current?.focus(), 150);
+                    },
+                    onCancel: () => {
+                      setSelectedCommentType(null);
+                    },
+                    setIsProcessing: setIsProcessingGate,
+                    setQuizData,
+                    setShowQuiz,
+                  });
+                  return;
+                }
                 
                 try {
                   // Calcola word count e testMode
