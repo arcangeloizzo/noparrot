@@ -260,7 +260,7 @@ export const CommentItem = ({
               </span>
               
               {/* Aware badge */}
-              {postHasSource && comment.passed_gate && (
+              {(postHasSource || postHasLongText) && comment.passed_gate && (
                 isTouchDevice() ? (
                   // On touch devices: just show icon, no tooltip (avoids iOS Safari crash)
                   <img
@@ -280,7 +280,9 @@ export const CommentItem = ({
                       </TooltipTrigger>
                       <TooltipContent side="top" className="bg-[#1a2227] border-white/10">
                         <p className="text-xs">
-                          Ha letto la fonte prima di commentare
+                          {postHasSource
+                            ? 'Ha letto la fonte prima di commentare'
+                            : 'Ha riletto il post prima di commentare'}
                         </p>
                       </TooltipContent>
                     </Tooltip>
