@@ -228,23 +228,8 @@ const ImmersiveEditorialCarouselInner = ({
   return (
     <div className="h-[100dvh] w-full snap-start relative flex flex-col overflow-hidden">
       {/* Editorial Background - Deep urban gradient */}
-      {/* Editorial Background - Deep urban gradient */}
+      {/* Background layer semplificato */}
       <div className="absolute inset-0 bg-immersive z-0" />
-
-      {/* Urban concrete texture - GPU-friendly static PNG (Removed mix-blend-overlay for performance) */}
-      <div className="absolute inset-0 z-[1] opacity-[0.03] pointer-events-none urban-noise-overlay" />
-
-      {/* Vignette effect on edges */}
-      <div
-        className="absolute inset-0 z-[2] pointer-events-none"
-        style={{
-          background: 'radial-gradient(ellipse at center, transparent 40%, var(--immersive-muted) 100%)',
-          opacity: 0.5
-        }}
-      />
-
-      {/* Theme-aware cinematic fade overlay - top/bottom */}
-      <div className="absolute inset-0 z-[3] pointer-events-none cinematic-fade-overlay" />
 
       {/* Content Layer */}
       <div className="relative z-10 w-full h-full flex flex-col">
@@ -254,7 +239,7 @@ const ImmersiveEditorialCarouselInner = ({
           ref={emblaRef}
           className="flex-1 overflow-hidden touch-pan-y"
         >
-          <div className="flex h-full">
+          <div className="flex h-full will-change-transform transform-gpu">
             {items.map((item, index) => (
               <EditorialSlide
                 key={item.id}
