@@ -240,7 +240,8 @@ export const usePosts = () => {
           )
         `) as any)
         .eq('is_removed', false)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(20);
 
       if (error) throw error;
 
