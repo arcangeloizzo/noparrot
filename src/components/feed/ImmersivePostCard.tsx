@@ -1470,7 +1470,7 @@ const ImmersivePostCardInner = ({
     return (
       <div 
         className={cn(
-          "whitespace-pre-wrap break-words drop-shadow-md",
+          "whitespace-pre-wrap break-words ",
           hasTitle ? "text-[14px] text-[#7A8FA6]" : "text-lg sm:text-xl font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide text-pretty"
         )}
         style={hasTitle ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
@@ -1657,11 +1657,11 @@ const ImmersivePostCardInner = ({
                   navigate(`/profile/${post.author.id}`);
                 }}
               >
-                <div className="w-10 h-10 rounded-full border border-white/20 bg-white/10 overflow-hidden shadow-lg">
+                <div className="w-10 h-10 rounded-full border border-white/20 bg-white/10 overflow-hidden ">
                   {getAvatarContent()}
                 </div>
                 <div className="flex flex-col shrink-0">
-                  <span className="text-slate-900 dark:text-white font-bold text-sm drop-shadow-none dark:drop-shadow-md">
+                  <span className="text-slate-900 dark:text-white font-bold text-sm  dark:">
                     {post.author.full_name || getDisplayUsername(post.author.username)}
                   </span>
                   <span className="text-slate-500 dark:text-gray-400 text-xs">
@@ -1681,7 +1681,7 @@ const ImmersivePostCardInner = ({
                 <DialogTrigger asChild>
                   <button
                     onClick={(e) => e.stopPropagation()}
-                    className="inline-flex items-center justify-center gap-x-1.5 min-h-[32px] py-1 px-2.5 rounded-xl border border-[#A78BFA]/40 bg-black/80 text-white shadow-[0_0_12px_rgba(167,139,250,0.15)] transition-all duration-200 active:scale-[0.97] cursor-pointer"
+                    className="inline-flex items-center justify-center gap-x-1.5 min-h-[32px] py-1 px-2.5 rounded-xl border border-[#A78BFA]/40 bg-black/80 text-white  transition-all duration-200 active:scale-[0.97] cursor-pointer"
                   >
                     <span className="font-bold tracking-wide opacity-60 text-[10px]">✦</span>
                     <span className="text-[10px] font-bold tracking-wider">
@@ -1725,7 +1725,7 @@ const ImmersivePostCardInner = ({
                       <button
                         onClick={(e) => e.stopPropagation()}
                         className={cn(
-                          "flex items-center gap-1.5 bg-slate-100 border border-slate-200 dark:bg-black/30 dark:border-white/10 px-3 py-1.5 rounded-full cursor-pointer hover:bg-slate-200 dark:hover:bg-black/40 transition-colors shadow-sm dark:shadow-xl",
+                          "flex items-center gap-1.5 bg-slate-100 border border-slate-200 dark:bg-black/30 dark:border-white/10 px-3 py-1.5 rounded-full cursor-pointer hover:bg-slate-200 dark:hover:bg-black/40 transition-colors shadow-sm dark:",
                           displayTrustScore.band === 'ALTO' && "text-emerald-600 dark:text-emerald-400",
                           displayTrustScore.band === 'MEDIO' && "text-amber-600 dark:text-amber-400",
                           displayTrustScore.band === 'BASSO' && "text-red-600 dark:text-red-400"
@@ -1936,7 +1936,7 @@ const ImmersivePostCardInner = ({
                   {post.content && post.content.trim().length > 0 && (
                     <div 
                       className={cn(
-                        "whitespace-pre-wrap break-words drop-shadow-none dark:drop-shadow-md",
+                        "whitespace-pre-wrap break-words  dark:",
                         post.title && post.title.trim().length > 0 ? "text-[14px] text-[#7A8FA6]" : "text-base sm:text-lg text-slate-600 dark:text-white/90 leading-snug tracking-wide"
                       )}
                       style={post.title && post.title.trim().length > 0 ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
@@ -1962,7 +1962,7 @@ const ImmersivePostCardInner = ({
               {/* Intent Post (non-stack): Quote Block style for posts with is_intent flag */}
               {!useStackLayout && post.is_intent && post.content && (
                 <div className="border-l-4 border-primary/60 bg-card/10 px-3 sm:px-4 py-2 sm:py-3 rounded-r-lg mb-4 sm:mb-6">
-                  <p className="text-base sm:text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide drop-shadow-md">
+                  <p className="text-base sm:text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide ">
                     <MentionText content={post.content} />
                   </p>
                 </div>
@@ -2028,7 +2028,7 @@ const ImmersivePostCardInner = ({
               {!useStackLayout && isTextOnly && (post.content || post.title) && (
                 <div className="relative w-full">
                   {/* Card container with glassmorphism and urban texture - GPU optimized */}
-                  <div className="relative immersive-card rounded-3xl p-6 sm:p-8 shadow-2xl overflow-hidden">
+                  <div className="relative immersive-card rounded-3xl p-6 sm:p-8  overflow-hidden">
 
                     {/* Urban texture overlay - static PNG */}
                     <div className="absolute inset-0 opacity-[0.02] pointer-events-none rounded-3xl urban-noise-overlay" />
@@ -2039,7 +2039,7 @@ const ImmersivePostCardInner = ({
                        {/* Title */}
                       {post.title && post.title.trim().length > 0 && (
                         <h2 
-                          className="uppercase mb-2 drop-shadow-md"
+                          className="uppercase mb-2 "
                           style={{
                             fontFamily: 'Impact, sans-serif',
                             fontSize: 'clamp(30px, 8vw, 42px)',
@@ -2093,7 +2093,7 @@ const ImmersivePostCardInner = ({
                   {/* Title */}
                   {post.title && post.title.trim().length > 0 && (
                     <h2 
-                      className="uppercase mb-1 drop-shadow-lg"
+                      className="uppercase mb-1 "
                       style={{
                         fontFamily: 'Impact, sans-serif',
                         fontSize: 'clamp(30px, 8vw, 42px)',
@@ -2129,11 +2129,11 @@ const ImmersivePostCardInner = ({
                         <img
                           src={post.media?.[0]?.thumbnail_url || mediaUrl}
                           alt=""
-                          className="max-h-full max-w-full object-contain rounded-2xl shadow-2xl border border-white/10"
+                          className="max-h-full max-w-full object-contain rounded-2xl  border border-white/10"
                         />
                         {/* Play icon overlay */}
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="bg-white p-4 rounded-full shadow-xl">
+                          <div className="bg-white p-4 rounded-full ">
                             <Play className="w-8 h-8 text-black fill-black" />
                           </div>
                         </div>
@@ -2143,7 +2143,7 @@ const ImmersivePostCardInner = ({
                         <img
                           src={mediaUrl}
                           alt=""
-                          className="max-h-full max-w-full object-contain rounded-2xl shadow-2xl border border-white/10"
+                          className="max-h-full max-w-full object-contain rounded-2xl  border border-white/10"
                         />
                         {/* Expand pill with label */}
                         <div className="absolute bottom-4 right-4 bg-black/80 px-3 py-1.5 rounded-full flex items-center gap-1.5">
@@ -2172,7 +2172,7 @@ const ImmersivePostCardInner = ({
                 <div className="flex-1 min-h-0 w-full flex flex-col justify-start">
                   {/* Unified Twitter Card - Author + Content in one container */}
                   <div
-                    className="bg-gradient-to-br from-[#1DA1F2]/5 to-white/90 dark:from-[#15202B] dark:to-[#0d1117] rounded-3xl p-5 border border-black/5 dark:border-white/15 shadow-xl dark:shadow-2xl cursor-pointer active:scale-[0.98] transition-transform flex flex-col max-h-full"
+                    className="bg-gradient-to-br from-[#1DA1F2]/5 to-white/90 dark:from-[#15202B] dark:to-[#0d1117] rounded-3xl p-5 border border-black/5 dark:border-white/15  dark: cursor-pointer active:scale-[0.98] transition-transform flex flex-col max-h-full"
                     onClick={(e) => {
                       e.stopPropagation();
                       if (post.shared_url) {
@@ -2276,7 +2276,7 @@ const ImmersivePostCardInner = ({
                         e.stopPropagation();
                         setYoutubeEmbedActive(true);
                       }}
-                      className="relative w-full rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_16px_rgba(255,0,0,0.1)] active:scale-[0.98] transition-transform"
+                      className="relative w-full rounded-2xl overflow-hidden border border-white/10  active:scale-[0.98] transition-transform"
                     >
                       {/* Video Thumbnail */}
                       <img
@@ -2287,7 +2287,7 @@ const ImmersivePostCardInner = ({
 
                       {/* Play Button Overlay */}
                       <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                        <div className="bg-red-600 p-4 rounded-full shadow-xl">
+                        <div className="bg-red-600 p-4 rounded-full ">
                           <Play className="w-8 h-8 text-white fill-white" />
                         </div>
                       </div>
@@ -2303,7 +2303,7 @@ const ImmersivePostCardInner = ({
                     </button>
                   ) : (
                     /* Active YouTube Embed */
-                    <div className="w-full rounded-2xl overflow-hidden border border-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_16px_rgba(255,0,0,0.1)]">
+                    <div className="w-full rounded-2xl overflow-hidden border border-white/10 ">
                       <div className="aspect-video">
                         <iframe
                           src={`https://www.youtube.com/embed/${extractYoutubeVideoId(post.shared_url!)}?autoplay=1&mute=1&cc_load_policy=1&rel=0`}
@@ -2318,7 +2318,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Video Title */}
-                  <h1 className="text-xl font-bold text-immersive-foreground leading-tight mt-4 mb-2 drop-shadow-sm">
+                  <h1 className="text-xl font-bold text-immersive-foreground leading-tight mt-4 mb-2 ">
                     {decodeHTMLEntities(articlePreview?.title || post.shared_title)}
                   </h1>
 
@@ -2357,7 +2357,7 @@ const ImmersivePostCardInner = ({
                   {post.content && post.content.trim().length > 0 && (
                     <div 
                       className={cn(
-                        "whitespace-pre-wrap break-words drop-shadow-md mb-3",
+                        "whitespace-pre-wrap break-words  mb-3",
                         post.title && post.title.trim().length > 0 ? "text-[14px] text-[#7A8FA6]" : "text-base text-slate-600 dark:text-white/90 leading-snug tracking-wide"
                       )}
                       style={post.title && post.title.trim().length > 0 ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
@@ -2403,13 +2403,13 @@ const ImmersivePostCardInner = ({
                       <img
                         src={articlePreview?.image || post.preview_img}
                         alt=""
-                        className="max-h-full max-w-full aspect-square object-contain rounded-2xl shadow-xl dark:shadow-[0_12px_48px_rgba(0,0,0,0.6),_0_0_24px_rgba(30,215,96,0.25)] border border-slate-200 dark:border-white/10"
+                        className="max-h-full max-w-full aspect-square object-contain rounded-2xl  dark: border border-slate-200 dark:border-white/10"
                       />
                     </div>
                   )}
 
                   {/* Spotify Title - Fixed shrink-0 */}
-                  <h1 className="flex-shrink-0 text-2xl font-bold text-slate-900 dark:text-white leading-tight mb-2 text-center drop-shadow-sm dark:drop-shadow-xl line-clamp-2">
+                  <h1 className="flex-shrink-0 text-2xl font-bold text-slate-900 dark:text-white leading-tight mb-2 text-center  dark: line-clamp-2">
                     {decodeHTMLEntities(articlePreview?.title || post.shared_title)}
                   </h1>
 
@@ -2537,7 +2537,7 @@ const ImmersivePostCardInner = ({
 
                         return (
                           <div className="mb-3 shrink-0 text-left w-full" onClick={(e) => e.stopPropagation()}>
-                            <p className="text-lg font-medium text-slate-900 dark:text-white/90 leading-relaxed drop-shadow-sm dark:drop-shadow-lg line-clamp-3">
+                            <p className="text-lg font-medium text-slate-900 dark:text-white/90 leading-relaxed  dark: line-clamp-3">
                               {truncatedCaption}
                             </p>
                             {isCaptionLong && (
@@ -2603,7 +2603,7 @@ const ImmersivePostCardInner = ({
                           e.stopPropagation();
                           setSelectedMediaIndex(0);
                         }}
-                        className="relative w-full h-full rounded-2xl overflow-hidden border border-white/10 shadow-2xl"
+                        className="relative w-full h-full rounded-2xl overflow-hidden border border-white/10 "
                       >
                         {finalSourceMedia[0].type === 'video' ? (
                           <>
@@ -2613,7 +2613,7 @@ const ImmersivePostCardInner = ({
                               className="w-full h-full object-contain bg-black/20"
                             />
                             <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                              <div className="bg-white p-3 rounded-full shadow-xl">
+                              <div className="bg-white p-3 rounded-full ">
                                 <Play className="w-6 h-6 text-black fill-black" />
                               </div>
                             </div>
@@ -2659,7 +2659,7 @@ const ImmersivePostCardInner = ({
                           className="rounded-xl max-h-[30vh] w-full object-cover mb-2"
                         />
                       )}
-                      <h1 className="text-base font-semibold text-immersive-foreground leading-tight mb-1 drop-shadow-sm line-clamp-2">
+                      <h1 className="text-base font-semibold text-immersive-foreground leading-tight mb-1  line-clamp-2">
                         {articlePreview?.title || finalSourceTitle || getHostnameFromUrl(finalSourceUrl)}
                       </h1>
                       <div className={cn("flex items-center text-immersive-muted", post.is_intent ? "gap-1" : "gap-2")}>

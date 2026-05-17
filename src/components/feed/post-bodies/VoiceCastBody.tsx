@@ -54,7 +54,7 @@ export const VoiceCastBody = ({
                     textTransform: 'uppercase'
                   }}
                   className={cn(
-                    "drop-shadow-xl w-full",
+                    " w-full",
                     hasBodyText ? "mb-3" : "text-center mb-6"
                   )}
                 >
@@ -75,7 +75,7 @@ export const VoiceCastBody = ({
         
         {/* 2. Media Image (Cropped flexibly taking remaining space) - only if they attach images to VoiceCast */}
         {post.media && post.media.length > 0 && (
-          <div className="flex-1 min-h-0 w-full mb-6 rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-black/50">
+          <div className="flex-1 min-h-0 w-full mb-6 rounded-2xl overflow-hidden border border-white/10  bg-black/50">
             {post.media.length === 1 ? (
               <img
                 src={post.media[0].thumbnail_url || post.media[0].url}

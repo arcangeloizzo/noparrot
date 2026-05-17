@@ -100,7 +100,7 @@ export const ChallengeBody = ({
                     textTransform: 'uppercase'
                   }}
                   className={cn(
-                    "drop-shadow-xl w-full",
+                    " w-full",
                     hasBodyText ? "mb-3" : "text-center mb-6"
                   )}
                 >
@@ -157,7 +157,7 @@ export const ChallengeBody = ({
 
         {/* 2. Media Image (Cropped flexibly taking remaining space) */}
         {post.media && post.media.length > 0 && (
-          <div className="flex-1 min-h-0 w-full mb-6 rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-black/50">
+          <div className="flex-1 min-h-0 w-full mb-6 rounded-2xl overflow-hidden border border-white/10  bg-black/50">
             {post.media.length === 1 ? (
               <img
                 src={post.media[0].thumbnail_url || post.media[0].url}
@@ -180,7 +180,7 @@ export const ChallengeBody = ({
         )}
 
         {/* 3. Audio Player */}
-        <div className="relative w-full shadow-2xl rounded-2xl flex-shrink-0">
+        <div className="relative w-full  rounded-2xl flex-shrink-0">
           <VoicePlayer
             audioUrl={activeVoicePost.audio_url}
             durationSeconds={activeVoicePost.duration_seconds}
@@ -358,7 +358,7 @@ export const ChallengeBody = ({
             }}
             disabled={isDisabled}
             className={cn(
-              "relative w-full mt-4 py-3.5 rounded-full font-bold text-[15px] tracking-wide overflow-hidden transition-all shadow-lg",
+              "relative w-full mt-4 py-3.5 rounded-full font-bold text-[15px] tracking-wide overflow-hidden transition-all ",
               isDisabled ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02] active:scale-[0.98]"
             )}
             style={{
