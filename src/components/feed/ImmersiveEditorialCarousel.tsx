@@ -231,8 +231,8 @@ const ImmersiveEditorialCarouselInner = ({
       {/* Editorial Background - Deep urban gradient */}
       <div className="absolute inset-0 bg-immersive z-0" />
 
-      {/* Urban concrete texture - GPU-friendly static PNG */}
-      <div className="absolute inset-0 z-[1] opacity-[0.06] pointer-events-none mix-blend-overlay urban-noise-overlay" />
+      {/* Urban concrete texture - GPU-friendly static PNG (Removed mix-blend-overlay for performance) */}
+      <div className="absolute inset-0 z-[1] opacity-[0.03] pointer-events-none urban-noise-overlay" />
 
       {/* Vignette effect on edges */}
       <div
@@ -534,6 +534,10 @@ const EditorialSlideInner = ({
   const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
   const likeButtonRef = useRef<HTMLButtonElement>(null);
 
+  // Lazy mount flag for ReactionPicker
+  const hasMountedReactionPicker = useRef(false);
+  if (showReactionPicker) hasMountedReactionPicker.current = true;
+
   // Sync currentReaction with server state (myReactionType) when reactionsData changes
   useEffect(() => {
     if (reactionsData?.myReactionType) {
@@ -564,9 +568,9 @@ const EditorialSlideInner = ({
 
         {/* Main Content Area - Editorial Edition Layout */}
         <div className="flex flex-col relative">
-          {/* Soft glow vignette behind headline */}
+          {/* Soft glow vignette behind headline (Reduced blur for GPU performance) */}
           <div className="absolute inset-0 flex items-start justify-center pointer-events-none">
-            <div className="w-[80%] h-[200px] bg-noparrot-blue/5 rounded-full blur-3xl mt-8" />
+            <div className="w-[80%] h-[200px] bg-noparrot-blue/5 rounded-full blur-2xl mt-8" />
           </div>
 
           {/* Content */}
@@ -772,19 +776,21 @@ const EditorialSlideInner = ({
                     {reactionsData?.likes ?? item.reactions?.likes ?? 0}
                   </button>
 
-                  <ReactionPicker
-                    isOpen={showReactionPicker}
-                    onClose={() => setShowReactionPicker(false)}
-                    onSelect={(type) => {
-                      setCurrentReaction(type);
-                      onLike(type);
-                      setShowReactionPicker(false);
-                    }}
-                    currentReaction={currentReaction}
-                    triggerRef={likeButtonRef}
-                    dragPosition={dragPosition}
-                    onDragRelease={() => setDragPosition(null)}
-                  />
+                  {hasMountedReactionPicker.current && (
+                    <ReactionPicker
+                      isOpen={showReactionPicker}
+                      onClose={() => setShowReactionPicker(false)}
+                      onSelect={(type) => {
+                        setCurrentReaction(type);
+                        onLike(type);
+                        setShowReactionPicker(false);
+                      }}
+                      currentReaction={currentReaction}
+                      triggerRef={likeButtonRef}
+                      dragPosition={dragPosition}
+                      onDragRelease={() => setDragPosition(null)}
+                    />
+                  )}
                 </div>
 
                 {/* Reaction Summary - Show who reacted */}

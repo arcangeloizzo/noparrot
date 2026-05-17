@@ -1557,7 +1557,7 @@ const ImmersivePostCardInner = ({
         ) : isIntentPost || isQuotedIntentPost ? (
           /* Intent posts: Theme-aware background (Light: White/BlueTint, Dark: Deep Blue) */
           <div className="absolute inset-0 bg-gradient-to-b from-immersive via-immersive-muted/20 to-immersive">
-            <div className="absolute inset-0 opacity-[0.08] mix-blend-overlay urban-noise-overlay" />
+            <div className="absolute inset-0 opacity-[0.05] urban-noise-overlay" />
             <div className="absolute inset-0 bg-noparrot-blue/5 pointer-events-none" />
           </div>
         ) : isSpotifyTrack ? (
@@ -1608,7 +1608,7 @@ const ImmersivePostCardInner = ({
         )}
 
         {/* Urban texture overlay - applied to all backgrounds (GPU-friendly static PNG) */}
-        <div className="absolute inset-0 z-[1] opacity-[0.025] pointer-events-none mix-blend-overlay urban-noise-overlay" />
+        <div className="absolute inset-0 z-[1] opacity-[0.015] pointer-events-none urban-noise-overlay" />
 
         {/* Cinematic Fade Overlay - seamless card-to-card transitions */}
         <div
@@ -2030,7 +2030,7 @@ const ImmersivePostCardInner = ({
                   <div className="relative immersive-card rounded-3xl p-6 sm:p-8 shadow-2xl overflow-hidden">
 
                     {/* Urban texture overlay - static PNG */}
-                    <div className="absolute inset-0 opacity-[0.04] pointer-events-none mix-blend-overlay rounded-3xl urban-noise-overlay" />
+                    <div className="absolute inset-0 opacity-[0.02] pointer-events-none rounded-3xl urban-noise-overlay" />
 
 
                     {/* Content */}
