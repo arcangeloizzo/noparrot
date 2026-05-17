@@ -13,7 +13,6 @@ import { useDominantColors } from "@/hooks/useDominantColors";
 import { useCachedTrustScore } from "@/hooks/useCachedTrustScore";
 import { useArticlePreview } from "@/hooks/useArticlePreview";
 import { useTrustScore } from "@/hooks/useTrustScore";
-import { useFeedContext } from "@/components/feed/ImmersiveFeedContainer";
 import { PulseBadge } from "@/components/ui/pulse-badge";
 import { TrustBadgeOverlay } from "@/components/ui/trust-badge-overlay";
 import { UnanalyzableBadge } from "@/components/ui/unanalyzable-badge";
@@ -153,6 +152,8 @@ interface ImmersivePostCardProps {
   scrollToCommentId?: string;
   /** Index of this card in the feed */
   index?: number;
+  isActive?: boolean;
+  isNearActive?: boolean;
 }
 
 const getHostnameFromUrl = (url: string | undefined): string => {
@@ -289,7 +290,9 @@ const ImmersivePostCardInner = ({
   onEdit,
   initialOpenComments = false,
   scrollToCommentId,
-  index = 0
+  index = 0,
+  isActive = false,
+  isNearActive = true,
 }: ImmersivePostCardProps) => {
   // Track renders via ref increment (no useEffect deps issue)
   const renderCountRef = useRef(0);
@@ -315,8 +318,6 @@ const ImmersivePostCardInner = ({
     (post.shares_count || 0) === 0;
 
   // Image gating: only load images for cards near the active index
-  const { activeIndex } = useFeedContext();
-  const isNearActive = Math.abs(index - activeIndex) <= 1;
   const shouldLoadImages = isNearActive;
 
   // Article preview via React Query hook (cached, prefetched)

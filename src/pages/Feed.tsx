@@ -579,6 +579,8 @@ export const Feed = () => {
                     key={item.id}
                     post={item.data}
                     index={feedIndex}
+                    isActive={feedIndex === activeIndex}
+                    isNearActive={Math.abs(feedIndex - activeIndex) <= 1}
                     onRemove={handleRemovePost}
                     onQuoteShare={handleQuoteShare}
                     onEdit={handleEditPost}
