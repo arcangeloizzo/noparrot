@@ -411,36 +411,15 @@ const ImmersivePostCardInner = ({
   // Prevents mounting dozens of complex Radix UI portals per post until they are actually opened,
   // massively improving feed scroll performance while keeping exit animations intact.
   const hasMountedShare = useRef(false);
-  if (showShareSheet) hasMountedShare.current = true;
-  
   const hasMountedPeople = useRef(false);
-  if (showPeoplePicker) hasMountedPeople.current = true;
-  
   const hasMountedMediaExpand = useRef(false);
-  if (showMediaExpandedSheet) hasMountedMediaExpand.current = true;
-  
   const hasMountedFullText = useRef(false);
-  if (showFullText) hasMountedFullText.current = true;
-  
   const hasMountedFullCaption = useRef(false);
-  if (showFullCaption) hasMountedFullCaption.current = true;
-  
   const hasMountedReactions = useRef(false);
-  if (showReactionsSheet) hasMountedReactions.current = true;
-  
   const hasMountedReport = useRef(false);
-  if (showReportDialog) hasMountedReport.current = true;
-  
   const hasMountedAdmin = useRef(false);
-  if (showAdminRemoveDialog) hasMountedAdmin.current = true;
-  
   const hasMountedReactionPicker = useRef(false);
-  if (showReactionPicker) hasMountedReactionPicker.current = true;
-  
   const hasMountedChallenge = useRef(false);
-  if (showChallengeFlow) hasMountedChallenge.current = true;
-
-
 
   // Trigger refetch for missing preview images on active cards
   // This helps recover from temporary extraction failures
@@ -1513,6 +1492,18 @@ const ImmersivePostCardInner = ({
       </div>
     );
   };
+
+  // Update lazy mount refs (placed here to avoid TDZ for state variables declared after the refs)
+  if (showShareSheet) hasMountedShare.current = true;
+  if (showPeoplePicker) hasMountedPeople.current = true;
+  if (showMediaExpandedSheet) hasMountedMediaExpand.current = true;
+  if (showFullText) hasMountedFullText.current = true;
+  if (showFullCaption) hasMountedFullCaption.current = true;
+  if (showReactionsSheet) hasMountedReactions.current = true;
+  if (showReportDialog) hasMountedReport.current = true;
+  if (showAdminRemoveDialog) hasMountedAdmin.current = true;
+  if (showReactionPicker) hasMountedReactionPicker.current = true;
+  if (showChallengeFlow) hasMountedChallenge.current = true;
 
   return (
     <>
