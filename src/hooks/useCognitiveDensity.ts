@@ -23,21 +23,22 @@ const EMPTY: CognitiveDensityData = {
     byMacroFlat: {},
 };
 
-export function useCognitiveDensity(userId?: string, isOwnProfile: boolean = false) {
+export function useCognitiveDensity(
+    userId?: string, 
+    options?: { forceRefresh?: boolean }
+) {
     const { user } = useAuth();
     const targetUserId = userId || user?.id;
 
-    // Se non specificato, deduce isOwnProfile dal confronto con auth user
-    const ownProfile = isOwnProfile || (!!targetUserId && targetUserId === user?.id);
+    // Use fresh RPC only if explicitly requested via options
+    const forceRefresh = options?.forceRefresh ?? false;
 
     const { data, isLoading } = useQuery<CognitiveDensityData>({
-        queryKey: ["cognitive-density-derived", targetUserId, ownProfile],
+        queryKey: ["cognitive-density-derived", targetUserId, forceRefresh],
         queryFn: async () => {
             if (!targetUserId) return EMPTY;
 
-            // Wrapper fresh solo per profilo proprio (refresh on-demand della MV).
-            // Profili altrui: lettura diretta (più veloce, può essere stale ~5 min).
-            const rpcName = ownProfile
+            const rpcName = forceRefresh
                 ? "get_user_cognitive_density_fresh"
                 : "get_user_cognitive_density";
 

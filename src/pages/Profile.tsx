@@ -55,7 +55,7 @@ export const Profile = () => {
 
   // Nebulosa derivata (RPC) — sostituisce profiles.cognitive_density
   // isOwnProfile=true → usa wrapper fresh che fa refresh on-demand della MV
-  const { data: cognitiveDensity } = useCognitiveDensity(user?.id, true);
+  const { data: cognitiveDensity } = useCognitiveDensity(user?.id);
   const { data: comprehensionCount = 0 } = useUserComprehensionCount(user?.id);
 
   // Phase 4.5 — filtro Nebulosa → Diario (persistente in sessionStorage per utente)

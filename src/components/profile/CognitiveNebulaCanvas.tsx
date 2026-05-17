@@ -93,6 +93,22 @@ export const CognitiveNebulaCanvas = ({
   // Phase 4.6a — raggi pianeti per posizionare le label fuori dal bordo
   const [planetRadii, setPlanetRadii] = useState<Record<string, number>>({});
 
+  // Phase 4.6 - Intersection Observer per mettere in pausa l'animazione se fuori schermo
+  const isVisibleRef = useRef(true);
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isVisibleRef.current = entry.isIntersecting;
+        if (entry.isIntersecting && !animationRef.current) {
+          animationRef.current = requestAnimationFrame(animate);
+        }
+      },
+      { threshold: 0.01 }
+    );
+    if (canvasRef.current) observer.observe(canvasRef.current);
+    return () => observer.disconnect();
+  }, [animate]);
+
   // Source flat map: nuovo formato (RPC) → byMacroFlat; vecchio → record diretto.
   const flatSource: Record<string, number> = isStructured(data)
     ? data.byMacroFlat
@@ -142,6 +158,11 @@ export const CognitiveNebulaCanvas = ({
   }, []);
 
   const animate = useCallback(() => {
+    if (!isVisibleRef.current) {
+      animationRef.current = undefined;
+      return;
+    }
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     

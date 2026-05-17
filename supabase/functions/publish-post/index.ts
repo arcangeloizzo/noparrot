@@ -742,6 +742,20 @@ Deno.serve(async (req) => {
       }).catch(err => console.warn(`[publish-post:${reqId}] assign-post-topic call failed:`, err));
     }
 
+    // Phase 4.6 - Background refresh of cognitive density (non-blocking)
+    try {
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || supabaseAnonKey;
+      fetch(`${supabaseUrl}/rest/v1/rpc/refresh_user_cognitive_density`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${serviceRoleKey}`,
+        },
+      }).catch(err => console.warn(`[publish-post:${reqId}] refresh_user_cognitive_density failed:`, err));
+    } catch (e) {
+      console.warn(`[publish-post:${reqId}] refresh_user_cognitive_density invocation failed:`, e);
+    }
+
     console.log(`[publish-post:${reqId}] stage=done postId=${inserted.id}`)
 
     return new Response(JSON.stringify({ postId: inserted.id, idempotent: false }), {
