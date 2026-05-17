@@ -143,7 +143,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
         {children}
 
         {/* Bottom gradient fade for navbar */}
-        <div className="fixed bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-background to-transparent z-40 pointer-events-none" />
+        {/* <div className="fixed bottom-0 left-0 right-0 h-28 bg-gradient-to-t from-background to-transparent z-40 pointer-events-none" /> */}
       </div>
     </FeedContext.Provider>
   );
