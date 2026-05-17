@@ -299,7 +299,7 @@ const ImmersiveEditorialCarouselInner = ({
       {/* Pagination Dots - Overlay on bottom - FIXED POSITION */}
       {items.length > 1 && (
         <div className="absolute bottom-24 left-0 right-0 z-50 flex justify-center pb-[env(safe-area-inset-bottom)] pointer-events-none">
-          <div className="flex items-center gap-2 p-1.5 rounded-full bg-white/90 dark:bg-black/40 backdrop-blur-md shadow-sm dark:shadow-lg border border-slate-200 dark:border-white/10 pointer-events-auto">
+          <div className="flex items-center gap-2 p-1.5 rounded-full bg-white dark:bg-black border border-slate-200 dark:border-white/10 pointer-events-auto">
             {items.map((_, index) => (
               <button
                 key={index}
@@ -570,7 +570,7 @@ const EditorialSlideInner = ({
         <div className="flex flex-col relative">
           {/* Soft glow vignette behind headline (Reduced blur for GPU performance) */}
           <div className="absolute inset-0 flex items-start justify-center pointer-events-none">
-            <div className="w-[80%] h-[200px] bg-noparrot-blue/5 rounded-full blur-2xl mt-8" />
+            <div className="w-[80%] h-[200px] bg-noparrot-blue/5 rounded-full mt-8" />
           </div>
 
           {/* Content */}
@@ -646,7 +646,7 @@ const EditorialSlideInner = ({
                 color: '#FFFFFF',
                 textTransform: 'uppercase'
               }}
-              className="mb-3 drop-shadow-xl line-clamp-2"
+              className="mb-3  line-clamp-2"
             >
               {item.title}
             </h1>
