@@ -407,6 +407,40 @@ const ImmersivePostCardInner = ({
   // F. Internal scroll ref for content rail
   const contentRailRef = useRef<HTMLDivElement>(null);
 
+  // G. Lazy Mount Flags (Performance Optimization)
+  // Prevents mounting dozens of complex Radix UI portals per post until they are actually opened,
+  // massively improving feed scroll performance while keeping exit animations intact.
+  const hasMountedShare = useRef(false);
+  if (showShareSheet) hasMountedShare.current = true;
+  
+  const hasMountedPeople = useRef(false);
+  if (showPeoplePicker) hasMountedPeople.current = true;
+  
+  const hasMountedMediaExpand = useRef(false);
+  if (showMediaExpandedSheet) hasMountedMediaExpand.current = true;
+  
+  const hasMountedFullText = useRef(false);
+  if (showFullText) hasMountedFullText.current = true;
+  
+  const hasMountedFullCaption = useRef(false);
+  if (showFullCaption) hasMountedFullCaption.current = true;
+  
+  const hasMountedReactions = useRef(false);
+  if (showReactionsSheet) hasMountedReactions.current = true;
+  
+  const hasMountedReport = useRef(false);
+  if (showReportDialog) hasMountedReport.current = true;
+  
+  const hasMountedAdmin = useRef(false);
+  if (showAdminRemoveDialog) hasMountedAdmin.current = true;
+  
+  const hasMountedReactionPicker = useRef(false);
+  if (showReactionPicker) hasMountedReactionPicker.current = true;
+  
+  const hasMountedChallenge = useRef(false);
+  if (showChallengeFlow) hasMountedChallenge.current = true;
+
+
 
   // Trigger refetch for missing preview images on active cards
   // This helps recover from temporary extraction failures
@@ -2756,17 +2790,19 @@ const ImmersivePostCardInner = ({
                   {post.reactions?.hearts || 0}
                 </button>
 
-                <ReactionPicker
-                  isOpen={showReactionPicker}
-                  onClose={() => setShowReactionPicker(false)}
-                  onSelect={(type) => {
-                    handleHeart(undefined, type);
-                    setShowReactionPicker(false);
-                  }}
-                  triggerRef={likeButtonRef}
-                  dragPosition={dragPosition}
-                  onDragRelease={() => setDragPosition(null)}
-                />
+                {hasMountedReactionPicker.current && (
+                  <ReactionPicker
+                    isOpen={showReactionPicker}
+                    onClose={() => setShowReactionPicker(false)}
+                    onSelect={(type) => {
+                      handleHeart(undefined, type);
+                      setShowReactionPicker(false);
+                    }}
+                    triggerRef={likeButtonRef}
+                    dragPosition={dragPosition}
+                    onDragRelease={() => setDragPosition(null)}
+                  />
+                )}
               </div>
 
               {/* Comments - select-none prevents text selection on long-press */}
@@ -2882,180 +2918,190 @@ const ImmersivePostCardInner = ({
       }
 
       {/* Share Sheet */}
-      <ShareSheet
-        isOpen={showShareSheet}
-        onClose={() => setShowShareSheet(false)}
-        onShareToFeed={handleShareToFeed}
-        onShareToFriend={handleShareToFriend}
-        onShareNatively={async () => {
-          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-          const shareType = post.post_type === 'challenge' ? 'challenge' : 'post';
-          const shareUrl = `${supabaseUrl}/functions/v1/share?id=${post.id}&type=${shareType}`;
-          const shareData = {
-            title: post.title || post.shared_title || 'Post su NoParrot',
-            text: post.content?.substring(0, 100) || '',
-            url: shareUrl,
-          };
-          if (navigator.share && navigator.canShare?.(shareData)) {
-            try { await navigator.share(shareData); } catch (err: any) {
-              if (err instanceof Error && err.name !== 'AbortError') {
-                await navigator.clipboard.writeText(shareUrl);
-                toast.success('Link copiato!');
+      {hasMountedShare.current && (
+        <ShareSheet
+          isOpen={showShareSheet}
+          onClose={() => setShowShareSheet(false)}
+          onShareToFeed={handleShareToFeed}
+          onShareToFriend={handleShareToFriend}
+          onShareNatively={async () => {
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const shareType = post.post_type === 'challenge' ? 'challenge' : 'post';
+            const shareUrl = `${supabaseUrl}/functions/v1/share?id=${post.id}&type=${shareType}`;
+            const shareData = {
+              title: post.title || post.shared_title || 'Post su NoParrot',
+              text: post.content?.substring(0, 100) || '',
+              url: shareUrl,
+            };
+            if (navigator.share && navigator.canShare?.(shareData)) {
+              try { await navigator.share(shareData); } catch (err: any) {
+                if (err instanceof Error && err.name !== 'AbortError') {
+                  await navigator.clipboard.writeText(shareUrl);
+                  toast.success('Link copiato!');
+                }
               }
+            } else {
+              await navigator.clipboard.writeText(shareUrl);
+              toast.success('Link copiato!');
             }
-          } else {
-            await navigator.clipboard.writeText(shareUrl);
-            toast.success('Link copiato!');
-          }
-        }}
-      />
+          }}
+        />
+      )}
 
       {/* People Picker */}
-      <PeoplePicker
-        isOpen={showPeoplePicker}
-        onClose={() => setShowPeoplePicker(false)}
-        onSend={async (userIds) => {
-          for (const userId of userIds) {
+      {hasMountedPeople.current && (
+        <PeoplePicker
+          isOpen={showPeoplePicker}
+          onClose={() => setShowPeoplePicker(false)}
+          onSend={async (userIds) => {
+            for (const userId of userIds) {
+              try {
+                const threadResult = await createThread.mutateAsync([userId]);
+                if (threadResult?.thread_id) {
+                  const shareMessage = post.shared_url
+                    ? `${post.content}\n\n${post.shared_url}`
+                    : post.content;
+                  await sendMessage.mutateAsync({
+                    threadId: threadResult.thread_id,
+                    content: shareMessage,
+                    linkUrl: post.shared_url || undefined
+                  });
+                }
+              } catch { }
+            }
+            // Increment shares count for DM shares
             try {
-              const threadResult = await createThread.mutateAsync([userId]);
-              if (threadResult?.thread_id) {
-                const shareMessage = post.shared_url
-                  ? `${post.content}\n\n${post.shared_url}`
-                  : post.content;
-                await sendMessage.mutateAsync({
-                  threadId: threadResult.thread_id,
-                  content: shareMessage,
-                  linkUrl: post.shared_url || undefined
-                });
-              }
-            } catch { }
-          }
-          // Increment shares count for DM shares
-          try {
-            await supabase.rpc('increment_post_shares', { target_post_id: post.id });
+              await supabase.rpc('increment_post_shares', { target_post_id: post.id });
+  
+              // Optimistic UI update (immediate badge)
+              queryClient.setQueriesData({ queryKey: ['posts'] }, (old: any) => {
+                if (!Array.isArray(old)) return old;
+                return old.map((p: any) =>
+                  p?.id === post.id ? { ...p, shares_count: (p.shares_count ?? 0) + 1 } : p
+                );
+              });
+              queryClient.invalidateQueries({ queryKey: ['posts'] });
+            } catch (e) {
+              console.warn('[ImmersivePostCard] Failed to increment shares count:', e);
+            }
+            toast.success(`Post condiviso con ${userIds.length} ${userIds.length === 1 ? 'amico' : 'amici'}`);
+            setShowPeoplePicker(false);
+            setShareAction(null);
+          }}
+        />
+      )}
 
-            // Optimistic UI update (immediate badge)
-            queryClient.setQueriesData({ queryKey: ['posts'] }, (old: any) => {
-              if (!Array.isArray(old)) return old;
-              return old.map((p: any) =>
-                p?.id === post.id ? { ...p, shares_count: (p.shares_count ?? 0) + 1 } : p
-              );
-            });
-            queryClient.invalidateQueries({ queryKey: ['posts'] });
-          } catch (e) {
-            console.warn('[ImmersivePostCard] Failed to increment shares count:', e);
-          }
-          toast.success(`Post condiviso con ${userIds.length} ${userIds.length === 1 ? 'amico' : 'amici'}`);
-          setShowPeoplePicker(false);
-          setShareAction(null);
-        }}
-      />
-
-      <MediaPostExpandedSheet
-        isOpen={showMediaExpandedSheet}
-        onClose={() => setShowMediaExpandedSheet(false)}
-        post={post}
-        activeVoicePost={activeVoicePost}
-        articlePreview={articlePreview}
-      />
+      {hasMountedMediaExpand.current && (
+        <MediaPostExpandedSheet
+          isOpen={showMediaExpandedSheet}
+          onClose={() => setShowMediaExpandedSheet(false)}
+          post={post}
+          activeVoicePost={activeVoicePost}
+          articlePreview={articlePreview}
+        />
+      )}
 
       {/* Full Text Modal for long posts */}
-      <FullTextModal
-        isOpen={showFullText}
-        onClose={() => setShowFullText(false)}
-        title={post.title}
-        content={
-          isChallengePost 
-            ? (post.challenge?.voice_post?.transcript || post.challenge?.body_text || post.content)
-            : isAudioPost 
-              ? (activeVoicePost?.transcript || activeVoicePost?.body_text || post.content)
-              : post.content
-        }
-        author={{
-          name: post.author.full_name || post.author.username,
-          username: post.author.username,
-          avatar: post.author.avatar_url,
-        }}
-        variant="post"
-        linkCard={
-          isSpotifyEpisode && post.shared_url ? (
-            <SpotifyPodcastCompactCard
-              imageUrl={articlePreview?.image || post.preview_img || ''}
-              podcastName={articlePreview?.description || getHostnameFromUrl(post.shared_url)}
-              episodeTitle={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
-              spotifyUrl={post.shared_url}
-            />
-          ) : !isSpotifyTrack && !isTwitter && !isLinkedIn && !isYoutube && hasLink && post.shared_url ? (
-            <a
-              href={post.shared_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block rounded-2xl overflow-hidden border border-white/10 bg-white/[0.05] hover:bg-white/[0.08] transition-colors no-underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {(articlePreview?.image || post.preview_img) && (
-                <img
-                  src={articlePreview?.image || post.preview_img}
-                  alt=""
-                  className="w-full h-40 object-cover"
-                />
-              )}
-              <div className="p-3">
-                <h4 className="font-semibold text-sm text-white line-clamp-2">
-                  {decodeHTMLEntities(articlePreview?.title || post.shared_title || post.shared_url)}
-                </h4>
-                <p className="text-xs text-white/50 mt-1 line-clamp-1">
-                  {getHostnameFromUrl(post.shared_url)}
-                </p>
-              </div>
-            </a>
-          ) : undefined
-        }
-        post={{
-          id: post.id,
-          reactions: post.reactions,
-          user_reactions: post.user_reactions,
-          shares_count: post.shares_count ?? 0,
-        }}
-        actions={{
-          onHeart: handleHeart,
-          onComment: () => setShowComments(true),
-          onBookmark: handleBookmark,
-          onShare: async () => {
-            setShareAction('feed');
-            await goDirectlyToGateForPost();
-          },
-        }}
-      />
+      {hasMountedFullText.current && (
+        <FullTextModal
+          isOpen={showFullText}
+          onClose={() => setShowFullText(false)}
+          title={post.title}
+          content={
+            isChallengePost 
+              ? (post.challenge?.voice_post?.transcript || post.challenge?.body_text || post.content)
+              : isAudioPost 
+                ? (activeVoicePost?.transcript || activeVoicePost?.body_text || post.content)
+                : post.content
+          }
+          author={{
+            name: post.author.full_name || post.author.username,
+            username: post.author.username,
+            avatar: post.author.avatar_url,
+          }}
+          variant="post"
+          linkCard={
+            isSpotifyEpisode && post.shared_url ? (
+              <SpotifyPodcastCompactCard
+                imageUrl={articlePreview?.image || post.preview_img || ''}
+                podcastName={articlePreview?.description || getHostnameFromUrl(post.shared_url)}
+                episodeTitle={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
+                spotifyUrl={post.shared_url}
+              />
+            ) : !isSpotifyTrack && !isTwitter && !isLinkedIn && !isYoutube && hasLink && post.shared_url ? (
+              <a
+                href={post.shared_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-2xl overflow-hidden border border-white/10 bg-white/[0.05] hover:bg-white/[0.08] transition-colors no-underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {(articlePreview?.image || post.preview_img) && (
+                  <img
+                    src={articlePreview?.image || post.preview_img}
+                    alt=""
+                    className="w-full h-40 object-cover"
+                  />
+                )}
+                <div className="p-3">
+                  <h4 className="font-semibold text-sm text-white line-clamp-2">
+                    {decodeHTMLEntities(articlePreview?.title || post.shared_title || post.shared_url)}
+                  </h4>
+                  <p className="text-xs text-white/50 mt-1 line-clamp-1">
+                    {getHostnameFromUrl(post.shared_url)}
+                  </p>
+                </div>
+              </a>
+            ) : undefined
+          }
+          post={{
+            id: post.id,
+            reactions: post.reactions,
+            user_reactions: post.user_reactions,
+            shares_count: post.shares_count ?? 0,
+          }}
+          actions={{
+            onHeart: handleHeart,
+            onComment: () => setShowComments(true),
+            onBookmark: handleBookmark,
+            onShare: async () => {
+              setShareAction('feed');
+              await goDirectlyToGateForPost();
+            },
+          }}
+        />
+      )}
 
       {/* Full Caption Modal for long social media captions */}
-      <FullTextModal
-        isOpen={showFullCaption}
-        onClose={() => setShowFullCaption(false)}
-        content={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
-        source={{
-          hostname: getHostnameFromUrl(post.shared_url),
-          url: post.shared_url || undefined,
-        }}
-        variant="caption"
-        post={{
-          id: post.id,
-          reactions: post.reactions,
-          user_reactions: post.user_reactions,
-          shares_count: post.shares_count ?? 0,
-        }}
-        actions={{
-          onHeart: handleHeart,
-          onComment: () => setShowComments(true),
-          onBookmark: handleBookmark,
-          onShare: () => {
-            setShareAction('feed');
-            // Create a synthetic event for handleShareClick
-            const syntheticEvent = { stopPropagation: () => { } } as React.MouseEvent;
-            handleShareClick(syntheticEvent);
-          },
-        }}
-      />
+      {hasMountedFullCaption.current && (
+        <FullTextModal
+          isOpen={showFullCaption}
+          onClose={() => setShowFullCaption(false)}
+          content={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
+          source={{
+            hostname: getHostnameFromUrl(post.shared_url),
+            url: post.shared_url || undefined,
+          }}
+          variant="caption"
+          post={{
+            id: post.id,
+            reactions: post.reactions,
+            user_reactions: post.user_reactions,
+            shares_count: post.shares_count ?? 0,
+          }}
+          actions={{
+            onHeart: handleHeart,
+            onComment: () => setShowComments(true),
+            onBookmark: handleBookmark,
+            onShare: () => {
+              setShareAction('feed');
+              // Create a synthetic event for handleShareClick
+              const syntheticEvent = { stopPropagation: () => { } } as React.MouseEvent;
+              handleShareClick(syntheticEvent);
+            },
+          }}
+        />
+      )}
 
       {/* Comments Drawer */}
       {
@@ -3071,11 +3117,13 @@ const ImmersivePostCardInner = ({
       }
 
       {/* Reactions Sheet - Who reacted */}
-      <ReactionsSheet
-        isOpen={showReactionsSheet}
-        onClose={() => setShowReactionsSheet(false)}
-        postId={post.id}
-      />
+      {hasMountedReactions.current && (
+        <ReactionsSheet
+          isOpen={showReactionsSheet}
+          onClose={() => setShowReactionsSheet(false)}
+          postId={post.id}
+        />
+      )}
       {/* Analysis Overlay */}
       {/* Analysis Overlay - z-index higher than source reader (10050 > 10040) */}
       <AnalysisOverlay isVisible={showAnalysisOverlay} message="Analisi in corso..." className="z-[10050]" />
@@ -3093,18 +3141,22 @@ const ImmersivePostCardInner = ({
           }}
         />
       )}
-      <ReportContentDialog
-        open={showReportDialog}
-        onOpenChange={setShowReportDialog}
-        postId={post.id}
-      />
-      <AdminRemoveDialog
-        open={showAdminRemoveDialog}
-        onOpenChange={setShowAdminRemoveDialog}
-        targetId={post.id}
-        targetType="post"
-        onSuccess={() => onRemove?.(post.id)}
-      />
+      {hasMountedReport.current && (
+        <ReportContentDialog
+          open={showReportDialog}
+          onOpenChange={setShowReportDialog}
+          postId={post.id}
+        />
+      )}
+      {hasMountedAdmin.current && (
+        <AdminRemoveDialog
+          open={showAdminRemoveDialog}
+          onOpenChange={setShowAdminRemoveDialog}
+          targetId={post.id}
+          targetType="post"
+          onSuccess={() => onRemove?.(post.id)}
+        />
+      )}
     </>
   );
 };
