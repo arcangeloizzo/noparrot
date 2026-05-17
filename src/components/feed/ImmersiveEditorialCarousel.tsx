@@ -228,8 +228,8 @@ const ImmersiveEditorialCarouselInner = ({
   return (
     <div className="h-[100dvh] w-full snap-start relative flex flex-col overflow-hidden">
       {/* Editorial Background - Deep urban gradient */}
-      {/* Background layer semplificato */}
-      <div className="absolute inset-0 bg-immersive z-0" />
+      {/* Background layer semplificato con colore solido invece di radial-gradient */}
+      <div className="absolute inset-0 bg-[#0B131A] z-0" />
 
       {/* Content Layer */}
       <div className="relative z-10 w-full h-full flex flex-col">
@@ -290,7 +290,7 @@ const ImmersiveEditorialCarouselInner = ({
                 key={index}
                 onClick={() => emblaApi?.scrollTo(index)}
                 className={cn(
-                  "h-1.5 rounded-full transition-all duration-300 shadow-sm",
+                  "h-1.5 rounded-full transition-all duration-300",
                   index === selectedIndex
                     ? "bg-slate-900 dark:bg-white w-6"
                     : "bg-slate-300 dark:bg-white/40 w-1.5 hover:bg-slate-400 dark:hover:bg-white/60"
@@ -546,7 +546,7 @@ const EditorialSlideInner = ({
 
   return (
     <div
-      className="flex-[0_0_100%] min-w-0 h-full px-6 cursor-pointer"
+      className="flex-[0_0_100%] min-w-0 h-full px-6 cursor-pointer transform-gpu will-change-transform"
       onClick={onClick}
     >
       <div className="h-full flex flex-col justify-center py-4">
@@ -708,7 +708,7 @@ const EditorialSlideInner = ({
                   haptics.light();
                   onShare?.();
                 }}
-                className="h-11 px-5 bg-blue-50 hover:bg-blue-100 dark:bg-white dark:hover:bg-gray-200 text-blue-600 dark:text-[#1F3347] rounded-full shadow-sm dark:shadow-md border border-blue-100 dark:border-transparent flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                className="h-11 px-5 bg-blue-50 hover:bg-blue-100 dark:bg-white dark:hover:bg-gray-200 text-blue-600 dark:text-[#1F3347] rounded-full border border-blue-100 dark:border-transparent flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
               >
                 <Logo variant="icon" className="w-5 h-5 object-contain" />
                 <span className="text-sm font-medium leading-none">Condividi</span>
@@ -719,7 +719,7 @@ const EditorialSlideInner = ({
 
               {/* Action Icons - Uniform w-6 h-6, aligned on same axis */}
               <div
-                className="flex items-center gap-4 h-11 action-bar-zone bg-slate-100 px-4 rounded-full shadow-sm border border-slate-200 dark:bg-transparent dark:px-0 dark:rounded-none dark:shadow-none dark:border-none transition-all"
+                className="flex items-center gap-4 h-11 action-bar-zone bg-slate-100 px-4 rounded-full border border-slate-200 dark:bg-transparent dark:px-0 dark:rounded-none dark:border-none transition-all"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
 
