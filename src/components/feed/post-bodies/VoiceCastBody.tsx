@@ -28,7 +28,7 @@ export const VoiceCastBody = ({
     <div className="w-full flex flex-col pt-2 pb-8">
         {/* Badge VoiceCast — first element */}
         <div className="w-full flex justify-center mb-5 shrink-0">
-          <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm backdrop-blur-md"
+          <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm"
             style={{ color: '#0A7AFF', background: 'rgba(10,122,255,0.06)', borderColor: 'rgba(10,122,255,0.2)' }}>
             🎙 VOICECAST
           </span>

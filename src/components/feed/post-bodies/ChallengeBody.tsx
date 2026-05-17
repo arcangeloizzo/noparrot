@@ -63,7 +63,7 @@ export const ChallengeBody = ({
         {/* Badge Challenge — first element in the flow */}
         <div className="w-full flex justify-center mb-5 shrink-0">
           <div className="flex items-center gap-2">
-            <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm backdrop-blur-md"
+            <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm"
               style={{ color: '#E41E52', background: 'rgba(228,30,82,0.06)', borderColor: 'rgba(228,30,82,0.2)' }}>
               ⚡ CHALLENGE
             </span>

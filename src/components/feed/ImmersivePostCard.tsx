@@ -1681,7 +1681,7 @@ const ImmersivePostCardInner = ({
                 <DialogTrigger asChild>
                   <button
                     onClick={(e) => e.stopPropagation()}
-                    className="inline-flex items-center justify-center gap-x-1.5 min-h-[32px] py-1 px-2.5 rounded-xl border border-[#A78BFA]/40 bg-black/30 backdrop-blur-md text-white shadow-[0_0_12px_rgba(167,139,250,0.15)] transition-all duration-200 active:scale-[0.97] cursor-pointer"
+                    className="inline-flex items-center justify-center gap-x-1.5 min-h-[32px] py-1 px-2.5 rounded-xl border border-[#A78BFA]/40 bg-black/80 text-white shadow-[0_0_12px_rgba(167,139,250,0.15)] transition-all duration-200 active:scale-[0.97] cursor-pointer"
                   >
                     <span className="font-bold tracking-wide opacity-60 text-[10px]">✦</span>
                     <span className="text-[10px] font-bold tracking-wider">
@@ -2133,7 +2133,7 @@ const ImmersivePostCardInner = ({
                         />
                         {/* Play icon overlay */}
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="bg-white/90 backdrop-blur-sm p-4 rounded-full shadow-xl">
+                          <div className="bg-white p-4 rounded-full shadow-xl">
                             <Play className="w-8 h-8 text-black fill-black" />
                           </div>
                         </div>
@@ -2293,7 +2293,7 @@ const ImmersivePostCardInner = ({
                       </div>
 
                       {/* YouTube Badge */}
-                      <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-2">
+                      <div className="absolute bottom-3 left-3 bg-black/90 px-3 py-1.5 rounded-full flex items-center gap-2">
                         <svg className="w-4 h-4 text-red-600" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
                           <polygon fill="white" points="9.545,15.568 15.818,12 9.545,8.432" />
@@ -2613,7 +2613,7 @@ const ImmersivePostCardInner = ({
                               className="w-full h-full object-contain bg-black/20"
                             />
                             <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                              <div className="bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-xl">
+                              <div className="bg-white p-3 rounded-full shadow-xl">
                                 <Play className="w-6 h-6 text-black fill-black" />
                               </div>
                             </div>
