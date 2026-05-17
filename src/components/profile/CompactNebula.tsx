@@ -123,21 +123,6 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
   const selectedMacroRef = useRef<string | null>(selectedMacro ?? null);
   selectedMacroRef.current = selectedMacro ?? null;
 
-  // Phase 4.6 - Intersection Observer per mettere in pausa l'animazione se fuori schermo
-  const isVisibleRef = useRef(true);
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        isVisibleRef.current = entry.isIntersecting;
-        if (entry.isIntersecting && !animationRef.current) {
-          animationRef.current = requestAnimationFrame(animate);
-        }
-      },
-      { threshold: 0.01 }
-    );
-    if (canvasRef.current) observer.observe(canvasRef.current);
-    return () => observer.disconnect();
-  }, [animate]);
 
   const initializeParticles = useCallback((weights: Record<string, number>) => {
     const particles: Particle[] = [];
@@ -262,6 +247,22 @@ export const CompactNebula = ({ data, onExpand, selectedMacro, onMacroClick }: C
 
     animationRef.current = requestAnimationFrame(animate);
   }, []);
+
+  // Phase 4.6 - Intersection Observer per mettere in pausa l'animazione se fuori schermo
+  const isVisibleRef = useRef(true);
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        isVisibleRef.current = entry.isIntersecting;
+        if (entry.isIntersecting && !animationRef.current) {
+          animationRef.current = requestAnimationFrame(animate);
+        }
+      },
+      { threshold: 0.01 }
+    );
+    if (canvasRef.current) observer.observe(canvasRef.current);
+    return () => observer.disconnect();
+  }, [animate]);
 
   const handleResize = useCallback(() => {
     const canvas = canvasRef.current;
