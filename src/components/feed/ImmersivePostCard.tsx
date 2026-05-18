@@ -1914,19 +1914,14 @@ const ImmersivePostCardInner = ({
                       )}
                       style={post.title && post.title.trim().length > 0 ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
                     >
-                      {post.content.length > 400 ? (
-                        <>
-                          <MentionText content={post.content.slice(0, 400) + '...'} />
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                            className="mt-2 text-sm text-primary font-semibold hover:underline block"
-                          >
-                            Mostra tutto
-                          </button>
-                        </>
-                      ) : (
-                        <MentionText content={post.content} />
-                      )}
+                      <DynamicClampBody
+                        containerRef={contentRailRef}
+                        content={post.content}
+                        onShowFull={() => setShowFullText(true)}
+                        enabled={isNearActive}
+                        lineHeightPx={post.title && post.title.trim().length > 0 ? 22 : 26}
+                        minLines={2}
+                      />
                     </div>
                   )}
                 </div>
