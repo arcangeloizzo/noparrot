@@ -539,37 +539,16 @@ const ImmersivePostCardInner = ({
     toggleReaction.mutate({ postId: post.id, reactionType: reactionType as any });
   };
 
-  // Drag position state for reaction picker
-  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
-
-  // Long press handlers for like button with drag-to-select
+  // Long-press to open the reaction picker; tap to toggle the current reaction.
+  // The picker itself owns scroll-lock, auto-close timeout and outside-tap handling.
   const likeButtonHandlers = useLongPress({
+    threshold: 450,
     onLongPress: () => setShowReactionPicker(true),
     onTap: () => {
-      // Se esiste una reaction, usala per il toggle (rimuove)
-      // Altrimenti usa 'heart' per aggiungere un nuovo like
       const currentType = post.user_reactions?.myReactionType || 'heart';
       handleHeart(undefined, currentType);
     },
-    onMove: (x, y) => setDragPosition({ x, y }),
-    onRelease: () => setDragPosition(null),
   });
-
-  // Blocca scroll del feed quando il reaction picker è aperto
-  useEffect(() => {
-    if (showReactionPicker) {
-      const originalOverflow = document.body.style.overflow;
-      const originalTouchAction = document.body.style.touchAction;
-      
-      document.body.style.overflow = 'hidden';
-      document.body.style.touchAction = 'none';
-      
-      return () => {
-        document.body.style.overflow = originalOverflow || '';
-        document.body.style.touchAction = originalTouchAction || '';
-      };
-    }
-  }, [showReactionPicker]);
 
   const [showHeartAnimation, setShowHeartAnimation] = useState(false);
 
@@ -2791,8 +2770,6 @@ const ImmersivePostCardInner = ({
                       setShowReactionPicker(false);
                     }}
                     triggerRef={likeButtonRef}
-                    dragPosition={dragPosition}
-                    onDragRelease={() => setDragPosition(null)}
                   />
                 )}
               </div>
