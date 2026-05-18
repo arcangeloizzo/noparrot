@@ -513,10 +513,9 @@ const EditorialSlideInner = ({
     perfStore.incrementEditorialSlide();
   }
 
-  // Long press for reaction picker with drag-to-select
+  // Long press to open reaction picker (tap-to-select model)
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [currentReaction, setCurrentReaction] = useState<ReactionType | null>(null);
-  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
   const likeButtonRef = useRef<HTMLButtonElement>(null);
 
   // Lazy mount flag for ReactionPicker
@@ -533,15 +532,13 @@ const EditorialSlideInner = ({
   }, [reactionsData?.myReactionType, reactionsData?.likedByMe]);
 
   const likeHandlers = useLongPress({
+    threshold: 450,
     onLongPress: () => setShowReactionPicker(true),
     onTap: () => {
       haptics.light();
       onLike('heart');
-      // Optimistically update local state
       setCurrentReaction(prev => prev ? null : 'heart');
     },
-    onMove: (x, y) => setDragPosition({ x, y }),
-    onRelease: () => setDragPosition(null),
   });
 
   return (
@@ -772,8 +769,6 @@ const EditorialSlideInner = ({
                       }}
                       currentReaction={currentReaction}
                       triggerRef={likeButtonRef}
-                      dragPosition={dragPosition}
-                      onDragRelease={() => setDragPosition(null)}
                     />
                   )}
                 </div>

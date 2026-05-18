@@ -78,7 +78,7 @@ export const CommentItem = ({
   const [isLiking, setIsLiking] = useState(false);
 
   const [showReactionPicker, setShowReactionPicker] = useState(false);
-  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
+  // dragPosition removed: ReactionPicker uses tap-to-select now.
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showAdminRemoveDialog, setShowAdminRemoveDialog] = useState(false);
   const { data: adminRole } = useAdminRole();
@@ -150,12 +150,10 @@ export const CommentItem = ({
     setTimeout(() => setIsLiking(false), 250);
   };
 
-  // Long press handlers for like button with drag-to-select
   const likeButtonHandlers = useLongPress({
+    threshold: 450,
     onLongPress: () => setShowReactionPicker(true),
     onTap: () => handleLike('heart'),
-    onMove: (x, y) => setDragPosition({ x, y }),
-    onRelease: () => setDragPosition(null),
   });
 
   const copyLink = () => {
@@ -367,8 +365,6 @@ export const CommentItem = ({
                   }}
                   currentReaction={reactions?.myReactionType}
                   triggerRef={likeButtonRef}
-                  dragPosition={dragPosition}
-                  onDragRelease={() => setDragPosition(null)}
                 />
               </div>
 

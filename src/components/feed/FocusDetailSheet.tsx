@@ -82,12 +82,12 @@ export const FocusDetailSheet = ({
   const { data: isBookmarked } = useFocusBookmark(focusId, type);
   const toggleBookmark = useToggleFocusBookmark();
   
-  // Long press for reaction picker with drag-to-select
+  // Long press to open reaction picker (tap-to-select model)
   const [showReactionPicker, setShowReactionPicker] = useState(false);
-  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
   const likeButtonRef = useRef<HTMLButtonElement>(null);
-  
+
   const likeHandlers = useLongPress({
+    threshold: 450,
     onLongPress: () => setShowReactionPicker(true),
     onTap: () => {
       if (!user) {
@@ -97,8 +97,6 @@ export const FocusDetailSheet = ({
       toggleReaction.mutate({ focusId, focusType: type });
       haptics.light();
     },
-    onMove: (x, y) => setDragPosition({ x, y }),
-    onRelease: () => setDragPosition(null),
   });
 
   // Skip reader - genera quiz direttamente dal drawer (utente ha già letto)
@@ -347,8 +345,6 @@ export const FocusDetailSheet = ({
                     }}
                     currentReaction={reactionsData?.myReactionType as ReactionType | undefined}
                     triggerRef={likeButtonRef}
-                    dragPosition={dragPosition}
-                    onDragRelease={() => setDragPosition(null)}
                   />
                 </div>
                 {/* Like Counter - tappable to open reactions sheet */}
