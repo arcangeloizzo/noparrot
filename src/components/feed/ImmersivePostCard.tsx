@@ -2034,20 +2034,16 @@ const ImmersivePostCardInner = ({
                             textAlign: 'left'
                           } : {}}
                         >
-                          {post.content.length > 400 ? (
-                            <>
-                              <MentionText content={post.content.slice(0, 400) + '...'} />
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                                className="mt-4 inline-flex items-center gap-1.5 text-sm text-primary/90 font-semibold hover:text-primary transition-colors"
-                              >
-                                <span>Mostra tutto</span>
-                                <Maximize2 className="w-3.5 h-3.5" />
-                              </button>
-                            </>
-                          ) : (
-                            <MentionText content={post.content} />
-                          )}
+                          <DynamicClampBody
+                            containerRef={contentRailRef}
+                            content={post.content}
+                            onShowFull={() => setShowFullText(true)}
+                            enabled={isNearActive}
+                            lineHeightPx={post.title && post.title.trim().length > 0 ? 22 : 28}
+                            minLines={2}
+                            showButtonIcon
+                            buttonClassName="mt-4 text-primary/90"
+                          />
                         </div>
                       )}
                     </div>
