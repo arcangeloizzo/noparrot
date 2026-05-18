@@ -1455,21 +1455,14 @@ const ImmersivePostCardInner = ({
         )}
         style={hasTitle ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
       >
-        {content.length > 400 ? (
-          <>
-            <MentionText content={content.slice(0, 400) + '...'} />
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-              className="mt-2 text-sm text-primary font-semibold hover:underline block"
-            >
-              Mostra tutto
-            </button>
-          </>
-        ) : (
-          <div className={hasTitle ? "line-clamp-4" : "line-clamp-6"}>
-            <MentionText content={content} />
-          </div>
-        )}
+        <DynamicClampBody
+          containerRef={contentRailRef}
+          content={content}
+          onShowFull={() => setShowFullText(true)}
+          enabled={isNearActive}
+          lineHeightPx={hasTitle ? 22 : 28}
+          minLines={2}
+        />
       </div>
     );
   };
