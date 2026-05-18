@@ -56,6 +56,7 @@ import { SpotifyGradientBackground } from "./SpotifyGradientBackground";
 import { SpotifyPodcastCompactCard } from "./SpotifyPodcastCompactCard";
 import { SourceImageWithFallback } from "./SourceImageWithFallback";
 import { FullTextModal } from "./FullTextModal";
+import { DynamicClampBody } from "./DynamicClampBody";
 import { MediaPostExpandedSheet } from "./MediaPostExpandedSheet";
 import { AcceptChallengeFlow } from "./AcceptChallengeFlow";
 import { VoiceCastBody } from "./post-bodies/VoiceCastBody";
