@@ -335,7 +335,7 @@ export const CommentItem = ({
                   ref={likeButtonRef}
                   {...likeButtonHandlers}
                   className={cn(
-                    "flex items-center gap-1.5 py-1.5 px-2.5 rounded-full transition-all duration-200 select-none",
+                    "flex items-center gap-1.5 py-1.5 px-2.5 rounded-full transition-all duration-200 select-none no-ios-callout",
                     "hover:bg-destructive/10",
                     reactions?.likedByMe && "text-destructive",
                     isLiking && "scale-110"

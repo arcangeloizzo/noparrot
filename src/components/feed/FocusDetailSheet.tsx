@@ -315,7 +315,7 @@ export const FocusDetailSheet = ({
                   <button 
                     ref={likeButtonRef}
                     {...likeHandlers}
-                    className="flex items-center gap-1.5 h-full px-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors select-none"
+                    className="flex items-center gap-1.5 h-full px-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 transition-colors select-none no-ios-callout"
                     style={{ WebkitTapHighlightColor: 'transparent' }}
                   >
                     {reactionsData?.myReactionType && reactionsData.myReactionType !== 'heart' ? (

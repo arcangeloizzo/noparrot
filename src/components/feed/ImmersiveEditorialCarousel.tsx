@@ -724,7 +724,7 @@ const EditorialSlideInner = ({
                 <div className="relative flex items-center justify-center gap-1.5 h-full">
                   <button
                     ref={likeButtonRef}
-                    className="flex items-center justify-center h-full select-none"
+                    className="flex items-center justify-center h-full select-none no-ios-callout"
                     style={{ WebkitTapHighlightColor: 'transparent' }}
                     {...likeHandlers}
                     onClick={(e) => e.stopPropagation()}
