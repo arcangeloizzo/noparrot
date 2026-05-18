@@ -1836,3 +1836,12 @@ html:not(.light) .liquid-glass-navbar {
   object-fit: cover;
 }
 
+/* Suppress iOS native text-selection + callout menu on long-press triggers
+   (e.g. reaction picker icon). Apply ONLY to specific trigger elements,
+   never to post content, so users can still select text in posts. */
+.no-ios-callout {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
