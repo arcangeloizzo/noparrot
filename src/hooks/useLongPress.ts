@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect, useState } from 'react';
+import { useRef, useCallback } from 'react';
 import { haptics } from '@/lib/haptics';
 
 export interface UseLongPressOptions {
@@ -19,7 +19,6 @@ export interface LongPressHandlers {
   onMouseUp: (e: React.MouseEvent) => void;
   onMouseMove: (e: React.MouseEvent) => void;
   onMouseLeave: () => void;
-  ref: (el: HTMLElement | null) => void;
 }
 
 export const useLongPress = ({
@@ -36,7 +35,10 @@ export const useLongPress = ({
   // Tracks whether a touch is currently down on the trigger (from touchstart until end/cancel).
   // Used by the non-passive native listener to suppress iOS text-selection gesture.
   const isPressingRef = useRef(false);
-  const elRef = useRef<HTMLElement | null>(null);
+  // Element currently receiving a press + its non-passive listeners,
+  // so we can detach them on touchend/cancel.
+  const activeElRef = useRef<HTMLElement | null>(null);
+  const nativeMoveRef = useRef<((e: TouchEvent) => void) | null>(null);
 
   const clear = useCallback(() => {
     if (timerRef.current) {
@@ -77,60 +79,45 @@ export const useLongPress = ({
     }
   }, [onMove]);
 
-  // Ref callback that attaches NON-PASSIVE touchstart/touchmove listeners on the
-  // trigger element. While a touch is down on this specific element we call
-  // preventDefault() — this is the only reliable way to suppress iOS Safari's
-  // long-press text-selection / "Copy / Look up" callout. CSS alone (user-select,
-  // touch-callout) hides the UI but does NOT cancel the gesture.
-  // Scope is surgical: only this element, only while pressing — feed scroll is
-  // not affected.
-  const setRef = useCallback((el: HTMLElement | null) => {
-    if (elRef.current === el) return;
-    if (elRef.current) {
-      const prev = elRef.current as any;
-      if (prev.__npStart) prev.removeEventListener('touchstart', prev.__npStart);
-      if (prev.__npMove) prev.removeEventListener('touchmove', prev.__npMove);
-      if (prev.__npEnd) {
-        prev.removeEventListener('touchend', prev.__npEnd);
-        prev.removeEventListener('touchcancel', prev.__npEnd);
-      }
-      prev.__npStart = prev.__npMove = prev.__npEnd = null;
-    }
-    elRef.current = el;
-    if (!el) return;
-    const onStart = (e: TouchEvent) => {
-      isPressingRef.current = true;
-      // Prevent iOS from arming its text-selection gesture on this element.
-      e.preventDefault();
+  // Attach a NON-PASSIVE touchmove listener to the specific trigger element
+  // for the duration of a single press. preventDefault on touchmove suppresses
+  // iOS Safari's long-press text-selection / "Copy / Look up" callout, which
+  // CSS (user-select / touch-callout) cannot block — CSS only hides the UI,
+  // it doesn't cancel the underlying gesture.
+  // Scope is surgical: only this element, only between touchstart and
+  // touchend/cancel. Global feed scroll is never affected.
+  const attachNativeBlocker = useCallback((el: HTMLElement) => {
+    detachNativeBlocker();
+    const handler = (e: TouchEvent) => {
+      if (isPressingRef.current) e.preventDefault();
     };
-    const onMove = (e: TouchEvent) => {
-      if (isPressingRef.current) {
-        e.preventDefault();
-      }
-    };
-    const onEnd = () => {
-      isPressingRef.current = false;
-    };
-    (el as any).__npStart = onStart;
-    (el as any).__npMove = onMove;
-    (el as any).__npEnd = onEnd;
-    el.addEventListener('touchstart', onStart, { passive: false });
-    el.addEventListener('touchmove', onMove, { passive: false });
-    el.addEventListener('touchend', onEnd, { passive: true });
-    el.addEventListener('touchcancel', onEnd, { passive: true });
+    activeElRef.current = el;
+    nativeMoveRef.current = handler;
+    el.addEventListener('touchmove', handler, { passive: false });
+  }, []);
+
+  const detachNativeBlocker = useCallback(() => {
+    const el = activeElRef.current;
+    const h = nativeMoveRef.current;
+    if (el && h) el.removeEventListener('touchmove', h);
+    activeElRef.current = null;
+    nativeMoveRef.current = null;
   }, []);
 
   const handlers: LongPressHandlers = {
-    ref: setRef,
     onTouchStart: (e: React.TouchEvent) => {
-      // Note: native non-passive listener (see setRef) already called preventDefault.
-      // React synthetic listeners are often passive on iOS, so we don't rely on it here.
       e.stopPropagation();
+      isPressingRef.current = true;
+      // Attach the non-passive blocker on THIS element so iOS can't start a
+      // text-selection gesture if the user keeps the finger pressed past the
+      // system's selection threshold (~1s).
+      attachNativeBlocker(e.currentTarget as HTMLElement);
       const touch = e.touches[0];
       start(touch.clientX, touch.clientY);
     },
     onTouchEnd: (e: React.TouchEvent) => {
       isPressingRef.current = false;
+      detachNativeBlocker();
       end();
     },
     onTouchMove: (e: React.TouchEvent) => {
@@ -139,6 +126,7 @@ export const useLongPress = ({
     },
     onTouchCancel: () => {
       isPressingRef.current = false;
+      detachNativeBlocker();
       clear();
       isLongPressRef.current = false;
     },
