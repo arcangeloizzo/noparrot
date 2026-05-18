@@ -86,22 +86,25 @@ export const useLongPress = ({
   // it doesn't cancel the underlying gesture.
   // Scope is surgical: only this element, only between touchstart and
   // touchend/cancel. Global feed scroll is never affected.
-  const attachNativeBlocker = useCallback((el: HTMLElement) => {
-    detachNativeBlocker();
-    const handler = (e: TouchEvent) => {
-      if (isPressingRef.current) e.preventDefault();
-    };
-    activeElRef.current = el;
-    nativeMoveRef.current = handler;
-    el.addEventListener('touchmove', handler, { passive: false });
-  }, []);
-
   const detachNativeBlocker = useCallback(() => {
     const el = activeElRef.current;
     const h = nativeMoveRef.current;
     if (el && h) el.removeEventListener('touchmove', h);
     activeElRef.current = null;
     nativeMoveRef.current = null;
+  }, []);
+
+  const attachNativeBlocker = useCallback((el: HTMLElement) => {
+    // Detach any leftover listener from a previous (interrupted) press.
+    const prevEl = activeElRef.current;
+    const prevH = nativeMoveRef.current;
+    if (prevEl && prevH) prevEl.removeEventListener('touchmove', prevH);
+    const handler = (e: TouchEvent) => {
+      if (isPressingRef.current) e.preventDefault();
+    };
+    activeElRef.current = el;
+    nativeMoveRef.current = handler;
+    el.addEventListener('touchmove', handler, { passive: false });
   }, []);
 
   const handlers: LongPressHandlers = {
