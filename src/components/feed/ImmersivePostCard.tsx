@@ -2728,7 +2728,7 @@ const ImmersivePostCardInner = ({
                 <motion.button
                   whileTap={{ scale: 0.85 }}
                   ref={likeButtonRef}
-                  className="flex items-center justify-center h-full select-none"
+                  className="flex items-center justify-center h-full select-none no-ios-callout"
                   style={{ WebkitTapHighlightColor: 'transparent' }}
                   {...likeButtonHandlers}
                   onClick={(e) => e.stopPropagation()}
