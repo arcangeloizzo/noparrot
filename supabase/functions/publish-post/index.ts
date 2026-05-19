@@ -529,12 +529,21 @@ Deno.serve(async (req) => {
             const expDate = new Date();
             expDate.setHours(expDate.getHours() + body.challengeData.durationHours);
 
+            // Fallback chain: thesis -> bodyText -> title. Validated upfront,
+            // so at least one must be non-empty here.
+            const resolvedThesis = (
+              body.challengeData.thesis?.trim() ||
+              body.challengeData.bodyText?.trim() ||
+              body.challengeData.title?.trim() ||
+              ''
+            ).substring(0, 140);
+
             const { error: challengeErr } = await supabase
               .from('challenges')
               .insert({
                 post_id: inserted.id,
                 voice_post_id: voicePost.id,
-                thesis: body.challengeData.thesis?.substring(0, 140) || null,
+                thesis: resolvedThesis,
                 title: body.challengeData.title || null,
                 body_text: body.challengeData.bodyText || null,
                 duration_hours: body.challengeData.durationHours,
@@ -543,6 +552,13 @@ Deno.serve(async (req) => {
 
             if (challengeErr) {
               console.error(`[publish-post:${reqId}] stage=challenge_insert_error msg="${challengeErr.message}"`);
+              // Anti-orphan: rollback the post so no ghost challenge card appears.
+              await supabase.from('voice_posts').delete().eq('id', voicePost.id);
+              await supabase.from('posts').delete().eq('id', inserted.id);
+              return new Response(JSON.stringify({ error: 'challenge_insert_failed', stage: 'challenge_insert', details: challengeErr.message }), {
+                status: 500,
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              });
             } else {
               console.log(`[publish-post:${reqId}] stage=challenge_insert_ok`);
             }
