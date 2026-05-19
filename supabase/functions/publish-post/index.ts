@@ -218,6 +218,27 @@ Deno.serve(async (req) => {
 
     const finalContent = content || ''
 
+    // Challenge-specific upfront validation: must have audio and a non-empty thesis
+    // (with fallback to bodyText/title). Prevents orphan challenge posts.
+    if (body.postType === 'challenge') {
+      const cd = body.challengeData || {}
+      const resolvedThesis = (cd.thesis?.trim() || cd.bodyText?.trim() || cd.title?.trim() || '')
+      if (!body.voiceData?.audioUrl) {
+        console.error(`[publish-post:${reqId}] stage=validate challenge_missing_audio`)
+        return new Response(JSON.stringify({ error: 'challenge_audio_required', stage: 'validate' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+      if (!resolvedThesis) {
+        console.error(`[publish-post:${reqId}] stage=validate challenge_missing_thesis`)
+        return new Response(JSON.stringify({ error: 'challenge_thesis_required', stage: 'validate' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        })
+      }
+    }
+
     const {
       data: { user },
       error: userErr,
