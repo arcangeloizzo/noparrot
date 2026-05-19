@@ -114,18 +114,31 @@ const DynamicClampBodyInner = ({
 
   return (
     <div ref={wrapperRef} className="relative">
-      <div
-        ref={textRef}
-        className={cn("whitespace-pre-wrap break-words", className)}
-        style={{
-          display: "-webkit-box",
-          WebkitLineClamp: lines,
-          WebkitBoxOrient: "vertical",
-          overflow: "hidden",
-          ...style,
-        }}
-      >
-        <MentionText content={content} />
+      <div className="relative">
+        <div
+          ref={textRef}
+          className={cn("whitespace-pre-wrap break-words", className)}
+          style={{
+            display: "-webkit-box",
+            WebkitLineClamp: lines,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            ...style,
+          }}
+        >
+          <MentionText content={content} />
+        </div>
+        {isTruncated && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0"
+            style={{
+              height: `${Math.round(lineHeightPx * 1.5)}px`,
+              background:
+                "linear-gradient(to bottom, hsl(var(--card) / 0) 0%, hsl(var(--card)) 100%)",
+            }}
+          />
+        )}
       </div>
       {isTruncated && (
         <button
