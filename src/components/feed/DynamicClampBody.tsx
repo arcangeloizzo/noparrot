@@ -28,6 +28,13 @@ interface DynamicClampBodyProps {
   buttonClassName?: string;
   /** Show the Maximize2 icon next to button label. */
   showButtonIcon?: boolean;
+  /**
+   * Force the "Approfondisci" button to appear even when the text is not
+   * truncated. Used by parents when other expandable content (chips, full
+   * image, podcast preview, ...) is present in the card. The component
+   * internally exposes the button when `isTruncated || extraExpandable`.
+   */
+  extraExpandable?: boolean;
 }
 
 /**
@@ -53,6 +60,7 @@ const DynamicClampBodyInner = ({
   enabled = true,
   buttonClassName,
   showButtonIcon = false,
+  extraExpandable = false,
 }: DynamicClampBodyProps) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
@@ -140,7 +148,7 @@ const DynamicClampBodyInner = ({
           />
         )}
       </div>
-      {isTruncated && (
+      {(isTruncated || extraExpandable) && (
         <button
           onClick={(e) => {
             e.stopPropagation();
