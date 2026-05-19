@@ -132,7 +132,7 @@ export const ChallengeBody = ({
                       onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
                       className="text-sm font-semibold text-primary mt-1 hover:underline"
                     >
-                      Mostra tutto
+                      Approfondisci
                     </button>
                   )}
                 </div>

@@ -185,7 +185,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
                   onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
                   className="mt-2 text-xs text-primary font-semibold hover:underline"
                 >
-                  Mostra tutto
+                  Approfondisci
                 </button>
               )}
             </div>
@@ -323,7 +323,7 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
                   onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
                   className="mt-1 text-xs text-primary font-semibold hover:underline"
                 >
-                  Mostra tutto
+                  Approfondisci
                 </button>
               )}
             </div>

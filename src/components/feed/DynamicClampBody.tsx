@@ -8,7 +8,7 @@ interface DynamicClampBodyProps {
   containerRef: React.RefObject<HTMLElement>;
   /** Body text content. */
   content: string;
-  /** Called when user taps "Mostra tutto" — opens the existing bottom sheet. */
+  /** Called when user taps "Approfondisci" — opens the existing bottom sheet. */
   onShowFull: () => void;
   /** ClassName for the text element (typography). */
   className?: string;
@@ -20,11 +20,11 @@ interface DynamicClampBodyProps {
   minLines?: number;
   /** Hard upper bound for line-clamp. */
   maxLinesCap?: number;
-  /** Vertical px reserved for the "Mostra tutto" button. */
+  /** Vertical px reserved for the "Approfondisci" button. */
   reserveButtonPx?: number;
   /** Disable measurement (e.g. when card is far from active). */
   enabled?: boolean;
-  /** ClassName for the "Mostra tutto" button. */
+  /** ClassName for the "Approfondisci" button. */
   buttonClassName?: string;
   /** Show the Maximize2 icon next to button label. */
   showButtonIcon?: boolean;
@@ -36,7 +36,7 @@ interface DynamicClampBodyProps {
  * the container (debounced via rAF) and avoids feedback loops because
  * clamping the text element does not alter the observed container size.
  *
- * When the text is actually truncated, a "Mostra tutto" button appears
+ * When the text is actually truncated, a "Approfondisci" button appears
  * and calls `onShowFull` — meant to open the existing FullTextModal
  * bottom sheet, NOT to introduce internal scroll inside the card.
  */
@@ -138,7 +138,7 @@ const DynamicClampBodyInner = ({
             buttonClassName
           )}
         >
-          <span>Mostra tutto</span>
+          <span>Approfondisci</span>
           {showButtonIcon && <Maximize2 className="w-3.5 h-3.5" />}
         </button>
       )}

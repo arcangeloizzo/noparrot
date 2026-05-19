@@ -657,7 +657,7 @@ const EditorialSlideInner = ({
                         }}
                         className="text-sm font-bold text-[#0A7AFF] cursor-pointer hover:underline transition-all outline-none"
                       >
-                        Leggi tutto
+                        Approfondisci
                       </button>
                     </div>
                   )}
