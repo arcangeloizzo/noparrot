@@ -1767,7 +1767,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
               },
               // For challenge, content IS the thesis now
               challengeData: (finalPostType === 'challenge') ? {
-                thesis: cleanContent, // <--- Rich text content up to 140 words
+                // Fallback chain: rich text editor -> body text -> title.
+                // In challenge mode the UI shows title+body inputs (no rich text),
+                // so map them to thesis to avoid empty NOT NULL violations.
+                thesis: (cleanContent.trim() || voiceBodyText.trim() || voiceTitle.trim()),
                 title: voiceTitle.trim() || undefined,
                 bodyText: voiceBodyText.trim() || undefined,
                 durationHours: overrideChallengeData?.duration_hours ?? challengeData?.duration_hours ?? 48,
