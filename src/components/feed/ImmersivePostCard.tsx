@@ -1440,7 +1440,7 @@ const ImmersivePostCardInner = ({
               }}
               onClick={(e) => { e.stopPropagation(); setShowMediaExpandedSheet(true); }}
             >
-              Mostra tutto
+              Approfondisci
             </div>
           )}
         </div>
@@ -2317,7 +2317,7 @@ const ImmersivePostCardInner = ({
                       {post.title}
                     </h2>
                   )}
-                  {/* Body content - truncated with "Mostra tutto" like standard editorial posts */}
+                  {/* Body content - truncated with "Approfondisci" like standard editorial posts */}
                   {post.content && post.content.trim().length > 0 && (
                     <div 
                       className={cn(
@@ -2333,7 +2333,7 @@ const ImmersivePostCardInner = ({
                             onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
                             className="mt-2 text-sm text-primary font-semibold hover:underline block"
                           >
-                            Mostra tutto
+                            Approfondisci
                           </button>
                         </>
                       ) : (
@@ -2512,7 +2512,7 @@ const ImmersivePostCardInner = ({
                                 }}
                                 className="mt-2 text-sm text-primary font-semibold hover:underline"
                               >
-                                Leggi tutto
+                                Approfondisci
                               </button>
                             )}
                           </div>

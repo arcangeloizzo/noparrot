@@ -89,7 +89,7 @@ export const QuotedEditorialCard = ({
                 onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
                 className="mt-2 text-sm text-primary font-semibold hover:underline"
               >
-                Leggi tutto
+                Approfondisci
               </button>
             )}
           </div>

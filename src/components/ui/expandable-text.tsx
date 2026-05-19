@@ -28,7 +28,7 @@ interface ExpandableTextProps {
   source?: ExpandableTextSource;
   /** Whether to show expand button (default true) */
   showExpandButton?: boolean;
-  /** Custom label for expand button (default "Mostra tutto") */
+  /** Custom label for expand button (default "Approfondisci") */
   expandLabel?: string;
   /** Use icon with label in button */
   showExpandIcon?: boolean;
@@ -65,7 +65,7 @@ const ExpandableTextInner = ({
   author,
   source,
   showExpandButton = true,
-  expandLabel = "Mostra tutto",
+  expandLabel = "Approfondisci",
   showExpandIcon = false,
   variant = 'post',
   className,

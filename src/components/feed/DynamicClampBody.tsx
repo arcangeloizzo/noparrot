@@ -8,7 +8,7 @@ interface DynamicClampBodyProps {
   containerRef: React.RefObject<HTMLElement>;
   /** Body text content. */
   content: string;
-  /** Called when user taps "Mostra tutto" — opens the existing bottom sheet. */
+  /** Called when user taps "Approfondisci" — opens the existing bottom sheet. */
   onShowFull: () => void;
   /** ClassName for the text element (typography). */
   className?: string;
@@ -20,14 +20,21 @@ interface DynamicClampBodyProps {
   minLines?: number;
   /** Hard upper bound for line-clamp. */
   maxLinesCap?: number;
-  /** Vertical px reserved for the "Mostra tutto" button. */
+  /** Vertical px reserved for the "Approfondisci" button. */
   reserveButtonPx?: number;
   /** Disable measurement (e.g. when card is far from active). */
   enabled?: boolean;
-  /** ClassName for the "Mostra tutto" button. */
+  /** ClassName for the "Approfondisci" button. */
   buttonClassName?: string;
   /** Show the Maximize2 icon next to button label. */
   showButtonIcon?: boolean;
+  /**
+   * Force the "Approfondisci" button to appear even when the text is not
+   * truncated. Used by parents when other expandable content (chips, full
+   * image, podcast preview, ...) is present in the card. The component
+   * internally exposes the button when `isTruncated || extraExpandable`.
+   */
+  extraExpandable?: boolean;
 }
 
 /**
@@ -36,7 +43,7 @@ interface DynamicClampBodyProps {
  * the container (debounced via rAF) and avoids feedback loops because
  * clamping the text element does not alter the observed container size.
  *
- * When the text is actually truncated, a "Mostra tutto" button appears
+ * When the text is actually truncated, a "Approfondisci" button appears
  * and calls `onShowFull` — meant to open the existing FullTextModal
  * bottom sheet, NOT to introduce internal scroll inside the card.
  */
@@ -53,6 +60,7 @@ const DynamicClampBodyInner = ({
   enabled = true,
   buttonClassName,
   showButtonIcon = false,
+  extraExpandable = false,
 }: DynamicClampBodyProps) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
@@ -114,20 +122,33 @@ const DynamicClampBodyInner = ({
 
   return (
     <div ref={wrapperRef} className="relative">
-      <div
-        ref={textRef}
-        className={cn("whitespace-pre-wrap break-words", className)}
-        style={{
-          display: "-webkit-box",
-          WebkitLineClamp: lines,
-          WebkitBoxOrient: "vertical",
-          overflow: "hidden",
-          ...style,
-        }}
-      >
-        <MentionText content={content} />
+      <div className="relative">
+        <div
+          ref={textRef}
+          className={cn("whitespace-pre-wrap break-words", className)}
+          style={{
+            display: "-webkit-box",
+            WebkitLineClamp: lines,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+            ...style,
+          }}
+        >
+          <MentionText content={content} />
+        </div>
+        {isTruncated && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0"
+            style={{
+              height: `${Math.round(lineHeightPx * 1.5)}px`,
+              background:
+                "linear-gradient(to bottom, hsl(var(--card) / 0) 0%, hsl(var(--card)) 100%)",
+            }}
+          />
+        )}
       </div>
-      {isTruncated && (
+      {(isTruncated || extraExpandable) && (
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -138,7 +159,7 @@ const DynamicClampBodyInner = ({
             buttonClassName
           )}
         >
-          <span>Mostra tutto</span>
+          <span>Approfondisci</span>
           {showButtonIcon && <Maximize2 className="w-3.5 h-3.5" />}
         </button>
       )}
