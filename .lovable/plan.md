@@ -1,38 +1,52 @@
-# Piano — Risolvere posting di Vinile
+## Causa confermata
 
-## Obiettivo
-Far ripartire la pubblicazione di Vinile sostituendo la sorgente di ingestion (oggi search-based, che porta dentro "fake tracks" senza testi) con la playlist editoriale "Morning Routine" fornita dall'utente, poi verificare end-to-end forzando un post.
+In modalità challenge il composer raccoglie due campi:
+- `voiceTitle` → "Agentic platform transcript"
+- `voiceBodyText` → "Agentic success takes a platform approach"
 
-## 1. Modifica `supabase/functions/profile-ingest/index.ts` (solo blocco Vinile)
-- Sostituire la logica di search Spotify (es. `tag:new genre:italian`) con un fetch della playlist:
-  - Endpoint: `GET https://api.spotify.com/v1/playlists/37i9dQZF1DX7P3Ec4TfanK/tracks?market=IT&limit=100`
-  - Auth: client credentials Spotify già configurati (SPOTIFY_CLIENT_ID/SECRET).
-- Filtri di sanità sui track item:
-  - skip se `track.is_local === true`
-  - skip se manca `track.id`, `track.name`, `track.artists[0]` o `track.external_urls.spotify`
-  - skip se `track.duration_ms < 60_000` (jingle/intro)
-- Mantenere invariato lo schema di scrittura su `profile_source_feed` (stessi campi: `profile_id`, `external_id`, `title`, `author`, `url`, `article_published_at`, `metadata`, ecc.) così che `profile-compose-post` e `fetch-lyrics` continuino a funzionare senza modifiche.
-- Usare `added_at` della playlist come `article_published_at` quando disponibile (fallback: `track.album.release_date`).
-- Upsert idempotente su `(profile_id, external_id)` come già fatto.
+Entrambi sono stati salvati correttamente in `voice_posts`. Ma il payload `challengeData.thesis` è mappato sul `cleanContent` del rich text editor principale, che in challenge mode resta vuoto. Quindi sul server arriva `thesis=""`, il codice fa `"" || null`, la colonna `challenges.thesis` è NOT NULL → insert fallisce → post orfano (nessuna riga in `challenges`).
 
-## 2. Cleanup una tantum del pool esistente (SQL migration)
-- Marcare `is_relevant = false` sui record `profile_source_feed` di Vinile che hanno pattern "junk" nel titolo:
-  - regex case-insensitive su titoli/artisti contenenti: `mix`, `top hits`, `generazione`, `racing`, `playlist`, `2025`, `2026` quando combinato con keyword da playlist
-  - condizione restrittiva al solo `profile_id` di Vinile per non toccare altri profili
-- Questo libera lo slot dei 15 candidati in `profile-compose-post` e permette ai brani della Morning Routine di emergere subito.
+L'audio c'è (23s, transcript "Agentic platform"), titolo e testo ci sono, manca solo la riga `challenges`.
 
-## 3. Test end-to-end
-- Deploy della funzione `profile-ingest`.
-- Invocare manualmente `profile-ingest` (curl edge function) per popolare il pool con la nuova playlist.
-- Verificare via `read_query` che ci siano nuovi record validi in `profile_source_feed` per Vinile.
-- Invocare `profile-compose-post` per forzare la pubblicazione di Vinile fuori dallo slot schedulato.
-- Verificare nel DB la presenza del nuovo `posts.row` di Vinile e nei log delle edge functions che `fetch-lyrics` abbia trovato testo.
+## Cosa fare
 
-## 4. Cosa NON tocco
-- Nessuna modifica a `profile-compose-post`, `fetch-lyrics`, `generate-qa`, schema posts, UI feed.
-- Nessuna modifica all'ingestion degli altri profili AI (@tommi, @mia, @leo, @greta, @nico, @sami, @vale, @mic).
-- Nessuna modifica al sistema PULSE / Trust Score.
+### 1. Fix mappatura nel composer (`ComposerModal.tsx` ~1769)
+Per le challenge usare come `thesis` il primo valore non vuoto fra:
+1. `cleanContent.trim()` (se in futuro si aggiunge un campo tesi dedicato)
+2. `voiceBodyText.trim()`
+3. `voiceTitle.trim()`
 
-## Rollback
-- L'ingest precedente è recuperabile da git history del file `profile-ingest/index.ts`.
-- Il cleanup è reversibile (UPDATE `is_relevant = true` sugli stessi record).
+Così il corpo che l'utente scrive viene effettivamente usato come tesi della sfida. Niente cambi all'UI.
+
+### 2. Fix difensivo lato server (`publish-post/index.ts` ~516)
+Stessa fallback chain server-side per blindare le richieste vecchie/malformate:
+`thesis = challengeData.thesis?.trim() || challengeData.bodyText?.trim() || challengeData.title?.trim() || null`.
+Se ancora `null`, **rispondere 400** prima di inserire il post (no più post orfani).
+
+### 3. Hardening anti-orfani (`publish-post`)
+Se per qualsiasi motivo l'insert su `challenges` dovesse fallire DOPO l'insert del post, eliminare il post appena creato e restituire errore al client.
+
+### 4. Recupero del post esistente (`ebfa273a-…`)
+Migration SQL che inserisce la riga `challenges` mancante:
+- `post_id = ebfa273a-ac7d-4d3f-831e-5767c1bae6da`
+- `voice_post_id = 2ab3fecb-094b-473d-8631-5872de4f0fd8`
+- `thesis = 'Agentic success takes a platform approach'` (dal `voice_posts.body_text`)
+- `title = 'Agentic platform transcript'`
+- `body_text = 'Agentic success takes a platform approach'`
+- `duration_hours = 48`, `expires_at = created_at + 48h`
+- `status = 'active'`
+
+Così la tua card torna visibile come challenge reale.
+
+## File previsti
+- migration SQL (recupero `ebfa273a-…`)
+- `supabase/functions/publish-post/index.ts` (fallback chain + validazione + cleanup on failure)
+- `src/components/composer/ComposerModal.tsx` (mappatura `thesis` con fallback)
+
+## Cosa NON tocco
+- UI del composer, schema tabelle, voice transcription, rendering card challenge, gate, trust score.
+
+## Verifica
+1. La tua challenge `ebfa273a-…` appare nel feed con titolo, tesi e voice player.
+2. Pubblicare una challenge nuova con solo titolo+body+audio (come hai fatto tu) → funziona, riga `challenges` creata.
+3. Pubblicare senza audio o con tutti i campi vuoti → server risponde 400, niente post orfano.
