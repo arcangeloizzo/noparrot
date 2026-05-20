@@ -64,6 +64,7 @@ const DynamicClampBodyInner = ({
 }: DynamicClampBodyProps) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
+  const shadowRef = useRef<HTMLDivElement>(null);
   const [lines, setLines] = useState<number>(6);
   const [isTruncated, setIsTruncated] = useState<boolean>(false);
   const rafRef = useRef<number | null>(null);
@@ -88,12 +89,15 @@ const DynamicClampBodyInner = ({
     );
     setLines((prev) => (prev !== nextLines ? nextLines : prev));
 
-    // Detect truncation AFTER clamp is applied. Use rAF so the
-    // layout has settled before reading scrollHeight.
+    // Detect truncation by measuring the UNCLAMPED shadow element.
+    // This avoids the self-falsifying loop where re-measuring an
+    // already-clamped element reports no overflow.
     requestAnimationFrame(() => {
-      const t = textRef.current;
-      if (!t) return;
-      const truncated = t.scrollHeight - t.clientHeight > 1;
+      const shadow = shadowRef.current;
+      if (!shadow) return;
+      const totalHeight = shadow.scrollHeight;
+      const allowedHeight = nextLines * lineHeightPx;
+      const truncated = totalHeight > allowedHeight + 1;
       setIsTruncated((prev) => (prev !== truncated ? truncated : prev));
     });
   }, [containerRef, lineHeightPx, minLines, maxLinesCap, reserveButtonPx]);
@@ -127,10 +131,26 @@ const DynamicClampBodyInner = ({
           ref={textRef}
           className={cn("whitespace-pre-wrap break-words", className)}
           style={{
-            display: "-webkit-box",
-            WebkitLineClamp: lines,
-            WebkitBoxOrient: "vertical",
+            maxHeight: `${lines * lineHeightPx}px`,
             overflow: "hidden",
+            ...style,
+          }}
+        >
+          <MentionText content={content} />
+        </div>
+        {/* Shadow element: unclamped source of truth for truncation measurement. */}
+        <div
+          ref={shadowRef}
+          aria-hidden="true"
+          className={cn("whitespace-pre-wrap break-words", className)}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            width: "100%",
+            visibility: "hidden",
+            pointerEvents: "none",
             ...style,
           }}
         >
@@ -141,9 +161,9 @@ const DynamicClampBodyInner = ({
             aria-hidden
             className="pointer-events-none absolute inset-x-0 bottom-0"
             style={{
-              height: `${Math.round(lineHeightPx * 1.5)}px`,
+              height: `${Math.round(lineHeightPx * 3)}px`,
               background:
-                "linear-gradient(to bottom, hsl(var(--card) / 0) 0%, hsl(var(--card)) 100%)",
+                "linear-gradient(to bottom, hsl(var(--card) / 0) 0%, hsl(var(--card) / 0) 30%, hsl(var(--card) / 0.7) 70%, hsl(var(--card) / 1) 100%)",
             }}
           />
         )}
