@@ -39,6 +39,7 @@ export const useLongPress = ({
   // so we can detach them on touchend/cancel.
   const activeElRef = useRef<HTMLElement | null>(null);
   const nativeMoveRef = useRef<((e: TouchEvent) => void) | null>(null);
+  const nativeStartRef = useRef<((e: TouchEvent) => void) | null>(null);
 
   const clear = useCallback(() => {
     if (timerRef.current) {
@@ -88,23 +89,36 @@ export const useLongPress = ({
   // touchend/cancel. Global feed scroll is never affected.
   const detachNativeBlocker = useCallback(() => {
     const el = activeElRef.current;
-    const h = nativeMoveRef.current;
-    if (el && h) el.removeEventListener('touchmove', h);
+    const hMove = nativeMoveRef.current;
+    const hStart = nativeStartRef.current;
+    if (el) {
+      if (hMove) el.removeEventListener('touchmove', hMove);
+      if (hStart) el.removeEventListener('touchstart', hStart);
+    }
     activeElRef.current = null;
     nativeMoveRef.current = null;
+    nativeStartRef.current = null;
   }, []);
 
   const attachNativeBlocker = useCallback((el: HTMLElement) => {
     // Detach any leftover listener from a previous (interrupted) press.
     const prevEl = activeElRef.current;
-    const prevH = nativeMoveRef.current;
-    if (prevEl && prevH) prevEl.removeEventListener('touchmove', prevH);
+    const prevHMove = nativeMoveRef.current;
+    const prevHStart = nativeStartRef.current;
+    if (prevEl) {
+      if (prevHMove) prevEl.removeEventListener('touchmove', prevHMove);
+      if (prevHStart) prevEl.removeEventListener('touchstart', prevHStart);
+    }
     const handler = (e: TouchEvent) => {
       if (isPressingRef.current) e.preventDefault();
     };
     activeElRef.current = el;
     nativeMoveRef.current = handler;
+    nativeStartRef.current = handler;
     el.addEventListener('touchmove', handler, { passive: false });
+    // Also block touchstart so iOS cannot start a text-selection gesture
+    // from a stationary long-press (where touchmove never fires).
+    el.addEventListener('touchstart', handler, { passive: false });
   }, []);
 
   const handlers: LongPressHandlers = {
