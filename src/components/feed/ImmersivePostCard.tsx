@@ -532,6 +532,7 @@ const ImmersivePostCardInner = ({
   // Reaction picker state
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const likeButtonRef = useRef<HTMLButtonElement>(null);
+  const actionBarRef = useRef<HTMLDivElement>(null);
 
   const handleHeart = (e?: React.MouseEvent, reactionType: ReactionType | 'heart' = 'heart') => {
     e?.stopPropagation();
