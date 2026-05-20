@@ -25,11 +25,13 @@ interface ReactionPickerProps {
   currentReaction?: ReactionType | null;
   /** Ref to the trigger button for position calculation */
   triggerRef?: React.RefObject<HTMLElement>;
+  /** Ref to the action bar — picker is placed in a safe lane ABOVE it */
+  actionBarRef?: React.RefObject<HTMLElement>;
   className?: string;
 }
 
 export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerProps>(
-  ({ isOpen, onClose, onSelect, currentReaction, triggerRef, className }, ref) => {
+  ({ isOpen, onClose, onSelect, currentReaction, triggerRef, actionBarRef, className }, ref) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const internalTriggerRef = React.useRef<HTMLDivElement>(null);
     const isInteractingRef = React.useRef(false);
@@ -95,16 +97,22 @@ export const ReactionPicker = React.forwardRef<HTMLDivElement, ReactionPickerPro
         idealLeft = viewportWidth - pickerWidth - safeMargin;
       }
 
-      const spaceAbove = rect.top;
+      // Prefer anchoring to the action bar (safe lane above it) when provided.
+      const barEl =
+        actionBarRef?.current ||
+        (trigger.closest('.action-bar-zone') as HTMLElement | null);
+      const anchorTop = barEl ? barEl.getBoundingClientRect().top : rect.top;
+
+      const spaceAbove = anchorTop;
       const spaceBelow = viewportHeight - rect.bottom;
       const showBelow = spaceAbove < minSpace && spaceBelow > minSpace;
 
       setPositionStyle(
         showBelow
           ? { position: 'fixed', top: `${rect.bottom + 8}px`, left: `${idealLeft}px` }
-          : { position: 'fixed', bottom: `${viewportHeight - rect.top + 8}px`, left: `${idealLeft}px` }
+          : { position: 'fixed', bottom: `${viewportHeight - anchorTop + 8}px`, left: `${idealLeft}px` }
       );
-    }, [isOpen, triggerRef]);
+    }, [isOpen, triggerRef, actionBarRef]);
 
     // Escape to close
     React.useEffect(() => {

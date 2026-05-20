@@ -2704,6 +2704,7 @@ const ImmersivePostCardInner = ({
 
             {/* Action Icons - Uniform w-6 h-6, aligned on same axis */}
             <div
+              ref={actionBarRef}
               className="flex items-center gap-4 h-11 action-bar-zone bg-slate-100 px-4 rounded-full shadow-sm border border-slate-200 dark:bg-transparent dark:px-0 dark:rounded-none dark:shadow-none dark:border-none transition-all"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -2713,7 +2714,7 @@ const ImmersivePostCardInner = ({
                 <motion.button
                   whileTap={{ scale: 0.85 }}
                   ref={likeButtonRef}
-                  className="flex items-center justify-center h-full select-none no-ios-callout"
+                  className="flex items-center justify-center h-full min-w-[44px] min-h-[44px] select-none no-ios-callout"
                   style={{ WebkitTapHighlightColor: 'transparent' }}
                   {...likeButtonHandlers}
                   onClick={(e) => e.stopPropagation()}
@@ -2755,6 +2756,7 @@ const ImmersivePostCardInner = ({
                       setShowReactionPicker(false);
                     }}
                     triggerRef={likeButtonRef}
+                    actionBarRef={actionBarRef}
                   />
                 )}
               </div>
