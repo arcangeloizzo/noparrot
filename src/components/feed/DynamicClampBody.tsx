@@ -35,6 +35,13 @@ interface DynamicClampBodyProps {
    * internally exposes the button when `isTruncated || extraExpandable`.
    */
   extraExpandable?: boolean;
+  /**
+   * Color the bottom fade resolves to. Should match the REAL background color
+   * underneath the text at the bottom of the card (immersive cards use
+   * variant-specific gradients, not `--card`). Accepts any valid CSS color
+   * (hex, rgb, hsl). Defaults to `hsl(var(--card))` for backward compat.
+   */
+  fadeColor?: string;
 }
 
 /**
@@ -61,6 +68,7 @@ const DynamicClampBodyInner = ({
   buttonClassName,
   showButtonIcon = false,
   extraExpandable = false,
+  fadeColor,
 }: DynamicClampBodyProps) => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
@@ -156,17 +164,19 @@ const DynamicClampBodyInner = ({
         >
           <MentionText content={content} />
         </div>
-        {isTruncated && (
+        {isTruncated && (() => {
+          const c = fadeColor ?? "hsl(var(--card))";
+          return (
           <div
             aria-hidden
             className="pointer-events-none absolute inset-x-0 bottom-0"
             style={{
               height: `${Math.round(lineHeightPx * 3)}px`,
-              background:
-                "linear-gradient(to bottom, hsl(var(--card) / 0) 0%, hsl(var(--card) / 0) 30%, hsl(var(--card) / 0.7) 70%, hsl(var(--card) / 1) 100%)",
+              background: `linear-gradient(to bottom, color-mix(in srgb, ${c} 0%, transparent) 0%, color-mix(in srgb, ${c} 0%, transparent) 30%, color-mix(in srgb, ${c} 70%, transparent) 70%, ${c} 100%)`,
             }}
           />
-        )}
+          );
+        })()}
       </div>
       {(isTruncated || extraExpandable) && (
         <button
