@@ -1463,6 +1463,7 @@ const ImmersivePostCardInner = ({
           enabled={isNearActive}
           lineHeightPx={hasTitle ? 22 : 28}
           minLines={2}
+          fadeColor="#0d1117"
         />
       </div>
     );
@@ -1922,6 +1923,7 @@ const ImmersivePostCardInner = ({
                         enabled={isNearActive}
                         lineHeightPx={post.title && post.title.trim().length > 0 ? 22 : 26}
                         minLines={2}
+                        fadeColor="#0d1117"
                       />
                     </div>
                   )}
@@ -2044,6 +2046,7 @@ const ImmersivePostCardInner = ({
                             minLines={2}
                             showButtonIcon
                             buttonClassName="mt-4 text-primary/90"
+                            fadeColor="#0d1117"
                           />
                         </div>
                       )}
