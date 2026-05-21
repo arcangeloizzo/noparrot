@@ -76,11 +76,30 @@ const DynamicClampBodyInner = ({
   const [lines, setLines] = useState<number>(6);
   const [isTruncated, setIsTruncated] = useState<boolean>(false);
   const rafRef = useRef<number | null>(null);
+  const componentIdRef = useRef(`clamp-${Math.random().toString(36).slice(2, 7)}`);
+  const isTruncatedRef = useRef(isTruncated);
+  isTruncatedRef.current = isTruncated;
 
   const measure = useCallback(() => {
     const container = containerRef.current;
     const wrapper = wrapperRef.current;
     const textEl = textRef.current;
+    const shadowEl = shadowRef.current;
+    console.log('[DynamicClamp] measure called', {
+      id: componentIdRef.current,
+      shadowExists: !!shadowEl,
+      textExists: !!textEl,
+      containerExists: !!container,
+      wrapperExists: !!wrapper,
+      shadowScrollHeight: shadowEl?.scrollHeight,
+      shadowClientHeight: shadowEl?.clientHeight,
+      textScrollHeight: textEl?.scrollHeight,
+      textClientHeight: textEl?.clientHeight,
+      lines,
+      lineHeightPx,
+      allowedHeight: lines * lineHeightPx,
+      contentLen: content?.length,
+    });
     if (!container || !wrapper || !textEl) return;
 
     const cs = getComputedStyle(container);
@@ -89,7 +108,15 @@ const DynamicClampBodyInner = ({
     const availableBottom = railRect.bottom - padBottom;
     const wrapperTop = wrapper.getBoundingClientRect().top;
     const available = availableBottom - wrapperTop - reserveButtonPx;
-    if (!isFinite(available) || available <= 0) return;
+    if (!isFinite(available) || available <= 0) {
+      console.log('[DynamicClamp] measure EARLY RETURN (bad available)', {
+        id: componentIdRef.current,
+        available,
+        availableBottom,
+        wrapperTop,
+      });
+      return;
+    }
 
     const nextLines = Math.max(
       minLines,
@@ -102,16 +129,52 @@ const DynamicClampBodyInner = ({
     // already-clamped element reports no overflow.
     requestAnimationFrame(() => {
       const shadow = shadowRef.current;
-      if (!shadow) return;
+      if (!shadow) {
+        console.log('[DynamicClamp] rAF: shadow is NULL, aborting', {
+          id: componentIdRef.current,
+        });
+        return;
+      }
       const totalHeight = shadow.scrollHeight;
       const allowedHeight = nextLines * lineHeightPx;
       const truncated = totalHeight > allowedHeight + 1;
-      setIsTruncated((prev) => (prev !== truncated ? truncated : prev));
+      console.log('[DynamicClamp] rAF: truncation check', {
+        id: componentIdRef.current,
+        shadowScrollHeight: totalHeight,
+        allowedHeight,
+        nextLines,
+        truncated,
+        previousIsTruncated: isTruncatedRef.current,
+      });
+      setIsTruncated((prev) => {
+        if (prev !== truncated) {
+          console.log('[DynamicClamp] setIsTruncated', {
+            id: componentIdRef.current,
+            from: prev,
+            to: truncated,
+          });
+        }
+        return prev !== truncated ? truncated : prev;
+      });
     });
-  }, [containerRef, lineHeightPx, minLines, maxLinesCap, reserveButtonPx]);
+  }, [containerRef, lineHeightPx, minLines, maxLinesCap, reserveButtonPx, lines, content]);
 
   useLayoutEffect(() => {
-    if (!enabled) return;
+    console.log('[DynamicClamp] effect run', {
+      id: componentIdRef.current,
+      enabled,
+      contentLength: content?.length,
+      timestamp: Date.now(),
+      shadowExists: !!shadowRef.current,
+      textExists: !!textRef.current,
+      currentIsTruncated: isTruncatedRef.current,
+    });
+    if (!enabled) {
+      console.log('[DynamicClamp] effect EARLY RETURN (enabled=false)', {
+        id: componentIdRef.current,
+      });
+      return;
+    }
     measure();
     const container = containerRef.current;
     if (!container) return;
@@ -124,6 +187,11 @@ const DynamicClampBodyInner = ({
     });
     ro.observe(container);
     return () => {
+      console.log('[DynamicClamp] effect CLEANUP', {
+        id: componentIdRef.current,
+        enabled,
+        timestamp: Date.now(),
+      });
       ro.disconnect();
       if (rafRef.current != null) {
         cancelAnimationFrame(rafRef.current);
