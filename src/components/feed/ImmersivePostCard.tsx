@@ -2213,7 +2213,7 @@ const ImmersivePostCardInner = ({
                     )}
                   </div>
 
-                  {/* Open on X CTA - Below the card - Fixed */}
+                  {/* Open on X CTA - brand pill */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -2221,10 +2221,10 @@ const ImmersivePostCardInner = ({
                         window.open(post.shared_url, '_blank', 'noopener,noreferrer');
                       }
                     }}
-                    className="mt-3 inline-flex self-start items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors flex-shrink-0"
+                    className="mt-3 inline-flex self-start items-center gap-2 rounded-full bg-white hover:bg-white/90 active:scale-[0.98] transition-all px-4 py-2 text-black shadow-md flex-shrink-0"
                   >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span className="text-xs uppercase tracking-wider">Apri su X</span>
+                    <span className="font-bold text-base leading-none">𝕏</span>
+                    <span className="text-sm font-semibold">Apri su X</span>
                   </button>
                 </div>
               ) : hasLink && isLinkedIn ? (
