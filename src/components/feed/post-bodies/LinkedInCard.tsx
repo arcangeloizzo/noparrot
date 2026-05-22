@@ -1,4 +1,4 @@
-import { ExternalLink } from "lucide-react";
+import { Linkedin } from "lucide-react";
 import type { Post } from "@/hooks/usePosts";
 
 interface LinkedInCardProps {
@@ -92,7 +92,7 @@ export const LinkedInCard = ({
         )}
       </div>
 
-      {/* Open on LinkedIn CTA - Below the card */}
+      {/* Open on LinkedIn CTA - brand pill */}
       <button
         onClick={(e) => {
           e.stopPropagation();
@@ -100,10 +100,10 @@ export const LinkedInCard = ({
             window.open(post.shared_url, '_blank', 'noopener,noreferrer');
           }
         }}
-        className="mt-3 inline-flex self-start items-center gap-2 text-white/50 hover:text-white transition-colors"
+        className="mt-3 inline-flex self-start items-center gap-2 rounded-full bg-[#0A66C2] hover:bg-[#0A66C2]/90 active:scale-[0.98] transition-all px-4 py-2 text-white shadow-md"
       >
-        <ExternalLink className="w-3.5 h-3.5" />
-        <span className="text-xs uppercase tracking-wider">Apri su LinkedIn</span>
+        <Linkedin className="w-4 h-4" fill="currentColor" strokeWidth={0} />
+        <span className="text-sm font-semibold">Apri su LinkedIn</span>
       </button>
     </div>
   );
