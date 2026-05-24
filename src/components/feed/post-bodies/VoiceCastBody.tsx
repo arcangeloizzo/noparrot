@@ -25,7 +25,7 @@ export const VoiceCastBody = ({
   renderBodyText,
 }: VoiceCastBodyProps) => {
   return (
-    <div className="w-full flex flex-col pt-2 pb-8">
+    <div className="w-full flex flex-col pt-2 pb-8 overflow-hidden" style={{ maxHeight: '60vh' }}>
         {/* Badge VoiceCast — first element */}
         <div className="w-full flex justify-center mb-5 shrink-0">
           <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm"
