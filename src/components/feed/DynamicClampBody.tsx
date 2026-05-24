@@ -1,4 +1,5 @@
 import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { Maximize2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MentionText } from "./MentionText";
@@ -79,12 +80,18 @@ const DynamicClampBodyInner = ({
   const componentIdRef = useRef(`clamp-${Math.random().toString(36).slice(2, 7)}`);
   const isTruncatedRef = useRef(isTruncated);
   isTruncatedRef.current = isTruncated;
+  const linesRef = useRef(lines);
+  useEffect(() => {
+    linesRef.current = lines;
+  }, [lines]);
+  const observerRef = useRef<ResizeObserver | null>(null);
 
   const measure = useCallback(() => {
     const container = containerRef.current;
     const wrapper = wrapperRef.current;
     const textEl = textRef.current;
     const shadowEl = shadowRef.current;
+    const lines = linesRef.current;
     console.log('[DynamicClamp] measure called', {
       id: componentIdRef.current,
       shadowExists: !!shadowEl,
@@ -157,7 +164,7 @@ const DynamicClampBodyInner = ({
         return prev !== truncated ? truncated : prev;
       });
     });
-  }, [containerRef, lineHeightPx, minLines, maxLinesCap, reserveButtonPx, lines, content]);
+  }, [containerRef, lineHeightPx, minLines, maxLinesCap, reserveButtonPx, content]);
 
   useLayoutEffect(() => {
     console.log('[DynamicClamp] effect run', {
@@ -175,24 +182,69 @@ const DynamicClampBodyInner = ({
       });
       return;
     }
-    measure();
-    const container = containerRef.current;
-    if (!container) return;
-    const ro = new ResizeObserver(() => {
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
-      rafRef.current = requestAnimationFrame(() => {
-        rafRef.current = null;
-        measure();
+
+    let cancelled = false;
+    let rafAttachId: number | null = null;
+    let attemptCount = 0;
+    const MAX_ATTEMPTS = 30;
+
+    const tryAttachObserver = () => {
+      if (cancelled) return;
+      const container = containerRef.current;
+      const wrapper = wrapperRef.current;
+      if (!container || !wrapper) {
+        attemptCount++;
+        if (attemptCount >= MAX_ATTEMPTS) {
+          console.log('[DynamicClamp]', componentIdRef.current,
+            'GIVE UP after MAX_ATTEMPTS', {
+              containerExists: !!container,
+              wrapperExists: !!wrapper,
+            });
+          return;
+        }
+        console.log('[DynamicClamp]', componentIdRef.current,
+          'RETRY tryAttachObserver', {
+            attempt: attemptCount,
+            containerExists: !!container,
+            wrapperExists: !!wrapper,
+          });
+        rafAttachId = requestAnimationFrame(tryAttachObserver);
+        return;
+      }
+
+      console.log('[DynamicClamp]', componentIdRef.current,
+        'ATTACH ObserverConfirmed', {
+          attempt: attemptCount,
+          containerExists: true,
+        });
+
+      measure();
+
+      const ro = new ResizeObserver(() => {
+        if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+        rafRef.current = requestAnimationFrame(() => {
+          rafRef.current = null;
+          measure();
+        });
       });
-    });
-    ro.observe(container);
+      ro.observe(container);
+      observerRef.current = ro;
+    };
+
+    tryAttachObserver();
+
     return () => {
+      cancelled = true;
       console.log('[DynamicClamp] effect CLEANUP', {
         id: componentIdRef.current,
         enabled,
         timestamp: Date.now(),
       });
-      ro.disconnect();
+      if (rafAttachId !== null) cancelAnimationFrame(rafAttachId);
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+        observerRef.current = null;
+      }
       if (rafRef.current != null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
