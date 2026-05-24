@@ -13,10 +13,10 @@ export const LinkedInCard = ({
   useStackLayout,
 }: LinkedInCardProps) => {
   return (
-    <div className="w-full mt-2 sm:mt-6 flex-shrink min-h-0 flex flex-col justify-center">
+    <div className="w-full mt-2 sm:mt-6 flex-shrink min-h-0 flex flex-col justify-center overflow-hidden" style={{ maxHeight: '60vh' }}>
       {/* Unified LinkedIn Card */}
       <div
-        className="bg-gradient-to-br from-[#0A66C2]/10 to-white/90 dark:from-[#0A66C2]/20 dark:to-[#1a1a2e]/95 rounded-3xl p-4 sm:p-5 border border-black/5 dark:border-white/15  dark: cursor-pointer active:scale-[0.98] transition-transform max-h-full flex flex-col"
+        className="bg-gradient-to-br from-[#0A66C2]/10 to-white/90 dark:from-[#0A66C2]/20 dark:to-[#1a1a2e]/95 rounded-3xl p-4 sm:p-5 border border-black/5 dark:border-white/15 cursor-pointer active:scale-[0.98] transition-transform flex flex-col min-h-0 flex-shrink overflow-hidden"
         onClick={(e) => {
           e.stopPropagation();
           if (post.shared_url) {
@@ -86,7 +86,9 @@ export const LinkedInCard = ({
             <img
               src={articlePreview?.image || post.preview_img}
               alt=""
-              className={useStackLayout ? "w-full h-auto max-h-24 sm:max-h-40 object-cover" : "w-full h-auto object-cover rounded-xl"}
+              className={useStackLayout
+                ? "w-full h-auto max-h-24 sm:max-h-40 object-cover"
+                : "w-full h-auto max-h-[28vh] object-cover rounded-xl"}
             />
           </div>
         )}
@@ -100,7 +102,7 @@ export const LinkedInCard = ({
             window.open(post.shared_url, '_blank', 'noopener,noreferrer');
           }
         }}
-        className="mt-3 inline-flex self-start items-center gap-2 rounded-full bg-[#0A66C2] hover:bg-[#0A66C2]/90 active:scale-[0.98] transition-all px-4 py-2 text-white shadow-md"
+        className="mt-3 inline-flex self-start items-center gap-2 rounded-full bg-[#0A66C2] hover:bg-[#0A66C2]/90 active:scale-[0.98] transition-all px-4 py-2 text-white shadow-md flex-shrink-0"
       >
         <Linkedin className="w-4 h-4" fill="currentColor" strokeWidth={0} />
         <span className="text-sm font-semibold">Apri su LinkedIn</span>
