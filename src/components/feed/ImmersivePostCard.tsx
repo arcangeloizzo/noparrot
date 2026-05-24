@@ -1829,13 +1829,10 @@ const ImmersivePostCardInner = ({
           {/* [Rail 2] ContentRail */}
           <div
             ref={contentRailRef}
-            className="absolute top-0 bottom-0 left-0 right-0 flex flex-col overflow-y-auto scrollbar-none"
+            className="absolute top-0 bottom-0 left-0 right-0 flex flex-col overflow-hidden"
             style={{
               paddingTop: 'calc(env(safe-area-inset-top) + 72px + 82px)',
               paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 36px + 64px)',
-              WebkitOverflowScrolling: 'touch',
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
             } as any}
           >
 
