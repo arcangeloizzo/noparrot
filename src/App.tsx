@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { CardLayoutProvider } from "@/contexts/CardLayoutContext";
 import { AppErrorBoundary } from "@/components/debug/AppErrorBoundary";
 import { AppLifecycleHandler } from "@/components/AppLifecycleHandler";
 import Index from "./pages/Index";
@@ -107,42 +108,44 @@ function NavigationRecovery() {
           disableTransitionOnChange
         >
           <AuthProvider>
-            <TooltipProvider>
-              <Sonner />
-              <ServiceWorkerNavigationHandler />
-              <NavigationRecovery />
-              <AppLifecycleHandler />
-              <BrowserRouter>
-                {/* Global elements */}
-                <OnboardingTutorial />
-                
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/auth" element={<AuthPage />} />
-                  <Route path="/consent" element={<ConsentScreen />} />
-                  <Route path="/profile" element={<Profile />} />
-                  <Route path="/profile/:userId" element={<UserProfile />} />
-                  <Route path="/profile/edit" element={<ProfileEdit />} />
-                  <Route path="/completed-paths" element={<CompletedPaths />} />
-                  <Route path="/post/:postId" element={<Post />} />
-                  <Route path="/post/:postId/comments" element={<Post />} />
-                  <Route path="/privacy" element={<PrivacyPolicy />} />
-                  <Route path="/terms" element={<TermsOfService />} />
-                  <Route path="/settings/privacy" element={<SettingsPrivacy />} />
-                  <Route path="/legal/ads" element={<AdsPolicy />} />
-                  <Route path="/legal/transparency" element={<Transparency />} />
-                  <Route path="/cookies" element={<CookiePolicy />} />
-                  <Route path="/messages" element={<Messages />} />
-                  <Route path="/messages/:threadId" element={<MessageThread />} />
-                  <Route path="/notifications" element={<Notifications />} />
-                  <Route path="/search" element={<Search />} />
-                  <Route path="/saved" element={<Saved />} />
-                  <Route path="/_share-target" element={<ShareTargetHandler />} />
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </BrowserRouter>
-            </TooltipProvider>
+            <CardLayoutProvider>
+              <TooltipProvider>
+                <Sonner />
+                <ServiceWorkerNavigationHandler />
+                <NavigationRecovery />
+                <AppLifecycleHandler />
+                <BrowserRouter>
+                  {/* Global elements */}
+                  <OnboardingTutorial />
+                  
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/auth" element={<AuthPage />} />
+                    <Route path="/consent" element={<ConsentScreen />} />
+                    <Route path="/profile" element={<Profile />} />
+                    <Route path="/profile/:userId" element={<UserProfile />} />
+                    <Route path="/profile/edit" element={<ProfileEdit />} />
+                    <Route path="/completed-paths" element={<CompletedPaths />} />
+                    <Route path="/post/:postId" element={<Post />} />
+                    <Route path="/post/:postId/comments" element={<Post />} />
+                    <Route path="/privacy" element={<PrivacyPolicy />} />
+                    <Route path="/terms" element={<TermsOfService />} />
+                    <Route path="/settings/privacy" element={<SettingsPrivacy />} />
+                    <Route path="/legal/ads" element={<AdsPolicy />} />
+                    <Route path="/legal/transparency" element={<Transparency />} />
+                    <Route path="/cookies" element={<CookiePolicy />} />
+                    <Route path="/messages" element={<Messages />} />
+                    <Route path="/messages/:threadId" element={<MessageThread />} />
+                    <Route path="/notifications" element={<Notifications />} />
+                    <Route path="/search" element={<Search />} />
+                    <Route path="/saved" element={<Saved />} />
+                    <Route path="/_share-target" element={<ShareTargetHandler />} />
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </BrowserRouter>
+              </TooltipProvider>
+            </CardLayoutProvider>
           </AuthProvider>
         </ThemeProvider>
       </QueryClientProvider>
