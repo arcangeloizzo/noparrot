@@ -13,6 +13,7 @@ import { SimilarContentOverlay } from "@/components/feed/SimilarContentOverlay";
 import { Header } from "@/components/navigation/Header";
 import { PerfOverlay } from "@/components/debug/PerfOverlay";
 import { CGProvider } from "@/lib/comprehension-gate";
+import { CardLayoutProvider } from "@/contexts/CardLayoutContext";
 import { usePosts, Post } from "@/hooks/usePosts";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -707,9 +708,11 @@ export const Feed = () => {
 };
 
 const FeedWithProvider = () => (
-  <CGProvider>
-    <Feed />
-  </CGProvider>
+  <CardLayoutProvider>
+    <CGProvider>
+      <Feed />
+    </CGProvider>
+  </CardLayoutProvider>
 );
 
 export default FeedWithProvider;

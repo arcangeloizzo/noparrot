@@ -27,6 +27,7 @@ import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 
 // UI Components
+import { useCardLayout } from "@/contexts/CardLayoutContext";
 import { CategoryChip } from "@/components/ui/category-chip";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
@@ -302,6 +303,7 @@ const ImmersivePostCardInner = ({
     perfStore.incrementPostCard();
   }
   const { user } = useAuth();
+  const { availableHeight } = useCardLayout();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const toggleReaction = useToggleReaction();
@@ -1839,10 +1841,13 @@ const ImmersivePostCardInner = ({
 
 
 
-            <div className={cn(
-              "w-full flex flex-col relative z-[1]", 
-              (!isAudioPost && !isChallengePost) ? "my-auto" : "flex-1 min-h-0"
-            )}>
+            <div 
+              className={cn(
+                "w-full flex flex-col relative z-[1]", 
+                (!isAudioPost && !isChallengePost) ? "my-auto" : "flex-1 min-h-0"
+              )}
+              style={{ maxHeight: `${availableHeight}px` }}
+            >
 
 
               {/* Voice Post Body (non-challenge) */}
