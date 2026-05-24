@@ -59,7 +59,7 @@ export const ChallengeBody = ({
   renderBodyText,
 }: ChallengeBodyProps) => {
   return (
-    <div className="w-full flex flex-col pt-2 pb-6">
+    <div className="w-full flex flex-col pt-2 pb-6 overflow-hidden" style={{ maxHeight: '60vh' }}>
         {/* Badge Challenge — first element in the flow */}
         <div className="w-full flex justify-center mb-5 shrink-0">
           <div className="flex items-center gap-2">
@@ -252,8 +252,8 @@ export const ChallengeBody = ({
                          <span
                            className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ml-auto"
                            style={{
-                             background: resp.stance === 'for' ? 'rgba(59,159,255,0.15)' : 'rgba(255,212,100,0.15)',
-                             color: resp.stance === 'for' ? '#3B9FFF' : '#FFD464',
+                              background: resp.stance === 'for' ? 'rgba(10,122,255,0.15)' : 'rgba(255,212,100,0.15)',
+                              color: resp.stance === 'for' ? '#0A7AFF' : '#FFD464',
                            }}
                          >
                            {resp.stance === 'for' ? 'A favore' : 'Contro'}
@@ -265,7 +265,7 @@ export const ChallengeBody = ({
                          waveformData={resp.voice_post.waveform_data}
                          transcript={resp.voice_post.transcript}
                          transcriptStatus={resp.voice_post.transcript_status as any}
-                         accentColor={resp.stance === 'for' ? '#3B9FFF' : '#FFD464'}
+                          accentColor={resp.stance === 'for' ? '#0A7AFF' : '#FFD464'}
                        />
                        <div className="flex items-center justify-between mt-3">
                          <span className="text-xs text-muted-foreground">
