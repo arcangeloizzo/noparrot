@@ -2255,7 +2255,7 @@ const ImmersivePostCardInner = ({
                       <img
                         src={articlePreview?.image || post.preview_img || `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url!)}/maxresdefault.jpg`}
                         alt=""
-                        className="w-full aspect-video max-h-[25vh] sm:max-h-none object-cover"
+                        className="w-full aspect-video min-h-[120px] max-h-[25vh] sm:max-h-none object-cover"
                       />
 
                       {/* Play Button Overlay */}
@@ -2276,8 +2276,8 @@ const ImmersivePostCardInner = ({
                     </button>
                   ) : (
                     /* Active YouTube Embed */
-                    <div className="w-full rounded-2xl overflow-hidden border border-white/10 ">
-                      <div className="aspect-video">
+                    <div className="w-full rounded-2xl overflow-hidden border border-white/10 max-h-[25vh]">
+                      <div className="aspect-video max-h-[25vh]">
                         <iframe
                           src={`https://www.youtube.com/embed/${extractYoutubeVideoId(post.shared_url!)}?autoplay=1&mute=1&cc_load_policy=1&rel=0`}
                           className="w-full h-full"
