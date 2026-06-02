@@ -2487,7 +2487,7 @@ const ImmersivePostCardInner = ({
                     >
                       {/* Visible Metadata Image - Uses max-h to fit available space */}
                       {!post.is_intent && (
-                        <div className="flex-1 min-h-[110px] max-h-[30vh] w-full flex items-center justify-center mb-4">
+                        <div className="flex-1 min-h-0 w-full flex items-center justify-center mb-4">
                           <SourceImageWithFallback
                             src={articlePreview?.image || post.preview_img}
                             sharedUrl={post.shared_url}
@@ -2512,10 +2512,7 @@ const ImmersivePostCardInner = ({
 
                         return (
                           <div className="mb-3 shrink-0 text-left w-full" onClick={(e) => e.stopPropagation()}>
-                            <p className={cn(
-                              "text-lg font-medium text-slate-900 dark:text-white/90 leading-relaxed",
-                              isSmallScreen ? "line-clamp-2" : "line-clamp-3"
-                            )}>
+                            <p className="text-lg font-medium text-slate-900 dark:text-white/90 leading-relaxed  dark: line-clamp-3">
                               {truncatedCaption}
                             </p>
                             {isCaptionLong && (
