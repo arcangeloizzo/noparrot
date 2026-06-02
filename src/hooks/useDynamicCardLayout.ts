@@ -305,6 +305,112 @@ export function useDynamicCardLayout({
         }
       }
 
+      // FASE D: Spare Space Redistribution
+      let spareSpace = currentAvailableHeight - H_tot;
+
+      if (spareSpace > 0) {
+        if (isDev) {
+          console.log('--- FASE D (spare redistribution) ---');
+          console.log('spareSpace iniziale:', spareSpace);
+        }
+
+        // === Fase D.1 — Promozione essenziali (round-robin REVERSE) ===
+        while (spareSpace > 0) {
+          let progressedThisRound = false;
+
+          for (const ess of essentials) {
+            if (!ess.states || ess.states.length <= 1) {
+              continue; // essenziale puro o staticHeight, non promovibile
+            }
+
+            const currentStateId = currentEssentialStates[ess.id];
+            const currentIndex = ess.states.findIndex(s => s.id === currentStateId);
+
+            if (currentIndex <= 0) {
+              continue; // già al più ricco
+            }
+
+            // Prova promozione di UN solo step (verso il più ricco)
+            const nextRicherState = ess.states[currentIndex - 1];
+            const costo = nextRicherState.height - ess.states[currentIndex].height;
+
+            if (costo <= 0) {
+              continue; // Evita loop infiniti se il costo è zero o negativo
+            }
+
+            if (costo <= spareSpace) {
+              // Applica promozione
+              currentEssentialStates[ess.id] = nextRicherState.id;
+              essentialHeights[ess.id] = nextRicherState.height;
+              spareSpace -= costo;
+              H_tot += costo;
+              progressedThisRound = true;
+
+              if (isDev) {
+                console.log(`[Fase D.1] promozione ${ess.id}: ${currentStateId} → ${nextRicherState.id}, costo=${costo}, spareSpace=${spareSpace}`);
+              }
+            }
+          }
+
+          if (!progressedThisRound) {
+            break; // nessun essenziale promovibile o spare insufficiente
+          }
+        }
+
+        // === Fase D.2 — Espansione flessibili clamped (REVERSE compressionPriority) ===
+        if (isDev) {
+          console.log('--- FASE D.2 (espansione flessibili clamped) ---');
+        }
+
+        const reversePriority = [...compressionPriority].reverse();
+        while (spareSpace > 0) {
+          let progressedThisRound = false;
+
+          for (const flexId of reversePriority) {
+            const flexStatus = currentFlexStatus[flexId];
+            if (!flexStatus) continue;
+
+            if (flexStatus.step !== 'clamped') {
+              continue; // solo flessibili in stato clamped vengono espansi
+            }
+
+            const flexible = flexibles.find(f => f.id === flexId);
+            if (!flexible) continue;
+
+            const naturalHeight = flexibleNaturalHeights[flexId];
+            const currentHeight = flexStatus.height;
+            const maxIncrease = naturalHeight - currentHeight;
+
+            if (maxIncrease <= 0) {
+              continue; // già a naturalHeight o oltre, può tornare full
+            }
+
+            const increment = Math.min(spareSpace, maxIncrease);
+
+            if (increment > 0) {
+              flexStatus.height += increment;
+              spareSpace -= increment;
+              H_tot += increment;
+              progressedThisRound = true;
+
+              // Se raggiunge o supera la naturalHeight, torna a 'full'
+              if (flexStatus.height >= naturalHeight) {
+                flexStatus.step = 'full';
+                flexStatus.height = naturalHeight;
+              }
+
+              if (isDev) {
+                console.log(`[Fase D.2] espansione ${flexId}: height ${currentHeight} → ${flexStatus.height}, step=${flexStatus.step}, spareSpace=${spareSpace}`);
+              }
+            }
+          }
+
+          if (!progressedThisRound) {
+            break;
+          }
+        }
+      }
+
       // FASE C: Emergency Scroll
       const emergencyScroll = H_tot > currentAvailableHeight;
 
@@ -314,6 +420,19 @@ export function useDynamicCardLayout({
         if (currentFlexStatus[flexId].step !== 'full') {
           showDrawerCta = true;
           break;
+        }
+      }
+
+      // Essenziali a stati non al loro stato più ricco
+      if (!showDrawerCta) {
+        for (const ess of essentials) {
+          if (ess.states && ess.states.length > 0) {
+            const currentStateId = currentEssentialStates[ess.id];
+            if (currentStateId !== ess.states[0].id) {
+              showDrawerCta = true;
+              break;
+            }
+          }
         }
       }
 
