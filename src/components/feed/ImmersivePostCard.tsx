@@ -98,7 +98,7 @@ import { useOriginalSource } from "@/hooks/useOriginalSource";
 import { haptics } from "@/lib/haptics";
 import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
 import { useChallengeResponses } from "@/hooks/useChallengeResponses";
-import { useDynamicCardLayout } from "@/hooks/useDynamicCardLayout";
+import { useDynamicCardLayout, FlexibleElementConfig, CompressionStep } from "@/hooks/useDynamicCardLayout";
 import { useLongPress } from "@/hooks/useLongPress";
 import { ReactionPicker, reactionToEmoji, type ReactionType } from "@/components/ui/reaction-picker";
 // ReactionSummary removed - count next to heart is now clickable
@@ -393,41 +393,7 @@ const ImmersivePostCardInner = ({
    * NON agganciare registerRef('essential-*') a HeaderRail o ActionRail: causerebbe
    * doppia sottrazione e collasso del budget flessibili.
    */
-  const essentialsConfig = useMemo(() => isSpotifyEpisode ? [
-    { id: 'essential-title' },
-    {
-      id: 'essential-spotify',
-      states: [
-        { id: 'full', height: 100 },
-        { id: 'pill', height: 36 }
-      ]
-    }
-  ] : [], [isSpotifyEpisode]);
-
-  const flexiblesConfig = useMemo(() => isSpotifyEpisode ? [
-    {
-      id: 'flexible-text',
-      compressionSteps: ['full', 'clamped', 'hidden'] as const,
-      minReadabilityHeight: 60,
-      fallbackHeight: 120
-    }
-  ] : [], [isSpotifyEpisode]);
-
-  const priorityConfig = useMemo(() => isSpotifyEpisode ? ['flexible-text'] : [], [isSpotifyEpisode]);
-
-  const {
-    status: layoutStatus,
-    essentialStates,
-    flexiblesStatus,
-    showDrawerCta,
-    emergencyScroll,
-    registerRef
-  } = useDynamicCardLayout({
-    availableHeight,
-    essentials: essentialsConfig,
-    flexibles: flexiblesConfig,
-    compressionPriority: priorityConfig
-  });
+  // Hook config and call are defined downstream below variable definitions to prevent TDZ.
 
   // Gate states
   const [showReader, setShowReader] = useState(false);
@@ -1528,6 +1494,142 @@ const ImmersivePostCardInner = ({
     );
   };
 
+  const isStandardPost = !hasLink && !isAudioPost && !isIntentPost && !useStackLayout;
+  const isGenericArticle = hasLink && 
+    !isSpotify && 
+    !isYoutube && 
+    !isTwitter && 
+    !isLinkedIn && 
+    !isAudioPost && 
+    !useStackLayout;
+
+  const hasImage = isStandardPost && (post.preview_img || (post.media && post.media.length > 0));
+
+  const isEditorialFocus = isGenericArticle && post.shared_url?.startsWith('focus://');
+  const articleFullHeight = isEditorialFocus 
+    ? (editorialSummary || post.article_content ? 240 : 120)
+    : ((articlePreview?.image || post.preview_img) ? 240 : 100);
+
+  const essentialsConfig = useMemo(() => {
+    if (isSpotifyEpisode) {
+      return [
+        { id: 'essential-title' },
+        {
+          id: 'essential-spotify',
+          states: [
+            { id: 'full', height: 100 },
+            { id: 'pill', height: 36 }
+          ]
+        }
+      ];
+    }
+    if (isSpotifyTrack) {
+      return [
+        { id: 'essential-title' },
+        {
+          id: 'essential-spotify-song',
+          states: [
+            { id: 'full', height: 100 },
+            { id: 'pill', height: 36 }
+          ]
+        }
+      ];
+    }
+    if (isYoutube) {
+      return [
+        { id: 'essential-title' },
+        {
+          id: 'essential-youtube',
+          states: [
+            { id: 'full', height: 200 },
+            { id: 'pill', height: 36 }
+          ]
+        }
+      ];
+    }
+    if (isGenericArticle) {
+      return [
+        { id: 'essential-title' },
+        {
+          id: 'essential-article',
+          states: [
+            { id: 'full', height: articleFullHeight },
+            { id: 'pill', height: 36 }
+          ]
+        }
+      ];
+    }
+    if (isStandardPost) {
+      return [
+        { id: 'essential-title' }
+      ];
+    }
+    return [];
+  }, [
+    isSpotifyEpisode,
+    isSpotifyTrack,
+    isYoutube,
+    isGenericArticle,
+    isStandardPost,
+    articleFullHeight
+  ]);
+
+  const flexiblesConfig = useMemo(() => {
+    if (isSpotifyEpisode || isSpotifyTrack || isYoutube || isGenericArticle) {
+      return [
+        {
+          id: 'flexible-text',
+          compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
+          minReadabilityHeight: 60,
+          fallbackHeight: 120
+        }
+      ];
+    }
+    if (isStandardPost) {
+      const arr: FlexibleElementConfig[] = [];
+      if (hasImage) {
+        arr.push({
+          id: 'flexible-image',
+          compressionSteps: ['full', 'pill', 'hidden'] as CompressionStep[],
+          minReadabilityHeight: 100,
+          fallbackHeight: 200
+        });
+      }
+      arr.push({
+        id: 'flexible-text',
+        compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
+        minReadabilityHeight: 60,
+        fallbackHeight: 120
+      });
+      return arr;
+    }
+    return [];
+  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, hasImage]);
+
+  const priorityConfig = useMemo(() => {
+    if (isSpotifyEpisode || isSpotifyTrack || isYoutube || isGenericArticle) {
+      return ['flexible-text'];
+    }
+    if (isStandardPost) {
+      return hasImage ? ['flexible-image', 'flexible-text'] : ['flexible-text'];
+    }
+    return [];
+  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, hasImage]);
+
+  const {
+    status: layoutStatus,
+    essentialStates,
+    flexiblesStatus,
+    showDrawerCta,
+    emergencyScroll,
+    registerRef
+  } = useDynamicCardLayout({
+    availableHeight,
+    essentials: essentialsConfig,
+    flexibles: flexiblesConfig,
+    compressionPriority: priorityConfig
+  });
+
   // Update lazy mount refs (placed here to avoid TDZ for state variables declared after the refs)
   if (showShareSheet) hasMountedShare.current = true;
   if (showPeoplePicker) hasMountedPeople.current = true;
@@ -2007,7 +2109,7 @@ const ImmersivePostCardInner = ({
 
               {/* User Text Content - Show for link posts (if different from article title) - NON stack layout */}
               {/* User Text - Skip for intent posts (already rendered above) */}
-              {!useStackLayout && ((shouldShowUserText) || (post.title && post.title.trim().length > 0)) && !post.is_intent && !isTextOnly && !isSpotifyEpisode && hasLink && (
+              {!useStackLayout && ((shouldShowUserText) || (post.title && post.title.trim().length > 0)) && !post.is_intent && !isTextOnly && !isSpotifyEpisode && !isSpotifyTrack && !isGenericArticle && !isYoutube && hasLink && (
                 <div className="mb-4 flex-shrink-0 flex flex-col gap-1 z-10 relative">
                   {/* Title */}
                   {post.title && post.title.trim().length > 0 && (
@@ -2053,22 +2155,75 @@ const ImmersivePostCardInner = ({
                 </div>
               )}
 
-              {/* Pure Text-Only Posts - Immersive editorial-style card - Hide if using stack layout */}
-              {!useStackLayout && isTextOnly && (post.content || post.title) && (
-                <div className="relative w-full">
-                  {/* Card container with glassmorphism and urban texture - GPU optimized */}
-                  <div className="relative immersive-card rounded-3xl p-6 sm:p-8  overflow-hidden">
-
-                    {/* Urban texture overlay - static PNG */}
-                    <div className="absolute inset-0 opacity-[0.02] pointer-events-none rounded-3xl urban-noise-overlay" />
-
-
-                    {/* Content */}
-                    <div className="relative z-10 flex flex-col gap-2">
-                       {/* Title */}
+              {isStandardPost && (
+                <div 
+                  className={cn(
+                    "flex-1 min-h-0 flex flex-col justify-start w-full",
+                    emergencyScroll && "overflow-y-auto"
+                  )}
+                >
+                  {!hasMedia ? (
+                    /* Pure Text-Only Post */
+                    <div className="relative w-full">
+                      <div className="relative immersive-card rounded-3xl p-6 sm:p-8 overflow-hidden">
+                        <div className="absolute inset-0 opacity-[0.02] pointer-events-none rounded-3xl urban-noise-overlay" />
+                        <div className="relative z-10 flex flex-col">
+                          {post.title && post.title.trim().length > 0 && (
+                            <h2 
+                              ref={registerRef('essential-title')}
+                              className="uppercase mb-2 flex-shrink-0"
+                              style={{
+                                fontFamily: 'Impact, sans-serif',
+                                fontSize: 'clamp(30px, 8vw, 42px)',
+                                lineHeight: 0.92,
+                                letterSpacing: '-0.02em',
+                                color: '#FFFFFF',
+                                textAlign: 'left'
+                              }}
+                            >
+                              {post.title}
+                            </h2>
+                          )}
+                          {post.content && post.content.trim().length > 0 && (
+                            <>
+                              {flexiblesStatus['flexible-text']?.step === 'full' && (
+                                <div 
+                                  ref={registerRef('flexible-text')}
+                                  className="whitespace-pre-wrap break-words text-[17px] sm:text-lg font-normal text-immersive-foreground leading-[1.65] tracking-[0.01em]"
+                                >
+                                  <MentionText content={post.content} />
+                                </div>
+                              )}
+                              {flexiblesStatus['flexible-text']?.step === 'clamped' && (
+                                <div 
+                                  ref={registerRef('flexible-text')}
+                                  className="whitespace-pre-wrap break-words text-[17px] sm:text-lg font-normal text-immersive-foreground leading-[1.65] tracking-[0.01em]"
+                                  style={{ 
+                                    display: '-webkit-box',
+                                    WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-text'].height / (17 * 1.65))),
+                                    WebkitBoxOrient: 'vertical',
+                                    overflow: 'hidden',
+                                    height: `${flexiblesStatus['flexible-text'].height}px`
+                                  }}
+                                >
+                                  <MentionText content={post.content} />
+                                </div>
+                              )}
+                              {flexiblesStatus['flexible-text']?.step === 'hidden' && (
+                                <div ref={registerRef('flexible-text')} style={{ height: 0, overflow: 'hidden' }} />
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Post with Media (Image/Video/Gallery) */
+                    <>
                       {post.title && post.title.trim().length > 0 && (
                         <h2 
-                          className="uppercase mb-2 "
+                          ref={registerRef('essential-title')}
+                          className="uppercase mb-2 flex-shrink-0"
                           style={{
                             fontFamily: 'Impact, sans-serif',
                             fontSize: 'clamp(30px, 8vw, 42px)',
@@ -2081,116 +2236,118 @@ const ImmersivePostCardInner = ({
                           {post.title}
                         </h2>
                       )}
+                      
                       {post.content && post.content.trim().length > 0 && (
-                        <div 
-                          className={cn(
-                            "whitespace-pre-wrap break-words",
-                            post.title && post.title.trim().length > 0 ? "" : "text-[17px] sm:text-lg font-normal text-immersive-foreground leading-[1.65] tracking-[0.01em]"
+                        <>
+                          {flexiblesStatus['flexible-text']?.step === 'full' && (
+                            <div 
+                              ref={registerRef('flexible-text')}
+                              className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                              style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
+                            >
+                              <MentionText content={post.content} />
+                            </div>
                           )}
-                          style={post.title && post.title.trim().length > 0 ? {
-                            fontFamily: 'Inter, sans-serif',
-                            fontSize: '14px',
-                            color: '#7A8FA6',
-                            lineHeight: 1.55,
-                            textAlign: 'left'
-                          } : {}}
-                        >
-                          <DynamicClampBody
-                            containerRef={contentRailRef}
-                            content={post.content}
-                            onShowFull={() => setShowFullText(true)}
-                            enabled={isNearActive}
-                            lineHeightPx={post.title && post.title.trim().length > 0 ? 22 : 28}
-                            minLines={2}
-                            showButtonIcon
-                            buttonClassName="mt-4 text-primary/90"
-                            fadeColor="#0d1117"
-                          />
-                        </div>
+                          {flexiblesStatus['flexible-text']?.step === 'clamped' && (
+                            <div 
+                              ref={registerRef('flexible-text')}
+                              className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                              style={{ 
+                                fontFamily: 'Inter, sans-serif', 
+                                lineHeight: 1.55, 
+                                textAlign: 'left',
+                                display: '-webkit-box',
+                                WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-text'].height / BODY_LINE_HEIGHT_PX)),
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                                height: `${flexiblesStatus['flexible-text'].height}px`
+                              }}
+                            >
+                              <MentionText content={post.content} />
+                            </div>
+                          )}
+                          {flexiblesStatus['flexible-text']?.step === 'hidden' && (
+                            <div ref={registerRef('flexible-text')} style={{ height: 0, overflow: 'hidden' }} />
+                          )}
+                        </>
                       )}
-                    </div>
-                  </div>
-                </div>
-              )}
 
-              {/* User Text for media-only posts - ABOVE the media */}
-              {!useStackLayout && !isAudioPost && !isChallengePost && isMediaOnlyPost && (post.content || post.title) && (
-                <div className="mb-6 flex flex-col gap-1 flex-shrink-0 z-10 relative">
-                  {/* Title */}
-                  {post.title && post.title.trim().length > 0 && (
-                    <h2 
-                      className="uppercase mb-1 "
-                      style={{
-                        fontFamily: 'Impact, sans-serif',
-                        fontSize: 'clamp(30px, 8vw, 42px)',
-                        lineHeight: 0.92,
-                        letterSpacing: '-0.02em',
-                        color: '#FFFFFF',
-                        textAlign: 'left'
-                      }}
-                    >
-                      {post.title}
-                    </h2>
+                      {hasMedia && post.media && post.media.length > 0 && (
+                        <>
+                          {flexiblesStatus['flexible-image']?.step === 'full' && (
+                            <div 
+                              ref={registerRef('flexible-image')} 
+                              className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3"
+                              style={{ height: `${flexiblesStatus['flexible-image'].height}px` }}
+                            >
+                              {post.media.length === 1 ? (
+                                isVideoMedia ? (
+                                  <div className="relative w-full h-full flex items-center justify-center">
+                                    <img
+                                      src={post.media?.[0]?.thumbnail_url || mediaUrl}
+                                      alt=""
+                                      className="w-full h-full object-contain rounded-2xl border border-white/10"
+                                    />
+                                    <div className="absolute inset-0 flex items-center justify-center">
+                                      <div className="bg-white p-3 rounded-full">
+                                        <Play className="w-6 h-6 text-black fill-black" />
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <img
+                                    src={mediaUrl}
+                                    alt=""
+                                    className="w-full h-full object-contain rounded-2xl border border-white/10"
+                                  />
+                                )
+                              ) : (
+                                <MediaGallery
+                                  media={post.media}
+                                  onClick={(_, index) => setSelectedMediaIndex(index)}
+                                  initialIndex={carouselIndex}
+                                  onIndexChange={setCarouselIndex}
+                                  className="h-full w-full object-contain rounded-2xl border border-white/10"
+                                />
+                              )}
+                            </div>
+                          )}
+                          {flexiblesStatus['flexible-image']?.step === 'pill' && (
+                            <div 
+                              ref={registerRef('flexible-image')} 
+                              className="flex-shrink-0 mb-3" 
+                              style={{ height: '36px' }}
+                            >
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedMediaIndex(0);
+                                }}
+                                className="inline-flex h-9 items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 px-4 rounded-full text-white text-xs font-bold"
+                              >
+                                <span>📎 Vedi {isVideoMedia ? 'video' : 'immagine'}</span>
+                              </button>
+                            </div>
+                          )}
+                          {flexiblesStatus['flexible-image']?.step === 'hidden' && (
+                            <div ref={registerRef('flexible-image')} style={{ height: 0, overflow: 'hidden' }} />
+                          )}
+                        </>
+                      )}
+                    </>
                   )}
-                  {post.content && post.content.trim().length > 0 && renderBodyText(post.content, !!(post.title && post.title.trim().length > 0))}
-                </div>
-              )}
 
-              {/* Framed Media Window for media-only posts - Hide if using stack layout */}
-              {!useStackLayout && !isAudioPost && !isChallengePost && isMediaOnlyPost && post.media && post.media.length > 0 && (
-                post.media.length === 1 ? (
-                  /* Single media: flexible adaptive layout */
-                  <button
-                    role="button"
-                    aria-label={isVideoMedia ? "Riproduci video" : "Apri immagine"}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedMediaIndex(0);
-                    }}
-                    className="relative flex-1 min-h-0 flex items-center justify-center w-full py-1 active:scale-[0.98] transition-transform overflow-hidden"
-                    style={{ maxHeight: '50vh' }}
-                  >
-                    {isVideoMedia ? (
-                      <>
-                        <img
-                          src={post.media?.[0]?.thumbnail_url || mediaUrl}
-                          alt=""
-                          className="max-h-full max-w-full object-contain rounded-2xl  border border-white/10"
-                        />
-                        {/* Play icon overlay */}
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="bg-white p-4 rounded-full ">
-                            <Play className="w-8 h-8 text-black fill-black" />
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <img
-                          src={mediaUrl}
-                          alt=""
-                          className="max-h-full max-w-full object-contain rounded-2xl  border border-white/10"
-                        />
-                        {/* Expand pill with label */}
-                        <div className="absolute bottom-4 right-4 bg-black/80 px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                          <Maximize2 className="w-3.5 h-3.5 text-white" />
-                          <span className="text-xs font-medium text-white">Apri</span>
-                        </div>
-                      </>
-                    )}
-                  </button>
-                ) : (
-                  /* Multi-media: adaptive gallery with max height */
-                  <div className="flex-1 min-h-0 w-full flex flex-col justify-center overflow-hidden" style={{ maxHeight: '50vh' }}>
-                    <MediaGallery
-                      media={post.media}
-                      onClick={(_, index) => setSelectedMediaIndex(index)}
-                      initialIndex={carouselIndex}
-                      onIndexChange={setCarouselIndex}
-                      className="h-full w-full object-contain"
-                    />
-                  </div>
-                )
+                  {showDrawerCta && (
+                    <div className="flex-shrink-0 mt-2 mb-3">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        className="text-sm text-primary font-semibold hover:underline block"
+                      >
+                        Approfondisci
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Twitter/X Card - Unified glassmorphic container */}
@@ -2293,84 +2450,15 @@ const ImmersivePostCardInner = ({
                   useStackLayout={useStackLayout}
                 />
               ) : hasLink && isYoutube ? (
-                /* YouTube Video Card - Tap to play */
-                <div className="w-full mt-4">
-                  {!youtubeEmbedActive ? (
-                    /* Thumbnail with Play button */
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setYoutubeEmbedActive(true);
-                      }}
-                      className="relative w-full rounded-2xl overflow-hidden border border-white/10  active:scale-[0.98] transition-transform"
-                    >
-                      {/* Video Thumbnail */}
-                      <img
-                        src={articlePreview?.image || post.preview_img || `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url!)}/maxresdefault.jpg`}
-                        alt=""
-                        className="w-full aspect-video max-h-[25vh] sm:max-h-none object-cover"
-                      />
-
-                      {/* Play Button Overlay */}
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                        <div className="bg-red-600 p-4 rounded-full ">
-                          <Play className="w-8 h-8 text-white fill-white" />
-                        </div>
-                      </div>
-
-                      {/* YouTube Badge */}
-                      <div className="absolute bottom-3 left-3 bg-black/90 px-3 py-1.5 rounded-full flex items-center gap-2">
-                        <svg className="w-4 h-4 text-red-600" viewBox="0 0 24 24" fill="currentColor">
-                          <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
-                          <polygon fill="white" points="9.545,15.568 15.818,12 9.545,8.432" />
-                        </svg>
-                        <span className="text-white text-xs font-medium">YouTube</span>
-                      </div>
-                    </button>
-                  ) : (
-                    /* Active YouTube Embed */
-                    <div className="w-full rounded-2xl overflow-hidden border border-white/10 ">
-                      <div className="aspect-video">
-                        <iframe
-                          src={`https://www.youtube.com/embed/${extractYoutubeVideoId(post.shared_url!)}?autoplay=1&mute=1&cc_load_policy=1&rel=0`}
-                          className="w-full h-full"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                          allowFullScreen
-                          sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
-                          title="YouTube video"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Video Title */}
-                  <h1 className="text-xl font-bold text-immersive-foreground leading-tight mt-4 mb-2 ">
-                    {decodeHTMLEntities(articlePreview?.title || post.shared_title)}
-                  </h1>
-
-                  {/* Open on YouTube CTA */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                    }}
-                    className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span className="text-xs uppercase tracking-wider">Apri su YouTube</span>
-                  </button>
-                </div>
-              ) : hasLink && isSpotifyEpisode ? (
-                /* Spotify Podcast Episode: show title + body + compact card */
-                <div 
+                <div
                   className={cn(
                     "flex-1 min-h-0 flex flex-col justify-start w-full",
                     emergencyScroll && "overflow-y-auto"
                   )}
                 >
-                  {/* Title — essenziale misurato runtime */}
-                  {post.title && post.title.trim().length > 0 && (
-                    <h2 
+                  {/* Title */}
+                  {post.title && post.title.trim().length > 0 ? (
+                    <h2
                       ref={registerRef('essential-title')}
                       className="uppercase mb-2 flex-shrink-0"
                       style={{
@@ -2384,32 +2472,34 @@ const ImmersivePostCardInner = ({
                     >
                       {post.title}
                     </h2>
+                  ) : (
+                    <h2
+                      ref={registerRef('essential-title')}
+                      className="text-xl font-bold text-immersive-foreground leading-tight mt-1 mb-2 flex-shrink-0"
+                    >
+                      {decodeHTMLEntities(articlePreview?.title || post.shared_title)}
+                    </h2>
                   )}
 
-                  {/* Body text — unico flessibile */}
+                  {/* Body text */}
                   {post.content && post.content.trim().length > 0 && (
                     <>
                       {flexiblesStatus['flexible-text']?.step === 'full' && (
-                        <div 
+                        <div
                           ref={registerRef('flexible-text')}
-                          className={cn(
-                            "whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                          )}
+                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
                           style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
                         >
                           <MentionText content={post.content} />
                         </div>
                       )}
-
                       {flexiblesStatus['flexible-text']?.step === 'clamped' && (
-                        <div 
+                        <div
                           ref={registerRef('flexible-text')}
-                          className={cn(
-                            "whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                          )}
-                          style={{ 
-                            fontFamily: 'Inter, sans-serif', 
-                            lineHeight: 1.55, 
+                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                          style={{
+                            fontFamily: 'Inter, sans-serif',
+                            lineHeight: 1.55,
                             textAlign: 'left',
                             display: '-webkit-box',
                             WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-text'].height / BODY_LINE_HEIGHT_PX)),
@@ -2421,7 +2511,6 @@ const ImmersivePostCardInner = ({
                           <MentionText content={post.content} />
                         </div>
                       )}
-
                       {flexiblesStatus['flexible-text']?.step === 'hidden' && (
                         <div ref={registerRef('flexible-text')} style={{ height: 0, overflow: 'hidden' }} />
                       )}
@@ -2440,7 +2529,157 @@ const ImmersivePostCardInner = ({
                     </div>
                   )}
 
-                  {/* Spotify embed — essenziale a stati */}
+                  {/* YouTube embed */}
+                  {essentialStates['essential-youtube'] === 'full' && (
+                    <div ref={registerRef('essential-youtube')} className="w-full mt-auto flex-shrink-0">
+                      {!youtubeEmbedActive ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setYoutubeEmbedActive(true);
+                          }}
+                          className="relative w-full rounded-2xl overflow-hidden border border-white/10 active:scale-[0.98] transition-transform"
+                        >
+                          <img
+                            src={articlePreview?.image || post.preview_img || `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url!)}/maxresdefault.jpg`}
+                            alt=""
+                            className="w-full aspect-video object-cover"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <div className="bg-red-600 p-4 rounded-full">
+                              <Play className="w-8 h-8 text-white fill-white" />
+                            </div>
+                          </div>
+                          <div className="absolute bottom-3 left-3 bg-black/90 px-3 py-1.5 rounded-full flex items-center gap-2">
+                            <svg className="w-4 h-4 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
+                              <polygon fill="white" points="9.545,15.568 15.818,12 9.545,8.432" />
+                            </svg>
+                            <span className="text-white text-xs font-medium">YouTube</span>
+                          </div>
+                        </button>
+                      ) : (
+                        <div className="w-full rounded-2xl overflow-hidden border border-white/10">
+                          <div className="aspect-video">
+                            <iframe
+                              src={`https://www.youtube.com/embed/${extractYoutubeVideoId(post.shared_url!)}?autoplay=1&mute=1&cc_load_policy=1&rel=0`}
+                              className="w-full h-full"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                              sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+                              title="YouTube video"
+                            />
+                          </div>
+                        </div>
+                      )}
+                      
+                      {post.title && post.title.trim().length > 0 && (
+                        <h1 className="text-xs font-semibold text-immersive-foreground line-clamp-1 mt-2 mb-1">
+                          {decodeHTMLEntities(articlePreview?.title || post.shared_title)}
+                        </h1>
+                      )}
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                        }}
+                        className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors mt-2"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span className="text-xs uppercase tracking-wider">Apri su YouTube</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {essentialStates['essential-youtube'] === 'pill' && (
+                    <div ref={registerRef('essential-youtube')} className="flex-shrink-0 mt-auto" style={{ height: '36px' }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                        }}
+                        className="inline-flex h-9 items-center gap-1.5 bg-[#FF0000] px-4 rounded-full"
+                      >
+                        <span className="text-white text-xs font-bold">▶️ Guarda su YouTube</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : hasLink && isSpotifyEpisode ? (
+                <div
+                  className={cn(
+                    "flex-1 min-h-0 flex flex-col justify-start w-full",
+                    emergencyScroll && "overflow-y-auto"
+                  )}
+                >
+                  {/* Title */}
+                  {post.title && post.title.trim().length > 0 && (
+                    <h2
+                      ref={registerRef('essential-title')}
+                      className="uppercase mb-2 flex-shrink-0"
+                      style={{
+                        fontFamily: 'Impact, sans-serif',
+                        fontSize: 'clamp(30px, 8vw, 42px)',
+                        lineHeight: 0.92,
+                        letterSpacing: '-0.02em',
+                        color: '#FFFFFF',
+                        textAlign: 'left'
+                      }}
+                    >
+                      {post.title}
+                    </h2>
+                  )}
+
+                  {/* Body text */}
+                  {post.content && post.content.trim().length > 0 && (
+                    <>
+                      {flexiblesStatus['flexible-text']?.step === 'full' && (
+                        <div
+                          ref={registerRef('flexible-text')}
+                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                          style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
+                        >
+                          <MentionText content={post.content} />
+                        </div>
+                      )}
+                      {flexiblesStatus['flexible-text']?.step === 'clamped' && (
+                        <div
+                          ref={registerRef('flexible-text')}
+                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                          style={{
+                            fontFamily: 'Inter, sans-serif',
+                            lineHeight: 1.55,
+                            textAlign: 'left',
+                            display: '-webkit-box',
+                            WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-text'].height / BODY_LINE_HEIGHT_PX)),
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            height: `${flexiblesStatus['flexible-text'].height}px`
+                          }}
+                        >
+                          <MentionText content={post.content} />
+                        </div>
+                      )}
+                      {flexiblesStatus['flexible-text']?.step === 'hidden' && (
+                        <div ref={registerRef('flexible-text')} style={{ height: 0, overflow: 'hidden' }} />
+                      )}
+                    </>
+                  )}
+
+                  {/* Approfondisci */}
+                  {showDrawerCta && (
+                    <div className="flex-shrink-0 mt-2 mb-3">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        className="text-sm text-primary font-semibold hover:underline block"
+                      >
+                        Approfondisci
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Spotify embed */}
                   {essentialStates['essential-spotify'] === 'full' && (
                     <div ref={registerRef('essential-spotify')} className="flex-shrink-0 mt-auto">
                       <SpotifyPodcastCompactCard
@@ -2468,189 +2707,259 @@ const ImmersivePostCardInner = ({
                 </div>
               ) : hasLink && isSpotifyTrack ? (
                 <div
-                  className="flex-1 min-h-0 flex flex-col items-center justify-center cursor-pointer active:scale-[0.98] transition-transform w-full"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (post.shared_url) {
-                      window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                    }
-                  }}
+                  className={cn(
+                    "flex-1 min-h-0 flex flex-col justify-start w-full",
+                    emergencyScroll && "overflow-y-auto"
+                  )}
                 >
-                  {/* Spotify Artwork - Adaptive centered square */}
-                  {(articlePreview?.image || post.preview_img) && (
-                    <div className="flex-1 min-h-0 w-full flex items-center justify-center mb-4">
-                      <img
-                        src={articlePreview?.image || post.preview_img}
-                        alt=""
-                        className="max-h-full max-w-full aspect-square object-contain rounded-2xl  dark: border border-slate-200 dark:border-white/10"
+                  {/* Title */}
+                  {post.title && post.title.trim().length > 0 && (
+                    <h2
+                      ref={registerRef('essential-title')}
+                      className="uppercase mb-2 flex-shrink-0"
+                      style={{
+                        fontFamily: 'Impact, sans-serif',
+                        fontSize: 'clamp(30px, 8vw, 42px)',
+                        lineHeight: 0.92,
+                        letterSpacing: '-0.02em',
+                        color: '#FFFFFF',
+                        textAlign: 'left'
+                      }}
+                    >
+                      {post.title}
+                    </h2>
+                  )}
+
+                  {/* Body text */}
+                  {post.content && post.content.trim().length > 0 && (
+                    <>
+                      {flexiblesStatus['flexible-text']?.step === 'full' && (
+                        <div
+                          ref={registerRef('flexible-text')}
+                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                          style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
+                        >
+                          <MentionText content={post.content} />
+                        </div>
+                      )}
+                      {flexiblesStatus['flexible-text']?.step === 'clamped' && (
+                        <div
+                          ref={registerRef('flexible-text')}
+                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                          style={{
+                            fontFamily: 'Inter, sans-serif',
+                            lineHeight: 1.55,
+                            textAlign: 'left',
+                            display: '-webkit-box',
+                            WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-text'].height / BODY_LINE_HEIGHT_PX)),
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            height: `${flexiblesStatus['flexible-text'].height}px`
+                          }}
+                        >
+                          <MentionText content={post.content} />
+                        </div>
+                      )}
+                      {flexiblesStatus['flexible-text']?.step === 'hidden' && (
+                        <div ref={registerRef('flexible-text')} style={{ height: 0, overflow: 'hidden' }} />
+                      )}
+                    </>
+                  )}
+
+                  {/* Approfondisci */}
+                  {showDrawerCta && (
+                    <div className="flex-shrink-0 mt-2 mb-3">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        className="text-sm text-primary font-semibold hover:underline block"
+                      >
+                        Approfondisci
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Spotify track embed */}
+                  {essentialStates['essential-spotify-song'] === 'full' && (
+                    <div ref={registerRef('essential-spotify-song')} className="flex-shrink-0 mt-auto w-full">
+                      <SpotifyPodcastCompactCard
+                        imageUrl={articlePreview?.image || post.preview_img || ''}
+                        podcastName={articlePreview?.description || 'Spotify'}
+                        episodeTitle={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
+                        spotifyUrl={post.shared_url || ''}
                       />
                     </div>
                   )}
 
-                  {/* Spotify Title - Fixed shrink-0 */}
-                  <h1 className="flex-shrink-0 text-2xl font-bold text-slate-900 dark:text-white leading-tight mb-2 text-center  dark: line-clamp-2">
-                    {decodeHTMLEntities(articlePreview?.title || post.shared_title)}
-                  </h1>
-
-                  {/* Artist name - Fixed shrink-0 */}
-                  {articlePreview?.description && (
-                    <p className="flex-shrink-0 text-[#1DB954] text-center font-medium mb-4 line-clamp-1">
-                      {articlePreview.description}
-                    </p>
+                  {essentialStates['essential-spotify-song'] === 'pill' && (
+                    <div ref={registerRef('essential-spotify-song')} className="flex-shrink-0 mt-auto" style={{ height: '36px' }}>
+                      <a
+                        href={post.shared_url || ''}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex h-9 items-center gap-1.5 bg-[#1DB954] px-4 rounded-full"
+                      >
+                        <span className="text-white text-xs font-bold">🎵 Ascolta su Spotify</span>
+                      </a>
+                    </div>
                   )}
-
-                  {/* Static Spotify badge - Fixed shrink-0 */}
-                  <div className="flex flex-shrink-0 justify-center">
-                    <div className="flex items-center gap-2 bg-[#1DB954]/20 border border-[#1DB954]/30 px-4 py-2 rounded-full">
-                      <svg className="w-4 h-4" viewBox="0 0 24 24" fill="#1DB954">
-                        <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z" />
-                      </svg>
-                      <span className="text-[#1DB954] text-xs font-bold uppercase tracking-wider">Spotify</span>
-                    </div>
-                  </div>
                 </div>
-              ) : hasLink && post.shared_url?.startsWith('focus://') ? (
-                /* Editorial Share - Internal navigation, Trust Score always ALTO */
-                <QuotedEditorialCard
-                  title={decodeHTMLEntities(post.shared_title || 'Il Punto')}
-                  summary={(() => {
-                    // Priority: article_content > editorialSummary (fetched from DB)
-                    const raw = post.article_content || '';
-                    const cleaned = raw.replace(/\[SOURCE:[\d,\s]+\]/g, '').trim();
-                    if (cleaned.length > 20) {
-                      return cleaned.substring(0, 260).trim() + '…';
-                    }
-                    // Use fetched summary from daily_focus
-                    if (editorialSummary) {
-                      return editorialSummary.substring(0, 260).trim() + '…';
-                    }
-                    return undefined;
-                  })()}
-                  onClick={() => {
-                    const focusId = post.shared_url?.replace('focus://daily/', '');
-                    if (focusId) {
-                      navigate(`/?focus=${focusId}`);
-                    }
-                  }}
-                  trustScore={{ band: 'ALTO', score: 90 }}
-                />
-              ) : hasLink && ((post.content?.trim()?.length || 0) > 0 || (post.title?.trim()?.length || 0) > 0) ? (
-                /* Compact Link Preview (when user text is present) */
-                <div className="w-full mb-[6px] mt-2 shrink-0">
-                  <div 
-                    className="flex flex-row items-center gap-2 bg-[rgba(255,255,255,0.06)] rounded-[8px] p-[8px_10px] w-full cursor-pointer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (post.shared_url) {
-                        window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                      }
-                    }}
-                  >
-                    <div className="w-[48px] h-[48px] rounded-[6px] bg-[rgba(255,255,255,0.06)] shrink-0 flex items-center justify-center overflow-hidden">
-                      {articlePreview?.image || post.preview_img ? (
-                        <img src={articlePreview?.image || post.preview_img} alt="" className="w-full h-full object-cover" />
-                      ) : (
-                        <ExternalLink className="w-5 h-5 text-white/40" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-sans text-[11px] font-semibold text-white line-clamp-2 leading-tight">
-                        {decodeHTMLEntities(articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url))}
-                      </p>
-                      <p className="font-sans text-[9px] text-[rgba(255,255,255,0.4)] mt-[2px] truncate">
-                        {getHostnameFromUrl(post.shared_url)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : hasLink && (
-                <div className={cn("flex-1 min-h-0 flex flex-col justify-start pt-4 w-full", post.is_intent && "min-h-0")}>
-                  {isWaitingForPreview && !post.shared_title && !post.preview_img ? (
-                    /* Skeleton while loading preview data */
-                    <div className="space-y-4 animate-pulse w-full">
-                      <div className="w-full aspect-video bg-white/10 rounded-xl" />
-                      <div className="w-12 h-1 bg-white/20 rounded-full" />
-                      <div className="space-y-2">
-                        <div className="h-5 bg-white/10 rounded-lg w-3/4" />
-                        <div className="h-5 bg-white/10 rounded-lg w-1/2" />
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-white/10 rounded" />
-                        <div className="h-3 bg-white/10 rounded w-24" />
-                      </div>
-                    </div>
-                  ) : (
-                    <div
-                      className="cursor-pointer active:scale-[0.98] transition-transform w-full flex flex-col items-start max-h-full"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (post.shared_url) {
-                          window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                        }
+              ) : isGenericArticle ? (
+                <div
+                  className={cn(
+                    "flex-1 min-h-0 flex flex-col justify-start w-full",
+                    emergencyScroll && "overflow-y-auto"
+                  )}
+                >
+                  {/* Title */}
+                  {post.title && post.title.trim().length > 0 && (
+                    <h2
+                      ref={registerRef('essential-title')}
+                      className="uppercase mb-2 flex-shrink-0"
+                      style={{
+                        fontFamily: 'Impact, sans-serif',
+                        fontSize: 'clamp(30px, 8vw, 42px)',
+                        lineHeight: 0.92,
+                        letterSpacing: '-0.02em',
+                        color: '#FFFFFF',
+                        textAlign: 'left'
                       }}
                     >
-                      {/* Visible Metadata Image - Uses max-h to fit available space */}
-                      {!post.is_intent && (
-                        <div className="flex-1 min-h-0 w-full flex items-center justify-center mb-4">
-                          <SourceImageWithFallback
-                            src={articlePreview?.image || post.preview_img}
-                            sharedUrl={post.shared_url}
-                            isIntent={post.is_intent}
-                            trustScore={displayTrustScore}
-                            hideOverlay={true}
-                            platform={articlePreview?.platform}
-                            hostname={getHostnameFromUrl(post.shared_url)}
-                            className="max-h-full w-full object-contain rounded-xl"
-                          />
+                      {post.title}
+                    </h2>
+                  )}
+
+                  {/* Body text */}
+                  {post.content && post.content.trim().length > 0 && (
+                    <>
+                      {flexiblesStatus['flexible-text']?.step === 'full' && (
+                        <div
+                          ref={registerRef('flexible-text')}
+                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                          style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
+                        >
+                          <MentionText content={post.content} />
                         </div>
                       )}
+                      {flexiblesStatus['flexible-text']?.step === 'clamped' && (
+                        <div
+                          ref={registerRef('flexible-text')}
+                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                          style={{
+                            fontFamily: 'Inter, sans-serif',
+                            lineHeight: 1.55,
+                            textAlign: 'left',
+                            display: '-webkit-box',
+                            WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-text'].height / BODY_LINE_HEIGHT_PX)),
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            height: `${flexiblesStatus['flexible-text'].height}px`
+                          }}
+                        >
+                          <MentionText content={post.content} />
+                        </div>
+                      )}
+                      {flexiblesStatus['flexible-text']?.step === 'hidden' && (
+                        <div ref={registerRef('flexible-text')} style={{ height: 0, overflow: 'hidden' }} />
+                      )}
+                    </>
+                  )}
 
-                      <div className="w-12 h-1 bg-slate-200 dark:bg-white/30 rounded-full mb-4 shrink-0" />
-                      {/* Caption/Title with truncation for long social captions */}
-                      {(() => {
-                        const displayTitle = decodeHTMLEntities(articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url));
-                        const isCaptionLong = displayTitle && displayTitle.length > CAPTION_TRUNCATE_LENGTH;
-                        const truncatedCaption = isCaptionLong
-                          ? displayTitle.slice(0, CAPTION_TRUNCATE_LENGTH).trim() + '...'
-                          : displayTitle;
+                  {/* Approfondisci */}
+                  {showDrawerCta && (
+                    <div className="flex-shrink-0 mt-2 mb-3">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        className="text-sm text-primary font-semibold hover:underline block"
+                      >
+                        Approfondisci
+                      </button>
+                    </div>
+                  )}
 
-                        return (
-                          <div className="mb-3 shrink-0 text-left w-full" onClick={(e) => e.stopPropagation()}>
-                            <p className="text-lg font-medium text-slate-900 dark:text-white/90 leading-relaxed  dark: line-clamp-3">
-                              {truncatedCaption}
+                  {/* Embed content */}
+                  {essentialStates['essential-article'] === 'full' && (
+                    <div ref={registerRef('essential-article')} className="w-full mt-auto flex-shrink-0">
+                      {isEditorialFocus ? (
+                        <QuotedEditorialCard
+                          title={decodeHTMLEntities(post.shared_title || 'Il Punto')}
+                          summary={(() => {
+                            const raw = post.article_content || '';
+                            const cleaned = raw.replace(/\[SOURCE:[\d,\s]+\]/g, '').trim();
+                            if (cleaned.length > 20) return cleaned.substring(0, 260).trim() + '…';
+                            if (editorialSummary) return editorialSummary.substring(0, 260).trim() + '…';
+                            return undefined;
+                          })()}
+                          onClick={() => {
+                            const focusId = post.shared_url?.replace('focus://daily/', '');
+                            if (focusId) navigate(`/?focus=${focusId}`);
+                          }}
+                          trustScore={{ band: 'ALTO', score: 90 }}
+                        />
+                      ) : (
+                        <div
+                          className="cursor-pointer active:scale-[0.98] transition-transform w-full flex flex-col items-start"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (post.shared_url) {
+                              window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                            }
+                          }}
+                        >
+                          {(articlePreview?.image || post.preview_img) && (
+                            <div className="w-full h-[140px] flex items-center justify-center mb-3 overflow-hidden rounded-xl">
+                              <SourceImageWithFallback
+                                src={articlePreview?.image || post.preview_img}
+                                sharedUrl={post.shared_url}
+                                isIntent={post.is_intent}
+                                trustScore={displayTrustScore}
+                                hideOverlay={true}
+                                platform={articlePreview?.platform}
+                                hostname={getHostnameFromUrl(post.shared_url)}
+                                className="h-full w-full object-cover rounded-xl"
+                              />
+                            </div>
+                          )}
+
+                          <div className="w-12 h-1 bg-slate-200 dark:bg-white/30 rounded-full mb-3 shrink-0" />
+                          
+                          <div className="mb-2 shrink-0 text-left w-full">
+                            <p className="text-base font-semibold text-slate-900 dark:text-white/90 leading-snug line-clamp-2">
+                              {decodeHTMLEntities(articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url))}
                             </p>
-                            {isCaptionLong && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowFullCaption(true);
-                                }}
-                                className="mt-2 text-sm text-primary font-semibold hover:underline"
-                              >
-                                Approfondisci
-                              </button>
-                            )}
                           </div>
-                        );
-                      })()}
-                      <div className={cn(
-                        "flex items-center text-slate-500 dark:text-white/70 mb-4 shrink-0 justify-start",
-                        post.is_intent ? "gap-1" : "gap-2"
-                      )}>
-                        <ExternalLink className={cn(
-                          post.is_intent ? "w-2.5 h-2.5" : "w-3 h-3"
-                        )} />
-                        <span className={cn(
-                          "uppercase font-bold tracking-widest",
-                          post.is_intent ? "text-[10px]" : "text-xs"
-                        )}>
-                          {getHostnameFromUrl(post.shared_url)}
-                        </span>
-                      </div>
+
+                          <div className="flex items-center text-slate-500 dark:text-white/70 mb-1 gap-2 shrink-0">
+                            <ExternalLink className="w-3 h-3" />
+                            <span className="uppercase font-bold tracking-widest text-[10px]">
+                              {getHostnameFromUrl(post.shared_url)}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {essentialStates['essential-article'] === 'pill' && (
+                    <div ref={registerRef('essential-article')} className="flex-shrink-0 mt-auto" style={{ height: '36px' }}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isEditorialFocus) {
+                            const focusId = post.shared_url?.replace('focus://daily/', '');
+                            if (focusId) navigate(`/?focus=${focusId}`);
+                          } else if (post.shared_url) {
+                            window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                          }
+                        }}
+                        className="inline-flex h-9 items-center gap-1.5 bg-[#0A7AFF] hover:bg-[#0A7AFF]/90 px-4 rounded-full"
+                      >
+                        <span className="text-white text-xs font-bold">📰 Leggi articolo</span>
+                      </button>
                     </div>
                   )}
                 </div>
-              )}
+              ) : null}
 
               {/* Stack Layout: Source Preview LAST (Media OR Link) - Only show ONE source at bottom */}
               {useStackLayout && (finalSourceUrl || (finalSourceMedia && finalSourceMedia.length > 0)) && (
