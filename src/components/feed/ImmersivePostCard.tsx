@@ -98,6 +98,7 @@ import { useOriginalSource } from "@/hooks/useOriginalSource";
 import { haptics } from "@/lib/haptics";
 import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
 import { useChallengeResponses } from "@/hooks/useChallengeResponses";
+import { useDynamicCardLayout } from "@/hooks/useDynamicCardLayout";
 import { useLongPress } from "@/hooks/useLongPress";
 import { ReactionPicker, reactionToEmoji, type ReactionType } from "@/components/ui/reaction-picker";
 // ReactionSummary removed - count next to heart is now clickable
@@ -365,6 +366,44 @@ const ImmersivePostCardInner = ({
       image: '',
     };
   }, [articlePreviewData, urlToPreview, post.shared_title, post.preview_img, quotedPost?.shared_title, quotedPost?.preview_img]);
+
+  const isSpotify = articlePreview?.platform === 'spotify';
+  const isSpotifyEpisode = isSpotify && (
+    post.shared_url?.includes('/episode/') ||
+    post.shared_url?.includes('/show/') ||
+    false
+  );
+
+  const {
+    status: layoutStatus,
+    flexiblesStatus,
+    showDrawerCta,
+    emergencyScroll,
+    registerRef
+  } = useDynamicCardLayout({
+    availableHeight,
+    essentials: isSpotifyEpisode ? [
+      { id: 'essential-header' },
+      { id: 'essential-title' },
+      { id: 'essential-actionbar' },
+      { id: 'essential-cta' }
+    ] : [],
+    flexibles: isSpotifyEpisode ? [
+      {
+        id: 'flexible-spotify',
+        compressionSteps: ['full', 'pill', 'hidden'],
+        minReadabilityHeight: 80,
+        fallbackHeight: 100
+      },
+      {
+        id: 'flexible-text',
+        compressionSteps: ['full', 'clamped', 'hidden'],
+        minReadabilityHeight: 60,
+        fallbackHeight: 120
+      }
+    ] : [],
+    compressionPriority: isSpotifyEpisode ? ['flexible-spotify', 'flexible-text'] : []
+  });
 
   // Gate states
   const [showReader, setShowReader] = useState(false);
@@ -1313,12 +1352,6 @@ const ImmersivePostCardInner = ({
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: it });
   const hasMedia = (post.media && post.media.length > 0) || (quotedPost?.media && quotedPost.media.length > 0);
   const hasLink = !!post.shared_url;
-  const isSpotify = articlePreview?.platform === 'spotify';
-  const isSpotifyEpisode = isSpotify && (
-    post.shared_url?.includes('/episode/') ||
-    post.shared_url?.includes('/show/') ||
-    false
-  );
   const isSpotifyTrack = isSpotify && !isSpotifyEpisode;
   const isTwitter = articlePreview?.platform === 'twitter' || detectPlatformFromUrl(post.shared_url || '') === 'twitter';
   const isLinkedIn = articlePreview?.platform === 'linkedin' || detectPlatformFromUrl(post.shared_url || '') === 'linkedin';
@@ -1486,6 +1519,7 @@ const ImmersivePostCardInner = ({
   return (
     <>
       <div
+        ref={registerRef('card-container')}
         className="h-[100dvh] w-full snap-start relative overflow-hidden bg-immersive transition-colors duration-500"
         onClick={handleDoubleTap}
       >
@@ -1620,10 +1654,8 @@ const ImmersivePostCardInner = ({
 
           <div className="absolute inset-y-0 left-12 right-12 z-50">
 
-          {/* Top Bar */}
-
           {/* [Rail 1] HeaderRail: Fixed top overlay with gradient fade */}
-          <div className="absolute top-0 left-0 right-0 z-10">
+          <div ref={registerRef('essential-header')} className="absolute top-0 left-0 right-0 z-10">
             <div className="flex justify-between items-start pt-[calc(env(safe-area-inset-top)+72px)] pb-5">
             <div className="flex flex-col items-center gap-2">
               <div
@@ -2306,10 +2338,16 @@ const ImmersivePostCardInner = ({
                 </div>
               ) : hasLink && isSpotifyEpisode ? (
                 /* Spotify Podcast Episode: show title + body + compact card */
-                <div className="flex-1 min-h-0 flex flex-col justify-start w-full">
+                <div 
+                  className={cn(
+                    "flex-1 min-h-0 flex flex-col justify-start w-full",
+                    emergencyScroll && "overflow-y-auto"
+                  )}
+                >
                   {/* Title */}
                   {post.title && post.title.trim().length > 0 && (
                     <h2 
+                      ref={registerRef('essential-title')}
                       className="uppercase mb-2 flex-shrink-0"
                       style={{
                         fontFamily: 'Impact, sans-serif',
@@ -2323,39 +2361,105 @@ const ImmersivePostCardInner = ({
                       {post.title}
                     </h2>
                   )}
-                  {/* Body content - truncated with "Approfondisci" like standard editorial posts */}
-                  {post.content && post.content.trim().length > 0 && (
-                    <div 
-                      className={cn(
-                        "whitespace-pre-wrap break-words  mb-3",
-                        post.title && post.title.trim().length > 0 ? "text-[14px] text-[#7A8FA6]" : "text-base text-slate-600 dark:text-white/90 leading-snug tracking-wide"
-                      )}
-                      style={post.title && post.title.trim().length > 0 ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
+
+                  {/* Essential CTA (Ascolta su Spotify button link, aligned with title/design) */}
+                  <div className="flex-shrink-0 mb-3">
+                    <button
+                      ref={registerRef('essential-cta')}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                      }}
+                      className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors"
                     >
-                      {post.content.length > 400 ? (
-                        <>
-                          <MentionText content={post.content.slice(0, 400) + '...'} />
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                            className="mt-2 text-sm text-primary font-semibold hover:underline block"
-                          >
-                            Approfondisci
-                          </button>
-                        </>
-                      ) : (
-                        <MentionText content={post.content} />
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span className="text-xs uppercase tracking-wider">Ascolta su Spotify</span>
+                    </button>
+                  </div>
+
+                  {/* Body content - flexible-text */}
+                  {post.content && post.content.trim().length > 0 && (
+                    <>
+                      {flexiblesStatus['flexible-text']?.step === 'full' && (
+                        <div 
+                          ref={registerRef('flexible-text')}
+                          className={cn(
+                            "whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                          )}
+                          style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
+                        >
+                          <MentionText content={post.content} />
+                        </div>
                       )}
+
+                      {flexiblesStatus['flexible-text']?.step === 'clamped' && (
+                        <div 
+                          ref={registerRef('flexible-text')}
+                          className={cn(
+                            "whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                          )}
+                          style={{ 
+                            fontFamily: 'Inter, sans-serif', 
+                            lineHeight: 1.55, 
+                            textAlign: 'left',
+                            display: '-webkit-box',
+                            WebkitLineClamp: Math.max(1, Math.floor((flexiblesStatus['flexible-text'].height) / 21.7)),
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            height: `${flexiblesStatus['flexible-text'].height}px`
+                          }}
+                        >
+                          <MentionText content={post.content} />
+                        </div>
+                      )}
+
+                      {flexiblesStatus['flexible-text']?.step === 'hidden' && (
+                        <div ref={registerRef('flexible-text')} style={{ height: '0px', overflow: 'hidden' }} />
+                      )}
+                    </>
+                  )}
+
+                  {/* Compact Spotify card at the bottom / pill or hidden - flexible-spotify */}
+                  {flexiblesStatus['flexible-spotify']?.step === 'full' && (
+                    <div ref={registerRef('flexible-spotify')} className="flex-shrink-0 mt-auto">
+                      <SpotifyPodcastCompactCard
+                        imageUrl={articlePreview?.image || post.preview_img || ''}
+                        podcastName={articlePreview?.description || getHostnameFromUrl(post.shared_url)}
+                        episodeTitle={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
+                        spotifyUrl={post.shared_url || ''}
+                      />
                     </div>
                   )}
-                  {/* Compact Spotify card at the bottom */}
-                  <div className="flex-shrink-0 mt-auto">
-                    <SpotifyPodcastCompactCard
-                      imageUrl={articlePreview?.image || post.preview_img || ''}
-                      podcastName={articlePreview?.description || getHostnameFromUrl(post.shared_url)}
-                      episodeTitle={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
-                      spotifyUrl={post.shared_url || ''}
-                    />
-                  </div>
+
+                  {flexiblesStatus['flexible-spotify']?.step === 'pill' && (
+                    <div ref={registerRef('flexible-spotify')} className="flex-shrink-0 mt-auto" style={{ height: '36px' }}>
+                      <a
+                        href={post.shared_url || ''}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex h-9 items-center gap-1.5 bg-[#1DB954] px-4 rounded-full"
+                      >
+                        <span className="text-white text-xs font-bold">🎧 Ascolta su Spotify</span>
+                      </a>
+                    </div>
+                  )}
+
+                  {flexiblesStatus['flexible-spotify']?.step === 'hidden' && (
+                    <div ref={registerRef('flexible-spotify')} style={{ height: '0px', overflow: 'hidden' }} />
+                  )}
+
+                  {/* Dynamic Approfondisci button (Drawer CTA) */}
+                  {showDrawerCta && (
+                    <div className="flex-shrink-0 mt-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        className="text-sm text-primary font-semibold hover:underline block"
+                      >
+                        Approfondisci
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : hasLink && isSpotifyTrack ? (
                 <div
@@ -2686,7 +2790,7 @@ const ImmersivePostCardInner = ({
 
           {/* Bottom Actions - Single horizontal axis alignment */}
           {/* [Rail 3] ActionRail: Fixed bottom overlay with gradient fade */}
-          <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none">
+          <div ref={registerRef('essential-actionbar')} className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none">
             <div className="flex items-center justify-between gap-6 pb-[calc(4rem+env(safe-area-inset-bottom)+36px)] pt-4 pointer-events-auto">
 
             {/* Primary Share Button - Pill shape with consistent height */}
