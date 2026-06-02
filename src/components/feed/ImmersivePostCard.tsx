@@ -417,6 +417,7 @@ const ImmersivePostCardInner = ({
 
   const {
     status: layoutStatus,
+    essentialStates,
     flexiblesStatus,
     showDrawerCta,
     emergencyScroll,
