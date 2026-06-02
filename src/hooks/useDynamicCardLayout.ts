@@ -200,6 +200,17 @@ export function useDynamicCardLayout({
       };
 
       let H_tot = calculateTotalHeight(essentialHeights, currentFlexStatus);
+      const isDev = process.env.NODE_ENV !== 'production';
+
+      if (isDev) {
+        console.group(`[useDynamicCardLayout] computeLayout`);
+        console.log('--- INIZIO CALCOLO LAYOUT ---');
+        console.log('availableHeight:', currentAvailableHeight);
+        console.log('essentialHeights (misurate runtime):', { ...essentialHeights });
+        console.log('essentialStates iniziali:', { ...currentEssentialStates });
+        console.log('flexibleNaturalHeights (misurate):', { ...flexibleNaturalHeights });
+        console.log('H_tot iniziale:', H_tot);
+      }
 
       // FASE A: Declassamento degli elementi essenziali a stati multipli
       if (H_tot > currentAvailableHeight) {
@@ -207,10 +218,14 @@ export function useDynamicCardLayout({
           if (ess.states && ess.states.length > 1) {
             for (let i = 1; i < ess.states.length; i++) {
               const nextState = ess.states[i];
+              const previousStateId = currentEssentialStates[ess.id];
               essentialHeights[ess.id] = nextState.height;
               currentEssentialStates[ess.id] = nextState.id;
 
               H_tot = calculateTotalHeight(essentialHeights, currentFlexStatus);
+              if (isDev) {
+                console.log(`[FASE A] Declassamento essenziale '${ess.id}': '${previousStateId}' -> '${nextState.id}' (${nextState.height}px). H_tot temporaneo: ${H_tot}px`);
+              }
               if (H_tot <= currentAvailableHeight) {
                 break;
               }
@@ -220,6 +235,10 @@ export function useDynamicCardLayout({
             break;
           }
         }
+      }
+
+      if (isDev) {
+        console.log('H_tot dopo FASE A:', H_tot);
       }
 
       // FASE B: Compressione Round-Robin Prioritizzata Step-by-Step
@@ -236,6 +255,7 @@ export function useDynamicCardLayout({
             const currentIndex = flexible.compressionSteps.indexOf(currentStatus.step);
 
             if (currentIndex !== -1 && currentIndex < flexible.compressionSteps.length - 1) {
+              const previousStep = currentStatus.step;
               let nextStep = flexible.compressionSteps[currentIndex + 1];
 
               // Edge Case: naturalHeight <= minReadabilityHeight.
@@ -267,6 +287,10 @@ export function useDynamicCardLayout({
               trovatoQualcosaDaComprimere = true;
 
               H_tot = calculateTotalHeight(essentialHeights, currentFlexStatus);
+              if (isDev) {
+                console.log(`[FASE B] Compressione flessibile '${elementId}': step '${previousStep}' -> '${nextStep}' (${calculatedHeight}px). H_tot risultante: ${H_tot}px (availableHeight: ${currentAvailableHeight}px). Decisione: ${H_tot <= currentAvailableHeight ? 'BREAK (fits)' : 'CONTINUE'}`);
+              }
+
               if (H_tot <= currentAvailableHeight) {
                 // NOTA: Questo break esce dal ciclo for interno dei flessibili.
                 // La condizione del while esterno (H_tot > availableHeight) risulterà falsa,
@@ -288,6 +312,15 @@ export function useDynamicCardLayout({
           showDrawerCta = true;
           break;
         }
+      }
+
+      if (isDev) {
+        console.log('--- STATO FINALE LAYOUT ---');
+        console.log('essentialStates:', { ...currentEssentialStates });
+        console.log('flexiblesStatus:', JSON.parse(JSON.stringify(currentFlexStatus)));
+        console.log('showDrawerCta:', showDrawerCta);
+        console.log('emergencyScroll:', emergencyScroll);
+        console.groupEnd();
       }
 
       // Evita aggiornamenti di stato se i valori sono identici a quelli correnti
