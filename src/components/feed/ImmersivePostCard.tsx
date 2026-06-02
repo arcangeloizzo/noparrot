@@ -374,6 +374,30 @@ const ImmersivePostCardInner = ({
     false
   );
 
+  const essentialsConfig = useMemo(() => isSpotifyEpisode ? [
+    { id: 'essential-header' },
+    { id: 'essential-title' },
+    { id: 'essential-actionbar' },
+    { id: 'essential-cta' }
+  ] : [], [isSpotifyEpisode]);
+
+  const flexiblesConfig = useMemo(() => isSpotifyEpisode ? [
+    {
+      id: 'flexible-spotify',
+      compressionSteps: ['full', 'pill', 'hidden'] as const,
+      minReadabilityHeight: 80,
+      fallbackHeight: 100
+    },
+    {
+      id: 'flexible-text',
+      compressionSteps: ['full', 'clamped', 'hidden'] as const,
+      minReadabilityHeight: 60,
+      fallbackHeight: 120
+    }
+  ] : [], [isSpotifyEpisode]);
+
+  const priorityConfig = useMemo(() => isSpotifyEpisode ? ['flexible-spotify', 'flexible-text'] : [], [isSpotifyEpisode]);
+
   const {
     status: layoutStatus,
     flexiblesStatus,
@@ -382,27 +406,9 @@ const ImmersivePostCardInner = ({
     registerRef
   } = useDynamicCardLayout({
     availableHeight,
-    essentials: isSpotifyEpisode ? [
-      { id: 'essential-header' },
-      { id: 'essential-title' },
-      { id: 'essential-actionbar' },
-      { id: 'essential-cta' }
-    ] : [],
-    flexibles: isSpotifyEpisode ? [
-      {
-        id: 'flexible-spotify',
-        compressionSteps: ['full', 'pill', 'hidden'],
-        minReadabilityHeight: 80,
-        fallbackHeight: 100
-      },
-      {
-        id: 'flexible-text',
-        compressionSteps: ['full', 'clamped', 'hidden'],
-        minReadabilityHeight: 60,
-        fallbackHeight: 120
-      }
-    ] : [],
-    compressionPriority: isSpotifyEpisode ? ['flexible-spotify', 'flexible-text'] : []
+    essentials: essentialsConfig,
+    flexibles: flexiblesConfig,
+    compressionPriority: priorityConfig
   });
 
   // Gate states

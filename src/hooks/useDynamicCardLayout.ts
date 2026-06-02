@@ -91,6 +91,17 @@ export function useDynamicCardLayout({
     };
   });
 
+  // Usiamo un ref mutable per conservare il layoutResult corrente ed evitare che computeLayout
+  // debba dipendere da layoutResult (che innescherebbe loop di setState infiniti)
+  const layoutResultRef = useRef(layoutResult);
+  layoutResultRef.current = layoutResult;
+
+  // Serializziamo le configurazioni complesse passate in input per creare chiavi stabili di dependency array.
+  // In questo modo, l'effetto non si attiva ad ogni renderizzazione se l'utente passa array ricreati al volo.
+  const serializedEssentials = JSON.stringify(essentials);
+  const serializedFlexibles = JSON.stringify(flexibles);
+  const serializedPriority = JSON.stringify(compressionPriority);
+
   useLayoutEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -125,7 +136,7 @@ export function useDynamicCardLayout({
         let naturalHeight = flex.fallbackHeight;
         const node = elementRefs.current[flex.id];
         if (node) {
-          const currentStep = layoutResult.flexiblesStatus[flex.id]?.step || 'full';
+          const currentStep = layoutResultRef.current.flexiblesStatus[flex.id]?.step || 'full';
           if (currentStep === 'full') {
             naturalHeight = node.getBoundingClientRect().height || node.scrollHeight || flex.fallbackHeight;
             naturalHeightsRef.current[flex.id] = naturalHeight;
@@ -254,12 +265,22 @@ export function useDynamicCardLayout({
         }
       }
 
-      setLayoutResult({
-        essentialStates: currentEssentialStates,
-        flexiblesStatus: currentFlexStatus,
-        showDrawerCta,
-        emergencyScroll
-      });
+      // Evita aggiornamenti di stato se i valori sono identici a quelli correnti
+      const prevResult = layoutResultRef.current;
+      const isIdentical = 
+        JSON.stringify(prevResult.essentialStates) === JSON.stringify(currentEssentialStates) &&
+        JSON.stringify(prevResult.flexiblesStatus) === JSON.stringify(currentFlexStatus) &&
+        prevResult.showDrawerCta === showDrawerCta &&
+        prevResult.emergencyScroll === emergencyScroll;
+
+      if (!isIdentical) {
+        setLayoutResult({
+          essentialStates: currentEssentialStates,
+          flexiblesStatus: currentFlexStatus,
+          showDrawerCta,
+          emergencyScroll
+        });
+      }
     };
 
     const handleResize = () => {
@@ -326,7 +347,7 @@ export function useDynamicCardLayout({
         window.clearTimeout(timeoutId);
       }
     };
-  }, [availableHeight, essentials, flexibles, compressionPriority]);
+  }, [availableHeight, serializedEssentials, serializedFlexibles, serializedPriority]);
 
   // Dev-only warning per ref mancanti o blocco in pending
   useEffect(() => {
