@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 // Phase 4.4: rimosso import updateCognitiveDensityWeighted (sistema density refactored a vista derivata).
@@ -129,13 +129,16 @@ export interface Post {
 export const usePosts = () => {
   const { user, loading, authReady } = useAuth();
 
-  return useQuery({
+  const query = useInfiniteQuery({
     queryKey: ['posts', user?.id],
     staleTime: 0, // Pre-carica sempre dati freschi per welcome screen
     enabled: authReady && !loading && !!user,
-    queryFn: async () => {
-      const { data, error } = await (supabase
-        .from('posts')
+    initialPageParam: undefined as { created_at: string; id: string } | undefined,
+    queryFn: async ({ pageParam }) => {
+      const cursor = pageParam as { created_at: string; id: string } | undefined;
+
+      let baseQuery = (supabase
+        .from('posts') as any)
         .select(`
           *,
           author:public_profiles!author_id (
@@ -238,10 +241,21 @@ export const usePosts = () => {
               )
             )
           )
-        `) as any)
+        `) as any;
+
+      baseQuery = baseQuery
         .eq('is_removed', false)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .order('id', { ascending: false })
+        .limit(30);
+
+      if (cursor) {
+        baseQuery = baseQuery.or(
+          `created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},id.lt.${cursor.id})`
+        );
+      }
+
+      const { data, error } = await baseQuery;
 
       if (error) throw error;
 
@@ -292,7 +306,6 @@ export const usePosts = () => {
           .map((pm: any) => pm.media)
           .filter(Boolean),
         reactions: {
-          // Conta TUTTE le reazioni non-bookmark (heart, laugh, wow, sad, fire)
           hearts: post.reactions?.filter((r: any) =>
             r.reaction_type && r.reaction_type !== 'bookmark'
           ).length || 0,
@@ -324,8 +337,27 @@ export const usePosts = () => {
             correct_index: q.correct_index
           }))
       }));
+    },
+    getNextPageParam: (lastPage) => {
+      if (lastPage.length < 30) return undefined;
+      const lastPost = lastPage[lastPage.length - 1];
+      return { created_at: lastPost.created_at, id: lastPost.id };
     }
   });
+
+  const posts = query.data?.pages.flat() || [];
+
+  return {
+    data: posts, // per retrocompatibilità
+    posts,
+    isLoading: query.isLoading,
+    error: query.error,
+    isError: query.isError, // destructured in Feed.tsx
+    refetch: query.refetch,
+    fetchNextPage: query.fetchNextPage,
+    hasNextPage: query.hasNextPage,
+    isFetchingNextPage: query.isFetchingNextPage
+  };
 };
 
 export type PostReactionType = 'heart' | 'bookmark' | 'laugh' | 'wow' | 'sad' | 'fire';
