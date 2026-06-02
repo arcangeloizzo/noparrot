@@ -109,6 +109,9 @@ export function useDynamicCardLayout({
       if (currentAvailableHeight <= 0) return;
 
       if (process.env.NODE_ENV !== 'production') {
+        if (essentials.length === 0 && flexibles.length === 0) {
+          return;
+        }
         const flexibleIds = new Set(flexibles.map(f => f.id));
         for (const priorityId of compressionPriority) {
           if (!flexibleIds.has(priorityId)) {
@@ -203,13 +206,14 @@ export function useDynamicCardLayout({
       const isDev = process.env.NODE_ENV !== 'production';
 
       if (isDev) {
-        console.group(`[useDynamicCardLayout] computeLayout`);
-        console.log('--- INIZIO CALCOLO LAYOUT ---');
+        console.group(`[useDynamicCardLayout] computeLayout — POST measurement`);
         console.log('availableHeight:', currentAvailableHeight);
-        console.log('essentialHeights (misurate runtime):', { ...essentialHeights });
+        console.log('essentialHeights:', { ...essentialHeights });
         console.log('essentialStates iniziali:', { ...currentEssentialStates });
-        console.log('flexibleNaturalHeights (misurate):', { ...flexibleNaturalHeights });
+        console.log('flexibleNaturalHeights:', { ...flexibleNaturalHeights });
+        console.log('flexiblesStatus iniziali (tutti full):', JSON.parse(JSON.stringify(currentFlexStatus)));
         console.log('H_tot iniziale:', H_tot);
+        console.log('Sfora?', H_tot > currentAvailableHeight, '(diff:', H_tot - currentAvailableHeight, ')');
       }
 
       // FASE A: Declassamento degli elementi essenziali a stati multipli
@@ -218,14 +222,10 @@ export function useDynamicCardLayout({
           if (ess.states && ess.states.length > 1) {
             for (let i = 1; i < ess.states.length; i++) {
               const nextState = ess.states[i];
-              const previousStateId = currentEssentialStates[ess.id];
               essentialHeights[ess.id] = nextState.height;
               currentEssentialStates[ess.id] = nextState.id;
 
               H_tot = calculateTotalHeight(essentialHeights, currentFlexStatus);
-              if (isDev) {
-                console.log(`[FASE A] Declassamento essenziale '${ess.id}': '${previousStateId}' -> '${nextState.id}' (${nextState.height}px). H_tot temporaneo: ${H_tot}px`);
-              }
               if (H_tot <= currentAvailableHeight) {
                 break;
               }
@@ -238,7 +238,11 @@ export function useDynamicCardLayout({
       }
 
       if (isDev) {
-        console.log('H_tot dopo FASE A:', H_tot);
+        console.log('--- FASE A (declassamento essenziali) ---');
+        console.log('essentialStates dopo Fase A:', { ...currentEssentialStates });
+        console.log('essentialHeights dopo Fase A:', { ...essentialHeights });
+        console.log('H_tot dopo Fase A:', H_tot);
+        console.log('Sfora ancora?', H_tot > currentAvailableHeight);
       }
 
       // FASE B: Compressione Round-Robin Prioritizzata Step-by-Step
@@ -255,7 +259,6 @@ export function useDynamicCardLayout({
             const currentIndex = flexible.compressionSteps.indexOf(currentStatus.step);
 
             if (currentIndex !== -1 && currentIndex < flexible.compressionSteps.length - 1) {
-              const previousStep = currentStatus.step;
               let nextStep = flexible.compressionSteps[currentIndex + 1];
 
               // Edge Case: naturalHeight <= minReadabilityHeight.
@@ -288,7 +291,7 @@ export function useDynamicCardLayout({
 
               H_tot = calculateTotalHeight(essentialHeights, currentFlexStatus);
               if (isDev) {
-                console.log(`[FASE B] Compressione flessibile '${elementId}': step '${previousStep}' -> '${nextStep}' (${calculatedHeight}px). H_tot risultante: ${H_tot}px (availableHeight: ${currentAvailableHeight}px). Decisione: ${H_tot <= currentAvailableHeight ? 'BREAK (fits)' : 'CONTINUE'}`);
+                console.log(`[Fase B] ${flexible.id}: ${flexible.compressionSteps[currentIndex]} → ${nextStep}, height=${calculatedHeight}, H_tot=${H_tot}`);
               }
 
               if (H_tot <= currentAvailableHeight) {
@@ -315,9 +318,9 @@ export function useDynamicCardLayout({
       }
 
       if (isDev) {
-        console.log('--- STATO FINALE LAYOUT ---');
-        console.log('essentialStates:', { ...currentEssentialStates });
-        console.log('flexiblesStatus:', JSON.parse(JSON.stringify(currentFlexStatus)));
+        console.log('--- STATO FINALE ---');
+        console.log('essentialStates finale:', { ...currentEssentialStates });
+        console.log('flexiblesStatus finale:', JSON.parse(JSON.stringify(currentFlexStatus)));
         console.log('showDrawerCta:', showDrawerCta);
         console.log('emergencyScroll:', emergencyScroll);
         console.groupEnd();
