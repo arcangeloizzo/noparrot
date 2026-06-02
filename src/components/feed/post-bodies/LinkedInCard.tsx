@@ -1,7 +1,5 @@
 import { Linkedin } from "lucide-react";
 import type { Post } from "@/hooks/usePosts";
-import { useCardLayout } from "@/contexts/CardLayoutContext";
-import { cn } from "@/lib/utils";
 
 interface LinkedInCardProps {
   post: Post;
@@ -14,10 +12,8 @@ export const LinkedInCard = ({
   articlePreview,
   useStackLayout,
 }: LinkedInCardProps) => {
-  const { isSmallScreen } = useCardLayout();
-
   return (
-    <div className="w-full mt-2 sm:mt-6 flex-shrink min-h-0 flex flex-col justify-center overflow-hidden">
+    <div className="w-full mt-2 sm:mt-6 flex-shrink min-h-0 flex flex-col justify-center overflow-hidden" style={{ maxHeight: '60vh' }}>
       {/* Unified LinkedIn Card */}
       <div
         className="bg-gradient-to-br from-[#0A66C2]/10 to-white/90 dark:from-[#0A66C2]/20 dark:to-[#1a1a2e]/95 rounded-3xl p-4 sm:p-5 border border-black/5 dark:border-white/15 cursor-pointer active:scale-[0.98] transition-transform flex flex-col min-h-0 flex-shrink overflow-hidden"
@@ -29,7 +25,7 @@ export const LinkedInCard = ({
         }}
       >
         {/* Author Row */}
-        <div className="flex items-center gap-3 mb-4 flex-shrink-0">
+        <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 rounded-full border border-white/20 overflow-hidden bg-[#0A66C2]/20 flex-shrink-0 flex items-center justify-center">
             {articlePreview?.author_avatar ? (
               <img
@@ -72,10 +68,7 @@ export const LinkedInCard = ({
         </div>
 
         {/* Post Text - cleaned and clamped */}
-        <p className={cn(
-          "text-white text-base leading-relaxed mb-2 sm:mb-4",
-          isSmallScreen ? "line-clamp-2" : "line-clamp-4"
-        )}>
+        <p className="text-white text-base leading-relaxed mb-2 sm:mb-4 line-clamp-4">
           {(articlePreview?.content || articlePreview?.description || articlePreview?.summary || '')
             .replace(/https?:\/\/[^\s]+/g, '')
             .replace(/\s{2,}/g, ' ')
@@ -93,12 +86,9 @@ export const LinkedInCard = ({
             <img
               src={articlePreview?.image || post.preview_img}
               alt=""
-              className={cn(
-                "w-full object-cover rounded-xl",
-                useStackLayout
-                  ? "max-h-24 sm:max-h-40"
-                  : "min-h-[100px] max-h-[28vh]"
-              )}
+              className={useStackLayout
+                ? "w-full h-auto max-h-24 sm:max-h-40 object-cover"
+                : "w-full h-auto max-h-[28vh] object-cover rounded-xl"}
             />
           </div>
         )}
