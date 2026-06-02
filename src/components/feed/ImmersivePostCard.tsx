@@ -1554,6 +1554,7 @@ const ImmersivePostCardInner = ({
           id: 'essential-article',
           states: [
             { id: 'full', height: articleFullHeight },
+            { id: 'compact', height: 64 },
             { id: 'pill', height: 36 }
           ]
         }
@@ -2162,181 +2163,63 @@ const ImmersivePostCardInner = ({
                     emergencyScroll && "overflow-y-auto"
                   )}
                 >
-                  {!hasMedia ? (
-                    /* Pure Text-Only Post */
-                    <div className="relative w-full">
-                      <div className="relative immersive-card rounded-3xl p-6 sm:p-8 overflow-hidden">
-                        <div className="absolute inset-0 opacity-[0.02] pointer-events-none rounded-3xl urban-noise-overlay" />
-                        <div className="relative z-10 flex flex-col">
-                          {post.title && post.title.trim().length > 0 && (
-                            <h2 
-                              ref={registerRef('essential-title')}
-                              className="uppercase mb-2 flex-shrink-0"
-                              style={{
-                                fontFamily: 'Impact, sans-serif',
-                                fontSize: 'clamp(30px, 8vw, 42px)',
-                                lineHeight: 0.92,
-                                letterSpacing: '-0.02em',
-                                color: '#FFFFFF',
-                                textAlign: 'left'
-                              }}
-                            >
-                              {post.title}
-                            </h2>
-                          )}
-                          {post.content && post.content.trim().length > 0 && (
-                            <>
-                              {flexiblesStatus['flexible-text']?.step === 'full' && (
-                                <div 
-                                  ref={registerRef('flexible-text')}
-                                  className="whitespace-pre-wrap break-words text-[17px] sm:text-lg font-normal text-immersive-foreground leading-[1.65] tracking-[0.01em]"
-                                >
-                                  <MentionText content={post.content} />
-                                </div>
-                              )}
-                              {flexiblesStatus['flexible-text']?.step === 'clamped' && (
-                                <div 
-                                  ref={registerRef('flexible-text')}
-                                  className="whitespace-pre-wrap break-words text-[17px] sm:text-lg font-normal text-immersive-foreground leading-[1.65] tracking-[0.01em]"
-                                  style={{ 
-                                    display: '-webkit-box',
-                                    WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-text'].height / (17 * 1.65))),
-                                    WebkitBoxOrient: 'vertical',
-                                    overflow: 'hidden',
-                                    height: `${flexiblesStatus['flexible-text'].height}px`
-                                  }}
-                                >
-                                  <MentionText content={post.content} />
-                                </div>
-                              )}
-                              {flexiblesStatus['flexible-text']?.step === 'hidden' && (
-                                <div ref={registerRef('flexible-text')} style={{ height: 0, overflow: 'hidden' }} />
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    /* Post with Media (Image/Video/Gallery) */
+                  {/* Title */}
+                  {post.title && post.title.trim().length > 0 && (
+                    <h2 
+                      ref={registerRef('essential-title')}
+                      className="uppercase mb-2 flex-shrink-0"
+                      style={{
+                        fontFamily: 'Impact, sans-serif',
+                        fontSize: 'clamp(30px, 8vw, 42px)',
+                        lineHeight: 0.92,
+                        letterSpacing: '-0.02em',
+                        color: '#FFFFFF',
+                        textAlign: 'left'
+                      }}
+                    >
+                      {post.title}
+                    </h2>
+                  )}
+
+                  {/* Body text — unico flessibile o primo flessibile */}
+                  {post.content && post.content.trim().length > 0 && (
                     <>
-                      {post.title && post.title.trim().length > 0 && (
-                        <h2 
-                          ref={registerRef('essential-title')}
-                          className="uppercase mb-2 flex-shrink-0"
-                          style={{
-                            fontFamily: 'Impact, sans-serif',
-                            fontSize: 'clamp(30px, 8vw, 42px)',
-                            lineHeight: 0.92,
-                            letterSpacing: '-0.02em',
-                            color: '#FFFFFF',
-                            textAlign: 'left'
-                          }}
+                      {flexiblesStatus['flexible-text']?.step === 'full' && (
+                        <div 
+                          ref={registerRef('flexible-text')}
+                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                          style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
                         >
-                          {post.title}
-                        </h2>
-                      )}
-                      
-                      {post.content && post.content.trim().length > 0 && (
-                        <>
-                          {flexiblesStatus['flexible-text']?.step === 'full' && (
-                            <div 
-                              ref={registerRef('flexible-text')}
-                              className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                              style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
-                            >
-                              <MentionText content={post.content} />
-                            </div>
-                          )}
-                          {flexiblesStatus['flexible-text']?.step === 'clamped' && (
-                            <div 
-                              ref={registerRef('flexible-text')}
-                              className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                              style={{ 
-                                fontFamily: 'Inter, sans-serif', 
-                                lineHeight: 1.55, 
-                                textAlign: 'left',
-                                display: '-webkit-box',
-                                WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-text'].height / BODY_LINE_HEIGHT_PX)),
-                                WebkitBoxOrient: 'vertical',
-                                overflow: 'hidden',
-                                height: `${flexiblesStatus['flexible-text'].height}px`
-                              }}
-                            >
-                              <MentionText content={post.content} />
-                            </div>
-                          )}
-                          {flexiblesStatus['flexible-text']?.step === 'hidden' && (
-                            <div ref={registerRef('flexible-text')} style={{ height: 0, overflow: 'hidden' }} />
-                          )}
-                        </>
+                          <MentionText content={post.content} />
+                        </div>
                       )}
 
-                      {hasMedia && post.media && post.media.length > 0 && (
-                        <>
-                          {flexiblesStatus['flexible-image']?.step === 'full' && (
-                            <div 
-                              ref={registerRef('flexible-image')} 
-                              className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3"
-                              style={{ height: `${flexiblesStatus['flexible-image'].height}px` }}
-                            >
-                              {post.media.length === 1 ? (
-                                isVideoMedia ? (
-                                  <div className="relative w-full h-full flex items-center justify-center">
-                                    <img
-                                      src={post.media?.[0]?.thumbnail_url || mediaUrl}
-                                      alt=""
-                                      className="w-full h-full object-contain rounded-2xl border border-white/10"
-                                    />
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                      <div className="bg-white p-3 rounded-full">
-                                        <Play className="w-6 h-6 text-black fill-black" />
-                                      </div>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <img
-                                    src={mediaUrl}
-                                    alt=""
-                                    className="w-full h-full object-contain rounded-2xl border border-white/10"
-                                  />
-                                )
-                              ) : (
-                                <MediaGallery
-                                  media={post.media}
-                                  onClick={(_, index) => setSelectedMediaIndex(index)}
-                                  initialIndex={carouselIndex}
-                                  onIndexChange={setCarouselIndex}
-                                  className="h-full w-full object-contain rounded-2xl border border-white/10"
-                                />
-                              )}
-                            </div>
-                          )}
-                          {flexiblesStatus['flexible-image']?.step === 'pill' && (
-                            <div 
-                              ref={registerRef('flexible-image')} 
-                              className="flex-shrink-0 mb-3" 
-                              style={{ height: '36px' }}
-                            >
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedMediaIndex(0);
-                                }}
-                                className="inline-flex h-9 items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 px-4 rounded-full text-white text-xs font-bold"
-                              >
-                                <span>📎 Vedi {isVideoMedia ? 'video' : 'immagine'}</span>
-                              </button>
-                            </div>
-                          )}
-                          {flexiblesStatus['flexible-image']?.step === 'hidden' && (
-                            <div ref={registerRef('flexible-image')} style={{ height: 0, overflow: 'hidden' }} />
-                          )}
-                        </>
+                      {flexiblesStatus['flexible-text']?.step === 'clamped' && (
+                        <div 
+                          ref={registerRef('flexible-text')}
+                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                          style={{ 
+                            fontFamily: 'Inter, sans-serif', 
+                            lineHeight: 1.55, 
+                            textAlign: 'left',
+                            display: '-webkit-box',
+                            WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-text'].height / BODY_LINE_HEIGHT_PX)),
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            height: `${flexiblesStatus['flexible-text'].height}px`
+                          }}
+                        >
+                          <MentionText content={post.content} />
+                        </div>
+                      )}
+
+                      {flexiblesStatus['flexible-text']?.step === 'hidden' && (
+                        <div ref={registerRef('flexible-text')} style={{ height: 0, overflow: 'hidden' }} />
                       )}
                     </>
                   )}
 
+                  {/* Approfondisci (subito dopo il body text) */}
                   {showDrawerCta && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
@@ -2346,6 +2229,72 @@ const ImmersivePostCardInner = ({
                         Approfondisci
                       </button>
                     </div>
+                  )}
+
+                  {/* Image/Media — secondo flessibile (se presente) */}
+                  {hasMedia && post.media && post.media.length > 0 && (
+                    <>
+                      {flexiblesStatus['flexible-image']?.step === 'full' && (
+                        <div 
+                          ref={registerRef('flexible-image')} 
+                          className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3"
+                          style={{ height: `${flexiblesStatus['flexible-image'].height}px` }}
+                        >
+                          {post.media.length === 1 ? (
+                            isVideoMedia ? (
+                              <div className="relative w-full h-full flex items-center justify-center">
+                                <img
+                                  src={post.media?.[0]?.thumbnail_url || mediaUrl}
+                                  alt=""
+                                  className="w-full h-full object-contain rounded-2xl border border-white/10"
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <div className="bg-white p-3 rounded-full">
+                                    <Play className="w-6 h-6 text-black fill-black" />
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <img
+                                src={mediaUrl}
+                                alt=""
+                                className="w-full h-full object-contain rounded-2xl border border-white/10"
+                              />
+                            )
+                          ) : (
+                            <MediaGallery
+                              media={post.media}
+                              onClick={(_, index) => setSelectedMediaIndex(index)}
+                              initialIndex={carouselIndex}
+                              onIndexChange={setCarouselIndex}
+                              className="h-full w-full object-contain rounded-2xl border border-white/10"
+                            />
+                          )}
+                        </div>
+                      )}
+                      
+                      {flexiblesStatus['flexible-image']?.step === 'pill' && (
+                        <div 
+                          ref={registerRef('flexible-image')} 
+                          className="flex-shrink-0 mb-3" 
+                          style={{ height: '36px' }}
+                        >
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedMediaIndex(0);
+                            }}
+                            className="inline-flex h-9 items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 px-4 rounded-full text-white text-xs font-bold"
+                          >
+                            <span>📎 Vedi {isVideoMedia ? 'video' : 'immagine'}</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {flexiblesStatus['flexible-image']?.step === 'hidden' && (
+                        <div ref={registerRef('flexible-image')} style={{ height: 0, overflow: 'hidden' }} />
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -2937,6 +2886,44 @@ const ImmersivePostCardInner = ({
                           </div>
                         </div>
                       )}
+                    </div>
+                  )}
+
+                  {essentialStates['essential-article'] === 'compact' && (
+                    <div ref={registerRef('essential-article')} className="w-full mt-auto flex-shrink-0">
+                      <div 
+                        className="flex flex-row items-center gap-2 bg-[rgba(255,255,255,0.06)] rounded-[8px] p-[8px_10px] w-full cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isEditorialFocus) {
+                            const focusId = post.shared_url?.replace('focus://daily/', '');
+                            if (focusId) navigate(`/?focus=${focusId}`);
+                          } else if (post.shared_url) {
+                            window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                          }
+                        }}
+                      >
+                        <div className="w-[48px] h-[48px] rounded-[6px] bg-[rgba(255,255,255,0.06)] shrink-0 flex items-center justify-center overflow-hidden">
+                          {isEditorialFocus ? (
+                            <img src="/logo.png" alt="Il Punto" className="w-8 h-8 object-contain opacity-80" />
+                          ) : (articlePreview?.image || post.preview_img) ? (
+                            <img src={articlePreview?.image || post.preview_img} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <ExternalLink className="w-5 h-5 text-white/40" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-sans text-[11px] font-semibold text-white line-clamp-2 leading-tight">
+                            {isEditorialFocus 
+                              ? decodeHTMLEntities(post.shared_title || 'Il Punto')
+                              : decodeHTMLEntities(articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url))
+                            }
+                          </p>
+                          <p className="font-sans text-[9px] text-[rgba(255,255,255,0.4)] mt-[2px] truncate">
+                            {isEditorialFocus ? '@ilpunto' : getHostnameFromUrl(post.shared_url)}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
 
