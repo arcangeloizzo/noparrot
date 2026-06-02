@@ -2428,6 +2428,18 @@ const ImmersivePostCardInner = ({
                     </>
                   )}
 
+                  {/* Approfondisci */}
+                  {showDrawerCta && (
+                    <div className="flex-shrink-0 mt-2 mb-3">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        className="text-sm text-primary font-semibold hover:underline block"
+                      >
+                        Approfondisci
+                      </button>
+                    </div>
+                  )}
+
                   {/* Spotify embed — essenziale a stati */}
                   {essentialStates['essential-spotify'] === 'full' && (
                     <div ref={registerRef('essential-spotify')} className="flex-shrink-0 mt-auto">
@@ -2451,18 +2463,6 @@ const ImmersivePostCardInner = ({
                       >
                         <span className="text-white text-xs font-bold">🎙️ Apri il podcast</span>
                       </a>
-                    </div>
-                  )}
-
-                  {/* Approfondisci */}
-                  {showDrawerCta && (
-                    <div className="flex-shrink-0 mt-2">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                        className="text-sm text-primary font-semibold hover:underline block"
-                      >
-                        Approfondisci
-                      </button>
                     </div>
                   )}
                 </div>
