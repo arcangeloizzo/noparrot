@@ -367,6 +367,11 @@ const ImmersivePostCardInner = ({
     };
   }, [articlePreviewData, urlToPreview, post.shared_title, post.preview_img, quotedPost?.shared_title, quotedPost?.preview_img]);
 
+  // Line-height effettiva del body text in pixel.
+  // Deriva da: fontSize 14px × lineHeight 1.55 = 21.7px.
+  // Se modifichi fontSize o lineHeight nello stile inline del body, aggiorna anche questo.
+  const BODY_LINE_HEIGHT_PX = 14 * 1.55;
+
   const isSpotify = articlePreview?.platform === 'spotify';
   const isSpotifyEpisode = isSpotify && (
     post.shared_url?.includes('/episode/') ||
@@ -374,20 +379,32 @@ const ImmersivePostCardInner = ({
     false
   );
 
+  /**
+   * IMPORTANTE — Confine geometrico di availableHeight:
+   *
+   * Il CardLayoutContext calcola availableHeight sottraendo dal viewport:
+   *  - safe-area-inset-top + 154px (Header globale 72px + HeaderRail 82px)
+   *  - safe-area-inset-bottom + 164px (BottomNav 64px + Spacing 36px + ActionRail 64px)
+   *
+   * Conseguenza: HeaderRail e ActionRail GIÀ NON sono dentro availableHeight.
+   * L'hook useDynamicCardLayout misura ed include come essenziali SOLO gli elementi
+   * posizionati DENTRO il ContentRail (titolo, embed, body, player, CTA).
+   *
+   * NON agganciare registerRef('essential-*') a HeaderRail o ActionRail: causerebbe
+   * doppia sottrazione e collasso del budget flessibili.
+   */
   const essentialsConfig = useMemo(() => isSpotifyEpisode ? [
-    { id: 'essential-header' },
     { id: 'essential-title' },
-    { id: 'essential-actionbar' },
-    { id: 'essential-cta' }
+    {
+      id: 'essential-spotify',
+      states: [
+        { id: 'full', height: 100 },
+        { id: 'pill', height: 36 }
+      ]
+    }
   ] : [], [isSpotifyEpisode]);
 
   const flexiblesConfig = useMemo(() => isSpotifyEpisode ? [
-    {
-      id: 'flexible-spotify',
-      compressionSteps: ['full', 'pill', 'hidden'] as const,
-      minReadabilityHeight: 80,
-      fallbackHeight: 100
-    },
     {
       id: 'flexible-text',
       compressionSteps: ['full', 'clamped', 'hidden'] as const,
@@ -396,7 +413,7 @@ const ImmersivePostCardInner = ({
     }
   ] : [], [isSpotifyEpisode]);
 
-  const priorityConfig = useMemo(() => isSpotifyEpisode ? ['flexible-spotify', 'flexible-text'] : [], [isSpotifyEpisode]);
+  const priorityConfig = useMemo(() => isSpotifyEpisode ? ['flexible-text'] : [], [isSpotifyEpisode]);
 
   const {
     status: layoutStatus,
@@ -1661,9 +1678,9 @@ const ImmersivePostCardInner = ({
           <div className="absolute inset-y-0 left-12 right-12 z-50">
 
           {/* [Rail 1] HeaderRail: Fixed top overlay with gradient fade */}
-          <div ref={registerRef('essential-header')} className="absolute top-0 left-0 right-0 z-10">
+          <div className="absolute top-0 left-0 right-0 z-10">
             <div className="flex justify-between items-start pt-[calc(env(safe-area-inset-top)+72px)] pb-5">
-            <div className="flex flex-col items-center gap-2">
+              <div className="flex flex-col items-center gap-2">
               <div
                 className="flex items-center gap-3 cursor-pointer relative z-[60]"
                 onClick={(e) => {
@@ -2350,7 +2367,7 @@ const ImmersivePostCardInner = ({
                     emergencyScroll && "overflow-y-auto"
                   )}
                 >
-                  {/* Title */}
+                  {/* Title — essenziale misurato runtime */}
                   {post.title && post.title.trim().length > 0 && (
                     <h2 
                       ref={registerRef('essential-title')}
@@ -2368,22 +2385,7 @@ const ImmersivePostCardInner = ({
                     </h2>
                   )}
 
-                  {/* Essential CTA (Ascolta su Spotify button link, aligned with title/design) */}
-                  <div className="flex-shrink-0 mb-3">
-                    <button
-                      ref={registerRef('essential-cta')}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                      }}
-                      className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                      <span className="text-xs uppercase tracking-wider">Ascolta su Spotify</span>
-                    </button>
-                  </div>
-
-                  {/* Body content - flexible-text */}
+                  {/* Body text — unico flessibile */}
                   {post.content && post.content.trim().length > 0 && (
                     <>
                       {flexiblesStatus['flexible-text']?.step === 'full' && (
@@ -2409,7 +2411,7 @@ const ImmersivePostCardInner = ({
                             lineHeight: 1.55, 
                             textAlign: 'left',
                             display: '-webkit-box',
-                            WebkitLineClamp: Math.max(1, Math.floor((flexiblesStatus['flexible-text'].height) / 21.7)),
+                            WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-text'].height / BODY_LINE_HEIGHT_PX)),
                             WebkitBoxOrient: 'vertical',
                             overflow: 'hidden',
                             height: `${flexiblesStatus['flexible-text'].height}px`
@@ -2420,14 +2422,14 @@ const ImmersivePostCardInner = ({
                       )}
 
                       {flexiblesStatus['flexible-text']?.step === 'hidden' && (
-                        <div ref={registerRef('flexible-text')} style={{ height: '0px', overflow: 'hidden' }} />
+                        <div ref={registerRef('flexible-text')} style={{ height: 0, overflow: 'hidden' }} />
                       )}
                     </>
                   )}
 
-                  {/* Compact Spotify card at the bottom / pill or hidden - flexible-spotify */}
-                  {flexiblesStatus['flexible-spotify']?.step === 'full' && (
-                    <div ref={registerRef('flexible-spotify')} className="flex-shrink-0 mt-auto">
+                  {/* Spotify embed — essenziale a stati */}
+                  {essentialStates['essential-spotify'] === 'full' && (
+                    <div ref={registerRef('essential-spotify')} className="flex-shrink-0 mt-auto">
                       <SpotifyPodcastCompactCard
                         imageUrl={articlePreview?.image || post.preview_img || ''}
                         podcastName={articlePreview?.description || getHostnameFromUrl(post.shared_url)}
@@ -2437,8 +2439,8 @@ const ImmersivePostCardInner = ({
                     </div>
                   )}
 
-                  {flexiblesStatus['flexible-spotify']?.step === 'pill' && (
-                    <div ref={registerRef('flexible-spotify')} className="flex-shrink-0 mt-auto" style={{ height: '36px' }}>
+                  {essentialStates['essential-spotify'] === 'pill' && (
+                    <div ref={registerRef('essential-spotify')} className="flex-shrink-0 mt-auto" style={{ height: '36px' }}>
                       <a
                         href={post.shared_url || ''}
                         target="_blank"
@@ -2446,16 +2448,12 @@ const ImmersivePostCardInner = ({
                         onClick={(e) => e.stopPropagation()}
                         className="inline-flex h-9 items-center gap-1.5 bg-[#1DB954] px-4 rounded-full"
                       >
-                        <span className="text-white text-xs font-bold">🎧 Ascolta su Spotify</span>
+                        <span className="text-white text-xs font-bold">🎙️ Apri il podcast</span>
                       </a>
                     </div>
                   )}
 
-                  {flexiblesStatus['flexible-spotify']?.step === 'hidden' && (
-                    <div ref={registerRef('flexible-spotify')} style={{ height: '0px', overflow: 'hidden' }} />
-                  )}
-
-                  {/* Dynamic Approfondisci button (Drawer CTA) */}
+                  {/* Approfondisci */}
                   {showDrawerCta && (
                     <div className="flex-shrink-0 mt-2">
                       <button
@@ -2796,7 +2794,7 @@ const ImmersivePostCardInner = ({
 
           {/* Bottom Actions - Single horizontal axis alignment */}
           {/* [Rail 3] ActionRail: Fixed bottom overlay with gradient fade */}
-          <div ref={registerRef('essential-actionbar')} className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none">
+          <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none">
             <div className="flex items-center justify-between gap-6 pb-[calc(4rem+env(safe-area-inset-bottom)+36px)] pt-4 pointer-events-auto">
 
             {/* Primary Share Button - Pill shape with consistent height */}

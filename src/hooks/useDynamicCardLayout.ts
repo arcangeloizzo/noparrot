@@ -101,13 +101,24 @@ export function useDynamicCardLayout({
   const serializedEssentials = JSON.stringify(essentials);
   const serializedFlexibles = JSON.stringify(flexibles);
   const serializedPriority = JSON.stringify(compressionPriority);
-
   useLayoutEffect(() => {
     if (typeof window === 'undefined') return;
 
     const computeLayout = () => {
       const currentAvailableHeight = availableHeight;
       if (currentAvailableHeight <= 0) return;
+
+      if (process.env.NODE_ENV !== 'production') {
+        const flexibleIds = new Set(flexibles.map(f => f.id));
+        for (const priorityId of compressionPriority) {
+          if (!flexibleIds.has(priorityId)) {
+            console.warn(
+              `[useDynamicCardLayout] ID '${priorityId}' presente in compressionPriority ` +
+              `ma non corrispondente a nessun flessibile dichiarato in 'flexibles'.`
+            );
+          }
+        }
+      }
 
       // 1. Raccoglie le altezze degli elementi essenziali
       const essentialHeights: Record<string, number> = {};
@@ -125,6 +136,20 @@ export function useDynamicCardLayout({
           // Misurazione runtime reale
           const node = elementRefs.current[ess.id];
           essentialHeights[ess.id] = node ? node.getBoundingClientRect().height : 0;
+        }
+      }
+
+      if (process.env.NODE_ENV !== 'production') {
+        for (const ess of essentials) {
+          const isStatic = ess.staticHeight !== undefined;
+          const hasStates = ess.states && ess.states.length > 0;
+          if (!isStatic && !hasStates && !elementRefs.current[ess.id]) {
+            console.warn(
+              `[useDynamicCardLayout] Ref mancante per essenziale '${ess.id}'. ` +
+              `Assicurati di aver chiamato registerRef('${ess.id}') sul nodo DOM corrispondente. ` +
+              `Senza ref, l'altezza viene calcolata come 0 e il layout sarà errato.`
+            );
+          }
         }
       }
 
