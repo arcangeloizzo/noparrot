@@ -551,58 +551,44 @@ export const Feed = () => {
         <Header variant="immersive" />
       </div>
 
-      <ImmersiveFeedContainer ref={feedContainerRef} onRefresh={async () => { await refetch(); }} onActiveIndexChange={handleActiveIndexChange}>
-        {/* Sliding Window Virtualization: only mount heavy components in window */}
-        {mixedFeed.map((item, feedIndex) => {
-          // Virtualization window: activeIndex -1 to +2 (4 items max)
-          const isVisible =
-            feedIndex >= activeIndex - 1 &&
-            feedIndex <= activeIndex + 2;
-
-          // Wrapper ALWAYS stays mounted (preserves scroll height + snap points)
-          return (
-            <div
-              key={item.type === 'post' ? `post-${item.data.id}` : `daily-carousel-${item.id}`}
-              className="w-full h-[100dvh] snap-start shrink-0 overflow-hidden"
-            >
-              {isVisible ? (
-                item.type === 'daily-carousel' ? (
-                  <ImmersiveEditorialCarousel
-                    key={item.id}
-                    items={item.data as DailyFocus[]}
-                    totalCount={dailyFocusTotalCount}
-                    onItemClick={handleCarouselItemClick}
-                    onComment={handleCarouselComment}
-                    onShareComplete={handleCarouselShareComplete}
-                  />
-                ) : (
-                  <ImmersivePostCard
-                    key={item.id}
-                    post={item.data}
-                    index={feedIndex}
-                    isActive={feedIndex === activeIndex}
-                    isNearActive={Math.abs(feedIndex - activeIndex) <= 1}
-                    onRemove={handleRemovePost}
-                    onQuoteShare={handleQuoteShare}
-                    onEdit={handleEditPost}
-                  />
-                )
-              ) : (
-                // Lightweight placeholder for off-window items
-                <div className="w-full h-full bg-[#0E1A24]" />
-              )}
-            </div>
-          );
-        })}
-
-        {/* Empty state */}
-        {mixedFeed.length === 0 && (
+      <ImmersiveFeedContainer
+        ref={feedContainerRef}
+        items={mixedFeed}
+        activeIndex={activeIndex}
+        onActiveIndexChange={handleActiveIndexChange}
+        onRefresh={async () => { await refetch(); }}
+      >
+        {mixedFeed.length === 0 ? (
           <div className="h-[100dvh] w-full snap-start flex items-center justify-center">
             <div className="text-center text-white/60">
               <p className="text-xl mb-2">Nessun post disponibile.</p>
               <p className="text-sm">Crea il primo post!</p>
             </div>
           </div>
+        ) : (
+          (item: any, actualIndex: number) => (
+            item.type === 'daily-carousel' ? (
+              <ImmersiveEditorialCarousel
+                key={item.id}
+                items={item.data as DailyFocus[]}
+                totalCount={dailyFocusTotalCount}
+                onItemClick={handleCarouselItemClick}
+                onComment={handleCarouselComment}
+                onShareComplete={handleCarouselShareComplete}
+              />
+            ) : (
+              <ImmersivePostCard
+                key={item.id}
+                post={item.data}
+                index={actualIndex}
+                isActive={actualIndex === activeIndex}
+                isNearActive={Math.abs(actualIndex - activeIndex) <= 1}
+                onRemove={handleRemovePost}
+                onQuoteShare={handleQuoteShare}
+                onEdit={handleEditPost}
+              />
+            )
+          )
         )}
       </ImmersiveFeedContainer>
 
