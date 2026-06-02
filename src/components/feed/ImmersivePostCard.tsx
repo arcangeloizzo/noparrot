@@ -2192,12 +2192,9 @@ const ImmersivePostCardInner = ({
                       </div>
                     </div>
 
-                     {/* Tweet Text - cleaned and clamped - Flexible */}
+                    {/* Tweet Text - cleaned and clamped - Flexible */}
                     <div className="flex-shrink-0 min-h-0 overflow-hidden mb-4">
-                      <p className={cn(
-                        "text-slate-900 dark:text-white text-base leading-relaxed",
-                        isSmallScreen ? "line-clamp-2" : "line-clamp-4"
-                      )}>
+                      <p className="text-slate-900 dark:text-white text-base leading-relaxed line-clamp-4">
                         {(articlePreview?.content || articlePreview?.summary || post.content || '')
                           .replace(/https?:\/\/t\.co\/\w+/g, '')
                           .replace(/https?:\/\/[^\s]+/g, '')
@@ -2208,7 +2205,7 @@ const ImmersivePostCardInner = ({
 
                     {/* Tweet Media (if any) - Flexible height */}
                     {articlePreview?.image && (
-                      <div className="flex-1 min-h-[90px] max-h-[30vh] rounded-xl overflow-hidden relative">
+                      <div className="flex-1 min-h-0 rounded-xl overflow-hidden relative">
                         <img
                           src={articlePreview.image}
                           alt=""
