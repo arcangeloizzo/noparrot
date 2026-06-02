@@ -303,7 +303,7 @@ const ImmersivePostCardInner = ({
     perfStore.incrementPostCard();
   }
   const { user } = useAuth();
-  const { availableHeight, isSmallScreen } = useCardLayout();
+  const { availableHeight } = useCardLayout();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const toggleReaction = useToggleReaction();
@@ -2327,19 +2327,17 @@ const ImmersivePostCardInner = ({
                   {post.content && post.content.trim().length > 0 && (
                     <div 
                       className={cn(
-                        "whitespace-pre-wrap break-words mb-2 sm:mb-3",
+                        "whitespace-pre-wrap break-words  mb-3",
                         post.title && post.title.trim().length > 0 ? "text-[14px] text-[#7A8FA6]" : "text-base text-slate-600 dark:text-white/90 leading-snug tracking-wide"
                       )}
                       style={post.title && post.title.trim().length > 0 ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
                     >
-                      {post.content.length > (isSmallScreen ? 180 : 400) ? (
+                      {post.content.length > 400 ? (
                         <>
-                          <div className={cn(isSmallScreen ? "line-clamp-4" : "line-clamp-8")}>
-                            <MentionText content={post.content} />
-                          </div>
+                          <MentionText content={post.content.slice(0, 400) + '...'} />
                           <button
                             onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
-                            className="mt-1.5 text-sm text-primary font-semibold hover:underline block"
+                            className="mt-2 text-sm text-primary font-semibold hover:underline block"
                           >
                             Approfondisci
                           </button>
