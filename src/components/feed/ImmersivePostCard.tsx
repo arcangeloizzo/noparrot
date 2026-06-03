@@ -1368,6 +1368,17 @@ const ImmersivePostCardInner = ({
   const challengeTitle = hasChallengeTitle ? post.challenge?.title : '';
   const challengeContent = hasChallengeTitle ? post.challenge?.body_text : post.content;
 
+  console.log('[ImmersivePostCard DEBUG]', {
+    post_id: post.id,
+    post_type: post.post_type,
+    post_title: post.title,
+    post_content: post.content,
+    voice_title: activeVoicePost?.title,
+    voice_body: activeVoicePost?.body_text,
+    challenge_title: post.challenge?.title,
+    challenge_body: post.challenge?.body_text
+  });
+
   // B. Adaptive Image Height
   const hasAudioPlayer = !!(activeVoicePost);
   const cardHasTitle = !!(post.title || activeVoicePost?.title);
@@ -1581,8 +1592,8 @@ const ImmersivePostCardInner = ({
         {
           id: 'essential-voice-player',
           states: [
-            { id: 'standard', height: 280 },
-            { id: 'compact', height: 76 }
+            { id: 'standard', height: 280 + 116 },
+            { id: 'compact', height: 76 + 116 }
           ]
         }
       ];
@@ -1591,9 +1602,9 @@ const ImmersivePostCardInner = ({
       const isAuthor = user?.id === post.author.id;
       return [
         ...(challengeTitle ? [{ id: 'essential-title' }] : []),
-        { id: 'essential-challenge-player', staticHeight: 76 },
-        { id: 'essential-polarization', staticHeight: 80 },
-        ...(!isAuthor ? [{ id: 'essential-cta-accept', staticHeight: 48 }] : [])
+        { id: 'essential-challenge-player', staticHeight: 76 + 52 + 8 + 12 },
+        { id: 'essential-polarization', staticHeight: 80 + 16 + 12 + 24 },
+        ...(!isAuthor ? [{ id: 'essential-cta-accept', staticHeight: 48 + 8 }] : [])
       ];
     }
     if (isLinkedIn) {
@@ -4029,7 +4040,17 @@ const ImmersivePostCardInner = ({
             setShowFullText(false);
             setFullTextMode('description');
           }}
-          title={fullTextMode === 'transcript' ? "Trascrizione" : post.title}
+          title={
+            fullTextMode === 'transcript'
+              ? "Trascrizione"
+              : (
+                  isChallengePost
+                    ? (post.challenge?.title || post.title || '')
+                    : isVoicePost
+                      ? (activeVoicePost?.title || post.title || '')
+                      : (post.title || '')
+                )
+          }
           content={
             fullTextMode === 'transcript'
               ? (
@@ -4039,7 +4060,13 @@ const ImmersivePostCardInner = ({
                       ? "Trascrizione in elaborazione..."
                       : "Trascrizione non disponibile"
                 )
-              : post.content
+              : (
+                  isChallengePost
+                    ? (post.challenge?.body_text || post.content || '')
+                    : isVoicePost
+                      ? (activeVoicePost?.body_text || post.content || '')
+                      : (post.content || '')
+                )
           }
           author={{
             name: post.author.full_name || post.author.username,
