@@ -3,6 +3,7 @@ import { Heart, MessageCircle, Bookmark, ExternalLink, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
 import { MentionText } from "./MentionText";
+import { VoicePlayer } from "@/components/media/VoicePlayer";
 
 export interface FullTextModalAuthor {
   name: string;
@@ -39,6 +40,13 @@ interface FullTextModalProps {
     onBookmark?: (e: React.MouseEvent) => void;
     onShare?: () => void;
   };
+  // NUOVE PROPS:
+  audioUrl?: string;           // URL del file audio — se presente, renderizza player
+  showModeToggle?: boolean;    // true = mostra tabs Descrizione/Trascrizione (solo Voice)
+  fullTextMode?: 'description' | 'transcript';
+  onModeChange?: (mode: 'description' | 'transcript') => void;
+  transcriptContent?: string;  // contenuto trascrizione (separato da content)
+  durationSeconds?: number;    // optional audio duration in seconds
 }
 
 const FullTextModalInner = ({
@@ -52,6 +60,12 @@ const FullTextModalInner = ({
   linkCard,
   post,
   actions,
+  audioUrl,
+  showModeToggle,
+  fullTextMode,
+  onModeChange,
+  transcriptContent,
+  durationSeconds,
 }: FullTextModalProps) => {
   const isCaption = variant === 'caption';
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -228,7 +242,10 @@ const FullTextModalInner = ({
 
   // Render content with paragraph breaks — COMPLETE, no truncation
   const renderContent = () => {
-    const paragraphs = (content || "").split(/\n\n+/);
+    const activeContent = showModeToggle && fullTextMode === 'transcript'
+      ? (transcriptContent || "Trascrizione non disponibile")
+      : content;
+    const paragraphs = (activeContent || "").split(/\n\n+/);
     return (
       <div className="flex flex-col gap-2">
         {title && title.trim().length > 0 && (
@@ -245,6 +262,45 @@ const FullTextModalInner = ({
             {title}
           </h2>
         )}
+
+        {/* Audio Player */}
+        {audioUrl && (
+          <div className="mb-4">
+            <VoicePlayer
+              audioUrl={audioUrl}
+              durationSeconds={durationSeconds || 0}
+            />
+          </div>
+        )}
+
+        {/* Description/Transcript toggle tabs */}
+        {showModeToggle && onModeChange && (
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => onModeChange('description')}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-semibold transition-colors",
+                fullTextMode === 'description'
+                  ? "bg-white/20 text-white"
+                  : "text-white/50 hover:text-white/70"
+              )}
+            >
+              Descrizione
+            </button>
+            <button
+              onClick={() => onModeChange('transcript')}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-semibold transition-colors",
+                fullTextMode === 'transcript'
+                  ? "bg-white/20 text-white"
+                  : "text-white/50 hover:text-white/70"
+              )}
+            >
+              Trascrizione
+            </button>
+          </div>
+        )}
+
         <div className="flex flex-col">
           {paragraphs.map((paragraph, idx) => (
             <div key={idx} className={cn(idx > 0 && "mt-5")}>

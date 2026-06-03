@@ -4052,22 +4052,28 @@ const ImmersivePostCardInner = ({
                 )
           }
           content={
-            fullTextMode === 'transcript'
-              ? (
-                  activeVoicePost?.transcript_status === 'completed'
-                    ? (activeVoicePost.transcript || "Trascrizione non disponibile")
-                    : (activeVoicePost?.transcript_status === 'pending' || activeVoicePost?.transcript_status === 'processing')
-                      ? "Trascrizione in elaborazione..."
-                      : "Trascrizione non disponibile"
-                )
-              : (
-                  isChallengePost
-                    ? (post.challenge?.body_text || post.content || '')
-                    : isVoicePost
-                      ? (activeVoicePost?.body_text || post.content || '')
-                      : (post.content || '')
-                )
+            isChallengePost
+              ? (post.challenge?.body_text || post.content || '')
+              : isVoicePost
+                ? (activeVoicePost?.body_text || post.content || '')
+                : (post.content || '')
           }
+          audioUrl={
+            isVoicePost || isChallengePost
+              ? activeVoicePost?.audio_url || undefined
+              : undefined
+          }
+          showModeToggle={isVoicePost}
+          fullTextMode={fullTextMode}
+          onModeChange={(mode) => setFullTextMode(mode)}
+          transcriptContent={
+            activeVoicePost?.transcript_status === 'completed'
+              ? (activeVoicePost.transcript || "Trascrizione non disponibile")
+              : (activeVoicePost?.transcript_status === 'pending' || activeVoicePost?.transcript_status === 'processing')
+                ? "Trascrizione in elaborazione..."
+                : "Trascrizione non disponibile"
+          }
+          durationSeconds={activeVoicePost?.duration_seconds || 0}
           author={{
             name: post.author.full_name || post.author.username,
             username: post.author.username,
