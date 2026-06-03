@@ -28,7 +28,7 @@ import { runGateBeforeAction } from '@/lib/runGateBeforeAction';
 import { QuizModal } from '@/components/ui/quiz-modal';
 import { toast as sonnerToast } from 'sonner';
 import { LOGO_BASE } from '@/config/brand';
-import { getWordCount, getTestModeWithSource } from '@/lib/gate-utils';
+import { getWordCount, getPostFullText, getTestModeWithSource } from '@/lib/gate-utils';
 import { generateQA, fetchArticlePreview } from '@/lib/ai-helpers';
 import { addBreadcrumb } from '@/lib/crashBreadcrumbs';
 import { useLongPress } from '@/hooks/useLongPress';
@@ -61,9 +61,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
 
   // [GATE ALIGNMENT] Post text-only senza fonte: se >30 parole, attiva gate
   // sulle parole del post stesso (allineato al reshare in ComposerModal).
-  const postOriginalWordCount = getWordCount(
-    [(post as any).title, post.content].filter(Boolean).join(' ')
-  );
+  const postOriginalWordCount = getWordCount(getPostFullText(post));
   const postHasLongText = !postHasSource && postOriginalWordCount > 30;
   const requiresGateChoice = postHasSource || postHasLongText;
   
