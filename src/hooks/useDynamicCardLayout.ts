@@ -108,7 +108,7 @@ export function useDynamicCardLayout({
       const currentAvailableHeight = availableHeight;
       if (currentAvailableHeight <= 0) return;
 
-      if (process.env.NODE_ENV !== 'production') {
+      if (import.meta.env.DEV) {
         if (essentials.length === 0 && flexibles.length === 0) {
           return;
         }
@@ -142,7 +142,7 @@ export function useDynamicCardLayout({
         }
       }
 
-      if (process.env.NODE_ENV !== 'production') {
+      if (import.meta.env.DEV) {
         for (const ess of essentials) {
           const isStatic = ess.staticHeight !== undefined;
           const hasStates = ess.states && ess.states.length > 0;
@@ -203,7 +203,7 @@ export function useDynamicCardLayout({
       };
 
       let H_tot = calculateTotalHeight(essentialHeights, currentFlexStatus);
-      const isDev = process.env.NODE_ENV !== 'production';
+      const isDev = import.meta.env.DEV;
 
       if (isDev) {
         console.group(`[useDynamicCardLayout] computeLayout — POST measurement`);
@@ -531,7 +531,7 @@ export function useDynamicCardLayout({
 
   // Dev-only warning per ref mancanti o blocco in pending
   useEffect(() => {
-    if (process.env.NODE_ENV !== 'production') {
+    if (import.meta.env.DEV) {
       const timeout = setTimeout(() => {
         if (status === 'pending') {
           console.warn(
