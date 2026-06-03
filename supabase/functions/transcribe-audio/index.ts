@@ -110,16 +110,21 @@ Deno.serve(async (req) => {
     // 6. Trigger generate-qa
     if (transcript.trim().length > 30) {
       console.log(`[transcribe-audio:${reqId}] triggering generate-qa`);
+      const qaBody = {
+        contentId: voicePost.post_id,
+        userText: transcript,
+        type: 'audio',
+        testMode: 'USER_ONLY',
+        questionCount: 1,
+      };
+      console.log(`[transcribe-audio:${reqId}] Calling generate-qa with body:`, JSON.stringify(qaBody));
       await fetch(`${supabaseUrl}/functions/v1/generate-qa`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${supabaseServiceKey}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          postId: voicePost.post_id,
-          deepContent: transcript
-        })
+        body: JSON.stringify(qaBody)
       }).catch(e => console.warn('generate-qa trigger error:', e));
     }
 
