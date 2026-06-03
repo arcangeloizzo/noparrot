@@ -1360,6 +1360,14 @@ const ImmersivePostCardInner = ({
   const activeVoicePost = isChallengePost ? (post.challenge?.voice_post || post.voice_post) : post.voice_post;
   const challengeIdForResponses = isChallengePost ? post.challenge?.id || null : null;
 
+  const hasVoiceTitle = Boolean(activeVoicePost?.title);
+  const voiceTitle = hasVoiceTitle ? activeVoicePost?.title : '';
+  const voiceContent = hasVoiceTitle ? activeVoicePost?.body_text : post.content;
+
+  const hasChallengeTitle = Boolean(post.challenge?.title);
+  const challengeTitle = hasChallengeTitle ? post.challenge?.title : '';
+  const challengeContent = hasChallengeTitle ? post.challenge?.body_text : post.content;
+
   // B. Adaptive Image Height
   const hasAudioPlayer = !!(activeVoicePost);
   const cardHasTitle = !!(post.title || activeVoicePost?.title);
@@ -1569,7 +1577,7 @@ const ImmersivePostCardInner = ({
     }
     if (isVoicePost) {
       return [
-        ...(post.title ? [{ id: 'essential-title' }] : []),
+        ...(voiceTitle ? [{ id: 'essential-title' }] : []),
         {
           id: 'essential-voice-player',
           states: [
@@ -1580,11 +1588,12 @@ const ImmersivePostCardInner = ({
       ];
     }
     if (isChallengePost) {
+      const isAuthor = user?.id === post.author.id;
       return [
-        ...(post.title ? [{ id: 'essential-title' }] : []),
+        ...(challengeTitle ? [{ id: 'essential-title' }] : []),
         { id: 'essential-challenge-player', staticHeight: 76 },
         { id: 'essential-polarization', staticHeight: 80 },
-        { id: 'essential-cta-accept', staticHeight: 48 }
+        ...(!isAuthor ? [{ id: 'essential-cta-accept', staticHeight: 48 }] : [])
       ];
     }
     if (isLinkedIn) {
@@ -1620,7 +1629,8 @@ const ImmersivePostCardInner = ({
     isChallengePost,
     isLinkedIn,
     isTwitter,
-    post.title,
+    voiceTitle,
+    challengeTitle,
     articleFullHeight,
     user?.id
   ]);
@@ -1655,7 +1665,7 @@ const ImmersivePostCardInner = ({
       return arr;
     }
     if (isVoicePost) {
-      return post.content ? [
+      return voiceContent ? [
         {
           id: 'flexible-description',
           compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
@@ -1665,7 +1675,7 @@ const ImmersivePostCardInner = ({
       ] : [];
     }
     if (isChallengePost) {
-      return post.content ? [
+      return challengeContent ? [
         {
           id: 'flexible-description',
           compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
@@ -1695,7 +1705,7 @@ const ImmersivePostCardInner = ({
       ] : [];
     }
     return [];
-  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, post.content, hasImage]);
+  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage]);
 
   const priorityConfig = useMemo(() => {
     if (isSpotifyEpisode || isSpotifyTrack || isYoutube || isGenericArticle) {
@@ -1705,10 +1715,10 @@ const ImmersivePostCardInner = ({
       return hasImage ? ['flexible-image', 'flexible-text'] : ['flexible-text'];
     }
     if (isVoicePost) {
-      return post.content ? ['flexible-description'] : [];
+      return voiceContent ? ['flexible-description'] : [];
     }
     if (isChallengePost) {
-      return post.content ? ['flexible-description'] : [];
+      return challengeContent ? ['flexible-description'] : [];
     }
     if (isLinkedIn) {
       return post.content ? ['flexible-user-comment'] : [];
@@ -1717,7 +1727,7 @@ const ImmersivePostCardInner = ({
       return post.content ? ['flexible-user-comment'] : [];
     }
     return [];
-  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, post.content, hasImage]);
+  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage]);
 
   const {
     status: layoutStatus,
@@ -2125,7 +2135,7 @@ const ImmersivePostCardInner = ({
                   </div>
 
                   {/* Title se esiste */}
-                  {post.title && post.title.trim().length > 0 && (
+                  {voiceTitle && voiceTitle.trim().length > 0 && (
                     <h2 
                       ref={registerRef('essential-title')} 
                       className="uppercase mb-3 flex-shrink-0"
@@ -2138,12 +2148,12 @@ const ImmersivePostCardInner = ({
                         textAlign: 'left'
                       }}
                     >
-                      {post.title}
+                      {voiceTitle}
                     </h2>
                   )}
 
                   {/* Description flessibile se esiste */}
-                  {post.content && post.content.trim().length > 0 && (
+                  {voiceContent && voiceContent.trim().length > 0 && (
                     <>
                       {flexiblesStatus['flexible-description']?.step === 'full' && (
                         <div 
@@ -2151,7 +2161,7 @@ const ImmersivePostCardInner = ({
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
                           style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55 }}
                         >
-                          <MentionText content={post.content} />
+                          <MentionText content={voiceContent} />
                         </div>
                       )}
 
@@ -2169,7 +2179,7 @@ const ImmersivePostCardInner = ({
                             height: `${flexiblesStatus['flexible-description'].height}px`
                           }}
                         >
-                          <MentionText content={post.content} />
+                          <MentionText content={voiceContent} />
                         </div>
                       )}
 
@@ -2210,6 +2220,7 @@ const ImmersivePostCardInner = ({
                         durationSeconds={activeVoicePost?.duration_seconds || 0}
                         transcript={activeVoicePost?.transcript}
                         transcriptStatus={activeVoicePost?.transcript_status as any}
+                        onShowTranscript={() => { setFullTextMode('transcript'); setShowFullText(true); }}
                       />
                     </div>
                   )}
@@ -2245,7 +2256,7 @@ const ImmersivePostCardInner = ({
                   </div>
 
                   {/* Title se esiste */}
-                  {post.title && post.title.trim().length > 0 && (
+                  {challengeTitle && challengeTitle.trim().length > 0 && (
                     <h2 
                       ref={registerRef('essential-title')} 
                       className="uppercase mb-3 flex-shrink-0"
@@ -2258,12 +2269,12 @@ const ImmersivePostCardInner = ({
                         textAlign: 'left'
                       }}
                     >
-                      {post.title}
+                      {challengeTitle}
                     </h2>
                   )}
 
                   {/* Description flessibile se esiste */}
-                  {post.content && post.content.trim().length > 0 && (
+                  {challengeContent && challengeContent.trim().length > 0 && (
                     <>
                       {flexiblesStatus['flexible-description']?.step === 'full' && (
                         <div 
@@ -2271,7 +2282,7 @@ const ImmersivePostCardInner = ({
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
                           style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55 }}
                         >
-                          <MentionText content={post.content} />
+                          <MentionText content={challengeContent} />
                         </div>
                       )}
 
@@ -2289,7 +2300,7 @@ const ImmersivePostCardInner = ({
                             height: `${flexiblesStatus['flexible-description'].height}px`
                           }}
                         >
-                          <MentionText content={post.content} />
+                          <MentionText content={challengeContent} />
                         </div>
                       )}
 
@@ -2319,6 +2330,8 @@ const ImmersivePostCardInner = ({
                       durationSeconds={activeVoicePost?.duration_seconds || 0}
                       transcript={activeVoicePost?.transcript}
                       transcriptStatus={activeVoicePost?.transcript_status as any}
+                      accentColor="#E41E52"
+                      onShowTranscript={() => { setFullTextMode('transcript'); setShowFullText(true); }}
                     />
                   </div>
 
@@ -2389,59 +2402,46 @@ const ImmersivePostCardInner = ({
                               if (result.insufficient_context) {
                                 toast.info("Trascrizione non sufficiente per il test.");
                                 setShowChallengeFlow(true);
-                                return;
-                              }
-                              if (!result || result.error || !result.questions?.length) {
-                                toast.error(result?.error || "Errore generico");
-                                return;
-                              }
-                              setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}`, onChallengeRespond: true });
-                              setShowQuiz(true);
-                            } catch {
-                              setShowAnalysisOverlay(false);
-                              toast.error("Errore generico");
-                            }
-                          };
-                          handleRespond();
-                        }}
-                        disabled={isDisabled}
-                        className={cn(
-                          "relative w-full mt-2 rounded-full font-bold text-sm tracking-wide overflow-hidden transition-all flex-shrink-0 flex items-center justify-center",
-                          isDisabled ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02] active:scale-[0.98]"
-                        )}
-                        style={{
-                          height: '48px',
-                          background: isDisabled ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #E41E52, #FF6B35)',
-                          color: isDisabled ? 'rgba(255,255,255,0.3)' : 'white',
-                          border: isDisabled ? '1px solid rgba(255,255,255,0.1)' : 'none',
-                        }}
-                      >
-                        {!isDisabled && (
-                          <span className="absolute inset-0" style={{
-                            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)',
-                            backgroundSize: '200% 100%',
-                            animation: 'shimmer 2.5s ease-in-out infinite',
-                          }} />
-                        )}
-                        <span className="relative z-10">
-                          {hasResponded ? '✓ Hai già risposto' : isExpired ? '⚡ Sfida chiusa' : '⚡ Accetta la sfida'}
-                        </span>
-                      </button>
-                    ) : null;
-                  })()}
-
-                  {/* Player challenge compact (essential-challenge-player) */}
-                  <div ref={registerRef('essential-challenge-player')} className="relative w-full rounded-2xl flex-shrink-0 mt-3" style={{ height: '76px' }}>
-                    <VoicePlayer
-                      compact
-                      audioUrl={activeVoicePost.audio_url}
-                      durationSeconds={activeVoicePost.duration_seconds}
-                      waveformData={activeVoicePost.waveform_data}
-                      transcript={activeVoicePost.transcript}
-                      transcriptStatus={activeVoicePost.transcript_status as any}
-                      accentColor="#E41E52"
-                    />
-                  </div>
+                                  return;
+                               }
+                               if (!result || result.error || !result.questions?.length) {
+                                 toast.error(result?.error || "Errore generico");
+                                 return;
+                               }
+                               setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}`, onChallengeRespond: true });
+                               setShowQuiz(true);
+                             } catch {
+                               setShowAnalysisOverlay(false);
+                               toast.error("Errore generico");
+                             }
+                           };
+                           handleRespond();
+                         }}
+                         disabled={isDisabled}
+                         className={cn(
+                           "relative w-full mt-2 rounded-full font-bold text-sm tracking-wide overflow-hidden transition-all flex-shrink-0 flex items-center justify-center",
+                           isDisabled ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02] active:scale-[0.98]"
+                         )}
+                         style={{
+                           height: '48px',
+                           background: isDisabled ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #E41E52, #FF6B35)',
+                           color: isDisabled ? 'rgba(255,255,255,0.3)' : 'white',
+                           border: isDisabled ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                         }}
+                       >
+                         {!isDisabled && (
+                           <span className="absolute inset-0" style={{
+                             background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)',
+                             backgroundSize: '200% 100%',
+                             animation: 'shimmer 2.5s ease-in-out infinite',
+                           }} />
+                         )}
+                         <span className="relative z-10">
+                           {hasResponded ? '✓ Hai già risposto' : isExpired ? '⚡ Sfida chiusa' : '⚡ Accetta la sfida'}
+                         </span>
+                       </button>
+                     ) : null;
+                   })()}
 
                   {/* Response Drawer */}
                   <Drawer open={challengeDrawerOpen} onOpenChange={setChallengeDrawerOpen}>

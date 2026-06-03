@@ -11,6 +11,7 @@ interface VoicePlayerProps {
   transcriptStatus?: 'pending' | 'processing' | 'completed' | 'failed' | null;
   compact?: boolean;
   accentColor?: string;
+  onShowTranscript?: () => void;
 }
 
 /** Generate bell-curve waveform with random variation */
@@ -32,6 +33,7 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
   transcriptStatus,
   compact = false,
   accentColor = '#0A7AFF',
+  onShowTranscript,
 }) => {
   const isImmediate = audioUrl.startsWith('http') || audioUrl.startsWith('blob:') || audioUrl.startsWith('data:');
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(isImmediate ? audioUrl : null);
@@ -133,6 +135,7 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
     return (
       <div
         className="flex items-center gap-2.5 w-full"
+        onClick={(e) => e.stopPropagation()}
         style={{
           padding: '8px 10px',
           borderRadius: '10px',
@@ -180,20 +183,42 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
         <span className="text-[10px] font-medium tabular-nums shrink-0" style={{ color: 'rgba(241,245,249,0.5)' }}>
           {formatTime(currentTime)} / {formatTime(durationSeconds)}
         </span>
+
+        {transcriptStatus === 'completed' && onShowTranscript && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onShowTranscript();
+            }}
+            className="shrink-0 p-1.5 rounded-lg active:scale-95 transition-transform"
+            style={{
+              border: `1px solid ${accentColor}40`,
+              background: `${accentColor}1F`,
+              color: accentColor
+            }}
+            title="Leggi la trascrizione"
+          >
+            <FileText className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
     );
   }
 
   // ─── FULL PLAYER ───
   return (
-    <div className="flex flex-col w-full" style={{
-      background: `linear-gradient(135deg, ${accentColor}0F, rgba(255,255,255,0.03), ${accentColor}0A)`,
-      border: '1px solid rgba(255,255,255,0.10)',
-      borderRadius: 18,
-      padding: '16px 18px',
-      backdropFilter: 'blur(8px)',
-      gap: 10,
-    }}>
+    <div 
+      className="flex flex-col w-full" 
+      onClick={(e) => e.stopPropagation()}
+      style={{
+        background: `linear-gradient(135deg, ${accentColor}0F, rgba(255,255,255,0.03), ${accentColor}0A)`,
+        border: '1px solid rgba(255,255,255,0.10)',
+        borderRadius: 18,
+        padding: '16px 18px',
+        backdropFilter: 'blur(8px)',
+        gap: 10,
+      }}
+    >
       {audioEl}
 
       <div className="flex items-center gap-3.5">
