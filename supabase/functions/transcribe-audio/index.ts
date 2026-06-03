@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    console.log(`[transcribe-audio:${reqId}] processing voicePostId=${voicePostId} retry=${retryCount}`)
+    console.log(`[transcribe-audio:${reqId}] Invoked with:`, { voicePostId, retryCount })
 
     // 1. Mark as processing
     await supabase.from('voice_posts').update({ transcript_status: 'processing' }).eq('id', voicePostId)
@@ -58,10 +58,18 @@ Deno.serve(async (req) => {
     if (signErr) throw new Error(`Failed to create signed URL for voice audio: ${signErr.message}`);
     const audioUrlToTranscribe = signedUrlData.signedUrl;
 
-    console.log(`[transcribe-audio:${reqId}] triggering deepgram`);
+    console.log(`[transcribe-audio:${reqId}] Fetching audio from:`, audioUrlToTranscribe.substring(0, 160) + '...');
+
+    // Pre-flight: HEAD request to verify the signed URL is reachable and audio bytes exist
+    try {
+      const head = await fetch(audioUrlToTranscribe, { method: 'HEAD' });
+      console.log(`[transcribe-audio:${reqId}] audio HEAD status=${head.status} content-type=${head.headers.get('content-type')} content-length=${head.headers.get('content-length')}`);
+    } catch (e) {
+      console.warn(`[transcribe-audio:${reqId}] audio HEAD failed:`, e);
+    }
 
     // 4. Call Deepgram
-    const deepgramResponse = await fetch('https://api.deepgram.com/v1/listen?model=nova-2&language=it&smart_format=true', {
+    const deepgramResponse = await fetch('https://api.deepgram.com/v1/listen?model=nova-2&language=it&smart_format=true&punctuate=true', {
       method: 'POST',
       headers: {
         'Authorization': `Token ${deepgramKey}`,
@@ -70,26 +78,34 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ url: audioUrlToTranscribe }),
     });
 
+    const rawBody = await deepgramResponse.text();
+    console.log(`[transcribe-audio:${reqId}] Deepgram response status:`, deepgramResponse.status);
+    console.log(`[transcribe-audio:${reqId}] Deepgram body preview:`, rawBody.substring(0, 400));
+
     if (!deepgramResponse.ok) {
-      const errText = await deepgramResponse.text()
-      throw new Error(`Deepgram API error (${deepgramResponse.status}): ${errText}`);
+      throw new Error(`Deepgram API error (${deepgramResponse.status}): ${rawBody.substring(0, 300)}`);
     }
 
-    const { results } = await deepgramResponse.json();
-    const transcript = results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
-
-    console.log(`[transcribe-audio:${reqId}] transcript obtained length=${transcript.length}`);
-
-    if (transcript.trim().length === 0) {
-      console.warn(`[transcribe-audio:${reqId}] empty transcript returned`);
-      // Treat empty response as valid completion if we got one
+    let parsed: any = {};
+    try { parsed = JSON.parse(rawBody); } catch (e) {
+      throw new Error(`Deepgram returned non-JSON body: ${String(e)}`);
     }
+    const transcript = parsed?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
+    const confidence = parsed?.results?.channels?.[0]?.alternatives?.[0]?.confidence;
+
+    console.log(`[transcribe-audio:${reqId}] Deepgram transcript preview:`, transcript.substring(0, 200));
+    console.log(`[transcribe-audio:${reqId}] transcript length=${transcript.length} confidence=${confidence}`);
+
+    const isEmpty = transcript.trim().length === 0;
+    const finalStatus = isEmpty ? 'failed' : 'completed';
 
     // 5. Save transcript
-    await supabase.from('voice_posts').update({
+    console.log(`[transcribe-audio:${reqId}] Updating voice_posts.transcript for id:`, voicePostId, 'status=', finalStatus);
+    const updateResult = await supabase.from('voice_posts').update({
       transcript,
-      transcript_status: 'completed'
-    }).eq('id', voicePostId);
+      transcript_status: finalStatus
+    }).eq('id', voicePostId).select('id');
+    console.log(`[transcribe-audio:${reqId}] Update result:`, { data: updateResult.data, error: updateResult.error });
 
     // 6. Trigger generate-qa
     if (transcript.trim().length > 30) {
