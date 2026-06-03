@@ -2026,31 +2026,51 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
           questions: [],
         };
 
-        // Update BOTH query keys to ensure immediate visibility
-        // 1) Broad ['posts'] filter
-        queryClient.setQueriesData({ queryKey: ['posts'] }, (old: any) => {
+        // Update BOTH query keys to ensure immediate visibility.
+        // NOTE: feed posts use useInfiniteQuery → cache shape is { pages, pageParams }.
+        // Some legacy callers may still hold a flat array; handle both shapes safely.
+        const prependPost = (old: any) => {
+          if (!old) return old;
+          // Infinite query shape
+          if (old && Array.isArray(old.pages)) {
+            const alreadyPresent = old.pages.some((page: any) =>
+              Array.isArray(page) && page.some((p: any) => p?.id === postId)
+            );
+            if (alreadyPresent) return old;
+            const newPages = old.pages.map((page: any, i: number) => {
+              const list = Array.isArray(page) ? page : [];
+              return i === 0 ? [optimisticPost, ...list] : list;
+            });
+            return { ...old, pages: newPages };
+          }
+          // Flat array fallback
           const list = Array.isArray(old) ? old : [];
           if (list.some((p: any) => p?.id === postId)) return list;
           return [optimisticPost, ...list];
-        });
+        };
 
-        // 2) Specific ['posts', user.id] key used by Feed
-        queryClient.setQueryData(['posts', user.id], (old: any) => {
-          const list = Array.isArray(old) ? old : [];
-          if (list.some((p: any) => p?.id === postId)) return list;
-          return [optimisticPost, ...list];
-        });
+        queryClient.setQueriesData({ queryKey: ['posts'] }, prependPost);
+        queryClient.setQueryData(['posts', user.id], prependPost);
 
         // If this is a reshare, also bump the ORIGINAL post share counter immediately.
         // Backend increments shares_count for quotedPostId on successful publish.
         if (!wasIdempotent && quotedPost?.id && !isQuotingEditorial) {
+          const bumpPost = (p: any) =>
+            p?.id === quotedPost.id
+              ? { ...p, shares_count: (p.shares_count ?? 0) + 1 }
+              : p;
           const bump = (old: any) => {
+            if (!old) return old;
+            if (old && Array.isArray(old.pages)) {
+              return {
+                ...old,
+                pages: old.pages.map((page: any) =>
+                  Array.isArray(page) ? page.map(bumpPost) : page
+                ),
+              };
+            }
             const list = Array.isArray(old) ? old : [];
-            return list.map((p: any) =>
-              p?.id === quotedPost.id
-                ? { ...p, shares_count: (p.shares_count ?? 0) + 1 }
-                : p
-            );
+            return list.map(bumpPost);
           };
 
           queryClient.setQueriesData({ queryKey: ['posts'] }, bump);
