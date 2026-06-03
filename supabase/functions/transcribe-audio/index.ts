@@ -114,7 +114,6 @@ Deno.serve(async (req) => {
         contentId: voicePost.post_id,
         userText: transcript,
         type: 'audio',
-        testMode: 'USER_ONLY',
         questionCount: 1,
       };
       console.log(`[transcribe-audio:${reqId}] Calling generate-qa with body:`, JSON.stringify(qaBody));
