@@ -16,7 +16,7 @@ import { PostTypeChooser } from "./PostTypeChooser";
 import { MediaPreviewModal } from "@/components/media/MediaPreviewModal";
 import { SourceReaderGate } from "./SourceReaderGate";
 import { QuizModal } from "@/components/ui/quiz-modal";
-import { getWordCount, getTestModeWithSource, getMediaTestMode, getMediaGateForComposer, getQuestionCountForIntentReshare } from '@/lib/gate-utils';
+import { getWordCount, getPostWordCount, getTestModeWithSource, getMediaTestMode, getMediaGateForComposer, getQuestionCountForIntentReshare } from '@/lib/gate-utils';
 import { useQueryClient } from "@tanstack/react-query";
 // Phase 4.4: rimosso import updateCognitiveDensityWeighted (sistema density refactored a vista derivata).
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -343,10 +343,10 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
   );
 
   // [FIX] Word count of the ORIGINAL quoted post (source) - used for reshare gate logic
-  // The resharer is tested on the SOURCE content, NEVER on their own comment
-  const quotedPostWordCount = quotedPost?.content || quotedPost?.title
-    ? getWordCount([quotedPost.title, quotedPost.content].filter(Boolean).join(' '))
-    : 0;
+  // The resharer is tested on the SOURCE content, NEVER on their own comment.
+  // Include voice_post.transcript / body_text and challenge.body_text so Voice
+  // posts and Challenge posts are correctly evaluated.
+  const quotedPostWordCount = getPostWordCount(quotedPost);
 
   // Gate status indicator (real-time feedback)
   // Character-based gate applies ONLY to reshares (quotedPost), not free text
@@ -1244,8 +1244,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
       const isReshare = !!quotedPost;
       let testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY';
 
-      if (isReshare && quotedPost.content) {
-        const originalAuthorWordCount = getWordCount(quotedPost.content);
+      if (isReshare && getPostWordCount(quotedPost) > 0) {
+        const originalAuthorWordCount = getPostWordCount(quotedPost);
         testMode = getTestModeWithSource(originalAuthorWordCount);
       } else {
         testMode = 'SOURCE_ONLY';
@@ -1353,8 +1353,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
       const isReshare = !!quotedPost;
       let testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY';
 
-      if (isReshare && (quotedPost?.content || quotedPost?.title)) {
-        const originalAuthorWordCount = getWordCount([quotedPost?.title, quotedPost?.content].filter(Boolean).join(' '));
+      if (isReshare && getPostWordCount(quotedPost) > 0) {
+        const originalAuthorWordCount = getPostWordCount(quotedPost);
         testMode = getTestModeWithSource(originalAuthorWordCount);
       } else {
         testMode = 'SOURCE_ONLY';
@@ -1474,8 +1474,8 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
       const isReshare = !!quotedPost;
       let testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY';
 
-      if (isReshare && quotedPost.content) {
-        const originalAuthorWordCount = getWordCount(quotedPost.content);
+      if (isReshare && getPostWordCount(quotedPost) > 0) {
+        const originalAuthorWordCount = getPostWordCount(quotedPost);
         testMode = getTestModeWithSource(originalAuthorWordCount);
       } else {
         testMode = 'SOURCE_ONLY';
