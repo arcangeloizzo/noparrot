@@ -12,6 +12,7 @@ interface VoicePlayerProps {
   compact?: boolean;
   accentColor?: string;
   onShowTranscript?: () => void;
+  hideTranscriptButton?: boolean;
 }
 
 /** Generate bell-curve waveform with random variation */
@@ -34,6 +35,7 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
   compact = false,
   accentColor = '#0A7AFF',
   onShowTranscript,
+  hideTranscriptButton = false,
 }) => {
   const isImmediate = audioUrl.startsWith('http') || audioUrl.startsWith('blob:') || audioUrl.startsWith('data:');
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(isImmediate ? audioUrl : null);
@@ -184,7 +186,7 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
           {formatTime(currentTime)} / {formatTime(durationSeconds)}
         </span>
 
-        {transcriptStatus === 'completed' && onShowTranscript && (
+        {!hideTranscriptButton && transcriptStatus === 'completed' && onShowTranscript && (
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -296,35 +298,37 @@ export const VoicePlayer: React.FC<VoicePlayerProps> = ({
           {playbackRate}x
         </button>
 
-        <button
-          onClick={() => setShowTranscript(!showTranscript)}
-          disabled={transcriptStatus === 'failed'}
-          className="flex items-center gap-1.5 transition-colors active:scale-95"
-          style={{
-            padding: '5px 14px', borderRadius: 12, fontSize: 13,
-            background: showTranscript ? `${accentColor}1F` : 'rgba(255,255,255,0.05)',
-            border: `1px solid ${showTranscript ? `${accentColor}40` : 'rgba(255,255,255,0.08)'}`,
-            color: showTranscript ? accentColor : 'rgba(241,245,249,0.8)',
-            backdropFilter: 'blur(4px)',
-            letterSpacing: '0.2px',
-            fontWeight: 600,
-            fontFamily: 'Inter, sans-serif'
-          }}
-        >
-          {isTranscriptLoading ? (
-            <>
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              <span>Trascrizione...</span>
-            </>
-          ) : transcriptStatus === 'failed' ? (
-            <span style={{ opacity: 0.5 }}>Trascrizione non disp.</span>
-          ) : (
-            <>
-              <FileText className="h-3.5 w-3.5" />
-              Leggi la trascrizione
-            </>
-          )}
-        </button>
+        {!hideTranscriptButton && (
+          <button
+            onClick={() => setShowTranscript(!showTranscript)}
+            disabled={transcriptStatus === 'failed'}
+            className="flex items-center gap-1.5 transition-colors active:scale-95"
+            style={{
+              padding: '5px 14px', borderRadius: 12, fontSize: 13,
+              background: showTranscript ? `${accentColor}1F` : 'rgba(255,255,255,0.05)',
+              border: `1px solid ${showTranscript ? `${accentColor}40` : 'rgba(255,255,255,0.08)'}`,
+              color: showTranscript ? accentColor : 'rgba(241,245,249,0.8)',
+              backdropFilter: 'blur(4px)',
+              letterSpacing: '0.2px',
+              fontWeight: 600,
+              fontFamily: 'Inter, sans-serif'
+            }}
+          >
+            {isTranscriptLoading ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>Trascrizione...</span>
+              </>
+            ) : transcriptStatus === 'failed' ? (
+              <span style={{ opacity: 0.5 }}>Trascrizione non disp.</span>
+            ) : (
+              <>
+                <FileText className="h-3.5 w-3.5" />
+                Leggi la trascrizione
+              </>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Transcript block */}

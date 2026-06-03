@@ -47,6 +47,7 @@ interface FullTextModalProps {
   onModeChange?: (mode: 'description' | 'transcript') => void;
   transcriptContent?: string;  // contenuto trascrizione (separato da content)
   durationSeconds?: number;    // optional audio duration in seconds
+  imageUrl?: string;           // NUOVA: URL dell'immagine allegata
 }
 
 const FullTextModalInner = ({
@@ -66,6 +67,7 @@ const FullTextModalInner = ({
   onModeChange,
   transcriptContent,
   durationSeconds,
+  imageUrl,
 }: FullTextModalProps) => {
   const isCaption = variant === 'caption';
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -269,6 +271,19 @@ const FullTextModalInner = ({
             <VoicePlayer
               audioUrl={audioUrl}
               durationSeconds={durationSeconds || 0}
+              hideTranscriptButton={true}
+            />
+          </div>
+        )}
+
+        {/* Attached Image */}
+        {imageUrl && (
+          <div className="mb-4">
+            <img
+              src={imageUrl}
+              alt=""
+              className="w-full rounded-lg object-cover max-h-[300px]"
+              loading="lazy"
             />
           </div>
         )}

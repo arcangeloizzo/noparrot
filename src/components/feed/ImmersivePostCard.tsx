@@ -1588,12 +1588,12 @@ const ImmersivePostCardInner = ({
     }
     if (isVoicePost) {
       return [
-        ...(voiceTitle ? [{ id: 'essential-title' }] : []),
+        { id: 'essential-title' },
         {
           id: 'essential-voice-player',
           states: [
-            { id: 'standard', height: 280 + 116 },
-            { id: 'compact', height: 76 + 116 }
+            { id: 'standard', height: 260 },
+            { id: 'compact', height: 80 }
           ]
         }
       ];
@@ -1601,10 +1601,10 @@ const ImmersivePostCardInner = ({
     if (isChallengePost) {
       const isAuthor = user?.id === post.author.id;
       return [
-        ...(challengeTitle ? [{ id: 'essential-title' }] : []),
-        { id: 'essential-challenge-player', staticHeight: 76 + 52 + 8 + 12 },
-        { id: 'essential-polarization', staticHeight: 80 + 16 + 12 + 24 },
-        ...(!isAuthor ? [{ id: 'essential-cta-accept', staticHeight: 48 + 8 }] : [])
+        { id: 'essential-title' },
+        { id: 'essential-challenge-player', staticHeight: 76 },
+        { id: 'essential-polarization', staticHeight: 96 },
+        ...(!isAuthor ? [{ id: 'essential-cta-accept', staticHeight: 56 }] : [])
       ];
     }
     if (isLinkedIn) {
@@ -2175,31 +2175,33 @@ const ImmersivePostCardInner = ({
                     emergencyScroll && "overflow-y-auto"
                   )}
                 >
-                  {/* Badge VoiceCast — first element */}
-                  <div className="w-full flex justify-center mb-5 shrink-0">
-                    <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm"
-                      style={{ color: '#0A7AFF', background: 'rgba(10,122,255,0.06)', borderColor: 'rgba(10,122,255,0.2)' }}>
-                      🎙 VOICECAST
-                    </span>
-                  </div>
+                  {/* Header Essenziale: Badge + Title */}
+                  <div ref={registerRef('essential-title')} className="w-full flex flex-col flex-shrink-0">
+                    {/* Badge VoiceCast — first element */}
+                    <div className="w-full flex justify-center mb-5 shrink-0">
+                      <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm"
+                        style={{ color: '#0A7AFF', background: 'rgba(10,122,255,0.06)', borderColor: 'rgba(10,122,255,0.2)' }}>
+                        🎙 VOICECAST
+                      </span>
+                    </div>
 
-                  {/* Title se esiste */}
-                  {voiceTitle && voiceTitle.trim().length > 0 && (
-                    <h2 
-                      ref={registerRef('essential-title')} 
-                      className="uppercase mb-3 flex-shrink-0"
-                      style={{
-                        fontFamily: 'Impact, sans-serif',
-                        fontSize: 'clamp(30px, 8vw, 42px)',
-                        lineHeight: 0.92,
-                        letterSpacing: '-0.02em',
-                        color: '#FFFFFF',
-                        textAlign: 'left'
-                      }}
-                    >
-                      {voiceTitle}
-                    </h2>
-                  )}
+                    {/* Title se esiste */}
+                    {voiceTitle && voiceTitle.trim().length > 0 && (
+                      <h2 
+                        className="uppercase mb-3 flex-shrink-0"
+                        style={{
+                          fontFamily: 'Impact, sans-serif',
+                          fontSize: 'clamp(30px, 8vw, 42px)',
+                          lineHeight: 0.92,
+                          letterSpacing: '-0.02em',
+                          color: '#FFFFFF',
+                          textAlign: 'left'
+                        }}
+                      >
+                        {voiceTitle}
+                      </h2>
+                    )}
+                  </div>
 
                   {/* Description flessibile se esiste */}
                   {voiceContent && voiceContent.trim().length > 0 && (
@@ -2350,43 +2352,45 @@ const ImmersivePostCardInner = ({
                     emergencyScroll && "overflow-y-auto"
                   )}
                 >
-                  {/* Badge Challenge — first element in the flow */}
-                  <div className="w-full flex justify-center mb-5 shrink-0">
-                    <div className="flex items-center gap-2">
-                      <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm"
-                        style={{ color: '#E41E52', background: 'rgba(228,30,82,0.06)', borderColor: 'rgba(228,30,82,0.2)' }}>
-                        ⚡ CHALLENGE
-                      </span>
-                      {challengeCountdown && (
-                        <span style={{ 
-                          color: isChallengeExpired ? 'rgba(241,245,249,0.4)' : isChallengeUrgent ? '#FF8A3D' : 'rgba(241,245,249,0.4)', 
-                          fontSize: 13,
-                          fontWeight: isChallengeUrgent ? 700 : 500,
-                          marginLeft: 4
-                        }}>
-                          · {isChallengeExpired ? '⏱ Chiusa' : `⏱ Scade tra ${challengeCountdown}`}
+                  {/* Header Essenziale: Badge + Title */}
+                  <div ref={registerRef('essential-title')} className="w-full flex flex-col flex-shrink-0">
+                    {/* Badge Challenge — first element in the flow */}
+                    <div className="w-full flex justify-center mb-5 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm"
+                          style={{ color: '#E41E52', background: 'rgba(228,30,82,0.06)', borderColor: 'rgba(228,30,82,0.2)' }}>
+                          ⚡ CHALLENGE
                         </span>
-                      )}
+                        {challengeCountdown && (
+                          <span style={{ 
+                            color: isChallengeExpired ? 'rgba(241,245,249,0.4)' : isChallengeUrgent ? '#FF8A3D' : 'rgba(241,245,249,0.4)', 
+                            fontSize: 13,
+                            fontWeight: isChallengeUrgent ? 700 : 500,
+                            marginLeft: 4
+                          }}>
+                            · {isChallengeExpired ? '⏱ Chiusa' : `⏱ Scade tra ${challengeCountdown}`}
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Title se esiste */}
-                  {challengeTitle && challengeTitle.trim().length > 0 && (
-                    <h2 
-                      ref={registerRef('essential-title')} 
-                      className="uppercase mb-3 flex-shrink-0"
-                      style={{
-                        fontFamily: 'Impact, sans-serif',
-                        fontSize: 'clamp(30px, 8vw, 42px)',
-                        lineHeight: 0.92,
-                        letterSpacing: '-0.02em',
-                        color: '#FFFFFF',
-                        textAlign: 'left'
-                      }}
-                    >
-                      {challengeTitle}
-                    </h2>
-                  )}
+                    {/* Title se esiste */}
+                    {challengeTitle && challengeTitle.trim().length > 0 && (
+                      <h2 
+                        className="uppercase mb-3 flex-shrink-0"
+                        style={{
+                          fontFamily: 'Impact, sans-serif',
+                          fontSize: 'clamp(30px, 8vw, 42px)',
+                          lineHeight: 0.92,
+                          letterSpacing: '-0.02em',
+                          color: '#FFFFFF',
+                          textAlign: 'left'
+                        }}
+                      >
+                        {challengeTitle}
+                      </h2>
+                    )}
+                  </div>
 
                   {/* Description flessibile se esiste */}
                   {challengeContent && challengeContent.trim().length > 0 && (
@@ -4244,6 +4248,11 @@ const ImmersivePostCardInner = ({
                 : "Trascrizione non disponibile"
           }
           durationSeconds={activeVoicePost?.duration_seconds || 0}
+          imageUrl={
+            isVoicePost || isChallengePost
+              ? (post.media?.[0]?.url || post.preview_img || undefined)
+              : undefined
+          }
           author={{
             name: post.author.full_name || post.author.username,
             username: post.author.username,
