@@ -1676,24 +1676,46 @@ const ImmersivePostCardInner = ({
       return arr;
     }
     if (isVoicePost) {
-      return voiceContent ? [
-        {
+      const arr: FlexibleElementConfig[] = [];
+      if (voiceContent) {
+        arr.push({
           id: 'flexible-description',
           compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
           minReadabilityHeight: 40,
           fallbackHeight: 80
-        }
-      ] : [];
+        });
+      }
+      const hasAttachedImage = post.media && post.media.length > 0;
+      if (hasAttachedImage) {
+        arr.push({
+          id: 'flexible-image',
+          compressionSteps: ['full', 'pill', 'hidden'] as CompressionStep[],
+          minReadabilityHeight: 100,
+          fallbackHeight: 200
+        });
+      }
+      return arr;
     }
     if (isChallengePost) {
-      return challengeContent ? [
-        {
+      const arr: FlexibleElementConfig[] = [];
+      if (challengeContent) {
+        arr.push({
           id: 'flexible-description',
           compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
           minReadabilityHeight: 40,
           fallbackHeight: 80
-        }
-      ] : [];
+        });
+      }
+      const hasAttachedImage = post.media && post.media.length > 0;
+      if (hasAttachedImage) {
+        arr.push({
+          id: 'flexible-image',
+          compressionSteps: ['full', 'pill', 'hidden'] as CompressionStep[],
+          minReadabilityHeight: 100,
+          fallbackHeight: 200
+        });
+      }
+      return arr;
     }
     if (isLinkedIn) {
       return post.content ? [
@@ -1716,7 +1738,7 @@ const ImmersivePostCardInner = ({
       ] : [];
     }
     return [];
-  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage]);
+  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media]);
 
   const priorityConfig = useMemo(() => {
     if (isSpotifyEpisode || isSpotifyTrack || isYoutube || isGenericArticle) {
@@ -1726,10 +1748,26 @@ const ImmersivePostCardInner = ({
       return hasImage ? ['flexible-image', 'flexible-text'] : ['flexible-text'];
     }
     if (isVoicePost) {
-      return voiceContent ? ['flexible-description'] : [];
+      const hasAttachedImage = post.media && post.media.length > 0;
+      const priority: string[] = [];
+      if (hasAttachedImage) {
+        priority.push('flexible-image');
+      }
+      if (voiceContent) {
+        priority.push('flexible-description');
+      }
+      return priority;
     }
     if (isChallengePost) {
-      return challengeContent ? ['flexible-description'] : [];
+      const hasAttachedImage = post.media && post.media.length > 0;
+      const priority: string[] = [];
+      if (hasAttachedImage) {
+        priority.push('flexible-image');
+      }
+      if (challengeContent) {
+        priority.push('flexible-description');
+      }
+      return priority;
     }
     if (isLinkedIn) {
       return post.content ? ['flexible-user-comment'] : [];
@@ -1738,7 +1776,7 @@ const ImmersivePostCardInner = ({
       return post.content ? ['flexible-user-comment'] : [];
     }
     return [];
-  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage]);
+  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media]);
 
   const {
     status: layoutStatus,
@@ -2212,6 +2250,72 @@ const ImmersivePostCardInner = ({
                     </div>
                   )}
 
+                  {/* Image/Media flessibile */}
+                  {hasMedia && post.media && post.media.length > 0 && (
+                    <>
+                      {flexiblesStatus['flexible-image']?.step === 'full' && (
+                        <div 
+                          ref={registerRef('flexible-image')} 
+                          className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3"
+                          style={{ height: `${flexiblesStatus['flexible-image'].height}px` }}
+                        >
+                          {post.media.length === 1 ? (
+                            isVideoMedia ? (
+                              <div className="relative w-full h-full flex items-center justify-center">
+                                <img
+                                  src={post.media?.[0]?.thumbnail_url || mediaUrl}
+                                  alt=""
+                                  className="w-full h-full object-contain rounded-2xl border border-white/10"
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <div className="bg-white p-3 rounded-full">
+                                    <Play className="w-6 h-6 text-black fill-black" />
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <img
+                                src={mediaUrl}
+                                alt=""
+                                className="w-full h-full object-contain rounded-2xl border border-white/10"
+                              />
+                            )
+                          ) : (
+                            <MediaGallery
+                              media={post.media}
+                              onClick={(_, index) => setSelectedMediaIndex(index)}
+                              initialIndex={carouselIndex}
+                              onIndexChange={setCarouselIndex}
+                              className="h-full w-full object-contain rounded-2xl border border-white/10"
+                            />
+                          )}
+                        </div>
+                      )}
+                      
+                      {flexiblesStatus['flexible-image']?.step === 'pill' && (
+                        <div 
+                          ref={registerRef('flexible-image')} 
+                          className="flex-shrink-0 mb-3" 
+                          style={{ height: '36px' }}
+                        >
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedMediaIndex(0);
+                            }}
+                            className="inline-flex h-9 items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 px-4 rounded-full text-white text-xs font-bold"
+                          >
+                            <span>📎 Vedi {isVideoMedia ? 'video' : 'immagine'}</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {flexiblesStatus['flexible-image']?.step === 'hidden' && (
+                        <div ref={registerRef('flexible-image')} style={{ height: 0, overflow: 'hidden' }} />
+                      )}
+                    </>
+                  )}
+
                   {/* Player audio essenziale a stati */}
                   {essentialStates['essential-voice-player'] === 'standard' && (
                     <div ref={registerRef('essential-voice-player')} className="w-full mt-auto flex-shrink-0">
@@ -2331,6 +2435,72 @@ const ImmersivePostCardInner = ({
                         Approfondisci
                       </button>
                     </div>
+                  )}
+
+                  {/* Image/Media flessibile */}
+                  {hasMedia && post.media && post.media.length > 0 && (
+                    <>
+                      {flexiblesStatus['flexible-image']?.step === 'full' && (
+                        <div 
+                          ref={registerRef('flexible-image')} 
+                          className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3"
+                          style={{ height: `${flexiblesStatus['flexible-image'].height}px` }}
+                        >
+                          {post.media.length === 1 ? (
+                            isVideoMedia ? (
+                              <div className="relative w-full h-full flex items-center justify-center">
+                                <img
+                                  src={post.media?.[0]?.thumbnail_url || mediaUrl}
+                                  alt=""
+                                  className="w-full h-full object-contain rounded-2xl border border-white/10"
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                  <div className="bg-white p-3 rounded-full">
+                                    <Play className="w-6 h-6 text-black fill-black" />
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <img
+                                src={mediaUrl}
+                                alt=""
+                                className="w-full h-full object-contain rounded-2xl border border-white/10"
+                              />
+                            )
+                          ) : (
+                            <MediaGallery
+                              media={post.media}
+                              onClick={(_, index) => setSelectedMediaIndex(index)}
+                              initialIndex={carouselIndex}
+                              onIndexChange={setCarouselIndex}
+                              className="h-full w-full object-contain rounded-2xl border border-white/10"
+                            />
+                          )}
+                        </div>
+                      )}
+                      
+                      {flexiblesStatus['flexible-image']?.step === 'pill' && (
+                        <div 
+                          ref={registerRef('flexible-image')} 
+                          className="flex-shrink-0 mb-3" 
+                          style={{ height: '36px' }}
+                        >
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedMediaIndex(0);
+                            }}
+                            className="inline-flex h-9 items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 px-4 rounded-full text-white text-xs font-bold"
+                          >
+                            <span>📎 Vedi {isVideoMedia ? 'video' : 'immagine'}</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {flexiblesStatus['flexible-image']?.step === 'hidden' && (
+                        <div ref={registerRef('flexible-image')} style={{ height: 0, overflow: 'hidden' }} />
+                      )}
+                    </>
                   )}
 
                   {/* Player audio compact (essential-challenge-player) */}
