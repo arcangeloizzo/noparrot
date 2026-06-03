@@ -445,74 +445,66 @@ export const useToggleReaction = () => {
       const previousPost = queryClient.getQueryData(['post', postId]);
 
       // 3. Optimistically update cache immediately
-      queryClient.setQueryData(['posts', user.id], (old: Post[] | undefined) => {
-        if (!old) return old;
-        return old.map(post => {
-          if (post.id !== postId) return post;
+      // Feed posts use useInfiniteQuery → shape is { pages: Post[][], pageParams }.
+      const applyReactionToPost = (post: Post): Post => {
+        if (post.id !== postId) return post;
 
-          const isBookmark = reactionType === 'bookmark';
-          const currentReaction = post.user_reactions.myReactionType;
-          const isSameReaction = currentReaction === reactionType;
+        const isBookmark = reactionType === 'bookmark';
+        const currentReaction = post.user_reactions.myReactionType;
+        const isSameReaction = currentReaction === reactionType;
 
-          if (isBookmark) {
-            return {
-              ...post,
-              user_reactions: {
-                ...post.user_reactions,
-                has_bookmarked: !post.user_reactions.has_bookmarked
-              }
-            };
-          }
-
-          // Calculate new byType counts
-          const newByType = { ...post.reactions.byType };
-          let newHeartsCount = post.reactions.hearts;
-
-          if (isSameReaction) {
-            // Toggle off: remove current reaction
-            newByType[reactionType] = Math.max(0, (newByType[reactionType] || 0) - 1);
-            newHeartsCount = Math.max(0, newHeartsCount - 1);
-
-            return {
-              ...post,
-              reactions: {
-                ...post.reactions,
-                hearts: newHeartsCount,
-                byType: newByType,
-              },
-              user_reactions: {
-                ...post.user_reactions,
-                has_hearted: false,
-                myReactionType: null
-              }
-            };
-          } else {
-            // Add or switch
-            // If there was a previous reaction, decrement its count
-            if (currentReaction) {
-              newByType[currentReaction] = Math.max(0, (newByType[currentReaction] || 0) - 1);
-            } else {
-              // New reaction, increment total
-              newHeartsCount += 1;
+        if (isBookmark) {
+          return {
+            ...post,
+            user_reactions: {
+              ...post.user_reactions,
+              has_bookmarked: !post.user_reactions.has_bookmarked
             }
-            // Increment new reaction count
-            newByType[reactionType] = (newByType[reactionType] || 0) + 1;
+          };
+        }
 
-            return {
-              ...post,
-              reactions: {
-                ...post.reactions,
-                hearts: newHeartsCount,
-                byType: newByType,
-              },
-              user_reactions: {
-                ...post.user_reactions,
-                has_hearted: true,
-                myReactionType: reactionType as 'heart' | 'laugh' | 'wow' | 'sad' | 'fire'
-              }
-            };
+        const newByType = { ...post.reactions.byType };
+        let newHeartsCount = post.reactions.hearts;
+
+        if (isSameReaction) {
+          newByType[reactionType] = Math.max(0, (newByType[reactionType] || 0) - 1);
+          newHeartsCount = Math.max(0, newHeartsCount - 1);
+          return {
+            ...post,
+            reactions: { ...post.reactions, hearts: newHeartsCount, byType: newByType },
+            user_reactions: { ...post.user_reactions, has_hearted: false, myReactionType: null }
+          };
+        }
+
+        if (currentReaction) {
+          newByType[currentReaction] = Math.max(0, (newByType[currentReaction] || 0) - 1);
+        } else {
+          newHeartsCount += 1;
+        }
+        newByType[reactionType] = (newByType[reactionType] || 0) + 1;
+
+        return {
+          ...post,
+          reactions: { ...post.reactions, hearts: newHeartsCount, byType: newByType },
+          user_reactions: {
+            ...post.user_reactions,
+            has_hearted: true,
+            myReactionType: reactionType as 'heart' | 'laugh' | 'wow' | 'sad' | 'fire'
           }
-        });
+        };
+      };
+
+      queryClient.setQueryData(['posts', user.id], (old: any) => {
+        if (!old) return old;
+        if (old && Array.isArray(old.pages)) {
+          return {
+            ...old,
+            pages: old.pages.map((page: any) =>
+              Array.isArray(page) ? page.map(applyReactionToPost) : page
+            ),
+          };
+        }
+        return Array.isArray(old) ? old.map(applyReactionToPost) : old;
       });
 
       // Also update saved-posts if it's a bookmark toggle
