@@ -425,6 +425,7 @@ const ImmersivePostCardInner = ({
 
   // Full text modal for long posts
   const [showFullText, setShowFullText] = useState(false);
+  const [fullTextMode, setFullTextMode] = useState<'description' | 'transcript'>('description');
   const [showMediaExpandedSheet, setShowMediaExpandedSheet] = useState(false);
 
   // Caption expansion state for long Instagram/social captions
@@ -2182,7 +2183,7 @@ const ImmersivePostCardInner = ({
                   {showDrawerCta && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        onClick={(e) => { e.stopPropagation(); setFullTextMode('description'); setShowFullText(true); }}
                         className="text-sm text-primary font-semibold hover:underline block"
                       >
                         Approfondisci
@@ -2197,7 +2198,7 @@ const ImmersivePostCardInner = ({
                         audioUrl={activeVoicePost?.audio_url || ''}
                         durationSeconds={activeVoicePost?.duration_seconds || 0}
                         transcriptStatus={activeVoicePost?.transcript_status as any}
-                        onShowTranscript={() => setShowFullText(true)}
+                        onShowTranscript={() => { setFullTextMode('transcript'); setShowFullText(true); }}
                       />
                     </div>
                   )}
@@ -2302,7 +2303,7 @@ const ImmersivePostCardInner = ({
                   {showDrawerCta && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        onClick={(e) => { e.stopPropagation(); setFullTextMode('description'); setShowFullText(true); }}
                         className="text-sm text-primary font-semibold hover:underline block"
                       >
                         Approfondisci
@@ -4024,14 +4025,21 @@ const ImmersivePostCardInner = ({
       {hasMountedFullText.current && (
         <FullTextModal
           isOpen={showFullText}
-          onClose={() => setShowFullText(false)}
-          title={post.title}
+          onClose={() => {
+            setShowFullText(false);
+            setFullTextMode('description');
+          }}
+          title={fullTextMode === 'transcript' ? "Trascrizione" : post.title}
           content={
-            isChallengePost 
-              ? (post.challenge?.voice_post?.transcript || post.challenge?.body_text || post.content)
-              : isAudioPost 
-                ? (activeVoicePost?.transcript || activeVoicePost?.body_text || post.content)
-                : post.content
+            fullTextMode === 'transcript'
+              ? (
+                  activeVoicePost?.transcript_status === 'completed'
+                    ? (activeVoicePost.transcript || "Trascrizione non disponibile")
+                    : (activeVoicePost?.transcript_status === 'pending' || activeVoicePost?.transcript_status === 'processing')
+                      ? "Trascrizione in elaborazione..."
+                      : "Trascrizione non disponibile"
+                )
+              : post.content
           }
           author={{
             name: post.author.full_name || post.author.username,
