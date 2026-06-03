@@ -11,6 +11,34 @@ export function getWordCount(text: string): number {
 }
 
 /**
+ * Estrae tutto il testo "cognitivamente rilevante" da un post per il calcolo
+ * del word count usato dal Comprehension Gate.
+ *
+ * Per Voice post (post.content vuoto) il contenuto reale vive in
+ * voice_post.transcript / voice_post.body_text.
+ * Per le Challenge il body è in challenge.body_text (+ thesis).
+ */
+export function getPostFullText(post: any | null | undefined): string {
+  if (!post) return '';
+  const parts: (string | null | undefined)[] = [
+    post.title,
+    post.content,
+    post.body_text,
+    post.voice_post?.transcript,
+    post.voice_post?.body_text,
+    post.challenge?.thesis,
+    post.challenge?.body_text,
+    post.challenge?.voice_post?.transcript,
+    post.challenge?.voice_post?.body_text,
+  ];
+  return parts.filter(Boolean).join(' ');
+}
+
+export function getPostWordCount(post: any | null | undefined): number {
+  return getWordCount(getPostFullText(post));
+}
+
+/**
  * Test mode per contenuti CON fonte esterna
  */
 export type TestMode = 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY';

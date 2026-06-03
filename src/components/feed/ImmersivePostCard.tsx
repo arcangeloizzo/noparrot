@@ -91,7 +91,7 @@ import { generateQA, fetchArticlePreview } from "@/lib/ai-helpers";
 import { supabase } from "@/integrations/supabase/client";
 import { useCreateThread } from "@/hooks/useMessageThreads";
 import { useSendMessage } from "@/hooks/useMessages";
-import { getWordCount, getTestModeWithSource, getQuestionCountWithoutSource, getQuestionCountForIntentReshare } from "@/lib/gate-utils";
+import { getWordCount, getPostFullText, getTestModeWithSource, getQuestionCountWithoutSource, getQuestionCountForIntentReshare } from "@/lib/gate-utils";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
 import { useReshareContextStack } from "@/hooks/useReshareContextStack";
 import { useOriginalSource } from "@/hooks/useOriginalSource";
@@ -654,7 +654,7 @@ const ImmersivePostCardInner = ({
       return;
     }
 
-    const userText = [post.title, post.content].filter(Boolean).join('\n\n');
+    const userText = getPostFullText(post);
     const userWordCount = getWordCount(userText);
 
     // Use finalSourceUrl to include sources from quoted posts and deep chains
@@ -684,7 +684,7 @@ const ImmersivePostCardInner = ({
       return;
     }
 
-    const userText = [post.title, post.content].filter(Boolean).join('\n\n');
+    const userText = getPostFullText(post);
     const userWordCount = getWordCount(userText);
 
     // Use finalSourceUrl to include sources from quoted posts and deep chains
@@ -724,7 +724,7 @@ const ImmersivePostCardInner = ({
     // Direct gate for text-only posts when already read (bypasses reader)
     if (!user) return;
 
-    let userText = [post.title, post.content].filter(Boolean).join('\n\n');
+    let userText = getPostFullText(post);
     let gateSourceType: 'text' | 'ocr' | 'editorial' = 'text';
     let qaSourceRef: any = undefined;
 
@@ -1101,7 +1101,7 @@ const ImmersivePostCardInner = ({
       }
 
       const isOriginalPost = readerSource.isOriginalPost;
-      const userText = [post.title, post.content].filter(Boolean).join('\n\n');
+      const userText = getPostFullText(post);
       const userWordCount = getWordCount(userText);
 
       let testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY' | undefined;
