@@ -2130,8 +2130,8 @@ const ImmersivePostCardInner = ({
                       className="uppercase mb-3 flex-shrink-0"
                       style={{
                         fontFamily: 'Impact, sans-serif',
-                        fontSize: 'clamp(26px, 6.5vw, 36px)',
-                        lineHeight: 0.95,
+                        fontSize: 'clamp(30px, 8vw, 42px)',
+                        lineHeight: 0.92,
                         letterSpacing: '-0.02em',
                         color: '#FFFFFF',
                         textAlign: 'left'
@@ -2250,8 +2250,8 @@ const ImmersivePostCardInner = ({
                       className="uppercase mb-3 flex-shrink-0"
                       style={{
                         fontFamily: 'Impact, sans-serif',
-                        fontSize: 'clamp(26px, 6.5vw, 36px)',
-                        lineHeight: 0.95,
+                        fontSize: 'clamp(30px, 8vw, 42px)',
+                        lineHeight: 0.92,
                         letterSpacing: '-0.02em',
                         color: '#FFFFFF',
                         textAlign: 'left'
@@ -2298,7 +2298,7 @@ const ImmersivePostCardInner = ({
                     </>
                   )}
 
-                  {/* Approfondisci subito dopo description */}
+                  {/* Approfondisci subito dopo description (se non c'è description, dopo title) */}
                   {showDrawerCta && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
@@ -2309,6 +2309,17 @@ const ImmersivePostCardInner = ({
                       </button>
                     </div>
                   )}
+
+                  {/* Player audio compact (essential-challenge-player) */}
+                  <div ref={registerRef('essential-challenge-player')} className="w-full mt-auto flex-shrink-0">
+                    <VoicePlayer 
+                      compact 
+                      audioUrl={activeVoicePost?.audio_url || ''}
+                      durationSeconds={activeVoicePost?.duration_seconds || 0}
+                      transcript={activeVoicePost?.transcript}
+                      transcriptStatus={activeVoicePost?.transcript_status as any}
+                    />
+                  </div>
 
                   {/* Polarization bar (essential-polarization) */}
                   <div ref={registerRef('essential-polarization')} className="mt-4 px-1 flex-shrink-0" style={{ height: '80px' }}>
