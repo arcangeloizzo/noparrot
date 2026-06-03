@@ -57,7 +57,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { uniqueSources } from "@/lib/url";
 import { useCreateThread } from "@/hooks/useMessageThreads";
 import { useSendMessage } from "@/hooks/useMessages";
-import { getWordCount, getTestModeWithSource, getQuestionCountWithoutSource } from "@/lib/gate-utils";
+import { getWordCount, getPostFullText, getTestModeWithSource, getQuestionCountWithoutSource } from "@/lib/gate-utils";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
 import { addBreadcrumb } from "@/lib/crashBreadcrumbs";
 
@@ -283,7 +283,7 @@ export const FeedCard = ({
       return;
     }
 
-    const userText = post.content;
+    const userText = getPostFullText(post);
     const userWordCount = getWordCount(userText);
 
     if (finalSourceUrl) {
@@ -343,7 +343,7 @@ export const FeedCard = ({
       return;
     }
 
-    const userText = post.content;
+    const userText = getPostFullText(post);
     const userWordCount = getWordCount(userText);
 
     if (finalSourceUrl) {
@@ -524,7 +524,7 @@ export const FeedCard = ({
 
     try {
       const isOriginalPost = readerSource.isOriginalPost;
-      const userText = post.content;
+      const userText = getPostFullText(post);
       const userWordCount = getWordCount(userText);
 
       let testMode: 'SOURCE_ONLY' | 'MIXED' | 'USER_ONLY' | undefined;
