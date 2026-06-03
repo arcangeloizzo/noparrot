@@ -406,10 +406,19 @@ export const Feed = () => {
   }, []);
 
   const handleRemovePost = useCallback((postId: string) => {
-    // Post removed via database or optimistic update
-    queryClient.setQueryData(['posts'], (old: Post[] | undefined) =>
-      old ? old.filter(p => p.id !== postId) : []
-    );
+    // Feed posts live in an infinite query: { pages: Post[][], pageParams }
+    queryClient.setQueriesData({ queryKey: ['posts'] }, (old: any) => {
+      if (!old) return old;
+      if (old && Array.isArray(old.pages)) {
+        return {
+          ...old,
+          pages: old.pages.map((page: any) =>
+            Array.isArray(page) ? page.filter((p: any) => p?.id !== postId) : page
+          ),
+        };
+      }
+      return Array.isArray(old) ? old.filter((p: any) => p?.id !== postId) : old;
+    });
   }, [queryClient]);
 
   // Carousel Handlers
