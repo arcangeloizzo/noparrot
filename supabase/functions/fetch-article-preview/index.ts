@@ -125,6 +125,66 @@ function isInstagramReelUrl(url: string): boolean {
   }
 }
 
+function extractInstagramReelId(url: string): string {
+  try {
+    const parsed = new URL(url.trim());
+    const match = parsed.pathname.match(/\/(reel|reels|p)\/([\w-]+)/);
+    if (match && match[2]) {
+      return match[2];
+    }
+  } catch {}
+  return Math.random().toString(36).substring(2, 10);
+}
+
+async function cacheImageToStorage(supabase: any, imageUrl: string, idHash: string): Promise<string | null> {
+  if (!supabase || !imageUrl) return null;
+  try {
+    console.log('[ImageCache] Downloading image from source:', imageUrl);
+    const response = await fetch(imageUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+
+    if (!response.ok) {
+      console.warn('[ImageCache] Failed to download image:', response.status);
+      return null;
+    }
+
+    const blob = await response.blob();
+    const buffer = await blob.arrayBuffer();
+    const binaryData = new Uint8Array(buffer);
+
+    const contentType = response.headers.get('content-type') || 'image/jpeg';
+    const extension = contentType.includes('png') ? 'png' : 'jpg';
+    const fileName = `instagram-${idHash}.${extension}`;
+
+    console.log('[ImageCache] Uploading image to news-images storage bucket:', fileName);
+    const { error: uploadError } = await supabase.storage
+      .from('news-images')
+      .upload(fileName, binaryData, {
+        contentType,
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error('[ImageCache] Storage upload failed:', uploadError);
+      return null;
+    }
+
+    const { data: publicUrl } = supabase.storage
+      .from('news-images')
+      .getPublicUrl(fileName);
+
+    console.log('[ImageCache] ✅ Public storage URL:', publicUrl.publicUrl);
+    return publicUrl.publicUrl;
+  } catch (err) {
+    console.error('[ImageCache] Error caching image:', err);
+    return null;
+  }
+}
+
+
 
 // ============================================================================
 // SOURCE-FIRST READER REFACTORING
@@ -1525,9 +1585,17 @@ serve(async (req) => {
       }
 
       const finalTitle = mergedData.title || 'Instagram Reel';
-      const finalImage = mergedData.image || '';
+      let finalImage = mergedData.image || '';
       const finalDesc = mergedData.description || 'Reel di Instagram';
       const finalAuthor = mergedData.author || 'Instagram';
+
+      if (finalImage && supabase) {
+        const reelId = extractInstagramReelId(canonicalUrl);
+        const cachedUrl = await cacheImageToStorage(supabase, finalImage, reelId);
+        if (cachedUrl) {
+          finalImage = cachedUrl;
+        }
+      }
 
       // Cache this preview metadata as standard URL content (so it can be retrieved)
       if (supabase) {

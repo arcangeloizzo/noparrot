@@ -44,6 +44,19 @@ function safeNormalizeUrl(rawUrl: string): string {
   }
 }
 
+function isInstagramReelUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url.trim());
+    const isInstagram = parsed.hostname === 'www.instagram.com' 
+      || parsed.hostname === 'instagram.com';
+    const isReelOrPost = /^\/(reel|reels|p)\/[\w-]+/.test(parsed.pathname);
+    return isInstagram && isReelOrPost;
+  } catch {
+    return false;
+  }
+}
+
+
 // ============================================================================
 // HMAC TELEMETRY HELPERS
 // ============================================================================
@@ -706,6 +719,32 @@ serve(async (req) => {
               serverSideContent = cached.content_text;
               contentSource = 'content_cache';
               console.log(`[generate-qa] ✅ Content from cache: ${serverSideContent.length} chars`);
+            } else if (isInstagramReelUrl(cacheUrl || '')) {
+              // Instagram Reel: fetch transcript on the fly!
+              console.log(`[generate-qa] ⏳ Instagram Reel transcript not cached, triggering transcribe-instagram...`);
+              try {
+                const transcribeResponse = await fetch(`${supabaseUrl}/functions/v1/transcribe-instagram`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${supabaseKey}`
+                  },
+                  body: JSON.stringify({ url: cacheUrl || sourceUrl })
+                });
+
+                if (transcribeResponse.ok) {
+                  const transcribeData = await transcribeResponse.json();
+                  if (transcribeData.transcript && transcribeData.transcript.length > 50) {
+                    serverSideContent = transcribeData.transcript;
+                    contentSource = 'instagram_fresh';
+                    console.log(`[generate-qa] ✅ Instagram transcript fetched: ${serverSideContent.length} chars`);
+                  }
+                } else {
+                  console.warn(`[generate-qa] transcribe-instagram failed with status: ${transcribeResponse.status}`);
+                }
+              } catch (err) {
+                console.error('[generate-qa] Instagram transcript fetch failed:', err);
+              }
             } else {
               // Try Jina AI Reader with authentication
               console.log(`[generate-qa] ⏳ Content not cached or synthetic (LinkedIn refresh: ${looksSyntheticLinkedIn}), trying Jina...`);

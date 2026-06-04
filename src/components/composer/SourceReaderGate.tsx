@@ -285,6 +285,8 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
     source.platform !== 'spotify' &&
     source.platform !== 'twitter' &&
     source.platform !== 'tiktok' &&
+    source.platform !== 'instagram' &&
+    source.platform !== 'instagram_reel' &&
     source.iframeAllowed !== false &&
     !iframeFailed;
 
@@ -633,6 +635,68 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
       );
     }
 
+    // Instagram / Instagram Reel
+    if ((source.platform === 'instagram' || source.platform === 'instagram_reel') && !isClosing) {
+      return (
+        <div className="max-w-2xl mx-auto space-y-4">
+          <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-orange-500/10 border border-pink-500/20 rounded-lg">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-purple-600 via-pink-500 to-yellow-500 flex items-center justify-center">
+              <span className="text-lg text-white font-bold">📸</span>
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-foreground">Instagram Reel</p>
+              {source.author && (
+                <p className="text-sm text-muted-foreground">{source.author}</p>
+              )}
+            </div>
+          </div>
+
+          {source.image ? (
+            <div className="w-full flex justify-center bg-muted/50 rounded-lg overflow-hidden border border-border p-4">
+              <div className="aspect-[9/16] w-full max-w-[280px] rounded-lg overflow-hidden border border-border bg-black relative flex items-center justify-center">
+                <img
+                  src={source.image}
+                  alt={source.title || ''}
+                  className="w-full h-full object-cover opacity-80"
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                  <div className="w-14 h-14 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg hover:scale-105 transition-transform cursor-pointer" onClick={openSource}>
+                    <svg className="w-6 h-6 text-black fill-current ml-0.5" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z" fill="black" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center p-6 bg-muted/30 rounded-lg border border-border">
+              <p className="text-sm text-muted-foreground mb-4">
+                Anteprima immagine non disponibile
+              </p>
+            </div>
+          )}
+
+          {source.title && (
+            <div className="p-4 bg-card border border-border rounded-lg">
+              <p className="text-sm font-medium text-foreground line-clamp-3">
+                {source.title}
+              </p>
+            </div>
+          )}
+
+          <div className="text-center p-4 bg-primary/5 border border-primary/10 rounded-xl">
+            <p className="text-sm text-muted-foreground mb-3">
+              Guarda il Reel completo su Instagram prima di procedere
+            </p>
+            <Button variant="outline" onClick={openSource} className="gap-2">
+              <ExternalLink className="h-4 w-4" />
+              Apri su Instagram
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     // Twitter/X
     if (source.platform === 'twitter' && !isClosing) {
       return (
@@ -801,7 +865,10 @@ export const SourceReaderGate: React.FC<SourceReaderGateProps> = ({
 
     // Generic article - SOURCE-FIRST: Attempt iframe with fallback
     // If iframeAllowed and not failed, try to show iframe
-    const showIframe = source.iframeAllowed !== false && !iframeFailed;
+    const showIframe = source.iframeAllowed !== false &&
+      source.platform !== 'instagram' &&
+      source.platform !== 'instagram_reel' &&
+      !iframeFailed;
 
     if (showIframe) {
       return (

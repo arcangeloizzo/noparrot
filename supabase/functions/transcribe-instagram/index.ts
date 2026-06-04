@@ -110,8 +110,8 @@ serve(async (req) => {
 
     const { post_id, url } = await req.json();
 
-    if (!post_id || !url) {
-      return new Response(JSON.stringify({ error: 'post_id and url are required' }), { 
+    if (!url) {
+      return new Response(JSON.stringify({ error: 'url is required' }), { 
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -134,19 +134,18 @@ serve(async (req) => {
       });
     }
 
-    console.log(`[transcribe-instagram] Fetching transcript from Supadata for post ${post_id}...`);
+    console.log(`[transcribe-instagram] Fetching transcript from Supadata...`);
     const apiUrl = `https://api.supadata.ai/v1/transcript?url=${encodeURIComponent(url)}`;
     
     const response = await fetch(apiUrl, {
       headers: {
-        'x-api-key': superdataKey,
-        'Content-Type': 'application/json'
+        'x-api-key': superdataKey
       }
     });
 
     if (response.status === 429) {
-      console.warn('[transcribe-instagram] Supadata API rate limit (429)');
-      return new Response(JSON.stringify({ error: 'rate_limited' }), { 
+      console.warn('[transcribe-instagram] Supadata API rate limit exceeded');
+      return new Response(JSON.stringify({ error: 'rate_limited', message: 'Supadata API rate limit exceeded' }), {
         status: 429,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
@@ -187,18 +186,22 @@ serve(async (req) => {
       updatePayload.hostname = new URL(url).hostname.replace(/^www\./, '');
     } catch {}
 
-    console.log(`[transcribe-instagram] Updating post ${post_id} in DB...`);
-    const { error: dbError } = await supabase
-      .from('posts')
-      .update(updatePayload)
-      .eq('id', post_id);
+    if (post_id) {
+      console.log(`[transcribe-instagram] Updating post ${post_id} in DB...`);
+      const { error: dbError } = await supabase
+        .from('posts')
+        .update(updatePayload)
+        .eq('id', post_id);
 
-    if (dbError) {
-      console.error('[transcribe-instagram] DB update failed:', dbError);
-      return new Response(JSON.stringify({ error: 'database_update_failed', details: dbError.message }), { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      if (dbError) {
+        console.error('[transcribe-instagram] DB update failed:', dbError);
+        return new Response(JSON.stringify({ error: 'database_update_failed', details: dbError.message }), { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    } else {
+      console.log('[transcribe-instagram] No post_id provided, skipping DB posts update');
     }
 
     // Upsert into content_cache so generate-qa can find the transcript text via source_url
@@ -227,8 +230,12 @@ serve(async (req) => {
       console.log('[transcribe-instagram] ✅ content_cache updated successfully');
     }
 
-    console.log(`[transcribe-instagram] Success for post ${post_id}`);
-    return new Response(JSON.stringify({ success: true, transcript_length: fullTranscript.length }), {
+    console.log(`[transcribe-instagram] Success`);
+    return new Response(JSON.stringify({ 
+      success: true, 
+      transcript_length: fullTranscript.length,
+      transcript: fullTranscript
+    }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
