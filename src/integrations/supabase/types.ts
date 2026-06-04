@@ -2777,7 +2777,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "moderator" | "user"
       challenge_status_enum: "active" | "expired" | "closed"
-      post_type_enum: "standard" | "voice" | "challenge" | "instagram_reel"
+      post_type_enum: "standard" | "voice" | "challenge"
       stance_enum: "for" | "against"
       transcript_status_enum: "pending" | "processing" | "completed" | "failed"
     }
@@ -2909,7 +2909,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "moderator", "user"],
       challenge_status_enum: ["active", "expired", "closed"],
-      post_type_enum: ["standard", "voice", "challenge", "instagram_reel"],
+      post_type_enum: ["standard", "voice", "challenge"],
       stance_enum: ["for", "against"],
       transcript_status_enum: ["pending", "processing", "completed", "failed"],
     },
