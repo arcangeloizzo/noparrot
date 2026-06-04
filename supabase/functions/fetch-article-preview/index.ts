@@ -113,6 +113,19 @@ function safeNormalizeUrl(rawUrl: string): string {
   }
 }
 
+function isInstagramReelUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url.trim());
+    const isInstagram = parsed.hostname === 'www.instagram.com' 
+      || parsed.hostname === 'instagram.com';
+    const isReelOrPost = /^\/(reel|reels|p)\/[\w-]+/.test(parsed.pathname);
+    return isInstagram && isReelOrPost;
+  } catch {
+    return false;
+  }
+}
+
+
 // ============================================================================
 // SOURCE-FIRST READER REFACTORING
 // ============================================================================
@@ -1460,6 +1473,108 @@ serve(async (req) => {
         console.log('[Preview] Instagram oEmbed error:', err);
         return null;
       }
+    }
+
+    // NEW: Handle Instagram Reels/Posts specifically as supported platform (with transcription/QA)
+    if (isInstagramReelUrl(url)) {
+      console.log('[Preview] 📸 Detected Instagram Reel URL:', url);
+      
+      let canonicalUrl = url;
+      try {
+        const u = new URL(url);
+        canonicalUrl = `${u.origin}${u.pathname}`;
+      } catch {}
+      
+      // Try to fetch Instagram oEmbed data
+      let oembedData = await fetchInstagramOEmbed(canonicalUrl);
+      
+      // Fallback: try Jina or OG if oEmbed didn't work
+      let mergedData = {
+        title: oembedData?.title || null,
+        image: oembedData?.image || null,
+        description: oembedData?.description || null,
+        author: oembedData?.author || null
+      };
+
+      if (!mergedData.title || isGenericSocialTitle(mergedData.title)) {
+        try {
+          const jinaData = await fetchSocialWithJina(canonicalUrl, 'instagram');
+          if (jinaData?.title && !isGenericSocialTitle(jinaData.title)) {
+            mergedData.title = jinaData.title;
+            if (jinaData.image) mergedData.image = jinaData.image;
+            if (jinaData.summary) mergedData.description = jinaData.summary;
+            if (jinaData.author) mergedData.author = jinaData.author;
+          }
+        } catch (e) {
+          console.log('[Preview] Instagram Reel Jina fallback failed:', e);
+        }
+      }
+
+      if (!mergedData.title || isGenericSocialTitle(mergedData.title)) {
+        try {
+          const ogData = await fetchOpenGraphData(canonicalUrl);
+          if (ogData?.title && !isGenericSocialTitle(ogData.title)) {
+            mergedData.title = ogData.title;
+            if (ogData.image) mergedData.image = ogData.image;
+            if (ogData.description) mergedData.description = ogData.description;
+            if (ogData.author) mergedData.author = ogData.author;
+          }
+        } catch (e) {
+          console.log('[Preview] Instagram Reel OpenGraph fallback failed:', e);
+        }
+      }
+
+      const finalTitle = mergedData.title || 'Instagram Reel';
+      const finalImage = mergedData.image || '';
+      const finalDesc = mergedData.description || 'Reel di Instagram';
+      const finalAuthor = mergedData.author || 'Instagram';
+
+      // Cache this preview metadata as standard URL content (so it can be retrieved)
+      if (supabase) {
+        // Upsert standard content_cache entry for the normalized URL
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7);
+        const { error: cacheError } = await supabase
+          .from('content_cache')
+          .upsert({
+            source_url: safeNormalizeUrl(url),
+            source_type: 'instagram_reel',
+            content_text: finalDesc, // Default temporary text (will be overwritten by transcribe-instagram)
+            title: finalTitle,
+            meta_image_url: finalImage,
+            meta_hostname: 'instagram.com',
+            expires_at: expiresAt.toISOString()
+          }, { onConflict: 'source_url' });
+
+        if (cacheError) {
+          console.warn('[Preview] content_cache upsert for Reel failed:', cacheError.message);
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          title: finalTitle,
+          summary: finalDesc,
+          image: finalImage,
+          previewImg: finalImage,
+          platform: 'instagram_reel',
+          type: 'video', // Reel is a video
+          hostname: 'instagram.com',
+          contentQuality: 'complete', // Bypass the blocked platform check and intentMode
+          gateBlocked: false,
+          gateConfig: {
+            mode: 'timer',
+            minSeconds: 15
+          },
+          qaSourceRef: {
+            kind: 'url',
+            id: canonicalUrl,
+            url: canonicalUrl
+          }
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Unsupported platforms - try oEmbed first (for IG), then Jina, Firecrawl, OpenGraph
