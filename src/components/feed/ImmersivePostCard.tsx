@@ -49,7 +49,7 @@ import {
 import { QuizModal } from "@/components/ui/quiz-modal";
 
 // Feed Components
-import { QuotedPostCard } from "./QuotedPostCard";
+import { QuotedPostEmbed } from "./QuotedPostEmbed";
 import { QuotedEditorialCard } from "./QuotedEditorialCard";
 import { MentionText } from "./MentionText";
 import { ReshareContextStack } from "./ReshareContextStack";
@@ -178,6 +178,7 @@ const detectPlatformFromUrl = (url: string): string | undefined => {
     if (hostname.includes('threads')) return 'threads';
     if (hostname.includes('linkedin')) return 'linkedin';
     if (hostname.includes('spotify')) return 'spotify';
+    if (hostname.includes('instagram')) return 'instagram';
     return undefined;
   } catch {
     return undefined;
@@ -1341,7 +1342,7 @@ const ImmersivePostCardInner = ({
   };
 
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: it });
-  const hasMedia = (post.media && post.media.length > 0) || (quotedPost?.media && quotedPost.media.length > 0);
+  const hasMedia = (post.media && post.media.length > 0);
   const hasLink = !!post.shared_url;
   const isSpotifyTrack = isSpotify && !isSpotifyEpisode;
   const isTwitter = articlePreview?.platform === 'twitter' || detectPlatformFromUrl(post.shared_url || '') === 'twitter';
@@ -1349,13 +1350,14 @@ const ImmersivePostCardInner = ({
   const isYoutube = articlePreview?.platform === 'youtube' ||
     (post.shared_url?.includes('youtube.com') || post.shared_url?.includes('youtu.be'));
   const isMediaOnlyPost = hasMedia && !hasLink;
-  const mediaUrl = post.media?.[0]?.url || quotedPost?.media?.[0]?.url;
-  const isVideoMedia = post.media?.[0]?.type === 'video' || quotedPost?.media?.[0]?.type === 'video';
-  const backgroundImage = !isMediaOnlyPost ? (articlePreview?.image || post.preview_img || (hasMedia && (post.media?.[0]?.url || quotedPost?.media?.[0]?.url))) : undefined;
+  const mediaUrl = post.media?.[0]?.url;
+  const isVideoMedia = post.media?.[0]?.type === 'video';
+  const backgroundImage = !isMediaOnlyPost ? (articlePreview?.image || post.preview_img || (post.media?.[0]?.url || quotedPost?.media?.[0]?.url || quotedPost?.preview_img)) : undefined;
   const isVoicePost = post.post_type === 'voice';
   const hasValidChallengeData = !!post.challenge && !!(post.challenge.voice_post || post.voice_post);
   const isChallengePost = post.post_type === 'challenge' && hasValidChallengeData;
   const isAudioPost = isVoicePost || isChallengePost;
+  const isInstagramReel = post.post_type === 'instagram_reel';
 
   const activeVoicePost = isChallengePost ? (post.challenge?.voice_post || post.voice_post) : post.voice_post;
   const challengeIdForResponses = isChallengePost ? post.challenge?.id || null : null;
@@ -1581,7 +1583,7 @@ const ImmersivePostCardInner = ({
         }
       ];
     }
-    if (isStandardPost) {
+    if (isStandardPost || isInstagramReel) {
       return [
         { id: 'essential-title' }
       ];
@@ -1602,9 +1604,9 @@ const ImmersivePostCardInner = ({
       const isAuthor = user?.id === post.author.id;
       return [
         { id: 'essential-title' },
-        { id: 'essential-challenge-player', staticHeight: 76 },
-        { id: 'essential-polarization', staticHeight: 96 },
-        ...(!isAuthor ? [{ id: 'essential-cta-accept', staticHeight: 56 }] : [])
+        { id: 'essential-challenge-player' },
+        { id: 'essential-polarization' },
+        ...(!isAuthor ? [{ id: 'essential-cta-accept' }] : [])
       ];
     }
     if (isLinkedIn) {
@@ -1636,6 +1638,7 @@ const ImmersivePostCardInner = ({
     isYoutube,
     isGenericArticle,
     isStandardPost,
+    isInstagramReel,
     isVoicePost,
     isChallengePost,
     isLinkedIn,
@@ -1737,9 +1740,25 @@ const ImmersivePostCardInner = ({
         }
       ] : [];
     }
+    if (isInstagramReel) {
+      return [
+        {
+          id: 'flexible-image',
+          compressionSteps: ['full', 'pill', 'hidden'] as CompressionStep[],
+          minReadabilityHeight: 45,
+          fallbackHeight: 200
+        },
+        {
+          id: 'flexible-text',
+          compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
+          minReadabilityHeight: 60,
+          fallbackHeight: 120
+        }
+      ];
+    }
     return [];
-  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media]);
-
+  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media]);
+ 
   const priorityConfig = useMemo(() => {
     if (isSpotifyEpisode || isSpotifyTrack || isYoutube || isGenericArticle) {
       return ['flexible-text'];
@@ -1775,8 +1794,11 @@ const ImmersivePostCardInner = ({
     if (isTwitter) {
       return post.content ? ['flexible-user-comment'] : [];
     }
+    if (isInstagramReel) {
+      return ['flexible-image', 'flexible-text'];
+    }
     return [];
-  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media]);
+  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media]);
 
   const {
     status: layoutStatus,
@@ -1878,6 +1900,15 @@ const ImmersivePostCardInner = ({
           <div className="absolute inset-0 bg-gradient-to-b from-[#0A66C2]/10 via-white to-slate-100 dark:from-[#0A66C2]/20 dark:via-[#1a1a2e] dark:to-[#0d1117]">
             <div className="absolute inset-0 bg-gradient-to-br from-[#0A66C2]/10 to-transparent dark:from-[#0A66C2]/15" />
           </div>
+        ) : isInstagramReel ? (
+          <div className="absolute inset-0 bg-gradient-to-b from-[#E1306C]/10 via-[#0D1B2A] to-[#0D1B2A] dark:from-[#E1306C]/15 dark:via-black dark:to-black">
+            <div 
+              className="absolute inset-0 opacity-[0.12] dark:opacity-[0.18]"
+              style={{
+                background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #F77737 100%)',
+              }}
+            />
+          </div>
         ) : (
           <>
             {/* Blurred background image - behind everything */}
@@ -1960,8 +1991,27 @@ const ImmersivePostCardInner = ({
                   <span className="text-slate-900 dark:text-white font-bold text-sm truncate">
                     {post.author.full_name || getDisplayUsername(post.author.username)}
                   </span>
-                  <span className="text-slate-500 dark:text-gray-400 text-xs truncate">
+                  <span className="text-slate-500 dark:text-gray-400 text-xs truncate flex items-center gap-1.5">
                     {timeAgo}
+                    {isInstagramReel && post.shared_url && (
+                      <>
+                        <span>·</span>
+                        <a 
+                          href={post.shared_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          onClick={(e) => e.stopPropagation()}
+                          className="hover:underline flex items-center gap-1 text-[11px] text-[#E1306C] font-semibold"
+                        >
+                          <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24">
+                            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.051.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/>
+                          </svg>
+                          <span className="truncate max-w-[120px]">
+                            {getHostnameFromUrl(post.shared_url)}
+                          </span>
+                        </a>
+                      </>
+                    )}
                   </span>
                 </div>
               </div>
@@ -2258,8 +2308,12 @@ const ImmersivePostCardInner = ({
                       {flexiblesStatus['flexible-image']?.step === 'full' && (
                         <div 
                           ref={registerRef('flexible-image')} 
-                          className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3"
+                          className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3 rounded-xl border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.3)] cursor-pointer"
                           style={{ height: `${flexiblesStatus['flexible-image'].height}px` }}
+                          onClick={post.media.length === 1 ? (e) => {
+                            e.stopPropagation();
+                            setSelectedMediaIndex(0);
+                          } : undefined}
                         >
                           {post.media.length === 1 ? (
                             isVideoMedia ? (
@@ -2267,11 +2321,11 @@ const ImmersivePostCardInner = ({
                                 <img
                                   src={post.media?.[0]?.thumbnail_url || mediaUrl}
                                   alt=""
-                                  className="w-full h-full object-contain rounded-2xl border border-white/10"
+                                  className="w-full h-full object-contain"
                                 />
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                  <div className="bg-white p-3 rounded-full">
-                                    <Play className="w-6 h-6 text-black fill-black" />
+                                  <div className="bg-white/90 backdrop-blur p-3 rounded-full shadow-lg">
+                                    <Play className="w-5 h-5 text-black fill-black ml-0.5" />
                                   </div>
                                 </div>
                               </div>
@@ -2279,7 +2333,7 @@ const ImmersivePostCardInner = ({
                               <img
                                 src={mediaUrl}
                                 alt=""
-                                className="w-full h-full object-contain rounded-2xl border border-white/10"
+                                className="w-full h-full object-contain"
                               />
                             )
                           ) : (
@@ -2288,7 +2342,7 @@ const ImmersivePostCardInner = ({
                               onClick={(_, index) => setSelectedMediaIndex(index)}
                               initialIndex={carouselIndex}
                               onIndexChange={setCarouselIndex}
-                              className="h-full w-full object-contain rounded-2xl border border-white/10"
+                              className="h-full w-full object-contain"
                             />
                           )}
                         </div>
@@ -2447,8 +2501,12 @@ const ImmersivePostCardInner = ({
                       {flexiblesStatus['flexible-image']?.step === 'full' && (
                         <div 
                           ref={registerRef('flexible-image')} 
-                          className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3"
+                          className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3 rounded-xl border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.3)] cursor-pointer"
                           style={{ height: `${flexiblesStatus['flexible-image'].height}px` }}
+                          onClick={post.media.length === 1 ? (e) => {
+                            e.stopPropagation();
+                            setSelectedMediaIndex(0);
+                          } : undefined}
                         >
                           {post.media.length === 1 ? (
                             isVideoMedia ? (
@@ -2456,11 +2514,11 @@ const ImmersivePostCardInner = ({
                                 <img
                                   src={post.media?.[0]?.thumbnail_url || mediaUrl}
                                   alt=""
-                                  className="w-full h-full object-contain rounded-2xl border border-white/10"
+                                  className="w-full h-full object-contain"
                                 />
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                  <div className="bg-white p-3 rounded-full">
-                                    <Play className="w-6 h-6 text-black fill-black" />
+                                  <div className="bg-white/90 backdrop-blur p-3 rounded-full shadow-lg">
+                                    <Play className="w-5 h-5 text-black fill-black ml-0.5" />
                                   </div>
                                 </div>
                               </div>
@@ -2468,7 +2526,7 @@ const ImmersivePostCardInner = ({
                               <img
                                 src={mediaUrl}
                                 alt=""
-                                className="w-full h-full object-contain rounded-2xl border border-white/10"
+                                className="w-full h-full object-contain"
                               />
                             )
                           ) : (
@@ -2477,7 +2535,7 @@ const ImmersivePostCardInner = ({
                               onClick={(_, index) => setSelectedMediaIndex(index)}
                               initialIndex={carouselIndex}
                               onIndexChange={setCarouselIndex}
-                              className="h-full w-full object-contain rounded-2xl border border-white/10"
+                              className="h-full w-full object-contain"
                             />
                           )}
                         </div>
@@ -2908,8 +2966,12 @@ const ImmersivePostCardInner = ({
                       {flexiblesStatus['flexible-image']?.step === 'full' && (
                         <div 
                           ref={registerRef('flexible-image')} 
-                          className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3"
+                          className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3 rounded-xl border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.3)] cursor-pointer"
                           style={{ height: `${flexiblesStatus['flexible-image'].height}px` }}
+                          onClick={post.media.length === 1 ? (e) => {
+                            e.stopPropagation();
+                            setSelectedMediaIndex(0);
+                          } : undefined}
                         >
                           {post.media.length === 1 ? (
                             isVideoMedia ? (
@@ -2917,11 +2979,11 @@ const ImmersivePostCardInner = ({
                                 <img
                                   src={post.media?.[0]?.thumbnail_url || mediaUrl}
                                   alt=""
-                                  className="w-full h-full object-contain rounded-2xl border border-white/10"
+                                  className="w-full h-full object-contain"
                                 />
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                  <div className="bg-white p-3 rounded-full">
-                                    <Play className="w-6 h-6 text-black fill-black" />
+                                  <div className="bg-white/90 backdrop-blur p-3 rounded-full shadow-lg">
+                                    <Play className="w-5 h-5 text-black fill-black ml-0.5" />
                                   </div>
                                 </div>
                               </div>
@@ -2929,7 +2991,7 @@ const ImmersivePostCardInner = ({
                               <img
                                 src={mediaUrl}
                                 alt=""
-                                className="w-full h-full object-contain rounded-2xl border border-white/10"
+                                className="w-full h-full object-contain"
                               />
                             )
                           ) : (
@@ -2938,7 +3000,7 @@ const ImmersivePostCardInner = ({
                               onClick={(_, index) => setSelectedMediaIndex(index)}
                               initialIndex={carouselIndex}
                               onIndexChange={setCarouselIndex}
-                              className="h-full w-full object-contain rounded-2xl border border-white/10"
+                              className="h-full w-full object-contain"
                             />
                           )}
                         </div>
@@ -3784,131 +3846,183 @@ const ImmersivePostCardInner = ({
                     </div>
                   )}
                 </div>
-              ) : null}
-
-              {/* Stack Layout: Source Preview LAST (Media OR Link) - Only show ONE source at bottom */}
-              {useStackLayout && (finalSourceUrl || (finalSourceMedia && finalSourceMedia.length > 0)) && (
-                <div className="mt-4 flex-1 min-h-[15rem] flex flex-col justify-end">
-                  {finalSourceUrl?.startsWith('focus://') ? (
-                    /* Editorial source */
-                    <QuotedEditorialCard
-                      title={finalSourceTitle || 'Il Punto'}
-                      summary={(() => {
-                        const raw = post.article_content || '';
-                        const cleaned = raw.replace(/\[SOURCE:[\d,\s]+\]/g, '').trim();
-                        if (cleaned.length > 20) return cleaned.substring(0, 260).trim() + '…';
-                        if (editorialSummary) return editorialSummary.substring(0, 260).trim() + '…';
-                        return undefined;
-                      })()}
-                      onClick={() => {
-                        const focusId = finalSourceUrl.replace('focus://daily/', '');
-                        if (focusId) navigate(`/?focus=${focusId}`);
-                      }}
-                      trustScore={{ band: 'ALTO', score: 90 }}
-                    />
-                  ) : finalSourceMedia && finalSourceMedia.length > 0 ? (
-                    /* Media Source (Video/Gallery) */
-                    finalSourceMedia.length === 1 ? (
-                      /* Single media: fill available space */
-                      <button
-                        role="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedMediaIndex(0);
-                        }}
-                        className="relative w-full h-full rounded-2xl overflow-hidden border border-white/10 "
-                      >
-                        {finalSourceMedia[0].type === 'video' ? (
-                          <>
-                            <img
-                              src={finalSourceMedia[0].thumbnail_url || finalSourceMedia[0].url}
-                              alt=""
-                              className="w-full h-full object-contain bg-black/20"
-                            />
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                              <div className="bg-white p-3 rounded-full ">
-                                <Play className="w-6 h-6 text-black fill-black" />
-                              </div>
-                            </div>
-                          </>
-                        ) : (
-                          <img
-                            src={finalSourceMedia[0].url}
-                            alt=""
-                            className="w-full h-full object-contain bg-black/20"
-                          />
-                        )}
-                      </button>
-                    ) : (
-                      /* Gallery: fill available space */
-                      <div className="w-full h-full">
-                        <MediaGallery
-                          media={finalSourceMedia}
-                          onClick={(_, index) => setSelectedMediaIndex(index)}
-                          initialIndex={0}
-                          onIndexChange={() => { }}
-                          className="h-full w-full object-contain rounded-2xl border border-white/10"
-                          fillHeight={true}
-                        />
-                      </div>
-                    )
-                  ) : (
-                    /* Link Source */
-                    <div
-                      className="cursor-pointer active:scale-[0.98] transition-transform"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(finalSourceUrl!, '_blank', 'noopener,noreferrer');
+              ) : isInstagramReel ? (
+                <div
+                  className={cn(
+                    "flex-1 min-h-0 flex flex-col justify-start w-full",
+                    emergencyScroll && "overflow-y-auto"
+                  )}
+                >
+                  {/* Title */}
+                  {post.title && post.title.trim().length > 0 ? (
+                    <h2
+                      ref={registerRef('essential-title')}
+                      className="uppercase mb-2 flex-shrink-0"
+                      style={{
+                        fontFamily: 'Impact, sans-serif',
+                        fontSize: 'clamp(30px, 8vw, 42px)',
+                        lineHeight: 0.92,
+                        letterSpacing: '-0.02em',
+                        color: '#FFFFFF',
+                        textAlign: 'left'
                       }}
                     >
-                      {!post.is_intent && (
-                        <SourceImageWithFallback
-                          src={articlePreview?.image || finalSourceImage}
-                          sharedUrl={finalSourceUrl}
-                          isIntent={post.is_intent}
-                          trustScore={displayTrustScore}
-                          platform={articlePreview?.platform}
-                          hostname={getHostnameFromUrl(finalSourceUrl)}
-                          className="rounded-xl max-h-[30vh] w-full object-cover mb-2"
+                      {post.title}
+                    </h2>
+                  ) : (
+                    <h2
+                      ref={registerRef('essential-title')}
+                      className="text-xl font-bold text-immersive-foreground leading-tight mt-1 mb-2 flex-shrink-0"
+                    >
+                      {decodeHTMLEntities(articlePreview?.title || post.shared_title || 'Instagram Reel')}
+                    </h2>
+                  )}
+
+                  {/* Body text (trascrizione) — flessibile */}
+                  {post.article_content && post.article_content.trim().length > 0 && (
+                    <>
+                      {flexiblesStatus['flexible-text']?.step === 'full' && (
+                        <div
+                          ref={registerRef('flexible-text')}
+                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
+                          style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55 }}
+                        >
+                          <MentionText content={post.article_content} />
+                        </div>
+                      )}
+                      {flexiblesStatus['flexible-text']?.step === 'clamped' && (
+                        <div
+                          ref={registerRef('flexible-text')}
+                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
+                          style={{
+                            fontFamily: 'Inter, sans-serif',
+                            lineHeight: 1.55,
+                            display: '-webkit-box',
+                            WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-text'].height / BODY_LINE_HEIGHT_PX)),
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            height: `${flexiblesStatus['flexible-text'].height}px`
+                          }}
+                        >
+                          <MentionText content={post.article_content} />
+                        </div>
+                      )}
+                      {flexiblesStatus['flexible-text']?.step === 'hidden' && (
+                        <div ref={registerRef('flexible-text')} style={{ height: 0, overflow: 'hidden' }} />
+                      )}
+                    </>
+                  )}
+
+                  {/* Approfondisci */}
+                  {showDrawerCta && (
+                    <div className="flex-shrink-0 mt-2 mb-3 text-left">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        className="text-sm font-semibold hover:underline block text-[#E1306C]"
+                      >
+                        Approfondisci
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Embed thumbnail — flessibile */}
+                  {flexiblesStatus['flexible-image']?.step === 'full' && (
+                    <div 
+                      ref={registerRef('flexible-image')}
+                      className="relative cursor-pointer rounded-2xl overflow-hidden border border-white/10 active:scale-[0.98] transition-transform w-full aspect-video flex-shrink-0 mb-3 mt-auto"
+                      onClick={() => window.open(post.shared_url || '', '_blank', 'noopener,noreferrer')}
+                    >
+                      {(articlePreview?.image || post.preview_img) && (
+                        <img 
+                          src={articlePreview?.image || post.preview_img || ''} 
+                          alt="Instagram Reel preview"
+                          className="w-full h-full object-cover"
                         />
                       )}
-                      <h1 className="text-base font-semibold text-immersive-foreground leading-tight mb-1  line-clamp-2">
-                        {articlePreview?.title || finalSourceTitle || getHostnameFromUrl(finalSourceUrl)}
-                      </h1>
-                      <div className={cn("flex items-center text-immersive-muted", post.is_intent ? "gap-1" : "gap-2")}>
-                        <ExternalLink className={cn(post.is_intent ? "w-2.5 h-2.5" : "w-3 h-3")} />
-                        <span className={cn("uppercase tracking-widest", post.is_intent ? "text-[10px]" : "text-xs")}>
-                          {getHostnameFromUrl(finalSourceUrl)}
-                        </span>
+                      {/* Play icon overlay */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <div className="bg-black/40 p-4 rounded-full backdrop-blur-sm">
+                          <Play className="w-8 h-8 text-white fill-white" />
+                        </div>
+                      </div>
+                      {/* Badge piattaforma */}
+                      <div 
+                        className="absolute bottom-3 left-3 px-3 py-1 rounded text-[10px] font-bold text-white tracking-wider"
+                        style={{ background: 'linear-gradient(135deg, #833AB4, #FD1D1D, #F77737)' }}
+                      >
+                        INSTAGRAM REEL
                       </div>
                     </div>
                   )}
+
+                  {flexiblesStatus['flexible-image']?.step === 'pill' && (
+                    <div 
+                      ref={registerRef('flexible-image')}
+                      className="flex items-center gap-3 p-2 bg-card/40 rounded-lg cursor-pointer mt-auto flex-shrink-0 border border-white/10 mb-3"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (post.shared_url) {
+                          window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                        }
+                      }}
+                    >
+                      {/* Thumbnail 80×45 (16:9) */}
+                      <div className="relative flex-shrink-0 w-20 h-[45px] rounded overflow-hidden bg-muted">
+                        <img 
+                          src={articlePreview?.image || post.preview_img || ''} 
+                          className="w-full h-full object-cover" 
+                          alt=""
+                        />
+                        {/* Play icon centrato, piccolo */}
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                          <Play className="w-5 h-5 text-white fill-white" />
+                        </div>
+                      </div>
+                      {/* Titolo + dominio a destra */}
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className="text-sm font-medium truncate text-foreground">
+                          {decodeHTMLEntities(post.title || articlePreview?.title || post.shared_title || 'Instagram Reel')}
+                        </p>
+                        <p className="text-xs text-muted-foreground font-sans">Instagram</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {flexiblesStatus['flexible-image']?.step === 'hidden' && (
+                    <div ref={registerRef('flexible-image')} style={{ height: 0, overflow: 'hidden' }} />
+                  )}
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(post.shared_url || '', '_blank', 'noopener,noreferrer');
+                    }}
+                    className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors mt-2 text-left shrink-0"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span className="text-xs uppercase tracking-wider">Apri su Instagram</span>
+                  </button>
                 </div>
-              )}
+              ) : null}
 
               {/* Quoted Post - Show for ALL reshares (stack and non-stack) */}
               {quotedPost && (
                 <div className="mt-0.5">
-                  {/* Detect if quoted post is an editorial (Il Punto) - ONLY if directly from system, otherwise render as user post with link */}
-                  {(quotedPost.author?.username === 'ilpunto' || quotedPost.author?.username === 'Il Punto' || quotedPost.author?.id === 'system') ? (
-                    <QuotedEditorialCard
-                      title={decodeHTMLEntities(quotedPost.shared_title || quotedPost.content)}
-                      onClick={() => {
+                  <QuotedPostEmbed
+                    post={quotedPost}
+                    onPress={() => {
+                      const isIlPunto = quotedPost.author?.username === 'ilpunto' || quotedPost.author?.username === 'Il Punto' || quotedPost.author?.id === 'system';
+                      if (isIlPunto) {
                         const focusId = quotedPost.shared_url?.replace('focus://daily/', '');
                         if (focusId) {
                           navigate(`/?focus=${focusId}`);
+                          return;
                         }
-                      }}
-                      trustScore={displayTrustScore}
-                    />
-                  ) : (
-                    <QuotedPostCard
-                      quotedPost={quotedPost}
-                      parentSources={post.shared_url ? [post.shared_url, ...(post.sources || [])] : (post.sources || [])}
-                      onNavigate={() => navigate(`/post/${quotedPost.id}`)}
-                      className="flex-shrink min-h-0 overflow-hidden"
-                    />
-                  )}
+                      }
+                      navigate(`/post/${quotedPost.id}`);
+                    }}
+                    className="flex-shrink min-h-0 overflow-hidden"
+                  />
                 </div>
               )}
 
@@ -4094,6 +4208,7 @@ const ImmersivePostCardInner = ({
             <MediaViewer
               media={finalSourceMedia}
               initialIndex={selectedMediaIndex}
+              postTitle={post.title}
               onClose={(finalIndex) => {
                 if (finalIndex !== undefined) {
                   setCarouselIndex(finalIndex);
@@ -4215,22 +4330,26 @@ const ImmersivePostCardInner = ({
             setFullTextMode('description');
           }}
           title={
-            fullTextMode === 'transcript'
-              ? "Trascrizione"
-              : (
-                  isChallengePost
-                    ? (post.challenge?.title || post.title || '')
-                    : isVoicePost
-                      ? (activeVoicePost?.title || post.title || '')
-                      : (post.title || '')
-                )
+            isInstagramReel
+              ? "Instagram Reel"
+              : fullTextMode === 'transcript'
+                ? "Trascrizione"
+                : (
+                    isChallengePost
+                      ? (post.challenge?.title || post.title || '')
+                      : isVoicePost
+                        ? (activeVoicePost?.title || post.title || '')
+                        : (post.title || '')
+                  )
           }
           content={
-            isChallengePost
-              ? (post.challenge?.body_text || post.content || '')
-              : isVoicePost
-                ? (activeVoicePost?.body_text || post.content || '')
-                : (post.content || '')
+            isInstagramReel
+              ? (post.article_content || '')
+              : isChallengePost
+                ? (post.challenge?.body_text || post.content || '')
+                : isVoicePost
+                  ? (activeVoicePost?.body_text || post.content || '')
+                  : (post.content || '')
           }
           audioUrl={
             isVoicePost || isChallengePost
@@ -4267,6 +4386,21 @@ const ImmersivePostCardInner = ({
                 episodeTitle={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
                 spotifyUrl={post.shared_url}
               />
+            ) : isInstagramReel && post.shared_url ? (
+              <a
+                href={post.shared_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-2xl overflow-hidden border border-[#E1306C]/20 bg-[#E1306C]/10 hover:bg-[#E1306C]/20 transition-colors no-underline p-4 text-center"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="text-[#E1306C] text-sm font-bold flex items-center justify-center gap-2">
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.051.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/>
+                  </svg>
+                  Apri su Instagram
+                </span>
+              </a>
             ) : !isSpotifyTrack && !isTwitter && !isLinkedIn && !isYoutube && hasLink && post.shared_url ? (
               <a
                 href={post.shared_url}

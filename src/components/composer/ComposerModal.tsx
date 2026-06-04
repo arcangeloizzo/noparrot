@@ -9,8 +9,7 @@ import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { MediaActionBar } from "./MediaActionBar";
 import { MediaPreviewTray } from "@/components/media/MediaPreviewTray";
 import { fetchArticlePreview, classifyContent, generateQA } from "@/lib/ai-helpers";
-import { QuotedPostCard } from "@/components/feed/QuotedPostCard";
-import { QuotedEditorialCard } from "@/components/feed/QuotedEditorialCard";
+import { QuotedPostEmbed } from "@/components/feed/QuotedPostEmbed";
 import { VoiceRecorder } from "./VoiceRecorder";
 import { PostTypeChooser } from "./PostTypeChooser";
 import { MediaPreviewModal } from "@/components/media/MediaPreviewModal";
@@ -2618,19 +2617,12 @@ export function ComposerModal({ isOpen, onClose, quotedPost, editPost, onPublish
                       </div>
                     )}
 
-                    {/* Quoted Post - Editorial vs Regular */}
+                    {/* Quoted Post */}
                     {quotedPost && (
-                      quotedPost.shared_url?.startsWith('focus://') || quotedPost.author?.username === 'ilpunto' ? (
-                        <QuotedEditorialCard
-                          title={quotedPost.shared_title || quotedPost.content}
-                          variant="composer"
-                        />
-                      ) : (
-                        <QuotedPostCard
-                          quotedPost={quotedPost}
-                          parentSources={[]}
-                        />
-                      )
+                      <QuotedPostEmbed
+                        post={quotedPost}
+                        className="flex-shrink min-h-0 overflow-hidden"
+                      />
                     )}
 
                     {/* Poll Creator */}

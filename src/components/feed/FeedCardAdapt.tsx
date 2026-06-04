@@ -20,7 +20,7 @@ import { PostTestActionsModal } from "./PostTestActionsModal";
 import { ReportContentDialog } from "./ReportContentDialog";
 import { AdminRemoveDialog } from "./AdminRemoveDialog";
 import { useAdminRole } from "@/hooks/useAdminRole";
-import { QuotedPostCard } from "./QuotedPostCard";
+import { QuotedPostEmbed } from "./QuotedPostEmbed";
 import { ChallengeCard } from "./ChallengeCard";
 import { AcceptChallengeFlow } from "./AcceptChallengeFlow";
 import { PostHeader } from "./PostHeader";
@@ -1079,9 +1079,9 @@ export const FeedCard = ({
 
             {/* Quoted Post */}
             {quotedPost && (
-              <QuotedPostCard
-                quotedPost={quotedPost}
-                parentSources={post.shared_url ? [post.shared_url, ...(post.sources || [])] : (post.sources || [])}
+              <QuotedPostEmbed
+                post={quotedPost}
+                onPress={() => navigate(`/post/${quotedPost.id}`)}
               />
             )}
 

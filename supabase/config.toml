@@ -21,6 +21,9 @@ verify_jwt = true
 [functions.transcribe-youtube]
 verify_jwt = false
 
+[functions.transcribe-instagram]
+verify_jwt = false
+
 [functions.test-supadata]
 verify_jwt = false
 

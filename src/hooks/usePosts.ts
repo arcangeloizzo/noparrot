@@ -50,6 +50,7 @@ export interface Post {
     preview_img?: string | null;
     post_type?: string;
     voice_post?: {
+      id?: string;
       audio_url: string;
       duration_seconds: number;
       waveform_data: number[];
@@ -57,6 +58,27 @@ export interface Post {
       transcript_status?: string;
       title?: string;
       body_text?: string;
+    } | null;
+    challenge?: {
+      id: string;
+      thesis: string;
+      duration_hours: number;
+      status: string;
+      expires_at: string;
+      votes_for: number;
+      votes_against: number;
+      title?: string;
+      body_text?: string;
+      voice_post?: {
+        id: string;
+        audio_url: string;
+        duration_seconds: number;
+        waveform_data: number[];
+        transcript?: string;
+        transcript_status?: string;
+        title?: string;
+        body_text?: string;
+      } | null;
     } | null;
     is_intent?: boolean;
     author: {
@@ -222,6 +244,28 @@ export const usePosts = () => {
               title,
               body_text
             ),
+            challenges!challenges_post_id_fkey (
+              id,
+              thesis,
+              duration_hours,
+              status,
+              expires_at,
+              votes_for,
+              votes_against,
+              title,
+              body_text,
+              voice_post_id,
+              voice_posts!challenges_voice_post_id_fkey (
+                id,
+                audio_url,
+                duration_seconds,
+                waveform_data,
+                transcript,
+                transcript_status,
+                title,
+                body_text
+              )
+            ),
             is_intent,
             author:public_profiles!author_id (
               username,
@@ -280,6 +324,19 @@ export const usePosts = () => {
         quoted_post: post.quoted_post ? {
           ...post.quoted_post,
           title: post.quoted_post.title || undefined,
+          voice_post: post.quoted_post.voice_posts?.[0] || null,
+          challenge: post.quoted_post.challenges?.[0] ? {
+            id: post.quoted_post.challenges[0].id,
+            thesis: post.quoted_post.challenges[0].thesis,
+            duration_hours: post.quoted_post.challenges[0].duration_hours,
+            status: post.quoted_post.challenges[0].status,
+            expires_at: post.quoted_post.challenges[0].expires_at,
+            votes_for: post.quoted_post.challenges[0].votes_for || 0,
+            votes_against: post.quoted_post.challenges[0].votes_against || 0,
+            title: post.quoted_post.challenges[0].title,
+            body_text: post.quoted_post.challenges[0].body_text,
+            voice_post: post.quoted_post.challenges[0].voice_posts || null,
+          } : null,
           media: (post.quoted_post.post_media || [])
             .sort((a: any, b: any) => a.order_idx - b.order_idx)
             .map((pm: any) => pm.media)
@@ -774,6 +831,38 @@ export const useQuotedPost = (quotedPostId: string | null) => {
               url,
               thumbnail_url
             )
+          ),
+          voice_posts (
+            id,
+            audio_url,
+            duration_seconds,
+            waveform_data,
+            transcript,
+            transcript_status,
+            title,
+            body_text
+          ),
+          challenges!challenges_post_id_fkey (
+            id,
+            thesis,
+            duration_hours,
+            status,
+            expires_at,
+            votes_for,
+            votes_against,
+            title,
+            body_text,
+            voice_post_id,
+            voice_posts!challenges_voice_post_id_fkey (
+              id,
+              audio_url,
+              duration_seconds,
+              waveform_data,
+              transcript,
+              transcript_status,
+              title,
+              body_text
+            )
           )
         `)
         .eq('id', quotedPostId)
@@ -791,7 +880,20 @@ export const useQuotedPost = (quotedPostId: string | null) => {
         media: (post.post_media || [])
           .sort((a: any, b: any) => a.order_idx - b.order_idx)
           .map((pm: any) => pm.media)
-          .filter(Boolean)
+          .filter(Boolean),
+        voice_post: post.voice_posts?.[0] || null,
+        challenge: post.challenges?.[0] ? {
+          id: post.challenges[0].id,
+          thesis: post.challenges[0].thesis,
+          duration_hours: post.challenges[0].duration_hours,
+          status: post.challenges[0].status,
+          expires_at: post.challenges[0].expires_at,
+          votes_for: post.challenges[0].votes_for || 0,
+          votes_against: post.challenges[0].votes_against || 0,
+          title: post.challenges[0].title,
+          body_text: post.challenges[0].body_text,
+          voice_post: post.challenges[0].voice_posts || null,
+        } : null,
       };
     },
     enabled: !!quotedPostId

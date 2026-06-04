@@ -1,5 +1,5 @@
 import { useQuotedPost } from "@/hooks/usePosts";
-import { QuotedPostCard } from "@/components/feed/QuotedPostCard";
+import { QuotedPostEmbed } from "@/components/feed/QuotedPostEmbed";
 import { useNavigate } from "react-router-dom";
 
 export const InternalPostPreview = ({ postId }: { postId: string }) => {
@@ -10,7 +10,7 @@ export const InternalPostPreview = ({ postId }: { postId: string }) => {
 
   return (
     <div className="w-full mt-2" onClick={(e) => { e.stopPropagation(); navigate(`/post/${postId}`); }}>
-      <QuotedPostCard quotedPost={post} />
+      <QuotedPostEmbed post={post} />
     </div>
   );
 };

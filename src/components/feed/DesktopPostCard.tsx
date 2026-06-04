@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { useCreateThread } from "@/hooks/useMessageThreads";
 import { useSendMessage } from "@/hooks/useMessages";
 import { CommentsDrawer } from "@/components/feed/CommentsDrawer";
-import { QuotedPostCard } from "./QuotedPostCard";
+import { QuotedPostEmbed } from "./QuotedPostEmbed";
 import { motion } from "framer-motion";
 import { Logo } from "@/components/ui/logo";
 
@@ -133,10 +133,9 @@ export const DesktopPostCard = ({ post, onRemove, onQuoteShare }: DesktopPostCar
                 <div className="space-y-3">
                     {/* 1. Quoted Post - Use standard component */}
                     {post.quoted_post && (
-                        <QuotedPostCard
-                            quotedPost={post.quoted_post}
-                            parentSources={post.shared_url ? [post.shared_url, ...(post.sources || [])] : (post.sources || [])}
-                            onNavigate={() => navigate(`/post/${post.quoted_post.id}`)}
+                        <QuotedPostEmbed
+                            post={post.quoted_post}
+                            onPress={() => navigate(`/post/${post.quoted_post.id}`)}
                             className="mt-2"
                         />
                     )}
