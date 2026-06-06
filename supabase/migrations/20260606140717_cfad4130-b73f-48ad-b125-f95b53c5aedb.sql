@@ -1,0 +1,1 @@
+ALTER TYPE post_type_enum ADD VALUE IF NOT EXISTS 'instagram_reel';
