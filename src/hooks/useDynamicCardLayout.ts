@@ -1,6 +1,6 @@
 import { useState, useLayoutEffect, useEffect, useRef, useCallback } from 'react';
 
-export type CompressionStep = 'full' | 'clamped' | 'pill' | 'hidden';
+export type CompressionStep = 'full' | 'clamped' | 'pill' | 'compact' | 'hidden';
 
 export interface EssentialElementState {
   id: string;
@@ -170,7 +170,7 @@ export function useDynamicCardLayout({
             naturalHeightsRef.current[flex.id] = naturalHeight;
           } else {
             const sh = node.scrollHeight;
-            if (sh > 0 && currentStep === 'clamped') {
+            if (sh > 0 && (currentStep === 'clamped' || currentStep === 'compact')) {
               naturalHeight = sh;
             } else {
               naturalHeight = naturalHeightsRef.current[flex.id] || sh || flex.fallbackHeight;
@@ -265,8 +265,8 @@ export function useDynamicCardLayout({
               // Se l'altezza naturale del flessibile è già inferiore o uguale alla soglia
               // minima di leggibilità, il clamp non ha senso. Salta direttamente allo step successivo.
               const naturalHeight = flexibleNaturalHeights[elementId];
-              if (nextStep === 'clamped' && naturalHeight <= flexible.minReadabilityHeight) {
-                const clampIndex = flexible.compressionSteps.indexOf('clamped');
+              if ((nextStep === 'clamped' || nextStep === 'compact') && naturalHeight <= flexible.minReadabilityHeight) {
+                const clampIndex = flexible.compressionSteps.indexOf(nextStep);
                 if (clampIndex !== -1 && clampIndex < flexible.compressionSteps.length - 1) {
                   nextStep = flexible.compressionSteps[clampIndex + 1];
                 } else {
@@ -279,7 +279,7 @@ export function useDynamicCardLayout({
                 calculatedHeight = PILL_HEIGHT;
               } else if (nextStep === 'hidden') {
                 calculatedHeight = 0;
-              } else if (nextStep === 'clamped') {
+              } else if (nextStep === 'clamped' || nextStep === 'compact') {
                 calculatedHeight = flexible.minReadabilityHeight;
               } else {
                 calculatedHeight = naturalHeight;
@@ -370,8 +370,8 @@ export function useDynamicCardLayout({
             const flexStatus = currentFlexStatus[flexId];
             if (!flexStatus) continue;
 
-            if (flexStatus.step !== 'clamped') {
-              continue; // solo flessibili in stato clamped vengono espansi
+            if (flexStatus.step !== 'clamped' && flexStatus.step !== 'compact') {
+              continue; // solo flessibili in stato clamped o compact vengono espansi
             }
 
             const flexible = flexibles.find(f => f.id === flexId);
