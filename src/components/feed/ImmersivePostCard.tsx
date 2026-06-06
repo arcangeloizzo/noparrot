@@ -4000,7 +4000,7 @@ const ImmersivePostCardInner = ({
               ) : isInstagramReel ? (
                 <div
                   className={cn(
-                    "flex-1 min-h-0 flex flex-col items-center justify-start w-full px-4 gap-3",
+                    "flex-1 min-h-0 flex flex-col items-center justify-start w-full px-4 pr-[80px] gap-3",
                     emergencyScroll && "overflow-y-auto"
                   )}
                 >
@@ -4222,24 +4222,28 @@ const ImmersivePostCardInner = ({
             </div>
           </div>
           </div>
-          {/* Unità d'azione "Apri su Instagram" per Reel */}
+          {/* TikTok-style lateral play button + REEL badge for Reel */}
           {isInstagramReel && (
-            <div className="absolute bottom-[80px] left-1/2 -translate-x-1/2 flex items-center gap-3 z-20 pointer-events-auto">
-              <button 
-                className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/95 shadow-lg hover:bg-white transition"
+            <div 
+              className="absolute right-4 z-30 flex flex-col items-center gap-2 pointer-events-auto"
+              style={{ bottom: '70px' }}
+            >
+              <button
                 onClick={(e) => {
                   e.stopPropagation();
                   window.open(post.shared_url || '', '_blank', 'noopener,noreferrer');
                 }}
+                className="w-14 h-14 rounded-full bg-white shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
+                aria-label="Apri su Instagram"
               >
-                <Play className="w-4 h-4 text-black fill-black" />
-                <span 
-                  className="text-[11px] font-bold tracking-wider text-transparent bg-clip-text"
-                  style={{ backgroundImage: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #F77737 100%)', WebkitBackgroundClip: 'text' }}
-                >
-                  APRI SU INSTAGRAM
-                </span>
+                <Play className="w-6 h-6 text-black fill-black ml-0.5" />
               </button>
+              <div 
+                className="px-2.5 py-1 rounded-full text-[9px] font-bold text-white tracking-wider whitespace-nowrap shadow-md select-none"
+                style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 60%, #F77737 100%)' }}
+              >
+                REEL
+              </div>
             </div>
           )}
           </div>
