@@ -577,7 +577,6 @@ Deno.serve(async (req) => {
         transcript_source: 'supadata_instagram'
       } : {})
     }
-    }
 
     console.log(`[publish-post:${reqId}] stage=insert_start contentLen=${insertPayload.content.length} type=${insertPayload.post_type}`)
 
