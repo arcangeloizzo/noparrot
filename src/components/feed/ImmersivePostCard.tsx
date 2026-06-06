@@ -2064,7 +2064,7 @@ const ImmersivePostCardInner = ({
         />
 
         {/* Content Layer */}
-        <div className="relative z-10 w-full h-full">
+        <div className="relative z-10 w-full h-full pointer-events-none">
 
           <div
             className="absolute top-0 left-0 right-0 z-40 pointer-events-none"
@@ -2082,10 +2082,10 @@ const ImmersivePostCardInner = ({
             }}
           />
 
-          <div className="absolute inset-y-0 left-12 right-12 z-50">
+          <div className="absolute inset-y-0 left-12 right-12 z-50 pointer-events-none">
 
           {/* [Rail 1] HeaderRail: Fixed top overlay with gradient fade */}
-          <div className="absolute top-0 left-0 right-0 z-10">
+          <div className="absolute top-0 left-0 right-0 z-10 pointer-events-auto">
             <div className="flex justify-between items-start pt-[calc(env(safe-area-inset-top)+72px)] pb-5">
               <div
                 className="flex items-center gap-3 cursor-pointer relative z-[60] min-w-0"
@@ -2291,7 +2291,7 @@ const ImmersivePostCardInner = ({
           {/* [Rail 2] ContentRail */}
           <div
             ref={contentRailRef}
-            className="absolute top-0 bottom-0 left-0 right-0 flex flex-col overflow-hidden"
+            className="absolute top-0 bottom-0 left-0 right-0 flex flex-col overflow-hidden pointer-events-none"
             style={{
               paddingTop: 'calc(env(safe-area-inset-top) + 72px + 82px)',
               paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 36px + 64px)',
@@ -2302,7 +2302,7 @@ const ImmersivePostCardInner = ({
 
             <div 
               className={cn(
-                "w-full flex flex-col relative z-[1]", 
+                "w-full flex flex-col relative z-[1] pointer-events-auto", 
                 (!isAudioPost && !isChallengePost) ? "my-auto" : "flex-1 min-h-0"
               )}
               style={{ maxHeight: `${availableHeight}px` }}
