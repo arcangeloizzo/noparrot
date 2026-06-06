@@ -4325,7 +4325,7 @@ const ImmersivePostCardInner = ({
           }
           content={
             isInstagramReel
-              ? (post.shared_title || '')
+              ? [post.content && post.content.trim(), post.shared_title && post.shared_title.trim()].filter(Boolean).join('\n\n')
               : isChallengePost
                 ? (post.challenge?.body_text || post.content || '')
                 : isVoicePost
