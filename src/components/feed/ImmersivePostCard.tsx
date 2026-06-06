@@ -4279,6 +4279,7 @@ const ImmersivePostCardInner = ({
               media={finalSourceMedia}
               initialIndex={selectedMediaIndex}
               postTitle={post.title}
+              minimal={shouldUseBlurredBg}
               onClose={(finalIndex) => {
                 if (finalIndex !== undefined) {
                   setCarouselIndex(finalIndex);

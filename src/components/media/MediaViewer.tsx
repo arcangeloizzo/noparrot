@@ -35,9 +35,10 @@ interface MediaViewerProps {
   onClose: (finalIndex?: number) => void;
   postActions?: PostActions;
   postTitle?: string;
+  minimal?: boolean;
 }
 
-export const MediaViewer = ({ media, initialIndex = 0, onClose, postActions, postTitle }: MediaViewerProps) => {
+export const MediaViewer = ({ media, initialIndex = 0, onClose, postActions, postTitle, minimal = false }: MediaViewerProps) => {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [showComments, setShowComments] = useState(false);
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
@@ -351,94 +352,96 @@ export const MediaViewer = ({ media, initialIndex = 0, onClose, postActions, pos
           )}
 
           {/* Bottom Overlay Container */}
-          <div className="absolute bottom-0 left-0 right-0 z-10 flex flex-col pointer-events-none">
-            {/* Title Overlay */}
-            {postTitle && (
-              <div className="p-4 pt-12 bg-gradient-to-t from-black/70 to-transparent text-left">
-                <h2 className="font-sans text-sm text-white/80 leading-snug line-clamp-2 px-1">
-                  {decodeHTMLEntities(postTitle)}
-                </h2>
-              </div>
-            )}
+          {!minimal && (
+            <div className="absolute bottom-0 left-0 right-0 z-10 flex flex-col pointer-events-none">
+              {/* Title Overlay */}
+              {postTitle && (
+                <div className="p-4 pt-12 bg-gradient-to-t from-black/70 to-transparent text-left">
+                  <h2 className="font-sans text-sm text-white/80 leading-snug line-clamp-2 px-1">
+                    {decodeHTMLEntities(postTitle)}
+                  </h2>
+                </div>
+              )}
 
-            {/* Actions Bar */}
-            <div className="p-4 bg-black/40 backdrop-blur-md safe-area-inset-bottom border-t border-white/5 pointer-events-auto">
-              <div className="flex items-center justify-between gap-6">
-                
-                {/* Primary Share Button - Pill shape (only show when postActions provided) */}
-                {usePostActions && postActions.onShare && (
-                  <button 
-                    onClick={handleShareClick}
-                    className="h-11 px-5 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-full shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
-                  >
-                    <Logo variant="icon" size="sm" className="h-5 w-5" />
-                    <span className="text-sm font-semibold leading-none">Condividi</span>
-                    {sharesCount > 0 && (
-                      <span className="text-xs opacity-70">({sharesCount})</span>
-                    )}
-                  </button>
-                )}
-
-                {/* Action Icons - Uniform w-6 h-6 */}
-                <div 
-                  className={cn(
-                    "flex items-center gap-4 h-11",
-                    !usePostActions && "w-full justify-center"
-                  )}
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                >
+              {/* Actions Bar */}
+              <div className="p-4 bg-black/40 backdrop-blur-md safe-area-inset-bottom border-t border-white/5 pointer-events-auto">
+                <div className="flex items-center justify-between gap-6">
                   
-                  {/* Like */}
-                  <button 
-                    className="flex items-center justify-center gap-1.5 h-full select-none"
-                    onClick={handleHeartClick}
-                  >
-                    <Heart 
-                      className={cn(
-                        "w-6 h-6 transition-transform active:scale-90",
-                        hasHearted ? "text-red-500 fill-red-500" : "text-white"
-                      )}
-                      fill={hasHearted ? "currentColor" : "none"}
-                    />
-                    {heartsCount > 0 && (
-                      <span className="text-sm font-bold text-white select-none">{heartsCount}</span>
-                    )}
-                  </button>
-
-                  {/* Comments */}
-                  <button 
-                    className="flex items-center justify-center gap-1.5 h-full select-none"
-                    onClick={handleCommentsClick}
-                  >
-                    <MessageCircle className="w-6 h-6 text-white transition-transform active:scale-90" />
-                    {(usePostActions && commentsCount > 0) && (
-                      <span className="text-sm font-bold text-white select-none">{commentsCount}</span>
-                    )}
-                    {!usePostActions && (
-                      <span className="text-sm font-medium text-white">Commenta</span>
-                    )}
-                  </button>
-
-                  {/* Bookmark (only show when postActions provided) */}
-                  {usePostActions && postActions.onBookmark && (
+                  {/* Primary Share Button - Pill shape (only show when postActions provided) */}
+                  {usePostActions && postActions.onShare && (
                     <button 
-                      className="flex items-center justify-center h-full"
-                      onClick={handleBookmarkClick}
+                      onClick={handleShareClick}
+                      className="h-11 px-5 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-full shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
                     >
-                      <Bookmark 
-                        className={cn(
-                          "w-6 h-6 transition-transform active:scale-90", 
-                          hasBookmarked ? "text-blue-400 fill-blue-400" : "text-white"
-                        )}
-                        fill={hasBookmarked ? "currentColor" : "none"}
-                      />
+                      <Logo variant="icon" size="sm" className="h-5 w-5" />
+                      <span className="text-sm font-semibold leading-none">Condividi</span>
+                      {sharesCount > 0 && (
+                        <span className="text-xs opacity-70">({sharesCount})</span>
+                      )}
                     </button>
                   )}
 
+                  {/* Action Icons - Uniform w-6 h-6 */}
+                  <div 
+                    className={cn(
+                      "flex items-center gap-4 h-11",
+                      !usePostActions && "w-full justify-center"
+                    )}
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    
+                    {/* Like */}
+                    <button 
+                      className="flex items-center justify-center gap-1.5 h-full select-none"
+                      onClick={handleHeartClick}
+                    >
+                      <Heart 
+                        className={cn(
+                          "w-6 h-6 transition-transform active:scale-90",
+                          hasHearted ? "text-red-500 fill-red-500" : "text-white"
+                        )}
+                        fill={hasHearted ? "currentColor" : "none"}
+                      />
+                      {heartsCount > 0 && (
+                        <span className="text-sm font-bold text-white select-none">{heartsCount}</span>
+                      )}
+                    </button>
+
+                    {/* Comments */}
+                    <button 
+                      className="flex items-center justify-center gap-1.5 h-full select-none"
+                      onClick={handleCommentsClick}
+                    >
+                      <MessageCircle className="w-6 h-6 text-white transition-transform active:scale-90" />
+                      {(usePostActions && commentsCount > 0) && (
+                        <span className="text-sm font-bold text-white select-none">{commentsCount}</span>
+                      )}
+                      {!usePostActions && (
+                        <span className="text-sm font-medium text-white">Commenta</span>
+                      )}
+                    </button>
+
+                    {/* Bookmark (only show when postActions provided) */}
+                    {usePostActions && postActions.onBookmark && (
+                      <button 
+                        className="flex items-center justify-center h-full"
+                        onClick={handleBookmarkClick}
+                      >
+                        <Bookmark 
+                          className={cn(
+                            "w-6 h-6 transition-transform active:scale-90", 
+                            hasBookmarked ? "text-blue-400 fill-blue-400" : "text-white"
+                          )}
+                          fill={hasBookmarked ? "currentColor" : "none"}
+                        />
+                      </button>
+                    )}
+
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
         </motion.div>
       </div>
 
