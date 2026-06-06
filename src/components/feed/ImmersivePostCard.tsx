@@ -4264,7 +4264,7 @@ const ImmersivePostCardInner = ({
           }}
           title={
             isInstagramReel
-              ? "Instagram Reel"
+              ? (post.title || "Instagram Reel")
               : fullTextMode === 'transcript'
                 ? "Trascrizione"
                 : (
@@ -4277,7 +4277,7 @@ const ImmersivePostCardInner = ({
           }
           content={
             isInstagramReel
-              ? (post.article_content || '')
+              ? (post.shared_title || '')
               : isChallengePost
                 ? (post.challenge?.body_text || post.content || '')
                 : isVoicePost
