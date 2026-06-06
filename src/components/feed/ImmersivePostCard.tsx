@@ -3838,7 +3838,7 @@ const ImmersivePostCardInner = ({
               ) : isInstagramReel ? (
                 <div
                   className={cn(
-                    "flex-1 min-h-0 flex flex-col justify-start w-full",
+                    "flex-1 min-h-0 flex flex-col items-center justify-start w-full px-4 gap-4",
                     emergencyScroll && "overflow-y-auto"
                   )}
                 >
@@ -3846,7 +3846,7 @@ const ImmersivePostCardInner = ({
                   {post.title && post.title.trim().length > 0 ? (
                     <h2
                       ref={registerRef('essential-title')}
-                      className="uppercase mb-2 flex-shrink-0"
+                      className="uppercase mb-2 flex-shrink-0 self-start text-left"
                       style={{
                         fontFamily: 'Impact, sans-serif',
                         fontSize: 'clamp(30px, 8vw, 42px)',
@@ -3861,18 +3861,79 @@ const ImmersivePostCardInner = ({
                   ) : (
                     <h2
                       ref={registerRef('essential-title')}
-                      className="text-xl font-bold text-immersive-foreground leading-tight mt-1 mb-2 flex-shrink-0"
+                      className="text-xl font-bold text-immersive-foreground leading-tight mt-1 mb-2 flex-shrink-0 self-start text-left"
                     >
                       {decodeHTMLEntities(articlePreview?.title || post.shared_title || 'Instagram Reel')}
                     </h2>
                   )}
 
-                  {/* Body text (caption Instagram) — flessibile */}
+                  {/* Thumbnail — flessibile */}
+                  {flexiblesStatus['flexible-image']?.step === 'full' && (post.preview_img || articlePreview?.image) && (
+                    <div 
+                      ref={registerRef('flexible-image')}
+                      className="relative cursor-pointer rounded-2xl overflow-hidden group mx-auto flex-shrink-0"
+                      style={{ width: '62%', aspectRatio: '9/16', maxHeight: '52vh' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(post.shared_url || '', '_blank', 'noopener,noreferrer');
+                      }}
+                    >
+                      <img 
+                        src={post.preview_img || articlePreview?.image || ''} 
+                        alt="Instagram Reel preview"
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      
+                      {/* Vignette per leggibilità del badge */}
+                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/40" />
+                      
+                      {/* Play overlay centrale */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-14 h-14 rounded-full bg-white/95 flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform">
+                          <Play className="w-6 h-6 text-black fill-black ml-0.5" />
+                        </div>
+                      </div>
+                      
+                      {/* Badge INSTAGRAM REEL */}
+                      <div 
+                        className="absolute bottom-3 left-3 px-2.5 py-1 rounded-md text-[10px] font-bold text-white tracking-widest shadow-lg"
+                        style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #F77737 100%)' }}
+                      >
+                        INSTAGRAM REEL
+                      </div>
+                    </div>
+                  )}
+
+                  {flexiblesStatus['flexible-image']?.step === 'compact' && (post.preview_img || articlePreview?.image) && (
+                    <div 
+                      ref={registerRef('flexible-image')}
+                      className="relative cursor-pointer rounded-lg overflow-hidden mx-auto flex-shrink-0"
+                      style={{ width: '120px', aspectRatio: '9/16' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.open(post.shared_url || '', '_blank', 'noopener,noreferrer');
+                      }}
+                    >
+                      <img 
+                        src={post.preview_img || articlePreview?.image || ''} 
+                        alt="Reel" 
+                        className="w-full h-full object-cover" 
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <div className="w-8 h-8 rounded-full bg-white/95 flex items-center justify-center">
+                          <Play className="w-3.5 h-3.5 text-black fill-black ml-0.5" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Caption — flessibile */}
                   {flexiblesStatus['flexible-text']?.step !== 'hidden' && post.shared_title && (
                     <p 
                       ref={registerRef('flexible-text')}
                       className={cn(
-                        "text-sm text-white/80 leading-relaxed mb-3 text-left flex-shrink-0",
+                        "self-start text-sm text-white/80 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
                         flexiblesStatus['flexible-text']?.step === 'compact' ? "line-clamp-2" : "line-clamp-4"
                       )}
                     >
@@ -3882,58 +3943,13 @@ const ImmersivePostCardInner = ({
 
                   {/* Approfondisci */}
                   {showDrawerCta && (
-                    <div className="flex-shrink-0 mt-2 mb-3 text-left">
+                    <div className="flex-shrink-0 mt-2 mb-3 text-left self-start">
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
                         className="text-sm font-semibold hover:underline block text-[#E1306C]"
                       >
                         Approfondisci
                       </button>
-                    </div>
-                  )}
-
-                  {/* Embed thumbnail con play overlay + badge piattaforma — flessibile */}
-                  {flexiblesStatus['flexible-image']?.step !== 'hidden' && (post.preview_img || articlePreview?.image) && (
-                    <div 
-                      ref={registerRef('flexible-image')}
-                      className={cn(
-                        "relative cursor-pointer rounded-xl overflow-hidden group flex-shrink-0 mb-3 mt-auto",
-                        flexiblesStatus['flexible-image']?.step === 'compact' 
-                          ? "w-20 h-[45px]" 
-                          : "w-full aspect-video"
-                      )}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(post.shared_url || '', '_blank', 'noopener,noreferrer');
-                      }}
-                    >
-                      <img 
-                        src={post.preview_img || articlePreview?.image || ''} 
-                        alt="Instagram Reel"
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                      
-                      {/* Play overlay */}
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition">
-                        {flexiblesStatus['flexible-image']?.step === 'compact' ? (
-                          <Play className="w-4 h-4 text-white fill-white" />
-                        ) : (
-                          <div className="w-12 h-12 rounded-full bg-white/95 flex items-center justify-center shadow-lg">
-                            <Play className="w-5 h-5 text-black fill-black ml-0.5" />
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* Badge INSTAGRAM REEL — solo in stato full */}
-                      {flexiblesStatus['flexible-image']?.step === 'full' && (
-                        <div 
-                          className="absolute bottom-2 left-2 px-2 py-1 rounded text-[10px] font-bold text-white tracking-wider shadow-md"
-                          style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #F77737 100%)' }}
-                        >
-                          INSTAGRAM REEL
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
