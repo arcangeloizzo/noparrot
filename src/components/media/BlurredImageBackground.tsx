@@ -16,6 +16,9 @@ export const BlurredImageBackground = ({
       className="absolute inset-0 overflow-hidden cursor-pointer"
       onClick={onClick}
       aria-label="Apri immagine a schermo intero"
+      style={{ 
+        contain: 'paint layout' 
+      }}
     >
       <img 
         src={imageUrl}
@@ -24,6 +27,7 @@ export const BlurredImageBackground = ({
         style={{ 
           filter: 'blur(20px)',
           transform: 'scale(1.06)', // evita bordi vuoti del blur
+          willChange: 'transform'
         }}
         loading="lazy"
       />
