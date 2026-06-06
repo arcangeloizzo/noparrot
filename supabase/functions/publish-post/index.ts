@@ -93,6 +93,39 @@ function isInstagramReelUrl(url: string): boolean {
   }
 }
 
+const TRACKING_PARAMS = new Set([
+  'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
+  'fbclid', 'gclid', 'dclid', 'msclkid', 'igshid', 'twclid', 'ttclid'
+]);
+
+function safeNormalizeUrl(rawUrl: string): string {
+  try {
+    const url = new URL(rawUrl.trim());
+    url.protocol = 'https:';
+    url.hostname = url.hostname.replace(/^www\./, '').toLowerCase();
+    url.hash = '';
+    url.pathname = url.pathname.replace(/\/+$/, '') || '/';
+    
+    const cleanParams = new URLSearchParams();
+    const entries = Array.from(url.searchParams.entries())
+      .filter(([key]) => {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.startsWith('utm_')) return false;
+        return !TRACKING_PARAMS.has(lowerKey);
+      })
+      .sort(([a], [b]) => a.localeCompare(b));
+    
+    for (const [key, value] of entries) {
+      cleanParams.set(key, value);
+    }
+    url.search = cleanParams.toString();
+    
+    return url.toString();
+  } catch {
+    return rawUrl.trim();
+  }
+}
+
 // ========================================================================
 // CLASSIFICATION LOGIC
 // ========================================================================
@@ -437,18 +470,113 @@ Deno.serve(async (req) => {
       }
     }
 
+    // NEW: Instagram Reels processing and metadata collection
+    let instagramPreviewImg = null;
+    let instagramHostname = 'instagram.com';
+    let instagramTranscript = null;
+    let instagramTitle = null;
+
+    const isInstagramReel = sanitizedSharedUrl ? isInstagramReelUrl(sanitizedSharedUrl) : false;
+
+    if (isInstagramReel && sanitizedSharedUrl) {
+      console.log(`[publish-post:${reqId}] stage=instagram_processing url=${sanitizedSharedUrl}`);
+      
+      // 1. Try to fetch from cache first
+      try {
+        const normalizedUrl = safeNormalizeUrl(sanitizedSharedUrl);
+        const { data: cached } = await supabase
+          .from('content_cache')
+          .select('content_text, title, meta_image_url, meta_hostname')
+          .eq('source_url', normalizedUrl)
+          .maybeSingle();
+
+        if (cached) {
+          console.log(`[publish-post:${reqId}] stage=instagram_cache_hit`);
+          instagramPreviewImg = cached.meta_image_url;
+          instagramHostname = cached.meta_hostname || 'instagram.com';
+          instagramTranscript = cached.content_text;
+          instagramTitle = cached.title;
+        }
+      } catch (err) {
+        console.warn(`[publish-post:${reqId}] stage=instagram_cache_err`, err);
+      }
+
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || supabaseAnonKey;
+      const authHeader = req.headers.get('Authorization') || `Bearer ${serviceRoleKey}`;
+
+      // 2. If metadata missing, invoke fetch-article-preview
+      if (!instagramPreviewImg || !instagramTitle) {
+        console.log(`[publish-post:${reqId}] stage=instagram_preview_fetch_fallback`);
+        try {
+          const previewResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-article-preview`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': authHeader,
+            },
+            body: JSON.stringify({ url: sanitizedSharedUrl }),
+          });
+
+          if (previewResponse.ok) {
+            const previewData = await previewResponse.json();
+            instagramPreviewImg = previewData.image || previewData.previewImg || instagramPreviewImg;
+            instagramHostname = previewData.hostname || instagramHostname;
+            instagramTitle = previewData.title || instagramTitle;
+            console.log(`[publish-post:${reqId}] stage=instagram_preview_fetch_fallback_success`);
+          } else {
+            console.warn(`[publish-post:${reqId}] stage=instagram_preview_fetch_fallback_failed status=${previewResponse.status}`);
+          }
+        } catch (err) {
+          console.error(`[publish-post:${reqId}] stage=instagram_preview_fetch_fallback_err`, err);
+        }
+      }
+
+      // 3. If transcript missing, invoke transcribe-instagram
+      if (!instagramTranscript) {
+        console.log(`[publish-post:${reqId}] stage=instagram_transcribe_fallback`);
+        try {
+          const transcribeResponse = await fetch(`${supabaseUrl}/functions/v1/transcribe-instagram`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': authHeader,
+            },
+            body: JSON.stringify({ url: sanitizedSharedUrl }),
+          });
+
+          if (transcribeResponse.ok) {
+            const transcribeData = await transcribeResponse.json();
+            instagramTranscript = transcribeData.transcript || null;
+            console.log(`[publish-post:${reqId}] stage=instagram_transcribe_fallback_success`);
+          } else {
+            console.warn(`[publish-post:${reqId}] stage=instagram_transcribe_fallback_failed status=${transcribeResponse.status}`);
+          }
+        } catch (err) {
+          console.error(`[publish-post:${reqId}] stage=instagram_transcribe_fallback_err`, err);
+        }
+      }
+    }
+
     const insertPayload = {
       content: sanitizedContent,
       title: sanitizedPostTitle,
       author_id: user.id,
       shared_url: sanitizedSharedUrl,
-      shared_title: sanitizedTitle,
-      preview_img: sanitizedPreviewImg,
-      article_content: sanitizedArticle,
+      shared_title: isInstagramReel ? (instagramTitle || sanitizedTitle) : sanitizedTitle,
+      preview_img: isInstagramReel ? (instagramPreviewImg || sanitizedPreviewImg) : sanitizedPreviewImg,
+      article_content: isInstagramReel ? (instagramTranscript || sanitizedArticle) : sanitizedArticle,
       quoted_post_id: validQuotedPostId,
       category: null as string | null,
       is_intent: body.isIntent || false,
-      post_type: body.postType || 'standard',
+      post_type: isInstagramReel ? 'instagram_reel' : (body.postType || 'standard'),
+      // Also write transcript & transcript_source & hostname & preview_fetched_at to DB columns:
+      ...(isInstagramReel ? {
+        hostname: instagramHostname,
+        preview_fetched_at: new Date().toISOString(),
+        transcript: instagramTranscript,
+        transcript_source: 'supadata_instagram'
+      } : {})
+    }
     }
 
     console.log(`[publish-post:${reqId}] stage=insert_start contentLen=${insertPayload.content.length} type=${insertPayload.post_type}`)
@@ -709,7 +837,7 @@ Deno.serve(async (req) => {
     // PHASE 2: Populate metadata for posts with shared_url (using await, not fire-and-forget)
     // This ensures Deno runtime doesn't kill the process before metadata is saved
     // ========================================================================
-    if (insertPayload.shared_url && !insertPayload.shared_title && !insertPayload.preview_img) {
+    if (insertPayload.shared_url && !isInstagramReel && !insertPayload.shared_title && !insertPayload.preview_img) {
       try {
         if (isInstagramReelUrl(insertPayload.shared_url)) {
           console.log(`[publish-post:${reqId}] stage=transcribe_instagram starting for ${insertPayload.shared_url}`);
