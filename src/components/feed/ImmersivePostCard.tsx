@@ -1835,6 +1835,33 @@ const ImmersivePostCardInner = ({
     compressionPriority: priorityConfig
   });
 
+  // Bug 3: Runtime DOM check for IG Reel text truncation (line-clamp pre-applied
+  // via CSS impedisce a useDynamicCardLayout di rilevare il troncamento del testo).
+  const reelUserCommentRef = useRef<HTMLParagraphElement | null>(null);
+  const reelCaptionRef = useRef<HTMLParagraphElement | null>(null);
+  const [reelTextTruncated, setReelTextTruncated] = useState(false);
+
+  useEffect(() => {
+    if (!isInstagramReel) {
+      if (reelTextTruncated) setReelTextTruncated(false);
+      return;
+    }
+    const check = () => {
+      const a = reelUserCommentRef.current;
+      const b = reelCaptionRef.current;
+      const truncA = a ? a.scrollHeight - a.clientHeight > 1 : false;
+      const truncB = b ? b.scrollHeight - b.clientHeight > 1 : false;
+      setReelTextTruncated(truncA || truncB);
+    };
+    // Esegui dopo che il layout si è stabilizzato
+    const id = window.requestAnimationFrame(check);
+    window.addEventListener('resize', check);
+    return () => {
+      window.cancelAnimationFrame(id);
+      window.removeEventListener('resize', check);
+    };
+  }, [isInstagramReel, post.content, post.shared_title, availableHeight, flexiblesStatus]);
+
   // Update lazy mount refs (placed here to avoid TDZ for state variables declared after the refs)
   if (showShareSheet) hasMountedShare.current = true;
   if (showPeoplePicker) hasMountedPeople.current = true;
