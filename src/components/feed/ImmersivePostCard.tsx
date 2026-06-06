@@ -1807,13 +1807,15 @@ const ImmersivePostCardInner = ({
     }
     if (isInstagramReel) {
       const priority: string[] = [];
+      // Comprime PRIMA la thumbnail (occupa lo spazio maggiore in altezza),
+      // POI il commento utente, e INFINE la caption originale del reel.
+      priority.push('flexible-image');
       if (post.content && post.content.trim().length > 0) {
         priority.push('flexible-user-comment');
       }
       if (post.shared_title && post.shared_title.trim().length > 0) {
         priority.push('flexible-text');
       }
-      priority.push('flexible-image');
       return priority;
     }
     return [];
@@ -1832,6 +1834,33 @@ const ImmersivePostCardInner = ({
     flexibles: flexiblesConfig,
     compressionPriority: priorityConfig
   });
+
+  // Bug 3: Runtime DOM check for IG Reel text truncation (line-clamp pre-applied
+  // via CSS impedisce a useDynamicCardLayout di rilevare il troncamento del testo).
+  const reelUserCommentRef = useRef<HTMLParagraphElement | null>(null);
+  const reelCaptionRef = useRef<HTMLParagraphElement | null>(null);
+  const [reelTextTruncated, setReelTextTruncated] = useState(false);
+
+  useEffect(() => {
+    if (!isInstagramReel) {
+      if (reelTextTruncated) setReelTextTruncated(false);
+      return;
+    }
+    const check = () => {
+      const a = reelUserCommentRef.current;
+      const b = reelCaptionRef.current;
+      const truncA = a ? a.scrollHeight - a.clientHeight > 1 : false;
+      const truncB = b ? b.scrollHeight - b.clientHeight > 1 : false;
+      setReelTextTruncated(truncA || truncB);
+    };
+    // Esegui dopo che il layout si è stabilizzato
+    const id = window.requestAnimationFrame(check);
+    window.addEventListener('resize', check);
+    return () => {
+      window.cancelAnimationFrame(id);
+      window.removeEventListener('resize', check);
+    };
+  }, [isInstagramReel, post.content, post.shared_title, availableHeight, flexiblesStatus]);
 
   // Update lazy mount refs (placed here to avoid TDZ for state variables declared after the refs)
   if (showShareSheet) hasMountedShare.current = true;
@@ -3856,7 +3885,7 @@ const ImmersivePostCardInner = ({
               ) : isInstagramReel ? (
                 <div
                   className={cn(
-                    "flex-1 min-h-0 flex flex-col items-center justify-start w-full px-4 gap-4 pb-24",
+                    "flex-1 min-h-0 flex flex-col items-center justify-start w-full px-4 gap-3",
                     emergencyScroll && "overflow-y-auto"
                   )}
                 >
@@ -3888,7 +3917,7 @@ const ImmersivePostCardInner = ({
                   {/* User Comment — flessibile */}
                   {post.content && post.content.trim().length > 0 && flexiblesStatus['flexible-user-comment']?.step !== 'hidden' && (
                     <p 
-                      ref={registerRef('flexible-user-comment')}
+                      ref={(el) => { registerRef('flexible-user-comment')(el); reelUserCommentRef.current = el; }}
                       className={cn(
                         "self-start text-sm text-white/90 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
                         flexiblesStatus['flexible-user-comment']?.step === 'compact' ? "line-clamp-2" : "line-clamp-4"
@@ -3962,7 +3991,7 @@ const ImmersivePostCardInner = ({
                   {/* Caption — flessibile */}
                   {flexiblesStatus['flexible-text']?.step !== 'hidden' && post.shared_title && (
                     <p 
-                      ref={registerRef('flexible-text')}
+                      ref={(el) => { registerRef('flexible-text')(el); reelCaptionRef.current = el; }}
                       className={cn(
                         "self-start text-sm text-white/80 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
                         flexiblesStatus['flexible-text']?.step === 'compact' ? "line-clamp-2" : "line-clamp-4"
@@ -3973,7 +4002,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Approfondisci */}
-                  {showDrawerCta && (
+                  {(showDrawerCta || reelTextTruncated) && (
                     <div className="flex-shrink-0 mt-2 mb-3 text-left self-start">
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}

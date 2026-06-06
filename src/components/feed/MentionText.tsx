@@ -93,7 +93,7 @@ export const MentionText = ({ text, content }: MentionTextProps) => {
             <button
               key={keyCounter++}
               type="button"
-              className="text-primary font-semibold bg-white/10 px-1.5 py-0.5 rounded-md hover:bg-white/15 active:scale-95 transition-all cursor-pointer inline-block border-0 mx-0.5 my-0.5"
+              className="text-primary font-semibold bg-white/10 px-1.5 rounded-md hover:bg-white/15 active:scale-95 transition-all cursor-pointer inline border-0"
               onClick={(e) => handleMentionClick(e, part)}
               onTouchEnd={(e) => {
                 e.stopPropagation();
