@@ -1523,6 +1523,7 @@ const ImmersivePostCardInner = ({
     !isTwitter && 
     !isLinkedIn && 
     !isAudioPost && 
+    !isInstagramReel &&
     !useStackLayout;
 
   const hasImage = isStandardPost && (post.preview_img || (post.media && post.media.length > 0));
@@ -1795,7 +1796,7 @@ const ImmersivePostCardInner = ({
       return post.content ? ['flexible-user-comment'] : [];
     }
     if (isInstagramReel) {
-      return ['flexible-image', 'flexible-text'];
+      return ['flexible-text', 'flexible-image'];
     }
     return [];
   }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media]);
