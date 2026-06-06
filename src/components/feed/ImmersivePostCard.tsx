@@ -4246,7 +4246,7 @@ const ImmersivePostCardInner = ({
           {isInstagramReel && (
             <div 
               className="absolute right-4 z-30 flex flex-col items-center gap-2 pointer-events-auto"
-              style={{ bottom: '70px' }}
+              style={{ bottom: '120px' }}
             >
               <button
                 onClick={(e) => {
