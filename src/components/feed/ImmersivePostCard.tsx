@@ -4042,15 +4042,7 @@ const ImmersivePostCardInner = ({
                     </p>
                   )}
 
-                  {/* Badge INSTAGRAM REEL */}
-                  <div className="w-full flex justify-center mb-1 shrink-0">
-                    <span 
-                      className="h-8 px-4 text-[11px] rounded-full font-bold tracking-widest inline-flex items-center uppercase text-white shadow-lg"
-                      style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #F77737 100%)' }}
-                    >
-                      INSTAGRAM REEL
-                    </span>
-                  </div>
+
 
                   {/* Caption — flessibile */}
                   {flexiblesStatus['flexible-text']?.step !== 'hidden' && post.shared_title && (
@@ -4227,15 +4219,23 @@ const ImmersivePostCardInner = ({
           {/* Play icon centrale (solo per Reel / contenuti video con blurred bg) */}
           {(isInstagramReel || (hasUserMedia && isVideoMedia)) && (
             <div 
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-auto"
+              className="absolute left-1/2 top-[45%] -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center gap-3 pointer-events-auto"
               onClick={(e) => {
                 e.stopPropagation();
                 window.open(post.shared_url || '', '_blank', 'noopener,noreferrer');
               }}
             >
-              <div className="w-16 h-16 rounded-full bg-white/95 flex items-center justify-center shadow-2xl cursor-pointer hover:scale-105 transition-transform active:scale-95">
-                <Play className="w-7 h-7 text-black fill-black ml-1" />
+              <div className="w-14 h-14 rounded-full bg-white/95 flex items-center justify-center shadow-2xl cursor-pointer hover:scale-105 transition-transform active:scale-95">
+                <Play className="w-6 h-6 text-black fill-black ml-0.5" />
               </div>
+              {isInstagramReel && (
+                <div 
+                  className="px-3 py-1 rounded-full text-[10px] font-bold text-white tracking-widest shadow-md uppercase select-none"
+                  style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #F77737 100%)' }}
+                >
+                  INSTAGRAM REEL
+                </div>
+              )}
             </div>
           )}
           </div>
