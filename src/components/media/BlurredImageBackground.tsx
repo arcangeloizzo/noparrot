@@ -22,8 +22,8 @@ export const BlurredImageBackground = ({
         alt=""
         className="w-full h-full object-cover animate-in fade-in duration-500"
         style={{ 
-          filter: 'blur(40px)',
-          transform: 'scale(1.1)', // evita bordi vuoti del blur
+          filter: 'blur(20px)',
+          transform: 'scale(1.06)', // evita bordi vuoti del blur
         }}
         loading="lazy"
       />
