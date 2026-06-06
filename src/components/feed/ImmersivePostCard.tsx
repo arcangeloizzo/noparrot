@@ -1835,8 +1835,8 @@ const ImmersivePostCardInner = ({
     compressionPriority: priorityConfig
   });
 
-  // Bug 3: Runtime DOM check for IG Reel text truncation (line-clamp pre-applied
-  // via CSS impedisce a useDynamicCardLayout di rilevare il troncamento del testo).
+  // Bug 3: Runtime DOM check for IG Reel text truncation using ResizeObserver
+  // (line-clamp pre-applied via CSS prevents useDynamicCardLayout from detecting text truncation).
   const reelUserCommentRef = useRef<HTMLParagraphElement | null>(null);
   const reelCaptionRef = useRef<HTMLParagraphElement | null>(null);
   const [reelTextTruncated, setReelTextTruncated] = useState(false);
@@ -1849,16 +1849,24 @@ const ImmersivePostCardInner = ({
     const check = () => {
       const a = reelUserCommentRef.current;
       const b = reelCaptionRef.current;
-      const truncA = a ? a.scrollHeight - a.clientHeight > 1 : false;
-      const truncB = b ? b.scrollHeight - b.clientHeight > 1 : false;
+      const truncA = a ? a.scrollHeight > a.clientHeight : false;
+      const truncB = b ? b.scrollHeight > b.clientHeight : false;
       setReelTextTruncated(truncA || truncB);
     };
-    // Esegui dopo che il layout si è stabilizzato
-    const id = window.requestAnimationFrame(check);
-    window.addEventListener('resize', check);
+
+    // Use ResizeObserver to reliably run truncation checks on mount, resize, layout, and style changes
+    const observer = new ResizeObserver(() => {
+      check();
+    });
+
+    if (reelUserCommentRef.current) observer.observe(reelUserCommentRef.current);
+    if (reelCaptionRef.current) observer.observe(reelCaptionRef.current);
+
+    // Initial check
+    check();
+
     return () => {
-      window.cancelAnimationFrame(id);
-      window.removeEventListener('resize', check);
+      observer.disconnect();
     };
   }, [isInstagramReel, post.content, post.shared_title, availableHeight, flexiblesStatus]);
 
