@@ -69,6 +69,7 @@ import { usePollForPost } from "@/hooks/usePollVote";
 // Media Components
 import { MediaGallery } from "@/components/media/MediaGallery";
 import { MediaViewer } from "@/components/media/MediaViewer";
+import { BlurredImageBackground } from "@/components/media/BlurredImageBackground";
 
 // Composer Components
 import { SourceReaderGate } from "../composer/SourceReaderGate";
@@ -541,7 +542,25 @@ const ImmersivePostCardInner = ({
   const finalSourceUrl = effectiveSharedUrl || originalSource?.url;
   const finalSourceTitle = effectiveSharedTitle || originalSource?.title;
   const finalSourceImage = effectivePreviewImg || originalSource?.image;
-  const finalSourceMedia = post.media?.length ? post.media : (quotedPost?.media?.length ? quotedPost.media : originalSource?.media);
+  const earlyIsInstagramReel = post.post_type === 'instagram_reel';
+  const earlyHasUserMedia = !!post.media && post.media.length > 0;
+  const earlyBackgroundImageUrl = earlyHasUserMedia 
+    ? post.media[0].url
+    : earlyIsInstagramReel 
+      ? (post.preview_img || articlePreview?.image || null)
+      : null;
+
+  const reelVirtualMedia = earlyIsInstagramReel && !earlyHasUserMedia && earlyBackgroundImageUrl ? [{
+    id: 'reel-preview',
+    type: 'image' as const,
+    url: earlyBackgroundImageUrl,
+  }] : null;
+
+  const finalSourceMedia = post.media?.length 
+    ? post.media 
+    : (reelVirtualMedia 
+      ? reelVirtualMedia 
+      : (quotedPost?.media?.length ? quotedPost.media : originalSource?.media));
 
   // For reshares: lookup cached trust score directly from DB (zero AI calls)
   // Use finalSourceUrl which includes deep chain sources
@@ -1353,6 +1372,20 @@ const ImmersivePostCardInner = ({
   const mediaUrl = post.media?.[0]?.url;
   const isVideoMedia = post.media?.[0]?.type === 'video';
   const backgroundImage = !isMediaOnlyPost ? (articlePreview?.image || post.preview_img || (post.media?.[0]?.url || quotedPost?.media?.[0]?.url || quotedPost?.preview_img)) : undefined;
+  
+  const hasUserMedia = !!post.media && post.media.length > 0;
+  const shouldUseBlurredBg = hasUserMedia || isInstagramReel;
+
+  const backgroundImageUrl = hasUserMedia 
+    ? post.media[0].url
+    : isInstagramReel 
+      ? (post.preview_img || articlePreview?.image || null)
+      : null;
+
+  const overlayGradient = isInstagramReel
+    ? 'linear-gradient(135deg, rgba(131, 58, 180, 0.15) 0%, rgba(253, 29, 29, 0.12) 50%, rgba(247, 119, 55, 0.10) 100%)'
+    : null;
+
   const isVoicePost = post.post_type === 'voice';
   const hasValidChallengeData = !!post.challenge && !!(post.challenge.voice_post || post.voice_post);
   const isChallengePost = post.post_type === 'challenge' && hasValidChallengeData;
@@ -1890,7 +1923,7 @@ const ImmersivePostCardInner = ({
         onClick={handleDoubleTap}
       >
         {/* Background for voice/challenge posts without PNGs */}
-        {isChallengePost && (
+        {isChallengePost && !shouldUseBlurredBg && (
           <div
             style={{
               position: 'absolute',
@@ -1901,7 +1934,7 @@ const ImmersivePostCardInner = ({
             }}
           />
         )}
-        {isVoicePost && !isChallengePost && (
+        {isVoicePost && !isChallengePost && !shouldUseBlurredBg && (
           <div
             style={{
               position: 'absolute',
@@ -1912,8 +1945,14 @@ const ImmersivePostCardInner = ({
             }}
           />
         )}
-        {/* Background Layer — never use dominant colors for audio posts */}
-        {isMediaOnlyPost && mediaUrl && !isAudioPost ? (
+        {/* Background Layer */}
+        {shouldUseBlurredBg && backgroundImageUrl ? (
+          <BlurredImageBackground 
+            imageUrl={backgroundImageUrl}
+            onClick={() => setSelectedMediaIndex(0)}
+            overlayGradient={overlayGradient}
+          />
+        ) : isMediaOnlyPost && mediaUrl && !isAudioPost ? (
           <>
             {/* Dynamic gradient background from dominant colors */}
             {/* Dynamic gradient background from dominant colors - Dark Mode Only */}
@@ -3935,66 +3974,15 @@ const ImmersivePostCardInner = ({
                     </p>
                   )}
 
-                  {/* Thumbnail — flessibile */}
-                  {flexiblesStatus['flexible-image']?.step === 'full' && (post.preview_img || articlePreview?.image) && (
-                    <div 
-                      ref={registerRef('flexible-image')}
-                      className="relative cursor-pointer rounded-2xl overflow-hidden group mx-auto flex-shrink-0"
-                      style={{ width: '62%', aspectRatio: '9/16', maxHeight: '52vh' }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(post.shared_url || '', '_blank', 'noopener,noreferrer');
-                      }}
+                  {/* Badge INSTAGRAM REEL */}
+                  <div className="w-full flex justify-center mb-1 shrink-0">
+                    <span 
+                      className="h-8 px-4 text-[11px] rounded-full font-bold tracking-widest inline-flex items-center uppercase text-white shadow-lg"
+                      style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #F77737 100%)' }}
                     >
-                      <img 
-                        src={post.preview_img || articlePreview?.image || ''} 
-                        alt="Instagram Reel preview"
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                      
-                      {/* Vignette per leggibilità del badge */}
-                      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/40" />
-                      
-                      {/* Play overlay centrale */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="w-14 h-14 rounded-full bg-white/95 flex items-center justify-center shadow-2xl group-hover:scale-105 transition-transform">
-                          <Play className="w-6 h-6 text-black fill-black ml-0.5" />
-                        </div>
-                      </div>
-                      
-                      {/* Badge INSTAGRAM REEL */}
-                      <div 
-                        className="absolute bottom-3 left-3 px-2.5 py-1 rounded-md text-[10px] font-bold text-white tracking-widest shadow-lg"
-                        style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #F77737 100%)' }}
-                      >
-                        INSTAGRAM REEL
-                      </div>
-                    </div>
-                  )}
-
-                  {flexiblesStatus['flexible-image']?.step === 'compact' && (post.preview_img || articlePreview?.image) && (
-                    <div 
-                      ref={registerRef('flexible-image')}
-                      className="relative cursor-pointer rounded-lg overflow-hidden mx-auto flex-shrink-0"
-                      style={{ width: '120px', aspectRatio: '9/16' }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(post.shared_url || '', '_blank', 'noopener,noreferrer');
-                      }}
-                    >
-                      <img 
-                        src={post.preview_img || articlePreview?.image || ''} 
-                        alt="Reel" 
-                        className="w-full h-full object-cover" 
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                        <div className="w-8 h-8 rounded-full bg-white/95 flex items-center justify-center">
-                          <Play className="w-3.5 h-3.5 text-black fill-black ml-0.5" />
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                      INSTAGRAM REEL
+                    </span>
+                  </div>
 
                   {/* Caption — flessibile */}
                   {flexiblesStatus['flexible-text']?.step !== 'hidden' && post.shared_title && (
@@ -4168,8 +4156,21 @@ const ImmersivePostCardInner = ({
             </div>
           </div>
           </div>
+          {/* Play icon centrale (solo per Reel / contenuti video con blurred bg) */}
+          {(isInstagramReel || (hasUserMedia && isVideoMedia)) && (
+            <div 
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-auto"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.open(post.shared_url || '', '_blank', 'noopener,noreferrer');
+              }}
+            >
+              <div className="w-16 h-16 rounded-full bg-white/95 flex items-center justify-center shadow-2xl cursor-pointer hover:scale-105 transition-transform active:scale-95">
+                <Play className="w-7 h-7 text-black fill-black ml-1" />
+              </div>
+            </div>
+          )}
           </div>
-
         </div>
       </div >
 
