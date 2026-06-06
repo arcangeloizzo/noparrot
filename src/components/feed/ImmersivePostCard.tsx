@@ -1979,13 +1979,22 @@ const ImmersivePostCardInner = ({
             }}
           />
         )}
-        {/* Background Layer */}
         {shouldUseBlurredBg && backgroundImageUrl ? (
-          <BlurredImageBackground 
-            imageUrl={backgroundImageUrl}
-            onClick={() => setSelectedMediaIndex(0)}
-            overlayGradient={overlayGradient}
-          />
+          <>
+            <BlurredImageBackground 
+              imageUrl={backgroundImageUrl}
+              onClick={() => setSelectedMediaIndex(0)}
+              overlayGradient={overlayGradient}
+            />
+            <div 
+              className="absolute inset-x-0 bottom-0 pointer-events-none z-[1]"
+              style={{
+                height: '60%',
+                background: 'linear-gradient(to top, rgba(13, 27, 42, 0.95) 0%, rgba(13, 27, 42, 0.7) 40%, transparent 100%)',
+              }}
+              aria-hidden="true"
+            />
+          </>
         ) : isMediaOnlyPost && mediaUrl && !isAudioPost ? (
           <>
             {/* Dynamic gradient background from dominant colors */}
