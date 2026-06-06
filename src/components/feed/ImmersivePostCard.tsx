@@ -1807,13 +1807,15 @@ const ImmersivePostCardInner = ({
     }
     if (isInstagramReel) {
       const priority: string[] = [];
+      // Comprime PRIMA la thumbnail (occupa lo spazio maggiore in altezza),
+      // POI il commento utente, e INFINE la caption originale del reel.
+      priority.push('flexible-image');
       if (post.content && post.content.trim().length > 0) {
         priority.push('flexible-user-comment');
       }
       if (post.shared_title && post.shared_title.trim().length > 0) {
         priority.push('flexible-text');
       }
-      priority.push('flexible-image');
       return priority;
     }
     return [];
