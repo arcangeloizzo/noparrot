@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, memo } from "react";
+import { useState, useEffect, useRef, useMemo, memo, useLayoutEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { perfStore } from "@/lib/perfStore";
 import { useQueryClient } from "@tanstack/react-query";
@@ -1373,6 +1373,7 @@ const ImmersivePostCardInner = ({
   const isVideoMedia = post.media?.[0]?.type === 'video';
   const backgroundImage = !isMediaOnlyPost ? (articlePreview?.image || post.preview_img || (post.media?.[0]?.url || quotedPost?.media?.[0]?.url || quotedPost?.preview_img)) : undefined;
   
+  const isInstagramReel = post.post_type === 'instagram_reel';
   const hasUserMedia = !!post.media && post.media.length > 0;
   const shouldUseBlurredBg = hasUserMedia || isInstagramReel;
 
@@ -1390,7 +1391,6 @@ const ImmersivePostCardInner = ({
   const hasValidChallengeData = !!post.challenge && !!(post.challenge.voice_post || post.voice_post);
   const isChallengePost = post.post_type === 'challenge' && hasValidChallengeData;
   const isAudioPost = isVoicePost || isChallengePost;
-  const isInstagramReel = post.post_type === 'instagram_reel';
 
   const activeVoicePost = isChallengePost ? (post.challenge?.voice_post || post.voice_post) : post.voice_post;
   const challengeIdForResponses = isChallengePost ? post.challenge?.id || null : null;
@@ -1696,7 +1696,7 @@ const ImmersivePostCardInner = ({
     }
     if (isStandardPost) {
       const arr: FlexibleElementConfig[] = [];
-      if (hasImage) {
+      if (hasImage && !shouldUseBlurredBg) {
         arr.push({
           id: 'flexible-image',
           compressionSteps: ['full', 'pill', 'hidden'] as CompressionStep[],
@@ -1723,7 +1723,7 @@ const ImmersivePostCardInner = ({
         });
       }
       const hasAttachedImage = post.media && post.media.length > 0;
-      if (hasAttachedImage) {
+      if (hasAttachedImage && !shouldUseBlurredBg) {
         arr.push({
           id: 'flexible-image',
           compressionSteps: ['full', 'pill', 'hidden'] as CompressionStep[],
@@ -1744,7 +1744,7 @@ const ImmersivePostCardInner = ({
         });
       }
       const hasAttachedImage = post.media && post.media.length > 0;
-      if (hasAttachedImage) {
+      if (hasAttachedImage && !shouldUseBlurredBg) {
         arr.push({
           id: 'flexible-image',
           compressionSteps: ['full', 'pill', 'hidden'] as CompressionStep[],
@@ -1784,12 +1784,14 @@ const ImmersivePostCardInner = ({
           fallbackHeight: 80
         });
       }
-      config.push({
-        id: 'flexible-image',
-        compressionSteps: ['full', 'compact', 'hidden'] as CompressionStep[],
-        minReadabilityHeight: 45,
-        fallbackHeight: 200
-      });
+      if (!shouldUseBlurredBg) {
+        config.push({
+          id: 'flexible-image',
+          compressionSteps: ['full', 'compact', 'hidden'] as CompressionStep[],
+          minReadabilityHeight: 45,
+          fallbackHeight: 200
+        });
+      }
       if (post.shared_title && post.shared_title.trim().length > 0) {
         config.push({
           id: 'flexible-text',
@@ -1801,19 +1803,19 @@ const ImmersivePostCardInner = ({
       return config;
     }
     return [];
-  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media]);
+  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media, shouldUseBlurredBg]);
  
   const priorityConfig = useMemo(() => {
     if (isSpotifyEpisode || isSpotifyTrack || isYoutube || isGenericArticle) {
       return ['flexible-text'];
     }
     if (isStandardPost) {
-      return hasImage ? ['flexible-image', 'flexible-text'] : ['flexible-text'];
+      return (hasImage && !shouldUseBlurredBg) ? ['flexible-image', 'flexible-text'] : ['flexible-text'];
     }
     if (isVoicePost) {
       const hasAttachedImage = post.media && post.media.length > 0;
       const priority: string[] = [];
-      if (hasAttachedImage) {
+      if (hasAttachedImage && !shouldUseBlurredBg) {
         priority.push('flexible-image');
       }
       if (voiceContent) {
@@ -1824,7 +1826,7 @@ const ImmersivePostCardInner = ({
     if (isChallengePost) {
       const hasAttachedImage = post.media && post.media.length > 0;
       const priority: string[] = [];
-      if (hasAttachedImage) {
+      if (hasAttachedImage && !shouldUseBlurredBg) {
         priority.push('flexible-image');
       }
       if (challengeContent) {
@@ -1840,9 +1842,9 @@ const ImmersivePostCardInner = ({
     }
     if (isInstagramReel) {
       const priority: string[] = [];
-      // Comprime PRIMA la thumbnail (occupa lo spazio maggiore in altezza),
-      // POI il commento utente, e INFINE la caption originale del reel.
-      priority.push('flexible-image');
+      if (!shouldUseBlurredBg) {
+        priority.push('flexible-image');
+      }
       if (post.content && post.content.trim().length > 0) {
         priority.push('flexible-user-comment');
       }
@@ -1852,7 +1854,7 @@ const ImmersivePostCardInner = ({
       return priority;
     }
     return [];
-  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media]);
+  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media, shouldUseBlurredBg]);
 
   const {
     status: layoutStatus,
@@ -1868,40 +1870,47 @@ const ImmersivePostCardInner = ({
     compressionPriority: priorityConfig
   });
 
-  // Bug 3: Runtime DOM check for IG Reel text truncation using ResizeObserver
-  // (line-clamp pre-applied via CSS prevents useDynamicCardLayout from detecting text truncation).
-  const reelUserCommentRef = useRef<HTMLParagraphElement | null>(null);
-  const reelCaptionRef = useRef<HTMLParagraphElement | null>(null);
-  const [reelTextTruncated, setReelTextTruncated] = useState(false);
+  // DOM checks for text truncation using useLayoutEffect and ResizeObserver
+  const bodyTextRef = useRef<HTMLParagraphElement | HTMLDivElement | null>(null);
+  const captionTextRef = useRef<HTMLParagraphElement | HTMLDivElement | null>(null);
+  const [isBodyTruncated, setIsBodyTruncated] = useState(false);
+  const [isCaptionTruncated, setIsCaptionTruncated] = useState(false);
 
-  useEffect(() => {
-    if (!isInstagramReel) {
-      if (reelTextTruncated) setReelTextTruncated(false);
-      return;
-    }
-    const check = () => {
-      const a = reelUserCommentRef.current;
-      const b = reelCaptionRef.current;
-      const truncA = a ? a.scrollHeight > a.clientHeight : false;
-      const truncB = b ? b.scrollHeight > b.clientHeight : false;
-      setReelTextTruncated(truncA || truncB);
+  useLayoutEffect(() => {
+    const checkTruncation = () => {
+      if (bodyTextRef.current) {
+        setIsBodyTruncated(bodyTextRef.current.scrollHeight > bodyTextRef.current.clientHeight);
+      } else {
+        setIsBodyTruncated(false);
+      }
+      if (captionTextRef.current) {
+        setIsCaptionTruncated(captionTextRef.current.scrollHeight > captionTextRef.current.clientHeight);
+      } else {
+        setIsCaptionTruncated(false);
+      }
     };
-
-    // Use ResizeObserver to reliably run truncation checks on mount, resize, layout, and style changes
+    
+    checkTruncation();
+    
+    // Re-check on resize, content updates, layout steps, etc.
     const observer = new ResizeObserver(() => {
-      check();
+      checkTruncation();
     });
+    
+    if (bodyTextRef.current) observer.observe(bodyTextRef.current);
+    if (captionTextRef.current) observer.observe(captionTextRef.current);
+    
+    return () => observer.disconnect();
+  }, [
+    post.content, 
+    post.shared_title, 
+    voiceContent, 
+    challengeContent, 
+    flexiblesStatus, 
+    availableHeight
+  ]);
 
-    if (reelUserCommentRef.current) observer.observe(reelUserCommentRef.current);
-    if (reelCaptionRef.current) observer.observe(reelCaptionRef.current);
-
-    // Initial check
-    check();
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [isInstagramReel, post.content, post.shared_title, availableHeight, flexiblesStatus]);
+  const shouldShowApprofondisci = isBodyTruncated || isCaptionTruncated;
 
   // Update lazy mount refs (placed here to avoid TDZ for state variables declared after the refs)
   if (showShareSheet) hasMountedShare.current = true;
@@ -2341,7 +2350,7 @@ const ImmersivePostCardInner = ({
                     <>
                       {flexiblesStatus['flexible-description']?.step === 'full' && (
                         <div 
-                          ref={registerRef('flexible-description')} 
+                          ref={(el) => { registerRef('flexible-description')(el); bodyTextRef.current = el; }} 
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
                           style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55 }}
                         >
@@ -2351,7 +2360,7 @@ const ImmersivePostCardInner = ({
 
                       {flexiblesStatus['flexible-description']?.step === 'clamped' && (
                         <div 
-                          ref={registerRef('flexible-description')} 
+                          ref={(el) => { registerRef('flexible-description')(el); bodyTextRef.current = el; }} 
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
                           style={{ 
                             fontFamily: 'Inter, sans-serif', 
@@ -2374,7 +2383,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Approfondisci subito dopo description (se non c'è description, dopo title) */}
-                  {showDrawerCta && (
+                  {shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
                         onClick={(e) => { e.stopPropagation(); setFullTextMode('description'); setShowFullText(true); }}
@@ -2534,7 +2543,7 @@ const ImmersivePostCardInner = ({
                     <>
                       {flexiblesStatus['flexible-description']?.step === 'full' && (
                         <div 
-                          ref={registerRef('flexible-description')} 
+                          ref={(el) => { registerRef('flexible-description')(el); bodyTextRef.current = el; }} 
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
                           style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55 }}
                         >
@@ -2544,7 +2553,7 @@ const ImmersivePostCardInner = ({
 
                       {flexiblesStatus['flexible-description']?.step === 'clamped' && (
                         <div 
-                          ref={registerRef('flexible-description')} 
+                          ref={(el) => { registerRef('flexible-description')(el); bodyTextRef.current = el; }} 
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
                           style={{ 
                             fontFamily: 'Inter, sans-serif', 
@@ -2567,7 +2576,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Approfondisci subito dopo description (se non c'è description, dopo title) */}
-                  {showDrawerCta && (
+                  {shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
                         onClick={(e) => { e.stopPropagation(); setFullTextMode('description'); setShowFullText(true); }}
@@ -2998,7 +3007,7 @@ const ImmersivePostCardInner = ({
                     <>
                       {flexiblesStatus['flexible-text']?.step === 'full' && (
                         <div 
-                          ref={registerRef('flexible-text')}
+                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
                           style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
                         >
@@ -3008,7 +3017,7 @@ const ImmersivePostCardInner = ({
 
                       {flexiblesStatus['flexible-text']?.step === 'clamped' && (
                         <div 
-                          ref={registerRef('flexible-text')}
+                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
                           style={{ 
                             fontFamily: 'Inter, sans-serif', 
@@ -3032,7 +3041,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Approfondisci (subito dopo il body text) */}
-                  {showDrawerCta && (
+                  {shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
@@ -3128,7 +3137,7 @@ const ImmersivePostCardInner = ({
                     <>
                       {flexiblesStatus['flexible-user-comment']?.step === 'full' && (
                         <div 
-                          ref={registerRef('flexible-user-comment')} 
+                          ref={(el) => { registerRef('flexible-user-comment')(el); bodyTextRef.current = el; }} 
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
                           style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55 }}
                         >
@@ -3138,7 +3147,7 @@ const ImmersivePostCardInner = ({
 
                       {flexiblesStatus['flexible-user-comment']?.step === 'clamped' && (
                         <div 
-                          ref={registerRef('flexible-user-comment')} 
+                          ref={(el) => { registerRef('flexible-user-comment')(el); bodyTextRef.current = el; }} 
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
                           style={{ 
                             fontFamily: 'Inter, sans-serif', 
@@ -3161,7 +3170,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Approfondisci */}
-                  {showDrawerCta && (
+                  {shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3 text-left">
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
@@ -3279,7 +3288,7 @@ const ImmersivePostCardInner = ({
                     <>
                       {flexiblesStatus['flexible-user-comment']?.step === 'full' && (
                         <div 
-                          ref={registerRef('flexible-user-comment')} 
+                          ref={(el) => { registerRef('flexible-user-comment')(el); bodyTextRef.current = el; }} 
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
                           style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55 }}
                         >
@@ -3289,7 +3298,7 @@ const ImmersivePostCardInner = ({
 
                       {flexiblesStatus['flexible-user-comment']?.step === 'clamped' && (
                         <div 
-                          ref={registerRef('flexible-user-comment')} 
+                          ref={(el) => { registerRef('flexible-user-comment')(el); bodyTextRef.current = el; }} 
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
                           style={{ 
                             fontFamily: 'Inter, sans-serif', 
@@ -3312,7 +3321,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Approfondisci */}
-                  {showDrawerCta && (
+                  {shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3 text-left">
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
@@ -3387,7 +3396,7 @@ const ImmersivePostCardInner = ({
                     <>
                       {flexiblesStatus['flexible-text']?.step === 'full' && (
                         <div
-                          ref={registerRef('flexible-text')}
+                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
                           style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
                         >
@@ -3396,7 +3405,7 @@ const ImmersivePostCardInner = ({
                       )}
                       {flexiblesStatus['flexible-text']?.step === 'clamped' && (
                         <div
-                          ref={registerRef('flexible-text')}
+                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
                           style={{
                             fontFamily: 'Inter, sans-serif',
@@ -3419,7 +3428,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Approfondisci */}
-                  {showDrawerCta && (
+                  {shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
@@ -3589,7 +3598,7 @@ const ImmersivePostCardInner = ({
                     <>
                       {flexiblesStatus['flexible-text']?.step === 'full' && (
                         <div
-                          ref={registerRef('flexible-text')}
+                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
                           style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
                         >
@@ -3598,7 +3607,7 @@ const ImmersivePostCardInner = ({
                       )}
                       {flexiblesStatus['flexible-text']?.step === 'clamped' && (
                         <div
-                          ref={registerRef('flexible-text')}
+                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
                           style={{
                             fontFamily: 'Inter, sans-serif',
@@ -3621,7 +3630,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Approfondisci */}
-                  {showDrawerCta && (
+                  {shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
@@ -3702,7 +3711,7 @@ const ImmersivePostCardInner = ({
                     <>
                       {flexiblesStatus['flexible-text']?.step === 'full' && (
                         <div
-                          ref={registerRef('flexible-text')}
+                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
                           style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
                         >
@@ -3711,7 +3720,7 @@ const ImmersivePostCardInner = ({
                       )}
                       {flexiblesStatus['flexible-text']?.step === 'clamped' && (
                         <div
-                          ref={registerRef('flexible-text')}
+                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
                           style={{
                             fontFamily: 'Inter, sans-serif',
@@ -3734,7 +3743,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Approfondisci */}
-                  {showDrawerCta && (
+                  {shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
@@ -3815,7 +3824,7 @@ const ImmersivePostCardInner = ({
                     <>
                       {flexiblesStatus['flexible-text']?.step === 'full' && (
                         <div
-                          ref={registerRef('flexible-text')}
+                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
                           style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
                         >
@@ -3824,7 +3833,7 @@ const ImmersivePostCardInner = ({
                       )}
                       {flexiblesStatus['flexible-text']?.step === 'clamped' && (
                         <div
-                          ref={registerRef('flexible-text')}
+                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
                           className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
                           style={{
                             fontFamily: 'Inter, sans-serif',
@@ -3847,7 +3856,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Approfondisci */}
-                  {showDrawerCta && (
+                  {shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
@@ -4015,7 +4024,7 @@ const ImmersivePostCardInner = ({
                   {/* User Comment — flessibile */}
                   {post.content && post.content.trim().length > 0 && flexiblesStatus['flexible-user-comment']?.step !== 'hidden' && (
                     <p 
-                      ref={(el) => { registerRef('flexible-user-comment')(el); reelUserCommentRef.current = el; }}
+                      ref={(el) => { registerRef('flexible-user-comment')(el); bodyTextRef.current = el; }}
                       className={cn(
                         "self-start text-sm text-white/90 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
                         flexiblesStatus['flexible-user-comment']?.step === 'compact' ? "line-clamp-2" : "line-clamp-4"
@@ -4038,7 +4047,7 @@ const ImmersivePostCardInner = ({
                   {/* Caption — flessibile */}
                   {flexiblesStatus['flexible-text']?.step !== 'hidden' && post.shared_title && (
                     <p 
-                      ref={(el) => { registerRef('flexible-text')(el); reelCaptionRef.current = el; }}
+                      ref={(el) => { registerRef('flexible-text')(el); captionTextRef.current = el; }}
                       className={cn(
                         "self-start text-sm text-white/80 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
                         flexiblesStatus['flexible-text']?.step === 'compact' ? "line-clamp-2" : "line-clamp-4"
@@ -4049,7 +4058,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Approfondisci */}
-                  {(showDrawerCta || reelTextTruncated) && (
+                  {shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3 text-left self-start">
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
