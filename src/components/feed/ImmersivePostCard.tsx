@@ -4216,26 +4216,24 @@ const ImmersivePostCardInner = ({
             </div>
           </div>
           </div>
-          {/* Play icon centrale (solo per Reel / contenuti video con blurred bg) */}
-          {(isInstagramReel || (hasUserMedia && isVideoMedia)) && (
-            <div 
-              className="absolute left-1/2 top-[45%] -translate-x-1/2 -translate-y-1/2 z-10 flex flex-col items-center gap-3 pointer-events-auto"
-              onClick={(e) => {
-                e.stopPropagation();
-                window.open(post.shared_url || '', '_blank', 'noopener,noreferrer');
-              }}
-            >
-              <div className="w-14 h-14 rounded-full bg-white/95 flex items-center justify-center shadow-2xl cursor-pointer hover:scale-105 transition-transform active:scale-95">
-                <Play className="w-6 h-6 text-black fill-black ml-0.5" />
-              </div>
-              {isInstagramReel && (
-                <div 
-                  className="px-3 py-1 rounded-full text-[10px] font-bold text-white tracking-widest shadow-md uppercase select-none"
-                  style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #F77737 100%)' }}
+          {/* Unità d'azione "Apri su Instagram" per Reel */}
+          {isInstagramReel && (
+            <div className="absolute bottom-[80px] left-1/2 -translate-x-1/2 flex items-center gap-3 z-20 pointer-events-auto">
+              <button 
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/95 shadow-lg hover:bg-white transition"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(post.shared_url || '', '_blank', 'noopener,noreferrer');
+                }}
+              >
+                <Play className="w-4 h-4 text-black fill-black" />
+                <span 
+                  className="text-[11px] font-bold tracking-wider text-transparent bg-clip-text"
+                  style={{ backgroundImage: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #F77737 100%)', WebkitBackgroundClip: 'text' }}
                 >
-                  INSTAGRAM REEL
-                </div>
-              )}
+                  APRI SU INSTAGRAM
+                </span>
+              </button>
             </div>
           )}
           </div>
