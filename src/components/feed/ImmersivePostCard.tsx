@@ -1908,6 +1908,13 @@ const ImmersivePostCardInner = ({
                 background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #F77737 100%)',
               }}
             />
+            <div 
+              className="absolute inset-0 pointer-events-none"
+              style={{ 
+                background: 'linear-gradient(135deg, rgba(131, 58, 180, 0.15) 0%, rgba(253, 29, 29, 0.12) 50%, rgba(247, 119, 55, 0.10) 100%)',
+                mixBlendMode: 'overlay'
+              }}
+            />
           </div>
         ) : (
           <>
@@ -3859,39 +3866,17 @@ const ImmersivePostCardInner = ({
                     </h2>
                   )}
 
-                  {/* Body text (trascrizione) — flessibile */}
-                  {post.article_content && post.article_content.trim().length > 0 && (
-                    <>
-                      {flexiblesStatus['flexible-text']?.step === 'full' && (
-                        <div
-                          ref={registerRef('flexible-text')}
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
-                          style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55 }}
-                        >
-                          <MentionText content={post.article_content} />
-                        </div>
+                  {/* Body text (caption Instagram) — flessibile */}
+                  {flexiblesStatus['flexible-text']?.step !== 'hidden' && post.shared_title && (
+                    <p 
+                      ref={registerRef('flexible-text')}
+                      className={cn(
+                        "text-sm text-white/80 leading-relaxed mb-3 text-left flex-shrink-0",
+                        flexiblesStatus['flexible-text']?.step === 'compact' ? "line-clamp-2" : "line-clamp-4"
                       )}
-                      {flexiblesStatus['flexible-text']?.step === 'clamped' && (
-                        <div
-                          ref={registerRef('flexible-text')}
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
-                          style={{
-                            fontFamily: 'Inter, sans-serif',
-                            lineHeight: 1.55,
-                            display: '-webkit-box',
-                            WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-text'].height / BODY_LINE_HEIGHT_PX)),
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            height: `${flexiblesStatus['flexible-text'].height}px`
-                          }}
-                        >
-                          <MentionText content={post.article_content} />
-                        </div>
-                      )}
-                      {flexiblesStatus['flexible-text']?.step === 'hidden' && (
-                        <div ref={registerRef('flexible-text')} style={{ height: 0, overflow: 'hidden' }} />
-                      )}
-                    </>
+                    >
+                      <MentionText content={post.shared_title} />
+                    </p>
                   )}
 
                   {/* Approfondisci */}
@@ -3906,83 +3891,50 @@ const ImmersivePostCardInner = ({
                     </div>
                   )}
 
-                  {/* Embed thumbnail — flessibile */}
-                  {flexiblesStatus['flexible-image']?.step === 'full' && (
+                  {/* Embed thumbnail con play overlay + badge piattaforma — flessibile */}
+                  {flexiblesStatus['flexible-image']?.step !== 'hidden' && (post.preview_img || articlePreview?.image) && (
                     <div 
                       ref={registerRef('flexible-image')}
-                      className="relative cursor-pointer rounded-2xl overflow-hidden border border-white/10 active:scale-[0.98] transition-transform w-full aspect-video flex-shrink-0 mb-3 mt-auto"
-                      onClick={() => window.open(post.shared_url || '', '_blank', 'noopener,noreferrer')}
-                    >
-                      {(articlePreview?.image || post.preview_img) && (
-                        <img 
-                          src={articlePreview?.image || post.preview_img || ''} 
-                          alt="Instagram Reel preview"
-                          className="w-full h-full object-cover"
-                        />
+                      className={cn(
+                        "relative cursor-pointer rounded-xl overflow-hidden group flex-shrink-0 mb-3 mt-auto",
+                        flexiblesStatus['flexible-image']?.step === 'compact' 
+                          ? "w-20 h-[45px]" 
+                          : "w-full aspect-video"
                       )}
-                      {/* Play icon overlay */}
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                        <div className="bg-black/40 p-4 rounded-full backdrop-blur-sm">
-                          <Play className="w-8 h-8 text-white fill-white" />
-                        </div>
-                      </div>
-                      {/* Badge piattaforma */}
-                      <div 
-                        className="absolute bottom-3 left-3 px-3 py-1 rounded text-[10px] font-bold text-white tracking-wider"
-                        style={{ background: 'linear-gradient(135deg, #833AB4, #FD1D1D, #F77737)' }}
-                      >
-                        INSTAGRAM REEL
-                      </div>
-                    </div>
-                  )}
-
-                  {flexiblesStatus['flexible-image']?.step === 'pill' && (
-                    <div 
-                      ref={registerRef('flexible-image')}
-                      className="flex items-center gap-3 p-2 bg-card/40 rounded-lg cursor-pointer mt-auto flex-shrink-0 border border-white/10 mb-3"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (post.shared_url) {
-                          window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                        }
+                        window.open(post.shared_url || '', '_blank', 'noopener,noreferrer');
                       }}
                     >
-                      {/* Thumbnail 80×45 (16:9) */}
-                      <div className="relative flex-shrink-0 w-20 h-[45px] rounded overflow-hidden bg-muted">
-                        <img 
-                          src={articlePreview?.image || post.preview_img || ''} 
-                          className="w-full h-full object-cover" 
-                          alt=""
-                        />
-                        {/* Play icon centrato, piccolo */}
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                          <Play className="w-5 h-5 text-white fill-white" />
+                      <img 
+                        src={post.preview_img || articlePreview?.image || ''} 
+                        alt="Instagram Reel"
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      
+                      {/* Play overlay */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/40 transition">
+                        {flexiblesStatus['flexible-image']?.step === 'compact' ? (
+                          <Play className="w-4 h-4 text-white fill-white" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-white/95 flex items-center justify-center shadow-lg">
+                            <Play className="w-5 h-5 text-black fill-black ml-0.5" />
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Badge INSTAGRAM REEL — solo in stato full */}
+                      {flexiblesStatus['flexible-image']?.step === 'full' && (
+                        <div 
+                          className="absolute bottom-2 left-2 px-2 py-1 rounded text-[10px] font-bold text-white tracking-wider shadow-md"
+                          style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #F77737 100%)' }}
+                        >
+                          INSTAGRAM REEL
                         </div>
-                      </div>
-                      {/* Titolo + dominio a destra */}
-                      <div className="flex-1 min-w-0 text-left">
-                        <p className="text-sm font-medium truncate text-foreground">
-                          {decodeHTMLEntities(post.title || articlePreview?.title || post.shared_title || 'Instagram Reel')}
-                        </p>
-                        <p className="text-xs text-muted-foreground font-sans">Instagram</p>
-                      </div>
+                      )}
                     </div>
                   )}
-
-                  {flexiblesStatus['flexible-image']?.step === 'hidden' && (
-                    <div ref={registerRef('flexible-image')} style={{ height: 0, overflow: 'hidden' }} />
-                  )}
-
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.open(post.shared_url || '', '_blank', 'noopener,noreferrer');
-                    }}
-                    className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors mt-2 text-left shrink-0"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span className="text-xs uppercase tracking-wider">Apri su Instagram</span>
-                  </button>
                 </div>
               ) : null}
 
