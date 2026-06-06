@@ -1877,17 +1877,22 @@ const ImmersivePostCardInner = ({
   const [isCaptionTruncated, setIsCaptionTruncated] = useState(false);
 
   useLayoutEffect(() => {
+    let active = true;
+    
     const checkTruncation = () => {
-      if (bodyTextRef.current) {
-        setIsBodyTruncated(bodyTextRef.current.scrollHeight > bodyTextRef.current.clientHeight);
-      } else {
-        setIsBodyTruncated(false);
-      }
-      if (captionTextRef.current) {
-        setIsCaptionTruncated(captionTextRef.current.scrollHeight > captionTextRef.current.clientHeight);
-      } else {
-        setIsCaptionTruncated(false);
-      }
+      requestAnimationFrame(() => {
+        if (!active) return;
+        if (bodyTextRef.current) {
+          setIsBodyTruncated(bodyTextRef.current.scrollHeight > bodyTextRef.current.clientHeight);
+        } else {
+          setIsBodyTruncated(false);
+        }
+        if (captionTextRef.current) {
+          setIsCaptionTruncated(captionTextRef.current.scrollHeight > captionTextRef.current.clientHeight);
+        } else {
+          setIsCaptionTruncated(false);
+        }
+      });
     };
     
     checkTruncation();
@@ -1900,7 +1905,10 @@ const ImmersivePostCardInner = ({
     if (bodyTextRef.current) observer.observe(bodyTextRef.current);
     if (captionTextRef.current) observer.observe(captionTextRef.current);
     
-    return () => observer.disconnect();
+    return () => {
+      active = false;
+      observer.disconnect();
+    };
   }, [
     post.content, 
     post.shared_title, 
