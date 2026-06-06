@@ -4033,10 +4033,13 @@ const ImmersivePostCardInner = ({
                   {post.content && post.content.trim().length > 0 && flexiblesStatus['flexible-user-comment']?.step !== 'hidden' && (
                     <p 
                       ref={(el) => { registerRef('flexible-user-comment')(el); bodyTextRef.current = el; }}
-                      className={cn(
-                        "self-start text-sm text-white/90 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
-                        flexiblesStatus['flexible-user-comment']?.step === 'compact' ? "line-clamp-2" : "line-clamp-4"
-                      )}
+                      className="self-start text-sm text-white/90 leading-relaxed mb-3 text-left flex-shrink-0 w-full"
+                      style={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: flexiblesStatus['flexible-user-comment']?.step === 'compact' ? 2 : 4,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }}
                     >
                       <MentionText content={post.content} />
                     </p>
@@ -4048,10 +4051,13 @@ const ImmersivePostCardInner = ({
                   {flexiblesStatus['flexible-text']?.step !== 'hidden' && post.shared_title && (
                     <p 
                       ref={(el) => { registerRef('flexible-text')(el); captionTextRef.current = el; }}
-                      className={cn(
-                        "self-start text-sm text-white/80 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
-                        flexiblesStatus['flexible-text']?.step === 'compact' ? "line-clamp-2" : "line-clamp-4"
-                      )}
+                      className="self-start text-sm text-white/80 leading-relaxed mb-3 text-left flex-shrink-0 w-full"
+                      style={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: flexiblesStatus['flexible-text']?.step === 'compact' ? 2 : 4,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }}
                     >
                       <MentionText content={post.shared_title} />
                     </p>
