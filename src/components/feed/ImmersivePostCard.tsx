@@ -1742,20 +1742,30 @@ const ImmersivePostCardInner = ({
       ] : [];
     }
     if (isInstagramReel) {
-      return [
-        {
-          id: 'flexible-image',
+      const config: FlexibleElementConfig[] = [];
+      if (post.content && post.content.trim().length > 0) {
+        config.push({
+          id: 'flexible-user-comment',
           compressionSteps: ['full', 'compact', 'hidden'] as CompressionStep[],
-          minReadabilityHeight: 45,
-          fallbackHeight: 200
-        },
-        {
+          minReadabilityHeight: 40,
+          fallbackHeight: 80
+        });
+      }
+      config.push({
+        id: 'flexible-image',
+        compressionSteps: ['full', 'compact', 'hidden'] as CompressionStep[],
+        minReadabilityHeight: 45,
+        fallbackHeight: 200
+      });
+      if (post.shared_title && post.shared_title.trim().length > 0) {
+        config.push({
           id: 'flexible-text',
           compressionSteps: ['full', 'compact', 'hidden'] as CompressionStep[],
           minReadabilityHeight: 60,
           fallbackHeight: 120
-        }
-      ];
+        });
+      }
+      return config;
     }
     return [];
   }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media]);
@@ -1796,7 +1806,15 @@ const ImmersivePostCardInner = ({
       return post.content ? ['flexible-user-comment'] : [];
     }
     if (isInstagramReel) {
-      return ['flexible-text', 'flexible-image'];
+      const priority: string[] = [];
+      if (post.content && post.content.trim().length > 0) {
+        priority.push('flexible-user-comment');
+      }
+      if (post.shared_title && post.shared_title.trim().length > 0) {
+        priority.push('flexible-text');
+      }
+      priority.push('flexible-image');
+      return priority;
     }
     return [];
   }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media]);
@@ -3838,7 +3856,7 @@ const ImmersivePostCardInner = ({
               ) : isInstagramReel ? (
                 <div
                   className={cn(
-                    "flex-1 min-h-0 flex flex-col items-center justify-start w-full px-4 gap-4",
+                    "flex-1 min-h-0 flex flex-col items-center justify-start w-full px-4 gap-4 pb-24",
                     emergencyScroll && "overflow-y-auto"
                   )}
                 >
@@ -3865,6 +3883,19 @@ const ImmersivePostCardInner = ({
                     >
                       {decodeHTMLEntities(articlePreview?.title || post.shared_title || 'Instagram Reel')}
                     </h2>
+                  )}
+
+                  {/* User Comment — flessibile */}
+                  {post.content && post.content.trim().length > 0 && flexiblesStatus['flexible-user-comment']?.step !== 'hidden' && (
+                    <p 
+                      ref={registerRef('flexible-user-comment')}
+                      className={cn(
+                        "self-start text-sm text-white/90 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
+                        flexiblesStatus['flexible-user-comment']?.step === 'compact' ? "line-clamp-2" : "line-clamp-4"
+                      )}
+                    >
+                      <MentionText content={post.content} />
+                    </p>
                   )}
 
                   {/* Thumbnail — flessibile */}
