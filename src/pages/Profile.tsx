@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { BottomNavigation } from "@/components/navigation/BottomNavigation";
 import { DiaryEntry, DiaryEntryData, DiaryEntryType } from "@/components/profile/DiaryEntry";
@@ -35,6 +35,7 @@ export const Profile = () => {
   // Refs for scrolling
   const nebulaRef = useRef<HTMLDivElement>(null);
   const diaryRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
   const { data: profile, isLoading, error } = useQuery({
     queryKey: ["profile", user?.id],
@@ -92,139 +93,88 @@ export const Profile = () => {
   };
 
 
-  // Fetch diary entries (user posts + gated posts)
-  const { data: diaryEntries = [], isLoading: loadingDiary } = useQuery({
-    queryKey: ["diary-entries", user?.id, diaryFilter],
-    queryFn: async () => {
-      if (!user) return [];
+  const PAGE_SIZE = 20;
 
-      // 1. Fetch user's own posts
-      const { data: userPosts, error: postsError } = await supabase
-        .from("posts")
-        .select(`
-          id, content, shared_title, shared_url, quoted_post_id, 
-          sources, preview_img, created_at, category,
-          post_topics ( topic_id, topic_label )
-        `)
-        .eq("author_id", user.id)
-        .eq("is_removed", false)
-        .order("created_at", { ascending: false });
+  // Fetch diary entries (user posts + gated posts) via useInfiniteQuery
+  const {
+    data: diaryPages,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: loadingDiary,
+  } = useInfiniteQuery({
+    queryKey: ["diary-entries", user?.id, diaryFilter, selectedMacro, selectedTopic?.id],
+    queryFn: async ({ pageParam }) => {
+      if (!user?.id) return [];
 
-      if (postsError) {
-        console.error("Error fetching user posts:", postsError);
-        return [];
+      const { data, error } = await (supabase as any).rpc("get_diary_entries", {
+        p_user_id: user.id,
+        p_limit: PAGE_SIZE,
+        p_cursor: pageParam,
+        p_diary_filter: diaryFilter,
+        p_selected_macro: selectedMacro,
+        p_selected_topic: selectedTopic?.id,
+      });
+
+      if (error) {
+        console.error("Error fetching diary entries:", error);
+        throw error;
       }
 
-      // 2. Fetch posts where user passed gate
-      const { data: gatedPosts, error: gatedError } = await supabase
-        .from("post_gate_attempts")
-        .select(`
-          post_id, created_at,
-          posts!inner(id, content, shared_title, shared_url, quoted_post_id, 
-            sources, preview_img, created_at, category, author_id,
-            post_topics ( topic_id, topic_label ))
-        `)
-        .eq("user_id", user.id)
-        .eq("passed", true)
-        .eq("posts.is_removed", false)
-        .order("created_at", { ascending: false });
-
-      if (gatedError) {
-        console.error("Error fetching gated posts:", gatedError);
-      }
-
-      // Map user posts to diary entries
-      const userEntries: DiaryEntryData[] = (userPosts || []).map(post => {
+      return (data || []).map((entry: any) => {
         let type: DiaryEntryType = 'original';
-        if (post.quoted_post_id) type = 'reshared';
-        else if (post.shared_url || (post.sources && Array.isArray(post.sources) && post.sources.length > 0)) type = 'gated';
+        if (entry.quoted_post_id) type = 'reshared';
+        else if (entry.shared_url || (entry.sources && Array.isArray(entry.sources) && entry.sources.length > 0)) type = 'gated';
+        if (entry.passed_gate) type = 'gated';
 
-        const ptArr: any[] = Array.isArray((post as any).post_topics)
-          ? (post as any).post_topics
-          : (post as any).post_topics ? [(post as any).post_topics] : [];
-        const pt = ptArr[0];
         return {
-          id: post.id,
-          content: post.content,
-          shared_title: post.shared_title,
-          shared_url: post.shared_url,
-          quoted_post_id: post.quoted_post_id,
-          sources: post.sources,
-          preview_img: post.preview_img,
-          created_at: post.created_at,
-          category: post.category,
+          id: entry.id,
+          content: entry.content,
+          shared_title: entry.shared_title,
+          shared_url: entry.shared_url,
+          quoted_post_id: entry.quoted_post_id,
+          sources: entry.sources,
+          preview_img: entry.preview_img,
+          created_at: entry.created_at,
+          category: entry.category,
           type,
-          topic_id: pt?.topic_id ?? null,
-          topic_label: pt?.topic_label ?? null,
-          topic_ids: ptArr.map(t => t?.topic_id).filter(Boolean) as string[],
-        };
+          passed_gate: entry.passed_gate,
+          topic_id: entry.topic_id,
+          topic_label: entry.topic_label,
+          topic_ids: entry.topic_id ? [entry.topic_id] : [],
+        } as DiaryEntryData;
       });
-
-      // Map gated posts (not authored by user)
-      const gatedEntries: DiaryEntryData[] = (gatedPosts || [])
-        .filter(g => g.posts.author_id !== user.id)
-        .map(g => {
-          const ptArr: any[] = Array.isArray((g.posts as any).post_topics)
-            ? (g.posts as any).post_topics
-            : (g.posts as any).post_topics ? [(g.posts as any).post_topics] : [];
-          const pt = ptArr[0];
-          return {
-          id: g.posts.id,
-          content: g.posts.content,
-          shared_title: g.posts.shared_title,
-          shared_url: g.posts.shared_url,
-          quoted_post_id: g.posts.quoted_post_id,
-          sources: g.posts.sources,
-          preview_img: g.posts.preview_img,
-          created_at: g.created_at,
-          category: g.posts.category,
-          type: 'gated' as DiaryEntryType,
-          passed_gate: true,
-          topic_id: pt?.topic_id ?? null,
-          topic_label: pt?.topic_label ?? null,
-          topic_ids: ptArr.map(t => t?.topic_id).filter(Boolean) as string[],
-          };
-        });
-
-      // Merge and deduplicate
-      const allEntries = [...userEntries, ...gatedEntries];
-      const uniqueEntries = allEntries.filter((entry, index, self) =>
-        index === self.findIndex(e => e.id === entry.id)
-      );
-
-      // Sort by date
-      uniqueEntries.sort((a, b) => {
-        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-        return dateB - dateA;
-      });
-
-      return uniqueEntries;
     },
+    getNextPageParam: (lastPage) => {
+      if (lastPage.length < PAGE_SIZE) return undefined;
+      return lastPage[lastPage.length - 1]?.created_at;
+    },
+    initialPageParam: null as string | null,
     enabled: !!user,
   });
 
-  // Filter diary entries
-  const filteredEntries = diaryEntries.filter(entry => {
-    // Phase 4.5: filtro per macro-categoria (Nebulosa)
-    if (selectedMacro) {
-      const norm = normalizeCategory(entry.category);
-      if (norm !== selectedMacro) return false;
-    }
-    // Phase 4.6c: filtro per topic_id specifico
-    if (selectedTopic) {
-      const ids = (entry as any).topic_ids as string[] | undefined;
-      const matches = ids && ids.length > 0
-        ? ids.some(id => id === selectedTopic.id)
-        : entry.topic_id === selectedTopic.id;
-      if (!matches) return false;
-    }
-    if (diaryFilter === 'all') return true;
-    if (diaryFilter === 'original') return entry.type === 'original';
-    if (diaryFilter === 'reshared') return entry.type === 'reshared';
-    if (diaryFilter === 'gated') return entry.type === 'gated';
-    return true;
-  });
+  const allEntries = useMemo(() => {
+    return diaryPages?.pages.flat() ?? [];
+  }, [diaryPages]);
+
+  useEffect(() => {
+    if (!loadMoreRef.current || !hasNextPage) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Filter diary entries — completely handled in DB RPC, returned directly
+  const filteredEntries = useMemo(() => {
+    return allEntries;
+  }, [allEntries]);
 
   const getInitials = (name: string) => {
     return name
@@ -512,6 +462,8 @@ export const Profile = () => {
                   <DiaryEntry entry={entry} />
                 </div>
               ))}
+              <div ref={loadMoreRef} className="h-10" />
+              {isFetchingNextPage && <Skeleton className="h-16 w-full rounded-xl" />}
             </div>
           ) : (
             <div className="text-center py-12 text-muted-foreground">
