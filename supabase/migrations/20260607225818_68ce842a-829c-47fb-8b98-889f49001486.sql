@@ -1,0 +1,1 @@
+DELETE FROM public.user_pulse_snapshots;
