@@ -142,6 +142,12 @@ export const Profile = () => {
           topic_id: entry.topic_id,
           topic_label: entry.topic_label,
           topic_ids: entry.topic_id ? [entry.topic_id] : [],
+          voice_title: entry.voice_title,
+          voice_body: entry.voice_body,
+          challenge_title: entry.challenge_title,
+          challenge_body: entry.challenge_body,
+          media_url: entry.media_url,
+          media_type: entry.media_type,
         } as DiaryEntryData;
       });
     },
