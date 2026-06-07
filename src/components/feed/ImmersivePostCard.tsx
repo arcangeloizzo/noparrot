@@ -1660,10 +1660,10 @@ const ImmersivePostCardInner = ({
         {
           id: 'essential-linkedin-embed',
           states: [
-            { id: 'full', height: 180 },
-            { id: 'pill', height: 36 }
+            { id: 'full', height: 180 }
           ]
-        }
+        },
+        { id: 'essential-external-cta' }
       ];
     }
     if (isTwitter) {
@@ -3530,7 +3530,7 @@ const ImmersivePostCardInner = ({
                     </div>
                   )}
 
-                  {(linkedinEmbedStep === 'pill' || linkedinEmbedStep === 'compact') && (
+                  {useStackLayout && (linkedinEmbedStep === 'pill' || linkedinEmbedStep === 'compact') && (
                     <div 
                       ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-linkedin-embed')} 
                       className="flex-shrink-0 mt-auto" 
@@ -4498,10 +4498,11 @@ const ImmersivePostCardInner = ({
           </div>
           </div>
           {/* Unified Card External CTA */}
-          {!useStackLayout && post.shared_url && (isInstagramReel || isYoutube) && (
+          {!useStackLayout && post.shared_url && (isInstagramReel || isYoutube || isLinkedIn) && (
             <CardExternalCTA 
               platform={
-                isInstagramReel ? 'instagram' : 'youtube'
+                isInstagramReel ? 'instagram' : 
+                isYoutube ? 'youtube' : 'linkedin'
               } 
               url={post.shared_url} 
               ref={registerRef('essential-external-cta')}

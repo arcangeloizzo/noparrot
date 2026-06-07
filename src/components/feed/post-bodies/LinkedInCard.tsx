@@ -1,5 +1,6 @@
 import { Linkedin } from "lucide-react";
 import type { Post } from "@/hooks/usePosts";
+import { cn } from "@/lib/utils";
 
 interface LinkedInCardProps {
   post: Post;
@@ -16,13 +17,16 @@ export const LinkedInCard = ({
     <div className="w-full mt-2 sm:mt-6 flex-shrink min-h-0 flex flex-col justify-center overflow-hidden" style={{ maxHeight: '60vh' }}>
       {/* Unified LinkedIn Card */}
       <div
-        className="bg-gradient-to-br from-[#0A66C2]/10 to-white/90 dark:from-[#0A66C2]/20 dark:to-[#1a1a2e]/95 rounded-3xl p-4 sm:p-5 border border-black/5 dark:border-white/15 cursor-pointer active:scale-[0.98] transition-transform flex flex-col min-h-0 flex-shrink overflow-hidden"
-        onClick={(e) => {
+        className={cn(
+          "bg-gradient-to-br from-[#0A66C2]/10 to-white/90 dark:from-[#0A66C2]/20 dark:to-[#1a1a2e]/95 rounded-3xl p-4 sm:p-5 border border-black/5 dark:border-white/15 flex flex-col min-h-0 flex-shrink overflow-hidden",
+          useStackLayout && "cursor-pointer active:scale-[0.98] transition-transform"
+        )}
+        onClick={useStackLayout ? (e) => {
           e.stopPropagation();
           if (post.shared_url) {
             window.open(post.shared_url, '_blank', 'noopener,noreferrer');
           }
-        }}
+        } : undefined}
       >
         {/* Author Row */}
         <div className="flex items-center gap-3 mb-4">
@@ -94,19 +98,21 @@ export const LinkedInCard = ({
         )}
       </div>
 
-      {/* Open on LinkedIn CTA - brand pill */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          if (post.shared_url) {
-            window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-          }
-        }}
-        className="mt-3 inline-flex self-start items-center gap-2 rounded-full bg-[#0A66C2] hover:bg-[#0A66C2]/90 active:scale-[0.98] transition-all px-4 py-2 text-white shadow-md flex-shrink-0"
-      >
-        <Linkedin className="w-4 h-4" fill="currentColor" strokeWidth={0} />
-        <span className="text-sm font-semibold">Apri su LinkedIn</span>
-      </button>
+      {/* Open on LinkedIn CTA - brand pill (Reshare Stack only) */}
+      {useStackLayout && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (post.shared_url) {
+              window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+            }
+          }}
+          className="mt-3 inline-flex self-start items-center gap-2 rounded-full bg-[#0A66C2] hover:bg-[#0A66C2]/90 active:scale-[0.98] transition-all px-4 py-2 text-white shadow-md flex-shrink-0"
+        >
+          <Linkedin className="w-4 h-4" fill="currentColor" strokeWidth={0} />
+          <span className="text-sm font-semibold">Apri su LinkedIn</span>
+        </button>
+      )}
     </div>
   );
 };
