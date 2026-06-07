@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ReactNode } from "react";
+import { CATEGORIES, CATEGORY_COLORS } from "@/config/categories";
 
 interface PulseData {
   narrative: string;
@@ -20,106 +21,41 @@ const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
 const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-const TRAJECTORY_STYLE: React.CSSProperties = {
-  background: "linear-gradient(120deg, #E41E52, #A78BFA)",
-  WebkitBackgroundClip: "text",
-  backgroundClip: "text",
-  WebkitTextFillColor: "transparent",
-  color: "transparent",
-  fontWeight: 600,
-};
-
-const FOCUS_STYLE: React.CSSProperties = {
-  color: "#FFD464",
-  fontWeight: 600,
-};
-
 /**
- * Splits the narrative into React nodes, applying gradient highlight to
- * trajectory_label (first occurrence) and yellow highlight to focus_phrase
- * (first occurrence). Handles overlap gracefully.
+ * Splits the narrative into React nodes, highlighting every occurrence of a
+ * canonical category name (Tecnologia, Politica, …) with the color defined
+ * for that category in the Nebula taxonomy.
  */
-function renderNarrative(
-  narrative: string,
-  trajectoryLabel: string,
-  focusPhrase: string
-): ReactNode[] {
-  const trajectory = trajectoryLabel?.trim() || "";
-  const focus = focusPhrase?.trim() || "";
+function renderNarrative(narrative: string): ReactNode[] {
+  if (!narrative) return [narrative];
 
-  // Detect overlap (one contains the other) — apply only the outer one.
-  let useTrajectory = !!trajectory;
-  let useFocus = !!focus;
-
-  if (useTrajectory && useFocus) {
-    const tLow = trajectory.toLowerCase();
-    const fLow = focus.toLowerCase();
-    if (tLow.includes(fLow)) {
-      console.warn("[PulseCard] focus_phrase contained inside trajectory_label, skipping focus highlight");
-      useFocus = false;
-    } else if (fLow.includes(tLow)) {
-      console.warn("[PulseCard] trajectory_label contained inside focus_phrase, skipping trajectory highlight");
-      useTrajectory = false;
-    }
-  }
-
-  // Find first occurrence (case-insensitive) of each phrase.
-  const matches: Array<{ start: number; end: number; type: "trajectory" | "focus" }> = [];
-
-  if (useTrajectory) {
-    const re = new RegExp(escapeRegex(trajectory), "i");
-    const m = narrative.match(re);
-    if (m && m.index !== undefined) {
-      matches.push({ start: m.index, end: m.index + m[0].length, type: "trajectory" });
-    }
-  }
-
-  if (useFocus) {
-    const re = new RegExp(escapeRegex(focus), "i");
-    const m = narrative.match(re);
-    if (m && m.index !== undefined) {
-      const start = m.index;
-      const end = start + m[0].length;
-      // Skip if this match overlaps the trajectory match
-      const overlaps = matches.some((existing) => start < existing.end && end > existing.start);
-      if (!overlaps) {
-        matches.push({ start, end, type: "focus" });
-      }
-    }
-  }
-
-  matches.sort((a, b) => a.start - b.start);
-
-  if (matches.length === 0) {
-    return [narrative];
-  }
+  // Build a single regex matching any canonical category name, case-insensitive,
+  // with word boundaries so we don't color random substrings.
+  const names = CATEGORIES.map((c) => escapeRegex(c.name));
+  const re = new RegExp(`\\b(${names.join("|")})\\b`, "gi");
 
   const nodes: ReactNode[] = [];
   let cursor = 0;
-  matches.forEach((match, idx) => {
-    if (cursor < match.start) {
-      nodes.push(narrative.slice(cursor, match.start));
-    }
-    const text = narrative.slice(match.start, match.end);
-    if (match.type === "trajectory") {
-      nodes.push(
-        <strong key={`traj-${idx}`} style={TRAJECTORY_STYLE}>
-          {text}
-        </strong>
-      );
-    } else {
-      nodes.push(
-        <span key={`focus-${idx}`} style={FOCUS_STYLE}>
-          {text}
-        </span>
-      );
-    }
-    cursor = match.end;
-  });
-  if (cursor < narrative.length) {
-    nodes.push(narrative.slice(cursor));
+  let match: RegExpExecArray | null;
+  let idx = 0;
+  while ((match = re.exec(narrative)) !== null) {
+    const start = match.index;
+    const end = start + match[0].length;
+    if (cursor < start) nodes.push(narrative.slice(cursor, start));
+    // Lookup color via canonical key (capitalized as defined in CATEGORIES)
+    const matched = match[0];
+    const canonical =
+      CATEGORIES.find((c) => c.name.toLowerCase() === matched.toLowerCase())?.name ?? matched;
+    const color = CATEGORY_COLORS[canonical] ?? "#A78BFA";
+    nodes.push(
+      <strong key={`cat-${idx++}`} style={{ color, fontWeight: 600 }}>
+        {matched}
+      </strong>
+    );
+    cursor = end;
   }
-  return nodes;
+  if (cursor < narrative.length) nodes.push(narrative.slice(cursor));
+  return nodes.length > 0 ? nodes : [narrative];
 }
 
 interface PulseCardProps {
@@ -219,7 +155,7 @@ export const PulseCard = ({ onExploreTap }: PulseCardProps = {}) => {
           </span>
         )}
         {!isLoading && !isError && data && (
-          <>{renderNarrative(data.narrative, data.trajectory_label, data.focus_phrase)}</>
+          <>{renderNarrative(data.narrative)}</>
         )}
       </div>
 
