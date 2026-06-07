@@ -3,9 +3,12 @@ import { Instagram, Youtube, Linkedin, Twitter } from 'lucide-react';
 
 export type ExternalPlatform = 'instagram' | 'youtube' | 'linkedin' | 'twitter';
 
+export type CTAMode = 'absolute' | 'flow';
+
 interface CardExternalCTAProps {
   platform: ExternalPlatform;
   url: string;
+  mode?: CTAMode;
 }
 
 const PLATFORM_CONFIG: Record<ExternalPlatform, {
@@ -36,29 +39,44 @@ const PLATFORM_CONFIG: Record<ExternalPlatform, {
 };
 
 export const CardExternalCTA = React.forwardRef<HTMLDivElement, CardExternalCTAProps>(
-  ({ platform, url }, ref) => {
+  ({ platform, url, mode = 'absolute' }, ref) => {
     const { label, Icon, background } = PLATFORM_CONFIG[platform];
+    
+    const button = (
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          window.open(url, '_blank', 'noopener,noreferrer');
+        }}
+        className="flex items-center gap-1.5 px-4 py-2 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-transform"
+        style={{ background }}
+        aria-label={label}
+      >
+        <Icon className="w-3.5 h-3.5 text-white" />
+        <span className="text-[12px] font-medium text-white tracking-wide whitespace-nowrap">
+          {label}
+        </span>
+      </button>
+    );
+    
+    if (mode === 'absolute') {
+      return (
+        <div 
+          ref={ref}
+          className="absolute left-1/2 -translate-x-1/2 z-30 pointer-events-auto"
+          style={{ bottom: 'calc(170px + env(safe-area-inset-bottom))' }}
+        >
+          {button}
+        </div>
+      );
+    }
     
     return (
       <div 
         ref={ref}
-        className="absolute left-1/2 -translate-x-1/2 z-30 pointer-events-auto"
-        style={{ bottom: 'calc(170px + env(safe-area-inset-bottom))' }}
+        className="my-3 flex justify-center pointer-events-auto"
       >
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            window.open(url, '_blank', 'noopener,noreferrer');
-          }}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-full shadow-lg hover:scale-105 active:scale-95 transition-transform"
-          style={{ background }}
-          aria-label={label}
-        >
-          <Icon className="w-3.5 h-3.5 text-white" />
-          <span className="text-[12px] font-medium text-white tracking-wide whitespace-nowrap">
-            {label}
-          </span>
-        </button>
+        {button}
       </div>
     );
   }
