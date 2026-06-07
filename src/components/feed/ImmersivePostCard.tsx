@@ -1671,10 +1671,10 @@ const ImmersivePostCardInner = ({
         {
           id: 'essential-tweet-embed',
           states: [
-            { id: 'full', height: 160 },
-            { id: 'pill', height: 36 }
+            { id: 'full', height: 160 }
           ]
-        }
+        },
+        { id: 'essential-external-cta' }
       ];
     }
     return [];
@@ -3360,13 +3360,16 @@ const ImmersivePostCardInner = ({
                     <div 
                       ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-tweet-embed')}
                       style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                      className="bg-gradient-to-br from-[#1DA1F2]/5 to-white/90 dark:from-[#15202B] dark:to-[#0d1117] rounded-3xl p-5 border border-black/5 dark:border-white/15 dark: cursor-pointer active:scale-[0.98] transition-transform flex flex-col max-h-full mt-auto flex-shrink-0"
-                      onClick={(e) => {
+                      className={cn(
+                        "bg-gradient-to-br from-[#1DA1F2]/5 to-white/90 dark:from-[#15202B] dark:to-[#0d1117] rounded-3xl p-5 border border-black/5 dark:border-white/15 flex flex-col max-h-full mt-auto flex-shrink-0",
+                        useStackLayout && "cursor-pointer active:scale-[0.98] transition-transform"
+                      )}
+                      onClick={useStackLayout ? (e) => {
                         e.stopPropagation();
                         if (post.shared_url) {
                           window.open(post.shared_url, '_blank', 'noopener,noreferrer');
                         }
-                      }}
+                      } : undefined}
                     >
                       {/* Author Row - Fixed height */}
                       <div className="flex items-center gap-3 mb-4 flex-shrink-0">
@@ -3419,23 +3422,25 @@ const ImmersivePostCardInner = ({
                         </p>
                       </div>
 
-                      {/* Open on X link button */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (post.shared_url) {
-                            window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                          }
-                        }}
-                        className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors mt-2 self-start"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        <span className="text-xs uppercase tracking-wider">Apri su X</span>
-                      </button>
+                      {/* Open on X link button (Reshare Stack only) */}
+                      {useStackLayout && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (post.shared_url) {
+                              window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                            }
+                          }}
+                          className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors mt-2 self-start"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span className="text-xs uppercase tracking-wider">Apri su X</span>
+                        </button>
+                      )}
                     </div>
                   )}
 
-                  {(tweetEmbedStep === 'pill' || tweetEmbedStep === 'compact') && (
+                  {useStackLayout && (tweetEmbedStep === 'pill' || tweetEmbedStep === 'compact') && (
                     <div 
                       ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-tweet-embed')} 
                       className="flex-shrink-0 mt-auto" 
@@ -4498,11 +4503,12 @@ const ImmersivePostCardInner = ({
           </div>
           </div>
           {/* Unified Card External CTA */}
-          {!useStackLayout && post.shared_url && (isInstagramReel || isYoutube || isLinkedIn) && (
+          {!useStackLayout && post.shared_url && (isInstagramReel || isYoutube || isLinkedIn || isTwitter) && (
             <CardExternalCTA 
               platform={
                 isInstagramReel ? 'instagram' : 
-                isYoutube ? 'youtube' : 'linkedin'
+                isYoutube ? 'youtube' : 
+                isLinkedIn ? 'linkedin' : 'twitter'
               } 
               url={post.shared_url} 
               ref={registerRef('essential-external-cta')}
