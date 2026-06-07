@@ -247,6 +247,14 @@ export const Profile = () => {
     setShowConnections(true);
   };
 
+  useEffect(() => {
+    if (!user) navigate('/auth');
+  }, [user, navigate]);
+
+  const scrollToNebula = () => {
+    document.getElementById('nebulosa-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
