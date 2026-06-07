@@ -180,6 +180,70 @@ async function classifyAndUpdatePost(
   }
 }
 
+async function classifyAndAssignTopic(
+  supabase: any,
+  postId: string,
+  payload: { text?: string; title?: string; summary?: string },
+  reqId: string,
+  supabaseUrl: string,
+  serviceRoleKey: string
+) {
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/classify-content`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      console.warn(`[publish-post:${reqId}] stage=classify-seq classify-content HTTP ${response.status}`);
+    } else {
+      const data = await response.json();
+      const category = data?.category as string | null;
+
+      if (category) {
+        const { error } = await supabase
+          .from('posts')
+          .update({ category })
+          .eq('id', postId);
+
+        if (error) {
+          console.warn(`[publish-post:${reqId}] stage=classify-seq update error`, error.message);
+        } else {
+          console.log(`[publish-post:${reqId}] stage=classify-seq done category=${category}`);
+        }
+      } else {
+        console.log(`[publish-post:${reqId}] stage=classify-seq no category returned`);
+      }
+    }
+  } catch (err) {
+    console.warn(`[publish-post:${reqId}] stage=classify-seq error`, err);
+  }
+
+  try {
+    const response = await fetch(`${supabaseUrl}/functions/v1/assign-post-topic`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({ post_id: postId }),
+    });
+
+    if (!response.ok) {
+      console.warn(`[publish-post:${reqId}] stage=assign-topic-seq HTTP ${response.status}`);
+    } else {
+      console.log(`[publish-post:${reqId}] stage=assign-topic-seq done`);
+    }
+  } catch (err) {
+    console.warn(`[publish-post:${reqId}] stage=assign-topic-seq call failed:`, err);
+  }
+}
+
+
 type PublishPostBody = {
   content: string
   sharedUrl?: string | null
@@ -902,39 +966,70 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Background classification (non-blocking) — delegated to classify-content
-    const totalLen =
-      (insertPayload.content?.length || 0) +
-      (insertPayload.shared_title?.length || 0) +
-      (insertPayload.article_content?.length || 0);
+    // Background classification (non-blocking)
+    if (insertPayload.shared_url) {
+      // SE il post ha URL: pipeline esistente (nessuna modifica)
+      const totalLen =
+        (insertPayload.content?.length || 0) +
+        (insertPayload.shared_title?.length || 0) +
+        (insertPayload.article_content?.length || 0);
 
-    if (totalLen > 20) {
-      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || supabaseAnonKey;
-      // Fire and forget - don't await
-      classifyAndUpdatePost(
-        supabase,
-        inserted.id,
-        {
-          text: insertPayload.content || undefined,
-          title: insertPayload.shared_title || undefined,
-          summary: insertPayload.article_content || undefined,
-        },
-        reqId,
-        supabaseUrl,
-        serviceRoleKey
-      );
+      if (totalLen > 20) {
+        const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || supabaseAnonKey;
+        // Fire and forget - don't await
+        classifyAndUpdatePost(
+          supabase,
+          inserted.id,
+          {
+            text: insertPayload.content || undefined,
+            title: insertPayload.shared_title || undefined,
+            summary: insertPayload.article_content || undefined,
+          },
+          reqId,
+          supabaseUrl,
+          serviceRoleKey
+        );
 
-      // Also assign semantic topic for trending (non-blocking, Fase 3C)
-      // Use service role: assign-post-topic re-fetches the post and aggregates
-      // content + title + article + transcript + media OCR itself.
-      fetch(`${supabaseUrl}/functions/v1/assign-post-topic`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${serviceRoleKey}`,
-        },
-        body: JSON.stringify({ post_id: inserted.id }),
-      }).catch(err => console.warn(`[publish-post:${reqId}] assign-post-topic call failed:`, err));
+        // Also assign semantic topic for trending (non-blocking, Fase 3C)
+        fetch(`${supabaseUrl}/functions/v1/assign-post-topic`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${serviceRoleKey}`,
+          },
+          body: JSON.stringify({ post_id: inserted.id }),
+        }).catch(err => console.warn(`[publish-post:${reqId}] assign-post-topic call failed:`, err));
+      }
+    } else {
+      // SE il post NON ha URL MA ha contenuto testuale:
+      let textToClassify = '';
+      let titleToClassify = '';
+      if (insertPayload.post_type === 'challenge') {
+        titleToClassify = body.challengeData?.title || '';
+        textToClassify = body.challengeData?.bodyText || '';
+      } else if (insertPayload.post_type === 'voice') {
+        titleToClassify = body.voiceData?.title || '';
+        textToClassify = body.voiceData?.bodyText || '';
+      } else {
+        titleToClassify = insertPayload.title || '';
+        textToClassify = insertPayload.content || '';
+      }
+
+      if (textToClassify.trim().length > 0 || titleToClassify.trim().length > 0) {
+        const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || supabaseAnonKey;
+        // Fire and forget - don't await, execute sequentially inside classifyAndAssignTopic
+        classifyAndAssignTopic(
+          supabase,
+          inserted.id,
+          {
+            text: textToClassify || undefined,
+            title: titleToClassify || undefined,
+          },
+          reqId,
+          supabaseUrl,
+          serviceRoleKey
+        );
+      }
     }
 
     // Phase 4.6 - Background refresh of cognitive density (non-blocking)
