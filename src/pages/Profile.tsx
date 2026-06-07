@@ -255,15 +255,28 @@ export const Profile = () => {
     );
   }
 
-  if (!user) {
-    navigate('/auth');
-    return null;
-  }
+  if (!user) return null;
 
   if (isLoading || !profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-muted-foreground">Caricamento profilo...</div>
+      <div className="min-h-screen bg-background pb-24 urban-texture">
+        <div className="max-w-[600px] mx-auto pt-10 pb-4">
+          <div className="px-5 flex justify-end items-center gap-2 mb-3">
+            <Skeleton className="w-10 h-10 rounded-full" />
+            <Skeleton className="w-10 h-10 rounded-full" />
+          </div>
+          <div className="flex flex-row items-start gap-4 px-5">
+            <Skeleton className="rounded-full" style={{ width: 88, height: 88 }} />
+            <div className="flex-1 min-w-0 pt-1 space-y-2">
+              <Skeleton style={{ width: 160, height: 24 }} />
+              <Skeleton style={{ width: 100, height: 16 }} />
+            </div>
+          </div>
+          <div className="px-5 pt-6 space-y-3">
+            <Skeleton style={{ width: 80, height: 44 }} />
+            <Skeleton style={{ width: 280, height: 16 }} />
+          </div>
+        </div>
       </div>
     );
   }
