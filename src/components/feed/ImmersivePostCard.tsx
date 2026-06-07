@@ -1567,6 +1567,11 @@ const ImmersivePostCardInner = ({
     : ((articlePreview?.image || post.preview_img) ? 240 : 100);
 
   const essentialsConfig = useMemo(() => {
+    if (useStackLayout) {
+      return [
+        { id: 'essential-title' }
+      ];
+    }
     if (isSpotifyEpisode) {
       return [
         { id: 'essential-title' },
@@ -1681,10 +1686,37 @@ const ImmersivePostCardInner = ({
     voiceTitle,
     challengeTitle,
     articleFullHeight,
+    useStackLayout,
     user?.id
   ]);
 
   const flexiblesConfig = useMemo(() => {
+    if (useStackLayout) {
+      const config: FlexibleElementConfig[] = [];
+      if (post.content && post.content.trim().length > 0) {
+        config.push({
+          id: 'flexible-reshare-comment',
+          compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
+          minReadabilityHeight: 40,
+          fallbackHeight: 80
+        });
+      }
+      config.push({
+        id: 'flexible-reshare-quoted-body',
+        compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
+        minReadabilityHeight: 60,
+        fallbackHeight: 120
+      });
+      if (hasLink) {
+        config.push({
+          id: 'flexible-reshare-link-body',
+          compressionSteps: ['full', 'compact', 'hidden'] as CompressionStep[],
+          minReadabilityHeight: 40,
+          fallbackHeight: 80
+        });
+      }
+      return config;
+    }
     if (isSpotifyEpisode || isSpotifyTrack || isYoutube || isGenericArticle) {
       return [
         {
@@ -1814,9 +1846,20 @@ const ImmersivePostCardInner = ({
       ];
     }
     return [];
-  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isIntentPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media, shouldUseBlurredBg]);
+  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isIntentPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media, shouldUseBlurredBg, useStackLayout]);
  
   const priorityConfig = useMemo(() => {
+    if (useStackLayout) {
+      const priority: string[] = [];
+      if (hasLink) {
+        priority.push('flexible-reshare-link-body');
+      }
+      priority.push('flexible-reshare-quoted-body');
+      if (post.content && post.content.trim().length > 0) {
+        priority.push('flexible-reshare-comment');
+      }
+      return priority;
+    }
     if (isSpotifyEpisode || isSpotifyTrack || isYoutube || isGenericArticle) {
       return ['flexible-text'];
     }
@@ -1868,7 +1911,7 @@ const ImmersivePostCardInner = ({
       return ['flexible-intent-text'];
     }
     return [];
-  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isIntentPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media, shouldUseBlurredBg]);
+  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isIntentPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media, shouldUseBlurredBg, useStackLayout]);
 
   const {
     status: layoutStatus,
@@ -1883,6 +1926,25 @@ const ImmersivePostCardInner = ({
     flexibles: flexiblesConfig,
     compressionPriority: priorityConfig
   });
+
+  const tweetEmbedStep = useStackLayout 
+    ? flexiblesStatus['flexible-reshare-link-body']?.step 
+    : essentialStates['essential-tweet-embed'];
+  const linkedinEmbedStep = useStackLayout 
+    ? flexiblesStatus['flexible-reshare-link-body']?.step 
+    : essentialStates['essential-linkedin-embed'];
+  const youtubeEmbedStep = useStackLayout 
+    ? (flexiblesStatus['flexible-reshare-link-body']?.step === 'compact' ? 'compact' : (flexiblesStatus['flexible-reshare-link-body']?.step === 'hidden' ? 'hidden' : 'full'))
+    : essentialStates['essential-youtube'];
+  const spotifyEpisodeStep = useStackLayout 
+    ? (flexiblesStatus['flexible-reshare-link-body']?.step === 'compact' ? 'pill' : (flexiblesStatus['flexible-reshare-link-body']?.step === 'hidden' ? 'hidden' : 'full'))
+    : essentialStates['essential-spotify'];
+  const spotifyTrackStep = useStackLayout 
+    ? (flexiblesStatus['flexible-reshare-link-body']?.step === 'compact' ? 'pill' : (flexiblesStatus['flexible-reshare-link-body']?.step === 'hidden' ? 'hidden' : 'full'))
+    : essentialStates['essential-spotify-song'];
+  const articleStep = useStackLayout 
+    ? (flexiblesStatus['flexible-reshare-link-body']?.step === 'compact' ? 'compact' : (flexiblesStatus['flexible-reshare-link-body']?.step === 'hidden' ? 'hidden' : 'full'))
+    : essentialStates['essential-article'];
 
   // DOM checks for text truncation using useLayoutEffect and ResizeObserver
   const bodyTextRef = useRef<HTMLParagraphElement | HTMLDivElement | null>(null);
@@ -1949,7 +2011,13 @@ const ImmersivePostCardInner = ({
     availableHeight
   ]);
 
-  const shouldShowApprofondisci = isBodyTruncated || isCaptionTruncated;
+  const isReshareCompressed = useStackLayout && (
+    (flexiblesStatus['flexible-reshare-comment'] && flexiblesStatus['flexible-reshare-comment'].step !== 'full') ||
+    (flexiblesStatus['flexible-reshare-quoted-body'] && flexiblesStatus['flexible-reshare-quoted-body'].step !== 'full') ||
+    (flexiblesStatus['flexible-reshare-link-body'] && flexiblesStatus['flexible-reshare-link-body'].step !== 'full')
+  );
+
+  const shouldShowApprofondisci = isBodyTruncated || isCaptionTruncated || isReshareCompressed;
 
   // Update lazy mount refs (placed here to avoid TDZ for state variables declared after the refs)
   if (showShareSheet) hasMountedShare.current = true;
@@ -2918,10 +2986,7 @@ const ImmersivePostCardInner = ({
 
               {/* Stack Layout: User comment first - Plain text for standard */}
               {useStackLayout && !isAudioPost && !isChallengePost && (post.content || post.title) && post.content !== post.shared_title && (
-                <div className={cn(
-                  "mb-1 flex flex-col gap-1",
-                  isChallengePost ? "font-normal" : "font-normal"
-                )}>
+                <div className="mb-1 flex flex-col gap-1 w-full flex-shrink-0">
                   {/* Title */}
                   {post.title && post.title.trim().length > 0 && (
                     <h2 
@@ -2939,23 +3004,41 @@ const ImmersivePostCardInner = ({
                     </h2>
                   )}
                   {post.content && post.content.trim().length > 0 && (
-                    <div 
-                      className={cn(
-                        "whitespace-pre-wrap break-words  dark:",
-                        post.title && post.title.trim().length > 0 ? "text-[14px] text-[#7A8FA6]" : "text-base sm:text-lg text-slate-600 dark:text-white/90 leading-snug tracking-wide"
+                    <>
+                      {(!flexiblesStatus['flexible-reshare-comment'] || flexiblesStatus['flexible-reshare-comment'].step === 'full') && (
+                        <div 
+                          ref={(el) => { registerRef('flexible-reshare-comment')(el); bodyTextRef.current = el; }}
+                          className={cn(
+                            "whitespace-pre-wrap break-words",
+                            post.title && post.title.trim().length > 0 ? "text-[14px] text-[#7A8FA6]" : "text-base sm:text-lg text-slate-600 dark:text-white/90 leading-snug tracking-wide"
+                          )}
+                          style={post.title && post.title.trim().length > 0 ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
+                        >
+                          <MentionText content={post.content} />
+                        </div>
                       )}
-                      style={post.title && post.title.trim().length > 0 ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
-                    >
-                      <DynamicClampBody
-                        containerRef={contentRailRef}
-                        content={post.content}
-                        onShowFull={() => setShowFullText(true)}
-                        enabled={isNearActive}
-                        lineHeightPx={post.title && post.title.trim().length > 0 ? 22 : 26}
-                        minLines={2}
-                        fadeColor="#0d1117"
-                      />
-                    </div>
+                      {flexiblesStatus['flexible-reshare-comment']?.step === 'clamped' && (
+                        <div 
+                          ref={(el) => { registerRef('flexible-reshare-comment')(el); bodyTextRef.current = el; }}
+                          className={cn(
+                            "whitespace-pre-wrap break-words overflow-hidden",
+                            post.title && post.title.trim().length > 0 ? "text-[14px] text-[#7A8FA6]" : "text-base sm:text-lg text-slate-600 dark:text-white/90 leading-snug tracking-wide"
+                          )}
+                          style={{
+                            ...(post.title && post.title.trim().length > 0 ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}),
+                            height: `${flexiblesStatus['flexible-reshare-comment'].height}px`,
+                            display: '-webkit-box',
+                            WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-reshare-comment'].height / (post.title && post.title.trim().length > 0 ? 22 : 26))),
+                            WebkitBoxOrient: 'vertical',
+                          }}
+                        >
+                          <MentionText content={post.content} />
+                        </div>
+                      )}
+                      {flexiblesStatus['flexible-reshare-comment']?.step === 'hidden' && (
+                        <div ref={registerRef('flexible-reshare-comment')} style={{ height: 0, overflow: 'hidden' }} />
+                      )}
+                    </>
                   )}
                 </div>
               )}
@@ -3217,7 +3300,7 @@ const ImmersivePostCardInner = ({
                   )}
                 >
                   {/* Commento utente flessibile (3 stati) */}
-                  {post.content && post.content.trim().length > 0 && (
+                  {!useStackLayout && post.content && post.content.trim().length > 0 && (
                     <>
                       {flexiblesStatus['flexible-user-comment']?.step === 'full' && (
                         <div 
@@ -3254,7 +3337,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Approfondisci */}
-                  {shouldShowApprofondisci && (
+                  {!useStackLayout && shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3 text-left">
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
@@ -3266,9 +3349,10 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Tweet Embed (essenziale a stati) */}
-                  {essentialStates['essential-tweet-embed'] === 'full' && (
+                  {tweetEmbedStep === 'full' && (
                     <div 
-                      ref={registerRef('essential-tweet-embed')}
+                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-tweet-embed')}
+                      style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
                       className="bg-gradient-to-br from-[#1DA1F2]/5 to-white/90 dark:from-[#15202B] dark:to-[#0d1117] rounded-3xl p-5 border border-black/5 dark:border-white/15 dark: cursor-pointer active:scale-[0.98] transition-transform flex flex-col max-h-full mt-auto flex-shrink-0"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -3344,8 +3428,12 @@ const ImmersivePostCardInner = ({
                     </div>
                   )}
 
-                  {essentialStates['essential-tweet-embed'] === 'pill' && (
-                    <div ref={registerRef('essential-tweet-embed')} className="flex-shrink-0 mt-auto" style={{ height: '36px' }}>
+                  {(tweetEmbedStep === 'pill' || tweetEmbedStep === 'compact') && (
+                    <div 
+                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-tweet-embed')} 
+                      className="flex-shrink-0 mt-auto" 
+                      style={{ height: '36px' }}
+                    >
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -3359,6 +3447,10 @@ const ImmersivePostCardInner = ({
                       </button>
                     </div>
                   )}
+
+                  {useStackLayout && tweetEmbedStep === 'hidden' && (
+                    <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
+                  )}
                 </div>
               ) : hasLink && isLinkedIn ? (
                 <div 
@@ -3368,7 +3460,7 @@ const ImmersivePostCardInner = ({
                   )}
                 >
                   {/* Commento utente flessibile (3 stati) */}
-                  {post.content && post.content.trim().length > 0 && (
+                  {!useStackLayout && post.content && post.content.trim().length > 0 && (
                     <>
                       {flexiblesStatus['flexible-user-comment']?.step === 'full' && (
                         <div 
@@ -3405,7 +3497,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Approfondisci */}
-                  {shouldShowApprofondisci && (
+                  {!useStackLayout && shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3 text-left">
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
@@ -3417,8 +3509,12 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* LinkedIn embed (essenziale a stati) */}
-                  {essentialStates['essential-linkedin-embed'] === 'full' && (
-                    <div ref={registerRef('essential-linkedin-embed')} className="w-full mt-auto flex-shrink-0">
+                  {linkedinEmbedStep === 'full' && (
+                    <div 
+                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-linkedin-embed')} 
+                      style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                      className="w-full mt-auto flex-shrink-0"
+                    >
                       <LinkedInCard
                         post={post}
                         articlePreview={articlePreview}
@@ -3427,8 +3523,12 @@ const ImmersivePostCardInner = ({
                     </div>
                   )}
 
-                  {essentialStates['essential-linkedin-embed'] === 'pill' && (
-                    <div ref={registerRef('essential-linkedin-embed')} className="flex-shrink-0 mt-auto" style={{ height: '36px' }}>
+                  {(linkedinEmbedStep === 'pill' || linkedinEmbedStep === 'compact') && (
+                    <div 
+                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-linkedin-embed')} 
+                      className="flex-shrink-0 mt-auto" 
+                      style={{ height: '36px' }}
+                    >
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -3441,6 +3541,10 @@ const ImmersivePostCardInner = ({
                         <span className="text-xs font-bold">💼 Apri su LinkedIn</span>
                       </button>
                     </div>
+                  )}
+
+                  {useStackLayout && linkedinEmbedStep === 'hidden' && (
+                    <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
                   )}
                 </div>
               ) : hasLink && isYoutube ? (
@@ -3476,7 +3580,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Body text */}
-                  {post.content && post.content.trim().length > 0 && (
+                  {!useStackLayout && post.content && post.content.trim().length > 0 && (
                     <>
                       {flexiblesStatus['flexible-text']?.step === 'full' && (
                         <div
@@ -3512,7 +3616,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Approfondisci */}
-                  {shouldShowApprofondisci && (
+                  {!useStackLayout && shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
@@ -3524,8 +3628,12 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* YouTube embed */}
-                  {essentialStates['essential-youtube'] === 'full' && (
-                    <div ref={registerRef('essential-youtube')} className="w-full mt-auto flex-shrink-0">
+                  {youtubeEmbedStep === 'full' && (
+                    <div 
+                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
+                      style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                      className="w-full mt-auto flex-shrink-0"
+                    >
                       {!hasUserMedia && (
                         <>
                           {!youtubeEmbedActive ? (
@@ -3590,9 +3698,13 @@ const ImmersivePostCardInner = ({
                     </div>
                   )}
 
-                  {essentialStates['essential-youtube'] === 'compact' && (
+                  {youtubeEmbedStep === 'compact' && (
                     hasUserMedia ? (
-                      <div ref={registerRef('essential-youtube')} className="mt-auto flex-shrink-0 text-left">
+                      <div 
+                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
+                        style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                        className="mt-auto flex-shrink-0 text-left"
+                      >
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -3607,14 +3719,16 @@ const ImmersivePostCardInner = ({
                         </button>
                       </div>
                     ) : (
-                      <div ref={registerRef('essential-youtube')} 
-                           className="flex items-center gap-3 p-2 bg-card/40 rounded-lg cursor-pointer mt-auto flex-shrink-0 border border-white/10"
-                           onClick={(e) => {
-                             e.stopPropagation();
-                             if (post.shared_url) {
-                               window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                             }
-                           }}>
+                      <div 
+                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
+                        style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                        className="flex items-center gap-3 p-2 bg-card/40 rounded-lg cursor-pointer mt-auto flex-shrink-0 border border-white/10"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (post.shared_url) {
+                            window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                          }
+                        }}>
                         {/* Thumbnail 80×45 (16:9) */}
                         <div className="relative flex-shrink-0 w-20 h-[45px] rounded overflow-hidden bg-muted">
                           <img 
@@ -3638,8 +3752,12 @@ const ImmersivePostCardInner = ({
                     )
                   )}
 
-                  {essentialStates['essential-youtube'] === 'pill' && (
-                    <div ref={registerRef('essential-youtube')} className="flex-shrink-0 mt-auto" style={{ height: '36px' }}>
+                  {youtubeEmbedStep === 'pill' && (
+                    <div 
+                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
+                      className="flex-shrink-0 mt-auto" 
+                      style={{ height: '36px' }}
+                    >
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -3651,6 +3769,10 @@ const ImmersivePostCardInner = ({
                       </button>
                     </div>
                   )}
+
+                  {useStackLayout && youtubeEmbedStep === 'hidden' && (
+                    <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
+                  )}
                 </div>
               ) : hasLink && isSpotifyEpisode ? (
                 <div
@@ -3660,7 +3782,7 @@ const ImmersivePostCardInner = ({
                   )}
                 >
                   {/* Title */}
-                  {post.title && post.title.trim().length > 0 && (
+                  {!useStackLayout && post.title && post.title.trim().length > 0 && (
                     <h2
                       ref={registerRef('essential-title')}
                       className="uppercase mb-2 flex-shrink-0"
@@ -3678,7 +3800,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Body text */}
-                  {post.content && post.content.trim().length > 0 && (
+                  {!useStackLayout && post.content && post.content.trim().length > 0 && (
                     <>
                       {flexiblesStatus['flexible-text']?.step === 'full' && (
                         <div
@@ -3714,7 +3836,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Approfondisci */}
-                  {shouldShowApprofondisci && (
+                  {!useStackLayout && shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
@@ -3726,9 +3848,13 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Spotify embed */}
-                  {essentialStates['essential-spotify'] === 'full' && (
+                  {spotifyEpisodeStep === 'full' && (
                     hasUserMedia ? (
-                      <div ref={registerRef('essential-spotify')} className="flex-shrink-0 mt-auto text-left">
+                      <div 
+                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify')} 
+                        style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                        className="flex-shrink-0 mt-auto text-left"
+                      >
                         <a
                           href={post.shared_url || ''}
                           target="_blank"
@@ -3740,7 +3866,11 @@ const ImmersivePostCardInner = ({
                         </a>
                       </div>
                     ) : (
-                      <div ref={registerRef('essential-spotify')} className="flex-shrink-0 mt-auto">
+                      <div 
+                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify')} 
+                        style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                        className="flex-shrink-0 mt-auto"
+                      >
                         <SpotifyPodcastCompactCard
                           imageUrl={articlePreview?.image || post.preview_img || ''}
                           podcastName={articlePreview?.description || getHostnameFromUrl(post.shared_url)}
@@ -3751,8 +3881,12 @@ const ImmersivePostCardInner = ({
                     )
                   )}
 
-                  {essentialStates['essential-spotify'] === 'pill' && (
-                    <div ref={registerRef('essential-spotify')} className="flex-shrink-0 mt-auto" style={{ height: '36px' }}>
+                  {spotifyEpisodeStep === 'pill' && (
+                    <div 
+                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify')} 
+                      className="flex-shrink-0 mt-auto" 
+                      style={{ height: '36px' }}
+                    >
                       <a
                         href={post.shared_url || ''}
                         target="_blank"
@@ -3764,6 +3898,10 @@ const ImmersivePostCardInner = ({
                       </a>
                     </div>
                   )}
+
+                  {useStackLayout && spotifyEpisodeStep === 'hidden' && (
+                    <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
+                  )}
                 </div>
               ) : hasLink && isSpotifyTrack ? (
                 <div
@@ -3773,7 +3911,7 @@ const ImmersivePostCardInner = ({
                   )}
                 >
                   {/* Title */}
-                  {post.title && post.title.trim().length > 0 && (
+                  {!useStackLayout && post.title && post.title.trim().length > 0 && (
                     <h2
                       ref={registerRef('essential-title')}
                       className="uppercase mb-2 flex-shrink-0"
@@ -3791,7 +3929,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Body text */}
-                  {post.content && post.content.trim().length > 0 && (
+                  {!useStackLayout && post.content && post.content.trim().length > 0 && (
                     <>
                       {flexiblesStatus['flexible-text']?.step === 'full' && (
                         <div
@@ -3827,7 +3965,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Approfondisci */}
-                  {shouldShowApprofondisci && (
+                  {!useStackLayout && shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
@@ -3839,9 +3977,13 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Spotify track embed */}
-                  {essentialStates['essential-spotify-song'] === 'full' && (
+                  {spotifyTrackStep === 'full' && (
                     hasUserMedia ? (
-                      <div ref={registerRef('essential-spotify-song')} className="flex-shrink-0 mt-auto text-left w-full">
+                      <div 
+                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify-song')} 
+                        style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                        className="flex-shrink-0 mt-auto text-left w-full"
+                      >
                         <a
                           href={post.shared_url || ''}
                           target="_blank"
@@ -3853,7 +3995,11 @@ const ImmersivePostCardInner = ({
                         </a>
                       </div>
                     ) : (
-                      <div ref={registerRef('essential-spotify-song')} className="flex-shrink-0 mt-auto w-full">
+                      <div 
+                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify-song')} 
+                        style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                        className="flex-shrink-0 mt-auto w-full"
+                      >
                         <SpotifyPodcastCompactCard
                           imageUrl={articlePreview?.image || post.preview_img || ''}
                           podcastName={articlePreview?.description || 'Spotify'}
@@ -3864,8 +4010,12 @@ const ImmersivePostCardInner = ({
                     )
                   )}
 
-                  {essentialStates['essential-spotify-song'] === 'pill' && (
-                    <div ref={registerRef('essential-spotify-song')} className="flex-shrink-0 mt-auto" style={{ height: '36px' }}>
+                  {spotifyTrackStep === 'pill' && (
+                    <div 
+                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify-song')} 
+                      className="flex-shrink-0 mt-auto" 
+                      style={{ height: '36px' }}
+                    >
                       <a
                         href={post.shared_url || ''}
                         target="_blank"
@@ -3877,6 +4027,10 @@ const ImmersivePostCardInner = ({
                       </a>
                     </div>
                   )}
+
+                  {useStackLayout && spotifyTrackStep === 'hidden' && (
+                    <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
+                  )}
                 </div>
               ) : isGenericArticle ? (
                 <div
@@ -3886,7 +4040,7 @@ const ImmersivePostCardInner = ({
                   )}
                 >
                   {/* Title */}
-                  {post.title && post.title.trim().length > 0 && (
+                  {!useStackLayout && post.title && post.title.trim().length > 0 && (
                     <h2
                       ref={registerRef('essential-title')}
                       className="uppercase mb-2 flex-shrink-0"
@@ -3904,7 +4058,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Body text */}
-                  {post.content && post.content.trim().length > 0 && (
+                  {!useStackLayout && post.content && post.content.trim().length > 0 && (
                     <>
                       {flexiblesStatus['flexible-text']?.step === 'full' && (
                         <div
@@ -3940,7 +4094,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Approfondisci */}
-                  {shouldShowApprofondisci && (
+                  {!useStackLayout && shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
                         onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
@@ -3952,8 +4106,12 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Embed content */}
-                  {essentialStates['essential-article'] === 'full' && (
-                    <div ref={registerRef('essential-article')} className="w-full mt-auto flex-shrink-0">
+                  {articleStep === 'full' && (
+                    <div 
+                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-article')} 
+                      style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                      className="w-full mt-auto flex-shrink-0"
+                    >
                       {isEditorialFocus ? (
                         <QuotedEditorialCard
                           title={decodeHTMLEntities(post.shared_title || 'Il Punto')}
@@ -4014,8 +4172,12 @@ const ImmersivePostCardInner = ({
                     </div>
                   )}
 
-                  {essentialStates['essential-article'] === 'compact' && (
-                    <div ref={registerRef('essential-article')} className="w-full mt-auto flex-shrink-0">
+                  {articleStep === 'compact' && (
+                    <div 
+                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-article')} 
+                      style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                      className="w-full mt-auto flex-shrink-0"
+                    >
                       <div 
                         className="flex flex-row items-center gap-2 bg-[rgba(255,255,255,0.06)] rounded-[8px] p-[8px_10px] w-full cursor-pointer"
                         onClick={(e) => {
@@ -4054,8 +4216,12 @@ const ImmersivePostCardInner = ({
                     </div>
                   )}
 
-                  {essentialStates['essential-article'] === 'pill' && (
-                    <div ref={registerRef('essential-article')} className="flex-shrink-0 mt-auto" style={{ height: '36px' }}>
+                  {articleStep === 'pill' && (
+                    <div 
+                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-article')} 
+                      className="flex-shrink-0 mt-auto" 
+                      style={{ height: '36px' }}
+                    >
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -4071,6 +4237,10 @@ const ImmersivePostCardInner = ({
                         <span className="text-white text-xs font-bold">📰 Leggi articolo</span>
                       </button>
                     </div>
+                  )}
+
+                  {useStackLayout && articleStep === 'hidden' && (
+                    <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
                   )}
                 </div>
               ) : isInstagramReel ? (
@@ -4149,7 +4319,15 @@ const ImmersivePostCardInner = ({
 
               {/* Quoted Post - Show for ALL reshares (stack and non-stack) */}
               {quotedPost && (
-                <div className="mt-0.5">
+                <div 
+                  ref={useStackLayout ? registerRef('flexible-reshare-quoted-body') : undefined}
+                  style={useStackLayout && flexiblesStatus['flexible-reshare-quoted-body'] ? { 
+                    height: flexiblesStatus['flexible-reshare-quoted-body'].step === 'hidden' ? 0 : undefined, 
+                    maxHeight: flexiblesStatus['flexible-reshare-quoted-body'].step === 'clamped' ? `${flexiblesStatus['flexible-reshare-quoted-body'].height}px` : undefined,
+                    overflow: 'hidden'
+                  } : undefined}
+                  className="mt-0.5"
+                >
                   <QuotedPostEmbed
                     post={quotedPost}
                     onPress={() => {
@@ -4165,6 +4343,18 @@ const ImmersivePostCardInner = ({
                     }}
                     className="flex-shrink min-h-0 overflow-hidden"
                   />
+                </div>
+              )}
+
+              {/* Unified Approfondisci button for Reshare Stack */}
+              {useStackLayout && shouldShowApprofondisci && (
+                <div className="flex-shrink-0 mt-2 mb-3 text-left">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                    className="text-sm text-primary font-semibold hover:underline block"
+                  >
+                    Approfondisci
+                  </button>
                 </div>
               )}
 
