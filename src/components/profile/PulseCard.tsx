@@ -122,7 +122,11 @@ function renderNarrative(
   return nodes;
 }
 
-export const PulseCard = () => {
+interface PulseCardProps {
+  onExploreTap?: () => void;
+}
+
+export const PulseCard = ({ onExploreTap }: PulseCardProps = {}) => {
   const { user } = useAuth();
 
   const { data, isLoading, isError } = useQuery<PulseData>({
@@ -255,8 +259,7 @@ export const PulseCard = () => {
           </div>
           <button
             type="button"
-            // TODO: Esplora correlati → (future step) — navigation not yet wired
-            onClick={() => {}}
+            onClick={() => onExploreTap?.()}
             style={{
               fontSize: 12,
               fontWeight: 600,

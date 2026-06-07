@@ -504,8 +504,7 @@ export const Profile = () => {
                 <div
                   key={entry.id}
                   className="animate-fade-in"
-                  style={{ animationDelay: `${index * 30}ms` }}
-                  // (legacy noop)
+                  style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
                 >
                   <DiaryEntry entry={entry} />
                 </div>
