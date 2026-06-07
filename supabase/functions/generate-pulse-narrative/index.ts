@@ -259,18 +259,22 @@ Deno.serve(async (req) => {
     }
   }
 
-  const resolved = (weekAttempts ?? []).map((row: any) => {
-    const info: PostInfo | undefined =
-      (row.post_id && postsById.get(row.post_id)) ||
-      (row.source_url && postsByUrl.get(row.source_url)) ||
-      undefined;
-    const title =
-      (info?.shared_title && String(info.shared_title).trim()) ||
-      (info?.content ? String(info.content).slice(0, 80).trim() : "") ||
-      (row.source_url ? String(row.source_url).slice(0, 80) : "Senza titolo");
-    const category = (info?.category && String(info.category).trim()) || "Generale";
-    return { title, category, created_at: row.created_at as string };
-  });
+  const resolved = (weekAttempts ?? [])
+    .map((row: any) => {
+      const info: PostInfo | undefined =
+        (row.post_id && postsById.get(row.post_id)) ||
+        (row.source_url && postsByUrl.get(row.source_url)) ||
+        undefined;
+      const title =
+        (info?.shared_title && String(info.shared_title).trim()) ||
+        (info?.content ? String(info.content).slice(0, 80).trim() : "") ||
+        (row.source_url ? String(row.source_url).slice(0, 80) : "Senza titolo");
+      const category = info?.category && String(info.category).trim() || null;
+      return { title, category, created_at: row.created_at as string };
+    })
+    .filter((x): x is { title: string; category: string; created_at: string } => 
+      !!x.category && CATEGORY_NAMES.includes(x.category)
+    );
 
   // Streak/week need ALL recent timestamps (not capped at 10).
   // Pull the last 60 days of attempts for accurate streak/week metrics.
@@ -290,7 +294,7 @@ Deno.serve(async (req) => {
     .filter((x): x is string => !!x);
 
   const streakDays = computeStreakDays(allTimestamps);
-  const countWeek = countLastWeek(allTimestamps);
+  const countWeek = resolved.length;
 
   // Audit payload: what we actually fed the model
   const auditPayload = resolved.slice(0, MAX_COMPREHENSIONS).map((c) => ({
