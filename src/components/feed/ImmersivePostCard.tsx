@@ -1671,10 +1671,13 @@ const ImmersivePostCardInner = ({
     }
     if (isTwitter) {
       return [
+        { id: 'essential-title' },
         {
           id: 'essential-tweet-embed',
           states: [
-            { id: 'full', height: 160 }
+            { id: 'full', height: 250 },
+            { id: 'compact', height: 130 },
+            { id: 'pill', height: 50 }
           ]
         },
         { id: 'essential-external-cta' }
@@ -3311,6 +3314,24 @@ const ImmersivePostCardInner = ({
                     emergencyScroll && "overflow-y-auto"
                   )}
                 >
+                  {/* post.title (titolo NoParrot) */}
+                  {!useStackLayout && post.title && post.title.trim().length > 0 && (
+                    <h2
+                      ref={registerRef('essential-title')}
+                      className="uppercase mb-2 flex-shrink-0"
+                      style={{
+                        fontFamily: 'Impact, sans-serif',
+                        fontSize: 'clamp(30px, 8vw, 42px)',
+                        lineHeight: 0.92,
+                        letterSpacing: '-0.02em',
+                        color: '#FFFFFF',
+                        textAlign: 'left'
+                      }}
+                    >
+                      {post.title}
+                    </h2>
+                  )}
+
                   {/* Commento utente flessibile (3 stati) */}
                   {!useStackLayout && post.content && post.content.trim().length > 0 && (
                     <>
@@ -3361,88 +3382,189 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Tweet Embed (essenziale a stati) */}
-                  {tweetEmbedStep === 'full' && (
-                    <div 
-                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-tweet-embed')}
-                      style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                      className={cn(
-                        "bg-gradient-to-br from-[#1DA1F2]/5 to-white/90 dark:from-[#15202B] dark:to-[#0d1117] rounded-3xl p-5 border border-black/5 dark:border-white/15 flex flex-col max-h-full mt-auto flex-shrink-0",
-                        useStackLayout && "cursor-pointer active:scale-[0.98] transition-transform"
-                      )}
-                      onClick={useStackLayout ? (e) => {
-                        e.stopPropagation();
-                        if (post.shared_url) {
-                          window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                        }
-                      } : undefined}
-                    >
-                      {/* Author Row - Fixed height */}
-                      <div className="flex items-center gap-3 mb-4 flex-shrink-0">
-                        <div className="w-12 h-12 rounded-full border border-white/20 overflow-hidden bg-[#1DA1F2]/10 flex-shrink-0 flex items-center justify-center">
-                          {articlePreview?.author_avatar ? (
-                            <img
-                              src={articlePreview.author_avatar}
-                              alt=""
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-white/50 text-xl font-bold">
-                              {(articlePreview?.author_name || articlePreview?.author_username || 'X').charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0 text-left">
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-slate-900 dark:text-white font-semibold truncate text-sm">
-                              {articlePreview?.author_name || articlePreview?.title?.replace('Post by ', '').replace('@', '') || 'X User'}
-                            </p>
-                            {articlePreview?.is_verified && (
-                              <div className="flex-shrink-0 w-[18px] h-[18px] rounded-full bg-[#1DA1F2] flex items-center justify-center">
-                                <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                                </svg>
-                              </div>
-                            )}
-                          </div>
-                          {articlePreview?.author_username && (
-                            <p className="text-slate-500 dark:text-white/50 text-xs">@{articlePreview.author_username}</p>
-                          )}
-                        </div>
-                        <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-white flex items-center justify-center flex-shrink-0">
-                          <span className="text-black font-bold text-xs">𝕏</span>
-                        </div>
-                      </div>
-
-                      {/* Tweet Text - clamped */}
-                      <div className="flex-shrink-0 min-h-0 overflow-hidden mb-2 text-left">
-                        <p className="text-slate-900 dark:text-white text-sm leading-relaxed line-clamp-3">
-                          {(articlePreview?.content || articlePreview?.summary || post.content || '')
-                            .replace(/https?:\/\/t\.co\/\w+/g, '')
-                            .replace(/https?:\/\/[^\s]+/g, '')
-                            .replace(/\s{2,}/g, ' ')
-                            .trim()}
-                        </p>
-                      </div>
-
-                      {/* Open on X link button (Reshare Stack only) */}
-                      {useStackLayout && (
+                  {(!useStackLayout || tweetEmbedStep === 'full') && (
+                    <>
+                      {/* State: pill (only in non-stack mode when selected) */}
+                      {!useStackLayout && tweetEmbedStep === 'pill' && (
                         <button
+                          ref={registerRef('essential-tweet-embed')}
                           onClick={(e) => {
+                            e.stopPropagation();
+                            if (post.shared_url) window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl bg-black/40 border border-white/20 hover:bg-black/60 transition-colors text-left mt-auto flex-shrink-0"
+                          style={{ height: 50 }}
+                        >
+                          <div className="w-8 h-8 rounded-full bg-black flex-shrink-0 flex items-center justify-center">
+                            <span className="text-white text-sm font-bold">𝕏</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-white/60 uppercase tracking-wider">Tweet</p>
+                            <p className="text-sm text-white truncate">
+                              {articlePreview?.author_name ? `@${articlePreview.author_username || ''}` : articlePreview?.title || 'Apri su X'}
+                            </p>
+                          </div>
+                        </button>
+                      )}
+
+                      {/* State: compact (only in non-stack mode when selected) */}
+                      {!useStackLayout && tweetEmbedStep === 'compact' && (
+                        <div 
+                          ref={registerRef('essential-tweet-embed')}
+                          className="rounded-2xl bg-[#15202B]/30 border border-white/10 p-3 flex flex-col gap-2 mt-auto flex-shrink-0 text-left"
+                        >
+                          {/* Header */}
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-full border border-white/20 overflow-hidden bg-[#1DA1F2]/10 flex-shrink-0 flex items-center justify-center">
+                              {articlePreview?.author_avatar ? (
+                                <img
+                                  src={articlePreview.author_avatar}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-white/50 text-xs font-bold">
+                                  {(articlePreview?.author_name || articlePreview?.author_username || 'X').charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1">
+                                <p className="text-white font-semibold truncate text-xs">
+                                  {articlePreview?.author_name || articlePreview?.title?.replace('Post by ', '').replace('@', '') || 'X User'}
+                                </p>
+                                {articlePreview?.is_verified && (
+                                  <div className="flex-shrink-0 w-3.5 h-3.5 rounded-full bg-[#1DA1F2] flex items-center justify-center">
+                                    <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
+                              {articlePreview?.author_username && (
+                                <p className="text-white/50 text-[10px]">@{articlePreview.author_username}</p>
+                              )}
+                            </div>
+                            <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-white flex items-center justify-center flex-shrink-0">
+                              <span className="text-black font-bold text-[10px]">𝕏</span>
+                            </div>
+                          </div>
+
+                          {/* Body Tweet 2 righe */}
+                          <p className="text-xs text-white/85 leading-relaxed line-clamp-2">
+                            {(articlePreview?.content || articlePreview?.summary || post.content || '')
+                              .replace(/https?:\/\/t\.co\/\w+/g, '')
+                              .replace(/https?:\/\/[^\s]+/g, '')
+                              .replace(/\s{2,}/g, ' ')
+                              .trim()}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* State: full (for both stack layout and non-stack mode when selected) */}
+                      {(useStackLayout || tweetEmbedStep === 'full') && (
+                        <div 
+                          ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-tweet-embed')}
+                          style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                          className={cn(
+                            "bg-gradient-to-br from-[#1DA1F2]/5 to-white/90 dark:from-[#15202B] dark:to-[#0d1117] rounded-3xl p-5 border border-black/5 dark:border-white/15 flex flex-col max-h-full mt-auto flex-shrink-0",
+                            useStackLayout && "cursor-pointer active:scale-[0.98] transition-transform"
+                          )}
+                          onClick={useStackLayout ? (e) => {
                             e.stopPropagation();
                             if (post.shared_url) {
                               window.open(post.shared_url, '_blank', 'noopener,noreferrer');
                             }
-                          }}
-                          className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors mt-2 self-start"
+                          } : undefined}
                         >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          <span className="text-xs uppercase tracking-wider">Apri su X</span>
-                        </button>
+                          {/* Author Row - Fixed height */}
+                          <div className="flex items-center gap-3 mb-4 flex-shrink-0">
+                            <div className="w-12 h-12 rounded-full border border-white/20 overflow-hidden bg-[#1DA1F2]/10 flex-shrink-0 flex items-center justify-center">
+                              {articlePreview?.author_avatar ? (
+                                <img
+                                  src={articlePreview.author_avatar}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-white/50 text-xl font-bold">
+                                  {(articlePreview?.author_name || articlePreview?.author_username || 'X').charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0 text-left">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-slate-900 dark:text-white font-semibold truncate text-sm">
+                                  {articlePreview?.author_name || articlePreview?.title?.replace('Post by ', '').replace('@', '') || 'X User'}
+                                </p>
+                                {articlePreview?.is_verified && (
+                                  <div className="flex-shrink-0 w-[18px] h-[18px] rounded-full bg-[#1DA1F2] flex items-center justify-center">
+                                    <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
+                              {articlePreview?.author_username && (
+                                <p className="text-slate-500 dark:text-white/50 text-xs">@{articlePreview.author_username}</p>
+                              )}
+                            </div>
+                            <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-white flex items-center justify-center flex-shrink-0">
+                              <span className="text-black font-bold text-xs">𝕏</span>
+                            </div>
+                          </div>
+
+                          {/* Tweet Text - clamped */}
+                          <div className="flex-shrink-0 min-h-0 overflow-hidden mb-2 text-left">
+                            <p className="text-slate-900 dark:text-white text-sm leading-relaxed line-clamp-4">
+                              {(articlePreview?.content || articlePreview?.summary || post.content || '')
+                                .replace(/https?:\/\/t\.co\/\w+/g, '')
+                                .replace(/https?:\/\/[^\s]+/g, '')
+                                .replace(/\s{2,}/g, ' ')
+                                .trim()}
+                            </p>
+                          </div>
+
+                          {/* Immagine media se presente, strip orizzontale (solo in modalità non-stack) */}
+                          {!useStackLayout && (articlePreview?.image || post.preview_img) && (
+                            <div className="rounded-lg overflow-hidden flex-shrink min-h-0 mt-2">
+                              <img
+                                src={articlePreview?.image || post.preview_img}
+                                alt=""
+                                className="w-full"
+                                style={{
+                                  height: 100,
+                                  objectFit: 'cover',
+                                  objectPosition: 'center'
+                                }}
+                              />
+                            </div>
+                          )}
+
+                          {/* Open on X link button (Reshare Stack only) */}
+                          {useStackLayout && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (post.shared_url) {
+                                  window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                                }
+                              }}
+                              className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors mt-2 self-start"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              <span className="text-xs uppercase tracking-wider">Apri su X</span>
+                            </button>
+                          )}
+                        </div>
                       )}
-                    </div>
+                    </>
                   )}
 
                   {useStackLayout && (tweetEmbedStep === 'pill' || tweetEmbedStep === 'compact') && (
