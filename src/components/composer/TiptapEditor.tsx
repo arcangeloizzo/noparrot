@@ -3,6 +3,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import Placeholder from '@tiptap/extension-placeholder';
 import Mention from '@tiptap/extension-mention';
+import Link from '@tiptap/extension-link';
 import { useCallback, useEffect, useImperativeHandle, forwardRef, useRef, useState } from 'react';
 import tippy, { Instance as TippyInstance } from 'tippy.js';
 import 'tippy.js/dist/tippy.css';
@@ -257,6 +258,10 @@ const TiptapEditor = forwardRef<TiptapEditorRef, TiptapEditorProps>(({
             `@${node.attrs.label ?? node.attrs.id}`,
           ];
         },
+      }),
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
       }),
     ],
     content: initialContent,
