@@ -2728,9 +2728,13 @@ export type Database = {
         Returns: {
           author_id: string
           category: string
+          challenge_body: string
+          challenge_title: string
           content: string
           created_at: string
           id: string
+          media_type: string
+          media_url: string
           passed_gate: boolean
           preview_img: string
           quoted_post_id: string
@@ -2739,6 +2743,8 @@ export type Database = {
           sources: Json
           topic_id: string
           topic_label: string
+          voice_body: string
+          voice_title: string
         }[]
       }
       get_profile_summary: { Args: { target_user_id: string }; Returns: Json }
