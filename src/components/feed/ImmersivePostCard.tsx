@@ -429,6 +429,10 @@ const ImmersivePostCardInner = ({
   // Full text modal for long posts
   const [showFullText, setShowFullText] = useState(false);
   const [fullTextMode, setFullTextMode] = useState<'description' | 'transcript'>('description');
+  const openFullTextDrawer = (mode: 'description' | 'transcript' = 'description') => {
+    setFullTextMode(mode);
+    setShowFullText(true);
+  };
   const [showMediaExpandedSheet, setShowMediaExpandedSheet] = useState(false);
 
   // Caption expansion state for long Instagram/social captions
@@ -1554,7 +1558,7 @@ const ImmersivePostCardInner = ({
         <DynamicClampBody
           containerRef={contentRailRef}
           content={content}
-          onShowFull={() => setShowFullText(true)}
+          onShowFull={() => openFullTextDrawer('description')}
           enabled={isNearActive}
           lineHeightPx={hasTitle ? 22 : 28}
           minLines={2}
@@ -2578,7 +2582,7 @@ const ImmersivePostCardInner = ({
                   {shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setFullTextMode('description'); setShowFullText(true); }}
+                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
                         className="text-sm text-primary font-semibold hover:underline block"
                       >
                         Approfondisci
@@ -2663,7 +2667,7 @@ const ImmersivePostCardInner = ({
                         audioUrl={activeVoicePost?.audio_url || ''}
                         durationSeconds={activeVoicePost?.duration_seconds || 0}
                         transcriptStatus={activeVoicePost?.transcript_status as any}
-                        onShowTranscript={() => { setFullTextMode('transcript'); setShowFullText(true); }}
+                        onShowTranscript={() => openFullTextDrawer('transcript')}
                       />
                     </div>
                   )}
@@ -2675,7 +2679,7 @@ const ImmersivePostCardInner = ({
                         durationSeconds={activeVoicePost?.duration_seconds || 0}
                         transcript={activeVoicePost?.transcript}
                         transcriptStatus={activeVoicePost?.transcript_status as any}
-                        onShowTranscript={() => { setFullTextMode('transcript'); setShowFullText(true); }}
+                        onShowTranscript={() => openFullTextDrawer('transcript')}
                       />
                     </div>
                   )}
@@ -2771,7 +2775,7 @@ const ImmersivePostCardInner = ({
                   {shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setFullTextMode('description'); setShowFullText(true); }}
+                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
                         className="text-sm text-primary font-semibold hover:underline block"
                       >
                         Approfondisci
@@ -2858,7 +2862,7 @@ const ImmersivePostCardInner = ({
                       transcript={activeVoicePost?.transcript}
                       transcriptStatus={activeVoicePost?.transcript_status as any}
                       accentColor="#E41E52"
-                      onShowTranscript={() => { setFullTextMode('transcript'); setShowFullText(true); }}
+                      onShowTranscript={() => openFullTextDrawer('transcript')}
                     />
                   </div>
 
@@ -3154,7 +3158,7 @@ const ImmersivePostCardInner = ({
                   {shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3 text-left">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
                         className="text-sm text-primary font-semibold hover:underline block"
                       >
                         Approfondisci
@@ -3287,7 +3291,7 @@ const ImmersivePostCardInner = ({
                   {shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
                         className="text-sm text-primary font-semibold hover:underline block"
                       >
                         Approfondisci
@@ -3434,7 +3438,7 @@ const ImmersivePostCardInner = ({
                   {!useStackLayout && shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3 text-left">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
                         className="text-sm text-primary font-semibold hover:underline block"
                       >
                         Approfondisci
@@ -3727,7 +3731,7 @@ const ImmersivePostCardInner = ({
                   {!useStackLayout && shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3 text-left">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
                         className="text-sm text-primary font-semibold hover:underline block"
                       >
                         Approfondisci
@@ -3846,7 +3850,7 @@ const ImmersivePostCardInner = ({
                   {shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3 text-left self-start">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
                         className="text-sm font-semibold hover:underline block text-[#FF0000]"
                       >
                         Approfondisci
@@ -3926,7 +3930,7 @@ const ImmersivePostCardInner = ({
                   {!useStackLayout && shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
                         className="text-sm text-primary font-semibold hover:underline block"
                       >
                         Approfondisci
@@ -4163,7 +4167,7 @@ const ImmersivePostCardInner = ({
                   {!useStackLayout && shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
                         className="text-sm text-primary font-semibold hover:underline block"
                       >
                         Approfondisci
@@ -4292,7 +4296,7 @@ const ImmersivePostCardInner = ({
                   {!useStackLayout && shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
                         className="text-sm text-primary font-semibold hover:underline block"
                       >
                         Approfondisci
@@ -4421,7 +4425,7 @@ const ImmersivePostCardInner = ({
                   {!useStackLayout && shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
                         className="text-sm text-primary font-semibold hover:underline block"
                       >
                         Approfondisci
@@ -4631,7 +4635,7 @@ const ImmersivePostCardInner = ({
                   {shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3 text-left self-start">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
                         className="text-sm font-semibold hover:underline block text-[#E1306C]"
                       >
                         Approfondisci
@@ -4674,7 +4678,7 @@ const ImmersivePostCardInner = ({
               {useStackLayout && shouldShowApprofondisci && (
                 <div className="flex-shrink-0 mt-2 mb-3 text-left">
                   <button
-                    onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                    onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
                     className="text-sm text-primary font-semibold hover:underline block"
                   >
                     Approfondisci
@@ -5033,7 +5037,7 @@ const ImmersivePostCardInner = ({
               ? activeVoicePost?.audio_url || undefined
               : undefined
           }
-          showModeToggle={isVoicePost}
+          showModeToggle={isVoicePost || isChallengePost}
           fullTextMode={fullTextMode}
           onModeChange={(mode) => setFullTextMode(mode)}
           transcriptContent={
