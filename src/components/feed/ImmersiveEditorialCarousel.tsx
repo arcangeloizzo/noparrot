@@ -550,11 +550,6 @@ const EditorialSlideInner = ({
 
         {/* Main Content Area - Editorial Edition Layout */}
         <div className="flex flex-col relative">
-          {/* Soft glow vignette behind headline (Reduced blur for GPU performance) */}
-          <div className="absolute inset-0 flex items-start justify-center pointer-events-none">
-            <div className="w-[80%] h-[200px] bg-noparrot-blue/5 rounded-full mt-8" />
-          </div>
-
           {/* Content */}
           <div className="relative z-10">
             {/* Author Row - Il Punto Brand */}
