@@ -2716,6 +2716,32 @@ export type Database = {
           username: string
         }[]
       }
+      get_diary_entries: {
+        Args: {
+          p_cursor?: string
+          p_diary_filter?: string
+          p_limit: number
+          p_selected_macro?: string
+          p_selected_topic?: string
+          p_user_id: string
+        }
+        Returns: {
+          author_id: string
+          category: string
+          content: string
+          created_at: string
+          id: string
+          passed_gate: boolean
+          preview_img: string
+          quoted_post_id: string
+          shared_title: string
+          shared_url: string
+          sources: Json
+          topic_id: string
+          topic_label: string
+        }[]
+      }
+      get_profile_summary: { Args: { target_user_id: string }; Returns: Json }
       get_share_counts: {
         Args: { shared_urls: string[] }
         Returns: {
@@ -2763,6 +2789,7 @@ export type Database = {
         Returns: undefined
       }
       is_valid_username: { Args: { username: string }; Returns: boolean }
+      normalize_category: { Args: { raw: string }; Returns: string }
       refresh_user_cognitive_density: { Args: never; Returns: undefined }
       update_last_seen: { Args: never; Returns: undefined }
       user_can_react_to_message: {
