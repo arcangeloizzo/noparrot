@@ -1617,7 +1617,7 @@ const ImmersivePostCardInner = ({
         }
       ];
     }
-    if (isStandardPost || isInstagramReel) {
+    if (isStandardPost || isInstagramReel || isIntentPost) {
       return [
         { id: 'essential-title' }
       ];
@@ -1673,6 +1673,7 @@ const ImmersivePostCardInner = ({
     isGenericArticle,
     isStandardPost,
     isInstagramReel,
+    isIntentPost,
     isVoicePost,
     isChallengePost,
     isLinkedIn,
@@ -1802,8 +1803,18 @@ const ImmersivePostCardInner = ({
       }
       return config;
     }
+    if (isIntentPost) {
+      return [
+        {
+          id: 'flexible-intent-text',
+          compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
+          minReadabilityHeight: 60,
+          fallbackHeight: 120
+        }
+      ];
+    }
     return [];
-  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media, shouldUseBlurredBg]);
+  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isIntentPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media, shouldUseBlurredBg]);
  
   const priorityConfig = useMemo(() => {
     if (isSpotifyEpisode || isSpotifyTrack || isYoutube || isGenericArticle) {
@@ -1853,8 +1864,11 @@ const ImmersivePostCardInner = ({
       }
       return priority;
     }
+    if (isIntentPost) {
+      return ['flexible-intent-text'];
+    }
     return [];
-  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media, shouldUseBlurredBg]);
+  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isIntentPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media, shouldUseBlurredBg]);
 
   const {
     status: layoutStatus,
@@ -2948,10 +2962,46 @@ const ImmersivePostCardInner = ({
 
               {/* Intent Post (non-stack): Quote Block style for posts with is_intent flag */}
               {!useStackLayout && post.is_intent && post.content && (
-                <div className="border-l-4 border-primary/60 bg-card/10 px-3 sm:px-4 py-2 sm:py-3 rounded-r-lg mb-4 sm:mb-6">
-                  <p className="text-base sm:text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide ">
-                    <MentionText content={post.content} />
-                  </p>
+                <div className="flex flex-col w-full flex-shrink-0">
+                  {flexiblesStatus['flexible-intent-text']?.step === 'full' && (
+                    <div 
+                      ref={(el) => { registerRef('flexible-intent-text')(el); bodyTextRef.current = el; }}
+                      className="border-l-4 border-primary/60 bg-card/10 px-3 sm:px-4 py-2 sm:py-3 rounded-r-lg mb-4 sm:mb-6"
+                    >
+                      <p className="text-base sm:text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide ">
+                        <MentionText content={post.content} />
+                      </p>
+                    </div>
+                  )}
+                  {flexiblesStatus['flexible-intent-text']?.step === 'clamped' && (
+                    <div 
+                      ref={(el) => { registerRef('flexible-intent-text')(el); bodyTextRef.current = el; }}
+                      className="border-l-4 border-primary/60 bg-card/10 px-3 sm:px-4 py-2 sm:py-3 rounded-r-lg mb-4 sm:mb-6 overflow-hidden"
+                      style={{ 
+                        height: `${flexiblesStatus['flexible-intent-text'].height}px`,
+                        display: '-webkit-box',
+                        WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-intent-text'].height / 24)),
+                        WebkitBoxOrient: 'vertical',
+                      }}
+                    >
+                      <p className="text-base sm:text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide">
+                        <MentionText content={post.content} />
+                      </p>
+                    </div>
+                  )}
+                  {flexiblesStatus['flexible-intent-text']?.step === 'hidden' && (
+                    <div ref={registerRef('flexible-intent-text')} style={{ height: 0, overflow: 'hidden' }} />
+                  )}
+                  {shouldShowApprofondisci && (
+                    <div className="flex-shrink-0 mt-2 mb-3 text-left">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        className="text-sm text-primary font-semibold hover:underline block"
+                      >
+                        Approfondisci
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
