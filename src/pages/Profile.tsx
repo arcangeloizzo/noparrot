@@ -15,7 +15,6 @@ import { PulseCard } from "@/components/profile/PulseCard";
 import { getDisplayUsername } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCognitiveDensity } from "@/hooks/useCognitiveDensity";
-import { useUserComprehensionCount } from "@/hooks/useUserComprehensionCount";
 import { useNebulaFilter } from "@/hooks/useNebulaFilter";
 import { DiarioFilterChip } from "@/components/profile/DiarioFilterChip";
 import { normalizeCategory } from "@/config/categories";
@@ -54,9 +53,26 @@ export const Profile = () => {
   });
 
   // Nebulosa derivata (RPC) — sostituisce profiles.cognitive_density
-  // isOwnProfile=true → usa wrapper fresh che fa refresh on-demand della MV
   const { data: cognitiveDensity } = useCognitiveDensity(user?.id);
-  const { data: comprehensionCount = 0 } = useUserComprehensionCount(user?.id);
+
+  const { data: summary } = useQuery({
+    queryKey: ['profile-summary', user?.id],
+    queryFn: async () => {
+      if (!user?.id) throw new Error("Not authenticated");
+      const { data, error } = await (supabase as any)
+        .rpc('get_profile_summary', { target_user_id: user.id })
+        .single();
+      if (error) throw error;
+      return data as {
+        comprehension_count: number;
+        posts_count: number;
+        followers_count: number;
+        following_count: number;
+        territories_count: number;
+      };
+    },
+    enabled: !!user,
+  });
 
   // Phase 4.5 — filtro Nebulosa → Diario (persistente in sessionStorage per utente)
   const {
@@ -75,26 +91,6 @@ export const Profile = () => {
     }, 80);
   };
 
-  const { data: stats } = useQuery({
-    queryKey: ["profile-stats", user?.id],
-    queryFn: async () => {
-      if (!user) return { following: 0, followers: 0, posts: 0, activeTopics: 0 };
-
-      const [followingRes, followersRes, postsRes] = await Promise.all([
-        supabase.from("followers").select("id", { count: "exact" }).eq("follower_id", user.id),
-        supabase.from("followers").select("id", { count: "exact" }).eq("following_id", user.id),
-        supabase.from("posts").select("id", { count: "exact" }).eq("author_id", user.id),
-      ]);
-
-      return {
-        following: followingRes.count || 0,
-        followers: followersRes.count || 0,
-        posts: postsRes.count || 0,
-        activeTopics: 0, // calcolato sotto da cognitiveDensity derivata
-      };
-    },
-    enabled: !!user && !!profile,
-  });
 
   // Fetch diary entries (user posts + gated posts)
   const { data: diaryEntries = [], isLoading: loadingDiary } = useQuery({
@@ -297,8 +293,8 @@ export const Profile = () => {
     );
   }
 
-  const totalPaths = comprehensionCount;
-  const activeTopics = cognitiveDensity.rows.filter(r => r.density > 0).length;
+  const totalPaths = summary?.comprehension_count ?? 0;
+  const activeTopics = summary?.territories_count ?? 0;
 
   return (
     <div className="min-h-screen bg-background pb-24 urban-texture">
@@ -423,13 +419,12 @@ export const Profile = () => {
               >
                 <b className="text-foreground/80" style={{ fontWeight: 600 }}>{activeTopics}</b> territori esplorati
               </button>
-              <span aria-hidden style={{ opacity: 0.4 }}>·</span>
               <button
                 type="button"
                 onClick={openConnections}
                 className="hover:text-foreground transition-colors"
               >
-                <b className="text-foreground/80" style={{ fontWeight: 600 }}>{stats?.following || 0}</b> persone seguite
+                <b className="text-foreground/80" style={{ fontWeight: 600 }}>{summary?.following_count || 0}</b> persone seguite
               </button>
               <span aria-hidden style={{ opacity: 0.4 }}>·</span>
               <button
@@ -437,7 +432,7 @@ export const Profile = () => {
                 onClick={openFollowers}
                 className="hover:text-foreground transition-colors"
               >
-                <b className="text-foreground/80" style={{ fontWeight: 600 }}>{stats?.followers || 0}</b> ti seguono
+                <b className="text-foreground/80" style={{ fontWeight: 600 }}>{summary?.followers_count || 0}</b> ti seguono
               </button>
             </div>
           </div>
