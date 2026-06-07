@@ -1657,10 +1657,13 @@ const ImmersivePostCardInner = ({
     }
     if (isLinkedIn) {
       return [
+        { id: 'essential-title' },
         {
           id: 'essential-linkedin-embed',
           states: [
-            { id: 'full', height: 180 }
+            { id: 'full', height: 320 },
+            { id: 'compact', height: 170 },
+            { id: 'pill', height: 50 }
           ]
         },
         { id: 'essential-external-cta' }
@@ -1928,7 +1931,9 @@ const ImmersivePostCardInner = ({
     emergencyScroll,
     registerRef
   } = useDynamicCardLayout({
-    availableHeight: isInstagramReel ? availableHeight - 75 : availableHeight,
+    availableHeight: (isInstagramReel || isYoutube || isLinkedIn || isTwitter) 
+      ? availableHeight - 75 
+      : availableHeight,
     essentials: essentialsConfig,
     flexibles: flexiblesConfig,
     compressionPriority: priorityConfig
@@ -3480,6 +3485,24 @@ const ImmersivePostCardInner = ({
                     emergencyScroll && "overflow-y-auto"
                   )}
                 >
+                  {/* post.title (titolo NoParrot dato dall'utente) */}
+                  {!useStackLayout && post.title && post.title.trim().length > 0 && (
+                    <h2
+                      ref={registerRef('essential-title')}
+                      className="uppercase mb-2 flex-shrink-0"
+                      style={{
+                        fontFamily: 'Impact, sans-serif',
+                        fontSize: 'clamp(30px, 8vw, 42px)',
+                        lineHeight: 0.92,
+                        letterSpacing: '-0.02em',
+                        color: '#FFFFFF',
+                        textAlign: 'left'
+                      }}
+                    >
+                      {post.title}
+                    </h2>
+                  )}
+
                   {/* Commento utente flessibile (3 stati) */}
                   {!useStackLayout && post.content && post.content.trim().length > 0 && (
                     <>
@@ -3530,7 +3553,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* LinkedIn embed (essenziale a stati) */}
-                  {linkedinEmbedStep === 'full' && (
+                  {(!useStackLayout || linkedinEmbedStep === 'full') && (
                     <div 
                       ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-linkedin-embed')} 
                       style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
@@ -3540,6 +3563,7 @@ const ImmersivePostCardInner = ({
                         post={post}
                         articlePreview={articlePreview}
                         useStackLayout={useStackLayout}
+                        embedStep={useStackLayout ? 'full' : (linkedinEmbedStep as any || 'full')}
                       />
                     </div>
                   )}

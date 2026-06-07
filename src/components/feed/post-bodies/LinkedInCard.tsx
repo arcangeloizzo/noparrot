@@ -5,113 +5,132 @@ import { cn } from "@/lib/utils";
 interface LinkedInCardProps {
   post: Post;
   articlePreview: any;
-  useStackLayout: boolean;
+  useStackLayout?: boolean;
+  embedStep?: 'full' | 'compact' | 'pill';
 }
 
 export const LinkedInCard = ({
   post,
   articlePreview,
   useStackLayout,
+  embedStep = 'full',
 }: LinkedInCardProps) => {
-  return (
-    <div className="w-full mt-2 sm:mt-6 flex-shrink min-h-0 flex flex-col justify-center overflow-hidden" style={{ maxHeight: '60vh' }}>
-      {/* Unified LinkedIn Card */}
-      <div
-        className={cn(
-          "bg-gradient-to-br from-[#0A66C2]/10 to-white/90 dark:from-[#0A66C2]/20 dark:to-[#1a1a2e]/95 rounded-3xl p-4 sm:p-5 border border-black/5 dark:border-white/15 flex flex-col min-h-0 flex-shrink overflow-hidden",
-          useStackLayout && "cursor-pointer active:scale-[0.98] transition-transform"
-        )}
-        onClick={useStackLayout ? (e) => {
+  
+  if (embedStep === 'pill') {
+    return (
+      <button 
+        onClick={(e) => {
           e.stopPropagation();
           if (post.shared_url) {
             window.open(post.shared_url, '_blank', 'noopener,noreferrer');
           }
-        } : undefined}
+        }}
+        className="w-full flex items-center gap-3 px-3 py-2 rounded-xl bg-[#0A66C2]/10 border border-[#0A66C2]/30 hover:bg-[#0A66C2]/20 transition-colors text-left"
+        style={{ height: 50 }}
       >
-        {/* Author Row */}
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-12 h-12 rounded-full border border-white/20 overflow-hidden bg-[#0A66C2]/20 flex-shrink-0 flex items-center justify-center">
-            {articlePreview?.author_avatar ? (
-              <img
-                src={articlePreview.author_avatar}
-                alt=""
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).style.display = 'none';
-                }}
-              />
-            ) : (
-              <span className="text-white/70 text-xl font-bold">
-                {(() => {
-                  // Get first letter of author name
-                  const author = articlePreview?.author ||
-                    (articlePreview?.title || '')
-                      .replace(/\s*[|\-–]\s*LinkedIn.*$/i, '')
-                      .replace(/^Post di\s+/i, '')
-                      .replace(/^Post by\s+/i, '')
-                      .split(/\s*[|\-–]\s*/)[0]
-                      .trim();
-                  return (author || 'L').charAt(0).toUpperCase();
-                })()}
-              </span>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-white font-semibold truncate">
-              {articlePreview?.author ||
-                (articlePreview?.title || '')
-                  .replace(/\s*[|\-–]\s*LinkedIn.*$/i, '')
-                  .replace(/^Post di\s+/i, '')
-                  .replace(/^Post by\s+/i, '')
-                  .split(/\s*[|\-–]\s*/)[0]
-                  .trim() ||
-                'LinkedIn User'}
-            </p>
-            <p className="text-white/50 text-sm">su LinkedIn</p>
-          </div>
+        <div className="w-8 h-8 rounded-full bg-[#0A66C2]/20 flex-shrink-0 flex items-center justify-center">
+          <span className="text-[#0A66C2] text-sm font-bold">in</span>
         </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-white/60 uppercase tracking-wider">Articolo su LinkedIn</p>
+          <p className="text-sm text-white truncate">{articlePreview?.title || post.shared_title}</p>
+        </div>
+      </button>
+    );
+  }
 
-        {/* Post Text - cleaned and clamped */}
-        <p className="text-white text-base leading-relaxed mb-2 sm:mb-4 line-clamp-4">
-          {(articlePreview?.content || articlePreview?.description || articlePreview?.summary || '')
-            .replace(/https?:\/\/[^\s]+/g, '')
-            .replace(/\s{2,}/g, ' ')
-            .trim() ||
-            (articlePreview?.title || '')
-              .replace(/\s*[|\-–]\s*LinkedIn.*$/i, '')
-              .replace(/^Post di\s+/i, '')
-              .replace(/^Post by\s+/i, '')
-              .trim()}
-        </p>
+  // Author row setup
+  const authorInit = (() => {
+    const author = articlePreview?.author ||
+      (articlePreview?.title || '')
+        .replace(/\s*[|\-–]\s*LinkedIn.*$/i, '')
+        .replace(/^Post di\s+/i, '')
+        .replace(/^Post by\s+/i, '')
+        .split(/\s*[|\-–]\s*/)[0]
+        .trim();
+    return (author || 'I').charAt(0).toUpperCase();
+  })();
 
-        {/* Post Image (if any) */}
-        {(articlePreview?.image || post.preview_img) && (
-          <div className="rounded-xl overflow-hidden flex-shrink min-h-0">
+  const authorName = articlePreview?.author ||
+    (articlePreview?.title || '')
+      .replace(/\s*[|\-–]\s*LinkedIn.*$/i, '')
+      .replace(/^Post di\s+/i, '')
+      .replace(/^Post by\s+/i, '')
+      .split(/\s*[|\-–]\s*/)[0]
+      .trim() ||
+    'LinkedIn User';
+
+  const bodyText = (articlePreview?.content || articlePreview?.description || articlePreview?.summary || '')
+    .replace(/https?:\/\/[^\s]+/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim() ||
+    (articlePreview?.title || '')
+      .replace(/\s*[|\-–]\s*LinkedIn.*$/i, '')
+      .replace(/^Post di\s+/i, '')
+      .replace(/^Post by\s+/i, '')
+      .trim();
+
+  // Full or compact rendering
+  return (
+    <div 
+      className={cn(
+        "rounded-2xl p-3 flex flex-col gap-2 transition-colors",
+        embedStep === 'compact' 
+          ? "bg-[#0A66C2]/5 border border-[#0A66C2]/20 opacity-90" 
+          : "bg-gradient-to-br from-[#0A66C2]/10 to-white/90 dark:from-[#0A66C2]/20 dark:to-[#1a1a2e]/95 border border-black/5 dark:border-white/15"
+      )}
+    >
+      {/* Header */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="w-8 h-8 rounded-full bg-[#0A66C2]/20 border border-white/20 overflow-hidden flex-shrink-0 flex items-center justify-center">
+          {articlePreview?.author_avatar ? (
             <img
-              src={articlePreview?.image || post.preview_img}
+              src={articlePreview.author_avatar}
               alt=""
-              className={useStackLayout
-                ? "w-full h-auto max-h-24 sm:max-h-40 object-cover"
-                : "w-full h-auto max-h-[28vh] object-cover rounded-xl"}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
             />
-          </div>
-        )}
+          ) : (
+            <span className="text-[#0A66C2] text-sm font-bold">{authorInit}</span>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-white truncate">
+            {authorName}
+          </p>
+          <p className="text-xs text-white/50">su LinkedIn</p>
+        </div>
       </div>
 
-      {/* Open on LinkedIn CTA - brand pill (Reshare Stack only) */}
-      {useStackLayout && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            if (post.shared_url) {
-              window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-            }
-          }}
-          className="mt-3 inline-flex self-start items-center gap-2 rounded-full bg-[#0A66C2] hover:bg-[#0A66C2]/90 active:scale-[0.98] transition-all px-4 py-2 text-white shadow-md flex-shrink-0"
+      {/* Body text */}
+      {bodyText && (
+        <p 
+          className={cn(
+            "text-sm text-white/85 leading-relaxed",
+            embedStep === 'compact' ? "line-clamp-2" : "line-clamp-4"
+          )}
+          style={{ fontFamily: 'Inter, sans-serif' }}
         >
-          <Linkedin className="w-4 h-4" fill="currentColor" strokeWidth={0} />
-          <span className="text-sm font-semibold">Apri su LinkedIn</span>
-        </button>
+          {bodyText}
+        </p>
+      )}
+
+      {/* Image: only in full state, horizontal wide cropped */}
+      {embedStep === 'full' && (articlePreview?.image || post.preview_img) && (
+        <div className="rounded-lg overflow-hidden flex-shrink min-h-0">
+          <img
+            src={articlePreview?.image || post.preview_img}
+            alt=""
+            className="w-full"
+            style={{
+              height: 150,
+              objectFit: 'cover',
+              objectPosition: 'center'
+            }}
+          />
+        </div>
       )}
     </div>
   );
