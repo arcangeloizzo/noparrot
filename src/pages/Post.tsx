@@ -127,7 +127,7 @@ export const Post = () => {
           votes_against: (data as any).challenges[0].votes_against || 0,
           title: (data as any).challenges[0].title,
           body_text: (data as any).challenges[0].body_text,
-          voice_post: (data as any).challenges[0].voice_posts || null,
+          voice_post: (data as any).challenges[0].voice_posts?.[0] || null,
         } : null,
         quoted_post: null,
         media: mediaItems,

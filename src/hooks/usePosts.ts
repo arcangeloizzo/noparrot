@@ -335,7 +335,7 @@ export const usePosts = () => {
             votes_against: post.quoted_post.challenges[0].votes_against || 0,
             title: post.quoted_post.challenges[0].title,
             body_text: post.quoted_post.challenges[0].body_text,
-            voice_post: post.quoted_post.challenges[0].voice_posts || null,
+            voice_post: post.quoted_post.challenges[0].voice_posts?.[0] || null,
           } : null,
           media: (post.quoted_post.post_media || [])
             .sort((a: any, b: any) => a.order_idx - b.order_idx)
@@ -356,7 +356,7 @@ export const usePosts = () => {
           votes_against: post.challenges[0].votes_against || 0,
           title: post.challenges[0].title,
           body_text: post.challenges[0].body_text,
-          voice_post: post.challenges[0].voice_posts || null,
+          voice_post: post.challenges[0].voice_posts?.[0] || null,
         } : null,
         media: (post.post_media || [])
           .sort((a: any, b: any) => a.order_idx - b.order_idx)
@@ -892,7 +892,7 @@ export const useQuotedPost = (quotedPostId: string | null) => {
           votes_against: post.challenges[0].votes_against || 0,
           title: post.challenges[0].title,
           body_text: post.challenges[0].body_text,
-          voice_post: post.challenges[0].voice_posts || null,
+          voice_post: post.challenges[0].voice_posts?.[0] || null,
         } : null,
       };
     },

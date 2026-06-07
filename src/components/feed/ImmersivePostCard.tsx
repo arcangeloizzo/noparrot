@@ -2686,7 +2686,7 @@ const ImmersivePostCardInner = ({
               {!useStackLayout && isChallengePost && activeVoicePost && post.challenge && (
                 <div 
                   className={cn(
-                    "w-full flex flex-col pt-2 pb-6 flex-1 min-h-0 justify-start",
+                    "w-full flex flex-col pt-2 pb-16 flex-1 min-h-0 justify-start",
                     emergencyScroll && "overflow-y-auto"
                   )}
                 >
