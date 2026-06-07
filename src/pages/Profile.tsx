@@ -86,8 +86,6 @@ export const Profile = () => {
         supabase.from("posts").select("id", { count: "exact" }).eq("author_id", user.id),
       ]);
 
-      console.log('Stats Debug:', { following: followingRes.count, followers: followersRes.count, posts: postsRes.count, error: followingRes.error || followersRes.error || postsRes.error });
-
       return {
         following: followingRes.count || 0,
         followers: followersRes.count || 0,
@@ -113,6 +111,7 @@ export const Profile = () => {
           post_topics ( topic_id, topic_label )
         `)
         .eq("author_id", user.id)
+        .eq("is_removed", false)
         .order("created_at", { ascending: false });
 
       if (postsError) {
@@ -131,6 +130,7 @@ export const Profile = () => {
         `)
         .eq("user_id", user.id)
         .eq("passed", true)
+        .eq("posts.is_removed", false)
         .order("created_at", { ascending: false });
 
       if (gatedError) {
@@ -143,9 +143,10 @@ export const Profile = () => {
         if (post.quoted_post_id) type = 'reshared';
         else if (post.shared_url || (post.sources && Array.isArray(post.sources) && post.sources.length > 0)) type = 'gated';
 
-        const pt = Array.isArray((post as any).post_topics)
-          ? (post as any).post_topics[0]
-          : (post as any).post_topics;
+        const ptArr: any[] = Array.isArray((post as any).post_topics)
+          ? (post as any).post_topics
+          : (post as any).post_topics ? [(post as any).post_topics] : [];
+        const pt = ptArr[0];
         return {
           id: post.id,
           content: post.content,
@@ -159,6 +160,7 @@ export const Profile = () => {
           type,
           topic_id: pt?.topic_id ?? null,
           topic_label: pt?.topic_label ?? null,
+          topic_ids: ptArr.map(t => t?.topic_id).filter(Boolean) as string[],
         };
       });
 
@@ -166,9 +168,10 @@ export const Profile = () => {
       const gatedEntries: DiaryEntryData[] = (gatedPosts || [])
         .filter(g => g.posts.author_id !== user.id)
         .map(g => {
-          const pt = Array.isArray((g.posts as any).post_topics)
-            ? (g.posts as any).post_topics[0]
-            : (g.posts as any).post_topics;
+          const ptArr: any[] = Array.isArray((g.posts as any).post_topics)
+            ? (g.posts as any).post_topics
+            : (g.posts as any).post_topics ? [(g.posts as any).post_topics] : [];
+          const pt = ptArr[0];
           return {
           id: g.posts.id,
           content: g.posts.content,
@@ -183,6 +186,7 @@ export const Profile = () => {
           passed_gate: true,
           topic_id: pt?.topic_id ?? null,
           topic_label: pt?.topic_label ?? null,
+          topic_ids: ptArr.map(t => t?.topic_id).filter(Boolean) as string[],
           };
         });
 
@@ -213,7 +217,11 @@ export const Profile = () => {
     }
     // Phase 4.6c: filtro per topic_id specifico
     if (selectedTopic) {
-      if (entry.topic_id !== selectedTopic.id) return false;
+      const ids = (entry as any).topic_ids as string[] | undefined;
+      const matches = ids && ids.length > 0
+        ? ids.some(id => id === selectedTopic.id)
+        : entry.topic_id === selectedTopic.id;
+      if (!matches) return false;
     }
     if (diaryFilter === 'all') return true;
     if (diaryFilter === 'original') return entry.type === 'original';
@@ -247,6 +255,14 @@ export const Profile = () => {
     setShowConnections(true);
   };
 
+  useEffect(() => {
+    if (!user) navigate('/auth');
+  }, [user, navigate]);
+
+  const scrollToNebula = () => {
+    document.getElementById('nebulosa-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -255,15 +271,28 @@ export const Profile = () => {
     );
   }
 
-  if (!user) {
-    navigate('/auth');
-    return null;
-  }
+  if (!user) return null;
 
   if (isLoading || !profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-muted-foreground">Caricamento profilo...</div>
+      <div className="min-h-screen bg-background pb-24 urban-texture">
+        <div className="max-w-[600px] mx-auto pt-10 pb-4">
+          <div className="px-5 flex justify-end items-center gap-2 mb-3">
+            <Skeleton className="w-10 h-10 rounded-full" />
+            <Skeleton className="w-10 h-10 rounded-full" />
+          </div>
+          <div className="flex flex-row items-start gap-4 px-5">
+            <Skeleton className="rounded-full" style={{ width: 88, height: 88 }} />
+            <div className="flex-1 min-w-0 pt-1 space-y-2">
+              <Skeleton style={{ width: 160, height: 24 }} />
+              <Skeleton style={{ width: 100, height: 16 }} />
+            </div>
+          </div>
+          <div className="px-5 pt-6 space-y-3">
+            <Skeleton style={{ width: 80, height: 44 }} />
+            <Skeleton style={{ width: 280, height: 16 }} />
+          </div>
+        </div>
       </div>
     );
   }
@@ -329,12 +358,14 @@ export const Profile = () => {
                   {profile.bio}
                 </p>
               ) : (
-                <p
-                  className="italic text-muted-foreground/60"
-                  style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.45, marginTop: 10 }}
+                <button
+                  type="button"
+                  onClick={() => navigate('/profile/edit')}
+                  className="italic text-left hover:opacity-100 transition-opacity"
+                  style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.45, marginTop: 10, color: 'hsl(var(--muted-foreground))', opacity: 0.6, fontStyle: 'italic' }}
                 >
-                  In questo periodo sto cercando di capire meglio…
-                </p>
+                  Aggiungi una bio
+                </button>
               )}
 
               {profile?.is_ai_institutional && (
@@ -414,11 +445,11 @@ export const Profile = () => {
 
         {/* Weekly Pulse */}
         <div className="px-5 mt-5">
-          <PulseCard />
+          <PulseCard onExploreTap={scrollToNebula} />
         </div>
 
         {/* Compact Cognitive Nebula (expandable) */}
-        <div ref={nebulaRef} className="px-4 mt-6 mb-4 scroll-mt-20" data-tutorial="nebulosa">
+        <div id="nebulosa-section" ref={nebulaRef} className="px-4 mt-6 mb-4 scroll-mt-20" data-tutorial="nebulosa">
           <CompactNebula
             data={cognitiveDensity}
             onExpand={() => setShowNebulaExpanded(true)}
@@ -481,7 +512,7 @@ export const Profile = () => {
                 <div
                   key={entry.id}
                   className="animate-fade-in"
-                  style={{ animationDelay: `${index * 30}ms` }}
+                  style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
                 >
                   <DiaryEntry entry={entry} />
                 </div>
