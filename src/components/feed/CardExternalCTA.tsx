@@ -43,7 +43,7 @@ export const CardExternalCTA = React.forwardRef<HTMLDivElement, CardExternalCTAP
       <div 
         ref={ref}
         className="absolute left-1/2 -translate-x-1/2 z-30 pointer-events-auto"
-        style={{ bottom: '170px' }}
+        style={{ bottom: 'calc(170px + env(safe-area-inset-bottom))' }}
       >
         <button
           onClick={(e) => {

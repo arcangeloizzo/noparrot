@@ -1928,7 +1928,7 @@ const ImmersivePostCardInner = ({
     emergencyScroll,
     registerRef
   } = useDynamicCardLayout({
-    availableHeight: isInstagramReel ? availableHeight - 75 : availableHeight,
+    availableHeight: (isInstagramReel || isYoutube || isLinkedIn || isTwitter) ? availableHeight - 75 : availableHeight,
     essentials: essentialsConfig,
     flexibles: flexiblesConfig,
     compressionPriority: priorityConfig
