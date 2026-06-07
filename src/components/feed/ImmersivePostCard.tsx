@@ -1657,13 +1657,23 @@ const ImmersivePostCardInner = ({
     }
     if (isLinkedIn) {
       return [
-        { id: 'essential-linkedin-embed' },
+        {
+          id: 'essential-linkedin-embed',
+          states: [
+            { id: 'full', height: 180 }
+          ]
+        },
         { id: 'essential-external-cta' }
       ];
     }
     if (isTwitter) {
       return [
-        { id: 'essential-tweet-embed' },
+        {
+          id: 'essential-tweet-embed',
+          states: [
+            { id: 'full', height: 160 }
+          ]
+        },
         { id: 'essential-external-cta' }
       ];
     }
@@ -1918,7 +1928,7 @@ const ImmersivePostCardInner = ({
     emergencyScroll,
     registerRef
   } = useDynamicCardLayout({
-    availableHeight: (isInstagramReel || isYoutube || isLinkedIn || isTwitter) ? availableHeight - 75 : availableHeight,
+    availableHeight: isInstagramReel ? availableHeight - 75 : availableHeight,
     essentials: essentialsConfig,
     flexibles: flexiblesConfig,
     compressionPriority: priorityConfig
@@ -1926,10 +1936,10 @@ const ImmersivePostCardInner = ({
 
   const tweetEmbedStep = useStackLayout 
     ? flexiblesStatus['flexible-reshare-link-body']?.step 
-    : (essentialStates['essential-tweet-embed'] || 'full');
+    : essentialStates['essential-tweet-embed'];
   const linkedinEmbedStep = useStackLayout 
     ? flexiblesStatus['flexible-reshare-link-body']?.step 
-    : (essentialStates['essential-linkedin-embed'] || 'full');
+    : essentialStates['essential-linkedin-embed'];
   const youtubeEmbedStep = useStackLayout 
     ? (flexiblesStatus['flexible-reshare-link-body']?.step === 'compact' ? 'compact' : (flexiblesStatus['flexible-reshare-link-body']?.step === 'hidden' ? 'hidden' : 'full'))
     : essentialStates['essential-youtube'];
