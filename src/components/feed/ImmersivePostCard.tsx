@@ -1928,7 +1928,7 @@ const ImmersivePostCardInner = ({
     emergencyScroll,
     registerRef
   } = useDynamicCardLayout({
-    availableHeight: (isInstagramReel || isYoutube || isLinkedIn || isTwitter) ? availableHeight - 75 : availableHeight,
+    availableHeight: isInstagramReel ? availableHeight - 75 : availableHeight,
     essentials: essentialsConfig,
     flexibles: flexiblesConfig,
     compressionPriority: priorityConfig
@@ -3463,6 +3463,15 @@ const ImmersivePostCardInner = ({
                   {useStackLayout && tweetEmbedStep === 'hidden' && (
                     <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
                   )}
+
+                  {!useStackLayout && post.shared_url && (
+                    <CardExternalCTA 
+                      platform="twitter" 
+                      url={post.shared_url} 
+                      mode="flow" 
+                      ref={registerRef('essential-external-cta')}
+                    />
+                  )}
                 </div>
               ) : hasLink && isLinkedIn ? (
                 <div 
@@ -3557,6 +3566,15 @@ const ImmersivePostCardInner = ({
 
                   {useStackLayout && linkedinEmbedStep === 'hidden' && (
                     <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
+                  )}
+
+                  {!useStackLayout && post.shared_url && (
+                    <CardExternalCTA 
+                      platform="linkedin" 
+                      url={post.shared_url} 
+                      mode="flow" 
+                      ref={registerRef('essential-external-cta')}
+                    />
                   )}
                 </div>
               ) : hasLink && isYoutube ? (
@@ -3792,6 +3810,15 @@ const ImmersivePostCardInner = ({
 
                   {useStackLayout && youtubeEmbedStep === 'hidden' && (
                     <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
+                  )}
+
+                  {!useStackLayout && post.shared_url && (
+                    <CardExternalCTA 
+                      platform="youtube" 
+                      url={post.shared_url} 
+                      mode="flow" 
+                      ref={registerRef('essential-external-cta')}
+                    />
                   )}
                 </div>
               ) : hasLink && isSpotifyEpisode ? (
@@ -4502,14 +4529,10 @@ const ImmersivePostCardInner = ({
             </div>
           </div>
           </div>
-          {/* Unified Card External CTA */}
-          {!useStackLayout && post.shared_url && (isInstagramReel || isYoutube || isLinkedIn || isTwitter) && (
+          {/* Unified Card External CTA for Instagram Reel */}
+          {!useStackLayout && post.shared_url && isInstagramReel && (
             <CardExternalCTA 
-              platform={
-                isInstagramReel ? 'instagram' : 
-                isYoutube ? 'youtube' : 
-                isLinkedIn ? 'linkedin' : 'twitter'
-              } 
+              platform="instagram" 
               url={post.shared_url} 
               ref={registerRef('essential-external-cta')}
             />
