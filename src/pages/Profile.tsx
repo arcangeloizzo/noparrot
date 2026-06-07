@@ -350,12 +350,14 @@ export const Profile = () => {
                   {profile.bio}
                 </p>
               ) : (
-                <p
-                  className="italic text-muted-foreground/60"
-                  style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.45, marginTop: 10 }}
+                <button
+                  type="button"
+                  onClick={() => navigate('/profile/edit')}
+                  className="italic text-left hover:opacity-100 transition-opacity"
+                  style={{ fontSize: 14, fontWeight: 400, lineHeight: 1.45, marginTop: 10, color: 'hsl(var(--muted-foreground))', opacity: 0.6, fontStyle: 'italic' }}
                 >
-                  In questo periodo sto cercando di capire meglio…
-                </p>
+                  Aggiungi una bio
+                </button>
               )}
 
               {profile?.is_ai_institutional && (
