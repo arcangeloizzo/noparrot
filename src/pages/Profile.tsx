@@ -86,8 +86,6 @@ export const Profile = () => {
         supabase.from("posts").select("id", { count: "exact" }).eq("author_id", user.id),
       ]);
 
-      console.log('Stats Debug:', { following: followingRes.count, followers: followersRes.count, posts: postsRes.count, error: followingRes.error || followersRes.error || postsRes.error });
-
       return {
         following: followingRes.count || 0,
         followers: followersRes.count || 0,
