@@ -1367,8 +1367,14 @@ const ImmersivePostCardInner = ({
   const isSpotifyTrack = isSpotify && !isSpotifyEpisode;
   const isTwitter = articlePreview?.platform === 'twitter' || detectPlatformFromUrl(post.shared_url || '') === 'twitter';
   const isLinkedIn = articlePreview?.platform === 'linkedin' || detectPlatformFromUrl(post.shared_url || '') === 'linkedin';
-  const isYoutube = articlePreview?.platform === 'youtube' ||
-    (post.shared_url?.includes('youtube.com') || post.shared_url?.includes('youtu.be'));
+  const isYoutubeShort = !!(
+    post.shared_url && 
+    post.shared_url.includes('/shorts/') && 
+    (post.shared_url.includes('youtube.com') || post.shared_url.includes('youtu.be'))
+  );
+  const isYoutube = (articlePreview?.platform === 'youtube' ||
+    (post.shared_url?.includes('youtube.com') || post.shared_url?.includes('youtu.be'))) &&
+    !isYoutubeShort;
   const isMediaOnlyPost = hasMedia && !hasLink;
   const mediaUrl = post.media?.[0]?.url;
   const isVideoMedia = post.media?.[0]?.type === 'video';
@@ -1376,17 +1382,25 @@ const ImmersivePostCardInner = ({
   
   const isInstagramReel = post.post_type === 'instagram_reel';
   const hasUserMedia = !!post.media && post.media.length > 0;
-  const shouldUseBlurredBg = hasUserMedia || isInstagramReel;
+  const shouldUseBlurredBg = hasUserMedia || isInstagramReel || isYoutubeShort;
 
   const backgroundImageUrl = hasUserMedia 
     ? post.media[0].url
     : isInstagramReel 
       ? (post.preview_img || articlePreview?.image || null)
-      : null;
+      : isYoutubeShort
+        ? (
+            articlePreview?.image || 
+            post.preview_img || 
+            (post.shared_url ? `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url)}/maxresdefault.jpg` : null)
+          )
+        : null;
 
   const overlayGradient = isInstagramReel
     ? 'linear-gradient(135deg, rgba(131, 58, 180, 0.15) 0%, rgba(253, 29, 29, 0.12) 50%, rgba(247, 119, 55, 0.10) 100%)'
-    : null;
+    : isYoutubeShort
+      ? 'linear-gradient(135deg, rgba(255, 0, 0, 0.15) 0%, rgba(40, 40, 40, 0.12) 100%)'
+      : null;
 
   const isVoicePost = post.post_type === 'voice';
   const hasValidChallengeData = !!post.challenge && !!(post.challenge.voice_post || post.voice_post);
@@ -1597,6 +1611,12 @@ const ImmersivePostCardInner = ({
         }
       ];
     }
+    if (isYoutubeShort) {
+      return [
+        { id: 'essential-title' },
+        { id: 'essential-external-cta' }
+      ];
+    }
     if (isYoutube) {
       return [
         { id: 'essential-title' },
@@ -1688,6 +1708,7 @@ const ImmersivePostCardInner = ({
     isSpotifyEpisode,
     isSpotifyTrack,
     isYoutube,
+    isYoutubeShort,
     isGenericArticle,
     isStandardPost,
     isInstagramReel,
@@ -1726,6 +1747,26 @@ const ImmersivePostCardInner = ({
           compressionSteps: ['full', 'compact', 'hidden'] as CompressionStep[],
           minReadabilityHeight: 40,
           fallbackHeight: 80
+        });
+      }
+      return config;
+    }
+    if (isYoutubeShort) {
+      const config: FlexibleElementConfig[] = [];
+      if (post.content && post.content.trim().length > 0) {
+        config.push({
+          id: 'flexible-user-comment',
+          compressionSteps: ['full', 'compact', 'hidden'] as CompressionStep[],
+          minReadabilityHeight: 40,
+          fallbackHeight: 80
+        });
+      }
+      if (articlePreview?.title && articlePreview.title.trim().length > 0) {
+        config.push({
+          id: 'flexible-text',
+          compressionSteps: ['full', 'compact', 'hidden'] as CompressionStep[],
+          minReadabilityHeight: 60,
+          fallbackHeight: 120
         });
       }
       return config;
@@ -1859,7 +1900,7 @@ const ImmersivePostCardInner = ({
       ];
     }
     return [];
-  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isIntentPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media, shouldUseBlurredBg, useStackLayout]);
+  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isYoutubeShort, isGenericArticle, isStandardPost, isInstagramReel, isIntentPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media, shouldUseBlurredBg, useStackLayout]);
  
   const priorityConfig = useMemo(() => {
     if (useStackLayout) {
@@ -1870,6 +1911,16 @@ const ImmersivePostCardInner = ({
       priority.push('flexible-reshare-quoted-body');
       if (post.content && post.content.trim().length > 0) {
         priority.push('flexible-reshare-comment');
+      }
+      return priority;
+    }
+    if (isYoutubeShort) {
+      const priority: string[] = [];
+      if (post.content && post.content.trim().length > 0) {
+        priority.push('flexible-user-comment');
+      }
+      if (articlePreview?.title && articlePreview.title.trim().length > 0) {
+        priority.push('flexible-text');
       }
       return priority;
     }
@@ -1924,7 +1975,7 @@ const ImmersivePostCardInner = ({
       return ['flexible-intent-text'];
     }
     return [];
-  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isGenericArticle, isStandardPost, isInstagramReel, isIntentPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media, shouldUseBlurredBg, useStackLayout]);
+  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isYoutubeShort, isGenericArticle, isStandardPost, isInstagramReel, isIntentPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media, shouldUseBlurredBg, useStackLayout]);
 
   const {
     status: layoutStatus,
@@ -1934,7 +1985,7 @@ const ImmersivePostCardInner = ({
     emergencyScroll,
     registerRef
   } = useDynamicCardLayout({
-    availableHeight: (isInstagramReel || isYoutube || isLinkedIn || isTwitter) 
+    availableHeight: (isInstagramReel || isYoutube || isYoutubeShort || isLinkedIn || isTwitter) 
       ? availableHeight - 75 
       : availableHeight,
     essentials: essentialsConfig,
@@ -2020,6 +2071,7 @@ const ImmersivePostCardInner = ({
   }, [
     post.content, 
     post.shared_title, 
+    articlePreview?.title,
     voiceContent, 
     challengeContent, 
     flexiblesStatus, 
@@ -2148,6 +2200,15 @@ const ImmersivePostCardInner = ({
               style={{ 
                 background: 'linear-gradient(135deg, rgba(131, 58, 180, 0.15) 0%, rgba(253, 29, 29, 0.12) 50%, rgba(247, 119, 55, 0.10) 100%)',
                 mixBlendMode: 'overlay'
+              }}
+            />
+          </div>
+        ) : isYoutubeShort ? (
+          <div className="absolute inset-0 bg-gradient-to-b from-[#FF0000]/10 via-[#0D1B2A] to-[#0D1B2A] dark:from-[#FF0000]/15 dark:via-black dark:to-black">
+            <div 
+              className="absolute inset-0 opacity-[0.08] dark:opacity-[0.12]"
+              style={{
+                background: 'linear-gradient(135deg, #FF0000 0%, #282828 100%)',
               }}
             />
           </div>
@@ -3723,6 +3784,76 @@ const ImmersivePostCardInner = ({
                     />
                   )}
                 </div>
+              ) : hasLink && isYoutubeShort ? (
+                <div
+                  className={cn(
+                    "flex-1 min-h-0 flex flex-col items-center justify-start w-full px-4 gap-3",
+                    emergencyScroll && "overflow-y-auto"
+                  )}
+                >
+                  {/* post.title (titolo NoParrot dato dall'utente) */}
+                  {post.title && post.title.trim().length > 0 ? (
+                    <h2
+                      ref={registerRef('essential-title')}
+                      className="uppercase mb-2 flex-shrink-0 self-start text-left"
+                      style={{
+                        fontFamily: 'Impact, sans-serif',
+                        fontSize: 'clamp(30px, 8vw, 42px)',
+                        lineHeight: 0.92,
+                        letterSpacing: '-0.02em',
+                        color: '#FFFFFF',
+                        textAlign: 'left'
+                      }}
+                    >
+                      {post.title}
+                    </h2>
+                  ) : (
+                    <h2
+                      ref={registerRef('essential-title')}
+                      className="text-xl font-bold text-immersive-foreground leading-tight mt-1 mb-2 flex-shrink-0 self-start text-left"
+                    >
+                      {decodeHTMLEntities(articlePreview?.title || post.shared_title || 'YouTube Short')}
+                    </h2>
+                  )}
+
+                  {/* User Comment NoParrot — flessibile */}
+                  {post.content && post.content.trim().length > 0 && flexiblesStatus['flexible-user-comment']?.step !== 'hidden' && (
+                    <p 
+                      ref={(el) => { registerRef('flexible-user-comment')(el); bodyTextRef.current = el; }}
+                      className={cn(
+                        "self-start text-sm text-white/90 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
+                        flexiblesStatus['flexible-user-comment']?.step === 'compact' ? "line-clamp-2" : "line-clamp-4"
+                      )}
+                    >
+                      <MentionText content={post.content} />
+                    </p>
+                  )}
+
+                  {/* Caption Short — articlePreview.title — flessibile */}
+                  {flexiblesStatus['flexible-text']?.step !== 'hidden' && articlePreview?.title && (
+                    <p 
+                      ref={(el) => { registerRef('flexible-text')(el); captionTextRef.current = el; }}
+                      className={cn(
+                        "self-start text-sm text-white/80 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
+                        flexiblesStatus['flexible-text']?.step === 'compact' ? "line-clamp-2" : "line-clamp-4"
+                      )}
+                    >
+                      <MentionText content={decodeHTMLEntities(articlePreview.title)} />
+                    </p>
+                  )}
+
+                  {/* Approfondisci se body o caption clampati */}
+                  {shouldShowApprofondisci && (
+                    <div className="flex-shrink-0 mt-2 mb-3 text-left self-start">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowFullText(true); }}
+                        className="text-sm font-semibold hover:underline block text-[#FF0000]"
+                      >
+                        Approfondisci
+                      </button>
+                    </div>
+                  )}
+                </div>
               ) : hasLink && isYoutube ? (
                 <div
                   className={cn(
@@ -4683,6 +4814,15 @@ const ImmersivePostCardInner = ({
               ref={registerRef('essential-external-cta')}
             />
           )}
+
+          {/* Unified Card External CTA for YouTube Short */}
+          {!useStackLayout && post.shared_url && isYoutubeShort && (
+            <CardExternalCTA 
+              platform="youtube" 
+              url={post.shared_url} 
+              ref={registerRef('essential-external-cta')}
+            />
+          )}
           </div>
         </div>
       </div >
@@ -4865,24 +5005,28 @@ const ImmersivePostCardInner = ({
           title={
             isInstagramReel
               ? (post.title || "Instagram Reel")
-              : fullTextMode === 'transcript'
-                ? "Trascrizione"
-                : (
-                    isChallengePost
-                      ? (post.challenge?.title || post.title || '')
-                      : isVoicePost
-                        ? (activeVoicePost?.title || post.title || '')
-                        : (post.title || '')
-                  )
+              : isYoutubeShort
+                ? (post.title || "YouTube Short")
+                : fullTextMode === 'transcript'
+                  ? "Trascrizione"
+                  : (
+                      isChallengePost
+                        ? (post.challenge?.title || post.title || '')
+                        : isVoicePost
+                          ? (activeVoicePost?.title || post.title || '')
+                          : (post.title || '')
+                    )
           }
           content={
             isInstagramReel
               ? [post.content && post.content.trim(), post.shared_title && post.shared_title.trim()].filter(Boolean).join('\n\n')
-              : isChallengePost
-                ? (post.challenge?.body_text || post.content || '')
-                : isVoicePost
-                  ? (activeVoicePost?.body_text || post.content || '')
-                  : (post.content || '')
+              : isYoutubeShort
+                ? [post.content?.trim(), articlePreview?.title?.trim()].filter(Boolean).join('\n\n')
+                : isChallengePost
+                  ? (post.challenge?.body_text || post.content || '')
+                  : isVoicePost
+                    ? (activeVoicePost?.body_text || post.content || '')
+                    : (post.content || '')
           }
           audioUrl={
             isVoicePost || isChallengePost
@@ -4934,7 +5078,19 @@ const ImmersivePostCardInner = ({
                   Apri su Instagram
                 </span>
               </a>
-            ) : !isSpotifyTrack && !isTwitter && !isLinkedIn && !isYoutube && hasLink && post.shared_url ? (
+            ) : isYoutubeShort && post.shared_url ? (
+              <a
+                href={post.shared_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block rounded-2xl overflow-hidden border border-[#FF0000]/20 bg-[#FF0000]/10 hover:bg-[#FF0000]/20 transition-colors no-underline p-4 text-center"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="text-[#FF0000] text-sm font-bold flex items-center justify-center gap-2">
+                  ▶️ Apri su YouTube
+                </span>
+              </a>
+            ) : !isSpotifyTrack && !isTwitter && !isLinkedIn && !isYoutube && !isYoutubeShort && hasLink && post.shared_url ? (
               <a
                 href={post.shared_url}
                 target="_blank"
