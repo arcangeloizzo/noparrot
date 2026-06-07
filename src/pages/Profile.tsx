@@ -437,11 +437,11 @@ export const Profile = () => {
 
         {/* Weekly Pulse */}
         <div className="px-5 mt-5">
-          <PulseCard />
+          <PulseCard onExploreTap={scrollToNebula} />
         </div>
 
         {/* Compact Cognitive Nebula (expandable) */}
-        <div ref={nebulaRef} className="px-4 mt-6 mb-4 scroll-mt-20" data-tutorial="nebulosa">
+        <div id="nebulosa-section" ref={nebulaRef} className="px-4 mt-6 mb-4 scroll-mt-20" data-tutorial="nebulosa">
           <CompactNebula
             data={cognitiveDensity}
             onExpand={() => setShowNebulaExpanded(true)}
