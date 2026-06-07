@@ -143,9 +143,10 @@ export const Profile = () => {
         if (post.quoted_post_id) type = 'reshared';
         else if (post.shared_url || (post.sources && Array.isArray(post.sources) && post.sources.length > 0)) type = 'gated';
 
-        const pt = Array.isArray((post as any).post_topics)
-          ? (post as any).post_topics[0]
-          : (post as any).post_topics;
+        const ptArr: any[] = Array.isArray((post as any).post_topics)
+          ? (post as any).post_topics
+          : (post as any).post_topics ? [(post as any).post_topics] : [];
+        const pt = ptArr[0];
         return {
           id: post.id,
           content: post.content,
@@ -159,6 +160,7 @@ export const Profile = () => {
           type,
           topic_id: pt?.topic_id ?? null,
           topic_label: pt?.topic_label ?? null,
+          topic_ids: ptArr.map(t => t?.topic_id).filter(Boolean) as string[],
         };
       });
 
@@ -166,9 +168,10 @@ export const Profile = () => {
       const gatedEntries: DiaryEntryData[] = (gatedPosts || [])
         .filter(g => g.posts.author_id !== user.id)
         .map(g => {
-          const pt = Array.isArray((g.posts as any).post_topics)
-            ? (g.posts as any).post_topics[0]
-            : (g.posts as any).post_topics;
+          const ptArr: any[] = Array.isArray((g.posts as any).post_topics)
+            ? (g.posts as any).post_topics
+            : (g.posts as any).post_topics ? [(g.posts as any).post_topics] : [];
+          const pt = ptArr[0];
           return {
           id: g.posts.id,
           content: g.posts.content,
@@ -183,6 +186,7 @@ export const Profile = () => {
           passed_gate: true,
           topic_id: pt?.topic_id ?? null,
           topic_label: pt?.topic_label ?? null,
+          topic_ids: ptArr.map(t => t?.topic_id).filter(Boolean) as string[],
           };
         });
 
@@ -213,7 +217,11 @@ export const Profile = () => {
     }
     // Phase 4.6c: filtro per topic_id specifico
     if (selectedTopic) {
-      if (entry.topic_id !== selectedTopic.id) return false;
+      const ids = (entry as any).topic_ids as string[] | undefined;
+      const matches = ids && ids.length > 0
+        ? ids.some(id => id === selectedTopic.id)
+        : entry.topic_id === selectedTopic.id;
+      if (!matches) return false;
     }
     if (diaryFilter === 'all') return true;
     if (diaryFilter === 'original') return entry.type === 'original';
