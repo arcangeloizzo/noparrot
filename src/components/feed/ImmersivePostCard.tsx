@@ -1604,10 +1604,10 @@ const ImmersivePostCardInner = ({
           id: 'essential-youtube',
           states: [
             { id: 'full', height: 200 },
-            { id: 'compact', height: 80 },
-            { id: 'pill', height: 36 }
+            { id: 'compact', height: 80 }
           ]
-        }
+        },
+        { id: 'essential-external-cta' }
       ];
     }
     if (isGenericArticle) {
@@ -3692,50 +3692,58 @@ const ImmersivePostCardInner = ({
                         </>
                       )}
 
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                        }}
-                        className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors mt-2"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        <span className="text-xs uppercase tracking-wider">Apri su YouTube</span>
-                      </button>
+                      {useStackLayout && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                          }}
+                          className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors mt-2"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span className="text-xs uppercase tracking-wider">Apri su YouTube</span>
+                        </button>
+                      )}
                     </div>
                   )}
 
                   {youtubeEmbedStep === 'compact' && (
                     hasUserMedia ? (
-                      <div 
-                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
-                        style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                        className="mt-auto flex-shrink-0 text-left"
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (post.shared_url) {
-                              window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                            }
-                          }}
-                          className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors"
+                      useStackLayout ? (
+                        <div 
+                          ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
+                          style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                          className="mt-auto flex-shrink-0 text-left"
                         >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          <span className="text-xs uppercase tracking-wider">Apri su YouTube</span>
-                        </button>
-                      </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (post.shared_url) {
+                                window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                              }
+                            }}
+                            className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span className="text-xs uppercase tracking-wider">Apri su YouTube</span>
+                          </button>
+                        </div>
+                      ) : null
                     ) : (
                       <div 
                         ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
                         style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                        className="flex items-center gap-3 p-2 bg-card/40 rounded-lg cursor-pointer mt-auto flex-shrink-0 border border-white/10"
-                        onClick={(e) => {
+                        className={cn(
+                          "flex items-center gap-3 p-2 bg-card/40 rounded-lg mt-auto flex-shrink-0 border border-white/10",
+                          useStackLayout && "cursor-pointer active:scale-[0.98] transition-transform"
+                        )}
+                        onClick={useStackLayout ? (e) => {
                           e.stopPropagation();
                           if (post.shared_url) {
                             window.open(post.shared_url, '_blank', 'noopener,noreferrer');
                           }
-                        }}>
+                        } : undefined}
+                      >
                         {/* Thumbnail 80×45 (16:9) */}
                         <div className="relative flex-shrink-0 w-20 h-[45px] rounded overflow-hidden bg-muted">
                           <img 
@@ -3759,7 +3767,7 @@ const ImmersivePostCardInner = ({
                     )
                   )}
 
-                  {youtubeEmbedStep === 'pill' && (
+                  {useStackLayout && youtubeEmbedStep === 'pill' && (
                     <div 
                       ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
                       className="flex-shrink-0 mt-auto" 
@@ -4489,10 +4497,12 @@ const ImmersivePostCardInner = ({
             </div>
           </div>
           </div>
-          {/* Unified Card External CTA for Instagram Reel */}
-          {isInstagramReel && !useStackLayout && post.shared_url && (
+          {/* Unified Card External CTA */}
+          {!useStackLayout && post.shared_url && (isInstagramReel || isYoutube) && (
             <CardExternalCTA 
-              platform="instagram" 
+              platform={
+                isInstagramReel ? 'instagram' : 'youtube'
+              } 
               url={post.shared_url} 
               ref={registerRef('essential-external-cta')}
             />
