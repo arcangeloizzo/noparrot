@@ -111,6 +111,7 @@ export const Profile = () => {
           post_topics ( topic_id, topic_label )
         `)
         .eq("author_id", user.id)
+        .eq("is_removed", false)
         .order("created_at", { ascending: false });
 
       if (postsError) {
@@ -129,6 +130,7 @@ export const Profile = () => {
         `)
         .eq("user_id", user.id)
         .eq("passed", true)
+        .eq("posts.is_removed", false)
         .order("created_at", { ascending: false });
 
       if (gatedError) {
