@@ -41,7 +41,15 @@ export const Feed = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { data: dbPosts = [], isLoading, isError: postsError, refetch } = usePosts();
+  const { 
+    data: dbPosts = [], 
+    isLoading, 
+    isError: postsError, 
+    refetch,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage
+  } = usePosts();
   const queryClient = useQueryClient();
   const feedContainerRef = useRef<ImmersiveFeedContainerRef>(null);
 
@@ -245,6 +253,13 @@ export const Feed = () => {
       prefetchArticlePreviews(queryClient, candidates);
     }
   }, [activeIndex, queryClient, mixedFeed.length]);
+
+  // Trigger pagination when reaching activeIndex >= mixedFeed.length - 5
+  useEffect(() => {
+    if (activeIndex >= mixedFeed.length - 5 && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [activeIndex, mixedFeed.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Ripristina posizione scroll (indice) quando Feed si monta e i dati sono caricati
   useEffect(() => {
