@@ -205,8 +205,14 @@ export const Profile = () => {
     if (!user) navigate('/auth');
   }, [user, navigate]);
 
-  const scrollToNebula = () => {
-    document.getElementById('nebulosa-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const handleExploreTap = (dominantCategory?: string) => {
+    if (dominantCategory) {
+      setSelectedMacro(dominantCategory);
+    }
+    // Piccolo delay per dare tempo al filtro di applicarsi prima dello scroll
+    setTimeout(() => {
+      document.getElementById('diario-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   };
 
   if (error) {
@@ -390,7 +396,7 @@ export const Profile = () => {
 
         {/* Weekly Pulse */}
         <div className="px-5 mt-5">
-          <PulseCard onExploreTap={scrollToNebula} />
+          <PulseCard onExploreTap={handleExploreTap} />
         </div>
 
         {/* Compact Cognitive Nebula (expandable) */}
@@ -404,7 +410,7 @@ export const Profile = () => {
         </div>
 
         {/* Cognitive Diary */}
-        <div ref={diaryRef} className="px-4 pb-6 scroll-mt-20" data-section="diario">
+        <div id="diario-section" ref={diaryRef} className="px-4 pb-6 scroll-mt-20" data-section="diario">
           <div className="mb-3">
             <h3 className="text-base font-semibold">Diario Cognitivo</h3>
             <p className="text-xs text-muted-foreground">

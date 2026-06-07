@@ -59,7 +59,7 @@ function renderNarrative(narrative: string): ReactNode[] {
 }
 
 interface PulseCardProps {
-  onExploreTap?: () => void;
+  onExploreTap?: (dominantCategory?: string) => void;
 }
 
 export const PulseCard = ({ onExploreTap }: PulseCardProps = {}) => {
@@ -80,6 +80,8 @@ export const PulseCard = ({ onExploreTap }: PulseCardProps = {}) => {
     refetchOnWindowFocus: false,
     retry: 1,
   });
+
+  const dominantCategories = data ? [data.trajectory_label, data.focus_phrase].filter(Boolean) : [];
 
   const cardStyle: React.CSSProperties = {
     padding: "16px 18px",
@@ -195,7 +197,7 @@ export const PulseCard = ({ onExploreTap }: PulseCardProps = {}) => {
           </div>
           <button
             type="button"
-            onClick={() => onExploreTap?.()}
+            onClick={() => onExploreTap?.(dominantCategories[0])}
             style={{
               fontSize: 12,
               fontWeight: 600,
