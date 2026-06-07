@@ -202,25 +202,75 @@ Deno.serve(async (req) => {
     }
   }
 
-  // ── 4. Gather data: last N comprehensions (post_gate_attempts passed) ───
-  // Same source feeding the Cognitive Diary in Profile.tsx / UserProfile.tsx.
-  const { data: gatedAttempts, error: gatedErr } = await supabase
+  // ── 4. Gather data: last-week passed gate attempts ──────────────────────
+  // Gates can be tied to a post via post_id OR completed during composition
+  // (gate_type='composer') with only a source_url. We resolve both paths.
+  const weekCutoffIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: weekAttempts, error: gatedErr } = await supabase
     .from("post_gate_attempts")
-    .select(
-      `created_at,
-       posts:post_id (
-         id, content, shared_title, category
-       )`,
-    )
+    .select("created_at, post_id, source_url")
     .eq("user_id", userId)
     .eq("passed", true)
-    .order("created_at", { ascending: false })
-    .limit(MAX_COMPREHENSIONS);
+    .gte("created_at", weekCutoffIso)
+    .order("created_at", { ascending: false });
 
   if (gatedErr) {
     console.error("[generate-pulse-narrative] gated query error:", gatedErr.message);
     return jsonResponse({ error: "Failed to load comprehensions" }, 500);
   }
+
+  // Collect distinct post_ids and source_urls to resolve
+  const postIds = Array.from(
+    new Set(
+      (weekAttempts ?? [])
+        .map((r: any) => r.post_id)
+        .filter((x: unknown): x is string => typeof x === "string" && x.length > 0),
+    ),
+  );
+  const sourceUrls = Array.from(
+    new Set(
+      (weekAttempts ?? [])
+        .filter((r: any) => !r.post_id && typeof r.source_url === "string" && r.source_url.length > 0)
+        .map((r: any) => r.source_url as string),
+    ),
+  );
+
+  type PostInfo = { content: string | null; shared_title: string | null; category: string | null };
+  const postsById = new Map<string, PostInfo>();
+  const postsByUrl = new Map<string, PostInfo>();
+
+  if (postIds.length > 0) {
+    const { data: postsA } = await supabase
+      .from("posts")
+      .select("id, content, shared_title, category")
+      .in("id", postIds);
+    for (const p of postsA ?? []) postsById.set((p as any).id, p as PostInfo);
+  }
+  if (sourceUrls.length > 0) {
+    // Try to match user's own posts created from the same source URL.
+    const { data: postsB } = await supabase
+      .from("posts")
+      .select("shared_url, content, shared_title, category")
+      .eq("author_id", userId)
+      .in("shared_url", sourceUrls);
+    for (const p of postsB ?? []) {
+      const url = (p as any).shared_url as string | null;
+      if (url && !postsByUrl.has(url)) postsByUrl.set(url, p as PostInfo);
+    }
+  }
+
+  const resolved = (weekAttempts ?? []).map((row: any) => {
+    const info: PostInfo | undefined =
+      (row.post_id && postsById.get(row.post_id)) ||
+      (row.source_url && postsByUrl.get(row.source_url)) ||
+      undefined;
+    const title =
+      (info?.shared_title && String(info.shared_title).trim()) ||
+      (info?.content ? String(info.content).slice(0, 80).trim() : "") ||
+      (row.source_url ? String(row.source_url).slice(0, 80) : "Senza titolo");
+    const category = (info?.category && String(info.category).trim()) || "Generale";
+    return { title, category, created_at: row.created_at as string };
+  });
 
   // Streak/week need ALL recent timestamps (not capped at 10).
   // Pull the last 60 days of attempts for accurate streak/week metrics.
@@ -242,47 +292,14 @@ Deno.serve(async (req) => {
   const streakDays = computeStreakDays(allTimestamps);
   const countWeek = countLastWeek(allTimestamps);
 
-  // Build comprehension list for the prompt
-  const comprehensions = (gatedAttempts ?? [])
-    .map((row: any) => {
-      const post = row?.posts;
-      if (!post) return null;
-      const title: string =
-        (post.shared_title && String(post.shared_title).trim()) ||
-        (post.content ? String(post.content).slice(0, 80).trim() : "Senza titolo");
-      const category: string =
-        (post.category && String(post.category).trim()) || "Generale";
-      const snippet: string = post.content
-        ? String(post.content).replace(/\s+/g, " ").trim().slice(0, 100)
-        : "";
-      return { title, category, snippet };
-    })
-    .filter((x): x is { title: string; category: string; snippet: string } => x !== null);
-
-  const auditPayload = comprehensions.map((c) => ({
+  // Audit payload: what we actually fed the model
+  const auditPayload = resolved.slice(0, MAX_COMPREHENSIONS).map((c) => ({
     title: c.title,
     category: c.category,
   }));
 
   // ── 5. Build user prompt ─────────────────────────────────────────────────
-  // Compute category counts limited to the last 7 days for prompt accuracy
-  const weekCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const weekComps = (gatedAttempts ?? [])
-    .filter((row: any) => {
-      const t = row?.created_at ? new Date(row.created_at).getTime() : NaN;
-      return !isNaN(t) && t >= weekCutoff;
-    })
-    .map((row: any) => {
-      const post = row?.posts;
-      if (!post) return null;
-      const title: string =
-        (post.shared_title && String(post.shared_title).trim()) ||
-        (post.content ? String(post.content).slice(0, 80).trim() : "Senza titolo");
-      const category: string =
-        (post.category && String(post.category).trim()) || "Generale";
-      return { title: title.slice(0, 80), category };
-    })
-    .filter((x): x is { title: string; category: string } => x !== null);
+  const weekComps = resolved;
 
   const categoryCounts: Record<string, number> = {};
   for (const c of weekComps) {
