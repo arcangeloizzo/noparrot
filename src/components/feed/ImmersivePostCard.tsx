@@ -52,6 +52,7 @@ import { QuizModal } from "@/components/ui/quiz-modal";
 import { QuotedPostEmbed } from "./QuotedPostEmbed";
 import { QuotedEditorialCard } from "./QuotedEditorialCard";
 import { MentionText } from "./MentionText";
+import { CardExternalCTA } from "./CardExternalCTA";
 import { ReshareContextStack } from "./ReshareContextStack";
 import { SpotifyGradientBackground } from "./SpotifyGradientBackground";
 import { SpotifyPodcastCompactCard } from "./SpotifyPodcastCompactCard";
@@ -1622,7 +1623,13 @@ const ImmersivePostCardInner = ({
         }
       ];
     }
-    if (isStandardPost || isInstagramReel || isIntentPost) {
+    if (isInstagramReel) {
+      return [
+        { id: 'essential-title' },
+        { id: 'essential-external-cta' }
+      ];
+    }
+    if (isStandardPost || isIntentPost) {
       return [
         { id: 'essential-title' }
       ];
@@ -4246,7 +4253,7 @@ const ImmersivePostCardInner = ({
               ) : isInstagramReel ? (
                 <div
                   className={cn(
-                    "flex-1 min-h-0 flex flex-col items-center justify-start w-full px-4 pr-[80px] gap-3",
+                    "flex-1 min-h-0 flex flex-col items-center justify-start w-full px-4 gap-3",
                     emergencyScroll && "overflow-y-auto"
                   )}
                 >
@@ -4482,29 +4489,13 @@ const ImmersivePostCardInner = ({
             </div>
           </div>
           </div>
-          {/* TikTok-style lateral play button + REEL badge for Reel */}
-          {isInstagramReel && (
-            <div 
-              className="absolute right-4 z-30 flex flex-col items-center gap-2 pointer-events-auto"
-              style={{ bottom: '170px' }}
-            >
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  window.open(post.shared_url || '', '_blank', 'noopener,noreferrer');
-                }}
-                className="w-14 h-14 rounded-full bg-white shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-transform"
-                aria-label="Apri su Instagram"
-              >
-                <Play className="w-6 h-6 text-black fill-black ml-0.5" />
-              </button>
-              <div 
-                className="px-2.5 py-1 rounded-full text-[9px] font-bold text-white tracking-wider whitespace-nowrap shadow-md select-none"
-                style={{ background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 60%, #F77737 100%)' }}
-              >
-                REEL
-              </div>
-            </div>
+          {/* Unified Card External CTA for Instagram Reel */}
+          {isInstagramReel && !useStackLayout && post.shared_url && (
+            <CardExternalCTA 
+              platform="instagram" 
+              url={post.shared_url} 
+              ref={registerRef('essential-external-cta')}
+            />
           )}
           </div>
         </div>
