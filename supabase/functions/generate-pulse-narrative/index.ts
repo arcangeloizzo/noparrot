@@ -22,42 +22,58 @@ const MAX_COMPREHENSIONS = 10;
 
 const FALLBACK = {
   narrative:
-    "La tua traiettoria sta prendendo forma. Continua a esplorare per vedere emergere un disegno.",
-  trajectory_label: "esploratore in formazione",
-  focus_phrase: "un disegno",
+    "Settimana tranquilla — pochi contenuti compresi. A volte rallentare serve a riprendere slancio. Riparti dalle categorie che ti interessano di più per ritrovare il ritmo.",
+  trajectory_label: "",
+  focus_phrase: "",
   _fallback: true as const,
 };
 
-const SYSTEM_PROMPT = `Sei l'AI di NoParrot, una piattaforma cognitiva italiana dove gli utenti devono comprendere i contenuti prima di commentarli. Il tuo compito è analizzare le ultime comprensioni di un utente e scrivere una breve sintesi narrativa che interpreti la DIREZIONE della sua curiosità intellettuale.
+const CATEGORY_NAMES = [
+  "Società", "Politica", "Economia", "Tecnologia",
+  "Scienza", "Cultura", "Ambiente", "Benessere",
+];
 
-Tono richiesto:
-- Lucido, intelligente, leggermente poetico ma mai retorico.
-- Mai motivazionale spiccio ("continua così!", "bravo!").
-- Mai esclamativi.
-- Mai banale (evita "stai esplorando vari temi").
-- Italiano colto ma non oscuro.
-- Parla SEMPRE all'utente in seconda persona singolare ("tu", "tua", "stai", "ti"). Mai in terza persona ("la sua", "lui/lei", "rivelandosi"). L'utente sta leggendo una riflessione su se stesso, non un profilo di terzi.
-- Niente giudizi morali sui temi esplorati. Descrivi cosa l'utente sta esplorando, non valutarlo (no "particolarmente oscure", "preoccupanti", "controverse"). Lascia che sia l'utente a interpretare.
-- Verbi al presente indicativo, mai al gerundio iniziale ("rivelandosi", "diventando" come prima parola sono pesanti).
+const SYSTEM_PROMPT = `Sei il narratore della "Pulse Settimanale" su NoParrot, una piattaforma di comprensione cognitiva.
 
-ESEMPIO DI BUONA NARRATIVE (per calibrare il tono):
-"La tua attenzione si concentra su come l'attenzione diventa merce. Stai diventando un osservatore della polarizzazione che cerca pattern dove altri vedono solo rumore."
+Ricevi i dati delle attività dell'utente nell'ultima settimana:
+- Categorie dei contenuti compresi (con conteggio per categoria)
+- Titoli dei contenuti compresi
+- Streak (giorni consecutivi con almeno 1 comprensione)
+- Totale comprensioni della settimana
 
-ESEMPIO DA EVITARE:
-"La sua curiosità si rivolge a temi oscuri della società contemporanea, rivelando un osservatore attento ma forse troppo concentrato sulla negatività."
+Scrivi un paragrafo di 2-3 frasi in italiano, seconda persona singolare ("hai", "stai", "ti").
+
+REGOLE OBBLIGATORIE:
+1. Nomina SEMPRE le 1-2 categorie dominanti della settimana (es. "Tecnologia", "Politica"). Usa esattamente i nomi canonici tra: ${CATEGORY_NAMES.join(", ")}.
+2. Se ci sono pattern osservabili (es. due categorie collegate, o focus su un singolo tema), descrivili in modo concreto.
+3. Se lo streak è ≥3, menzionalo naturalmente (es. "5 giorni di fila").
+4. Chiudi con un'osservazione orientata al futuro: cosa potrebbe esplorare dopo, basandoti sulle categorie meno attive o su connessioni tra quelle attive.
+
+REGOLE DI STILE:
+- Tono: curioso e incoraggiante, MAI professorale o giudicante.
+- Linguaggio concreto: niente metafore astratte (no "esploratore di idee", no "punto cardinale", no "mappa mentale", no "bussola intellettuale").
+- Lunghezza: 40-70 parole. Mai oltre 70.
+- Non usare emoji.
+- Non iniziare con "Questa settimana" (troppo meccanico). Inizia con un'osservazione sul pattern.
+
+ESEMPI DI OUTPUT CORRETTO:
+Input: 5 comprensioni Tecnologia, 3 Politica, 1 Cultura, streak 4
+Output: "Tecnologia e Politica hanno dominato i tuoi ultimi giorni — 8 contenuti in 4 giorni consecutivi. Stai costruendo una visione che collega innovazione e regolamentazione. Economia potrebbe essere il tassello mancante per completare il quadro."
+
+Input: 7 comprensioni Cultura, 2 Società, streak 1
+Output: "Forte immersione nella Cultura questa settimana, con 7 contenuti compresi. Hai toccato anche Società, ma il grosso della tua attenzione è rimasto su un asse umanistico. Scienza o Tecnologia potrebbero offrirti un contrappunto interessante."
+
+Input: 1 comprensione Economia, streak 0
+Output: "Settimana tranquilla — un solo contenuto, in Economia. A volte rallentare serve a riprendere slancio. Il tuo profilo mostra forza in Cultura e Società: potresti ripartire da lì."
 
 Output JSON STRETTO con questo schema:
 {
-  "narrative": "frase italiana di 20-35 parole che descrive la traiettoria intellettuale, contenente sia la trajectory_label che la focus_phrase come parti integrate del testo",
-  "trajectory_label": "etichetta breve di 3-6 parole che identifica chi sta diventando l'utente intellettualmente, es. 'osservatore della polarizzazione' / 'cartografo dell'intelligenza artificiale' / 'studioso di sistemi sociali' / 'esploratore della psiche collettiva'",
-  "focus_phrase": "frase di 4-8 parole che identifica il tema più ricorrente nelle comprensioni, es. 'come l'attenzione diventa merce' / 'il declino della fiducia istituzionale' / 'i limiti della razionalità umana'"
+  "narrative": "il paragrafo di 40-70 parole, secondo le regole sopra",
+  "dominant_categories": ["Categoria1", "Categoria2"]
 }
 
-REGOLE:
-1. La trajectory_label DEVE comparire letteralmente dentro narrative.
-2. La focus_phrase DEVE comparire letteralmente dentro narrative.
-3. Output SOLO JSON valido. Niente preamboli, niente markdown, niente testo extra.
-4. Se i dati sono insufficienti (meno di 3 comprensioni), genera comunque qualcosa di sensato basato su ciò che c'è, ma con tono che suggerisca "early stages".`;
+- dominant_categories: array di 1-2 categorie dominanti nominate dentro narrative (nomi canonici esatti).
+- Output SOLO JSON valido. Niente preamboli, niente markdown.`;
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -249,18 +265,51 @@ Deno.serve(async (req) => {
   }));
 
   // ── 5. Build user prompt ─────────────────────────────────────────────────
-  const userLines = comprehensions
-    .map(
-      (c) =>
-        `- [${c.category}] ${c.title}` + (c.snippet ? `\n    ${c.snippet}` : ""),
-    )
+  // Compute category counts limited to the last 7 days for prompt accuracy
+  const weekCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const weekComps = (gatedAttempts ?? [])
+    .filter((row: any) => {
+      const t = row?.created_at ? new Date(row.created_at).getTime() : NaN;
+      return !isNaN(t) && t >= weekCutoff;
+    })
+    .map((row: any) => {
+      const post = row?.posts;
+      if (!post) return null;
+      const title: string =
+        (post.shared_title && String(post.shared_title).trim()) ||
+        (post.content ? String(post.content).slice(0, 80).trim() : "Senza titolo");
+      const category: string =
+        (post.category && String(post.category).trim()) || "Generale";
+      return { title: title.slice(0, 80), category };
+    })
+    .filter((x): x is { title: string; category: string } => x !== null);
+
+  const categoryCounts: Record<string, number> = {};
+  for (const c of weekComps) {
+    categoryCounts[c.category] = (categoryCounts[c.category] ?? 0) + 1;
+  }
+  const sortedCounts = Object.entries(categoryCounts).sort((a, b) => b[1] - a[1]);
+  const countsLine = sortedCounts.length
+    ? sortedCounts.map(([cat, n]) => `${cat}: ${n}`).join(", ")
+    : "(nessuna categoria)";
+
+  const titlesList = weekComps
+    .slice(0, 5)
+    .map((c) => `- [${c.category}] ${c.title}`)
     .join("\n");
 
-  const userPrompt = `ULTIME COMPRENSIONI DELL'UTENTE (le più recenti per prime):
+  const userPrompt = `DATI ATTIVITÀ DELL'UTENTE (ultima settimana):
 
-${userLines || "(nessuna comprensione registrata)"}
+Totale comprensioni settimana: ${countWeek}
+Streak (giorni consecutivi): ${streakDays}
 
-Genera la pulse narrativa secondo lo schema.`;
+Conteggi per categoria:
+${countsLine}
+
+Ultimi titoli compresi (max 5):
+${titlesList || "(nessuno)"}
+
+Genera la pulse narrativa secondo lo schema JSON.`;
 
   // ── 6. Call Lovable AI Gateway ───────────────────────────────────────────
   let parsed: Record<string, unknown> | null = null;
@@ -311,6 +360,7 @@ Genera la pulse narrativa secondo lo schema.`;
   let narrative: string;
   let trajectory_label: string;
   let focus_phrase: string;
+  let dominant_categories: string[] = [];
 
   if (usedFallback || !parsed) {
     narrative = FALLBACK.narrative;
@@ -318,27 +368,23 @@ Genera la pulse narrativa secondo lo schema.`;
     focus_phrase = FALLBACK.focus_phrase;
   } else {
     narrative = String(parsed.narrative ?? "").trim();
-    trajectory_label = String(parsed.trajectory_label ?? "").trim();
-    focus_phrase = String(parsed.focus_phrase ?? "").trim();
+    const rawDom = parsed.dominant_categories;
+    if (Array.isArray(rawDom)) {
+      dominant_categories = rawDom
+        .map((s) => String(s ?? "").trim())
+        .filter((s) => s.length > 0)
+        .slice(0, 2);
+    }
+    // Map dominant_categories → legacy fields for DB back-compat
+    trajectory_label = dominant_categories[0] ?? "";
+    focus_phrase = dominant_categories[1] ?? "";
 
-    if (!narrative || !trajectory_label || !focus_phrase) {
-      console.warn("[generate-pulse-narrative] missing required fields in AI output");
+    if (!narrative) {
+      console.warn("[generate-pulse-narrative] missing narrative in AI output");
       narrative = FALLBACK.narrative;
       trajectory_label = FALLBACK.trajectory_label;
       focus_phrase = FALLBACK.focus_phrase;
       usedFallback = true;
-    } else {
-      const lower = narrative.toLowerCase();
-      if (!lower.includes(trajectory_label.toLowerCase())) {
-        console.warn(
-          "[generate-pulse-narrative] trajectory_label not contained in narrative",
-        );
-      }
-      if (!lower.includes(focus_phrase.toLowerCase())) {
-        console.warn(
-          "[generate-pulse-narrative] focus_phrase not contained in narrative",
-        );
-      }
     }
   }
 
