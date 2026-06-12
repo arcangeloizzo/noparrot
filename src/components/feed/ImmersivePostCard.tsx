@@ -2109,6 +2109,7 @@ const ImmersivePostCardInner = ({
       <div
         ref={registerRef('card-container')}
         className="h-[100dvh] w-full snap-start relative overflow-hidden bg-immersive transition-colors duration-500"
+        style={{ isolation: 'isolate' }}
         onClick={handleDoubleTap}
       >
         {/* Global card scrim (NoParrot Feed UI Spec v1 §2.2) */}
@@ -3066,7 +3067,10 @@ const ImmersivePostCardInner = ({
                 <div className="mb-1 flex flex-col gap-1 w-full flex-shrink-0">
                   {/* Title */}
                   {post.title && post.title.trim().length > 0 && (
-                    <h2 
+                    <ClampedTitle
+                      as="h2"
+                      text={post.title}
+                      maxLines={3}
                       className="uppercase mb-1"
                       style={{
                         fontFamily: 'Impact, sans-serif',
@@ -3074,11 +3078,9 @@ const ImmersivePostCardInner = ({
                         lineHeight: 0.92,
                         letterSpacing: '-0.02em',
                         color: '#FFFFFF',
-                        textAlign: 'left'
+                        textAlign: 'left',
                       }}
-                    >
-                      {post.title}
-                    </h2>
+                    />
                   )}
                   {post.content && post.content.trim().length > 0 && (
                     <>
@@ -3179,7 +3181,10 @@ const ImmersivePostCardInner = ({
                 <div className="mb-4 flex-shrink-0 flex flex-col gap-1 z-10 relative">
                   {/* Title */}
                   {post.title && post.title.trim().length > 0 && (
-                    <h2 
+                    <ClampedTitle
+                      as="h2"
+                      text={post.title}
+                      maxLines={3}
                       className="uppercase mb-1"
                       style={{
                         fontFamily: 'Impact, sans-serif',
@@ -3187,11 +3192,9 @@ const ImmersivePostCardInner = ({
                         lineHeight: 0.92,
                         letterSpacing: '-0.02em',
                         color: '#FFFFFF',
-                        textAlign: 'left'
+                        textAlign: 'left',
                       }}
-                    >
-                      {post.title}
-                    </h2>
+                    />
                   )}
                   {/* Content */}
                   {shouldShowUserText && post.content && post.content.trim().length > 0 && renderBodyText(post.content, !!(post.title && post.title.trim().length > 0))}
@@ -3203,7 +3206,10 @@ const ImmersivePostCardInner = ({
                 <div className="mb-6 flex flex-col gap-1 flex-shrink-0 relative z-10">
                   {/* Title */}
                   {post.title && post.title.trim().length > 0 && (
-                    <h2 
+                    <ClampedTitle
+                      as="h2"
+                      text={post.title}
+                      maxLines={3}
                       className="uppercase mb-1"
                       style={{
                         fontFamily: 'Impact, sans-serif',
@@ -3211,11 +3217,9 @@ const ImmersivePostCardInner = ({
                         lineHeight: 0.92,
                         letterSpacing: '-0.02em',
                         color: '#FFFFFF',
-                        textAlign: 'left'
+                        textAlign: 'left',
                       }}
-                    >
-                      {post.title}
-                    </h2>
+                    />
                   )}
                   {post.content && post.content.trim().length > 0 && renderBodyText(post.content, !!(post.title && post.title.trim().length > 0))}
                 </div>
@@ -3230,7 +3234,10 @@ const ImmersivePostCardInner = ({
                 >
                   {/* Title */}
                   {post.title && post.title.trim().length > 0 && (
-                    <h2 
+                    <ClampedTitle
+                      as="h2"
+                      text={post.title}
+                      maxLines={3}
                       ref={registerRef('essential-title')}
                       className="uppercase mb-2 flex-shrink-0"
                       style={{
@@ -3239,11 +3246,9 @@ const ImmersivePostCardInner = ({
                         lineHeight: 0.92,
                         letterSpacing: '-0.02em',
                         color: '#FFFFFF',
-                        textAlign: 'left'
+                        textAlign: 'left',
                       }}
-                    >
-                      {post.title}
-                    </h2>
+                    />
                   )}
 
                   {/* Body text — unico flessibile o primo flessibile */}
@@ -3378,7 +3383,10 @@ const ImmersivePostCardInner = ({
                 >
                   {/* post.title (titolo NoParrot) */}
                   {!useStackLayout && post.title && post.title.trim().length > 0 && (
-                    <h2
+                    <ClampedTitle
+                      as="h2"
+                      text={post.title}
+                      maxLines={3}
                       ref={registerRef('essential-title')}
                       className="uppercase mb-2 flex-shrink-0"
                       style={{
@@ -3387,11 +3395,9 @@ const ImmersivePostCardInner = ({
                         lineHeight: 0.92,
                         letterSpacing: '-0.02em',
                         color: '#FFFFFF',
-                        textAlign: 'left'
+                        textAlign: 'left',
                       }}
-                    >
-                      {post.title}
-                    </h2>
+                    />
                   )}
 
                   {/* Commento utente flessibile (3 stati) */}
@@ -3671,7 +3677,10 @@ const ImmersivePostCardInner = ({
                 >
                   {/* post.title (titolo NoParrot dato dall'utente) */}
                   {!useStackLayout && post.title && post.title.trim().length > 0 && (
-                    <h2
+                    <ClampedTitle
+                      as="h2"
+                      text={post.title}
+                      maxLines={3}
                       ref={registerRef('essential-title')}
                       className="uppercase mb-2 flex-shrink-0"
                       style={{
@@ -3680,11 +3689,9 @@ const ImmersivePostCardInner = ({
                         lineHeight: 0.92,
                         letterSpacing: '-0.02em',
                         color: '#FFFFFF',
-                        textAlign: 'left'
+                        textAlign: 'left',
                       }}
-                    >
-                      {post.title}
-                    </h2>
+                    />
                   )}
 
                   {/* Commento utente flessibile (3 stati) */}
@@ -3794,7 +3801,10 @@ const ImmersivePostCardInner = ({
                 >
                   {/* post.title (titolo NoParrot dato dall'utente) */}
                   {post.title && post.title.trim().length > 0 ? (
-                    <h2
+                    <ClampedTitle
+                      as="h2"
+                      text={post.title}
+                      maxLines={3}
                       ref={registerRef('essential-title')}
                       className="uppercase mb-2 flex-shrink-0 self-start text-left"
                       style={{
@@ -3803,11 +3813,9 @@ const ImmersivePostCardInner = ({
                         lineHeight: 0.92,
                         letterSpacing: '-0.02em',
                         color: '#FFFFFF',
-                        textAlign: 'left'
+                        textAlign: 'left',
                       }}
-                    >
-                      {post.title}
-                    </h2>
+                    />
                   ) : (
                     <h2
                       ref={registerRef('essential-title')}
@@ -3864,7 +3872,10 @@ const ImmersivePostCardInner = ({
                 >
                   {/* Title */}
                   {post.title && post.title.trim().length > 0 ? (
-                    <h2
+                    <ClampedTitle
+                      as="h2"
+                      text={post.title}
+                      maxLines={3}
                       ref={registerRef('essential-title')}
                       className="uppercase mb-2 flex-shrink-0"
                       style={{
@@ -3873,11 +3884,9 @@ const ImmersivePostCardInner = ({
                         lineHeight: 0.92,
                         letterSpacing: '-0.02em',
                         color: '#FFFFFF',
-                        textAlign: 'left'
+                        textAlign: 'left',
                       }}
-                    >
-                      {post.title}
-                    </h2>
+                    />
                   ) : (
                     <h2
                       ref={registerRef('essential-title')}
@@ -4108,7 +4117,10 @@ const ImmersivePostCardInner = ({
                 >
                   {/* Title */}
                   {!useStackLayout && post.title && post.title.trim().length > 0 && (
-                    <h2
+                    <ClampedTitle
+                      as="h2"
+                      text={post.title}
+                      maxLines={3}
                       ref={registerRef('essential-title')}
                       className="uppercase mb-2 flex-shrink-0"
                       style={{
@@ -4117,11 +4129,9 @@ const ImmersivePostCardInner = ({
                         lineHeight: 0.92,
                         letterSpacing: '-0.02em',
                         color: '#FFFFFF',
-                        textAlign: 'left'
+                        textAlign: 'left',
                       }}
-                    >
-                      {post.title}
-                    </h2>
+                    />
                   )}
 
                   {/* Body text */}
@@ -4237,7 +4247,10 @@ const ImmersivePostCardInner = ({
                 >
                   {/* Title */}
                   {!useStackLayout && post.title && post.title.trim().length > 0 && (
-                    <h2
+                    <ClampedTitle
+                      as="h2"
+                      text={post.title}
+                      maxLines={3}
                       ref={registerRef('essential-title')}
                       className="uppercase mb-2 flex-shrink-0"
                       style={{
@@ -4246,11 +4259,9 @@ const ImmersivePostCardInner = ({
                         lineHeight: 0.92,
                         letterSpacing: '-0.02em',
                         color: '#FFFFFF',
-                        textAlign: 'left'
+                        textAlign: 'left',
                       }}
-                    >
-                      {post.title}
-                    </h2>
+                    />
                   )}
 
                   {/* Body text */}
@@ -4366,7 +4377,10 @@ const ImmersivePostCardInner = ({
                 >
                   {/* Title */}
                   {!useStackLayout && post.title && post.title.trim().length > 0 && (
-                    <h2
+                    <ClampedTitle
+                      as="h2"
+                      text={post.title}
+                      maxLines={3}
                       ref={registerRef('essential-title')}
                       className="uppercase mb-2 flex-shrink-0"
                       style={{
@@ -4375,11 +4389,9 @@ const ImmersivePostCardInner = ({
                         lineHeight: 0.92,
                         letterSpacing: '-0.02em',
                         color: '#FFFFFF',
-                        textAlign: 'left'
+                        textAlign: 'left',
                       }}
-                    >
-                      {post.title}
-                    </h2>
+                    />
                   )}
 
                   {/* Body text */}
@@ -4577,7 +4589,10 @@ const ImmersivePostCardInner = ({
                 >
                   {/* Title */}
                   {post.title && post.title.trim().length > 0 ? (
-                    <h2
+                    <ClampedTitle
+                      as="h2"
+                      text={post.title}
+                      maxLines={3}
                       ref={registerRef('essential-title')}
                       className="uppercase mb-2 flex-shrink-0 self-start text-left"
                       style={{
@@ -4586,11 +4601,9 @@ const ImmersivePostCardInner = ({
                         lineHeight: 0.92,
                         letterSpacing: '-0.02em',
                         color: '#FFFFFF',
-                        textAlign: 'left'
+                        textAlign: 'left',
                       }}
-                    >
-                      {post.title}
-                    </h2>
+                    />
                   ) : (
                     <h2
                       ref={registerRef('essential-title')}
