@@ -78,6 +78,8 @@ import { CommentsDrawer } from "./CommentsDrawer";
 
 // Share Components
 import { ShareSheet } from "@/components/share/ShareSheet";
+import { UnifiedBadge } from "@/components/shared/UnifiedBadge";
+import { ClampedTitle } from "@/components/shared/ClampedTitle";
 import { PeoplePicker } from "@/components/share/PeoplePicker";
 
 // Hooks & Utils
@@ -2109,6 +2111,8 @@ const ImmersivePostCardInner = ({
         className="h-[100dvh] w-full snap-start relative overflow-hidden bg-immersive transition-colors duration-500"
         onClick={handleDoubleTap}
       >
+        {/* Global card scrim (NoParrot Feed UI Spec v1 §2.2) */}
+        <div className="card-scrim" aria-hidden="true" />
         {/* Background for voice/challenge posts without PNGs */}
         {isChallengePost && !shouldUseBlurredBg && (
           <div
@@ -2314,12 +2318,9 @@ const ImmersivePostCardInner = ({
                 <DialogTrigger asChild>
                   <button
                     onClick={(e) => e.stopPropagation()}
-                    className="inline-flex items-center justify-center gap-x-1.5 min-h-[32px] py-1 px-2.5 rounded-xl border border-[#A78BFA]/40 bg-black/80 text-white transition-all duration-200 active:scale-[0.97] cursor-pointer flex-shrink-0"
+                    className="flex-shrink-0 transition-all duration-200 active:scale-[0.97] cursor-pointer"
                   >
-                    <span className="font-bold tracking-wide opacity-60 text-[10px]">✦</span>
-                    <span className="text-[10px] font-bold tracking-wider whitespace-nowrap">
-                      VOCE AI
-                    </span>
+                    <UnifiedBadge kind="ai-voice">✦ Voce AI</UnifiedBadge>
                   </button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
@@ -2517,15 +2518,15 @@ const ImmersivePostCardInner = ({
                   <div ref={registerRef('essential-title')} className="w-full flex flex-col flex-shrink-0">
                     {/* Badge VoiceCast — first element */}
                     <div className="w-full flex justify-center mb-5 shrink-0">
-                      <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm"
-                        style={{ color: '#0A7AFF', background: 'rgba(10,122,255,0.06)', borderColor: 'rgba(10,122,255,0.2)' }}>
-                        🎙 VOICECAST
-                      </span>
+                      <UnifiedBadge kind="voicecast">🎙 Voicecast</UnifiedBadge>
                     </div>
 
                     {/* Title se esiste */}
                     {voiceTitle && voiceTitle.trim().length > 0 && (
-                      <h2 
+                      <ClampedTitle
+                        as="h2"
+                        text={voiceTitle}
+                        maxLines={3}
                         className="uppercase mb-3 flex-shrink-0"
                         style={{
                           fontFamily: 'Impact, sans-serif',
@@ -2533,11 +2534,9 @@ const ImmersivePostCardInner = ({
                           lineHeight: 0.92,
                           letterSpacing: '-0.02em',
                           color: '#FFFFFF',
-                          textAlign: 'left'
+                          textAlign: 'left',
                         }}
-                      >
-                        {voiceTitle}
-                      </h2>
+                      />
                     )}
                   </div>
 
@@ -2699,10 +2698,7 @@ const ImmersivePostCardInner = ({
                     {/* Badge Challenge — first element in the flow */}
                     <div className="w-full flex justify-center mb-5 shrink-0">
                       <div className="flex items-center gap-2">
-                        <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm"
-                          style={{ color: '#E41E52', background: 'rgba(228,30,82,0.06)', borderColor: 'rgba(228,30,82,0.2)' }}>
-                          ⚡ CHALLENGE
-                        </span>
+                        <UnifiedBadge kind="challenge">⚡ Challenge</UnifiedBadge>
                         {challengeCountdown && (
                           <span style={{ 
                             color: isChallengeExpired ? 'rgba(241,245,249,0.4)' : isChallengeUrgent ? '#FF8A3D' : 'rgba(241,245,249,0.4)', 
@@ -2718,7 +2714,10 @@ const ImmersivePostCardInner = ({
 
                     {/* Title se esiste */}
                     {challengeTitle && challengeTitle.trim().length > 0 && (
-                      <h2 
+                      <ClampedTitle
+                        as="h2"
+                        text={challengeTitle}
+                        maxLines={3}
                         className="uppercase mb-3 flex-shrink-0"
                         style={{
                           fontFamily: 'Impact, sans-serif',
@@ -2726,11 +2725,9 @@ const ImmersivePostCardInner = ({
                           lineHeight: 0.92,
                           letterSpacing: '-0.02em',
                           color: '#FFFFFF',
-                          textAlign: 'left'
+                          textAlign: 'left',
                         }}
-                      >
-                        {challengeTitle}
-                      </h2>
+                      />
                     )}
                   </div>
 

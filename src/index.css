@@ -4,6 +4,47 @@
 
 /* NOPARROT Design System - Mobile-first social anti-echo-chamber */
 
+/* ===== BLOCK 1 — Unified design tokens (NoParrot Feed UI Spec v1 §1) ===== */
+:root {
+  --base: #050810;
+  --blue: #0A7AFF;
+  --blue-l: #4DA3FF;
+  --pink: #E41E52;
+  --yellow: #FFD464;
+  --editorial: #0D1B2A;
+  --txt:   rgba(255,255,255,0.92);
+  --txt-2: rgba(255,255,255,0.78);
+  --txt-3: rgba(255,255,255,0.52);
+  --display: 'Impact','Haettenschweiler','Arial Narrow',sans-serif;
+  --body:    'Inter',-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:    'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  --nav-h: 64px;
+  --pad: 22px;
+}
+
+/* ===== Global card scrim (§2.2) ===== */
+.card-scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(180deg,
+    rgba(5,8,16,0.55) 0%,
+    rgba(5,8,16,0.12) 20%,
+    rgba(5,8,16,0.12) 52%,
+    rgba(5,8,16,0.78) 100%);
+}
+
+/* ===== Bottom cluster spacing (§S7) ===== */
+.zone-bottom {
+  padding-bottom: calc(var(--nav-h) + 26px);
+}
+.slot-bottom {
+  margin-top: auto;
+  padding-top: 16px;
+  margin-bottom: 18px;
+}
+
 /* ============================================= */
 /* Urban Texture System - Raw, Grunge Aesthetic */
 /* ============================================= */
