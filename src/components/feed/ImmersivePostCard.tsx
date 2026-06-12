@@ -2518,15 +2518,15 @@ const ImmersivePostCardInner = ({
                   <div ref={registerRef('essential-title')} className="w-full flex flex-col flex-shrink-0">
                     {/* Badge VoiceCast — first element */}
                     <div className="w-full flex justify-center mb-5 shrink-0">
-                      <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm"
-                        style={{ color: '#0A7AFF', background: 'rgba(10,122,255,0.06)', borderColor: 'rgba(10,122,255,0.2)' }}>
-                        🎙 VOICECAST
-                      </span>
+                      <UnifiedBadge kind="voicecast">🎙 Voicecast</UnifiedBadge>
                     </div>
 
                     {/* Title se esiste */}
                     {voiceTitle && voiceTitle.trim().length > 0 && (
-                      <h2 
+                      <ClampedTitle
+                        as="h2"
+                        text={voiceTitle}
+                        maxLines={3}
                         className="uppercase mb-3 flex-shrink-0"
                         style={{
                           fontFamily: 'Impact, sans-serif',
@@ -2534,11 +2534,9 @@ const ImmersivePostCardInner = ({
                           lineHeight: 0.92,
                           letterSpacing: '-0.02em',
                           color: '#FFFFFF',
-                          textAlign: 'left'
+                          textAlign: 'left',
                         }}
-                      >
-                        {voiceTitle}
-                      </h2>
+                      />
                     )}
                   </div>
 
