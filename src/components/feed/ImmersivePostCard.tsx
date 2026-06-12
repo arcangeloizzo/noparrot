@@ -3817,12 +3817,13 @@ const ImmersivePostCardInner = ({
                       }}
                     />
                   ) : (
-                    <h2
+                    <ClampedTitle
+                      as="h2"
+                      text={decodeHTMLEntities(articlePreview?.title || post.shared_title || 'YouTube Short')}
+                      maxLines={3}
                       ref={registerRef('essential-title')}
                       className="text-xl font-bold text-immersive-foreground leading-tight mt-1 mb-2 flex-shrink-0 self-start text-left"
-                    >
-                      {decodeHTMLEntities(articlePreview?.title || post.shared_title || 'YouTube Short')}
-                    </h2>
+                    />
                   )}
 
                   {/* User Comment NoParrot — flessibile */}
@@ -3888,12 +3889,13 @@ const ImmersivePostCardInner = ({
                       }}
                     />
                   ) : (
-                    <h2
+                    <ClampedTitle
+                      as="h2"
+                      text={decodeHTMLEntities(articlePreview?.title || post.shared_title)}
+                      maxLines={3}
                       ref={registerRef('essential-title')}
                       className="text-xl font-bold text-immersive-foreground leading-tight mt-1 mb-2 flex-shrink-0"
-                    >
-                      {decodeHTMLEntities(articlePreview?.title || post.shared_title)}
-                    </h2>
+                    />
                   )}
 
                   {/* Body text */}
@@ -4605,12 +4607,13 @@ const ImmersivePostCardInner = ({
                       }}
                     />
                   ) : (
-                    <h2
+                    <ClampedTitle
+                      as="h2"
+                      text={decodeHTMLEntities(articlePreview?.title || post.shared_title || 'Instagram Reel')}
+                      maxLines={3}
                       ref={registerRef('essential-title')}
                       className="text-xl font-bold text-immersive-foreground leading-tight mt-1 mb-2 flex-shrink-0 self-start text-left"
-                    >
-                      {decodeHTMLEntities(articlePreview?.title || post.shared_title || 'Instagram Reel')}
-                    </h2>
+                    />
                   )}
 
                   {/* User Comment — flessibile */}
