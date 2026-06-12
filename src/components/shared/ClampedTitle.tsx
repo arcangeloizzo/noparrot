@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, createElement } from 'react';
+import { useEffect, useRef, useState, forwardRef, type CSSProperties, createElement, type Ref } from 'react';
 
 interface ClampedTitleProps {
   text: string;
@@ -13,13 +13,10 @@ interface ClampedTitleProps {
  * taglio cada SEMPRE su una parola intera (mai a metà parola), e
  * aggiunge '…' come ellipsis.
  */
-export function ClampedTitle({
-  text,
-  maxLines,
-  className,
-  style,
-  as = 'h1',
-}: ClampedTitleProps) {
+export const ClampedTitle = forwardRef<HTMLElement, ClampedTitleProps>(function ClampedTitle(
+  { text, maxLines, className, style, as = 'h1' },
+  forwardedRef
+) {
   const ref = useRef<HTMLElement | null>(null);
   const [display, setDisplay] = useState(text);
 
@@ -74,13 +71,19 @@ export function ClampedTitle({
     };
   }, [text, maxLines]);
 
+  const setRefs = (el: HTMLElement | null) => {
+    ref.current = el;
+    if (typeof forwardedRef === 'function') forwardedRef(el);
+    else if (forwardedRef) (forwardedRef as { current: HTMLElement | null }).current = el;
+  };
+
   return createElement(
     as,
     {
-      ref: ref as React.RefObject<HTMLElement>,
+      ref: setRefs,
       className,
       style,
     },
     display
   );
-}
+});
