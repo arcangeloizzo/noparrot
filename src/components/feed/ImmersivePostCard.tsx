@@ -78,6 +78,8 @@ import { CommentsDrawer } from "./CommentsDrawer";
 
 // Share Components
 import { ShareSheet } from "@/components/share/ShareSheet";
+import { UnifiedBadge } from "@/components/shared/UnifiedBadge";
+import { ClampedTitle } from "@/components/shared/ClampedTitle";
 import { PeoplePicker } from "@/components/share/PeoplePicker";
 
 // Hooks & Utils
