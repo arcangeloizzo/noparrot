@@ -2111,6 +2111,8 @@ const ImmersivePostCardInner = ({
         className="h-[100dvh] w-full snap-start relative overflow-hidden bg-immersive transition-colors duration-500"
         onClick={handleDoubleTap}
       >
+        {/* Global card scrim (NoParrot Feed UI Spec v1 §2.2) */}
+        <div className="card-scrim" aria-hidden="true" />
         {/* Background for voice/challenge posts without PNGs */}
         {isChallengePost && !shouldUseBlurredBg && (
           <div
