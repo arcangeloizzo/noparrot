@@ -2698,10 +2698,7 @@ const ImmersivePostCardInner = ({
                     {/* Badge Challenge — first element in the flow */}
                     <div className="w-full flex justify-center mb-5 shrink-0">
                       <div className="flex items-center gap-2">
-                        <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm"
-                          style={{ color: '#E41E52', background: 'rgba(228,30,82,0.06)', borderColor: 'rgba(228,30,82,0.2)' }}>
-                          ⚡ CHALLENGE
-                        </span>
+                        <UnifiedBadge kind="challenge">⚡ Challenge</UnifiedBadge>
                         {challengeCountdown && (
                           <span style={{ 
                             color: isChallengeExpired ? 'rgba(241,245,249,0.4)' : isChallengeUrgent ? '#FF8A3D' : 'rgba(241,245,249,0.4)', 
@@ -2717,7 +2714,10 @@ const ImmersivePostCardInner = ({
 
                     {/* Title se esiste */}
                     {challengeTitle && challengeTitle.trim().length > 0 && (
-                      <h2 
+                      <ClampedTitle
+                        as="h2"
+                        text={challengeTitle}
+                        maxLines={3}
                         className="uppercase mb-3 flex-shrink-0"
                         style={{
                           fontFamily: 'Impact, sans-serif',
@@ -2725,11 +2725,9 @@ const ImmersivePostCardInner = ({
                           lineHeight: 0.92,
                           letterSpacing: '-0.02em',
                           color: '#FFFFFF',
-                          textAlign: 'left'
+                          textAlign: 'left',
                         }}
-                      >
-                        {challengeTitle}
-                      </h2>
+                      />
                     )}
                   </div>
 
