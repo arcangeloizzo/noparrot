@@ -785,7 +785,12 @@ export type Database = {
           event_fingerprint: string | null
           expires_at: string | null
           id: string
+          image_ambient_url: string | null
+          image_height: number | null
+          image_orientation: string | null
+          image_ratio: string | null
           image_url: string | null
+          image_width: number | null
           raw_title: string | null
           reactions: Json | null
           skip_reason: string | null
@@ -804,7 +809,12 @@ export type Database = {
           event_fingerprint?: string | null
           expires_at?: string | null
           id?: string
+          image_ambient_url?: string | null
+          image_height?: number | null
+          image_orientation?: string | null
+          image_ratio?: string | null
           image_url?: string | null
+          image_width?: number | null
           raw_title?: string | null
           reactions?: Json | null
           skip_reason?: string | null
@@ -823,7 +833,12 @@ export type Database = {
           event_fingerprint?: string | null
           expires_at?: string | null
           id?: string
+          image_ambient_url?: string | null
+          image_height?: number | null
+          image_orientation?: string | null
+          image_ratio?: string | null
           image_url?: string | null
+          image_width?: number | null
           raw_title?: string | null
           reactions?: Json | null
           skip_reason?: string | null
@@ -1091,6 +1106,7 @@ export type Database = {
       }
       media: {
         Row: {
+          ambient_url: string | null
           created_at: string
           duration_sec: number | null
           extracted_kind: string | null
@@ -1100,13 +1116,16 @@ export type Database = {
           height: number | null
           id: string
           mime: string
+          orientation: string | null
           owner_id: string
+          ratio: string | null
           thumbnail_url: string | null
           type: string
           url: string
           width: number | null
         }
         Insert: {
+          ambient_url?: string | null
           created_at?: string
           duration_sec?: number | null
           extracted_kind?: string | null
@@ -1116,13 +1135,16 @@ export type Database = {
           height?: number | null
           id?: string
           mime: string
+          orientation?: string | null
           owner_id: string
+          ratio?: string | null
           thumbnail_url?: string | null
           type: string
           url: string
           width?: number | null
         }
         Update: {
+          ambient_url?: string | null
           created_at?: string
           duration_sec?: number | null
           extracted_kind?: string | null
@@ -1132,7 +1154,9 @@ export type Database = {
           height?: number | null
           id?: string
           mime?: string
+          orientation?: string | null
           owner_id?: string
+          ratio?: string | null
           thumbnail_url?: string | null
           type?: string
           url?: string

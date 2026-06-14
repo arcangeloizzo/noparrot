@@ -168,7 +168,7 @@ export const useSavedFocus = () => {
         return {
           ...item,
           bookmarked_at: bookmark?.created_at || item.created_at,
-        } as DailyFocus & { bookmarked_at: string };
+        } as unknown as DailyFocus & { bookmarked_at: string };
       }).sort((a, b) => new Date(b.bookmarked_at).getTime() - new Date(a.bookmarked_at).getTime());
     },
     enabled: !!user,
