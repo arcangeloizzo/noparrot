@@ -3,13 +3,13 @@ import { cn } from '@/lib/utils';
 
 export interface UnifiedMedia {
   src: string;
-  ratio: '9:16' | '3:4' | '1:1' | '16:9';
+  ratio: '9:16' | '3:4' | '1:1' | '16:9' | '4:3' | '3:2';
   orientation: 'portrait' | 'landscape' | 'square';
   ambientSrc: string;
   kind: 'image' | 'video' | 'audio-cover';
 }
 
-export type MediaFrameVariant = 'tall' | 'strip' | 'mini' | 'inline';
+export type MediaFrameVariant = 'tall' | 'strip' | 'mini' | 'inline' | 'square';
 
 interface MediaFrameProps {
   /** Media unificato (UnifiedMedia) — può venire da upload utente o link preview con fallback */
@@ -142,6 +142,13 @@ function getVariantStyle(
       return {
         width: '100%',
         aspectRatio: '16 / 9',
+      };
+    case 'square':
+      // Spec §M1: il media mantiene orientamento nativo. Per immagini 1:1 + testo corto
+      // → container quadrato full-width, no crop.
+      return {
+        width: '100%',
+        aspectRatio: '1 / 1',
       };
   }
 }

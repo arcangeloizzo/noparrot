@@ -2,16 +2,23 @@ import type { UnifiedMedia } from '@/types/media';
 import { getWordCount } from '@/lib/gate-utils';
 
 const RATIO_TARGETS = [
-  { name: '9:16' as const, val: 9 / 16,  orientation: 'portrait' as const },
-  { name: '3:4'  as const, val: 3 / 4,   orientation: 'portrait' as const },
-  { name: '1:1'  as const, val: 1,       orientation: 'square'   as const },
-  { name: '16:9' as const, val: 16 / 9,  orientation: 'landscape' as const },
+  { ratio: '9:16' as const, value: 9 / 16 },   // 0.5625, portrait
+  { ratio: '3:4' as const,  value: 3 / 4 },    // 0.75,   portrait
+  { ratio: '1:1' as const,  value: 1 },        // 1.0,    square
+  { ratio: '4:3' as const,  value: 4 / 3 },    // 1.333,  landscape
+  { ratio: '3:2' as const,  value: 3 / 2 },    // 1.5,    landscape
+  { ratio: '16:9' as const, value: 16 / 9 },   // 1.7778, landscape
 ];
+
+function ratioToOrientation(ratio: string): 'portrait' | 'square' | 'landscape' {
+  if (ratio === '9:16' || ratio === '3:4') return 'portrait';
+  if (ratio === '1:1') return 'square';
+  return 'landscape'; // '4:3', '3:2', '16:9'
+}
 
 /**
  * Spec §M2: clamp the actual width/height ratio to the nearest of 9:16, 3:4, 1:1, 16:9.
- * Lineare absolute distance — sufficient for the 4 target points (verified manually:
- * the transition points are roughly r ≈ 0.66, 0.875, 1.39).
+ * Lineare absolute distance — sufficient for the target points.
  *
  * Edge case: width/height = 0 or NaN → fallback to 1:1 square.
  */
@@ -26,13 +33,16 @@ export function classifyOrientation(
   let best = RATIO_TARGETS[2]; // 1:1 default
   let minDiff = Infinity;
   for (const t of RATIO_TARGETS) {
-    const diff = Math.abs(r - t.val);
+    const diff = Math.abs(r - t.value);
     if (diff < minDiff) {
       minDiff = diff;
       best = t;
     }
   }
-  return { ratio: best.name, orientation: best.orientation };
+  return { 
+    ratio: best.ratio, 
+    orientation: ratioToOrientation(best.ratio) 
+  };
 }
 
 /**
@@ -79,9 +89,12 @@ export function getMediaLayout(
   wordCount: number
 ): MediaFrameVariant {
   const isShortText = wordCount < 30;
-  const effectiveOrientation = orientation ?? 'landscape'; // fallback safe per link previews ancora senza orientation
+  const effectiveOrientation = orientation ?? 'landscape';
 
-  if (effectiveOrientation === 'portrait' || effectiveOrientation === 'square') {
+  if (effectiveOrientation === 'square') {
+    return isShortText ? 'square' : 'mini'; // NUOVO: square dedicato per corto
+  }
+  if (effectiveOrientation === 'portrait') {
     return isShortText ? 'tall' : 'mini';
   }
   // landscape

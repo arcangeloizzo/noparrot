@@ -10,7 +10,7 @@ export interface UnifiedMedia {
   /** URL principale, full-size */
   src: string;
   /** Ratio clampato al più vicino tra 9:16, 3:4, 1:1, 16:9 (spec §M2) */
-  ratio: '9:16' | '3:4' | '1:1' | '16:9';
+  ratio: '9:16' | '3:4' | '1:1' | '16:9' | '4:3' | '3:2';
   /** Derivato da ratio: 9:16/3:4 = portrait, 1:1 = square, 16:9 = landscape */
   orientation: 'portrait' | 'landscape' | 'square';
   /** Versione downscale per AmbientLayer §S2. Può === src se la sorgente è già piccola. */

@@ -19,7 +19,7 @@ interface MediaFile {
   extracted_status?: 'idle' | 'pending' | 'done' | 'failed';
   extracted_text?: string | null;
   extracted_kind?: 'ocr' | 'transcript' | null;
-  ratio?: '9:16' | '3:4' | '1:1' | '16:9';
+  ratio?: '9:16' | '3:4' | '1:1' | '16:9' | '4:3' | '3:2';
   orientation?: 'portrait' | 'landscape' | 'square';
   ambient_url?: string;
 }

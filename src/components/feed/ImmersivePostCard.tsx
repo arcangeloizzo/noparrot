@@ -3242,7 +3242,11 @@ const ImmersivePostCardInner = ({
                                     </div>
                                   )}
                                 </div>
-                                <MediaFrame media={mediaForFrame} variant="mini">
+                                <MediaFrame
+                                  media={mediaForFrame}
+                                  variant="mini"
+                                  onTap={() => setSelectedMediaIndex(0)}
+                                >
                                   <div style={{
                                     position: 'absolute', top: 8, right: 8, pointerEvents: 'auto',
                                     width: 26, height: 26, borderRadius: 13,
@@ -3256,7 +3260,11 @@ const ImmersivePostCardInner = ({
                           }
 
                           return (
-                            <MediaFrame media={mediaForFrame} variant={layout}>
+                            <MediaFrame
+                              media={mediaForFrame}
+                              variant={layout}
+                              onTap={() => setSelectedMediaIndex(0)}
+                            >
                               <div style={{
                                 position: 'absolute', top: 12, right: 12, pointerEvents: 'auto',
                                 width: 30, height: 30, borderRadius: 15,
@@ -4971,11 +4979,7 @@ const ImmersivePostCardInner = ({
                 : "Trascrizione non disponibile"
           }
           durationSeconds={activeVoicePost?.duration_seconds || 0}
-          imageUrl={
-            isVoicePost || isChallengePost
-              ? (post.media?.[0]?.url || post.preview_img || undefined)
-              : undefined
-          }
+          imageUrl={post.media?.[0]?.url || post.preview_img || undefined}
           author={{
             name: post.author.full_name || post.author.username,
             username: post.author.username,
