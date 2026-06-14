@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { classifyOrientation, generateAmbientUrl } from '@/lib/mediaUtils';
 
 interface MediaFile {
   id: string;
@@ -18,19 +19,26 @@ interface MediaFile {
   extracted_status?: 'idle' | 'pending' | 'done' | 'failed';
   extracted_text?: string | null;
   extracted_kind?: 'ocr' | 'transcript' | null;
+  ratio?: '9:16' | '3:4' | '1:1' | '16:9';
+  orientation?: 'portrait' | 'landscape' | 'square';
+  ambient_url?: string;
 }
 
-// Estrae la durata di un video
-async function getVideoDuration(file: File): Promise<number | undefined> {
+// Estrae metadati (durata, larghezza, altezza) di un video
+async function getVideoMetadata(file: File): Promise<{ duration_sec?: number; width?: number; height?: number }> {
   return new Promise((resolve) => {
     const video = document.createElement('video');
     video.preload = 'metadata';
     video.onloadedmetadata = () => {
       URL.revokeObjectURL(video.src);
-      resolve(Math.round(video.duration));
+      resolve({
+        duration_sec: Math.round(video.duration),
+        width: video.videoWidth || undefined,
+        height: video.videoHeight || undefined
+      });
     };
     video.onerror = () => {
-      resolve(undefined);
+      resolve({});
     };
     video.src = URL.createObjectURL(file);
   });
@@ -87,9 +95,15 @@ export const useMediaUpload = () => {
           height = img.height;
           console.log(`[useMediaUpload] Image ${width}x${height}`);
         } else if (type === 'video') {
-          duration_sec = await getVideoDuration(file);
-          console.log(`[useMediaUpload] Video duration: ${duration_sec}s`);
+          const meta = await getVideoMetadata(file);
+          width = meta.width;
+          height = meta.height;
+          duration_sec = meta.duration_sec;
+          console.log(`[useMediaUpload] Video ${width}x${height}, duration: ${duration_sec}s`);
         }
+
+        const { ratio, orientation } = classifyOrientation(width ?? 0, height ?? 0);
+        const ambient_url = generateAmbientUrl(publicUrl, type === 'image' ? 'image' : 'video');
 
         // Insert into media table - always start with 'idle' status (on-demand extraction)
         const { data: mediaData, error: mediaError } = await supabase
@@ -102,6 +116,9 @@ export const useMediaUpload = () => {
             width,
             height,
             duration_sec,
+            ratio,
+            orientation,
+            ambient_url,
             extracted_status: 'idle',
             extracted_kind: null
           })
@@ -119,6 +136,9 @@ export const useMediaUpload = () => {
           width,
           height,
           duration_sec,
+          ratio,
+          orientation,
+          ambient_url,
           order_idx: uploadedMedia.length + uploaded.length, // Assign order based on upload sequence
           extracted_status: 'idle',
           extracted_kind: null

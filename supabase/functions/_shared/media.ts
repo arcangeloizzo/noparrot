@@ -1,4 +1,7 @@
-import type { UnifiedMedia } from '@/types/media';
+/**
+ * Shared media helpers for Deno Edge Functions
+ * (Duplicated from src/lib/mediaUtils.ts for Deno container compatibility — sync if modified)
+ */
 
 const RATIO_TARGETS = [
   { name: '9:16' as const, val: 9 / 16,  orientation: 'portrait' as const },
@@ -9,15 +12,11 @@ const RATIO_TARGETS = [
 
 /**
  * Spec §M2: clamp the actual width/height ratio to the nearest of 9:16, 3:4, 1:1, 16:9.
- * Lineare absolute distance — sufficient for the 4 target points (verified manually:
- * the transition points are roughly r ≈ 0.66, 0.875, 1.39).
- *
- * Edge case: width/height = 0 or NaN → fallback to 1:1 square.
  */
 export function classifyOrientation(
   width: number,
   height: number
-): { ratio: UnifiedMedia['ratio']; orientation: UnifiedMedia['orientation'] } {
+): { ratio: '9:16' | '3:4' | '1:1' | '16:9'; orientation: 'portrait' | 'landscape' | 'square' } {
   if (!width || !height || !isFinite(width / height)) {
     return { ratio: '1:1', orientation: 'square' };
   }
