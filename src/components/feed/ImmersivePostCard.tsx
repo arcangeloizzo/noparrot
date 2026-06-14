@@ -72,6 +72,7 @@ import { usePollForPost } from "@/hooks/usePollVote";
 import { MediaGallery } from "@/components/media/MediaGallery";
 import { MediaViewer } from "@/components/media/MediaViewer";
 import { AmbientLayer } from "@/components/shared/AmbientLayer";
+import { MediaFrame } from "@/components/shared/MediaFrame";
 
 // Composer Components
 import { SourceReaderGate } from "../composer/SourceReaderGate";
@@ -97,6 +98,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCreateThread } from "@/hooks/useMessageThreads";
 import { useSendMessage } from "@/hooks/useMessages";
 import { getWordCount, getPostFullText, getTestModeWithSource, getQuestionCountWithoutSource, getQuestionCountForIntentReshare } from "@/lib/gate-utils";
+import { getMediaLayout, countPostWords } from "@/lib/mediaUtils";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
 import { useReshareContextStack } from "@/hooks/useReshareContextStack";
 import { useOriginalSource } from "@/hooks/useOriginalSource";
@@ -3123,152 +3125,233 @@ const ImmersivePostCardInner = ({
                 </div>
               )}
 
-              {isStandardPost && (
-                <div 
-                  className={cn(
-                    "flex-1 min-h-0 flex flex-col justify-start w-full",
-                    emergencyScroll && "overflow-y-auto"
-                  )}
-                >
-                  {/* Title */}
-                  {post.title && post.title.trim().length > 0 && (
-                    <ClampedTitle
-                      as="h2"
-                      text={post.title}
-                      maxLines={3}
-                      ref={(node) => {
-                        registerRef('essential-title')(node);
-                        (titleRef as any).current = node;
-                      }}
-                      className="uppercase mb-2 flex-shrink-0"
-                      style={{
-                        fontFamily: 'Impact, sans-serif',
-                        fontSize: 'clamp(30px, 8vw, 42px)',
-                        lineHeight: 0.92,
-                        letterSpacing: '-0.02em',
-                        color: '#FFFFFF',
-                        textAlign: 'left',
-                      }}
-                    />
-                  )}
+              {isStandardPost && (() => {
+                const wordCount = countPostWords(post.title, post.content);
+                const isMiniLayout = hasUserMedia && post.media && post.media.length === 1 && post.media[0].type === 'image' && !isInstagramReel && !isYoutubeShort && getMediaLayout(post.media[0].orientation, wordCount) === 'mini';
 
-                  {/* Body text — unico flessibile o primo flessibile */}
-                  {post.content && post.content.trim().length > 0 && (
-                    <div 
-                      ref={(el) => {
-                        (bodyRef as any).current = el;
-                        bodyTextRef.current = el;
-                      }}
-                      className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                      style={{ 
-                        fontFamily: 'Inter, sans-serif', 
-                        lineHeight: 1.55, 
-                        textAlign: 'left',
-                        display: '-webkit-box',
-                        WebkitLineClamp: bodyLineClamp,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden'
-                      }}
-                    >
-                      <MentionText content={post.content} />
-                    </div>
-                  )}
+                return (
+                  <div 
+                    className={cn(
+                      "flex-1 min-h-0 flex flex-col justify-start w-full",
+                      emergencyScroll && "overflow-y-auto"
+                    )}
+                  >
+                    {/* Title */}
+                    {post.title && post.title.trim().length > 0 && (
+                      <ClampedTitle
+                        as="h2"
+                        text={post.title}
+                        maxLines={3}
+                        ref={(node) => {
+                          registerRef('essential-title')(node);
+                          (titleRef as any).current = node;
+                        }}
+                        className="uppercase mb-2 flex-shrink-0"
+                        style={{
+                          fontFamily: 'Impact, sans-serif',
+                          fontSize: 'clamp(30px, 8vw, 42px)',
+                          lineHeight: 0.92,
+                          letterSpacing: '-0.02em',
+                          color: '#FFFFFF',
+                          textAlign: 'left',
+                        }}
+                      />
+                    )}
 
-                  {/* Approfondisci (subito dopo il body text) */}
-                  {shouldShowApprofondisci && (
-                    <div className="flex-shrink-0 mt-2 mb-3">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
-                        className="text-sm text-primary font-semibold hover:underline block"
+                    {/* Body text — unico flessibile o primo flessibile (renderizzato qui solo se NON mini layout) */}
+                    {!isMiniLayout && post.content && post.content.trim().length > 0 && (
+                      <div 
+                        ref={(el) => {
+                          (bodyRef as any).current = el;
+                          bodyTextRef.current = el;
+                        }}
+                        className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                        style={{ 
+                          fontFamily: 'Inter, sans-serif', 
+                          lineHeight: 1.55, 
+                          textAlign: 'left',
+                          display: '-webkit-box',
+                          WebkitLineClamp: bodyLineClamp,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden'
+                        }}
                       >
-                        Approfondisci
-                      </button>
-                    </div>
-                  )}
+                        <MentionText content={post.content} />
+                      </div>
+                    )}
 
-                  {/* Image/Media — secondo flessibile (se presente) */}
-                  {hasMedia && post.media && post.media.length > 0 && !shouldUseBlurredBg && (
-                    <>
-                      {flexiblesStatus['flexible-image']?.step === 'full' && (
-                        <div 
-                          ref={(node) => {
-                            registerRef('flexible-image')(node);
-                            (mediaRef as any).current = node;
-                          }}
-                          className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3 rounded-xl border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.3)] cursor-pointer"
-                          style={{ height: `${flexiblesStatus['flexible-image'].height}px` }}
-                          onClick={post.media.length === 1 ? (e) => {
-                            e.stopPropagation();
-                            setSelectedMediaIndex(0);
-                          } : undefined}
+                    {/* Approfondisci (subito dopo il body text - renderizzato qui solo se NON mini layout) */}
+                    {!isMiniLayout && shouldShowApprofondisci && (
+                      <div className="flex-shrink-0 mt-2 mb-3">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
+                          className="text-sm text-primary font-semibold hover:underline block"
                         >
-                          {post.media.length === 1 ? (
-                            isVideoMedia ? (
-                              <div className="relative w-full h-full flex items-center justify-center">
-                                <img
-                                  src={post.media?.[0]?.thumbnail_url || mediaUrl}
-                                  alt=""
-                                  className="w-full h-full object-contain"
-                                />
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <div className="bg-white/90 backdrop-blur p-3 rounded-full shadow-lg">
-                                    <Play className="w-5 h-5 text-black fill-black ml-0.5" />
-                                  </div>
+                          Approfondisci
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Image/Media — secondo flessibile (se presente) */}
+                    {hasMedia && post.media && post.media.length > 0 && !shouldUseBlurredBg && (
+                      <>
+                        {/* Caso singolo upload immagine utente con matrice §5.1 */}
+                        {post.media.length === 1 && post.media[0].type === 'image' ? (() => {
+                          const mediaItem = post.media[0];
+                          const layout = getMediaLayout(mediaItem.orientation, wordCount);
+
+                          const mediaForFrame = {
+                            src: mediaItem.url,
+                            ratio: mediaItem.ratio ?? '16:9',
+                            orientation: mediaItem.orientation ?? 'landscape',
+                            kind: 'image' as const,
+                          };
+
+                          if (layout === 'mini') {
+                            return (
+                              <div className="vstage-row">
+                                <div className="v-col">
+                                  {post.content && post.content.trim().length > 0 && (
+                                    <div 
+                                      ref={(el) => {
+                                        (bodyRef as any).current = el;
+                                        bodyTextRef.current = el;
+                                      }}
+                                      className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                                      style={{ 
+                                        fontFamily: 'Inter, sans-serif', 
+                                        lineHeight: 1.55, 
+                                        textAlign: 'left',
+                                        display: '-webkit-box',
+                                        WebkitLineClamp: bodyLineClamp,
+                                        WebkitBoxOrient: 'vertical',
+                                        overflow: 'hidden'
+                                      }}
+                                    >
+                                      <MentionText content={post.content} />
+                                    </div>
+                                  )}
+                                  {shouldShowApprofondisci && (
+                                    <div className="flex-shrink-0 mt-2 mb-3">
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
+                                        className="text-sm text-primary font-semibold hover:underline block"
+                                      >
+                                        Approfondisci
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
+                                <MediaFrame media={mediaForFrame} variant="mini">
+                                  <div style={{
+                                    position: 'absolute', top: 8, right: 8, pointerEvents: 'auto',
+                                    width: 26, height: 26, borderRadius: 13,
+                                    background: 'rgba(0,0,0,0.45)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    color: 'white', fontSize: 13
+                                  }}>⤢</div>
+                                </MediaFrame>
                               </div>
-                            ) : (
-                              <img
-                                src={mediaUrl}
-                                alt=""
-                                className="w-full h-full object-contain"
-                              />
-                            )
-                          ) : (
-                            <MediaGallery
-                              media={post.media}
-                              onClick={(_, index) => setSelectedMediaIndex(index)}
-                              initialIndex={carouselIndex}
-                              onIndexChange={setCarouselIndex}
-                              className="h-full w-full object-contain"
-                            />
-                          )}
-                        </div>
-                      )}
-                      
-                      {flexiblesStatus['flexible-image']?.step === 'pill' && (
-                        <div 
-                          ref={(node) => {
-                            registerRef('flexible-image')(node);
-                            (mediaRef as any).current = node;
-                          }}
-                          className="flex-shrink-0 mb-3" 
-                          style={{ height: '36px' }}
-                        >
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedMediaIndex(0);
-                            }}
-                            className="inline-flex h-9 items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 px-4 rounded-full text-white text-xs font-bold"
-                          >
-                            <span>📎 Vedi {isVideoMedia ? 'video' : 'immagine'}</span>
-                          </button>
-                        </div>
-                      )}
+                            );
+                          }
 
-                      {flexiblesStatus['flexible-image']?.step === 'hidden' && (
-                        <div 
-                          ref={(node) => {
-                            registerRef('flexible-image')(node);
-                            (mediaRef as any).current = node;
-                          }}
-                          style={{ height: 0, overflow: 'hidden' }} 
-                        />
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
+                          return (
+                            <MediaFrame media={mediaForFrame} variant={layout}>
+                              <div style={{
+                                position: 'absolute', top: 12, right: 12, pointerEvents: 'auto',
+                                width: 30, height: 30, borderRadius: 15,
+                                background: 'rgba(0,0,0,0.45)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: 'white', fontSize: 14
+                              }}>⤢</div>
+                            </MediaFrame>
+                          );
+                        })() : (
+                          /* Caso carousel o video — mantieni legacy */
+                          <>
+                            {flexiblesStatus['flexible-image']?.step === 'full' && (
+                              <div 
+                                ref={(node) => {
+                                  registerRef('flexible-image')(node);
+                                  (mediaRef as any).current = node;
+                                }}
+                                className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3 rounded-xl border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.3)] cursor-pointer"
+                                style={{ height: `${flexiblesStatus['flexible-image'].height}px` }}
+                                onClick={post.media.length === 1 ? (e) => {
+                                  e.stopPropagation();
+                                  setSelectedMediaIndex(0);
+                                } : undefined}
+                              >
+                                {post.media.length === 1 ? (
+                                  isVideoMedia ? (
+                                    <div className="relative w-full h-full flex items-center justify-center">
+                                      <img
+                                        src={post.media?.[0]?.thumbnail_url || mediaUrl}
+                                        alt=""
+                                        className="w-full h-full object-contain"
+                                      />
+                                      <div className="absolute inset-0 flex items-center justify-center">
+                                        <div className="bg-white/90 backdrop-blur p-3 rounded-full shadow-lg">
+                                          <Play className="w-5 h-5 text-black fill-black ml-0.5" />
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <img
+                                      src={mediaUrl}
+                                      alt=""
+                                      className="w-full h-full object-contain"
+                                    />
+                                  )
+                                ) : (
+                                  <MediaGallery
+                                    media={post.media}
+                                    onClick={(_, index) => setSelectedMediaIndex(index)}
+                                    initialIndex={carouselIndex}
+                                    onIndexChange={setCarouselIndex}
+                                    className="h-full w-full object-contain"
+                                  />
+                                )}
+                              </div>
+                            )}
+                            
+                            {flexiblesStatus['flexible-image']?.step === 'pill' && (
+                              <div 
+                                ref={(node) => {
+                                  registerRef('flexible-image')(node);
+                                  (mediaRef as any).current = node;
+                                }}
+                                className="flex-shrink-0 mb-3" 
+                                style={{ height: '36px' }}
+                              >
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedMediaIndex(0);
+                                  }}
+                                  className="inline-flex h-9 items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 px-4 rounded-full text-white text-xs font-bold"
+                                >
+                                  <span>📎 Vedi {isVideoMedia ? 'video' : 'immagine'}</span>
+                                </button>
+                              </div>
+                            )}
+
+                            {flexiblesStatus['flexible-image']?.step === 'hidden' && (
+                              <div 
+                                ref={(node) => {
+                                  registerRef('flexible-image')(node);
+                                  (mediaRef as any).current = node;
+                                }}
+                                style={{ height: 0, overflow: 'hidden' }} 
+                              />
+                            )}
+                          </>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Twitter/X Card - Unified glassmorphic container */}
               {hasLink && isTwitter ? (

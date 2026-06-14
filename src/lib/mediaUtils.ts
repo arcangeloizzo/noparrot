@@ -1,4 +1,5 @@
 import type { UnifiedMedia } from '@/types/media';
+import { getWordCount } from '@/lib/gate-utils';
 
 const RATIO_TARGETS = [
   { name: '9:16' as const, val: 9 / 16,  orientation: 'portrait' as const },
@@ -58,4 +59,39 @@ export function generateAmbientUrl(
   }
 
   return src;
+}
+
+import type { MediaFrameVariant } from '@/components/shared/MediaFrame';
+
+/**
+ * Spec v1.1 §5.1 matrice — decide variant MediaFrame da orientation + word count.
+ *
+ * Approssimazione interim: soglia corto/lungo basata su word count titolo+body (30 parole).
+ * La misurazione runtime §TY3/§M3 (scrollHeight-based) sarà implementata in step 2.3
+ * con useDynamicCardLayout.
+ *
+ * @param orientation derivato da media.ratio (o fallback)
+ * @param wordCount conteggio parole titolo+body del post
+ * @returns variant da passare a MediaFrame
+ */
+export function getMediaLayout(
+  orientation: 'portrait' | 'landscape' | 'square' | undefined,
+  wordCount: number
+): MediaFrameVariant {
+  const isShortText = wordCount < 30;
+  const effectiveOrientation = orientation ?? 'landscape'; // fallback safe per link previews ancora senza orientation
+
+  if (effectiveOrientation === 'portrait' || effectiveOrientation === 'square') {
+    return isShortText ? 'tall' : 'mini';
+  }
+  // landscape
+  return isShortText ? 'inline' : 'strip';
+}
+
+/**
+ * Helper per word count titolo+body, robusto a null/undefined.
+ * Riutilizza getWordCount da gate-utils.
+ */
+export function countPostWords(title?: string | null, body?: string | null): number {
+  return getWordCount(`${title ?? ''} ${body ?? ''}`);
 }
