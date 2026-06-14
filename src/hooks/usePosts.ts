@@ -90,6 +90,9 @@ export interface Post {
       id: string;
       type: 'image' | 'video';
       url: string;
+      ratio?: '9:16' | '3:4' | '1:1' | '16:9';
+      orientation?: 'portrait' | 'landscape' | 'square';
+      ambient_url?: string | null;
       extracted_status?: string | null;
       extracted_text?: string | null;
       extracted_kind?: string | null;
@@ -104,6 +107,9 @@ export interface Post {
     height?: number | null;
     mime?: string;
     duration_sec?: number | null;
+    ratio?: '9:16' | '3:4' | '1:1' | '16:9';
+    orientation?: 'portrait' | 'landscape' | 'square';
+    ambient_url?: string | null;
     extracted_status?: string | null;
     extracted_text?: string | null;
     extracted_kind?: string | null;
@@ -220,6 +226,9 @@ export const usePosts = () => {
               height,
               mime,
               duration_sec,
+              ratio,
+              orientation,
+              ambient_url,
               extracted_status,
               extracted_text,
               extracted_kind
@@ -279,6 +288,9 @@ export const usePosts = () => {
                 id,
                 type,
                 url,
+                ratio,
+                orientation,
+                ambient_url,
                 extracted_status,
                 extracted_text,
                 extracted_kind
@@ -733,7 +745,10 @@ export const useSavedPosts = () => {
                 width,
                 height,
                 mime,
-                duration_sec
+                duration_sec,
+                ratio,
+                orientation,
+                ambient_url
               )
             )
           )
@@ -829,7 +844,10 @@ export const useQuotedPost = (quotedPostId: string | null) => {
               id,
               type,
               url,
-              thumbnail_url
+              thumbnail_url,
+              ratio,
+              orientation,
+              ambient_url
             )
           ),
           voice_posts (

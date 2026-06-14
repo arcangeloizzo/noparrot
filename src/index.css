@@ -36,9 +36,6 @@
 }
 
 /* ===== Bottom cluster spacing (§S7) ===== */
-.zone-bottom {
-  padding-bottom: calc(var(--nav-h) + 26px);
-}
 .slot-bottom {
   margin-top: auto;
   padding-top: 16px;
@@ -1894,4 +1891,113 @@ html:not(.light) .liquid-glass-navbar {
   -webkit-user-select: none;
   user-select: none;
 }
+
+/* CardShell — flex column reale */
+.card-shell {
+  position: absolute;
+  inset-block: 0;
+  left: var(--pad);
+  right: var(--pad);
+  padding-top: calc(env(safe-area-inset-top) + 72px);
+  padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom) + 36px);
+  display: flex;
+  flex-direction: column;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.zone-header {
+  flex: 0 0 auto;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.zone-badge {
+  flex: 0 0 auto;
+  min-height: 26px;
+  margin-top: 13px;        /* gap canonico §T2 */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  pointer-events: none;
+}
+
+.zone-mid {
+  flex: 1 1 0;
+  min-height: 0;            /* permette flex children con overflow corretto */
+  margin-top: 12px;         /* gap canonico §T2 badge→mid */
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;         /* ★ punto chiave architetturale: clip content sforante */
+  pointer-events: none;
+}
+
+/* Modalità FILLED — default, top-anchored */
+.zone-mid--filled {
+  justify-content: flex-start;
+}
+
+/* Modalità HERO — contenuto medio, centrato verticalmente */
+.zone-mid--hero {
+  justify-content: center;
+  padding-bottom: 9vh;
+}
+
+/* Modalità POSTER — testo corto, "il testo è il visual" */
+.zone-mid--poster {
+  justify-content: center;
+  padding-bottom: 12vh;
+}
+
+.zone-bottom {
+  flex: 0 0 auto;
+  margin-top: 16px;         /* gap §S7 zone-mid → action bar */
+  pointer-events: none;
+}
+
+.zone-mid--poster .card-title {
+  font-size: clamp(42px, 12vw, 58px);
+  line-height: 1.02;
+}
+
+.zone-mid--poster .card-subtitle {
+  font-size: 18px;
+  line-height: 1.5;
+  margin-top: 14px;
+  color: var(--txt-2);
+}
+
+/* Su breakpoint piccoli (sotto 700px altezza), POSTER si comprime un po' */
+@media (max-height: 700px) {
+  .zone-mid--poster {
+    padding-bottom: 8vh;
+  }
+  .zone-mid--poster .card-title {
+    font-size: clamp(36px, 11vw, 50px);
+  }
+  .zone-mid--hero {
+    padding-bottom: 6vh;
+  }
+}
+
+/* Sub-bar dedicato Il Punto */
+.il-punto-subbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--txt-3);
+  text-transform: uppercase;
+}
+.il-punto-subbar .subbar-label { text-transform: uppercase; }
+.il-punto-subbar .subbar-source { color: var(--txt-2); font-weight: 600; }
+.il-punto-subbar .subbar-more { color: var(--txt-3); }
+.il-punto-subbar .subbar-info { color: var(--txt-3); }
 

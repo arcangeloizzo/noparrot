@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Play, ExternalLink, Youtube, Linkedin, Disc } from "lucide-react";
+import { Play, ExternalLink, Youtube, Linkedin, Disc, Instagram } from "lucide-react";
 import { cn, getDisplayUsername, decodeHTMLEntities } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { it } from "date-fns/locale";
 import { useArticlePreview } from "@/hooks/useArticlePreview";
 import { VoicePlayer } from "@/components/media/VoicePlayer";
+import { SpotifyPodcastCompactCard } from "./SpotifyPodcastCompactCard";
+
 
 interface QuotedPostEmbedProps {
   post?: any; // The original post object (can be Post or quoted_post)
@@ -96,12 +98,11 @@ const CompactHeader: React.FC<{ post: any }> = ({ post }) => {
 
 const VoiceEmbed: React.FC<{ post: any }> = ({ post }) => {
   const voice = post.voice_post;
-  const imageUrl = post.media?.[0]?.url || post.preview_img;
   
   if (!voice) return null;
 
   return (
-    <div className="flex flex-col gap-2 mt-1">
+    <div className="flex flex-col gap-1.5 mt-1 text-left">
       <div className="flex items-center">
         <span className="h-5 px-2 text-[10px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border border-primary/20 bg-primary/5 text-primary">
           🎙 VOICECAST
@@ -112,6 +113,11 @@ const VoiceEmbed: React.FC<{ post: any }> = ({ post }) => {
           {post.title}
         </h3>
       )}
+      {post.content && post.content.trim().length > 0 && (
+        <p className="text-xs text-white/70 leading-relaxed mb-1 line-clamp-2">
+          {post.content}
+        </p>
+      )}
       <div className="w-full">
         <VoicePlayer
           compact
@@ -121,13 +127,6 @@ const VoiceEmbed: React.FC<{ post: any }> = ({ post }) => {
           hideTranscriptButton
         />
       </div>
-      {imageUrl && (
-        <img
-          src={imageUrl}
-          alt=""
-          className="w-full max-h-[120px] object-cover rounded-lg border border-white/5 mt-1"
-        />
-      )}
     </div>
   );
 };
@@ -137,7 +136,6 @@ const ChallengeEmbed: React.FC<{ post: any }> = ({ post }) => {
   const voice = challenge?.voice_post || post.voice_post;
   const countdown = useCountdown(challenge?.expires_at);
   const isExpired = challenge?.expires_at ? new Date(challenge.expires_at) < new Date() : false;
-  const imageUrl = post.media?.[0]?.url || post.preview_img;
 
   if (!challenge) return null;
 
@@ -146,7 +144,7 @@ const ChallengeEmbed: React.FC<{ post: any }> = ({ post }) => {
   const pctAgainst = totalVotes > 0 ? Math.round((challenge.votes_against / totalVotes) * 100) : 50;
 
   return (
-    <div className="flex flex-col gap-2 mt-1">
+    <div className="flex flex-col gap-1.5 mt-1 text-left">
       <div className="flex items-center gap-1.5 flex-wrap">
         <span className="h-5 px-2 text-[10px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border border-rose-500/20 bg-rose-500/5 text-rose-500">
           ⚡ CHALLENGE
@@ -163,6 +161,11 @@ const ChallengeEmbed: React.FC<{ post: any }> = ({ post }) => {
           {challenge.title}
         </h3>
       )}
+      {post.content && post.content.trim().length > 0 && (
+        <p className="text-xs text-white/70 leading-relaxed mb-1 line-clamp-2">
+          {post.content}
+        </p>
+      )}
 
       {voice && (
         <div className="w-full">
@@ -176,7 +179,6 @@ const ChallengeEmbed: React.FC<{ post: any }> = ({ post }) => {
         </div>
       )}
 
-      {/* Polarization Bar compatto */}
       <div className="mt-1">
         <div className="flex justify-between items-center text-[9px] font-bold text-white/40 mb-1 px-0.5">
           <span>A FAVORE ({pctFor}%)</span>
@@ -187,37 +189,43 @@ const ChallengeEmbed: React.FC<{ post: any }> = ({ post }) => {
           <div style={{ width: `${pctAgainst}%`, background: 'linear-gradient(90deg, #F5C842, #FFD464)' }} />
         </div>
       </div>
-
-      {imageUrl && (
-        <img
-          src={imageUrl}
-          alt=""
-          className="w-full max-h-[120px] object-cover rounded-lg border border-white/5 mt-1"
-        />
-      )}
     </div>
   );
 };
 
 const YouTubeEmbed: React.FC<{ post: any; articlePreview: any }> = ({ post, articlePreview }) => {
   const videoId = extractYoutubeVideoId(post.shared_url);
-  const title = articlePreview?.title || post.shared_title || post.title || 'Video YouTube';
+  const videoTitle = articlePreview?.title || post.shared_title || 'Video YouTube';
   const thumbnailUrl = videoId 
     ? `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
     : (articlePreview?.image || post.preview_img);
+  const postTitle = post.title;
+  const postContent = post.content;
 
   return (
-    <div className="flex flex-col gap-2 mt-1">
+    <div className="flex flex-col gap-2 mt-1 text-left">
       <div className="flex items-center gap-1.5 text-[10px] text-red-500 font-bold uppercase">
         <Youtube className="w-3.5 h-3.5 fill-red-500 text-red-500" />
         <span>YouTube</span>
       </div>
 
+      {postTitle && postTitle.trim().length > 0 && postTitle !== videoTitle && (
+        <h3 className="font-bold text-white text-sm leading-snug">
+          {postTitle}
+        </h3>
+      )}
+
+      {postContent && postContent.trim().length > 0 && (
+        <p className="text-xs text-white/70 leading-relaxed mb-1">
+          {postContent}
+        </p>
+      )}
+
       {thumbnailUrl && (
         <div className="relative aspect-video max-h-[180px] w-full rounded-lg overflow-hidden border border-white/5 bg-black/40 group">
           <img
             src={thumbnailUrl}
-            alt={title}
+            alt={videoTitle}
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 flex items-center justify-center bg-black/10">
@@ -225,51 +233,48 @@ const YouTubeEmbed: React.FC<{ post: any; articlePreview: any }> = ({ post, arti
               <Play className="w-3.5 h-3.5 text-white fill-white ml-0.5" />
             </div>
           </div>
+          <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent">
+            <p className="text-[11px] font-semibold text-white truncate">{decodeHTMLEntities(videoTitle)}</p>
+          </div>
         </div>
       )}
-
-      <h3 className="font-semibold text-white text-xs leading-snug line-clamp-2">
-        {decodeHTMLEntities(title)}
-      </h3>
     </div>
   );
 };
 
 const SpotifyEmbed: React.FC<{ post: any; articlePreview: any }> = ({ post, articlePreview }) => {
-  const title = articlePreview?.title || post.shared_title || post.title || 'Traccia';
+  const episodeTitle = articlePreview?.title || post.shared_title || 'Traccia';
   const subtitle = articlePreview?.description || '';
   const albumArt = articlePreview?.image || post.preview_img;
+  const postTitle = post.title;
+  const postContent = post.content;
 
   return (
-    <div className="flex flex-col gap-2 mt-1">
+    <div className="flex flex-col gap-2 mt-1 text-left">
       <div className="flex items-center gap-1.5 text-[10px] text-emerald-500 font-bold uppercase">
         <Disc className="w-3.5 h-3.5 text-emerald-500" />
         <span>VINILE</span>
       </div>
 
-      <div className="flex items-center gap-3 bg-white/5 border border-white/5 p-2.5 rounded-lg">
-        {albumArt ? (
-          <img
-            src={albumArt}
-            alt=""
-            className="w-12 h-12 rounded object-cover flex-shrink-0"
-          />
-        ) : (
-          <div className="w-12 h-12 rounded bg-emerald-500/10 flex items-center justify-center flex-shrink-0 border border-emerald-500/20">
-            <Disc className="w-6 h-6 text-emerald-500" />
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="font-bold text-white text-xs truncate leading-snug">
-            {decodeHTMLEntities(title)}
-          </p>
-          {subtitle && (
-            <p className="text-[10px] text-white/50 truncate mt-0.5">
-              {decodeHTMLEntities(subtitle)}
-            </p>
-          )}
-        </div>
-      </div>
+      {postTitle && postTitle.trim().length > 0 && postTitle !== episodeTitle && (
+        <h3 className="font-bold text-white text-sm leading-snug">
+          {postTitle}
+        </h3>
+      )}
+
+      {postContent && postContent.trim().length > 0 && (
+        <p className="text-xs text-white/70 leading-relaxed mb-1 line-clamp-2">
+          {postContent}
+        </p>
+      )}
+
+      <SpotifyPodcastCompactCard
+        imageUrl={albumArt || ''}
+        podcastName={subtitle || getHostnameFromUrl(post.shared_url)}
+        episodeTitle={decodeHTMLEntities(episodeTitle)}
+        spotifyUrl={post.shared_url || ''}
+        className="mt-1"
+      />
     </div>
   );
 };
@@ -279,7 +284,7 @@ const IlPuntoEmbed: React.FC<{ post: any }> = ({ post }) => {
   const category = post.category || 'Generale';
 
   return (
-    <div className="flex flex-col gap-1.5 mt-1">
+    <div className="flex flex-col gap-1.5 mt-1 text-left">
       <div className="flex items-center">
         <span className="h-5 px-2 text-[10px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border border-sky-500/20 bg-sky-500/5 text-sky-500">
           ◉ SINTESI EDITORIALE
@@ -292,6 +297,12 @@ const IlPuntoEmbed: React.FC<{ post: any }> = ({ post }) => {
         </h3>
       )}
       
+      {post.content && post.content.trim().length > 0 && (
+        <p className="text-xs text-white/70 leading-relaxed mb-1">
+          {post.content}
+        </p>
+      )}
+      
       <p className="text-[10px] text-white/50">
         {sourcesCount} {sourcesCount === 1 ? 'fonte' : 'fonti'} · {category}
       </p>
@@ -300,62 +311,101 @@ const IlPuntoEmbed: React.FC<{ post: any }> = ({ post }) => {
 };
 
 const SocialEmbed: React.FC<{ post: any; articlePreview: any; platform: string }> = ({ post, articlePreview, platform }) => {
-  const text = post.content || articlePreview?.description || '';
-  const title = articlePreview?.title || post.shared_title || post.title || '';
+  const postTitle = post.title;
+  const postContent = post.content;
+  const previewTitle = articlePreview?.title || post.shared_title || '';
+  const previewText = articlePreview?.description || '';
   const imageUrl = articlePreview?.image || post.preview_img || (post.media?.[0]?.url);
 
   const getPlatformDetails = () => {
     if (platform === 'linkedin') {
       return {
         label: 'Post da LinkedIn',
-        icon: <Linkedin className="w-3.5 h-3.5 fill-blue-600 text-blue-600" />,
-        colorClass: 'text-blue-500'
+        icon: <Linkedin className="w-3.5 h-3.5 fill-[#0A66C2] text-[#0A66C2]" />,
+        color: '#0A66C2'
+      };
+    }
+    if (platform === 'instagram') {
+      return {
+        label: 'Post da Instagram',
+        icon: <Instagram className="w-3.5 h-3.5 text-[#E1306C]" />,
+        color: '#E1306C'
       };
     }
     return {
       label: 'Post da X',
       icon: <span className="font-bold text-xs select-none">𝕏</span>,
-      colorClass: 'text-white'
+      color: '#000000'
     };
   };
 
   const details = getPlatformDetails();
 
   return (
-    <div className="flex flex-col gap-2 mt-1">
+    <div className="flex flex-col gap-2 mt-1 text-left">
       <div className="flex items-center gap-1.5 text-[10px] text-white/60 font-bold uppercase">
         {details.icon}
         <span>{details.label}</span>
       </div>
 
-      {title && (
-        <h4 className="font-semibold text-white text-xs leading-snug">
-          {decodeHTMLEntities(title)}
-        </h4>
+      {postTitle && postTitle.trim().length > 0 && postTitle !== previewTitle && (
+        <h3 className="font-bold text-white text-sm leading-snug">
+          {postTitle}
+        </h3>
       )}
 
-      {text && (
-        <p className="text-[11px] text-white/70 line-clamp-2 leading-relaxed">
-          {decodeHTMLEntities(text)}
+      {postContent && postContent.trim().length > 0 && (
+        <p className="text-xs text-white/70 leading-relaxed mb-1">
+          {postContent}
         </p>
       )}
 
-      {imageUrl && (
-        <img
-          src={imageUrl}
-          alt=""
-          className="w-full max-h-[140px] object-cover rounded-lg border border-white/5 mt-1"
-        />
-      )}
+      <div className="flex flex-col gap-2 p-3 bg-white/5 border border-white/5 rounded-lg w-full">
+        {previewTitle && (
+          <h4 className="font-semibold text-white text-[11px] leading-snug">
+            {decodeHTMLEntities(previewTitle)}
+          </h4>
+        )}
+
+        {previewText && (
+          <p className="text-[10px] text-white/60 line-clamp-2 leading-relaxed">
+            {decodeHTMLEntities(previewText)}
+          </p>
+        )}
+
+        {imageUrl && (
+          <img
+            src={imageUrl}
+            alt=""
+            className="w-full max-h-[140px] object-cover rounded-lg border border-white/5 mt-1"
+          />
+        )}
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (post.shared_url) {
+              window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+            }
+          }}
+          className="inline-flex items-center gap-1.5 self-start px-2.5 py-1 rounded-full text-[10px] font-bold text-white uppercase tracking-wider mt-1 hover:scale-105 transition-transform"
+          style={{ backgroundColor: details.color }}
+        >
+          <ExternalLink className="w-2.5 h-2.5" />
+          <span>Apri su {platform === 'twitter' ? 'X' : platform === 'linkedin' ? 'LinkedIn' : 'Instagram'}</span>
+        </button>
+      </div>
     </div>
   );
 };
 
 const ArticleEmbed: React.FC<{ post: any; articlePreview: any }> = ({ post, articlePreview }) => {
   const hostname = getHostnameFromUrl(post.shared_url || articlePreview?.url);
-  const title = articlePreview?.title || post.shared_title || post.title || 'Articolo';
-  const description = articlePreview?.description || post.content || '';
+  const articleTitle = articlePreview?.title || post.shared_title || 'Articolo';
+  const articleDescription = articlePreview?.description || '';
   const imageUrl = articlePreview?.image || post.preview_img || (post.media?.[0]?.url);
+  const postTitle = post.title;
+  const postContent = post.content;
 
   const getTrustDots = (band: string | null | undefined) => {
     if (band === 'ALTO') return <span className="text-emerald-400">●●●</span>;
@@ -367,7 +417,7 @@ const ArticleEmbed: React.FC<{ post: any; articlePreview: any }> = ({ post, arti
   const faviconUrl = hostname ? `https://www.google.com/s2/favicons?sz=64&domain=${hostname}` : null;
 
   return (
-    <div className="flex flex-col gap-2 mt-1">
+    <div className="flex flex-col gap-2 mt-1 text-left">
       <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold tracking-wider">
         {faviconUrl && (
           <img
@@ -386,23 +436,37 @@ const ArticleEmbed: React.FC<{ post: any; articlePreview: any }> = ({ post, arti
         </span>
       </div>
 
-      <h3 className="font-bold text-white text-xs leading-snug line-clamp-2">
-        {decodeHTMLEntities(title)}
-      </h3>
+      {postTitle && postTitle.trim().length > 0 && postTitle !== articleTitle && (
+        <h3 className="font-bold text-white text-sm leading-snug">
+          {postTitle}
+        </h3>
+      )}
 
-      {description && (
-        <p className="text-[11px] text-white/60 line-clamp-2 leading-relaxed">
-          {decodeHTMLEntities(description)}
+      {postContent && postContent.trim().length > 0 && (
+        <p className="text-xs text-white/70 leading-relaxed mb-1">
+          {postContent}
         </p>
       )}
 
-      {imageUrl && (
-        <img
-          src={imageUrl}
-          alt=""
-          className="w-full max-h-[140px] object-cover rounded-lg border border-white/5 mt-1"
-        />
-      )}
+      <div className="flex flex-col gap-2 p-3 bg-white/5 border border-white/5 rounded-lg w-full">
+        <h4 className="font-semibold text-white text-[11px] leading-snug line-clamp-2">
+          {decodeHTMLEntities(articleTitle)}
+        </h4>
+
+        {articleDescription && (
+          <p className="text-[10px] text-white/60 line-clamp-2 leading-relaxed">
+            {decodeHTMLEntities(articleDescription)}
+          </p>
+        )}
+
+        {imageUrl && (
+          <img
+            src={imageUrl}
+            alt=""
+            className="w-full max-h-[140px] object-cover rounded-lg border border-white/5 mt-1"
+          />
+        )}
+      </div>
     </div>
   );
 };
@@ -412,7 +476,7 @@ const StandardEmbed: React.FC<{ post: any }> = ({ post }) => {
   const description = post.content || '';
 
   return (
-    <div className="flex flex-col gap-2 mt-1">
+    <div className="flex flex-col gap-2 mt-1 text-left">
       {post.title && (
         <h3 className="font-bold text-white text-sm leading-snug">
           {post.title}
@@ -462,7 +526,8 @@ export const QuotedPostEmbed: React.FC<QuotedPostEmbedProps> = ({
   const isSpotify = platform === 'spotify' || post.shared_url?.includes('spotify.com');
   const isLinkedIn = platform === 'linkedin' || post.shared_url?.includes('linkedin.com');
   const isTwitter = platform === 'twitter' || post.shared_url?.includes('twitter.com') || post.shared_url?.includes('x.com');
-  const isArticle = !!post.shared_url && !isYoutube && !isSpotify && !isLinkedIn && !isTwitter && !isIlPunto;
+  const isInstagram = platform === 'instagram' || post.shared_url?.includes('instagram.com');
+  const isArticle = !!post.shared_url && !isYoutube && !isSpotify && !isLinkedIn && !isTwitter && !isInstagram && !isIlPunto;
 
   return (
     <div
@@ -471,22 +536,20 @@ export const QuotedPostEmbed: React.FC<QuotedPostEmbedProps> = ({
         navigateFn?.();
       }}
       className={cn(
-        "border border-white/10 rounded-xl p-3 bg-white/[0.03] backdrop-blur-sm cursor-pointer hover:bg-white/[0.06] active:opacity-80 transition-all select-none",
+        "border border-white/10 rounded-xl p-2.5 bg-white/[0.03] backdrop-blur-sm cursor-pointer hover:bg-white/[0.06] active:opacity-80 transition-all select-none",
         className
       )}
     >
-      {/* Header */}
       <CompactHeader post={post} />
 
-      {/* Content based on type */}
       {isVoice && <VoiceEmbed post={post} />}
       {isChallenge && <ChallengeEmbed post={post} />}
       {!isVoice && !isChallenge && isYoutube && <YouTubeEmbed post={post} articlePreview={articlePreview} />}
       {!isVoice && !isChallenge && isSpotify && <SpotifyEmbed post={post} articlePreview={articlePreview} />}
       {!isVoice && !isChallenge && isIlPunto && <IlPuntoEmbed post={post} />}
-      {!isVoice && !isChallenge && (isLinkedIn || isTwitter) && <SocialEmbed post={post} articlePreview={articlePreview} platform={isLinkedIn ? 'linkedin' : 'twitter'} />}
+      {!isVoice && !isChallenge && (isLinkedIn || isTwitter || isInstagram) && <SocialEmbed post={post} articlePreview={articlePreview} platform={isLinkedIn ? 'linkedin' : isTwitter ? 'twitter' : 'instagram'} />}
       {!isVoice && !isChallenge && isArticle && <ArticleEmbed post={post} articlePreview={articlePreview} />}
-      {!isVoice && !isChallenge && !isYoutube && !isSpotify && !isIlPunto && !isLinkedIn && !isTwitter && !isArticle && <StandardEmbed post={post} />}
+      {!isVoice && !isChallenge && !isYoutube && !isSpotify && !isIlPunto && !isLinkedIn && !isTwitter && !isInstagram && !isArticle && <StandardEmbed post={post} />}
     </div>
   );
 };

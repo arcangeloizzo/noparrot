@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 interface SpotifyGradientBackgroundProps {
   albumArtUrl: string;
   audioFeatures?: AudioFeatures;
+  spotifyPalette?: { primary: string; secondary?: string };
   className?: string;
 }
 
@@ -26,14 +27,20 @@ interface SpotifyGradientBackgroundProps {
 export const SpotifyGradientBackground = ({
   albumArtUrl,
   audioFeatures,
+  spotifyPalette,
   className
 }: SpotifyGradientBackgroundProps) => {
-  const { primary, secondary, loading } = useDominantColors(albumArtUrl);
+  const { primary: extPrimary, secondary: extSecondary, loading } = useDominantColors(spotifyPalette ? '' : albumArtUrl);
+  
+  const primary = spotifyPalette?.primary || extPrimary;
+  const secondary = spotifyPalette?.secondary || extSecondary || primary;
+  
+  const isLoaded = !!spotifyPalette || (!loading && !!albumArtUrl);
   
   // Static fallback while loading or if no image
   const fallbackGradient = "linear-gradient(to bottom, #121212, #1a1a2e, #0d1117)";
   
-  if (loading || !albumArtUrl) {
+  if (!isLoaded) {
     return (
       <div className={cn("absolute inset-0", className)}>
         <div 

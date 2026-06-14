@@ -29,6 +29,7 @@ import { it } from "date-fns/locale";
 // UI Components
 import { useCardLayout } from "@/contexts/CardLayoutContext";
 import { CategoryChip } from "@/components/ui/category-chip";
+import { getCategoryColor } from "@/config/categories";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { VoicePlayer } from "@/components/media/VoicePlayer";
@@ -70,7 +71,7 @@ import { usePollForPost } from "@/hooks/usePollVote";
 // Media Components
 import { MediaGallery } from "@/components/media/MediaGallery";
 import { MediaViewer } from "@/components/media/MediaViewer";
-import { BlurredImageBackground } from "@/components/media/BlurredImageBackground";
+import { AmbientLayer } from "@/components/shared/AmbientLayer";
 
 // Composer Components
 import { SourceReaderGate } from "../composer/SourceReaderGate";
@@ -105,7 +106,7 @@ import { useChallengeResponses } from "@/hooks/useChallengeResponses";
 import { useDynamicCardLayout, FlexibleElementConfig, CompressionStep } from "@/hooks/useDynamicCardLayout";
 import { useLongPress } from "@/hooks/useLongPress";
 import { ReactionPicker, reactionToEmoji, type ReactionType } from "@/components/ui/reaction-picker";
-// ReactionSummary removed - count next to heart is now clickable
+import { CardShell } from "@/components/shared/CardShell";
 import { ReactionsSheet } from "@/components/feed/ReactionsSheet";
 
 // Deep lookup imperativo per risolvere la fonte originale al click (indipendente da React Query)
@@ -448,7 +449,7 @@ const ImmersivePostCardInner = ({
   const [showChallengeFlow, setShowChallengeFlow] = useState(false);
 
   // F. Internal scroll ref for content rail
-  const contentRailRef = useRef<HTMLDivElement>(null);
+  // contentRailRef removed, using midRef from useDynamicCardLayout
 
   // G. Lazy Mount Flags (Performance Optimization)
   // Prevents mounting dozens of complex Radix UI portals per post until they are actually opened,
@@ -1388,7 +1389,12 @@ const ImmersivePostCardInner = ({
   
   const isInstagramReel = post.post_type === 'instagram_reel';
   const hasUserMedia = !!post.media && post.media.length > 0;
-  const shouldUseBlurredBg = hasUserMedia || isInstagramReel || isYoutubeShort;
+  // TAPPO TEMPORANEO (giu 2026) — il pattern foreground-nascosto+background-bleed è
+  // obsoleto vs spec v1.1 §5.1 (matrice orientation-driven). Verrà sostituito dai
+  // sotto-blocchi B (MediaFrame) + C (rendering single image) + E (VerticalStage).
+  // Per ora: solo Reel/Short mantengono background-bleed; upload utente torna a
+  // renderizzare il foreground come prima del blocco AmbientLayer generalizzato.
+  const shouldUseBlurredBg = isInstagramReel || isYoutubeShort;
 
   const backgroundImageUrl = hasUserMedia 
     ? post.media[0].url
@@ -1558,7 +1564,7 @@ const ImmersivePostCardInner = ({
         style={hasTitle ? { fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' } : {}}
       >
         <DynamicClampBody
-          containerRef={contentRailRef}
+          containerRef={midRef}
           content={content}
           onShowFull={() => openFullTextDrawer('description')}
           enabled={isNearActive}
@@ -1733,14 +1739,6 @@ const ImmersivePostCardInner = ({
   const flexiblesConfig = useMemo(() => {
     if (useStackLayout) {
       const config: FlexibleElementConfig[] = [];
-      if (post.content && post.content.trim().length > 0) {
-        config.push({
-          id: 'flexible-reshare-comment',
-          compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
-          minReadabilityHeight: 40,
-          fallbackHeight: 80
-        });
-      }
       config.push({
         id: 'flexible-reshare-quoted-body',
         compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
@@ -1758,34 +1756,10 @@ const ImmersivePostCardInner = ({
       return config;
     }
     if (isYoutubeShort) {
-      const config: FlexibleElementConfig[] = [];
-      if (post.content && post.content.trim().length > 0) {
-        config.push({
-          id: 'flexible-user-comment',
-          compressionSteps: ['full', 'compact', 'hidden'] as CompressionStep[],
-          minReadabilityHeight: 40,
-          fallbackHeight: 80
-        });
-      }
-      if (articlePreview?.title && articlePreview.title.trim().length > 0) {
-        config.push({
-          id: 'flexible-text',
-          compressionSteps: ['full', 'compact', 'hidden'] as CompressionStep[],
-          minReadabilityHeight: 60,
-          fallbackHeight: 120
-        });
-      }
-      return config;
+      return [];
     }
     if (isSpotifyEpisode || isSpotifyTrack || isYoutube || isGenericArticle) {
-      return [
-        {
-          id: 'flexible-text',
-          compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
-          minReadabilityHeight: 60,
-          fallbackHeight: 120
-        }
-      ];
+      return [];
     }
     if (isStandardPost) {
       const arr: FlexibleElementConfig[] = [];
@@ -1797,24 +1771,10 @@ const ImmersivePostCardInner = ({
           fallbackHeight: 200
         });
       }
-      arr.push({
-        id: 'flexible-text',
-        compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
-        minReadabilityHeight: 60,
-        fallbackHeight: 120
-      });
       return arr;
     }
     if (isVoicePost) {
       const arr: FlexibleElementConfig[] = [];
-      if (voiceContent) {
-        arr.push({
-          id: 'flexible-description',
-          compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
-          minReadabilityHeight: 40,
-          fallbackHeight: 80
-        });
-      }
       const hasAttachedImage = post.media && post.media.length > 0;
       if (hasAttachedImage && !shouldUseBlurredBg) {
         arr.push({
@@ -1828,14 +1788,6 @@ const ImmersivePostCardInner = ({
     }
     if (isChallengePost) {
       const arr: FlexibleElementConfig[] = [];
-      if (challengeContent) {
-        arr.push({
-          id: 'flexible-description',
-          compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
-          minReadabilityHeight: 40,
-          fallbackHeight: 80
-        });
-      }
       const hasAttachedImage = post.media && post.media.length > 0;
       if (hasAttachedImage && !shouldUseBlurredBg) {
         arr.push({
@@ -1847,36 +1799,11 @@ const ImmersivePostCardInner = ({
       }
       return arr;
     }
-    if (isLinkedIn) {
-      return post.content ? [
-        {
-          id: 'flexible-user-comment',
-          compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
-          minReadabilityHeight: 60,
-          fallbackHeight: 120
-        }
-      ] : [];
-    }
-    if (isTwitter) {
-      return post.content ? [
-        {
-          id: 'flexible-user-comment',
-          compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
-          minReadabilityHeight: 60,
-          fallbackHeight: 120
-        }
-      ] : [];
+    if (isLinkedIn || isTwitter) {
+      return [];
     }
     if (isInstagramReel) {
       const config: FlexibleElementConfig[] = [];
-      if (post.content && post.content.trim().length > 0) {
-        config.push({
-          id: 'flexible-user-comment',
-          compressionSteps: ['full', 'compact', 'hidden'] as CompressionStep[],
-          minReadabilityHeight: 40,
-          fallbackHeight: 80
-        });
-      }
       if (!shouldUseBlurredBg) {
         config.push({
           id: 'flexible-image',
@@ -1885,29 +1812,14 @@ const ImmersivePostCardInner = ({
           fallbackHeight: 200
         });
       }
-      if (post.shared_title && post.shared_title.trim().length > 0) {
-        config.push({
-          id: 'flexible-text',
-          compressionSteps: ['full', 'compact', 'hidden'] as CompressionStep[],
-          minReadabilityHeight: 60,
-          fallbackHeight: 120
-        });
-      }
       return config;
     }
     if (isIntentPost) {
-      return [
-        {
-          id: 'flexible-intent-text',
-          compressionSteps: ['full', 'clamped', 'hidden'] as CompressionStep[],
-          minReadabilityHeight: 60,
-          fallbackHeight: 120
-        }
-      ];
+      return [];
     }
     return [];
-  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isYoutubeShort, isGenericArticle, isStandardPost, isInstagramReel, isIntentPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media, shouldUseBlurredBg, useStackLayout]);
- 
+  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isYoutubeShort, isGenericArticle, isStandardPost, isInstagramReel, isIntentPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, hasImage, post.media, shouldUseBlurredBg, useStackLayout]);
+
   const priorityConfig = useMemo(() => {
     if (useStackLayout) {
       const priority: string[] = [];
@@ -1915,73 +1827,20 @@ const ImmersivePostCardInner = ({
         priority.push('flexible-reshare-link-body');
       }
       priority.push('flexible-reshare-quoted-body');
-      if (post.content && post.content.trim().length > 0) {
-        priority.push('flexible-reshare-comment');
-      }
       return priority;
-    }
-    if (isYoutubeShort) {
-      const priority: string[] = [];
-      if (post.content && post.content.trim().length > 0) {
-        priority.push('flexible-user-comment');
-      }
-      if (articlePreview?.title && articlePreview.title.trim().length > 0) {
-        priority.push('flexible-text');
-      }
-      return priority;
-    }
-    if (isSpotifyEpisode || isSpotifyTrack || isYoutube || isGenericArticle) {
-      return ['flexible-text'];
     }
     if (isStandardPost) {
-      return (hasImage && !shouldUseBlurredBg) ? ['flexible-image', 'flexible-text'] : ['flexible-text'];
+      return (hasImage && !shouldUseBlurredBg) ? ['flexible-image'] : [];
     }
-    if (isVoicePost) {
+    if (isVoicePost || isChallengePost) {
       const hasAttachedImage = post.media && post.media.length > 0;
-      const priority: string[] = [];
-      if (hasAttachedImage && !shouldUseBlurredBg) {
-        priority.push('flexible-image');
-      }
-      if (voiceContent) {
-        priority.push('flexible-description');
-      }
-      return priority;
-    }
-    if (isChallengePost) {
-      const hasAttachedImage = post.media && post.media.length > 0;
-      const priority: string[] = [];
-      if (hasAttachedImage && !shouldUseBlurredBg) {
-        priority.push('flexible-image');
-      }
-      if (challengeContent) {
-        priority.push('flexible-description');
-      }
-      return priority;
-    }
-    if (isLinkedIn) {
-      return post.content ? ['flexible-user-comment'] : [];
-    }
-    if (isTwitter) {
-      return post.content ? ['flexible-user-comment'] : [];
+      return (hasAttachedImage && !shouldUseBlurredBg) ? ['flexible-image'] : [];
     }
     if (isInstagramReel) {
-      const priority: string[] = [];
-      if (!shouldUseBlurredBg) {
-        priority.push('flexible-image');
-      }
-      if (post.content && post.content.trim().length > 0) {
-        priority.push('flexible-user-comment');
-      }
-      if (post.shared_title && post.shared_title.trim().length > 0) {
-        priority.push('flexible-text');
-      }
-      return priority;
-    }
-    if (isIntentPost) {
-      return ['flexible-intent-text'];
+      return !shouldUseBlurredBg ? ['flexible-image'] : [];
     }
     return [];
-  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isYoutubeShort, isGenericArticle, isStandardPost, isInstagramReel, isIntentPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, voiceContent, challengeContent, post.content, hasImage, post.media, shouldUseBlurredBg, useStackLayout]);
+  }, [isSpotifyEpisode, isSpotifyTrack, isYoutube, isYoutubeShort, isGenericArticle, isStandardPost, isInstagramReel, isIntentPost, isVoicePost, isChallengePost, isLinkedIn, isTwitter, hasImage, post.media, shouldUseBlurredBg, useStackLayout]);
 
   const {
     status: layoutStatus,
@@ -1989,14 +1848,26 @@ const ImmersivePostCardInner = ({
     flexiblesStatus,
     showDrawerCta,
     emergencyScroll,
-    registerRef
+    registerRef,
+    headerRef,
+    badgeRef,
+    midRef,
+    bottomRef,
+    layoutMode,
+    bodyLineClamp,
+    titleRef,
+    bodyRef,
+    mediaRef,
+    slotBottomRef,
+    subBarRef
   } = useDynamicCardLayout({
     availableHeight: (isInstagramReel || isYoutube || isYoutubeShort || isLinkedIn || isTwitter) 
       ? availableHeight - 75 
       : availableHeight,
     essentials: essentialsConfig,
     flexibles: flexiblesConfig,
-    compressionPriority: priorityConfig
+    compressionPriority: priorityConfig,
+    postId: post.id
   });
 
   const tweetEmbedStep = useStackLayout 
@@ -2033,7 +1904,7 @@ const ImmersivePostCardInner = ({
         
         let bodyTrunc = false;
         if (bodyTextRef.current) {
-          bodyTrunc = bodyTextRef.current.scrollHeight > bodyTextRef.current.clientHeight;
+          bodyTrunc = bodyTextRef.current.scrollHeight > bodyLineClamp * BODY_LINE_HEIGHT_PX + 4;
           setIsBodyTruncated(bodyTrunc);
         } else {
           setIsBodyTruncated(false);
@@ -2081,7 +1952,8 @@ const ImmersivePostCardInner = ({
     voiceContent, 
     challengeContent, 
     flexiblesStatus, 
-    availableHeight
+    availableHeight,
+    bodyLineClamp
   ]);
 
   const isReshareCompressed = useStackLayout && (
@@ -2104,6 +1976,193 @@ const ImmersivePostCardInner = ({
   if (showReactionPicker) hasMountedReactionPicker.current = true;
   if (showChallengeFlow) hasMountedChallenge.current = true;
 
+  const getAmbientProps = (): {
+    media?: { src: string; kind: 'reel-short' | 'photo-user' | 'og-image' | 'thumbnail' };
+    category?: string;
+    preset?: 'auto' | 'editorial' | 'spotify';
+    spotifyTrackInfo?: { albumArtUrl: string; audioFeatures?: any };
+  } => {
+    // If it's a reshare/repost, inherit ambient from original source/parent
+    if (quotedPost) {
+      const src = originalSource || quotedPost;
+      
+      // 1. Is the original post "Il Punto" (Editorial)?
+      const srcSharedUrl = src.url !== undefined ? src.url : (src as any).shared_url;
+      const isSrcEditorial = srcSharedUrl?.startsWith('focus://');
+      if (isSrcEditorial) {
+        return { preset: 'editorial' };
+      }
+
+      // 2. Is the original post Spotify?
+      const isSrcSpotify = srcSharedUrl?.includes('spotify.com');
+      const isSrcSpotifyEpisode = isSrcSpotify && (srcSharedUrl?.includes('/episode/') || srcSharedUrl?.includes('/show/'));
+      if (isSrcSpotify && !isSrcSpotifyEpisode) {
+        // spotify track
+        const artUrl = src.image !== undefined ? src.image : (src as any).preview_img;
+        return {
+          preset: 'spotify',
+          spotifyTrackInfo: {
+            albumArtUrl: artUrl || '',
+            audioFeatures: (src as any).articlePreview?.audioFeatures
+          }
+        };
+      }
+      if (isSrcSpotifyEpisode) {
+        // spotify episode: preset='spotify' if podcast artwork exists, otherwise category
+        const artUrl = src.image !== undefined ? src.image : (src as any).preview_img;
+        if (artUrl) {
+          return {
+            preset: 'spotify',
+            spotifyTrackInfo: { albumArtUrl: artUrl }
+          };
+        } else {
+          const cat = src.category !== undefined ? src.category : (src as any).category;
+          return { category: getCategoryColor(cat) };
+        }
+      }
+
+      // 3. Does original post have media?
+      const srcMediaUrl = src.media?.[0]?.url || (src.image !== undefined ? src.image : (src as any).preview_img);
+      const srcPostType = src.postType !== undefined ? src.postType : (src as any).post_type;
+      
+      if (srcMediaUrl) {
+        if (srcPostType === 'instagram_reel') {
+          return { media: { src: srcMediaUrl, kind: 'reel-short' } };
+        }
+        
+        // YouTube short?
+        const isSrcYoutubeShort = srcSharedUrl && srcSharedUrl.includes('/shorts/') && (srcSharedUrl.includes('youtube.com') || srcSharedUrl.includes('youtu.be'));
+        if (isSrcYoutubeShort) {
+          return { media: { src: srcMediaUrl, kind: 'reel-short' } };
+        }
+        
+        // Vertical video upload?
+        const isSrcVideo = src.media?.[0]?.type === 'video' || (src as any).post_media?.[0]?.media?.type === 'video';
+        if (srcPostType === 'voice' || srcPostType === 'challenge' || isSrcVideo) {
+          const isVoiceOrVertical = srcPostType === 'voice' || isSrcVideo;
+          if (isVoiceOrVertical) {
+            return { media: { src: srcMediaUrl, kind: 'reel-short' } };
+          }
+        }
+        
+        // Is it user uploaded photo/carousel?
+        const hasSrcUserMedia = src.media && src.media.length > 0;
+        if (hasSrcUserMedia && !srcSharedUrl) {
+          return { media: { src: srcMediaUrl, kind: 'photo-user' } };
+        }
+        
+        // YouTube std?
+        const isSrcYoutube = srcSharedUrl && (srcSharedUrl.includes('youtube.com') || srcSharedUrl.includes('youtu.be'));
+        if (isSrcYoutube) {
+          return { media: { src: srcMediaUrl, kind: 'thumbnail' } };
+        }
+
+        // Twitter / LinkedIn / standard article with preview image:
+        const isSrcTwitter = srcSharedUrl?.includes('x.com') || srcSharedUrl?.includes('twitter.com');
+        const isSrcLinkedIn = srcSharedUrl?.includes('linkedin.com');
+        if (isSrcTwitter || isSrcLinkedIn) {
+          return { media: { src: srcMediaUrl, kind: 'og-image' } };
+        }
+
+        // Standard OG image:
+        return { media: { src: srcMediaUrl, kind: 'og-image' } };
+      }
+
+      // 4. No media in original -> use its category
+      const srcCat = src.category !== undefined ? src.category : (src as any).category;
+      return { category: getCategoryColor(srcCat) };
+    }
+
+    // --- Post non ricondiviso (Post standard) ---
+
+    // 1. Il Punto (Editorial)
+    if (isEditorialFocus) {
+      return { preset: 'editorial' };
+    }
+
+    // 2. Spotify Track
+    if (isSpotifyTrack) {
+      return {
+        preset: 'spotify',
+        spotifyTrackInfo: {
+          albumArtUrl: articlePreview?.image || post.preview_img || '',
+          audioFeatures: articlePreview?.audioFeatures
+        }
+      };
+    }
+
+    // 3. Spotify Episode
+    if (isSpotifyEpisode) {
+      const artUrl = articlePreview?.image || post.preview_img;
+      if (artUrl) {
+        return {
+          preset: 'spotify',
+          spotifyTrackInfo: { albumArtUrl: artUrl }
+        };
+      } else {
+        return { category: getCategoryColor(post.category) };
+      }
+    }
+
+    // 4. Vertical media (Instagram Reel, YouTube Short, User uploaded vertical video/photo)
+    if (shouldUseBlurredBg && backgroundImageUrl) {
+      return {
+        media: {
+          src: backgroundImageUrl,
+          kind: 'reel-short'
+        }
+      };
+    }
+
+    // 5. Media Only post (User photos/videos upload, no link)
+    if (isMediaOnlyPost && mediaUrl && !isAudioPost) {
+      return {
+        media: {
+          src: mediaUrl,
+          kind: 'photo-user'
+        }
+      };
+    }
+
+    // 6. Voicecast / Voice Post with artwork
+    if (isVoicePost && !isChallengePost) {
+      const artworkSrc = post.media?.[0]?.url || post.preview_img;
+      if (artworkSrc) {
+        return {
+          media: {
+            src: artworkSrc,
+            kind: 'photo-user'
+          }
+        };
+      } else {
+        return { category: getCategoryColor(post.category) };
+      }
+    }
+
+    // 7. Youtube Std / Article / Embed with preview image
+    const stdImageUrl = articlePreview?.image || post.preview_img || post.media?.[0]?.url;
+    if (stdImageUrl && hasLink) {
+      if (isYoutube) {
+        return {
+          media: {
+            src: stdImageUrl,
+            kind: 'thumbnail'
+          }
+        };
+      }
+      
+      return {
+        media: {
+          src: stdImageUrl,
+          kind: 'og-image'
+        }
+      };
+    }
+
+    // 8. Text Only / Poll / Challenge / Fallback (No Media)
+    return { category: getCategoryColor(post.category) };
+  };
+
   return (
     <>
       <div
@@ -2114,142 +2173,8 @@ const ImmersivePostCardInner = ({
       >
         {/* Global card scrim (NoParrot Feed UI Spec v1 §2.2) */}
         <div className="card-scrim" aria-hidden="true" />
-        {/* Background for voice/challenge posts without PNGs */}
-        {isChallengePost && !shouldUseBlurredBg && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'linear-gradient(135deg, rgba(228, 30, 82, 0.07) 0%, rgba(13, 27, 42, 0.95) 40%, rgba(10, 122, 255, 0.04) 100%)',
-              pointerEvents: 'none',
-              zIndex: 0,
-            }}
-          />
-        )}
-        {isVoicePost && !isChallengePost && !shouldUseBlurredBg && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'linear-gradient(135deg, rgba(10, 122, 255, 0.05) 0%, rgba(13, 27, 42, 0.95) 40%, rgba(10, 122, 255, 0.03) 100%)',
-              pointerEvents: 'none',
-              zIndex: 0,
-            }}
-          />
-        )}
-        {shouldUseBlurredBg && backgroundImageUrl ? (
-          <>
-            <BlurredImageBackground 
-              imageUrl={backgroundImageUrl}
-              onClick={() => setSelectedMediaIndex(0)}
-              overlayGradient={overlayGradient}
-            />
-            <div 
-              className="absolute inset-x-0 bottom-0 pointer-events-none z-[1]"
-              style={{
-                height: '70%',
-                background: 'linear-gradient(to top, rgba(13, 27, 42, 1.0) 0%, rgba(13, 27, 42, 0.85) 40%, transparent 100%)',
-              }}
-              aria-hidden="true"
-            />
-          </>
-        ) : isMediaOnlyPost && mediaUrl && !isAudioPost ? (
-          <>
-            {/* Dynamic gradient background from dominant colors */}
-            {/* Dynamic gradient background from dominant colors - Dark Mode Only */}
-            <div
-              className="absolute inset-0 opacity-0 dark:opacity-100 transition-opacity duration-500"
-              style={{
-                background: `linear-gradient(to bottom, ${dominantPrimary}, ${dominantSecondary})`
-              }}
-            />
-            {/* Dark overlay for text readability - Dark Mode Only */}
-            <div className="absolute inset-0 bg-transparent dark:bg-black/30 transition-colors duration-500" />
-            {/* Light mode fallback */}
-            <div className="absolute inset-0 bg-immersive dark:hidden" />
-          </>
-        ) : isTextOnly ? (
-          <div className="absolute inset-0 bg-immersive">
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-[0.03] dark:opacity-10" />
-          </div>
-        ) : isIntentPost || isQuotedIntentPost ? (
-          /* Intent posts: Theme-aware background (Light: White/BlueTint, Dark: Deep Blue) */
-          <div className="absolute inset-0 bg-gradient-to-b from-immersive via-immersive-muted/20 to-immersive">
-            <div className="absolute inset-0 opacity-[0.05] urban-noise-overlay" />
-            <div className="absolute inset-0 bg-noparrot-blue/5 pointer-events-none" />
-          </div>
-        ) : isSpotifyTrack ? (
-          <SpotifyGradientBackground
-            albumArtUrl={articlePreview?.image || post.preview_img || ''}
-            audioFeatures={articlePreview?.audioFeatures}
-          />
-        ) : isSpotifyEpisode ? (
-          /* Podcast episodes: standard dark background, no full-screen gradient */
-          <div className="absolute inset-0 bg-immersive">
-            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-[0.03] dark:opacity-10" />
-          </div>
-        ) : isTwitter ? (
-          <div className="absolute inset-0 bg-gradient-to-b from-[#1DA1F2]/5 via-white to-slate-100 dark:from-[#15202B] dark:via-[#192734] dark:to-[#0d1117]">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#1DA1F2]/5 to-transparent dark:from-[#1DA1F2]/10" />
-          </div>
-        ) : isLinkedIn ? (
-          <div className="absolute inset-0 bg-gradient-to-b from-[#0A66C2]/10 via-white to-slate-100 dark:from-[#0A66C2]/20 dark:via-[#1a1a2e] dark:to-[#0d1117]">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#0A66C2]/10 to-transparent dark:from-[#0A66C2]/15" />
-          </div>
-        ) : isInstagramReel ? (
-          <div className="absolute inset-0 bg-gradient-to-b from-[#E1306C]/10 via-[#0D1B2A] to-[#0D1B2A] dark:from-[#E1306C]/15 dark:via-black dark:to-black">
-            <div 
-              className="absolute inset-0 opacity-[0.12] dark:opacity-[0.18]"
-              style={{
-                background: 'linear-gradient(135deg, #833AB4 0%, #FD1D1D 50%, #F77737 100%)',
-              }}
-            />
-            <div 
-              className="absolute inset-0 pointer-events-none"
-              style={{ 
-                background: 'linear-gradient(135deg, rgba(131, 58, 180, 0.15) 0%, rgba(253, 29, 29, 0.12) 50%, rgba(247, 119, 55, 0.10) 100%)',
-                mixBlendMode: 'overlay'
-              }}
-            />
-          </div>
-        ) : isYoutubeShort ? (
-          <div className="absolute inset-0 bg-gradient-to-b from-[#FF0000]/10 via-[#0D1B2A] to-[#0D1B2A] dark:from-[#FF0000]/15 dark:via-black dark:to-black">
-            <div 
-              className="absolute inset-0 opacity-[0.08] dark:opacity-[0.12]"
-              style={{
-                background: 'linear-gradient(135deg, #FF0000 0%, #282828 100%)',
-              }}
-            />
-          </div>
-        ) : (
-          <>
-            {/* Blurred background image - behind everything */}
-            {backgroundImage && shouldLoadImages && !(!useStackLayout && isChallengePost) && (
-              <img
-                src={backgroundImage}
-                className="absolute inset-0 w-full h-full object-cover opacity-[0.05] blur-2xl scale-110 dark:opacity-60 transition-opacity duration-500"
-                alt=""
-                loading="lazy"
-              />
-            )}
-            {/* Gradient overlay on top of image, or solid color if no image */}
-            <div className={cn(
-               "absolute inset-0 transition-colors duration-500",
-               (!useStackLayout && isChallengePost) 
-                 ? "bg-transparent" 
-                 : backgroundImage 
-                   ? "bg-gradient-to-b from-transparent via-transparent to-transparent dark:from-black/40 dark:via-black/20 dark:to-black/80" 
-                   : "bg-immersive"
-            )}>
-              {/* Light mode specific gradient: much lighter/transparent */}
-              {!(!useStackLayout && isChallengePost) && (
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-transparent dark:from-black/40 dark:via-black/20 dark:to-black/80" />
-              )}
-            </div>
-            
-          </>
-        )}
-
+        <AmbientLayer {...getAmbientProps()} />
+        
         {/* Urban texture overlay - applied to all backgrounds (GPU-friendly static PNG) */}
         <div className="absolute inset-0 z-[1] opacity-[0.015] pointer-events-none urban-noise-overlay" />
 
@@ -2283,11 +2208,10 @@ const ImmersivePostCardInner = ({
             }}
           />
 
-          <div className="absolute inset-y-0 left-12 right-12 z-50 pointer-events-none">
-
-          {/* [Rail 1] HeaderRail: Fixed top overlay with gradient fade */}
-          <div className="absolute top-0 left-0 right-0 z-10 pointer-events-auto">
-            <div className="flex justify-between items-start pt-[calc(env(safe-area-inset-top)+72px)] pb-5">
+          <CardShell>
+            {/* [Rail 1] HeaderRail: Fixed top overlay with gradient fade */}
+            <CardShell.Header ref={headerRef}>
+              <div className="flex justify-between items-start w-full pb-5">
               <div
                 className="flex items-center gap-3 cursor-pointer relative z-[60] min-w-0"
                 onClick={(e) => {
@@ -2309,105 +2233,7 @@ const ImmersivePostCardInner = ({
                 </div>
               </div>
                 
-            {(isAudioPost || isChallengePost) && (
-              <div className="hidden" />
-            )}
 
-            {/* VOCE AI Badge for AI profiles (mutually exclusive with Trust Score) */}
-            {post.author.is_ai_institutional ? (
-              <Dialog>
-                <DialogTrigger asChild>
-                  <button
-                    onClick={(e) => e.stopPropagation()}
-                    className="flex-shrink-0 transition-all duration-200 active:scale-[0.97] cursor-pointer"
-                  >
-                    <UnifiedBadge kind="ai-voice">✦ Voce AI</UnifiedBadge>
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Voce AI</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 text-sm text-muted-foreground">
-                    <p>
-                      Questo profilo è una <strong className="text-foreground">Voce AI di NoParrot</strong>: un'identità editoriale alimentata da intelligenza artificiale che seleziona, approfondisce e commenta contenuti nel proprio ambito tematico.
-                    </p>
-                    <p>
-                      <strong className="text-foreground">Come funziona:</strong> ogni Voce AI ha una personalità, un tono e un'area di competenza definiti. I post vengono generati a partire da fonti verificabili — articoli, podcast, report — che vengono letti e analizzati integralmente prima della pubblicazione. Le fonti sono sempre linkate e consultabili.
-                    </p>
-                    <p>
-                      <strong className="text-foreground">Cosa non è:</strong> le Voci AI non fanno fact-checking, non producono giornalismo e non sostituiscono la lettura delle fonti originali. Sono spunti editoriali per stimolare la curiosità e il confronto.
-                    </p>
-                    <p className="text-xs pt-2 border-t border-border text-muted-foreground">
-                      Il Comprehension Gate si applica anche ai contenuti delle Voci AI: per commentare o ricondividere, devi prima dimostrare di aver compreso.
-                    </p>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            ) : (
-              <>
-                {/* PULSE Badge for Spotify / Trust Score / Category - Hide Trust Score for editorial shares (shown in card) */}
-                {hasLink && isSpotifyTrack && articlePreview?.popularity !== undefined ? (
-                  <PulseBadge
-                    popularity={articlePreview.popularity}
-                    size="sm"
-                  />
-                ) : hasLink && (post.is_intent || (post as any).verified_by === 'user_intent') && !post.shared_url?.startsWith('focus://') ? (
-                  <div className="flex-shrink-0">
-                    <UnanalyzableBadge />
-                  </div>
-                ) : hasLink && displayTrustScore && !post.shared_url?.startsWith('focus://') ? (
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <button
-                        onClick={(e) => e.stopPropagation()}
-                        className={cn(
-                          "flex items-center gap-1.5 bg-slate-100 border border-slate-200 dark:bg-black/30 dark:border-white/10 px-3 py-1.5 rounded-full cursor-pointer hover:bg-slate-200 dark:hover:bg-black/40 transition-colors shadow-sm dark: flex-shrink-0",
-                          displayTrustScore.band === 'ALTO' && "text-emerald-600 dark:text-emerald-400",
-                          displayTrustScore.band === 'MEDIO' && "text-amber-600 dark:text-amber-400",
-                          displayTrustScore.band === 'BASSO' && "text-red-600 dark:text-red-400"
-                        )}
-                      >
-                        <ShieldCheck className="w-4 h-4 flex-shrink-0" />
-                        <span className="text-[10px] font-bold tracking-wider uppercase whitespace-nowrap">
-                          TRUST {displayTrustScore.band}
-                        </span>
-                      </button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Trust Score</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 text-sm text-muted-foreground">
-                        <p>
-                          Il Trust Score indica il livello di affidabilità delle fonti citate,
-                          <strong className="text-foreground"> non la verità o la qualità del contenuto</strong>.
-                        </p>
-                        <p>È calcolato automaticamente e può contenere errori.</p>
-
-                        {displayTrustScore.reasons && displayTrustScore.reasons.length > 0 && (
-                          <div className="pt-3 border-t border-border">
-                            <p className="font-medium text-foreground mb-2">Perché questo punteggio:</p>
-                            <ul className="space-y-1.5">
-                              {displayTrustScore.reasons.map((reason: string, i: number) => (
-                                <li key={i} className="flex items-start gap-2">
-                                  <span className="text-primary mt-0.5">•</span>
-                                  <span>{reason}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
-
-                        <p className="text-xs pt-2 border-t border-border text-muted-foreground">
-                          Valuta la qualità delle fonti e la coerenza col contenuto. Non è fact-checking.
-                        </p>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                ) : null}
-              </>
-            )}
 
             {/* Menu */}
             {isOwnPost ? (
@@ -2482,29 +2308,135 @@ const ImmersivePostCardInner = ({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-          </div>
-          </div>
+            </div>
+          </CardShell.Header>
 
-          {/* Center Content */}
-          {/* [Rail 2] ContentRail */}
-          <div
-            ref={contentRailRef}
-            className="absolute top-0 bottom-0 left-0 right-0 flex flex-col overflow-hidden pointer-events-none"
-            style={{
-              paddingTop: 'calc(env(safe-area-inset-top) + 72px + 82px)',
-              paddingBottom: 'calc(4rem + env(safe-area-inset-bottom) + 36px + 64px)',
-            } as any}
-          >
+          <CardShell.Badge ref={badgeRef}>
+                {/* 1. Voce AI Badge (if AI profile) */}
+                {post.author.is_ai_institutional && (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <button
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-shrink-0 transition-all duration-200 active:scale-[0.97] cursor-pointer"
+                      >
+                        <UnifiedBadge kind="ai-voice">✦ Voce AI</UnifiedBadge>
+                      </button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Voce AI</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 text-sm text-muted-foreground">
+                        <p>
+                          Questo profilo è una <strong className="text-foreground">Voce AI di NoParrot</strong>: un'identità editoriale alimentata da intelligenza artificiale che seleziona, approfondisce e commenta contenuti nel proprio ambito tematico.
+                        </p>
+                        <p>
+                          <strong className="text-foreground">Come funziona:</strong> ogni Voce AI ha una personalità, un tono e un'area di competenza definiti. I post vengono generati a partire da fonti verificabili — articoli, podcast, report — che vengono letti e analizzati integralmente prima della pubblicazione. Le fonti sono sempre linkate e consultabili.
+                        </p>
+                        <p>
+                          <strong className="text-foreground">Cosa non è:</strong> le Voci AI non fanno fact-checking, non producono giornalismo e non sostituiscono la lettura delle fonti originali. Sono spunti editoriali per stimolare la curiosità e il confronto.
+                        </p>
+                        <p className="text-xs pt-2 border-t border-border text-muted-foreground">
+                          Il Comprehension Gate si applica anche ai contenuti delle Voci AI: per commentare o ricondividere, devi prima dimostrare di aver compreso.
+                        </p>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
 
+                {/* 2. Voicecast Badge (if Voice Post) */}
+                {!useStackLayout && isVoicePost && (
+                  <UnifiedBadge kind="voicecast">🎙 Voicecast</UnifiedBadge>
+                )}
 
+                {/* 3. Challenge Badge (if Challenge Post) */}
+                {!useStackLayout && isChallengePost && (
+                  <div className="flex items-center gap-2">
+                    <UnifiedBadge kind="challenge">⚡ Challenge</UnifiedBadge>
+                    {challengeCountdown && (
+                      <span style={{ 
+                        color: isChallengeExpired ? 'rgba(241,245,249,0.4)' : isChallengeUrgent ? '#FF8A3D' : 'rgba(241,245,249,0.4)', 
+                        fontSize: 13,
+                        fontWeight: isChallengeUrgent ? 700 : 500,
+                        marginLeft: 4
+                      }}>
+                        · {isChallengeExpired ? '⏱ Chiusa' : `⏱ Scade tra ${challengeCountdown}`}
+                      </span>
+                    )}
+                  </div>
+                )}
 
-            <div 
-              className={cn(
-                "w-full flex flex-col relative z-[1] pointer-events-auto", 
-                (!isAudioPost && !isChallengePost) ? "my-auto" : "flex-1 min-h-0"
-              )}
-              style={{ maxHeight: `${availableHeight}px` }}
-            >
+                {/* 4. Spotify / Trust Score / Category Badges */}
+                {!post.author.is_ai_institutional && (
+                  <>
+                    {hasLink && isSpotifyTrack && articlePreview?.popularity !== undefined && (
+                      <PulseBadge
+                        popularity={articlePreview.popularity}
+                        size="sm"
+                      />
+                    )}
+                    
+                    {hasLink && (post.is_intent || (post as any).verified_by === 'user_intent') && !post.shared_url?.startsWith('focus://') && (
+                      <div className="flex-shrink-0">
+                        <UnanalyzableBadge />
+                      </div>
+                    )}
+                    
+                    {hasLink && displayTrustScore && !post.shared_url?.startsWith('focus://') && (
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <button
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-all flex-shrink-0 outline-none"
+                            style={{
+                              color: displayTrustScore.band === 'ALTO' ? '#FFD464' :
+                                     displayTrustScore.band === 'MEDIO' ? '#F59E0B' :
+                                     '#E41E52'
+                            }}
+                          >
+                            <ShieldCheck className="w-[26px] h-[26px] flex-shrink-0" />
+                          </button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>Trust Score</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4 text-sm text-muted-foreground">
+                            <p>
+                              Il Trust Score indica il livello di affidabilità delle fonti citate,
+                              <strong className="text-foreground"> non la verità o la qualità del contenuto</strong>.
+                            </p>
+                            <p>È calcolato automaticamente e può contenere errori.</p>
+                            {displayTrustScore.reasons && displayTrustScore.reasons.length > 0 && (
+                              <div className="pt-3 border-t border-border">
+                                <p className="font-medium text-foreground mb-2">Perché questo punteggio:</p>
+                                <ul className="space-y-1.5">
+                                  {displayTrustScore.reasons.map((reason: string, i: number) => (
+                                    <li key={i} className="flex items-start gap-2">
+                                      <span className="text-primary mt-0.5">•</span>
+                                      <span>{reason}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            <p className="text-xs pt-2 border-t border-border text-muted-foreground">
+                              Valuta la qualità delle fonti e la coerenza col contenuto. Non è fact-checking.
+                            </p>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    )}
+                  </>
+                )}
+              </CardShell.Badge>
+
+              <CardShell.Mid ref={midRef} layoutMode={layoutMode}>
+                <div 
+                  className="w-full flex flex-col relative z-[1] pointer-events-auto flex-1 min-h-0"
+                  style={{ maxHeight: `${availableHeight}px` }}
+                >
 
 
               {/* Voice Post Body (non-challenge) inline layout */}
@@ -2517,10 +2449,7 @@ const ImmersivePostCardInner = ({
                 >
                   {/* Header Essenziale: Badge + Title */}
                   <div ref={registerRef('essential-title')} className="w-full flex flex-col flex-shrink-0">
-                    {/* Badge VoiceCast — first element */}
-                    <div className="w-full flex justify-center mb-5 shrink-0">
-                      <UnifiedBadge kind="voicecast">🎙 Voicecast</UnifiedBadge>
-                    </div>
+
 
                     {/* Title se esiste */}
                     {voiceTitle && voiceTitle.trim().length > 0 && (
@@ -2543,39 +2472,23 @@ const ImmersivePostCardInner = ({
 
                   {/* Description flessibile se esiste */}
                   {voiceContent && voiceContent.trim().length > 0 && (
-                    <>
-                      {flexiblesStatus['flexible-description']?.step === 'full' && (
-                        <div 
-                          ref={(el) => { registerRef('flexible-description')(el); bodyTextRef.current = el; }} 
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
-                          style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55 }}
-                        >
-                          <MentionText content={voiceContent} />
-                        </div>
-                      )}
-
-                      {flexiblesStatus['flexible-description']?.step === 'clamped' && (
-                        <div 
-                          ref={(el) => { registerRef('flexible-description')(el); bodyTextRef.current = el; }} 
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
-                          style={{ 
-                            fontFamily: 'Inter, sans-serif', 
-                            lineHeight: 1.55, 
-                            display: '-webkit-box',
-                            WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-description'].height / BODY_LINE_HEIGHT_PX)),
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            height: `${flexiblesStatus['flexible-description'].height}px`
-                          }}
-                        >
-                          <MentionText content={voiceContent} />
-                        </div>
-                      )}
-
-                      {flexiblesStatus['flexible-description']?.step === 'hidden' && (
-                        <div ref={registerRef('flexible-description')} style={{ height: 0, overflow: 'hidden' }} />
-                      )}
-                    </>
+                    <div 
+                      ref={(el) => {
+                        (bodyRef as any).current = el;
+                        bodyTextRef.current = el;
+                      }} 
+                      className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
+                      style={{ 
+                        fontFamily: 'Inter, sans-serif', 
+                        lineHeight: 1.55,
+                        display: '-webkit-box',
+                        WebkitLineClamp: bodyLineClamp,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <MentionText content={voiceContent} />
+                    </div>
                   )}
 
                   {/* Approfondisci subito dopo description (se non c'è description, dopo title) */}
@@ -2595,7 +2508,10 @@ const ImmersivePostCardInner = ({
                     <>
                       {flexiblesStatus['flexible-image']?.step === 'full' && (
                         <div 
-                          ref={registerRef('flexible-image')} 
+                          ref={(node) => {
+                            registerRef('flexible-image')(node);
+                            (mediaRef as any).current = node;
+                          }}
                           className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3 rounded-xl border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.3)] cursor-pointer"
                           style={{ height: `${flexiblesStatus['flexible-image'].height}px` }}
                           onClick={post.media.length === 1 ? (e) => {
@@ -2638,7 +2554,10 @@ const ImmersivePostCardInner = ({
                       
                       {flexiblesStatus['flexible-image']?.step === 'pill' && (
                         <div 
-                          ref={registerRef('flexible-image')} 
+                          ref={(node) => {
+                            registerRef('flexible-image')(node);
+                            (mediaRef as any).current = node;
+                          }}
                           className="flex-shrink-0 mb-3" 
                           style={{ height: '36px' }}
                         >
@@ -2655,34 +2574,42 @@ const ImmersivePostCardInner = ({
                       )}
 
                       {flexiblesStatus['flexible-image']?.step === 'hidden' && (
-                        <div ref={registerRef('flexible-image')} style={{ height: 0, overflow: 'hidden' }} />
+                        <div 
+                          ref={(node) => {
+                            registerRef('flexible-image')(node);
+                            (mediaRef as any).current = node;
+                          }}
+                          style={{ height: 0, overflow: 'hidden' }} 
+                        />
                       )}
                     </>
                   )}
 
-                  {/* Player audio essenziale a stati */}
-                  {essentialStates['essential-voice-player'] === 'standard' && (
-                    <div ref={registerRef('essential-voice-player')} className="w-full mt-auto flex-shrink-0">
-                      <ImmersiveVoicePlayerV2
-                        audioUrl={activeVoicePost?.audio_url || ''}
-                        durationSeconds={activeVoicePost?.duration_seconds || 0}
-                        transcriptStatus={activeVoicePost?.transcript_status as any}
-                        onShowTranscript={() => openFullTextDrawer('transcript')}
-                      />
-                    </div>
-                  )}
-                  {essentialStates['essential-voice-player'] === 'compact' && (
-                    <div ref={registerRef('essential-voice-player')} className="w-full mt-auto flex-shrink-0">
-                      <VoicePlayer 
-                        compact 
-                        audioUrl={activeVoicePost?.audio_url || ''}
-                        durationSeconds={activeVoicePost?.duration_seconds || 0}
-                        transcript={activeVoicePost?.transcript}
-                        transcriptStatus={activeVoicePost?.transcript_status as any}
-                        onShowTranscript={() => openFullTextDrawer('transcript')}
-                      />
-                    </div>
-                  )}
+                  {/* Player Vocale Essenziale */}
+                  <div className="slot-bottom" ref={slotBottomRef}>
+                    {essentialStates['essential-voice-player'] === 'standard' && (
+                      <div ref={registerRef('essential-voice-player')} className="w-full mt-auto flex-shrink-0">
+                        <ImmersiveVoicePlayerV2
+                          audioUrl={activeVoicePost?.audio_url || ''}
+                          durationSeconds={activeVoicePost?.duration_seconds || 0}
+                          transcriptStatus={activeVoicePost?.transcript_status as any}
+                          onShowTranscript={() => openFullTextDrawer('transcript')}
+                        />
+                      </div>
+                    )}
+                    {essentialStates['essential-voice-player'] === 'compact' && (
+                      <div ref={registerRef('essential-voice-player')} className="w-full mt-auto flex-shrink-0">
+                        <VoicePlayer 
+                          compact 
+                          audioUrl={activeVoicePost?.audio_url || ''}
+                          durationSeconds={activeVoicePost?.duration_seconds || 0}
+                          transcript={activeVoicePost?.transcript}
+                          transcriptStatus={activeVoicePost?.transcript_status as any}
+                          onShowTranscript={() => openFullTextDrawer('transcript')}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -2696,22 +2623,7 @@ const ImmersivePostCardInner = ({
                 >
                   {/* Header Essenziale: Badge + Title */}
                   <div ref={registerRef('essential-title')} className="w-full flex flex-col flex-shrink-0">
-                    {/* Badge Challenge — first element in the flow */}
-                    <div className="w-full flex justify-center mb-5 shrink-0">
-                      <div className="flex items-center gap-2">
-                        <UnifiedBadge kind="challenge">⚡ Challenge</UnifiedBadge>
-                        {challengeCountdown && (
-                          <span style={{ 
-                            color: isChallengeExpired ? 'rgba(241,245,249,0.4)' : isChallengeUrgent ? '#FF8A3D' : 'rgba(241,245,249,0.4)', 
-                            fontSize: 13,
-                            fontWeight: isChallengeUrgent ? 700 : 500,
-                            marginLeft: 4
-                          }}>
-                            · {isChallengeExpired ? '⏱ Chiusa' : `⏱ Scade tra ${challengeCountdown}`}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+
 
                     {/* Title se esiste */}
                     {challengeTitle && challengeTitle.trim().length > 0 && (
@@ -2734,39 +2646,23 @@ const ImmersivePostCardInner = ({
 
                   {/* Description flessibile se esiste */}
                   {challengeContent && challengeContent.trim().length > 0 && (
-                    <>
-                      {flexiblesStatus['flexible-description']?.step === 'full' && (
-                        <div 
-                          ref={(el) => { registerRef('flexible-description')(el); bodyTextRef.current = el; }} 
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
-                          style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55 }}
-                        >
-                          <MentionText content={challengeContent} />
-                        </div>
-                      )}
-
-                      {flexiblesStatus['flexible-description']?.step === 'clamped' && (
-                        <div 
-                          ref={(el) => { registerRef('flexible-description')(el); bodyTextRef.current = el; }} 
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
-                          style={{ 
-                            fontFamily: 'Inter, sans-serif', 
-                            lineHeight: 1.55, 
-                            display: '-webkit-box',
-                            WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-description'].height / BODY_LINE_HEIGHT_PX)),
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            height: `${flexiblesStatus['flexible-description'].height}px`
-                          }}
-                        >
-                          <MentionText content={challengeContent} />
-                        </div>
-                      )}
-
-                      {flexiblesStatus['flexible-description']?.step === 'hidden' && (
-                        <div ref={registerRef('flexible-description')} style={{ height: 0, overflow: 'hidden' }} />
-                      )}
-                    </>
+                    <div 
+                      ref={(el) => {
+                        (bodyRef as any).current = el;
+                        bodyTextRef.current = el;
+                      }} 
+                      className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
+                      style={{ 
+                        fontFamily: 'Inter, sans-serif', 
+                        lineHeight: 1.55,
+                        display: '-webkit-box',
+                        WebkitLineClamp: bodyLineClamp,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <MentionText content={challengeContent} />
+                    </div>
                   )}
 
                   {/* Approfondisci subito dopo description (se non c'è description, dopo title) */}
@@ -2786,7 +2682,10 @@ const ImmersivePostCardInner = ({
                     <>
                       {flexiblesStatus['flexible-image']?.step === 'full' && (
                         <div 
-                          ref={registerRef('flexible-image')} 
+                          ref={(node) => {
+                            registerRef('flexible-image')(node);
+                            (mediaRef as any).current = node;
+                          }}
                           className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3 rounded-xl border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.3)] cursor-pointer"
                           style={{ height: `${flexiblesStatus['flexible-image'].height}px` }}
                           onClick={post.media.length === 1 ? (e) => {
@@ -2829,7 +2728,10 @@ const ImmersivePostCardInner = ({
                       
                       {flexiblesStatus['flexible-image']?.step === 'pill' && (
                         <div 
-                          ref={registerRef('flexible-image')} 
+                          ref={(node) => {
+                            registerRef('flexible-image')(node);
+                            (mediaRef as any).current = node;
+                          }}
                           className="flex-shrink-0 mb-3" 
                           style={{ height: '36px' }}
                         >
@@ -2846,131 +2748,140 @@ const ImmersivePostCardInner = ({
                       )}
 
                       {flexiblesStatus['flexible-image']?.step === 'hidden' && (
-                        <div ref={registerRef('flexible-image')} style={{ height: 0, overflow: 'hidden' }} />
+                        <div 
+                          ref={(node) => {
+                            registerRef('flexible-image')(node);
+                            (mediaRef as any).current = node;
+                          }}
+                          style={{ height: 0, overflow: 'hidden' }} 
+                        />
                       )}
                     </>
                   )}
 
-                  {/* Player audio compact (essential-challenge-player) */}
-                  <div ref={registerRef('essential-challenge-player')} className="w-full mt-auto flex-shrink-0">
-                    <VoicePlayer 
-                      compact 
-                      audioUrl={activeVoicePost?.audio_url || ''}
-                      durationSeconds={activeVoicePost?.duration_seconds || 0}
-                      transcript={activeVoicePost?.transcript}
-                      transcriptStatus={activeVoicePost?.transcript_status as any}
-                      accentColor="#E41E52"
-                      onShowTranscript={() => openFullTextDrawer('transcript')}
-                    />
-                  </div>
+                  {/* Player, polarization, CTAs inside slot-bottom */}
+                  <div className="slot-bottom" ref={slotBottomRef}>
+                    {/* Player audio compact (essential-challenge-player) */}
+                    <div ref={registerRef('essential-challenge-player')} className="w-full mt-auto flex-shrink-0">
+                      <VoicePlayer 
+                        compact 
+                        audioUrl={activeVoicePost?.audio_url || ''}
+                        durationSeconds={activeVoicePost?.duration_seconds || 0}
+                        transcript={activeVoicePost?.transcript}
+                        transcriptStatus={activeVoicePost?.transcript_status as any}
+                        accentColor="#E41E52"
+                        onShowTranscript={() => openFullTextDrawer('transcript')}
+                      />
+                    </div>
 
-                  {/* Polarization bar (essential-polarization) */}
-                  <div ref={registerRef('essential-polarization')} className="mt-4 px-1 flex-shrink-0" style={{ height: '80px' }}>
-                    <div className="flex items-end justify-between mb-1.5" style={{ fontFamily: 'JetBrains Mono', fontSize: '10px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                      <span style={{ color: '#0A7AFF' }}>
-                        A FAVORE ({Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%)
-                      </span>
-                      <span style={{ color: '#FFD464' }}>
-                        CONTRO ({Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%)
-                      </span>
+                    {/* Polarization bar (essential-polarization) */}
+                    <div ref={registerRef('essential-polarization')} className="mt-4 px-1 flex-shrink-0" style={{ height: '80px' }}>
+                      <div className="flex items-end justify-between mb-1.5" style={{ fontFamily: 'JetBrains Mono', fontSize: '10px', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                        <span style={{ color: '#0A7AFF' }}>
+                          A FAVORE ({Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%)
+                        </span>
+                        <span style={{ color: '#FFD464' }}>
+                          CONTRO ({Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%)
+                        </span>
+                      </div>
+                      <div className="flex overflow-hidden" style={{ height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }}>
+                        <div style={{ width: `${Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #0A7AFF, #3D9AFF)', borderRadius: '4px 0 0 4px' }} />
+                        <div style={{ width: `${Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #F5C842, #FFD464)', borderRadius: '0 4px 4px 0' }} />
+                      </div>
+                      
+                      {/* Challenge Responses Button */}
+                      {challengeResponses.length > 0 && (
+                        <div className="mt-2 flex justify-center">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setChallengeDrawerOpen(true);
+                            }}
+                            className="flex items-center justify-center gap-1.5 py-1 px-4 rounded-full text-xs font-semibold text-slate-300 hover:text-white transition-all hover:bg-white/5"
+                          >
+                            <Zap className="w-3 h-3 text-[#E41E52]" />
+                            Vedi {challengeResponses.length} rispost{challengeResponses.length === 1 ? 'a' : 'e'}
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex overflow-hidden" style={{ height: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }}>
-                      <div style={{ width: `${Math.round(((post.challenge.votes_for || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #0A7AFF, #3D9AFF)', borderRadius: '4px 0 0 4px' }} />
-                      <div style={{ width: `${Math.round(((post.challenge.votes_against || 0) / Math.max(1, (post.challenge.votes_for || 0) + (post.challenge.votes_against || 0))) * 100)}%`, background: 'linear-gradient(90deg, #F5C842, #FFD464)', borderRadius: '0 4px 4px 0' }} />
-                    </div>
-                    
-                    {/* Challenge Responses Button */}
-                    {challengeResponses.length > 0 && (
-                      <div className="mt-2 flex justify-center">
+
+                    {/* CTA "Accetta la sfida" (essential-cta-accept) */}
+                    {(() => {
+                      const isExpired = post.challenge?.status === 'expired' || post.challenge?.status === 'closed' || new Date(post.challenge?.expires_at || '') < new Date();
+                      const isAuthor = user?.id === post.author.id;
+                      const hasResponded = challengeResponses.some(r => r.user_id === user?.id);
+                      const isDisabled = isExpired || hasResponded;
+
+                      return !isAuthor ? (
                         <button
+                          ref={registerRef('essential-cta-accept')}
                           onClick={(e) => {
                             e.stopPropagation();
-                            setChallengeDrawerOpen(true);
-                          }}
-                          className="flex items-center justify-center gap-1.5 py-1 px-4 rounded-full text-xs font-semibold text-slate-300 hover:text-white transition-all hover:bg-white/5"
-                        >
-                          <Zap className="w-3 h-3 text-[#E41E52]" />
-                          Vedi {challengeResponses.length} rispost{challengeResponses.length === 1 ? 'a' : 'e'}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* CTA "Accetta la sfida" (essential-cta-accept) */}
-                  {(() => {
-                    const isExpired = post.challenge?.status === 'expired' || post.challenge?.status === 'closed' || new Date(post.challenge?.expires_at || '') < new Date();
-                    const isAuthor = user?.id === post.author.id;
-                    const hasResponded = challengeResponses.some(r => r.user_id === user?.id);
-                    const isDisabled = isExpired || hasResponded;
-
-                    return !isAuthor ? (
-                      <button
-                        ref={registerRef('essential-cta-accept')}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (isDisabled) return;
-                          // Trigger challenge respond flow
-                          const handleRespond = async () => {
-                            const transcriptText = activeVoicePost?.transcript || post.content;
-                            const wordCount = getWordCount(transcriptText);
-                            const questionCount = getQuestionCountWithoutSource(wordCount);
-                            if (questionCount === 0) {
-                              setShowChallengeFlow(true);
-                              return;
-                            }
-                            setShowAnalysisOverlay(true);
-                            try {
-                              const result = await generateQA({
-                                contentId: post.id,
-                                title: post.author.full_name || post.author.username,
-                                summary: transcriptText,
-                                userText: transcriptText || '',
-                                questionCount,
-                              });
-                              setShowAnalysisOverlay(false);
-                              if (result.insufficient_context) {
-                                toast.info("Trascrizione non sufficiente per il test.");
+                            if (isDisabled) return;
+                            // Trigger challenge respond flow
+                            const handleRespond = async () => {
+                              const transcriptText = activeVoicePost?.transcript || post.content;
+                              const wordCount = getWordCount(transcriptText);
+                              const questionCount = getQuestionCountWithoutSource(wordCount);
+                              if (questionCount === 0) {
                                 setShowChallengeFlow(true);
-                                  return;
+                                return;
+                              }
+                              setShowAnalysisOverlay(true);
+                              try {
+                                const result = await generateQA({
+                                  contentId: post.id,
+                                  title: post.author.full_name || post.author.username,
+                                  summary: transcriptText,
+                                  userText: transcriptText || '',
+                                  questionCount,
+                                });
+                                setShowAnalysisOverlay(false);
+                                if (result.insufficient_context) {
+                                  toast.info("Trascrizione non sufficiente per il test.");
+                                  setShowChallengeFlow(true);
+                                    return;
+                                 }
+                                 if (!result || result.error || !result.questions?.length) {
+                                   toast.error(result?.error || "Errore generico");
+                                   return;
+                                 }
+                                 setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}`, onChallengeRespond: true });
+                                 setShowQuiz(true);
+                               } catch {
+                                 setShowAnalysisOverlay(false);
+                                 toast.error("Errore generico");
                                }
-                               if (!result || result.error || !result.questions?.length) {
-                                 toast.error(result?.error || "Errore generico");
-                                 return;
-                               }
-                               setQuizData({ qaId: result.qaId, questions: result.questions, sourceUrl: `post://${post.id}`, onChallengeRespond: true });
-                               setShowQuiz(true);
-                             } catch {
-                               setShowAnalysisOverlay(false);
-                               toast.error("Errore generico");
-                             }
-                           };
-                           handleRespond();
-                         }}
-                         disabled={isDisabled}
-                         className={cn(
-                           "relative w-full mt-2 rounded-full font-bold text-sm tracking-wide overflow-hidden transition-all flex-shrink-0 flex items-center justify-center",
-                           isDisabled ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02] active:scale-[0.98]"
-                         )}
-                         style={{
-                           height: '48px',
-                           background: isDisabled ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #E41E52, #FF6B35)',
-                           color: isDisabled ? 'rgba(255,255,255,0.3)' : 'white',
-                           border: isDisabled ? '1px solid rgba(255,255,255,0.1)' : 'none',
-                         }}
-                       >
-                         {!isDisabled && (
-                           <span className="absolute inset-0" style={{
-                             background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)',
-                             backgroundSize: '200% 100%',
-                             animation: 'shimmer 2.5s ease-in-out infinite',
-                           }} />
-                         )}
-                         <span className="relative z-10">
-                           {hasResponded ? '✓ Hai già risposto' : isExpired ? '⚡ Sfida chiusa' : '⚡ Accetta la sfida'}
-                         </span>
-                       </button>
-                     ) : null;
-                   })()}
+                             };
+                             handleRespond();
+                           }}
+                           disabled={isDisabled}
+                           className={cn(
+                             "relative w-full mt-2 rounded-full font-bold text-sm tracking-wide overflow-hidden transition-all flex-shrink-0 flex items-center justify-center",
+                             isDisabled ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.02] active:scale-[0.98]"
+                           )}
+                           style={{
+                             height: '48px',
+                             background: isDisabled ? 'rgba(255,255,255,0.05)' : 'linear-gradient(135deg, #E41E52, #FF6B35)',
+                             color: isDisabled ? 'rgba(255,255,255,0.3)' : 'white',
+                             border: isDisabled ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                           }}
+                         >
+                           {!isDisabled && (
+                             <span className="absolute inset-0" style={{
+                               background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.15) 50%, transparent 100%)',
+                               backgroundSize: '200% 100%',
+                               animation: 'shimmer 2.5s ease-in-out infinite',
+                             }} />
+                           )}
+                           <span className="relative z-10">
+                             {hasResponded ? '✓ Hai già risposto' : isExpired ? '⚡ Sfida chiusa' : '⚡ Accetta la sfida'}
+                           </span>
+                         </button>
+                       ) : null;
+                     })()}
+                  </div>
 
                   {/* Response Drawer */}
                   <Drawer open={challengeDrawerOpen} onOpenChange={setChallengeDrawerOpen}>
@@ -3125,35 +3036,22 @@ const ImmersivePostCardInner = ({
               {/* Intent Post (non-stack): Quote Block style for posts with is_intent flag */}
               {!useStackLayout && post.is_intent && post.content && (
                 <div className="flex flex-col w-full flex-shrink-0">
-                  {flexiblesStatus['flexible-intent-text']?.step === 'full' && (
-                    <div 
-                      ref={(el) => { registerRef('flexible-intent-text')(el); bodyTextRef.current = el; }}
-                      className="border-l-4 border-primary/60 bg-card/10 px-3 sm:px-4 py-2 sm:py-3 rounded-r-lg mb-4 sm:mb-6"
-                    >
-                      <p className="text-base sm:text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide ">
-                        <MentionText content={post.content} />
-                      </p>
-                    </div>
-                  )}
-                  {flexiblesStatus['flexible-intent-text']?.step === 'clamped' && (
-                    <div 
-                      ref={(el) => { registerRef('flexible-intent-text')(el); bodyTextRef.current = el; }}
-                      className="border-l-4 border-primary/60 bg-card/10 px-3 sm:px-4 py-2 sm:py-3 rounded-r-lg mb-4 sm:mb-6 overflow-hidden"
-                      style={{ 
-                        height: `${flexiblesStatus['flexible-intent-text'].height}px`,
-                        display: '-webkit-box',
-                        WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-intent-text'].height / 24)),
-                        WebkitBoxOrient: 'vertical',
-                      }}
-                    >
-                      <p className="text-base sm:text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide">
-                        <MentionText content={post.content} />
-                      </p>
-                    </div>
-                  )}
-                  {flexiblesStatus['flexible-intent-text']?.step === 'hidden' && (
-                    <div ref={registerRef('flexible-intent-text')} style={{ height: 0, overflow: 'hidden' }} />
-                  )}
+                  <div 
+                    ref={(el) => {
+                      (bodyRef as any).current = el;
+                      bodyTextRef.current = el;
+                    }}
+                    className="border-l-4 border-primary/60 bg-card/10 px-3 sm:px-4 py-2 sm:py-3 rounded-r-lg mb-4 sm:mb-6 overflow-hidden"
+                    style={{ 
+                      display: '-webkit-box',
+                      WebkitLineClamp: bodyLineClamp,
+                      WebkitBoxOrient: 'vertical',
+                    }}
+                  >
+                    <p className="text-base sm:text-lg font-normal text-slate-600 dark:text-white/90 leading-snug tracking-wide">
+                      <MentionText content={post.content} />
+                    </p>
+                  </div>
                   {shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3 text-left">
                       <button
@@ -3238,7 +3136,10 @@ const ImmersivePostCardInner = ({
                       as="h2"
                       text={post.title}
                       maxLines={3}
-                      ref={registerRef('essential-title')}
+                      ref={(node) => {
+                        registerRef('essential-title')(node);
+                        (titleRef as any).current = node;
+                      }}
                       className="uppercase mb-2 flex-shrink-0"
                       style={{
                         fontFamily: 'Impact, sans-serif',
@@ -3253,40 +3154,24 @@ const ImmersivePostCardInner = ({
 
                   {/* Body text — unico flessibile o primo flessibile */}
                   {post.content && post.content.trim().length > 0 && (
-                    <>
-                      {flexiblesStatus['flexible-text']?.step === 'full' && (
-                        <div 
-                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                          style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
-                        >
-                          <MentionText content={post.content} />
-                        </div>
-                      )}
-
-                      {flexiblesStatus['flexible-text']?.step === 'clamped' && (
-                        <div 
-                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                          style={{ 
-                            fontFamily: 'Inter, sans-serif', 
-                            lineHeight: 1.55, 
-                            textAlign: 'left',
-                            display: '-webkit-box',
-                            WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-text'].height / BODY_LINE_HEIGHT_PX)),
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            height: `${flexiblesStatus['flexible-text'].height}px`
-                          }}
-                        >
-                          <MentionText content={post.content} />
-                        </div>
-                      )}
-
-                      {flexiblesStatus['flexible-text']?.step === 'hidden' && (
-                        <div ref={registerRef('flexible-text')} style={{ height: 0, overflow: 'hidden' }} />
-                      )}
-                    </>
+                    <div 
+                      ref={(el) => {
+                        (bodyRef as any).current = el;
+                        bodyTextRef.current = el;
+                      }}
+                      className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                      style={{ 
+                        fontFamily: 'Inter, sans-serif', 
+                        lineHeight: 1.55, 
+                        textAlign: 'left',
+                        display: '-webkit-box',
+                        WebkitLineClamp: bodyLineClamp,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <MentionText content={post.content} />
+                    </div>
                   )}
 
                   {/* Approfondisci (subito dopo il body text) */}
@@ -3306,7 +3191,10 @@ const ImmersivePostCardInner = ({
                     <>
                       {flexiblesStatus['flexible-image']?.step === 'full' && (
                         <div 
-                          ref={registerRef('flexible-image')} 
+                          ref={(node) => {
+                            registerRef('flexible-image')(node);
+                            (mediaRef as any).current = node;
+                          }}
                           className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3 rounded-xl border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.3)] cursor-pointer"
                           style={{ height: `${flexiblesStatus['flexible-image'].height}px` }}
                           onClick={post.media.length === 1 ? (e) => {
@@ -3349,7 +3237,10 @@ const ImmersivePostCardInner = ({
                       
                       {flexiblesStatus['flexible-image']?.step === 'pill' && (
                         <div 
-                          ref={registerRef('flexible-image')} 
+                          ref={(node) => {
+                            registerRef('flexible-image')(node);
+                            (mediaRef as any).current = node;
+                          }}
                           className="flex-shrink-0 mb-3" 
                           style={{ height: '36px' }}
                         >
@@ -3366,7 +3257,13 @@ const ImmersivePostCardInner = ({
                       )}
 
                       {flexiblesStatus['flexible-image']?.step === 'hidden' && (
-                        <div ref={registerRef('flexible-image')} style={{ height: 0, overflow: 'hidden' }} />
+                        <div 
+                          ref={(node) => {
+                            registerRef('flexible-image')(node);
+                            (mediaRef as any).current = node;
+                          }}
+                          style={{ height: 0, overflow: 'hidden' }} 
+                        />
                       )}
                     </>
                   )}
@@ -3375,299 +3272,264 @@ const ImmersivePostCardInner = ({
 
               {/* Twitter/X Card - Unified glassmorphic container */}
               {hasLink && isTwitter ? (
-                <div 
-                  className={cn(
-                    "flex-1 min-h-0 w-full flex flex-col justify-start",
-                    emergencyScroll && "overflow-y-auto"
-                  )}
-                >
-                  {/* post.title (titolo NoParrot) */}
-                  {!useStackLayout && post.title && post.title.trim().length > 0 && (
-                    <ClampedTitle
-                      as="h2"
-                      text={post.title}
-                      maxLines={3}
-                      ref={registerRef('essential-title')}
-                      className="uppercase mb-2 flex-shrink-0"
-                      style={{
-                        fontFamily: 'Impact, sans-serif',
-                        fontSize: 'clamp(30px, 8vw, 42px)',
-                        lineHeight: 0.92,
-                        letterSpacing: '-0.02em',
-                        color: '#FFFFFF',
-                        textAlign: 'left',
-                      }}
-                    />
-                  )}
+                <>
+                  <div 
+                    className={cn(
+                      "flex-1 min-h-0 w-full flex flex-col justify-start",
+                      emergencyScroll && "overflow-y-auto"
+                    )}
+                  >
+                    {/* post.title (titolo NoParrot) */}
+                    {!useStackLayout && post.title && post.title.trim().length > 0 && (
+                      <ClampedTitle
+                        as="h2"
+                        text={post.title}
+                        maxLines={3}
+                        ref={(node) => {
+                          registerRef('essential-title')(node);
+                          (titleRef as any).current = node;
+                        }}
+                        className="uppercase mb-2 flex-shrink-0"
+                        style={{
+                          fontFamily: 'Impact, sans-serif',
+                          fontSize: 'clamp(30px, 8vw, 42px)',
+                          lineHeight: 0.92,
+                          letterSpacing: '-0.02em',
+                          color: '#FFFFFF',
+                          textAlign: 'left',
+                        }}
+                      />
+                    )}
 
-                  {/* Commento utente flessibile (3 stati) */}
-                  {!useStackLayout && post.content && post.content.trim().length > 0 && (
-                    <>
-                      {flexiblesStatus['flexible-user-comment']?.step === 'full' && (
-                        <div 
-                          ref={(el) => { registerRef('flexible-user-comment')(el); bodyTextRef.current = el; }} 
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
-                          style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55 }}
-                        >
-                          <MentionText content={post.content} />
-                        </div>
-                      )}
-
-                      {flexiblesStatus['flexible-user-comment']?.step === 'clamped' && (
-                        <div 
-                          ref={(el) => { registerRef('flexible-user-comment')(el); bodyTextRef.current = el; }} 
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
-                          style={{ 
-                            fontFamily: 'Inter, sans-serif', 
-                            lineHeight: 1.55, 
-                            display: '-webkit-box',
-                            WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-user-comment'].height / BODY_LINE_HEIGHT_PX)),
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            height: `${flexiblesStatus['flexible-user-comment'].height}px`
-                          }}
-                        >
-                          <MentionText content={post.content} />
-                        </div>
-                      )}
-
-                      {flexiblesStatus['flexible-user-comment']?.step === 'hidden' && (
-                        <div ref={registerRef('flexible-user-comment')} style={{ height: 0, overflow: 'hidden' }} />
-                      )}
-                    </>
-                  )}
-
-                  {/* Approfondisci */}
-                  {!useStackLayout && shouldShowApprofondisci && (
-                    <div className="flex-shrink-0 mt-2 mb-3 text-left">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
-                        className="text-sm text-primary font-semibold hover:underline block"
+                    {/* Commento utente flessibile (3 stati) */}
+                    {!useStackLayout && post.content && post.content.trim().length > 0 && (
+                      <div 
+                        ref={(el) => {
+                          (bodyRef as any).current = el;
+                          bodyTextRef.current = el;
+                        }} 
+                        className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
+                        style={{ 
+                          fontFamily: 'Inter, sans-serif', 
+                          lineHeight: 1.55,
+                          display: '-webkit-box',
+                          WebkitLineClamp: bodyLineClamp,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden'
+                        }}
                       >
-                        Approfondisci
-                      </button>
-                    </div>
-                  )}
+                        <MentionText content={post.content} />
+                      </div>
+                    )}
 
-                  {/* Tweet Embed (essenziale a stati) */}
-                  {(!useStackLayout || tweetEmbedStep === 'full') && (
-                    <>
-                      {/* State: pill (only in non-stack mode when selected) */}
-                      {!useStackLayout && tweetEmbedStep === 'pill' && (
+                    {/* Approfondisci */}
+                    {!useStackLayout && shouldShowApprofondisci && (
+                      <div className="flex-shrink-0 mt-2 mb-3 text-left">
                         <button
-                          ref={registerRef('essential-tweet-embed')}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (post.shared_url) window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                          }}
-                          className="w-full flex items-center gap-3 px-3 py-2 rounded-xl bg-black/40 border border-white/20 hover:bg-black/60 transition-colors text-left mt-auto flex-shrink-0"
-                          style={{ height: 50 }}
+                          onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
+                          className="text-sm text-primary font-semibold hover:underline block"
                         >
-                          <div className="w-8 h-8 rounded-full bg-black flex-shrink-0 flex items-center justify-center">
-                            <span className="text-white text-sm font-bold">𝕏</span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs text-white/60 uppercase tracking-wider">Tweet</p>
-                            <p className="text-sm text-white truncate">
-                              {articlePreview?.author_name ? `@${articlePreview.author_username || ''}` : articlePreview?.title || 'Apri su X'}
-                            </p>
-                          </div>
+                          Approfondisci
                         </button>
-                      )}
+                      </div>
+                    )}
 
-                      {/* State: compact (only in non-stack mode when selected) */}
-                      {!useStackLayout && tweetEmbedStep === 'compact' && (
-                        <div 
-                          ref={registerRef('essential-tweet-embed')}
-                          className="rounded-2xl bg-[#15202B]/30 border border-white/10 p-3 flex flex-col gap-2 mt-auto flex-shrink-0 text-left"
-                        >
-                          {/* Header */}
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-full border border-white/20 overflow-hidden bg-[#1DA1F2]/10 flex-shrink-0 flex items-center justify-center">
-                              {articlePreview?.author_avatar ? (
-                                <img
-                                  src={articlePreview.author_avatar}
-                                  alt=""
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                  }}
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-white/50 text-xs font-bold">
-                                  {(articlePreview?.author_name || articlePreview?.author_username || 'X').charAt(0).toUpperCase()}
-                                </div>
-                              )}
+                    {/* Tweet Embed (essenziale a stati) - Renders inside scroll area */}
+                    {(!useStackLayout || tweetEmbedStep === 'full') && (
+                      <div className="w-full flex-shrink-0 mb-3">
+                        {/* State: pill (only in non-stack mode when selected) */}
+                        {!useStackLayout && tweetEmbedStep === 'pill' && (
+                          <button
+                            ref={registerRef('essential-tweet-embed')}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (post.shared_url) window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl bg-black/40 border border-white/20 hover:bg-black/60 transition-colors text-left flex-shrink-0"
+                            style={{ height: 50 }}
+                          >
+                            <div className="w-8 h-8 rounded-full bg-black flex-shrink-0 flex items-center justify-center">
+                              <span className="text-white text-sm font-bold">𝕏</span>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-1">
-                                <p className="text-white font-semibold truncate text-xs">
-                                  {articlePreview?.author_name || articlePreview?.title?.replace('Post by ', '').replace('@', '') || 'X User'}
-                                </p>
-                                {articlePreview?.is_verified && (
-                                  <div className="flex-shrink-0 w-3.5 h-3.5 rounded-full bg-[#1DA1F2] flex items-center justify-center">
-                                    <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                                    </svg>
+                              <p className="text-xs text-white/60 uppercase tracking-wider">Tweet</p>
+                              <p className="text-sm text-white truncate">
+                                {decodeHTMLEntities(articlePreview?.title || post.shared_title || 'Visualizza su 𝕏')}
+                              </p>
+                            </div>
+                            <ExternalLink className="w-4 h-4 text-white/60 flex-shrink-0" />
+                          </button>
+                        )}
+
+                        {/* State: compact */}
+                        {!useStackLayout && tweetEmbedStep === 'compact' && (
+                          <div 
+                            ref={registerRef('essential-tweet-embed')} 
+                            className="w-full p-4 rounded-2xl bg-black/40 border border-white/10 hover:border-white/20 transition-colors text-left flex-shrink-0"
+                            style={{ height: 130 }}
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full bg-black flex items-center justify-center">
+                                  <span className="text-white text-xs font-bold">𝕏</span>
+                                </div>
+                                <span className="text-xs font-bold text-white/80">Twitter / 𝕏</span>
+                              </div>
+                              <ExternalLink className="w-3.5 h-3.5 text-white/40" />
+                            </div>
+                            <p className="text-sm text-white line-clamp-2 mb-2">
+                              {decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
+                            </p>
+                            <a 
+                              href={post.shared_url || ''} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-xs text-blue-400 font-semibold hover:underline"
+                            >
+                              Mostra tweet
+                            </a>
+                          </div>
+                        )}
+
+                        {/* State: full */}
+                        {tweetEmbedStep === 'full' && (
+                          <div 
+                            ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-tweet-embed')} 
+                            style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                            className={cn(
+                              "bg-gradient-to-br from-[#1DA1F2]/5 to-white/90 dark:from-[#15202B] dark:to-[#0d1117] rounded-3xl p-5 border border-black/5 dark:border-white/15 flex flex-col max-h-full flex-shrink-0",
+                              useStackLayout && "cursor-pointer active:scale-[0.98] transition-transform"
+                            )}
+                            onClick={useStackLayout ? (e) => {
+                              e.stopPropagation();
+                              if (post.shared_url) {
+                                window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                              }
+                            } : undefined}
+                          >
+                            {/* Author Row - Fixed height */}
+                            <div className="flex items-center gap-3 mb-4 flex-shrink-0">
+                              <div className="w-12 h-12 rounded-full border border-white/20 overflow-hidden bg-[#1DA1F2]/10 flex-shrink-0 flex items-center justify-center">
+                                {articlePreview?.author_avatar ? (
+                                  <img
+                                    src={articlePreview.author_avatar}
+                                    alt=""
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-white/50 text-xl font-bold">
+                                    {(articlePreview?.author_name || articlePreview?.author_username || 'X').charAt(0).toUpperCase()}
                                   </div>
                                 )}
                               </div>
-                              {articlePreview?.author_username && (
-                                <p className="text-white/50 text-[10px]">@{articlePreview.author_username}</p>
-                              )}
+                              <div className="flex-1 min-w-0 text-left">
+                                <div className="flex items-center gap-1.5">
+                                  <p className="text-slate-900 dark:text-white font-semibold truncate text-sm">
+                                    {articlePreview?.author_name || articlePreview?.title?.replace('Post by ', '').replace('@', '') || 'X User'}
+                                  </p>
+                                  {articlePreview?.is_verified && (
+                                    <div className="flex-shrink-0 w-[18px] h-[18px] rounded-full bg-[#1DA1F2] flex items-center justify-center">
+                                      <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+                                      </svg>
+                                    </div>
+                                  )}
+                                </div>
+                                {articlePreview?.author_username && (
+                                  <p className="text-slate-500 dark:text-white/50 text-xs">@{articlePreview.author_username}</p>
+                                )}
+                              </div>
+                              <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-white flex items-center justify-center flex-shrink-0">
+                                <span className="text-black font-bold text-xs">𝕏</span>
+                              </div>
                             </div>
-                            <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-white flex items-center justify-center flex-shrink-0">
-                              <span className="text-black font-bold text-[10px]">𝕏</span>
+
+                            {/* Tweet Text - clamped */}
+                            <div className="flex-shrink-0 min-h-0 overflow-hidden mb-2 text-left">
+                              <p className="text-slate-900 dark:text-white text-sm leading-relaxed line-clamp-4">
+                                {(articlePreview?.content || articlePreview?.summary || post.content || '')
+                                  .replace(/https?:\/\/t\.co\/\w+/g, '')
+                                  .replace(/https?:\/\/[^\s]+/g, '')
+                                  .replace(/\s{2,}/g, ' ')
+                                  .trim()}
+                              </p>
                             </div>
+
+                            {/* Immagine media se presente, strip orizzontale (solo in modalità non-stack) */}
+                            {!useStackLayout && (articlePreview?.image || post.preview_img) && (
+                              <div className="rounded-lg overflow-hidden flex-shrink min-h-0 mt-2">
+                                <img
+                                  src={articlePreview?.image || post.preview_img}
+                                  alt=""
+                                  className="w-full"
+                                  style={{
+                                    height: 100,
+                                    objectFit: 'cover',
+                                    objectPosition: 'center'
+                                  }}
+                                />
+                              </div>
+                            )}
+
+                            {/* Open on X link button (Reshare Stack only) */}
+                            {useStackLayout && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (post.shared_url) {
+                                    window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                                  }
+                                }}
+                                className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors mt-2 self-start"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span className="text-xs uppercase tracking-wider">Apri su X</span>
+                              </button>
+                            )}
                           </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
-                          {/* Body Tweet 2 righe */}
-                          <p className="text-xs text-white/85 leading-relaxed line-clamp-2">
-                            {(articlePreview?.content || articlePreview?.summary || post.content || '')
-                              .replace(/https?:\/\/t\.co\/\w+/g, '')
-                              .replace(/https?:\/\/[^\s]+/g, '')
-                              .replace(/\s{2,}/g, ' ')
-                              .trim()}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* State: full (for both stack layout and non-stack mode when selected) */}
-                      {(useStackLayout || tweetEmbedStep === 'full') && (
-                        <div 
-                          ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-tweet-embed')}
-                          style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                          className={cn(
-                            "bg-gradient-to-br from-[#1DA1F2]/5 to-white/90 dark:from-[#15202B] dark:to-[#0d1117] rounded-3xl p-5 border border-black/5 dark:border-white/15 flex flex-col max-h-full mt-auto flex-shrink-0",
-                            useStackLayout && "cursor-pointer active:scale-[0.98] transition-transform"
-                          )}
-                          onClick={useStackLayout ? (e) => {
+                  {/* Unified Card External CTA inside slot-bottom */}
+                  <div className="slot-bottom w-full px-4" ref={slotBottomRef}>
+                    {!useStackLayout && post.shared_url && (
+                      <CardExternalCTA 
+                        platform="twitter" 
+                        url={post.shared_url} 
+                        mode="flow" 
+                        ref={registerRef('essential-external-cta')}
+                      />
+                    )}
+                    {useStackLayout && tweetEmbedStep === 'pill' && (
+                      <div 
+                        ref={registerRef('flexible-reshare-link-body')} 
+                        className="flex-shrink-0 flex justify-center" 
+                        style={{ height: '36px' }}
+                      >
+                        <button
+                          onClick={(e) => {
                             e.stopPropagation();
                             if (post.shared_url) {
                               window.open(post.shared_url, '_blank', 'noopener,noreferrer');
                             }
-                          } : undefined}
+                          }}
+                          className="inline-flex h-9 items-center gap-1.5 bg-[#000000] hover:bg-[#000000]/90 border border-white/10 px-4 rounded-full text-white"
                         >
-                          {/* Author Row - Fixed height */}
-                          <div className="flex items-center gap-3 mb-4 flex-shrink-0">
-                            <div className="w-12 h-12 rounded-full border border-white/20 overflow-hidden bg-[#1DA1F2]/10 flex-shrink-0 flex items-center justify-center">
-                              {articlePreview?.author_avatar ? (
-                                <img
-                                  src={articlePreview.author_avatar}
-                                  alt=""
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                  }}
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-white/50 text-xl font-bold">
-                                  {(articlePreview?.author_name || articlePreview?.author_username || 'X').charAt(0).toUpperCase()}
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0 text-left">
-                              <div className="flex items-center gap-1.5">
-                                <p className="text-slate-900 dark:text-white font-semibold truncate text-sm">
-                                  {articlePreview?.author_name || articlePreview?.title?.replace('Post by ', '').replace('@', '') || 'X User'}
-                                </p>
-                                {articlePreview?.is_verified && (
-                                  <div className="flex-shrink-0 w-[18px] h-[18px] rounded-full bg-[#1DA1F2] flex items-center justify-center">
-                                    <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
-                                    </svg>
-                                  </div>
-                                )}
-                              </div>
-                              {articlePreview?.author_username && (
-                                <p className="text-slate-500 dark:text-white/50 text-xs">@{articlePreview.author_username}</p>
-                              )}
-                            </div>
-                            <div className="w-7 h-7 rounded-full bg-slate-200 dark:bg-white flex items-center justify-center flex-shrink-0">
-                              <span className="text-black font-bold text-xs">𝕏</span>
-                            </div>
-                          </div>
-
-                          {/* Tweet Text - clamped */}
-                          <div className="flex-shrink-0 min-h-0 overflow-hidden mb-2 text-left">
-                            <p className="text-slate-900 dark:text-white text-sm leading-relaxed line-clamp-4">
-                              {(articlePreview?.content || articlePreview?.summary || post.content || '')
-                                .replace(/https?:\/\/t\.co\/\w+/g, '')
-                                .replace(/https?:\/\/[^\s]+/g, '')
-                                .replace(/\s{2,}/g, ' ')
-                                .trim()}
-                            </p>
-                          </div>
-
-                          {/* Immagine media se presente, strip orizzontale (solo in modalità non-stack) */}
-                          {!useStackLayout && (articlePreview?.image || post.preview_img) && (
-                            <div className="rounded-lg overflow-hidden flex-shrink min-h-0 mt-2">
-                              <img
-                                src={articlePreview?.image || post.preview_img}
-                                alt=""
-                                className="w-full"
-                                style={{
-                                  height: 100,
-                                  objectFit: 'cover',
-                                  objectPosition: 'center'
-                                }}
-                              />
-                            </div>
-                          )}
-
-                          {/* Open on X link button (Reshare Stack only) */}
-                          {useStackLayout && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (post.shared_url) {
-                                  window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                                }
-                              }}
-                              className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors mt-2 self-start"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                              <span className="text-xs uppercase tracking-wider">Apri su X</span>
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {useStackLayout && (tweetEmbedStep === 'pill' || tweetEmbedStep === 'compact') && (
-                    <div 
-                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-tweet-embed')} 
-                      className="flex-shrink-0 mt-auto" 
-                      style={{ height: '36px' }}
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (post.shared_url) {
-                            window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                          }
-                        }}
-                        className="inline-flex h-9 items-center gap-1.5 bg-[#000000] hover:bg-[#000000]/90 border border-white/10 px-4 rounded-full text-white"
-                      >
-                        <span className="text-xs font-bold">𝕏 Apri tweet</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {useStackLayout && tweetEmbedStep === 'hidden' && (
-                    <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
-                  )}
-
-                  {!useStackLayout && post.shared_url && (
-                    <CardExternalCTA 
-                      platform="twitter" 
-                      url={post.shared_url} 
-                      mode="flow" 
-                      ref={registerRef('essential-external-cta')}
-                    />
-                  )}
-                </div>
+                          <span className="text-xs font-bold">𝕏 Apri tweet</span>
+                        </button>
+                      </div>
+                    )}
+                    {useStackLayout && tweetEmbedStep === 'hidden' && (
+                      <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
+                    )}
+                  </div>
+                </>
               ) : hasLink && isLinkedIn ? (
                 <div 
                   className={cn(
@@ -3681,7 +3543,10 @@ const ImmersivePostCardInner = ({
                       as="h2"
                       text={post.title}
                       maxLines={3}
-                      ref={registerRef('essential-title')}
+                      ref={(node) => {
+                        registerRef('essential-title')(node);
+                        (titleRef as any).current = node;
+                      }}
                       className="uppercase mb-2 flex-shrink-0"
                       style={{
                         fontFamily: 'Impact, sans-serif',
@@ -3696,39 +3561,23 @@ const ImmersivePostCardInner = ({
 
                   {/* Commento utente flessibile (3 stati) */}
                   {!useStackLayout && post.content && post.content.trim().length > 0 && (
-                    <>
-                      {flexiblesStatus['flexible-user-comment']?.step === 'full' && (
-                        <div 
-                          ref={(el) => { registerRef('flexible-user-comment')(el); bodyTextRef.current = el; }} 
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
-                          style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55 }}
-                        >
-                          <MentionText content={post.content} />
-                        </div>
-                      )}
-
-                      {flexiblesStatus['flexible-user-comment']?.step === 'clamped' && (
-                        <div 
-                          ref={(el) => { registerRef('flexible-user-comment')(el); bodyTextRef.current = el; }} 
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
-                          style={{ 
-                            fontFamily: 'Inter, sans-serif', 
-                            lineHeight: 1.55, 
-                            display: '-webkit-box',
-                            WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-user-comment'].height / BODY_LINE_HEIGHT_PX)),
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            height: `${flexiblesStatus['flexible-user-comment'].height}px`
-                          }}
-                        >
-                          <MentionText content={post.content} />
-                        </div>
-                      )}
-
-                      {flexiblesStatus['flexible-user-comment']?.step === 'hidden' && (
-                        <div ref={registerRef('flexible-user-comment')} style={{ height: 0, overflow: 'hidden' }} />
-                      )}
-                    </>
+                    <div 
+                      ref={(el) => {
+                        (bodyRef as any).current = el;
+                        bodyTextRef.current = el;
+                      }} 
+                      className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
+                      style={{ 
+                        fontFamily: 'Inter, sans-serif', 
+                        lineHeight: 1.55,
+                        display: '-webkit-box',
+                        WebkitLineClamp: bodyLineClamp,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <MentionText content={post.content} />
+                    </div>
                   )}
 
                   {/* Approfondisci */}
@@ -3743,127 +3592,149 @@ const ImmersivePostCardInner = ({
                     </div>
                   )}
 
-                  {/* LinkedIn embed (essenziale a stati) */}
-                  {(!useStackLayout || linkedinEmbedStep === 'full') && (
-                    <div 
-                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-linkedin-embed')} 
-                      style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                      className="w-full mt-auto flex-shrink-0"
-                    >
-                      <LinkedInCard
-                        post={post}
-                        articlePreview={articlePreview}
-                        useStackLayout={useStackLayout}
-                        embedStep={useStackLayout ? 'full' : (linkedinEmbedStep as any || 'full')}
+                  <div className="slot-bottom" ref={slotBottomRef}>
+                    {/* LinkedIn embed (essenziale a stati) */}
+                    {(!useStackLayout || linkedinEmbedStep === 'full') && (
+                      <div 
+                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-linkedin-embed')} 
+                        style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                        className="w-full mt-auto flex-shrink-0"
+                      >
+                        <LinkedInCard
+                          post={post}
+                          articlePreview={articlePreview}
+                          useStackLayout={useStackLayout}
+                          embedStep={useStackLayout ? 'full' : (linkedinEmbedStep as any || 'full')}
+                        />
+                      </div>
+                    )}
+
+                    {useStackLayout && (linkedinEmbedStep === 'pill' || linkedinEmbedStep === 'compact') && (
+                      <div 
+                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-linkedin-embed')} 
+                        className="flex-shrink-0 mt-auto" 
+                        style={{ height: '36px' }}
+                      >
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (post.shared_url) {
+                              window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                            }
+                          }}
+                          className="inline-flex h-9 items-center gap-1.5 bg-[#0A66C2] hover:bg-[#0A66C2]/90 border border-white/10 px-4 rounded-full text-white"
+                        >
+                          <span className="text-xs font-bold">📎 Apri LinkedIn</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {useStackLayout && linkedinEmbedStep === 'hidden' && (
+                      <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
+                    )}
+
+                    {!useStackLayout && post.shared_url && (
+                      <CardExternalCTA 
+                        platform="linkedin" 
+                        url={post.shared_url} 
+                        mode="flow" 
+                        ref={registerRef('essential-external-cta')}
+                      />
+                    )}
+                  </div>
+                </div>
+              ) : hasLink && isYoutubeShort ? (
+                <>
+                  <div
+                    className={cn(
+                      "flex-1 min-h-0 flex flex-col items-center justify-start w-full px-4 gap-3",
+                      emergencyScroll && "overflow-y-auto"
+                    )}
+                  >
+                    {/* post.title (titolo NoParrot dato dall'utente) */}
+                    {post.title && post.title.trim().length > 0 ? (
+                      <ClampedTitle
+                        as="h2"
+                        text={post.title}
+                        maxLines={3}
+                        ref={registerRef('essential-title')}
+                        className="uppercase mb-2 flex-shrink-0 self-start text-left"
+                        style={{
+                          fontFamily: 'Impact, sans-serif',
+                          fontSize: 'clamp(30px, 8vw, 42px)',
+                          lineHeight: 0.92,
+                          letterSpacing: '-0.02em',
+                          color: '#FFFFFF',
+                          textAlign: 'left',
+                        }}
+                      />
+                    ) : (
+                      <ClampedTitle
+                        as="h2"
+                        text={decodeHTMLEntities(articlePreview?.title || post.shared_title || 'YouTube Short')}
+                        maxLines={3}
+                        ref={registerRef('essential-title')}
+                        className="text-xl font-bold text-immersive-foreground leading-tight mt-1 mb-2 flex-shrink-0 self-start text-left"
+                      />
+                    )}
+
+                    {/* User Comment NoParrot — flessibile */}
+                    {post.content && post.content.trim().length > 0 && (
+                      <p 
+                        ref={(el) => {
+                          (bodyRef as any).current = el;
+                          bodyTextRef.current = el;
+                        }}
+                        className="self-start text-sm text-white/90 leading-relaxed mb-3 text-left flex-shrink-0 w-full"
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: bodyLineClamp,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden'
+                        }}
+                      >
+                        <MentionText content={post.content} />
+                      </p>
+                    )}
+
+                    {/* Caption Short — articlePreview.title — flessibile */}
+                    {flexiblesStatus['flexible-text']?.step !== 'hidden' && articlePreview?.title && (
+                      <p 
+                        ref={(el) => { registerRef('flexible-text')(el); captionTextRef.current = el; }}
+                        className={cn(
+                          "self-start text-sm text-white/80 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
+                          flexiblesStatus['flexible-text']?.step === 'compact' ? "line-clamp-2" : "line-clamp-4"
+                        )}
+                      >
+                        <MentionText content={decodeHTMLEntities(articlePreview.title)} />
+                      </p>
+                    )}
+
+                    {/* Approfondisci se body o caption clampati */}
+                    {shouldShowApprofondisci && (
+                      <div className="flex-shrink-0 mt-2 mb-3 text-left self-start">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
+                          className="text-sm font-semibold hover:underline block text-[#FF0000]"
+                        >
+                          Approfondisci
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Unified Card External CTA inside slot-bottom */}
+                  {!useStackLayout && post.shared_url && (
+                    <div className="slot-bottom w-full px-4" ref={slotBottomRef}>
+                      <CardExternalCTA 
+                        platform="youtube" 
+                        url={post.shared_url} 
+                        mode="flow"
+                        ref={registerRef('essential-external-cta')}
                       />
                     </div>
                   )}
-
-                  {useStackLayout && (linkedinEmbedStep === 'pill' || linkedinEmbedStep === 'compact') && (
-                    <div 
-                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-linkedin-embed')} 
-                      className="flex-shrink-0 mt-auto" 
-                      style={{ height: '36px' }}
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (post.shared_url) {
-                            window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                          }
-                        }}
-                        className="inline-flex h-9 items-center gap-1.5 bg-[#0A66C2] px-4 rounded-full text-white"
-                      >
-                        <span className="text-xs font-bold">💼 Apri su LinkedIn</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {useStackLayout && linkedinEmbedStep === 'hidden' && (
-                    <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
-                  )}
-
-                  {!useStackLayout && post.shared_url && (
-                    <CardExternalCTA 
-                      platform="linkedin" 
-                      url={post.shared_url} 
-                      mode="flow" 
-                      ref={registerRef('essential-external-cta')}
-                    />
-                  )}
-                </div>
-              ) : hasLink && isYoutubeShort ? (
-                <div
-                  className={cn(
-                    "flex-1 min-h-0 flex flex-col items-center justify-start w-full px-4 gap-3",
-                    emergencyScroll && "overflow-y-auto"
-                  )}
-                >
-                  {/* post.title (titolo NoParrot dato dall'utente) */}
-                  {post.title && post.title.trim().length > 0 ? (
-                    <ClampedTitle
-                      as="h2"
-                      text={post.title}
-                      maxLines={3}
-                      ref={registerRef('essential-title')}
-                      className="uppercase mb-2 flex-shrink-0 self-start text-left"
-                      style={{
-                        fontFamily: 'Impact, sans-serif',
-                        fontSize: 'clamp(30px, 8vw, 42px)',
-                        lineHeight: 0.92,
-                        letterSpacing: '-0.02em',
-                        color: '#FFFFFF',
-                        textAlign: 'left',
-                      }}
-                    />
-                  ) : (
-                    <ClampedTitle
-                      as="h2"
-                      text={decodeHTMLEntities(articlePreview?.title || post.shared_title || 'YouTube Short')}
-                      maxLines={3}
-                      ref={registerRef('essential-title')}
-                      className="text-xl font-bold text-immersive-foreground leading-tight mt-1 mb-2 flex-shrink-0 self-start text-left"
-                    />
-                  )}
-
-                  {/* User Comment NoParrot — flessibile */}
-                  {post.content && post.content.trim().length > 0 && flexiblesStatus['flexible-user-comment']?.step !== 'hidden' && (
-                    <p 
-                      ref={(el) => { registerRef('flexible-user-comment')(el); bodyTextRef.current = el; }}
-                      className={cn(
-                        "self-start text-sm text-white/90 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
-                        flexiblesStatus['flexible-user-comment']?.step === 'compact' ? "line-clamp-2" : "line-clamp-4"
-                      )}
-                    >
-                      <MentionText content={post.content} />
-                    </p>
-                  )}
-
-                  {/* Caption Short — articlePreview.title — flessibile */}
-                  {flexiblesStatus['flexible-text']?.step !== 'hidden' && articlePreview?.title && (
-                    <p 
-                      ref={(el) => { registerRef('flexible-text')(el); captionTextRef.current = el; }}
-                      className={cn(
-                        "self-start text-sm text-white/80 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
-                        flexiblesStatus['flexible-text']?.step === 'compact' ? "line-clamp-2" : "line-clamp-4"
-                      )}
-                    >
-                      <MentionText content={decodeHTMLEntities(articlePreview.title)} />
-                    </p>
-                  )}
-
-                  {/* Approfondisci se body o caption clampati */}
-                  {shouldShowApprofondisci && (
-                    <div className="flex-shrink-0 mt-2 mb-3 text-left self-start">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
-                        className="text-sm font-semibold hover:underline block text-[#FF0000]"
-                      >
-                        Approfondisci
-                      </button>
-                    </div>
-                  )}
-                </div>
+                </>
               ) : hasLink && isYoutube ? (
                 <div
                   className={cn(
@@ -3900,38 +3771,24 @@ const ImmersivePostCardInner = ({
 
                   {/* Body text */}
                   {!useStackLayout && post.content && post.content.trim().length > 0 && (
-                    <>
-                      {flexiblesStatus['flexible-text']?.step === 'full' && (
-                        <div
-                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                          style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
-                        >
-                          <MentionText content={post.content} />
-                        </div>
-                      )}
-                      {flexiblesStatus['flexible-text']?.step === 'clamped' && (
-                        <div
-                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                          style={{
-                            fontFamily: 'Inter, sans-serif',
-                            lineHeight: 1.55,
-                            textAlign: 'left',
-                            display: '-webkit-box',
-                            WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-text'].height / BODY_LINE_HEIGHT_PX)),
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            height: `${flexiblesStatus['flexible-text'].height}px`
-                          }}
-                        >
-                          <MentionText content={post.content} />
-                        </div>
-                      )}
-                      {flexiblesStatus['flexible-text']?.step === 'hidden' && (
-                        <div ref={registerRef('flexible-text')} style={{ height: 0, overflow: 'hidden' }} />
-                      )}
-                    </>
+                    <div 
+                      ref={(el) => {
+                        (bodyRef as any).current = el;
+                        bodyTextRef.current = el;
+                      }}
+                      className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                      style={{ 
+                        fontFamily: 'Inter, sans-serif', 
+                        lineHeight: 1.55, 
+                        textAlign: 'left',
+                        display: '-webkit-box',
+                        WebkitLineClamp: bodyLineClamp,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <MentionText content={post.content} />
+                    </div>
                   )}
 
                   {/* Approfondisci */}
@@ -3946,169 +3803,172 @@ const ImmersivePostCardInner = ({
                     </div>
                   )}
 
-                  {/* YouTube embed */}
-                  {youtubeEmbedStep === 'full' && (
-                    <div 
-                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
-                      style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                      className="w-full mt-auto flex-shrink-0"
-                    >
-                      {!hasUserMedia && (
-                        <>
-                          {!youtubeEmbedActive ? (
+                  <div className="slot-bottom" ref={slotBottomRef}>
+                    {/* YouTube embed */}
+                    {youtubeEmbedStep === 'full' && (
+                      <div 
+                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
+                        style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                        className="w-full mt-auto flex-shrink-0"
+                      >
+                        {!hasUserMedia && (
+                          <>
+                            {!youtubeEmbedActive ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setYoutubeEmbedActive(true);
+                                }}
+                                className="relative w-full rounded-2xl overflow-hidden border border-white/10 active:scale-[0.98] transition-transform"
+                              >
+                                <img
+                                  src={articlePreview?.image || post.preview_img || `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url!)}/maxresdefault.jpg`}
+                                  alt=""
+                                  className="w-full aspect-video object-cover"
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                  <div className="bg-red-600 p-4 rounded-full">
+                                    <Play className="w-8 h-8 text-white fill-white" />
+                                  </div>
+                                </div>
+                                <div className="absolute bottom-3 left-3 bg-black/90 px-3 py-1.5 rounded-full flex items-center gap-2">
+                                  <svg className="w-4 h-4 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
+                                    <polygon fill="white" points="9.545,15.568 15.818,12 9.545,8.432" />
+                                  </svg>
+                                  <span className="text-white text-xs font-medium">YouTube</span>
+                                </div>
+                              </button>
+                            ) : (
+                              <div className="w-full rounded-2xl overflow-hidden border border-white/10">
+                                <div className="aspect-video">
+                                  <iframe
+                                    src={`https://www.youtube.com/embed/${extractYoutubeVideoId(post.shared_url!)}?autoplay=1&mute=1&cc_load_policy=1&rel=0`}
+                                    className="w-full h-full"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                    sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
+                                    title="YouTube video"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                            
+                            {post.title && post.title.trim().length > 0 && (
+                              <h1 className="text-xs font-semibold text-immersive-foreground line-clamp-1 mt-2 mb-1">
+                                {decodeHTMLEntities(articlePreview?.title || post.shared_title)}
+                              </h1>
+                            )}
+                          </>
+                        )}
+
+                        {useStackLayout && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                            }}
+                            className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors mt-2"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                            <span className="text-xs uppercase tracking-wider">Apri su YouTube</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {youtubeEmbedStep === 'compact' && (
+                      hasUserMedia ? (
+                        useStackLayout ? (
+                          <div 
+                            ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
+                            style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                            className="mt-auto flex-shrink-0 text-left"
+                          >
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setYoutubeEmbedActive(true);
+                                if (post.shared_url) {
+                                  window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                                }
                               }}
-                              className="relative w-full rounded-2xl overflow-hidden border border-white/10 active:scale-[0.98] transition-transform"
+                              className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors"
                             >
-                              <img
-                                src={articlePreview?.image || post.preview_img || `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url!)}/maxresdefault.jpg`}
-                                alt=""
-                                className="w-full aspect-video object-cover"
-                              />
-                              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                                <div className="bg-red-600 p-4 rounded-full">
-                                  <Play className="w-8 h-8 text-white fill-white" />
-                                </div>
-                              </div>
-                              <div className="absolute bottom-3 left-3 bg-black/90 px-3 py-1.5 rounded-full flex items-center gap-2">
-                                <svg className="w-4 h-4 text-red-600" viewBox="0 0 24 24" fill="currentColor">
-                                  <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
-                                  <polygon fill="white" points="9.545,15.568 15.818,12 9.545,8.432" />
-                                </svg>
-                                <span className="text-white text-xs font-medium">YouTube</span>
-                              </div>
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              <span className="text-xs uppercase tracking-wider">Apri su YouTube</span>
                             </button>
-                          ) : (
-                            <div className="w-full rounded-2xl overflow-hidden border border-white/10">
-                              <div className="aspect-video">
-                                <iframe
-                                  src={`https://www.youtube.com/embed/${extractYoutubeVideoId(post.shared_url!)}?autoplay=1&mute=1&cc_load_policy=1&rel=0`}
-                                  className="w-full h-full"
-                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                  allowFullScreen
-                                  sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
-                                  title="YouTube video"
-                                />
-                              </div>
+                          </div>
+                        ) : null
+                      ) : (
+                        <div 
+                          ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
+                          style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                          className={cn(
+                            "flex items-center gap-3 p-2 bg-card/40 rounded-lg mt-auto flex-shrink-0 border border-white/10",
+                            useStackLayout && "cursor-pointer active:scale-[0.98] transition-transform"
+                          )}
+                          onClick={useStackLayout ? (e) => {
+                            e.stopPropagation();
+                            if (post.shared_url) {
+                              window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                            }
+                          } : undefined}
+                        >
+                          {/* Thumbnail 80×45 (16:9) */}
+                          <div className="relative flex-shrink-0 w-20 h-[45px] rounded overflow-hidden bg-muted">
+                            <img 
+                              src={articlePreview?.image || post.preview_img || (post.shared_url ? `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url)}/hqdefault.jpg` : '')} 
+                              className="w-full h-full object-cover" 
+                              alt=""
+                            />
+                            {/* Play icon centrato, piccolo */}
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                              <Play className="w-5 h-5 text-white fill-white" />
                             </div>
-                          )}
-                          
-                          {post.title && post.title.trim().length > 0 && (
-                            <h1 className="text-xs font-semibold text-immersive-foreground line-clamp-1 mt-2 mb-1">
+                          </div>
+                          {/* Titolo + dominio a destra */}
+                          <div className="flex-1 min-w-0 text-left">
+                            <p className="text-sm font-medium truncate text-foreground">
                               {decodeHTMLEntities(articlePreview?.title || post.shared_title)}
-                            </h1>
-                          )}
-                        </>
-                      )}
+                            </p>
+                            <p className="text-xs text-muted-foreground font-sans">YouTube</p>
+                          </div>
+                        </div>
+                      )
+                    )}
 
-                      {useStackLayout && (
+                    {useStackLayout && youtubeEmbedStep === 'pill' && (
+                      <div 
+                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
+                        className="flex-shrink-0 mt-auto" 
+                        style={{ height: '36px' }}
+                      >
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             window.open(post.shared_url, '_blank', 'noopener,noreferrer');
                           }}
-                          className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors mt-2"
+                          className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors"
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
                           <span className="text-xs uppercase tracking-wider">Apri su YouTube</span>
                         </button>
-                      )}
-                    </div>
-                  )}
-
-                  {youtubeEmbedStep === 'compact' && (
-                    hasUserMedia ? (
-                      useStackLayout ? (
-                        <div 
-                          ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
-                          style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                          className="mt-auto flex-shrink-0 text-left"
-                        >
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (post.shared_url) {
-                                window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                              }
-                            }}
-                            className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            <span className="text-xs uppercase tracking-wider">Apri su YouTube</span>
-                          </button>
-                        </div>
-                      ) : null
-                    ) : (
-                      <div 
-                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
-                        style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                        className={cn(
-                          "flex items-center gap-3 p-2 bg-card/40 rounded-lg mt-auto flex-shrink-0 border border-white/10",
-                          useStackLayout && "cursor-pointer active:scale-[0.98] transition-transform"
-                        )}
-                        onClick={useStackLayout ? (e) => {
-                          e.stopPropagation();
-                          if (post.shared_url) {
-                            window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                          }
-                        } : undefined}
-                      >
-                        {/* Thumbnail 80×45 (16:9) */}
-                        <div className="relative flex-shrink-0 w-20 h-[45px] rounded overflow-hidden bg-muted">
-                          <img 
-                            src={articlePreview?.image || post.preview_img || (post.shared_url ? `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url)}/hqdefault.jpg` : '')} 
-                            className="w-full h-full object-cover" 
-                            alt=""
-                          />
-                          {/* Play icon centrato, piccolo */}
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                            <Play className="w-5 h-5 text-white fill-white" />
-                          </div>
-                        </div>
-                        {/* Titolo + dominio a destra */}
-                        <div className="flex-1 min-w-0 text-left">
-                          <p className="text-sm font-medium truncate text-foreground">
-                            {decodeHTMLEntities(articlePreview?.title || post.shared_title)}
-                          </p>
-                          <p className="text-xs text-muted-foreground font-sans">YouTube</p>
-                        </div>
                       </div>
-                    )
-                  )}
+                    )}
 
-                  {useStackLayout && youtubeEmbedStep === 'pill' && (
-                    <div 
-                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
-                      className="flex-shrink-0 mt-auto" 
-                      style={{ height: '36px' }}
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                        }}
-                        className="inline-flex h-9 items-center gap-1.5 bg-[#FF0000] px-4 rounded-full"
-                      >
-                        <span className="text-white text-xs font-bold">▶️ Guarda su YouTube</span>
-                      </button>
-                    </div>
-                  )}
+                    {useStackLayout && youtubeEmbedStep === 'hidden' && (
+                      <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
+                    )}
 
-                  {useStackLayout && youtubeEmbedStep === 'hidden' && (
-                    <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
-                  )}
-
-                  {!useStackLayout && post.shared_url && (
-                    <CardExternalCTA 
-                      platform="youtube" 
-                      url={post.shared_url} 
-                      mode="flow" 
-                      ref={registerRef('essential-external-cta')}
-                    />
-                  )}
+                    {!useStackLayout && post.shared_url && (
+                      <CardExternalCTA 
+                        platform="youtube" 
+                        url={post.shared_url} 
+                        mode="flow" 
+                        ref={registerRef('essential-external-cta')}
+                      />
+                    )}
+                  </div>
                 </div>
               ) : hasLink && isSpotifyEpisode ? (
                 <div
@@ -4123,7 +3983,10 @@ const ImmersivePostCardInner = ({
                       as="h2"
                       text={post.title}
                       maxLines={3}
-                      ref={registerRef('essential-title')}
+                      ref={(node) => {
+                        registerRef('essential-title')(node);
+                        (titleRef as any).current = node;
+                      }}
                       className="uppercase mb-2 flex-shrink-0"
                       style={{
                         fontFamily: 'Impact, sans-serif',
@@ -4138,38 +4001,24 @@ const ImmersivePostCardInner = ({
 
                   {/* Body text */}
                   {!useStackLayout && post.content && post.content.trim().length > 0 && (
-                    <>
-                      {flexiblesStatus['flexible-text']?.step === 'full' && (
-                        <div
-                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                          style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
-                        >
-                          <MentionText content={post.content} />
-                        </div>
-                      )}
-                      {flexiblesStatus['flexible-text']?.step === 'clamped' && (
-                        <div
-                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                          style={{
-                            fontFamily: 'Inter, sans-serif',
-                            lineHeight: 1.55,
-                            textAlign: 'left',
-                            display: '-webkit-box',
-                            WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-text'].height / BODY_LINE_HEIGHT_PX)),
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            height: `${flexiblesStatus['flexible-text'].height}px`
-                          }}
-                        >
-                          <MentionText content={post.content} />
-                        </div>
-                      )}
-                      {flexiblesStatus['flexible-text']?.step === 'hidden' && (
-                        <div ref={registerRef('flexible-text')} style={{ height: 0, overflow: 'hidden' }} />
-                      )}
-                    </>
+                    <div 
+                      ref={(el) => {
+                        (bodyRef as any).current = el;
+                        bodyTextRef.current = el;
+                      }}
+                      className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                      style={{ 
+                        fontFamily: 'Inter, sans-serif', 
+                        lineHeight: 1.55, 
+                        textAlign: 'left',
+                        display: '-webkit-box',
+                        WebkitLineClamp: bodyLineClamp,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <MentionText content={post.content} />
+                    </div>
                   )}
 
                   {/* Approfondisci */}
@@ -4184,61 +4033,63 @@ const ImmersivePostCardInner = ({
                     </div>
                   )}
 
-                  {/* Spotify embed */}
-                  {spotifyEpisodeStep === 'full' && (
-                    hasUserMedia ? (
+                  <div className="slot-bottom" ref={slotBottomRef}>
+                    {/* Spotify embed */}
+                    {spotifyEpisodeStep === 'full' && (
+                      hasUserMedia ? (
+                        <div 
+                          ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify')} 
+                          style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                          className="flex-shrink-0 mt-auto text-left"
+                        >
+                          <a
+                            href={post.shared_url || ''}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex h-9 items-center gap-1.5 bg-[#1DB954] px-4 rounded-full text-white"
+                          >
+                            <span className="text-white text-xs font-bold">🎙️ Apri il podcast</span>
+                          </a>
+                        </div>
+                      ) : (
+                        <div 
+                          ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify')} 
+                          style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                          className="flex-shrink-0 mt-auto"
+                        >
+                          <SpotifyPodcastCompactCard
+                            imageUrl={articlePreview?.image || post.preview_img || ''}
+                            podcastName={articlePreview?.description || getHostnameFromUrl(post.shared_url)}
+                            episodeTitle={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
+                            spotifyUrl={post.shared_url || ''}
+                          />
+                        </div>
+                      )
+                    )}
+
+                    {spotifyEpisodeStep === 'pill' && (
                       <div 
                         ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify')} 
-                        style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                        className="flex-shrink-0 mt-auto text-left"
+                        className="flex-shrink-0 mt-auto" 
+                        style={{ height: '36px' }}
                       >
                         <a
                           href={post.shared_url || ''}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          className="inline-flex h-9 items-center gap-1.5 bg-[#1DB954] px-4 rounded-full text-white"
+                          className="inline-flex h-9 items-center gap-1.5 bg-[#1DB954] px-4 rounded-full"
                         >
                           <span className="text-white text-xs font-bold">🎙️ Apri il podcast</span>
                         </a>
                       </div>
-                    ) : (
-                      <div 
-                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify')} 
-                        style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                        className="flex-shrink-0 mt-auto"
-                      >
-                        <SpotifyPodcastCompactCard
-                          imageUrl={articlePreview?.image || post.preview_img || ''}
-                          podcastName={articlePreview?.description || getHostnameFromUrl(post.shared_url)}
-                          episodeTitle={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
-                          spotifyUrl={post.shared_url || ''}
-                        />
-                      </div>
-                    )
-                  )}
+                    )}
 
-                  {spotifyEpisodeStep === 'pill' && (
-                    <div 
-                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify')} 
-                      className="flex-shrink-0 mt-auto" 
-                      style={{ height: '36px' }}
-                    >
-                      <a
-                        href={post.shared_url || ''}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex h-9 items-center gap-1.5 bg-[#1DB954] px-4 rounded-full"
-                      >
-                        <span className="text-white text-xs font-bold">🎙️ Apri il podcast</span>
-                      </a>
-                    </div>
-                  )}
-
-                  {useStackLayout && spotifyEpisodeStep === 'hidden' && (
-                    <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
-                  )}
+                    {useStackLayout && spotifyEpisodeStep === 'hidden' && (
+                      <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
+                    )}
+                  </div>
                 </div>
               ) : hasLink && isSpotifyTrack ? (
                 <div
@@ -4253,7 +4104,10 @@ const ImmersivePostCardInner = ({
                       as="h2"
                       text={post.title}
                       maxLines={3}
-                      ref={registerRef('essential-title')}
+                      ref={(node) => {
+                        registerRef('essential-title')(node);
+                        (titleRef as any).current = node;
+                      }}
                       className="uppercase mb-2 flex-shrink-0"
                       style={{
                         fontFamily: 'Impact, sans-serif',
@@ -4268,38 +4122,24 @@ const ImmersivePostCardInner = ({
 
                   {/* Body text */}
                   {!useStackLayout && post.content && post.content.trim().length > 0 && (
-                    <>
-                      {flexiblesStatus['flexible-text']?.step === 'full' && (
-                        <div
-                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                          style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
-                        >
-                          <MentionText content={post.content} />
-                        </div>
-                      )}
-                      {flexiblesStatus['flexible-text']?.step === 'clamped' && (
-                        <div
-                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                          style={{
-                            fontFamily: 'Inter, sans-serif',
-                            lineHeight: 1.55,
-                            textAlign: 'left',
-                            display: '-webkit-box',
-                            WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-text'].height / BODY_LINE_HEIGHT_PX)),
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            height: `${flexiblesStatus['flexible-text'].height}px`
-                          }}
-                        >
-                          <MentionText content={post.content} />
-                        </div>
-                      )}
-                      {flexiblesStatus['flexible-text']?.step === 'hidden' && (
-                        <div ref={registerRef('flexible-text')} style={{ height: 0, overflow: 'hidden' }} />
-                      )}
-                    </>
+                    <div 
+                      ref={(el) => {
+                        (bodyRef as any).current = el;
+                        bodyTextRef.current = el;
+                      }}
+                      className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                      style={{ 
+                        fontFamily: 'Inter, sans-serif', 
+                        lineHeight: 1.55, 
+                        textAlign: 'left',
+                        display: '-webkit-box',
+                        WebkitLineClamp: bodyLineClamp,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <MentionText content={post.content} />
+                    </div>
                   )}
 
                   {/* Approfondisci */}
@@ -4314,61 +4154,63 @@ const ImmersivePostCardInner = ({
                     </div>
                   )}
 
-                  {/* Spotify track embed */}
-                  {spotifyTrackStep === 'full' && (
-                    hasUserMedia ? (
+                  <div className="slot-bottom" ref={slotBottomRef}>
+                    {/* Spotify track embed */}
+                    {spotifyTrackStep === 'full' && (
+                      hasUserMedia ? (
+                        <div 
+                          ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify-song')} 
+                          style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                          className="flex-shrink-0 mt-auto text-left w-full"
+                        >
+                          <a
+                            href={post.shared_url || ''}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex h-9 items-center gap-1.5 bg-[#1DB954] px-4 rounded-full text-white"
+                          >
+                            <span className="text-white text-xs font-bold">🎵 Ascolta su Spotify</span>
+                          </a>
+                        </div>
+                      ) : (
+                        <div 
+                          ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify-song')} 
+                          style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                          className="flex-shrink-0 mt-auto w-full"
+                        >
+                          <SpotifyPodcastCompactCard
+                            imageUrl={articlePreview?.image || post.preview_img || ''}
+                            podcastName={articlePreview?.description || 'Spotify'}
+                            episodeTitle={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
+                            spotifyUrl={post.shared_url || ''}
+                          />
+                        </div>
+                      )
+                    )}
+
+                    {spotifyTrackStep === 'pill' && (
                       <div 
                         ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify-song')} 
-                        style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                        className="flex-shrink-0 mt-auto text-left w-full"
+                        className="flex-shrink-0 mt-auto" 
+                        style={{ height: '36px' }}
                       >
                         <a
                           href={post.shared_url || ''}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          className="inline-flex h-9 items-center gap-1.5 bg-[#1DB954] px-4 rounded-full text-white"
+                          className="inline-flex h-9 items-center gap-1.5 bg-[#1DB954] px-4 rounded-full"
                         >
                           <span className="text-white text-xs font-bold">🎵 Ascolta su Spotify</span>
                         </a>
                       </div>
-                    ) : (
-                      <div 
-                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify-song')} 
-                        style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                        className="flex-shrink-0 mt-auto w-full"
-                      >
-                        <SpotifyPodcastCompactCard
-                          imageUrl={articlePreview?.image || post.preview_img || ''}
-                          podcastName={articlePreview?.description || 'Spotify'}
-                          episodeTitle={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
-                          spotifyUrl={post.shared_url || ''}
-                        />
-                      </div>
-                    )
-                  )}
+                    )}
 
-                  {spotifyTrackStep === 'pill' && (
-                    <div 
-                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify-song')} 
-                      className="flex-shrink-0 mt-auto" 
-                      style={{ height: '36px' }}
-                    >
-                      <a
-                        href={post.shared_url || ''}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex h-9 items-center gap-1.5 bg-[#1DB954] px-4 rounded-full"
-                      >
-                        <span className="text-white text-xs font-bold">🎵 Ascolta su Spotify</span>
-                      </a>
-                    </div>
-                  )}
-
-                  {useStackLayout && spotifyTrackStep === 'hidden' && (
-                    <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
-                  )}
+                    {useStackLayout && spotifyTrackStep === 'hidden' && (
+                      <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
+                    )}
+                  </div>
                 </div>
               ) : isGenericArticle ? (
                 <div
@@ -4383,7 +4225,10 @@ const ImmersivePostCardInner = ({
                       as="h2"
                       text={post.title}
                       maxLines={3}
-                      ref={registerRef('essential-title')}
+                      ref={(node) => {
+                        registerRef('essential-title')(node);
+                        (titleRef as any).current = node;
+                      }}
                       className="uppercase mb-2 flex-shrink-0"
                       style={{
                         fontFamily: 'Impact, sans-serif',
@@ -4398,38 +4243,24 @@ const ImmersivePostCardInner = ({
 
                   {/* Body text */}
                   {!useStackLayout && post.content && post.content.trim().length > 0 && (
-                    <>
-                      {flexiblesStatus['flexible-text']?.step === 'full' && (
-                        <div
-                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                          style={{ fontFamily: 'Inter, sans-serif', lineHeight: 1.55, textAlign: 'left' }}
-                        >
-                          <MentionText content={post.content} />
-                        </div>
-                      )}
-                      {flexiblesStatus['flexible-text']?.step === 'clamped' && (
-                        <div
-                          ref={(el) => { registerRef('flexible-text')(el); bodyTextRef.current = el; }}
-                          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                          style={{
-                            fontFamily: 'Inter, sans-serif',
-                            lineHeight: 1.55,
-                            textAlign: 'left',
-                            display: '-webkit-box',
-                            WebkitLineClamp: Math.max(1, Math.floor(flexiblesStatus['flexible-text'].height / BODY_LINE_HEIGHT_PX)),
-                            WebkitBoxOrient: 'vertical',
-                            overflow: 'hidden',
-                            height: `${flexiblesStatus['flexible-text'].height}px`
-                          }}
-                        >
-                          <MentionText content={post.content} />
-                        </div>
-                      )}
-                      {flexiblesStatus['flexible-text']?.step === 'hidden' && (
-                        <div ref={registerRef('flexible-text')} style={{ height: 0, overflow: 'hidden' }} />
-                      )}
-                    </>
+                    <div 
+                      ref={(el) => {
+                        (bodyRef as any).current = el;
+                        bodyTextRef.current = el;
+                      }}
+                      className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                      style={{ 
+                        fontFamily: 'Inter, sans-serif', 
+                        lineHeight: 1.55, 
+                        textAlign: 'left',
+                        display: '-webkit-box',
+                        WebkitLineClamp: bodyLineClamp,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <MentionText content={post.content} />
+                    </div>
                   )}
 
                   {/* Approfondisci */}
@@ -4444,218 +4275,236 @@ const ImmersivePostCardInner = ({
                     </div>
                   )}
 
-                  {/* Embed content */}
-                  {articleStep === 'full' && (
-                    <div 
-                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-article')} 
-                      style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                      className="w-full mt-auto flex-shrink-0"
-                    >
-                      {isEditorialFocus ? (
-                        <QuotedEditorialCard
-                          title={decodeHTMLEntities(post.shared_title || 'Il Punto')}
-                          summary={(() => {
-                            const raw = post.article_content || '';
-                            const cleaned = raw.replace(/\[SOURCE:[\d,\s]+\]/g, '').trim();
-                            if (cleaned.length > 20) return cleaned.substring(0, 260).trim() + '…';
-                            if (editorialSummary) return editorialSummary.substring(0, 260).trim() + '…';
-                            return undefined;
-                          })()}
-                          onClick={() => {
-                            const focusId = post.shared_url?.replace('focus://daily/', '');
-                            if (focusId) navigate(`/?focus=${focusId}`);
-                          }}
-                          trustScore={{ band: 'ALTO', score: 90 }}
-                        />
-                      ) : (
-                        <div
-                          className="cursor-pointer active:scale-[0.98] transition-transform w-full flex flex-col items-start"
+                  <div className="slot-bottom" ref={slotBottomRef}>
+                    {/* Embed content */}
+                    {articleStep === 'full' && (
+                      <div 
+                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-article')} 
+                        style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                        className="w-full mt-auto flex-shrink-0"
+                      >
+                        {isEditorialFocus ? (
+                          <QuotedEditorialCard
+                            title={decodeHTMLEntities(post.shared_title || 'Il Punto')}
+                            summary={(() => {
+                              const raw = post.article_content || '';
+                              const cleaned = raw.replace(/\[SOURCE:[\d,\s]+\]/g, '').trim();
+                              if (cleaned.length > 20) return cleaned.substring(0, 260).trim() + '…';
+                              if (editorialSummary) return editorialSummary.substring(0, 260).trim() + '…';
+                              return undefined;
+                            })()}
+                            onClick={() => {
+                              const focusId = post.shared_url?.replace('focus://daily/', '');
+                              if (focusId) navigate(`/?focus=${focusId}`);
+                            }}
+                            trustScore={{ band: 'ALTO', score: 90 }}
+                          />
+                        ) : (
+                          <div
+                            className="cursor-pointer active:scale-[0.98] transition-transform w-full flex flex-col items-start"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (post.shared_url) {
+                                window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                              }
+                            }}
+                          >
+                             {(articlePreview?.image || post.preview_img) && !hasUserMedia && (
+                              <div className="w-full h-[140px] flex items-center justify-center mb-3 overflow-hidden rounded-xl">
+                                <SourceImageWithFallback
+                                  src={articlePreview?.image || post.preview_img}
+                                  sharedUrl={post.shared_url}
+                                  isIntent={post.is_intent}
+                                  trustScore={displayTrustScore}
+                                  hideOverlay={true}
+                                  platform={articlePreview?.platform}
+                                  hostname={getHostnameFromUrl(post.shared_url)}
+                                  className="h-full w-full object-cover rounded-xl"
+                                />
+                              </div>
+                            )}
+
+                            <div className="w-12 h-1 bg-slate-200 dark:bg-white/30 rounded-full mb-3 shrink-0" />
+                            
+                            <div className="mb-2 shrink-0 text-left w-full">
+                              <p className="text-base font-semibold text-slate-900 dark:text-white/90 leading-snug line-clamp-2">
+                                {decodeHTMLEntities(articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url))}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center text-slate-500 dark:text-white/70 mb-1 gap-2 shrink-0">
+                              <ExternalLink className="w-3 h-3" />
+                              <span className="uppercase font-bold tracking-widest text-[10px]">
+                                {getHostnameFromUrl(post.shared_url)}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {articleStep === 'compact' && (
+                      <div 
+                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-article')} 
+                        style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
+                        className="w-full mt-auto flex-shrink-0"
+                      >
+                        <div 
+                          className="flex flex-row items-center gap-2 bg-[rgba(255,255,255,0.06)] rounded-[8px] p-[8px_10px] w-full cursor-pointer"
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (post.shared_url) {
+                            if (isEditorialFocus) {
+                              const focusId = post.shared_url?.replace('focus://daily/', '');
+                              if (focusId) navigate(`/?focus=${focusId}`);
+                            } else if (post.shared_url) {
                               window.open(post.shared_url, '_blank', 'noopener,noreferrer');
                             }
                           }}
                         >
-                           {(articlePreview?.image || post.preview_img) && !hasUserMedia && (
-                            <div className="w-full h-[140px] flex items-center justify-center mb-3 overflow-hidden rounded-xl">
-                              <SourceImageWithFallback
-                                src={articlePreview?.image || post.preview_img}
-                                sharedUrl={post.shared_url}
-                                isIntent={post.is_intent}
-                                trustScore={displayTrustScore}
-                                hideOverlay={true}
-                                platform={articlePreview?.platform}
-                                hostname={getHostnameFromUrl(post.shared_url)}
-                                className="h-full w-full object-cover rounded-xl"
-                              />
-                            </div>
-                          )}
-
-                          <div className="w-12 h-1 bg-slate-200 dark:bg-white/30 rounded-full mb-3 shrink-0" />
-                          
-                          <div className="mb-2 shrink-0 text-left w-full">
-                            <p className="text-base font-semibold text-slate-900 dark:text-white/90 leading-snug line-clamp-2">
+                          {/* Left icon: generic article or editorial */}
+                          <div 
+                            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                            style={{ 
+                              background: 'rgba(255,255,255,0.05)',
+                              border: '1px solid rgba(255,255,255,0.1)'
+                            }}
+                          >
+                            <span className="text-sm">📰</span>
+                          </div>
+                          {/* Title + domain */}
+                          <div className="flex-1 min-w-0 text-left">
+                            <p className="text-sm font-semibold truncate text-foreground">
                               {decodeHTMLEntities(articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url))}
                             </p>
-                          </div>
-
-                          <div className="flex items-center text-slate-500 dark:text-white/70 mb-1 gap-2 shrink-0">
-                            <ExternalLink className="w-3 h-3" />
-                            <span className="uppercase font-bold tracking-widest text-[10px]">
+                            <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider font-mono">
                               {getHostnameFromUrl(post.shared_url)}
-                            </span>
+                            </p>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {articleStep === 'compact' && (
-                    <div 
-                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-article')} 
-                      style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                      className="w-full mt-auto flex-shrink-0"
-                    >
-                      <div 
-                        className="flex flex-row items-center gap-2 bg-[rgba(255,255,255,0.06)] rounded-[8px] p-[8px_10px] w-full cursor-pointer"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (isEditorialFocus) {
-                            const focusId = post.shared_url?.replace('focus://daily/', '');
-                            if (focusId) navigate(`/?focus=${focusId}`);
-                          } else if (post.shared_url) {
-                            window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                          }
-                        }}
-                      >
-                        {!hasUserMedia && (
-                          <div className="w-[48px] h-[48px] rounded-[6px] bg-[rgba(255,255,255,0.06)] shrink-0 flex items-center justify-center overflow-hidden">
-                            {isEditorialFocus ? (
-                              <img src="/logo.png" alt="Il Punto" className="w-8 h-8 object-contain opacity-80" />
-                            ) : (articlePreview?.image || post.preview_img) ? (
-                              <img src={articlePreview?.image || post.preview_img} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              <ExternalLink className="w-5 h-5 text-white/40" />
-                            )}
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-sans text-[11px] font-semibold text-white line-clamp-2 leading-tight">
-                            {isEditorialFocus 
-                              ? decodeHTMLEntities(post.shared_title || 'Il Punto')
-                              : decodeHTMLEntities(articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url))
-                            }
-                          </p>
-                          <p className="font-sans text-[9px] text-[rgba(255,255,255,0.4)] mt-[2px] truncate">
-                            {isEditorialFocus ? '@ilpunto' : getHostnameFromUrl(post.shared_url)}
-                          </p>
+                          <ExternalLink className="w-3.5 h-3.5 text-white/40 shrink-0" />
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {articleStep === 'pill' && (
-                    <div 
-                      ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-article')} 
-                      className="flex-shrink-0 mt-auto" 
-                      style={{ height: '36px' }}
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (isEditorialFocus) {
-                            const focusId = post.shared_url?.replace('focus://daily/', '');
-                            if (focusId) navigate(`/?focus=${focusId}`);
-                          } else if (post.shared_url) {
-                            window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                          }
-                        }}
-                        className="inline-flex h-9 items-center gap-1.5 bg-[#0A7AFF] hover:bg-[#0A7AFF]/90 px-4 rounded-full"
+                    {articleStep === 'pill' && (
+                      <div 
+                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-article')} 
+                        className="flex-shrink-0 mt-auto" 
+                        style={{ height: '36px' }}
                       >
-                        <span className="text-white text-xs font-bold">📰 Leggi articolo</span>
-                      </button>
-                    </div>
-                  )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isEditorialFocus) {
+                              const focusId = post.shared_url?.replace('focus://daily/', '');
+                              if (focusId) navigate(`/?focus=${focusId}`);
+                            } else if (post.shared_url) {
+                              window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                            }
+                          }}
+                          className="inline-flex h-9 items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 px-4 rounded-full"
+                        >
+                          <span className="text-white text-xs font-bold">📰 Leggi articolo</span>
+                        </button>
+                      </div>
+                    )}
 
-                  {useStackLayout && articleStep === 'hidden' && (
-                    <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
-                  )}
+                    {useStackLayout && articleStep === 'hidden' && (
+                      <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
+                    )}
+                  </div>
                 </div>
               ) : isInstagramReel ? (
-                <div
-                  className={cn(
-                    "flex-1 min-h-0 flex flex-col items-center justify-start w-full px-4 gap-3",
-                    emergencyScroll && "overflow-y-auto"
-                  )}
-                >
-                  {/* Title */}
-                  {post.title && post.title.trim().length > 0 ? (
-                    <ClampedTitle
-                      as="h2"
-                      text={post.title}
-                      maxLines={3}
-                      ref={registerRef('essential-title')}
-                      className="uppercase mb-2 flex-shrink-0 self-start text-left"
-                      style={{
-                        fontFamily: 'Impact, sans-serif',
-                        fontSize: 'clamp(30px, 8vw, 42px)',
-                        lineHeight: 0.92,
-                        letterSpacing: '-0.02em',
-                        color: '#FFFFFF',
-                        textAlign: 'left',
-                      }}
-                    />
-                  ) : (
-                    <ClampedTitle
-                      as="h2"
-                      text={decodeHTMLEntities(articlePreview?.title || post.shared_title || 'Instagram Reel')}
-                      maxLines={3}
-                      ref={registerRef('essential-title')}
-                      className="text-xl font-bold text-immersive-foreground leading-tight mt-1 mb-2 flex-shrink-0 self-start text-left"
-                    />
-                  )}
+                <>
+                  <div
+                    className={cn(
+                      "flex-1 min-h-0 flex flex-col items-center justify-start w-full px-4 gap-3",
+                      emergencyScroll && "overflow-y-auto"
+                    )}
+                  >
+                    {/* Title */}
+                    {post.title && post.title.trim().length > 0 ? (
+                      <ClampedTitle
+                        as="h2"
+                        text={post.title}
+                        maxLines={3}
+                        ref={registerRef('essential-title')}
+                        className="uppercase mb-2 flex-shrink-0 self-start text-left"
+                        style={{
+                          fontFamily: 'Impact, sans-serif',
+                          fontSize: 'clamp(30px, 8vw, 42px)',
+                          lineHeight: 0.92,
+                          letterSpacing: '-0.02em',
+                          color: '#FFFFFF',
+                          textAlign: 'left',
+                        }}
+                      />
+                    ) : (
+                      <ClampedTitle
+                        as="h2"
+                        text={decodeHTMLEntities(articlePreview?.title || post.shared_title || 'Instagram Reel')}
+                        maxLines={3}
+                        ref={registerRef('essential-title')}
+                        className="text-xl font-bold text-immersive-foreground leading-tight mt-1 mb-2 flex-shrink-0 self-start text-left"
+                      />
+                    )}
 
-                  {/* User Comment — flessibile */}
-                  {post.content && post.content.trim().length > 0 && flexiblesStatus['flexible-user-comment']?.step !== 'hidden' && (
-                    <p 
-                      ref={(el) => { registerRef('flexible-user-comment')(el); bodyTextRef.current = el; }}
-                      className={cn(
-                        "self-start text-sm text-white/90 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
-                        flexiblesStatus['flexible-user-comment']?.step === 'compact' ? "line-clamp-2" : "line-clamp-4"
-                      )}
-                    >
-                      <MentionText content={post.content} />
-                    </p>
-                  )}
-
-
-
-                  {/* Caption — flessibile */}
-                  {flexiblesStatus['flexible-text']?.step !== 'hidden' && post.shared_title && (
-                    <p 
-                      ref={(el) => { registerRef('flexible-text')(el); captionTextRef.current = el; }}
-                      className={cn(
-                        "self-start text-sm text-white/80 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
-                        flexiblesStatus['flexible-text']?.step === 'compact' ? "line-clamp-2" : "line-clamp-4"
-                      )}
-                    >
-                      <MentionText content={post.shared_title} />
-                    </p>
-                  )}
-
-                  {/* Approfondisci */}
-                  {shouldShowApprofondisci && (
-                    <div className="flex-shrink-0 mt-2 mb-3 text-left self-start">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
-                        className="text-sm font-semibold hover:underline block text-[#E1306C]"
+                    {/* User Comment — flessibile */}
+                    {post.content && post.content.trim().length > 0 && (
+                      <p 
+                        ref={(el) => {
+                          (bodyRef as any).current = el;
+                          bodyTextRef.current = el;
+                        }}
+                        className="self-start text-sm text-white/90 leading-relaxed mb-3 text-left flex-shrink-0 w-full"
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: bodyLineClamp,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden'
+                        }}
                       >
-                        Approfondisci
-                      </button>
+                        <MentionText content={post.content} />
+                      </p>
+                    )}
+
+                    {/* Caption — flessibile */}
+                    {flexiblesStatus['flexible-text']?.step !== 'hidden' && post.shared_title && (
+                      <p 
+                        ref={(el) => { registerRef('flexible-text')(el); captionTextRef.current = el; }}
+                        className={cn(
+                          "self-start text-sm text-white/80 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
+                          flexiblesStatus['flexible-text']?.step === 'compact' ? "line-clamp-2" : "line-clamp-4"
+                        )}
+                      >
+                        <MentionText content={post.shared_title} />
+                      </p>
+                    )}
+
+                    {/* Approfondisci */}
+                    {shouldShowApprofondisci && (
+                      <div className="flex-shrink-0 mt-2 mb-3 text-left self-start">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
+                          className="text-sm font-semibold hover:underline block text-[#E1306C]"
+                        >
+                          Approfondisci
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Unified Card External CTA inside slot-bottom */}
+                  {!useStackLayout && post.shared_url && (
+                    <div className="slot-bottom w-full px-4" ref={slotBottomRef}>
+                      <CardExternalCTA 
+                        platform="instagram" 
+                        url={post.shared_url} 
+                        mode="flow"
+                        ref={registerRef('essential-external-cta')}
+                      />
                     </div>
                   )}
-                </div>
+                </>
               ) : null}
 
               {/* Quoted Post - Show for ALL reshares (stack and non-stack) */}
@@ -4708,16 +4557,12 @@ const ImmersivePostCardInner = ({
               )}
 
             </div>
-
-
-
-
-          </div>
+          </CardShell.Mid>
 
           {/* Bottom Actions - Single horizontal axis alignment */}
           {/* [Rail 3] ActionRail: Fixed bottom overlay with gradient fade */}
-          <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none">
-            <div className="flex items-center justify-between gap-6 pb-[calc(4rem+env(safe-area-inset-bottom)+36px)] pt-4 pointer-events-auto">
+          <CardShell.Bottom ref={bottomRef}>
+            <div className="flex items-center justify-between gap-6 pt-4 pointer-events-auto w-full">
 
             {/* Primary Share Button - Pill shape with consistent height */}
             {/* Primary Share Button - Pill shape with consistent height */}
@@ -4819,30 +4664,12 @@ const ImmersivePostCardInner = ({
                   fill={post.user_reactions.has_bookmarked ? "currentColor" : "none"}
                 />
               </motion.button>
-
             </div>
           </div>
-          </div>
-          {/* Unified Card External CTA for Instagram Reel */}
-          {!useStackLayout && post.shared_url && isInstagramReel && (
-            <CardExternalCTA 
-              platform="instagram" 
-              url={post.shared_url} 
-              ref={registerRef('essential-external-cta')}
-            />
-          )}
-
-          {/* Unified Card External CTA for YouTube Short */}
-          {!useStackLayout && post.shared_url && isYoutubeShort && (
-            <CardExternalCTA 
-              platform="youtube" 
-              url={post.shared_url} 
-              ref={registerRef('essential-external-cta')}
-            />
-          )}
-          </div>
-        </div>
-      </div >
+          </CardShell.Bottom>
+        </CardShell>
+      </div>
+    </div>
 
       {/* Reader Modal */}
       {

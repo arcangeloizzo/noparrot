@@ -25,6 +25,7 @@ export interface UseDynamicCardLayoutProps {
   essentials: EssentialElementConfig[];
   flexibles: FlexibleElementConfig[];
   compressionPriority: string[];
+  postId?: string;
 }
 
 export interface FlexibleElementStatus {
@@ -40,6 +41,18 @@ export interface CardLayoutResult {
   showDrawerCta: boolean;
   emergencyScroll: boolean;
   registerRef: (id: string) => (node: HTMLElement | null) => void;
+  headerRef: React.RefObject<HTMLDivElement>;
+  badgeRef: React.RefObject<HTMLDivElement>;
+  midRef: React.RefObject<HTMLDivElement>;
+  bottomRef: React.RefObject<HTMLDivElement>;
+  layoutMode: 'filled' | 'hero' | 'poster';
+  bodyLineClamp: number;
+  showApprofondisci: boolean;
+  titleRef: React.RefObject<HTMLHeadingElement>;
+  bodyRef: React.RefObject<HTMLParagraphElement>;
+  mediaRef: React.RefObject<HTMLDivElement>;
+  slotBottomRef: React.RefObject<HTMLDivElement>;
+  subBarRef: React.RefObject<HTMLDivElement>;
 }
 
 const PILL_HEIGHT = 36; // Altezza fissa di sistema per le pillole
@@ -48,9 +61,25 @@ export function useDynamicCardLayout({
   availableHeight,
   essentials,
   flexibles,
-  compressionPriority
+  compressionPriority,
+  postId
 }: UseDynamicCardLayoutProps): CardLayoutResult {
   const [status, setStatus] = useState<'pending' | 'measured'>('pending');
+
+  const headerRef = useRef<HTMLDivElement>(null);
+  const badgeRef = useRef<HTMLDivElement>(null);
+  const midRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const bodyRef = useRef<HTMLParagraphElement>(null);
+  const mediaRef = useRef<HTMLDivElement>(null);
+  const slotBottomRef = useRef<HTMLDivElement>(null);
+  const subBarRef = useRef<HTMLDivElement>(null);
+
+  const [layoutMode, setLayoutMode] = useState<'filled' | 'hero' | 'poster'>('filled');
+  const [bodyLineClamp, setBodyLineClamp] = useState<number>(6);
+  const [showApprofondisci, setShowApprofondisci] = useState<boolean>(false);
 
   const elementRefs = useRef<Record<string, HTMLElement | null>>({});
   const naturalHeightsRef = useRef<Record<string, number>>({});
@@ -105,7 +134,12 @@ export function useDynamicCardLayout({
     if (typeof window === 'undefined') return;
 
     const computeLayout = () => {
-      const currentAvailableHeight = availableHeight;
+      let currentAvailableHeight = availableHeight;
+      if (badgeRef.current) {
+        currentAvailableHeight -= (badgeRef.current.offsetHeight + 12);
+      } else {
+        currentAvailableHeight -= 38;
+      }
       if (currentAvailableHeight <= 0) return;
 
       if (import.meta.env.DEV) {
@@ -461,6 +495,52 @@ export function useDynamicCardLayout({
           emergencyScroll
         });
       }
+
+      // 1. Calcola altezza disponibile per il body (zone-mid meno fratelli essenziali)
+      const midClientHeight = midRef.current?.clientHeight ?? 0;
+      const titleHeight     = titleRef.current?.offsetHeight ?? 0;
+      const subBarHeight    = subBarRef.current?.offsetHeight ?? 0;
+      const mediaHeight     = mediaRef.current?.offsetHeight ?? 0;
+      const slotBottomHeight = slotBottomRef.current?.offsetHeight ?? 0;
+
+      const GAPS_FIXED = 12 + 12 + 14 + 16;  // gap margins (§T2)
+      const SAFETY = 16;                     // safety margin (§S7)
+
+      const availableForBody = midClientHeight
+        - titleHeight
+        - subBarHeight
+        - mediaHeight
+        - slotBottomHeight
+        - GAPS_FIXED
+        - SAFETY;
+
+      const bodyEl = bodyRef.current;
+      const lineHeight = bodyEl
+        ? parseFloat(window.getComputedStyle(bodyEl).lineHeight) || 21.7
+        : 21.7; // default standard body line-height
+      const computedLineClamp = Math.max(3, Math.floor(availableForBody / lineHeight));
+      setBodyLineClamp(prev => prev !== computedLineClamp ? computedLineClamp : prev);
+
+      const bodyFullHeight = bodyEl?.scrollHeight ?? 0;
+      const bodyClampedHeight = computedLineClamp * lineHeight;
+      const isBodyTruncated = bodyFullHeight > bodyClampedHeight + 4;
+      setShowApprofondisci(prev => prev !== isBodyTruncated ? isBodyTruncated : prev);
+
+      const hasSlotBottom = slotBottomHeight > 0;
+      const hasMedia = mediaHeight > 0;
+      const contentRatio = (titleHeight + subBarHeight + (bodyEl?.scrollHeight ?? 0) + mediaHeight) / (midClientHeight || 1);
+
+      let mode: 'filled' | 'hero' | 'poster';
+      if (hasSlotBottom || hasMedia) {
+        mode = 'filled';
+      } else if (contentRatio < 0.30) {
+        mode = 'poster';
+      } else if (contentRatio < 0.58) {
+        mode = 'hero';
+      } else {
+        mode = 'filled';
+      }
+      setLayoutMode(prev => prev !== mode ? mode : prev);
     };
 
     const handleResize = () => {
@@ -482,6 +562,10 @@ export function useDynamicCardLayout({
     const observer = new ResizeObserver((entries) => {
       let shouldUpdate = false;
       for (const entry of entries) {
+        if (midRef.current && entry.target === midRef.current) {
+          shouldUpdate = true;
+          continue;
+        }
         const targetId = Object.keys(elementRefs.current).find(
           key => elementRefs.current[key] === entry.target
         );
@@ -508,6 +592,11 @@ export function useDynamicCardLayout({
       observer.observe(containerNode);
     }
 
+    // Monitora la ContentRail (midRef) per i cambiamenti di dimensione
+    if (midRef.current) {
+      observer.observe(midRef.current);
+    }
+
     // Monitora gli essenziali stabili misurati runtime
     for (const ess of essentials) {
       if (ess.staticHeight === undefined && (!ess.states || ess.states.length === 0)) {
@@ -518,16 +607,27 @@ export function useDynamicCardLayout({
       }
     }
 
-    // Esegue il primo calcolo sincrono
+    // Esegue il primo calcolo sincrono, poi re-run dopo due frame per stabilità
     handleResize();
+
+    let rAF1: number;
+    let rAF2: number;
+
+    rAF1 = requestAnimationFrame(() => {
+      rAF2 = requestAnimationFrame(() => {
+        handleResize();
+      });
+    });
 
     return () => {
       observer.disconnect();
       if (timeoutId !== null) {
         window.clearTimeout(timeoutId);
       }
+      if (rAF1) cancelAnimationFrame(rAF1);
+      if (rAF2) cancelAnimationFrame(rAF2);
     };
-  }, [availableHeight, serializedEssentials, serializedFlexibles, serializedPriority]);
+  }, [availableHeight, serializedEssentials, serializedFlexibles, serializedPriority, postId]);
 
   // Dev-only warning per ref mancanti o blocco in pending
   useEffect(() => {
@@ -550,6 +650,18 @@ export function useDynamicCardLayout({
     flexiblesStatus: layoutResult.flexiblesStatus,
     showDrawerCta: layoutResult.showDrawerCta,
     emergencyScroll: layoutResult.emergencyScroll,
-    registerRef
+    registerRef,
+    headerRef,
+    badgeRef,
+    midRef,
+    bottomRef,
+    layoutMode,
+    bodyLineClamp,
+    showApprofondisci,
+    titleRef,
+    bodyRef,
+    mediaRef,
+    slotBottomRef,
+    subBarRef
   };
 }
