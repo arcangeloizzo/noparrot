@@ -1585,6 +1585,19 @@ const ImmersivePostCardInner = ({
     !isInstagramReel &&
     !useStackLayout;
 
+  const linkPreviewMedia = normalizedMedias.find(m => m.source === 'link_preview');
+
+  // SINGLE SOURCE OF TRUTH: kill switch globale per MediaFrame branch generic article.
+  // Se vuoi rimuovere il kill switch in futuro, cambia false → true qui E nelle due IIFE locali (~riga 3135 e ~riga 4420).
+  // Vedi CICATRICE: MediaFrame branch generic article disabilitato per edge case multipli iPhone SE.
+  const hasPreviewMetadataTopLevel = false && !!linkPreviewMedia;
+
+  const postWordCount = countPostWords(post.title, post.content);
+  const isArticleMiniActive = isGenericArticle 
+    && hasPreviewMetadataTopLevel
+    && !!linkPreviewMedia 
+    && calculateMediaLayout(linkPreviewMedia, postWordCount) === 'mini';
+
   const hasImage = isStandardPost && (post.preview_img || (post.media && post.media.length > 0));
 
   const isEditorialFocus = isGenericArticle && post.shared_url?.startsWith('focus://');
@@ -3126,7 +3139,8 @@ const ImmersivePostCardInner = ({
                 const wordCount = countPostWords(post.title, post.content);
                 const userUploadMedia = normalizedMedias.find(m => m.source === 'user_upload');
                 const linkPreviewMedia = normalizedMedias.find(m => m.source === 'link_preview');
-                const hasPreviewMetadata = !!linkPreviewMedia;
+                // KILL SWITCH 16/06: branch MediaFrame articoli generici ha edge case multipli su iPhone SE (body text non rendered, landscape mostrato portrait, cover oversized). Disabilitato in attesa di diagnosi DOM Safari mobile dedicata. Il branch user_upload con UnifiedMedia adapter funziona correttamente.
+                const hasPreviewMetadata = false && !!linkPreviewMedia;
                 const isMiniLayout = (userUploadMedia && userUploadMedia.kind === 'image' && !isInstagramReel && !isYoutubeShort && calculateMediaLayout(userUploadMedia, wordCount) === 'mini') ||
                   (linkPreviewMedia && hasPreviewMetadata && !isInstagramReel && !isYoutubeShort && calculateMediaLayout(linkPreviewMedia, wordCount) === 'mini');
 
@@ -4350,7 +4364,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Body text */}
-                  {!useStackLayout && post.content && post.content.trim().length > 0 && (
+                  {!useStackLayout && !isArticleMiniActive && post.content && post.content.trim().length > 0 && (
                     <div 
                       ref={(el) => {
                         (bodyRef as any).current = el;
@@ -4372,7 +4386,7 @@ const ImmersivePostCardInner = ({
                   )}
 
                   {/* Approfondisci */}
-                  {!useStackLayout && shouldShowApprofondisci && (
+                  {!useStackLayout && !isArticleMiniActive && shouldShowApprofondisci && (
                     <div className="flex-shrink-0 mt-2 mb-3">
                       <button
                         onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
@@ -4410,7 +4424,8 @@ const ImmersivePostCardInner = ({
                         ) : (() => {
                           const wordCount = countPostWords(post.title, post.content);
                           const linkPreviewMedia = normalizedMedias.find(m => m.source === 'link_preview');
-                          const hasPreviewMetadata = !!linkPreviewMedia;
+                          // KILL SWITCH 16/06: branch MediaFrame articoli generici ha edge case multipli su iPhone SE (body text non rendered, landscape mostrato portrait, cover oversized). Disabilitato in attesa di diagnosi DOM Safari mobile dedicata. Il branch user_upload con UnifiedMedia adapter funziona correttamente.
+                          const hasPreviewMetadata = false && !!linkPreviewMedia;
                           const layoutMode = hasPreviewMetadata && linkPreviewMedia ? calculateMediaLayout(linkPreviewMedia, wordCount) : null;
                           const hasImage = !!linkPreviewMedia;
                           
