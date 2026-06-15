@@ -18,6 +18,11 @@ export interface Post {
   shared_title: string | null;
   shared_url: string | null;
   preview_img: string | null;
+  preview_img_width?: number | null;
+  preview_img_height?: number | null;
+  preview_img_ratio?: string | null;
+  preview_img_orientation?: string | null;
+  preview_img_ambient_url?: string | null;
   full_article: string | null;
   article_content: string | null;
   trust_level: 'BASSO' | 'MEDIO' | 'ALTO' | null;
@@ -48,6 +53,11 @@ export interface Post {
     shared_url?: string | null;
     shared_title?: string | null;
     preview_img?: string | null;
+    preview_img_width?: number | null;
+    preview_img_height?: number | null;
+    preview_img_ratio?: string | null;
+    preview_img_orientation?: string | null;
+    preview_img_ambient_url?: string | null;
     post_type?: string;
     voice_post?: {
       id?: string;
@@ -242,6 +252,11 @@ export const usePosts = () => {
             shared_url,
             shared_title,
             preview_img,
+            preview_img_width,
+            preview_img_height,
+            preview_img_ratio,
+            preview_img_orientation,
+            preview_img_ambient_url,
             post_type,
             voice_posts (
               id,
@@ -325,6 +340,11 @@ export const usePosts = () => {
         shared_title: post.shared_title,
         shared_url: post.shared_url,
         preview_img: post.preview_img,
+        preview_img_width: post.preview_img_width,
+        preview_img_height: post.preview_img_height,
+        preview_img_ratio: post.preview_img_ratio,
+        preview_img_orientation: post.preview_img_orientation,
+        preview_img_ambient_url: post.preview_img_ambient_url,
         full_article: post.full_article,
         article_content: post.article_content,
         trust_level: post.trust_level,
@@ -772,6 +792,11 @@ export const useSavedPosts = () => {
           shared_url: post.shared_url,
           shared_title: post.shared_title,
           preview_img: post.preview_img,
+          preview_img_width: post.preview_img_width,
+          preview_img_height: post.preview_img_height,
+          preview_img_ratio: post.preview_img_ratio,
+          preview_img_orientation: post.preview_img_orientation,
+          preview_img_ambient_url: post.preview_img_ambient_url,
           full_article: post.full_article,
           article_content: post.article_content,
           trust_level: post.trust_level,
@@ -827,6 +852,11 @@ export const useQuotedPost = (quotedPostId: string | null) => {
           shared_url,
           shared_title,
           preview_img,
+          preview_img_width,
+          preview_img_height,
+          preview_img_ratio,
+          preview_img_orientation,
+          preview_img_ambient_url,
           post_type,
           is_intent,
           sources,

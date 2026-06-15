@@ -3127,7 +3127,11 @@ const ImmersivePostCardInner = ({
 
               {isStandardPost && (() => {
                 const wordCount = countPostWords(post.title, post.content);
-                const isMiniLayout = hasUserMedia && post.media && post.media.length === 1 && post.media[0].type === 'image' && !isInstagramReel && !isYoutubeShort && getMediaLayout(post.media[0].orientation, wordCount) === 'mini';
+                const previewOrientation = post.preview_img_orientation || articlePreview?.image_orientation;
+                const previewRatio = post.preview_img_ratio || articlePreview?.image_ratio;
+                const hasPreviewMetadata = !!(previewOrientation && previewRatio);
+                const isMiniLayout = (hasUserMedia && post.media && post.media.length === 1 && post.media[0].type === 'image' && !isInstagramReel && !isYoutubeShort && getMediaLayout(post.media[0].orientation, wordCount) === 'mini') ||
+                  (!hasUserMedia && hasPreviewMetadata && (articlePreview?.image || post.preview_img) && !isInstagramReel && !isYoutubeShort && getMediaLayout(previewOrientation as any, wordCount) === 'mini');
 
                 return (
                   <div 
@@ -4413,47 +4417,121 @@ const ImmersivePostCardInner = ({
                             }}
                             trustScore={{ band: 'ALTO', score: 90 }}
                           />
-                        ) : (
-                          <div
-                            className="cursor-pointer active:scale-[0.98] transition-transform w-full flex flex-col items-start"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (post.shared_url) {
-                                window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                              }
-                            }}
-                          >
-                             {(articlePreview?.image || post.preview_img) && !hasUserMedia && (
-                              <div className="w-full h-[140px] flex items-center justify-center mb-3 overflow-hidden rounded-xl">
-                                <SourceImageWithFallback
-                                  src={articlePreview?.image || post.preview_img}
-                                  sharedUrl={post.shared_url}
-                                  isIntent={post.is_intent}
-                                  trustScore={displayTrustScore}
-                                  hideOverlay={true}
-                                  platform={articlePreview?.platform}
-                                  hostname={getHostnameFromUrl(post.shared_url)}
-                                  className="h-full w-full object-cover rounded-xl"
-                                />
-                              </div>
-                            )}
+                        ) : (() => {
+                          const wordCount = countPostWords(post.title, post.content);
+                          const previewOrientation = post.preview_img_orientation || articlePreview?.image_orientation;
+                          const previewRatio = post.preview_img_ratio || articlePreview?.image_ratio;
+                          const hasPreviewMetadata = !!(previewOrientation && previewRatio);
+                          const layoutMode = hasPreviewMetadata ? getMediaLayout(previewOrientation as any, wordCount) : null;
+                          const hasImage = !!(articlePreview?.image || post.preview_img);
+                          
+                          const mediaForFrame = hasImage ? {
+                            src: articlePreview?.image || post.preview_img || '',
+                            ratio: (previewRatio || '16:9') as any,
+                            orientation: (previewOrientation || 'landscape') as any,
+                            kind: 'image' as const,
+                          } : null;
 
-                            <div className="w-12 h-1 bg-slate-200 dark:bg-white/30 rounded-full mb-3 shrink-0" />
-                            
-                            <div className="mb-2 shrink-0 text-left w-full">
-                              <p className="text-base font-semibold text-slate-900 dark:text-white/90 leading-snug line-clamp-2">
-                                {decodeHTMLEntities(articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url))}
-                              </p>
-                            </div>
+                          return (
+                            <div
+                              className="cursor-pointer active:scale-[0.98] transition-transform w-full flex flex-col items-start"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (post.shared_url) {
+                                  window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                                }
+                              }}
+                            >
+                               {hasImage && !hasUserMedia && (
+                                 hasPreviewMetadata && mediaForFrame ? (
+                                   layoutMode === 'mini' ? (
+                                     <div className="vstage-row w-full mb-3">
+                                       <div className="v-col">
+                                         {post.content && post.content.trim().length > 0 && (
+                                           <div 
+                                             className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
+                                             style={{ 
+                                               fontFamily: 'Inter, sans-serif', 
+                                               lineHeight: 1.55, 
+                                               textAlign: 'left',
+                                               display: '-webkit-box',
+                                               WebkitLineClamp: bodyLineClamp,
+                                               WebkitBoxOrient: 'vertical',
+                                               overflow: 'hidden'
+                                             }}
+                                           >
+                                             <MentionText content={post.content} />
+                                           </div>
+                                         )}
+                                         {shouldShowApprofondisci && (
+                                           <div className="flex-shrink-0 mt-2 mb-3">
+                                             <button
+                                               onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
+                                               className="text-sm text-primary font-semibold hover:underline block"
+                                             >
+                                               Approfondisci
+                                             </button>
+                                           </div>
+                                         )}
+                                       </div>
+                                       <div className="flex-shrink-0 animate-fade-in" style={{ alignSelf: 'flex-start' }}>
+                                         <MediaFrame
+                                           media={mediaForFrame}
+                                           variant="mini"
+                                           onTap={() => {
+                                             if (post.shared_url) {
+                                               window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                                             }
+                                           }}
+                                         />
+                                       </div>
+                                     </div>
+                                   ) : (
+                                     <div className="w-full mb-3 animate-fade-in">
+                                       <MediaFrame
+                                         media={mediaForFrame}
+                                         variant={layoutMode}
+                                         onTap={() => {
+                                           if (post.shared_url) {
+                                             window.open(post.shared_url, '_blank', 'noopener,noreferrer');
+                                           }
+                                         }}
+                                       />
+                                     </div>
+                                   )
+                                 ) : (
+                                   <div className="w-full h-[140px] flex items-center justify-center mb-3 overflow-hidden rounded-xl">
+                                     <SourceImageWithFallback
+                                       src={articlePreview?.image || post.preview_img}
+                                       sharedUrl={post.shared_url}
+                                       isIntent={post.is_intent}
+                                       trustScore={displayTrustScore}
+                                       hideOverlay={true}
+                                       platform={articlePreview?.platform}
+                                       hostname={getHostnameFromUrl(post.shared_url)}
+                                       className="h-full w-full object-cover rounded-xl"
+                                     />
+                                   </div>
+                                 )
+                               )}
 
-                            <div className="flex items-center text-slate-500 dark:text-white/70 mb-1 gap-2 shrink-0">
-                              <ExternalLink className="w-3 h-3" />
-                              <span className="uppercase font-bold tracking-widest text-[10px]">
-                                {getHostnameFromUrl(post.shared_url)}
-                              </span>
+                               <div className="w-12 h-1 bg-slate-200 dark:bg-white/30 rounded-full mb-3 shrink-0" />
+                               
+                               <div className="mb-2 shrink-0 text-left w-full">
+                                 <p className="text-base font-semibold text-slate-900 dark:text-white/90 leading-snug line-clamp-2">
+                                   {decodeHTMLEntities(articlePreview?.title || post.shared_title || getHostnameFromUrl(post.shared_url))}
+                                 </p>
+                               </div>
+
+                               <div className="flex items-center text-slate-500 dark:text-white/70 mb-1 gap-2 shrink-0">
+                                 <ExternalLink className="w-3 h-3" />
+                                 <span className="uppercase font-bold tracking-widest text-[10px]">
+                                   {getHostnameFromUrl(post.shared_url)}
+                                 </span>
+                               </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                       </div>
                     )}
 

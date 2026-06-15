@@ -481,7 +481,18 @@ Deno.serve(async (req) => {
     const rawSharedUrl = body.sharedUrl || '';
     const isEditorialUrl = rawSharedUrl.startsWith('focus://daily/') ||
       rawSharedUrl.startsWith('focus://') ||
-      rawSharedUrl.startsWith('editorial://');
+      rawSharedUrl.startsWith('editorial://');    
+    let editorialPreviewWidth = null;
+    let editorialPreviewHeight = null;
+    let editorialPreviewRatio = null;
+    let editorialPreviewOrientation = null;
+    let editorialPreviewAmbientUrl = null;
+
+    let instagramPreviewImgWidth = null;
+    let instagramPreviewImgHeight = null;
+    let instagramPreviewImgRatio = null;
+    let instagramPreviewImgOrientation = null;
+    let instagramPreviewImgAmbientUrl = null;
 
     if (isEditorialUrl) {
       console.log(`[publish-post:${reqId}] stage=editorial_detected url=${rawSharedUrl.slice(0, 50)}`);
@@ -502,7 +513,7 @@ Deno.serve(async (req) => {
           try {
             const { data: focusData, error: focusErr } = await supabase
               .from('daily_focus')
-              .select('title, summary, deep_content, image_url')
+              .select('title, summary, deep_content, image_url, image_width, image_height, image_ratio, image_orientation, image_ambient_url')
               .eq('id', focusId)
               .maybeSingle();
 
@@ -524,11 +535,16 @@ Deno.serve(async (req) => {
                 sanitizedPreviewImg = focusData.image_url; // Skip sanitizeUrl for internal URLs
                 console.log(`[publish-post:${reqId}] stage=editorial_image_set`);
               }
+              editorialPreviewWidth = focusData.image_width;
+              editorialPreviewHeight = focusData.image_height;
+              editorialPreviewRatio = focusData.image_ratio;
+              editorialPreviewOrientation = focusData.image_orientation;
+              editorialPreviewAmbientUrl = focusData.image_ambient_url;
             } else {
               console.warn(`[publish-post:${reqId}] stage=editorial_not_found focusId=${focusId}`);
             }
           } catch (editorialErr) {
-            console.warn(`[publish-post:${reqId}] stage=editorial_fetch_exception`, editorialErr);
+            console.error(`[publish-post:${reqId}] stage=editorial_fetch_exception`, editorialErr);
           }
         }
       }
@@ -536,7 +552,7 @@ Deno.serve(async (req) => {
 
     // NEW: Instagram Reels processing and metadata collection
     let instagramPreviewImg = null;
-    let instagramHostname = 'instagram.com';
+    let instagramHostname = null;
     let instagramTranscript = null;
     let instagramTitle = null;
 
@@ -550,7 +566,7 @@ Deno.serve(async (req) => {
         const normalizedUrl = safeNormalizeUrl(sanitizedSharedUrl);
         const { data: cached } = await supabase
           .from('content_cache')
-          .select('content_text, title, meta_image_url, meta_hostname')
+          .select('content_text, title, meta_image_url, meta_hostname, meta_image_width, meta_image_height, meta_image_ratio, meta_image_orientation, meta_image_ambient_url')
           .eq('source_url', normalizedUrl)
           .maybeSingle();
 
@@ -560,6 +576,11 @@ Deno.serve(async (req) => {
           instagramHostname = cached.meta_hostname || 'instagram.com';
           instagramTranscript = cached.content_text;
           instagramTitle = cached.title;
+          instagramPreviewImgWidth = cached.meta_image_width;
+          instagramPreviewImgHeight = cached.meta_image_height;
+          instagramPreviewImgRatio = cached.meta_image_ratio;
+          instagramPreviewImgOrientation = cached.meta_image_orientation;
+          instagramPreviewImgAmbientUrl = cached.meta_image_ambient_url;
         }
       } catch (err) {
         console.warn(`[publish-post:${reqId}] stage=instagram_cache_err`, err);
@@ -586,6 +607,11 @@ Deno.serve(async (req) => {
             instagramPreviewImg = previewData.image || previewData.previewImg || instagramPreviewImg;
             instagramHostname = previewData.hostname || instagramHostname;
             instagramTitle = previewData.title || instagramTitle;
+            instagramPreviewImgWidth = previewData.image_width || instagramPreviewImgWidth;
+            instagramPreviewImgHeight = previewData.image_height || instagramPreviewImgHeight;
+            instagramPreviewImgRatio = previewData.image_ratio || instagramPreviewImgRatio;
+            instagramPreviewImgOrientation = previewData.image_orientation || instagramPreviewImgOrientation;
+            instagramPreviewImgAmbientUrl = previewData.image_ambient_url || instagramPreviewImgAmbientUrl;
             console.log(`[publish-post:${reqId}] stage=instagram_preview_fetch_fallback_success`);
           } else {
             console.warn(`[publish-post:${reqId}] stage=instagram_preview_fetch_fallback_failed status=${previewResponse.status}`);
@@ -633,6 +659,11 @@ Deno.serve(async (req) => {
       category: null as string | null,
       is_intent: body.isIntent || false,
       post_type: isInstagramReel ? 'instagram_reel' : (body.postType || 'standard'),
+      preview_img_width: isInstagramReel ? instagramPreviewImgWidth : (isEditorialUrl ? editorialPreviewWidth : null),
+      preview_img_height: isInstagramReel ? instagramPreviewImgHeight : (isEditorialUrl ? editorialPreviewHeight : null),
+      preview_img_ratio: isInstagramReel ? instagramPreviewImgRatio : (isEditorialUrl ? editorialPreviewRatio : null),
+      preview_img_orientation: isInstagramReel ? instagramPreviewImgOrientation : (isEditorialUrl ? editorialPreviewOrientation : null),
+      preview_img_ambient_url: isInstagramReel ? instagramPreviewImgAmbientUrl : (isEditorialUrl ? editorialPreviewAmbientUrl : null),
       // Also write transcript & transcript_source & hostname & preview_fetched_at to DB columns:
       ...(isInstagramReel ? {
         hostname: instagramHostname,
@@ -943,6 +974,11 @@ Deno.serve(async (req) => {
             const updatePayload: Record<string, unknown> = {
               shared_title: preview.title || null,
               preview_img: preview.image || preview.previewImg || null,
+              preview_img_width: preview.image_width || null,
+              preview_img_height: preview.image_height || null,
+              preview_img_ratio: preview.image_ratio || null,
+              preview_img_orientation: preview.image_orientation || null,
+              preview_img_ambient_url: preview.image_ambient_url || null,
               hostname: extractedHostname || preview.hostname || null,
               preview_fetched_at: new Date().toISOString()
             };

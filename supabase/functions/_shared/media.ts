@@ -1,3 +1,5 @@
+import { fetchImageDimensions } from './image-dimensions.ts';
+
 /**
  * Shared media helpers for Deno Edge Functions
  * (Duplicated from src/lib/mediaUtils.ts for Deno container compatibility — sync if modified)
@@ -68,4 +70,27 @@ export function generateAmbientUrl(
   }
 
   return src;
+}
+
+/**
+ * Full classification pipeline per link preview image:
+ * fetch dimensions → classifyOrientation → generateAmbientUrl.
+ *
+ * Returns { width, height, ratio, orientation, ambient_url } or null on failure.
+ * Safe to call: never throws, gracefully returns null.
+ */
+export async function classifyLinkPreviewImage(imageUrl: string): Promise<{
+  width: number;
+  height: number;
+  ratio: string;
+  orientation: 'portrait' | 'landscape' | 'square';
+  ambient_url: string;
+} | null> {
+  const dims = await fetchImageDimensions(imageUrl);
+  if (!dims) return null;
+  const { width, height } = dims;
+  if (width <= 0 || height <= 0) return null;
+  const { ratio, orientation } = classifyOrientation(width, height);
+  const ambient_url = generateAmbientUrl(imageUrl, 'image');
+  return { width, height, ratio, orientation, ambient_url };
 }

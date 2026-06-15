@@ -5,6 +5,11 @@ interface ArticlePreview {
   title?: string;
   description?: string;
   image?: string;
+  image_width?: number | null;
+  image_height?: number | null;
+  image_ratio?: string | null;
+  image_orientation?: string | null;
+  image_ambient_url?: string | null;
   platform?: string;
   author_username?: string;
   is_verified?: boolean;

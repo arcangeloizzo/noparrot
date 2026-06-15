@@ -6,6 +6,11 @@ export interface OriginalSource {
   url: string | null;
   title: string | null;
   image: string | null;
+  imageWidth?: number | null;
+  imageHeight?: number | null;
+  imageRatio?: string | null;
+  imageOrientation?: string | null;
+  imageAmbientUrl?: string | null;
   category: string | null;
   postType: string | null;
   authorUsername: string;
@@ -58,6 +63,11 @@ interface AncestorPost {
   shared_url: string | null;
   shared_title: string | null;
   preview_img: string | null;
+  preview_img_width?: number | null;
+  preview_img_height?: number | null;
+  preview_img_ratio?: string | null;
+  preview_img_orientation?: string | null;
+  preview_img_ambient_url?: string | null;
   quoted_post_id: string | null;
   author: {
     username: string;
@@ -90,6 +100,11 @@ export function useOriginalSource(quotedPostId: string | null) {
             shared_url,
             shared_title,
             preview_img,
+            preview_img_width,
+            preview_img_height,
+            preview_img_ratio,
+            preview_img_orientation,
+            preview_img_ambient_url,
             quoted_post_id,
             category,
             post_type,
@@ -173,6 +188,11 @@ export function useOriginalSource(quotedPostId: string | null) {
           url: lastValidPost.shared_url,
           title: lastValidPost.shared_title || lastValidPost.title || null,
           image: lastValidPost.preview_img,
+          imageWidth: lastValidPost.preview_img_width,
+          imageHeight: lastValidPost.preview_img_height,
+          imageRatio: lastValidPost.preview_img_ratio,
+          imageOrientation: lastValidPost.preview_img_orientation,
+          imageAmbientUrl: lastValidPost.preview_img_ambient_url,
           category: lastValidPost.category,
           postType: lastValidPost.post_type,
           authorUsername: lastValidPost.author.username,

@@ -5,6 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { classifyLinkPreviewImage } from "../_shared/media.ts";
 
 // ============= DEDUP CONFIG =============
 const DEDUP_CONFIG = {
@@ -948,6 +949,16 @@ serve(async (req) => {
       name: a.source,
       url: a.link
     }));
+
+    let imageMetadata: any = null;
+    if (finalImageUrl && finalImageUrl.length > 5) {
+      try {
+        console.log(`[fetch-daily-focus] 📸 Classifying daily focus cover image: ${finalImageUrl}`);
+        imageMetadata = await classifyLinkPreviewImage(finalImageUrl);
+      } catch (classifyErr) {
+        console.warn(`[fetch-daily-focus] Failed to classify image ${finalImageUrl}:`, classifyErr);
+      }
+    }
     
     // Create daily focus record with dedup metadata
     const dailyFocus = {
@@ -959,6 +970,11 @@ serve(async (req) => {
       trust_score: 'Alto' as const,
       reactions: { likes: 0, comments: 0, shares: 0 },
       image_url: finalImageUrl,
+      image_width: imageMetadata?.width ?? null,
+      image_height: imageMetadata?.height ?? null,
+      image_ratio: imageMetadata?.ratio ?? null,
+      image_orientation: imageMetadata?.orientation ?? null,
+      image_ambient_url: imageMetadata?.ambient_url ?? null,
       edition_time,
       raw_title: mainTitle,
       topic_cluster: classification.topic_cluster,

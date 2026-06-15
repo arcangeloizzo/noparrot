@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.75.0';
+import { classifyLinkPreviewImage } from '../_shared/media.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -170,10 +171,26 @@ serve(async (req) => {
     // Try to scrape OG tags for image and title (best effort)
     const ogTags = await fetchInstagramOpenGraph(url);
     
+    let imageMetadata: any = null;
+    const reelImage = ogTags?.image || null;
+    if (reelImage && reelImage.length > 5) {
+      try {
+        console.log(`[transcribe-instagram] 📸 Classifying Reel cover metadata: ${reelImage}`);
+        imageMetadata = await classifyLinkPreviewImage(reelImage);
+      } catch (classifyErr) {
+        console.warn(`[transcribe-instagram] Failed to classify image ${reelImage}:`, classifyErr);
+      }
+    }
+    
     const updatePayload: Record<string, any> = {
       article_content: fullTranscript,
       post_type: 'instagram_reel',
-      preview_fetched_at: new Date().toISOString()
+      preview_fetched_at: new Date().toISOString(),
+      preview_img_width: imageMetadata?.width ?? null,
+      preview_img_height: imageMetadata?.height ?? null,
+      preview_img_ratio: imageMetadata?.ratio ?? null,
+      preview_img_orientation: imageMetadata?.orientation ?? null,
+      preview_img_ambient_url: imageMetadata?.ambient_url ?? null,
     };
     
     if (ogTags?.title) {
@@ -214,7 +231,12 @@ serve(async (req) => {
       source_type: 'instagram_reel',
       content_text: fullTranscript,
       title: ogTags?.title || null,
-      meta_image_url: ogTags?.image || null,
+      meta_image_url: reelImage,
+      meta_image_width: imageMetadata?.width ?? null,
+      meta_image_height: imageMetadata?.height ?? null,
+      meta_image_ratio: imageMetadata?.ratio ?? null,
+      meta_image_orientation: imageMetadata?.orientation ?? null,
+      meta_image_ambient_url: imageMetadata?.ambient_url ?? null,
       meta_hostname: updatePayload.hostname || 'instagram.com',
       expires_at: expiresAt.toISOString()
     };

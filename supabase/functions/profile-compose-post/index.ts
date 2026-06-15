@@ -8,6 +8,92 @@ const corsHeaders = {
 };
 
 const TIMEOUT_MS = 45000;
+
+function safeNormalizeUrl(rawUrl: string): string {
+  try {
+    const url = new URL(rawUrl.trim());
+    url.protocol = 'https:';
+    url.hostname = url.hostname.toLowerCase().replace(/^www\./, '');
+    url.hash = '';
+    
+    const cleanParams = new URLSearchParams();
+    const entries = Array.from(url.searchParams.entries())
+      .filter(([key]) => {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.startsWith('utm_')) return false;
+        return !['fbclid', 'gclid', 'gclsrc', 'msclkid', 'dclid', 'igshid', 'twclid', 'ttclid', 'ref'].includes(lowerKey);
+      })
+      .sort(([a], [b]) => a.localeCompare(b));
+    
+    for (const [key, value] of entries) {
+      cleanParams.set(key, value);
+    }
+    url.search = cleanParams.toString();
+    
+    let path = url.pathname;
+    if (path.length > 1 && path.endsWith('/')) {
+      path = path.slice(0, -1);
+    }
+    url.pathname = path;
+    
+    return url.toString();
+  } catch {
+    return rawUrl.trim();
+  }
+}
+
+async function getOrFetchLinkPreview(
+  supabase: any,
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  url: string
+): Promise<any> {
+  try {
+    const normalizedUrl = safeNormalizeUrl(url);
+    // 1. Try cache lookup
+    const { data: cached } = await supabase
+      .from('content_cache')
+      .select('meta_image_url, meta_image_width, meta_image_height, meta_image_ratio, meta_image_orientation, meta_image_ambient_url')
+      .eq('source_url', normalizedUrl)
+      .maybeSingle();
+
+    if (cached && cached.meta_image_url) {
+      return {
+        preview_img: cached.meta_image_url,
+        preview_img_width: cached.meta_image_width,
+        preview_img_height: cached.meta_image_height,
+        preview_img_ratio: cached.meta_image_ratio,
+        preview_img_orientation: cached.meta_image_orientation,
+        preview_img_ambient_url: cached.meta_image_ambient_url,
+      };
+    }
+
+    // 2. Cache miss: invoke fetch-article-preview
+    const previewResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-article-preview`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${serviceRoleKey}`,
+      },
+      body: JSON.stringify({ url }),
+    });
+
+    if (previewResponse.ok) {
+      const preview = await previewResponse.json();
+      return {
+        preview_img: preview.image || preview.previewImg || null,
+        preview_img_width: preview.image_width || null,
+        preview_img_height: preview.image_height || null,
+        preview_img_ratio: preview.image_ratio || null,
+        preview_img_orientation: preview.image_orientation || null,
+        preview_img_ambient_url: preview.image_ambient_url || null,
+      };
+    }
+  } catch (err) {
+    console.warn(`[getOrFetchLinkPreview] Error for ${url}:`, err);
+  }
+  return null;
+}
 const PRICE_INPUT_PER_MTOK = 0.30;
 const PRICE_OUTPUT_PER_MTOK = 2.50;
 
@@ -568,6 +654,9 @@ brief_specifico: scrivi un post digest su questo episodio seguendo le tue regole
           const micCT = micCompletion.usage?.completion_tokens || Math.ceil(micResponseText.length / 4);
           const micCost = (micPT / 1000000) * PRICE_INPUT_PER_MTOK + (micCT / 1000000) * PRICE_OUTPUT_PER_MTOK;
 
+          // Fetch and classify the link preview image
+          const micPreview = await getOrFetchLinkPreview(supabase, supabaseUrl, serviceRoleKey, selectedCandidate.article_url);
+
           const { data: micPost, error: micPostErr } = await supabase
             .from('posts')
             .insert({
@@ -576,7 +665,13 @@ brief_specifico: scrivi un post digest su questo episodio seguendo le tue regole
               content: micBody,
               post_type: 'standard',
               category: null, // Will be set by classify-content in background
-              shared_url: selectedCandidate.article_url
+              shared_url: selectedCandidate.article_url,
+              preview_img: micPreview?.preview_img || null,
+              preview_img_width: micPreview?.preview_img_width || null,
+              preview_img_height: micPreview?.preview_img_height || null,
+              preview_img_ratio: micPreview?.preview_img_ratio || null,
+              preview_img_orientation: micPreview?.preview_img_orientation || null,
+              preview_img_ambient_url: micPreview?.preview_img_ambient_url || null
             })
             .select('id')
             .single();
@@ -802,6 +897,9 @@ brief_specifico: Scrivi un post sulla canzone del giorno seguendo le tue regole.
           const vinileCT = vinileCompletion.usage?.completion_tokens || Math.ceil(vinileResponseText.length / 4);
           const vinileCost = (vinilePT / 1000000) * PRICE_INPUT_PER_MTOK + (vinileCT / 1000000) * PRICE_OUTPUT_PER_MTOK;
 
+          // Fetch and classify the link preview image
+          const vinilePreview = await getOrFetchLinkPreview(supabase, supabaseUrl, serviceRoleKey, selectedVinile.article_url);
+
           const { data: vinilePost, error: vinilePostErr } = await supabase
             .from('posts')
             .insert({
@@ -810,7 +908,13 @@ brief_specifico: Scrivi un post sulla canzone del giorno seguendo le tue regole.
               content: vinileBody,
               post_type: 'standard',
               category: null, // Will be set by classify-content in background
-              shared_url: selectedVinile.article_url
+              shared_url: selectedVinile.article_url,
+              preview_img: vinilePreview?.preview_img || null,
+              preview_img_width: vinilePreview?.preview_img_width || null,
+              preview_img_height: vinilePreview?.preview_img_height || null,
+              preview_img_ratio: vinilePreview?.preview_img_ratio || null,
+              preview_img_orientation: vinilePreview?.preview_img_orientation || null,
+              preview_img_ambient_url: vinilePreview?.preview_img_ambient_url || null
             })
             .select('id')
             .single();
@@ -1025,6 +1129,9 @@ ${formatRules}
         let costUsd = (promptTokens / 1000000) * PRICE_INPUT_PER_MTOK + (completionTokens / 1000000) * PRICE_OUTPUT_PER_MTOK;
 
         // Create the post — FIX 3: shared_url populated in vetrina mode
+        const sharedUrl = postMode === 'vetrina' ? chosenCandidate.article_url : null;
+        const vetrinaPreview = sharedUrl ? await getOrFetchLinkPreview(supabase, supabaseUrl, serviceRoleKey, sharedUrl) : null;
+
         const { data: newPost, error: postErr } = await supabase
           .from('posts')
           .insert({
@@ -1033,7 +1140,13 @@ ${formatRules}
             content: postContent,
             post_type: 'standard',
             category: null, // Will be set by classify-content in background
-            shared_url: postMode === 'vetrina' ? chosenCandidate.article_url : null
+            shared_url: sharedUrl,
+            preview_img: vetrinaPreview?.preview_img || null,
+            preview_img_width: vetrinaPreview?.preview_img_width || null,
+            preview_img_height: vetrinaPreview?.preview_img_height || null,
+            preview_img_ratio: vetrinaPreview?.preview_img_ratio || null,
+            preview_img_orientation: vetrinaPreview?.preview_img_orientation || null,
+            preview_img_ambient_url: vetrinaPreview?.preview_img_ambient_url || null
           })
           .select('id')
           .single();

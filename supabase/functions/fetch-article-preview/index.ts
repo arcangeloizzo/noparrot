@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
+import { classifyLinkPreviewImage } from "../_shared/media.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -1304,12 +1305,13 @@ async function cacheContentServerSide(
   title?: string,
   imageUrl?: string,
   popularity?: number // NEW: For Spotify PULSE badge
-): Promise<void> {
+): Promise<any> {
   if (!contentText || contentText.length < 50) {
     console.log(`[Cache] Skipping cache for ${sourceUrl}: content too short`);
-    return;
+    return null;
   }
   
+  let imageMetadata: any = null;
   try {
     const expiresAt = new Date();
     // Short TTL (15 min) if image is missing, so we can retry extraction
@@ -1330,12 +1332,26 @@ async function cacheContentServerSide(
       metaHostname = new URL(sourceUrl).hostname.replace(/^www\./, '');
     } catch {}
     
+    if (imageUrl && imageUrl.length > 5) {
+      try {
+        console.log(`[Cache] 📸 Classifying link preview image metadata: ${imageUrl}`);
+        imageMetadata = await classifyLinkPreviewImage(imageUrl);
+      } catch (classifyErr) {
+        console.warn(`[Cache] Failed to classify image ${imageUrl}:`, classifyErr);
+      }
+    }
+
     const upsertData: any = {
       source_url: normalizedUrl,
       source_type: sourceType,
       content_text: contentText,
       title: title || null,
       meta_image_url: imageUrl || null,
+      meta_image_width: imageMetadata?.width ?? null,
+      meta_image_height: imageMetadata?.height ?? null,
+      meta_image_ratio: imageMetadata?.ratio ?? null,
+      meta_image_orientation: imageMetadata?.orientation ?? null,
+      meta_image_ambient_url: imageMetadata?.ambient_url ?? null,
       meta_hostname: metaHostname || null,
       expires_at: expiresAt.toISOString()
     };
@@ -1360,6 +1376,7 @@ async function cacheContentServerSide(
   } catch (err) {
     console.error(`[Cache] Exception caching content:`, err);
   }
+  return imageMetadata;
 }
 
 // ============================================================================
@@ -1412,7 +1429,7 @@ serve(async (req) => {
       
       const { data: cached, error: cacheErr } = await supabase
         .from('content_cache')
-        .select('title, content_text, meta_image_url, source_type, meta_hostname, popularity')
+        .select('title, content_text, meta_image_url, source_type, meta_hostname, popularity, meta_image_width, meta_image_height, meta_image_ratio, meta_image_orientation, meta_image_ambient_url')
         .eq('source_url', normalizedUrl)
         .gt('expires_at', new Date().toISOString())
         .maybeSingle();
@@ -1471,6 +1488,11 @@ serve(async (req) => {
           summary: cached.content_text?.substring(0, 300) || '',
           image: cached.meta_image_url || '',
           previewImg: cached.meta_image_url || '',
+          image_width: cached.meta_image_width,
+          image_height: cached.meta_image_height,
+          image_ratio: cached.meta_image_ratio,
+          image_orientation: cached.meta_image_orientation,
+          image_ambient_url: cached.meta_image_ambient_url,
           platform,
           type: cached.source_type === 'spotify' ? 'audio' : 'article',
           hostname: cached.meta_hostname || hostname,
@@ -1597,11 +1619,22 @@ serve(async (req) => {
         }
       }
 
+      let imageMetadata: any = null;
+      if (finalImage && finalImage.length > 5) {
+        try {
+          console.log(`[Preview Reel] 📸 Classifying Reel cover metadata: ${finalImage}`);
+          imageMetadata = await classifyLinkPreviewImage(finalImage);
+        } catch (classifyErr) {
+          console.warn(`[Preview Reel] Failed to classify image ${finalImage}:`, classifyErr);
+        }
+      }
+
       // Cache this preview metadata as standard URL content (so it can be retrieved)
       if (supabase) {
         // Upsert standard content_cache entry for the normalized URL
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 7);
+
         const { error: cacheError } = await supabase
           .from('content_cache')
           .upsert({
@@ -1610,6 +1643,11 @@ serve(async (req) => {
             content_text: finalDesc, // Default temporary text (will be overwritten by transcribe-instagram)
             title: finalTitle,
             meta_image_url: finalImage,
+            meta_image_width: imageMetadata?.width ?? null,
+            meta_image_height: imageMetadata?.height ?? null,
+            meta_image_ratio: imageMetadata?.ratio ?? null,
+            meta_image_orientation: imageMetadata?.orientation ?? null,
+            meta_image_ambient_url: imageMetadata?.ambient_url ?? null,
             meta_hostname: 'instagram.com',
             expires_at: expiresAt.toISOString()
           }, { onConflict: 'source_url' });
@@ -1626,6 +1664,11 @@ serve(async (req) => {
           summary: finalDesc,
           image: finalImage,
           previewImg: finalImage,
+          image_width: imageMetadata?.width ?? null,
+          image_height: imageMetadata?.height ?? null,
+          image_ratio: imageMetadata?.ratio ?? null,
+          image_orientation: imageMetadata?.orientation ?? null,
+          image_ambient_url: imageMetadata?.ambient_url ?? null,
           platform: 'instagram_reel',
           type: 'video', // Reel is a video
           hostname: 'instagram.com',
@@ -2018,12 +2061,27 @@ serve(async (req) => {
                   const cacheExpiry = new Date();
                   cacheExpiry.setDate(cacheExpiry.getDate() + 7); // 7 days cache
                   
+                  let imageMetadata: any = null;
+                  if (episodeImage && episodeImage.length > 5) {
+                    try {
+                      console.log(`[Spotify Episode] 📸 Classifying YouTube podcast cover metadata: ${episodeImage}`);
+                      imageMetadata = await classifyLinkPreviewImage(episodeImage);
+                    } catch (classifyErr) {
+                      console.warn(`[Spotify Episode] Failed to classify image ${episodeImage}:`, classifyErr);
+                    }
+                  }
+
                   await supabase.from('content_cache').upsert({
                     source_url: normalizedUrl,
                     source_type: 'spotify_episode_yt',
                     content_text: youtubeTranscript,
                     title: `${showName}: ${episodeTitle}`,
                     meta_image_url: episodeImage,
+                    meta_image_width: imageMetadata?.width ?? null,
+                    meta_image_height: imageMetadata?.height ?? null,
+                    meta_image_ratio: imageMetadata?.ratio ?? null,
+                    meta_image_orientation: imageMetadata?.orientation ?? null,
+                    meta_image_ambient_url: imageMetadata?.ambient_url ?? null,
                     meta_hostname: 'open.spotify.com',
                     expires_at: cacheExpiry.toISOString()
                   }, { onConflict: 'source_url' });
@@ -2106,6 +2164,16 @@ serve(async (req) => {
             // Process lyrics result
             const lyricsData = lyricsResult.status === 'fulfilled' ? lyricsResult.value : null;
             
+            let imageMetadata: any = null;
+            if (oembedData.thumbnail_url && oembedData.thumbnail_url.length > 5) {
+              try {
+                console.log(`[Spotify Track] 📸 Classifying Spotify album cover metadata: ${oembedData.thumbnail_url}`);
+                imageMetadata = await classifyLinkPreviewImage(oembedData.thumbnail_url);
+              } catch (classifyErr) {
+                console.warn(`[Spotify Track] Failed to classify image ${oembedData.thumbnail_url}:`, classifyErr);
+              }
+            }
+
             if (lyricsData?.lyrics && supabase) {
               lyricsAvailable = true;
               geniusUrl = lyricsData.geniusUrl || '';
@@ -2153,6 +2221,11 @@ serve(async (req) => {
                 content_text: synthetic,
                 title: `${trackTitle} - ${artist}`,
                 meta_image_url: oembedData.thumbnail_url || null,
+                meta_image_width: imageMetadata?.width ?? null,
+                meta_image_height: imageMetadata?.height ?? null,
+                meta_image_ratio: imageMetadata?.ratio ?? null,
+                meta_image_orientation: imageMetadata?.orientation ?? null,
+                meta_image_ambient_url: imageMetadata?.ambient_url ?? null,
                 meta_hostname: 'open.spotify.com',
                 expires_at: negativeExpiry.toISOString()
               };
@@ -2194,6 +2267,11 @@ serve(async (req) => {
           summary: oembedData.title,
           image: oembedData.thumbnail_url || '',
           previewImg: oembedData.thumbnail_url || '',
+          image_width: imageMetadata?.width ?? null,
+          image_height: imageMetadata?.height ?? null,
+          image_ratio: imageMetadata?.ratio ?? null,
+          image_orientation: imageMetadata?.orientation ?? null,
+          image_ambient_url: imageMetadata?.ambient_url ?? null,
           platform: 'spotify',
           type: spotifyInfo.type,
           author: artist || oembedData.provider_name || 'Spotify',
@@ -2866,9 +2944,10 @@ serve(async (req) => {
       if (stealthResult && stealthResult.content.length > 600) {
         console.log(`[Preview] ✅ Stealth recovered content: ${stealthResult.content.length} chars`);
         
+        let meta: any = null;
         // Cache the stealth-extracted content
         if (supabase) {
-          await cacheContentServerSide(
+          meta = await cacheContentServerSide(
             supabase,
             url,
             'article',
@@ -2885,6 +2964,11 @@ serve(async (req) => {
           summary: stealthResult.content.substring(0, 200),
           image: stealthResult.image || '',
           previewImg: stealthResult.image || '',
+          image_width: meta?.width ?? null,
+          image_height: meta?.height ?? null,
+          image_ratio: meta?.ratio ?? null,
+          image_orientation: meta?.orientation ?? null,
+          image_ambient_url: meta?.ambient_url ?? null,
           platform: 'generic',
           type: 'article',
           hostname: urlHostname,
@@ -2960,6 +3044,7 @@ serve(async (req) => {
       // ========================================================================
       const extractedContent = articleContent || jsonLdData?.content || '';
       
+      let meta: any = null;
       if (isContentInsufficient(extractedContent)) {
         console.log(`[Preview] ⚠️ Content insufficient (${extractedContent.length} chars), trying stealth escalation...`);
         
@@ -2977,7 +3062,7 @@ serve(async (req) => {
           
           // Cache the stealth-extracted content
           if (supabase) {
-            await cacheContentServerSide(
+            meta = await cacheContentServerSide(
               supabase,
               url,
               'article',
@@ -2994,7 +3079,7 @@ serve(async (req) => {
       } else {
         // Cache content server-side (include image URL) - normal path
         if (articleContent && supabase) {
-          await cacheContentServerSide(
+          meta = await cacheContentServerSide(
             supabase,
             url,
             'article',
@@ -3015,6 +3100,11 @@ serve(async (req) => {
         // NO full content to client
         image,
         previewImg: image,
+        image_width: meta?.width ?? null,
+        image_height: meta?.height ?? null,
+        image_ratio: meta?.ratio ?? null,
+        image_orientation: meta?.orientation ?? null,
+        image_ambient_url: meta?.ambient_url ?? null,
         platform: 'generic',
         type: 'article',
         hostname: urlHostname,
@@ -3031,12 +3121,26 @@ serve(async (req) => {
     // OpenGraph fallback
     const ogData = await fetchOpenGraphData(url);
     if (ogData && (ogData.title || ogData.description || ogData.image)) {
+      let imageMetadata: any = null;
+      if (ogData.image && ogData.image.length > 5) {
+        try {
+          console.log(`[OG Fallback] 📸 Classifying image metadata: ${ogData.image}`);
+          imageMetadata = await classifyLinkPreviewImage(ogData.image);
+        } catch (classifyErr) {
+          console.warn(`[OG Fallback] Failed to classify image ${ogData.image}:`, classifyErr);
+        }
+      }
       return new Response(JSON.stringify({
         success: true,
         title: ogData.title || `Contenuto da ${urlHostname}`,
         summary: ogData.description || '',
         image: ogData.image || '',
         previewImg: ogData.image || '',
+        image_width: imageMetadata?.width ?? null,
+        image_height: imageMetadata?.height ?? null,
+        image_ratio: imageMetadata?.ratio ?? null,
+        image_orientation: imageMetadata?.orientation ?? null,
+        image_ambient_url: imageMetadata?.ambient_url ?? null,
         platform: 'generic',
         type: 'article',
         hostname: urlHostname,
