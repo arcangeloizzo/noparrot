@@ -2541,8 +2541,8 @@ const ImmersivePostCardInner = ({
                                 <img
                                   src={post.media?.[0]?.thumbnail_url || mediaUrl}
                                   alt=""
-                                  width={post.media?.[0]?.width || 1080}
-                                  height={post.media?.[0]?.height || 1080}
+                                  width={(post.media?.[0] as any)?.width || 1080}
+                                  height={(post.media?.[0] as any)?.height || 1080}
                                   loading="lazy"
                                   decoding="async"
                                   className="w-full h-full object-contain"
@@ -2557,8 +2557,8 @@ const ImmersivePostCardInner = ({
                               <img
                                 src={mediaUrl}
                                 alt=""
-                                width={post.media?.[0]?.width || 1080}
-                                height={post.media?.[0]?.height || 1080}
+                                width={(post.media?.[0] as any)?.width || 1080}
+                                height={(post.media?.[0] as any)?.height || 1080}
                                 loading="lazy"
                                 decoding="async"
                                 className="w-full h-full object-contain"
@@ -2723,8 +2723,8 @@ const ImmersivePostCardInner = ({
                                 <img
                                   src={post.media?.[0]?.thumbnail_url || mediaUrl}
                                   alt=""
-                                  width={post.media?.[0]?.width || 1080}
-                                  height={post.media?.[0]?.height || 1080}
+                                  width={(post.media?.[0] as any)?.width || 1080}
+                                  height={(post.media?.[0] as any)?.height || 1080}
                                   loading="lazy"
                                   decoding="async"
                                   className="w-full h-full object-contain"
@@ -2739,8 +2739,8 @@ const ImmersivePostCardInner = ({
                               <img
                                 src={mediaUrl}
                                 alt=""
-                                width={post.media?.[0]?.width || 1080}
-                                height={post.media?.[0]?.height || 1080}
+                                width={(post.media?.[0] as any)?.width || 1080}
+                                height={(post.media?.[0] as any)?.height || 1080}
                                 loading="lazy"
                                 decoding="async"
                                 className="w-full h-full object-contain"
@@ -3347,8 +3347,8 @@ const ImmersivePostCardInner = ({
                                       <img
                                         src={post.media?.[0]?.thumbnail_url || mediaUrl}
                                         alt=""
-                                        width={post.media?.[0]?.width || 1080}
-                                        height={post.media?.[0]?.height || 1080}
+                                        width={(post.media?.[0] as any)?.width || 1080}
+                                        height={(post.media?.[0] as any)?.height || 1080}
                                         loading="lazy"
                                         decoding="async"
                                         className="w-full h-full object-contain"
@@ -3363,8 +3363,8 @@ const ImmersivePostCardInner = ({
                                     <img
                                       src={mediaUrl}
                                       alt=""
-                                      width={post.media?.[0]?.width || 1080}
-                                      height={post.media?.[0]?.height || 1080}
+                                      width={(post.media?.[0] as any)?.width || 1080}
+                                      height={(post.media?.[0] as any)?.height || 1080}
                                       loading="lazy"
                                       decoding="async"
                                       className="w-full h-full object-contain"

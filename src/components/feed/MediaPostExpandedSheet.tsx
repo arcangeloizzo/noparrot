@@ -227,8 +227,8 @@ export const MediaPostExpandedSheet = ({ post, isOpen, onClose, activeVoicePost,
               <img 
                 src={post.media[0].thumbnail_url || post.media[0].url} 
                 alt="" 
-                width={post.media[0].width || 1080}
-                height={post.media[0].height || 1080}
+                width={(post.media[0] as any).width || 1080}
+                height={(post.media[0] as any).height || 1080}
                 loading="lazy"
                 decoding="async"
                 style={{ width: '100%', borderRadius: '8px' }} 
