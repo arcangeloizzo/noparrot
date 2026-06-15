@@ -377,8 +377,6 @@ export const usePosts = () => {
         preview_img_ratio: post.preview_img_ratio,
         preview_img_orientation: post.preview_img_orientation,
         preview_img_ambient_url: post.preview_img_ambient_url,
-        full_article: post.full_article,
-        article_content: post.article_content,
         trust_level: post.trust_level,
         stance: post.stance,
         sources: post.sources || [],
