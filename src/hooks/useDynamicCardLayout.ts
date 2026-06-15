@@ -237,18 +237,6 @@ export function useDynamicCardLayout({
       };
 
       let H_tot = calculateTotalHeight(essentialHeights, currentFlexStatus);
-      const isDev = import.meta.env.DEV;
-
-      if (isDev) {
-        console.group(`[useDynamicCardLayout] computeLayout — POST measurement`);
-        console.log('availableHeight:', currentAvailableHeight);
-        console.log('essentialHeights:', { ...essentialHeights });
-        console.log('essentialStates iniziali:', { ...currentEssentialStates });
-        console.log('flexibleNaturalHeights:', { ...flexibleNaturalHeights });
-        console.log('flexiblesStatus iniziali (tutti full):', JSON.parse(JSON.stringify(currentFlexStatus)));
-        console.log('H_tot iniziale:', H_tot);
-        console.log('Sfora?', H_tot > currentAvailableHeight, '(diff:', H_tot - currentAvailableHeight, ')');
-      }
 
       // FASE A: Declassamento degli elementi essenziali a stati multipli
       if (H_tot > currentAvailableHeight) {
@@ -269,14 +257,6 @@ export function useDynamicCardLayout({
             break;
           }
         }
-      }
-
-      if (isDev) {
-        console.log('--- FASE A (declassamento essenziali) ---');
-        console.log('essentialStates dopo Fase A:', { ...currentEssentialStates });
-        console.log('essentialHeights dopo Fase A:', { ...essentialHeights });
-        console.log('H_tot dopo Fase A:', H_tot);
-        console.log('Sfora ancora?', H_tot > currentAvailableHeight);
       }
 
       // FASE B: Compressione Round-Robin Prioritizzata Step-by-Step
@@ -324,9 +304,6 @@ export function useDynamicCardLayout({
               trovatoQualcosaDaComprimere = true;
 
               H_tot = calculateTotalHeight(essentialHeights, currentFlexStatus);
-              if (isDev) {
-                console.log(`[Fase B] ${flexible.id}: ${flexible.compressionSteps[currentIndex]} → ${nextStep}, height=${calculatedHeight}, H_tot=${H_tot}`);
-              }
 
               if (H_tot <= currentAvailableHeight) {
                 // NOTA: Questo break esce dal ciclo for interno dei flessibili.
@@ -343,11 +320,6 @@ export function useDynamicCardLayout({
       let spareSpace = currentAvailableHeight - H_tot;
 
       if (spareSpace > 0) {
-        if (isDev) {
-          console.log('--- FASE D (spare redistribution) ---');
-          console.log('spareSpace iniziale:', spareSpace);
-        }
-
         // === Fase D.1 — Promozione essenziali (round-robin REVERSE) ===
         while (spareSpace > 0) {
           let progressedThisRound = false;
@@ -379,10 +351,6 @@ export function useDynamicCardLayout({
               spareSpace -= costo;
               H_tot += costo;
               progressedThisRound = true;
-
-              if (isDev) {
-                console.log(`[Fase D.1] promozione ${ess.id}: ${currentStateId} → ${nextRicherState.id}, costo=${costo}, spareSpace=${spareSpace}`);
-              }
             }
           }
 
@@ -392,10 +360,6 @@ export function useDynamicCardLayout({
         }
 
         // === Fase D.2 — Espansione flessibili clamped (REVERSE compressionPriority) ===
-        if (isDev) {
-          console.log('--- FASE D.2 (espansione flessibili clamped) ---');
-        }
-
         const reversePriority = [...compressionPriority].reverse();
         while (spareSpace > 0) {
           let progressedThisRound = false;
@@ -432,10 +396,6 @@ export function useDynamicCardLayout({
                 flexStatus.step = 'full';
                 flexStatus.height = naturalHeight;
               }
-
-              if (isDev) {
-                console.log(`[Fase D.2] espansione ${flexId}: height ${currentHeight} → ${flexStatus.height}, step=${flexStatus.step}, spareSpace=${spareSpace}`);
-              }
             }
           }
 
@@ -468,15 +428,6 @@ export function useDynamicCardLayout({
             }
           }
         }
-      }
-
-      if (isDev) {
-        console.log('--- STATO FINALE ---');
-        console.log('essentialStates finale:', { ...currentEssentialStates });
-        console.log('flexiblesStatus finale:', JSON.parse(JSON.stringify(currentFlexStatus)));
-        console.log('showDrawerCta:', showDrawerCta);
-        console.log('emergencyScroll:', emergencyScroll);
-        console.groupEnd();
       }
 
       // Evita aggiornamenti di stato se i valori sono identici a quelli correnti

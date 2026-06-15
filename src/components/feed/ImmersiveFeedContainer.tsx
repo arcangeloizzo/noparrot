@@ -169,16 +169,6 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     pullDistance.current = 0;
   };
 
-  // DEBUG LOGGING
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (containerRef.current) {
-        console.log(`[DEBUG SCROLL] clientHeight: ${containerRef.current.clientHeight}, scrollHeight: ${containerRef.current.scrollHeight}, childrenCount: ${containerRef.current.children.length}`);
-      }
-    }, 5000);
-    return () => clearInterval(timer);
-  }, []);
-
   // Determine slice of items to render
   const visibleStart = Math.max(0, activeIndex - OVERSCAN);
   const visibleEnd = Math.min(items.length - 1, activeIndex + OVERSCAN);
