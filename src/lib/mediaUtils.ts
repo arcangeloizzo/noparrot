@@ -1,5 +1,6 @@
 import type { UnifiedMedia } from '@/types/media';
 import { getWordCount } from '@/lib/gate-utils';
+import type { Post } from '@/hooks/usePosts';
 
 const RATIO_TARGETS = [
   { ratio: '9:16' as const, value: 9 / 16 },   // 0.5625, portrait
@@ -107,4 +108,64 @@ export function getMediaLayout(
  */
 export function countPostWords(title?: string | null, body?: string | null): number {
   return getWordCount(`${title ?? ''} ${body ?? ''}`);
+}
+
+/**
+ * Normalizza le sorgenti media DB in una struct UnifiedMedia[] (Scope ridotto a user_upload e link_preview)
+ */
+export function normalizeMedia(post: Post, articlePreview?: any): UnifiedMedia[] {
+  // 1. Branch Upload Utente
+  if (post.media && post.media.length > 0) {
+    return post.media.map(item => {
+      const classified = classifyOrientation(item.width || 0, item.height || 0);
+      return {
+        src: item.url,
+        ambientSrc: item.ambient_url || item.url,
+        ratio: item.ratio || classified.ratio,
+        orientation: item.orientation || classified.orientation,
+        kind: item.type === 'video' ? 'video' : 'image',
+        source: 'user_upload',
+        width: item.width,
+        height: item.height,
+        duration_sec: item.duration_sec
+      };
+    });
+  }
+
+  // 2. Branch Articolo Generico (Link Preview)
+  const previewWidth = post.preview_img_width || articlePreview?.image_width || 0;
+  const previewHeight = post.preview_img_height || articlePreview?.image_height || 0;
+  const classified = classifyOrientation(previewWidth, previewHeight);
+  const src = articlePreview?.image || post.preview_img;
+
+  if (src) {
+    const ratio = post.preview_img_ratio || classified.ratio;
+    const orientation = post.preview_img_orientation || classified.orientation;
+    return [{
+      src,
+      ambientSrc: post.preview_img_ambient_url || src,
+      ratio: ratio as any,
+      orientation: orientation as any,
+      kind: 'image',
+      source: 'link_preview',
+      width: previewWidth || null,
+      height: previewHeight || null
+    }];
+  }
+
+  return [];
+}
+
+/**
+ * Calcola centralizzato il mediaLayout (variant del MediaFrame)
+ */
+export function calculateMediaLayout(
+  media: UnifiedMedia,
+  wordCount: number,
+  slotContext: 'main' | 'quoted' = 'main'
+): MediaFrameVariant {
+  if (slotContext === 'quoted') {
+    return 'mini';
+  }
+  return getMediaLayout(media.orientation, wordCount);
 }

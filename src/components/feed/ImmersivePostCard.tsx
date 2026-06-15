@@ -98,7 +98,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCreateThread } from "@/hooks/useMessageThreads";
 import { useSendMessage } from "@/hooks/useMessages";
 import { getWordCount, getPostFullText, getTestModeWithSource, getQuestionCountWithoutSource, getQuestionCountForIntentReshare } from "@/lib/gate-utils";
-import { getMediaLayout, countPostWords } from "@/lib/mediaUtils";
+import { getMediaLayout, countPostWords, normalizeMedia, calculateMediaLayout } from "@/lib/mediaUtils";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
 import { useReshareContextStack } from "@/hooks/useReshareContextStack";
 import { useOriginalSource } from "@/hooks/useOriginalSource";
@@ -1367,6 +1367,7 @@ const ImmersivePostCardInner = ({
   };
 
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: it });
+  const normalizedMedias = normalizeMedia(post, articlePreview);
   const hasMedia = (post.media && post.media.length > 0);
   const hasLink = !!post.shared_url;
   const isSpotifyTrack = isSpotify && !isSpotifyEpisode;
@@ -3123,12 +3124,12 @@ const ImmersivePostCardInner = ({
 
               {isStandardPost && (() => {
                 const wordCount = countPostWords(post.title, post.content);
-                const previewOrientation = post.preview_img_orientation || articlePreview?.image_orientation;
-                const previewRatio = post.preview_img_ratio || articlePreview?.image_ratio;
+                const userUploadMedia = normalizedMedias.find(m => m.source === 'user_upload');
+                const linkPreviewMedia = normalizedMedias.find(m => m.source === 'link_preview');
                 // HOTFIX 16/06: temporary disable — aspect-ratio rendering bug Safari iOS. Re-enable after DOM inspection diagnosi. See journal entry.
-                const hasPreviewMetadata = false && !!(previewOrientation && previewRatio);
-                const isMiniLayout = (hasUserMedia && post.media && post.media.length === 1 && post.media[0].type === 'image' && !isInstagramReel && !isYoutubeShort && getMediaLayout(post.media[0].orientation, wordCount) === 'mini') ||
-                  (!hasUserMedia && hasPreviewMetadata && (articlePreview?.image || post.preview_img) && !isInstagramReel && !isYoutubeShort && getMediaLayout(previewOrientation as any, wordCount) === 'mini');
+                const hasPreviewMetadata = false && !!linkPreviewMedia;
+                const isMiniLayout = (userUploadMedia && userUploadMedia.kind === 'image' && !isInstagramReel && !isYoutubeShort && calculateMediaLayout(userUploadMedia, wordCount) === 'mini') ||
+                  (linkPreviewMedia && hasPreviewMetadata && !isInstagramReel && !isYoutubeShort && calculateMediaLayout(linkPreviewMedia, wordCount) === 'mini');
 
                 return (
                   <div 
@@ -3197,16 +3198,9 @@ const ImmersivePostCardInner = ({
                     {hasMedia && post.media && post.media.length > 0 && !shouldUseBlurredBg && (
                       <>
                         {/* Caso singolo upload immagine utente con matrice §5.1 */}
-                        {post.media.length === 1 && post.media[0].type === 'image' ? (() => {
-                          const mediaItem = post.media[0];
-                          const layout = getMediaLayout(mediaItem.orientation, wordCount);
-
-                          const mediaForFrame = {
-                            src: mediaItem.url,
-                            ratio: mediaItem.ratio ?? '16:9',
-                            orientation: mediaItem.orientation ?? 'landscape',
-                            kind: 'image' as const,
-                          };
+                        {normalizedMedias.length === 1 && normalizedMedias[0].source === 'user_upload' && normalizedMedias[0].kind === 'image' ? (() => {
+                          const mediaForFrame = normalizedMedias[0];
+                          const layout = calculateMediaLayout(mediaForFrame, wordCount);
 
                           const imageStep = flexiblesStatus['flexible-image']?.step ?? 'full';
 
@@ -4416,19 +4410,13 @@ const ImmersivePostCardInner = ({
                           />
                         ) : (() => {
                           const wordCount = countPostWords(post.title, post.content);
-                          const previewOrientation = post.preview_img_orientation || articlePreview?.image_orientation;
-                          const previewRatio = post.preview_img_ratio || articlePreview?.image_ratio;
+                          const linkPreviewMedia = normalizedMedias.find(m => m.source === 'link_preview');
                           // HOTFIX 16/06: temporary disable — aspect-ratio rendering bug Safari iOS. Re-enable after DOM inspection diagnosi. See journal entry.
-                          const hasPreviewMetadata = false && !!(previewOrientation && previewRatio);
-                          const layoutMode = hasPreviewMetadata ? getMediaLayout(previewOrientation as any, wordCount) : null;
-                          const hasImage = !!(articlePreview?.image || post.preview_img);
+                          const hasPreviewMetadata = false && !!linkPreviewMedia;
+                          const layoutMode = hasPreviewMetadata && linkPreviewMedia ? calculateMediaLayout(linkPreviewMedia, wordCount) : null;
+                          const hasImage = !!linkPreviewMedia;
                           
-                          const mediaForFrame = hasImage ? {
-                            src: articlePreview?.image || post.preview_img || '',
-                            ratio: (previewRatio || '16:9') as any,
-                            orientation: (previewOrientation || 'landscape') as any,
-                            kind: 'image' as const,
-                          } : null;
+                          const mediaForFrame = linkPreviewMedia || null;
 
                           return (
                             <div

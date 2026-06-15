@@ -17,4 +17,12 @@ export interface UnifiedMedia {
   ambientSrc: string;
   /** Per branching minore al render: play overlay su video, halo su audio-cover, ecc. */
   kind: 'image' | 'video' | 'audio-cover';
+  /** Sorgente di origine del media */
+  source: 'user_upload' | 'link_preview';
+  /** Larghezza originaria in pixel */
+  width?: number | null;
+  /** Altezza originaria in pixel */
+  height?: number | null;
+  /** Durata del video in secondi */
+  duration_sec?: number | null;
 }

@@ -1,13 +1,6 @@
 import { ReactNode, CSSProperties } from 'react';
 import { cn } from '@/lib/utils';
-
-export interface UnifiedMedia {
-  src: string;
-  ratio: '9:16' | '3:4' | '1:1' | '16:9' | '4:3' | '3:2';
-  orientation: 'portrait' | 'landscape' | 'square';
-  ambientSrc: string;
-  kind: 'image' | 'video' | 'audio-cover';
-}
+import type { UnifiedMedia } from '@/types/media';
 
 export type MediaFrameVariant = 'tall' | 'strip' | 'mini' | 'inline' | 'square';
 
