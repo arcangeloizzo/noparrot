@@ -3126,8 +3126,7 @@ const ImmersivePostCardInner = ({
                 const wordCount = countPostWords(post.title, post.content);
                 const userUploadMedia = normalizedMedias.find(m => m.source === 'user_upload');
                 const linkPreviewMedia = normalizedMedias.find(m => m.source === 'link_preview');
-                // HOTFIX 16/06: temporary disable — aspect-ratio rendering bug Safari iOS. Re-enable after DOM inspection diagnosi. See journal entry.
-                const hasPreviewMetadata = false && !!linkPreviewMedia;
+                const hasPreviewMetadata = !!linkPreviewMedia;
                 const isMiniLayout = (userUploadMedia && userUploadMedia.kind === 'image' && !isInstagramReel && !isYoutubeShort && calculateMediaLayout(userUploadMedia, wordCount) === 'mini') ||
                   (linkPreviewMedia && hasPreviewMetadata && !isInstagramReel && !isYoutubeShort && calculateMediaLayout(linkPreviewMedia, wordCount) === 'mini');
 
@@ -4411,8 +4410,7 @@ const ImmersivePostCardInner = ({
                         ) : (() => {
                           const wordCount = countPostWords(post.title, post.content);
                           const linkPreviewMedia = normalizedMedias.find(m => m.source === 'link_preview');
-                          // HOTFIX 16/06: temporary disable — aspect-ratio rendering bug Safari iOS. Re-enable after DOM inspection diagnosi. See journal entry.
-                          const hasPreviewMetadata = false && !!linkPreviewMedia;
+                          const hasPreviewMetadata = !!linkPreviewMedia;
                           const layoutMode = hasPreviewMetadata && linkPreviewMedia ? calculateMediaLayout(linkPreviewMedia, wordCount) : null;
                           const hasImage = !!linkPreviewMedia;
                           
