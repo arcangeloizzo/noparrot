@@ -23,8 +23,6 @@ export interface Post {
   preview_img_ratio?: string | null;
   preview_img_orientation?: string | null;
   preview_img_ambient_url?: string | null;
-  full_article: string | null;
-  article_content: string | null;
   trust_level: 'BASSO' | 'MEDIO' | 'ALTO' | null;
   stance: 'Condiviso' | 'Confutato' | null;
   sources: string[];
