@@ -227,6 +227,10 @@ export const MediaPostExpandedSheet = ({ post, isOpen, onClose, activeVoicePost,
               <img 
                 src={post.media[0].thumbnail_url || post.media[0].url} 
                 alt="" 
+                width={(post.media[0] as any).width || 1080}
+                height={(post.media[0] as any).height || 1080}
+                loading="lazy"
+                decoding="async"
                 style={{ width: '100%', borderRadius: '8px' }} 
               />
             </div>
@@ -238,6 +242,10 @@ export const MediaPostExpandedSheet = ({ post, isOpen, onClose, activeVoicePost,
               <img 
                 src={articlePreview?.image || post.preview_img} 
                 alt="" 
+                width={1200}
+                height={630}
+                loading="lazy"
+                decoding="async"
                 style={{ width: '100%', borderRadius: '8px' }} 
               />
             </div>
@@ -251,7 +259,7 @@ export const MediaPostExpandedSheet = ({ post, isOpen, onClose, activeVoicePost,
             >
               <div className="w-[56px] h-[56px] rounded-md shrink-0 overflow-hidden bg-white/5 flex items-center justify-center">
                 {articlePreview?.image || post.preview_img ? (
-                  <img src={articlePreview?.image || post.preview_img} className="w-full h-full object-cover" />
+                  <img src={articlePreview?.image || post.preview_img} width={1200} height={630} loading="lazy" decoding="async" className="w-full h-full object-cover" alt="" />
                 ) : (
                   <ExternalLink className="w-5 h-5 text-white/30" />
                 )}

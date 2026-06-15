@@ -198,6 +198,10 @@ const FullTextModalInner = ({
               <img
                 src={author.avatar}
                 alt=""
+                width={26}
+                height={26}
+                loading="lazy"
+                decoding="async"
                 className="w-[26px] h-[26px] rounded-full object-cover border border-border"
               />
             ) : (
@@ -282,8 +286,11 @@ const FullTextModalInner = ({
             <img
               src={imageUrl}
               alt=""
-              className="w-full rounded-lg object-cover max-h-[300px]"
+              width={1200}
+              height={630}
               loading="lazy"
+              decoding="async"
+              className="w-full rounded-lg object-cover max-h-[300px]"
             />
           </div>
         )}

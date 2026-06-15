@@ -89,7 +89,7 @@ export const FeedCard = ({
   // Generate avatar with initials if no image
   const getAvatarContent = () => {
     if (post.avatar) {
-      return <img src={post.avatar} alt={post.authorName} className="w-full h-full object-cover" />;
+      return <img src={post.avatar} alt={post.authorName} width={96} height={96} loading="lazy" decoding="async" className="w-full h-full object-cover" />;
     }
     
     const initials = post.authorName.split(' ').map(n => n[0]).join('').toUpperCase();
@@ -431,6 +431,10 @@ export const FeedCard = ({
                   <img 
                     src={articlePreview?.image || articlePreview?.previewImg || post.previewImg} 
                     alt="Article preview" 
+                    width={1200}
+                    height={630}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
                   />
                   {articlePreview?.platform === 'youtube' && (

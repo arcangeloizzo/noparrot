@@ -27,6 +27,10 @@ export const PostExpandedOverlay = ({ post, onClose }: PostExpandedOverlayProps)
         <img
           src={post.author.avatar_url}
           alt={name}
+          width={48}
+          height={48}
+          loading="lazy"
+          decoding="async"
           className="w-12 h-12 rounded-full object-cover"
         />
       );
@@ -93,6 +97,10 @@ export const PostExpandedOverlay = ({ post, onClose }: PostExpandedOverlayProps)
                   <img
                     src={post.preview_img}
                     alt="Preview"
+                    width={1200}
+                    height={630}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
                   />
                 </div>

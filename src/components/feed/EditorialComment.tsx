@@ -36,6 +36,10 @@ export const EditorialComment = ({ content, createdAt, className }: EditorialCom
         <img 
           src={EDITORIAL.AVATAR_IMAGE}
           alt={EDITORIAL.NAME}
+          width={32}
+          height={32}
+          loading="lazy"
+          decoding="async"
           className="w-8 h-8 rounded-full object-cover flex-shrink-0"
         />
         

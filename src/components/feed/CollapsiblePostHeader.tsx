@@ -49,6 +49,10 @@ export const CollapsiblePostHeader = ({
         <img
           src={avatarUrl}
           alt={name}
+          width={40}
+          height={40}
+          loading="lazy"
+          decoding="async"
           className={cn(
             "rounded-full object-cover transition-all duration-220",
             isCollapsed ? "w-7 h-7" : "w-10 h-10"

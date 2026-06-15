@@ -40,6 +40,10 @@ export const ReshareContextStack = ({ stack }: ReshareContextStackProps) => {
         <img 
           src={author.avatar_url}
           alt={author.full_name || author.username}
+          width={96}
+          height={96}
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover"
         />
       );

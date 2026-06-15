@@ -69,6 +69,10 @@ export function MediaFrame({
       <img
         src={media.src}
         alt=""
+        width={(media as any).width || undefined}
+        height={(media as any).height || undefined}
+        loading="lazy"
+        decoding="async"
         style={{
           width: '100%',
           height: '100%',
@@ -76,7 +80,6 @@ export function MediaFrame({
           display: 'block',
         }}
         draggable={false}
-        loading="lazy"
       />
       {children && (
         <div

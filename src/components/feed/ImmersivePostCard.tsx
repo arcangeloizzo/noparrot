@@ -637,6 +637,10 @@ const ImmersivePostCardInner = ({
         <img
           src={post.author.avatar_url}
           alt={post.author.full_name || post.author.username}
+          width={96}
+          height={96}
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover"
         />
       );
@@ -2537,6 +2541,10 @@ const ImmersivePostCardInner = ({
                                 <img
                                   src={post.media?.[0]?.thumbnail_url || mediaUrl}
                                   alt=""
+                                  width={(post.media?.[0] as any)?.width || 1080}
+                                  height={(post.media?.[0] as any)?.height || 1080}
+                                  loading="lazy"
+                                  decoding="async"
                                   className="w-full h-full object-contain"
                                 />
                                 <div className="absolute inset-0 flex items-center justify-center">
@@ -2549,6 +2557,10 @@ const ImmersivePostCardInner = ({
                               <img
                                 src={mediaUrl}
                                 alt=""
+                                width={(post.media?.[0] as any)?.width || 1080}
+                                height={(post.media?.[0] as any)?.height || 1080}
+                                loading="lazy"
+                                decoding="async"
                                 className="w-full h-full object-contain"
                               />
                             )
@@ -2711,6 +2723,10 @@ const ImmersivePostCardInner = ({
                                 <img
                                   src={post.media?.[0]?.thumbnail_url || mediaUrl}
                                   alt=""
+                                  width={(post.media?.[0] as any)?.width || 1080}
+                                  height={(post.media?.[0] as any)?.height || 1080}
+                                  loading="lazy"
+                                  decoding="async"
                                   className="w-full h-full object-contain"
                                 />
                                 <div className="absolute inset-0 flex items-center justify-center">
@@ -2723,6 +2739,10 @@ const ImmersivePostCardInner = ({
                               <img
                                 src={mediaUrl}
                                 alt=""
+                                width={(post.media?.[0] as any)?.width || 1080}
+                                height={(post.media?.[0] as any)?.height || 1080}
+                                loading="lazy"
+                                decoding="async"
                                 className="w-full h-full object-contain"
                               />
                             )
@@ -3327,6 +3347,10 @@ const ImmersivePostCardInner = ({
                                       <img
                                         src={post.media?.[0]?.thumbnail_url || mediaUrl}
                                         alt=""
+                                        width={(post.media?.[0] as any)?.width || 1080}
+                                        height={(post.media?.[0] as any)?.height || 1080}
+                                        loading="lazy"
+                                        decoding="async"
                                         className="w-full h-full object-contain"
                                       />
                                       <div className="absolute inset-0 flex items-center justify-center">
@@ -3339,6 +3363,10 @@ const ImmersivePostCardInner = ({
                                     <img
                                       src={mediaUrl}
                                       alt=""
+                                      width={(post.media?.[0] as any)?.width || 1080}
+                                      height={(post.media?.[0] as any)?.height || 1080}
+                                      loading="lazy"
+                                      decoding="async"
                                       className="w-full h-full object-contain"
                                     />
                                   )
@@ -3537,6 +3565,10 @@ const ImmersivePostCardInner = ({
                                   <img
                                     src={articlePreview.author_avatar}
                                     alt=""
+                                    width={64}
+                                    height={64}
+                                    loading="lazy"
+                                    decoding="async"
                                     className="w-full h-full object-cover"
                                     onError={(e) => {
                                       (e.target as HTMLImageElement).style.display = 'none';
@@ -3587,6 +3619,10 @@ const ImmersivePostCardInner = ({
                                 <img
                                   src={articlePreview?.image || post.preview_img}
                                   alt=""
+                                  width={1200}
+                                  height={630}
+                                  loading="lazy"
+                                  decoding="async"
                                   className="w-full"
                                   style={{
                                     height: 100,
@@ -3946,6 +3982,10 @@ const ImmersivePostCardInner = ({
                                 <img
                                   src={articlePreview?.image || post.preview_img || `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url!)}/maxresdefault.jpg`}
                                   alt=""
+                                  width={1280}
+                                  height={720}
+                                  loading="lazy"
+                                  decoding="async"
                                   className="w-full aspect-video object-cover"
                                 />
                                 <div className="absolute inset-0 flex items-center justify-center bg-black/30">
@@ -4040,6 +4080,10 @@ const ImmersivePostCardInner = ({
                           <div className="relative flex-shrink-0 w-20 h-[45px] rounded overflow-hidden bg-muted">
                             <img 
                               src={articlePreview?.image || post.preview_img || (post.shared_url ? `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url)}/hqdefault.jpg` : '')} 
+                              width={1280}
+                              height={720}
+                              loading="lazy"
+                              decoding="async"
                               className="w-full h-full object-cover" 
                               alt=""
                             />
@@ -5133,6 +5177,10 @@ const ImmersivePostCardInner = ({
                   <img
                     src={articlePreview?.image || post.preview_img}
                     alt=""
+                    width={1200}
+                    height={630}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-40 object-cover"
                   />
                 )}

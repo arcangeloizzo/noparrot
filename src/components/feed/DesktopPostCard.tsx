@@ -152,6 +152,10 @@ export const DesktopPostCard = ({ post, onRemove, onQuoteShare }: DesktopPostCar
                                     <img
                                         src={post.preview_img}
                                         alt={decodeHTMLEntities(post.shared_title || "Link preview")}
+                                        width={1200}
+                                        height={630}
+                                        loading="lazy"
+                                        decoding="async"
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                     />
                                 </div>
