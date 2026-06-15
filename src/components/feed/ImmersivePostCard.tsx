@@ -3129,7 +3129,8 @@ const ImmersivePostCardInner = ({
                 const wordCount = countPostWords(post.title, post.content);
                 const previewOrientation = post.preview_img_orientation || articlePreview?.image_orientation;
                 const previewRatio = post.preview_img_ratio || articlePreview?.image_ratio;
-                const hasPreviewMetadata = !!(previewOrientation && previewRatio);
+                // HOTFIX 16/06: temporary disable — aspect-ratio rendering bug Safari iOS. Re-enable after DOM inspection diagnosi. See journal entry.
+                const hasPreviewMetadata = false && !!(previewOrientation && previewRatio);
                 const isMiniLayout = (hasUserMedia && post.media && post.media.length === 1 && post.media[0].type === 'image' && !isInstagramReel && !isYoutubeShort && getMediaLayout(post.media[0].orientation, wordCount) === 'mini') ||
                   (!hasUserMedia && hasPreviewMetadata && (articlePreview?.image || post.preview_img) && !isInstagramReel && !isYoutubeShort && getMediaLayout(previewOrientation as any, wordCount) === 'mini');
 
@@ -4421,7 +4422,8 @@ const ImmersivePostCardInner = ({
                           const wordCount = countPostWords(post.title, post.content);
                           const previewOrientation = post.preview_img_orientation || articlePreview?.image_orientation;
                           const previewRatio = post.preview_img_ratio || articlePreview?.image_ratio;
-                          const hasPreviewMetadata = !!(previewOrientation && previewRatio);
+                          // HOTFIX 16/06: temporary disable — aspect-ratio rendering bug Safari iOS. Re-enable after DOM inspection diagnosi. See journal entry.
+                          const hasPreviewMetadata = false && !!(previewOrientation && previewRatio);
                           const layoutMode = hasPreviewMetadata ? getMediaLayout(previewOrientation as any, wordCount) : null;
                           const hasImage = !!(articlePreview?.image || post.preview_img);
                           
