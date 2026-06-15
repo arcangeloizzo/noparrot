@@ -232,8 +232,8 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
                     <img
                       src={quotedPost.media[0].url}
                       alt=""
-                      width={quotedPost.media[0].width || 1080}
-                      height={quotedPost.media[0].height || 1080}
+                      width={(quotedPost.media[0] as any).width || 1080}
+                      height={(quotedPost.media[0] as any).height || 1080}
                       loading="lazy"
                       decoding="async"
                       className="w-full max-h-32 object-cover rounded-lg"
@@ -253,8 +253,8 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
                           <img
                             src={m.url}
                             alt=""
-                            width={m.width || 1080}
-                            height={m.height || 1080}
+                            width={(m as any).width || 1080}
+                            height={(m as any).height || 1080}
                             loading="lazy"
                             decoding="async"
                             className="w-full h-full object-cover"
@@ -388,8 +388,8 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
                     <img
                       src={quotedPost.media[0].url}
                       alt=""
-                      width={quotedPost.media[0].width || 1080}
-                      height={quotedPost.media[0].height || 1080}
+                      width={(quotedPost.media[0] as any).width || 1080}
+                      height={(quotedPost.media[0] as any).height || 1080}
                       loading="lazy"
                       decoding="async"
                       className="w-full max-h-32 object-cover rounded-lg"
@@ -409,8 +409,8 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
                           <img
                             src={m.url}
                             alt=""
-                            width={m.width || 1080}
-                            height={m.height || 1080}
+                            width={(m as any).width || 1080}
+                            height={(m as any).height || 1080}
                             loading="lazy"
                             decoding="async"
                             className="w-full h-full object-cover"
