@@ -10,6 +10,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { CardLayoutProvider } from "@/contexts/CardLayoutContext";
 import { AppErrorBoundary } from "@/components/debug/AppErrorBoundary";
 import { AppLifecycleHandler } from "@/components/AppLifecycleHandler";
+import { useStableViewportHeight } from "@/hooks/useStableViewportHeight";
 import Index from "./pages/Index";
 // ...
 // <Route path="/" element={<div>Refactor Debug Header</div>} />
@@ -99,7 +100,9 @@ function NavigationRecovery() {
   
   import { OnboardingTutorial } from "@/components/tutorial/OnboardingTutorial";
   
-  const App = () => (
+  const App = () => {
+    useStableViewportHeight();
+    return (
     <AppErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider
@@ -150,6 +153,7 @@ function NavigationRecovery() {
         </ThemeProvider>
       </QueryClientProvider>
     </AppErrorBoundary>
-  );
+    );
+  };
   
   export default App;
