@@ -855,6 +855,302 @@ html:not(.light) .liquid-glass-navbar {
   transform: scale(1.05);
 }
 
+/* ============================================
+   §9 — Navbar liquid glass (pillola flottante)
+   ============================================ */
+
+.liquid-nav {
+  position: fixed;
+  left: 14px;
+  right: 14px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+  height: 64px;
+  border-radius: 32px;
+  z-index: 50;
+  isolation: isolate; /* per stacking dei tre strati */
+  
+  /* Stato default — feed visibile sotto */
+  transform: translateY(0) scale(1);
+  opacity: 1;
+  transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Strato 1: vetro (::before) */
+.liquid-nav::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: 1;
+  backdrop-filter: blur(28px) saturate(1.9) brightness(1.12);
+  -webkit-backdrop-filter: blur(28px) saturate(1.9) brightness(1.12);
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0.10) 0%,
+    rgba(255, 255, 255, 0.015) 45%,
+    rgba(255, 255, 255, 0.07) 100%
+  );
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    inset 0 -10px 24px rgba(255, 255, 255, 0.03);
+  pointer-events: none;
+}
+
+/* Strato 2: riflesso liquido che segue il dito (::after) */
+.liquid-nav::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: 2;
+  background: radial-gradient(
+    130px 46px at var(--mx, 50%) -8px,
+    rgba(255, 255, 255, 0.28),
+    transparent 70%
+  );
+  pointer-events: none;
+  transition: background-position 60ms linear;
+}
+
+/* Strato 3: anello-bordo a gradiente */
+.liquid-nav .nav-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.2px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(255, 255, 255, 0.05) 38%,
+    rgba(255, 255, 255, 0.02) 62%,
+    rgba(255, 255, 255, 0.22) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Container items (z-index sopra i 3 strati) */
+.liquid-nav-items {
+  position: relative;
+  z-index: 4;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 18px;
+}
+
+/* Item navbar — 46px, niente label */
+.liquid-nav-item {
+  width: 46px;
+  height: 46px;
+  border-radius: 23px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.78);
+  cursor: pointer;
+  transition: background 200ms ease, color 200ms ease;
+}
+
+.liquid-nav-item:hover {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* Item attivo = pillola white 13% + inset highlight */
+.liquid-nav-item[data-active="true"] {
+  background: rgba(255, 255, 255, 0.13);
+  color: rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* FAB centrale 54px rialzato -8px */
+.liquid-nav-fab {
+  position: relative;
+  width: 54px;
+  height: 54px;
+  border-radius: 27px;
+  margin-top: -8px; /* rialzo */
+  border: none;
+  cursor: pointer;
+  isolation: isolate;
+  background: transparent;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Anello conico rotante blue→pink→yellow (6s) */
+.liquid-nav-fab::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: conic-gradient(
+    from 0deg,
+    #0A7AFF 0%,
+    #E41E52 33%,
+    #FFD464 66%,
+    #0A7AFF 100%
+  );
+  animation: liquid-fab-spin 6s linear infinite;
+  z-index: 1;
+}
+
+@keyframes liquid-fab-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Core glass con logo (sopra anello, lascia 2px di anello visibile) */
+.liquid-nav-fab::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: inherit;
+  background: rgba(13, 18, 28, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 2;
+}
+
+/* Logo Parrot dentro al FAB */
+.liquid-nav-fab > svg,
+.liquid-nav-fab > img {
+  position: relative;
+  z-index: 3;
+  width: 58px !important;
+  height: 58px !important;
+  object-fit: contain;
+  display: block;
+}
+
+/* Stato: drag feed in corso — navbar si ritrae */
+.liquid-nav[data-dragging="true"] {
+  transform: translateY(12px) scale(0.98);
+  opacity: 0.5;
+}
+
+/* Prefers-reduced-motion: stop conic spin */
+@media (prefers-reduced-motion: reduce) {
+  .liquid-nav-fab::before {
+    animation: none;
+  }
+  .liquid-nav {
+    transition: none;
+  }
+}
+
+/* Fallback se no backdrop-filter */
+@supports not (backdrop-filter: blur(1px)) {
+  .liquid-nav::before {
+    background: rgba(13, 18, 28, 0.92);
+  }
+  .liquid-nav-fab::after {
+    background: rgba(13, 18, 28, 0.95);
+  }
+}
+
+/* ============================================
+   §CO6 derivato — Bottone Condividi (pill glass)
+   ============================================ */
+
+.liquid-share-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  isolation: isolate;
+  color: rgba(255, 255, 255, 0.92);
+  font-family: var(--font-sans, 'Inter'), sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  transition: transform 150ms ease;
+}
+
+/* Strato vetro (stesso recipe §9 ma scalato per pill) */
+.liquid-share-pill::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: 1;
+  backdrop-filter: blur(20px) saturate(1.7) brightness(1.08);
+  -webkit-backdrop-filter: blur(20px) saturate(1.7) brightness(1.08);
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0.10) 0%,
+    rgba(255, 255, 255, 0.02) 50%,
+    rgba(255, 255, 255, 0.06) 100%
+  );
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.35),
+    inset 0 -1px 2px rgba(255, 255, 255, 0.02);
+  pointer-events: none;
+}
+
+/* Hairline top 0.5px (§CO6) */
+.liquid-share-pill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: 2;
+  padding: 0.5px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.04) 60%,
+    rgba(255, 255, 255, 0.12) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+}
+
+.liquid-share-pill > * {
+  position: relative;
+  z-index: 3;
+}
+
+.liquid-share-pill:hover {
+  transform: translateY(-1px);
+}
+
+.liquid-share-pill:active {
+  transform: scale(0.97);
+}
+
+.liquid-share-pill-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  .liquid-share-pill::before {
+    background: rgba(13, 18, 28, 0.85);
+  }
+}
+
   /* Trust Badge Liquid Glass Variants */
 .trust-badge-low {
   background: rgba(255, 70, 70, 0.15);

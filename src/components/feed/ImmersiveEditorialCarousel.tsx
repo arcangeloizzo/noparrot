@@ -730,10 +730,10 @@ const EditorialSlideInner = ({
                 haptics.light();
                 onShare?.();
               }}
-              className="h-11 px-5 bg-white/10 hover:bg-white/20 text-white rounded-full shadow-sm border border-white/10 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              className="liquid-share-pill"
             >
-              <Logo variant="icon" className="w-5 h-5 object-contain" />
-              <span className="text-sm font-medium leading-none">Condividi</span>
+              <Logo variant="icon" className="liquid-share-pill-icon object-contain" />
+              <span>Condividi</span>
               {(item.reactions?.shares ?? 0) > 0 && (
                 <span className="text-xs opacity-70">({item.reactions?.shares})</span>
               )}

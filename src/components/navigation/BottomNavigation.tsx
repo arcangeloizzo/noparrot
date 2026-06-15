@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { HomeIcon, SearchIcon } from "@/components/ui/icons";
 import { Send } from "lucide-react";
@@ -31,6 +31,7 @@ export const BottomNavigation = ({
   const queryClient = useQueryClient();
   const { data: threads } = useMessageThreads();
   const [showRipple, setShowRipple] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
 
   // Force refresh contatore messaggi quando l'app torna in focus (iOS fix)
   useEffect(() => {
@@ -43,6 +44,19 @@ export const BottomNavigation = ({
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [queryClient]);
+
+  // Riflesso liquido che segue il dito via --mx (§9)
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const handler = (e: PointerEvent) => {
+      const rect = nav.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      nav.style.setProperty('--mx', `${Math.max(0, Math.min(100, x))}%`);
+    };
+    nav.addEventListener('pointermove', handler);
+    return () => nav.removeEventListener('pointermove', handler);
+  }, []);
 
   const { data: profile } = useQuery({
     queryKey: ["profile", user?.id],
@@ -115,94 +129,72 @@ export const BottomNavigation = ({
   const rightTabs = tabs.slice(2);    // Messages, Profile
 
   return (
-    <nav className="liquid-glass-navbar fixed bottom-0 left-0 right-0 z-40 pb-safe">
-      <div className="flex items-center h-16 max-w-[600px] mx-auto px-2">
+    <nav
+      ref={navRef}
+      className="liquid-nav"
+      data-dragging="false"
+      role="navigation"
+      aria-label="Bottom navigation"
+    >
+      <div className="nav-ring" aria-hidden="true" />
+      <div className="liquid-nav-items">
         {/* Left side tabs */}
-        <div className="flex flex-1 justify-around">
-          {leftTabs.map(({ id, icon: Icon, label }) => (
-            <button
-              key={id}
-              onClick={() => handleTabClick(id)}
-              className={cn(
-                "flex flex-col items-center justify-center gap-0.5 px-4 h-full transition-all duration-200 relative",
-                activeTab === id ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {Icon && (
-                <Icon className={cn(
-                  "w-6 h-6 transition-all",
-                  activeTab === id ? "icon-glow" : "hover:icon-glow"
-                )} />
-              )}
-              <span className={cn(
-                "text-[10px] font-medium transition-all",
-                activeTab === id ? "text-foreground" : "text-muted-foreground"
-              )}>
-                {label}
-              </span>
-            </button>
-          ))}
-        </div>
+        {leftTabs.map(({ id, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => handleTabClick(id)}
+            className="liquid-nav-item"
+            data-active={activeTab === id}
+          >
+            {Icon && (
+              <Icon className="w-6 h-6" />
+            )}
+          </button>
+        ))}
 
-        {/* Central FAB - "breaks" above navbar with increased protrusion */}
+        {/* Central FAB - rotating conic ring + logo */}
         <button
           onClick={handleFabClick}
-          className="liquid-glass-fab-central relative -translate-y-4 w-14 h-14 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 active:scale-95"
+          className="liquid-nav-fab"
           aria-label="Crea post"
           data-tutorial="composer"
         >
           <Logo 
             variant="white" 
-            size="sm"
-            className="relative z-10 w-auto h-auto"
+            className="relative z-10"
           />
           {/* Liquid ripple effect */}
           {showRipple && <span className="fab-liquid-ripple" />}
         </button>
 
         {/* Right side tabs */}
-        <div className="flex flex-1 justify-around">
-          {rightTabs.map(({ id, icon: Icon, label, isAvatar, isLucide }) => (
-            <button
-              key={id}
-              onClick={() => handleTabClick(id)}
-              className={cn(
-                "flex flex-col items-center justify-center gap-0.5 px-4 h-full transition-all duration-200 relative",
-                activeTab === id ? "text-foreground" : "text-muted-foreground hover:text-foreground"
-              )}
-              data-tutorial={id === "profile" ? "profile-nav" : undefined}
-            >
-              {isAvatar ? (
-                <div className={cn(
-                  "ring-2 rounded-full",
-                  activeTab === "profile" ? "ring-foreground" : "ring-border"
-                )}>
-                  {getAvatarContent()}
-                </div>
-              ) : Icon && (
-                <div className="relative">
-                  <Icon className={cn(
-                    "w-6 h-6 transition-all",
-                    activeTab === id ? "icon-glow" : "hover:icon-glow"
-                  )} />
-                  {id === "messages" && unreadCount > 0 && (
-                    <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-semibold shadow-[0_0_8px_rgba(239,68,68,0.6)]">
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </div>
-                  )}
-                </div>
-              )}
-              {!isAvatar && (
-                <span className={cn(
-                  "text-[10px] font-medium transition-all",
-                  activeTab === id ? "text-foreground" : "text-muted-foreground"
-                )}>
-                  {label}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+        {rightTabs.map(({ id, icon: Icon, isAvatar, isLucide }) => (
+          <button
+            key={id}
+            onClick={() => handleTabClick(id)}
+            className="liquid-nav-item"
+            data-active={activeTab === id}
+            data-tutorial={id === "profile" ? "profile-nav" : undefined}
+          >
+            {isAvatar ? (
+              <div className={cn(
+                "ring-2 rounded-full",
+                activeTab === "profile" ? "ring-foreground" : "ring-border"
+              )}>
+                {getAvatarContent()}
+              </div>
+            ) : Icon && (
+              <div className="relative">
+                <Icon className="w-6 h-6" />
+                {id === "messages" && unreadCount > 0 && (
+                  <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-semibold shadow-[0_0_8px_rgba(239,68,68,0.6)]">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </div>
+                )}
+              </div>
+            )}
+          </button>
+        ))}
       </div>
     </nav>
   );

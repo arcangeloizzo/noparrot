@@ -248,18 +248,19 @@ export const ImmersiveFocusCard = ({
         {/* Bottom Actions (Rail 3) */}
         <div className="flex items-center justify-between gap-3 flex-shrink-0 px-5 pb-8 sm:pb-10 pt-2 z-20">
 
-          {/* Primary Share Button - h-10 px-4 */}
+          {/* Primary Share Button */}
           <button
             onClick={(e) => {
               e.stopPropagation();
               onShare?.();
             }}
-            className="h-10 px-4 bg-white hover:bg-gray-50 text-[#1F3347] font-bold rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+            className="liquid-share-pill"
           >
-            <Logo variant="icon" size="sm" className="h-4 w-4" />
-            <span className="text-sm font-semibold leading-none">
-              Condividi{reactions.shares > 0 ? ` (${reactions.shares})` : ''}
-            </span>
+            <Logo variant="icon" className="liquid-share-pill-icon object-contain" />
+            <span>Condividi</span>
+            {reactions.shares > 0 && (
+              <span className="text-xs opacity-70">({reactions.shares})</span>
+            )}
           </button>
 
           {/* Reactions - Horizontal layout h-10 matching share button */}

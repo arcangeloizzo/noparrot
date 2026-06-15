@@ -4688,10 +4688,10 @@ const ImmersivePostCardInner = ({
                 haptics.light();
                 handleShareClick(e);
               }}
-              className="h-11 px-5 bg-blue-50 hover:bg-blue-100 dark:bg-white dark:hover:bg-gray-200 text-blue-600 dark:text-[#1F3347] rounded-full shadow-sm dark:shadow-md border border-blue-100 dark:border-transparent flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+              className="liquid-share-pill"
             >
-              <Logo variant="icon" className="w-5 h-5 object-contain" />
-              <span className="text-sm font-medium leading-none">Condividi</span>
+              <Logo variant="icon" className="liquid-share-pill-icon object-contain" />
+              <span>Condividi</span>
               {(post.shares_count ?? 0) > 0 && (
                 <span className="text-xs opacity-70">({post.shares_count})</span>
               )}
