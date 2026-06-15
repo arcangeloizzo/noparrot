@@ -119,8 +119,9 @@ export function normalizeMedia(post: Post, articlePreview?: any): UnifiedMedia[]
     return post.media.map(item => {
       const classified = classifyOrientation(item.width || 0, item.height || 0);
       return {
-        src: item.url,
-        ambientSrc: item.ambient_url || item.url,
+        src: getCardImageUrl(item.url, 1200, 75),  // URL trasformata per card
+        originalSrc: item.url,                       // URL full preserved per ExpandedViewer
+        ambientSrc: item.ambient_url || item.url,    // Già downsized 200px, lascia invariato
         ratio: item.ratio || classified.ratio,
         orientation: item.orientation || classified.orientation,
         kind: item.type === 'video' ? 'video' : 'image',
@@ -168,4 +169,28 @@ export function calculateMediaLayout(
     return 'mini';
   }
   return getMediaLayout(media.orientation, wordCount);
+}
+
+/**
+ * Trasforma una URL Supabase Storage public in URL ottimizzata per card display.
+ * Usa /render/image/public/ endpoint per server-side image transformation.
+ * Se la URL non è Supabase Storage, ritorna invariata.
+ * 
+ * @param url URL originale (es. https://...supabase.co/storage/v1/object/public/...)
+ * @param targetWidth Larghezza target in px (default 1200 per retina display)
+ * @param quality Qualità JPEG 1-100 (default 75)
+ */
+export function getCardImageUrl(
+  url: string | null | undefined, 
+  targetWidth: number = 1200, 
+  quality: number = 75
+): string {
+  if (!url) return '';
+  
+  // Match Supabase Storage public object URL
+  const match = url.match(/^(https?:\/\/[^\/]+)\/storage\/v1\/object\/public\/(.+?)(\?.*)?$/);
+  if (!match) return url;
+  
+  const [, base, path] = match;
+  return `${base}/storage/v1/render/image/public/${path}?width=${targetWidth}&quality=${quality}&resize=contain`;
 }
