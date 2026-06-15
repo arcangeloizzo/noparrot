@@ -519,6 +519,22 @@ const EditorialSlideInner = ({
   const hasMountedReactionPicker = useRef(false);
   if (showReactionPicker) hasMountedReactionPicker.current = true;
 
+  const [isSmallScreen, setIsSmallScreen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerHeight < 700;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleResize = () => {
+      setIsSmallScreen(window.innerHeight < 700);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Sync currentReaction with server state (myReactionType) when reactionsData changes
   useEffect(() => {
     if (reactionsData?.myReactionType) {
@@ -602,7 +618,7 @@ const EditorialSlideInner = ({
             {/* Headline - Impact Font with exact sizes */}
             <ClampedTitle
               text={item.title}
-              maxLines={3}
+              maxLines={isSmallScreen ? 2 : 3}
               as="h1"
               style={{
                 fontFamily: "'Impact','Haettenschweiler','Arial Narrow',sans-serif",
@@ -618,7 +634,7 @@ const EditorialSlideInner = ({
             {/* Abstract/Lead */}
             {(() => {
               const fullText = item.summary.replace(/\[SOURCE:[\d,\s]+\]/g, "").trim();
-              const maxInitialLength = 160;
+              const maxInitialLength = isSmallScreen ? 120 : 160;
               const needsTruncation = fullText.length > maxInitialLength;
               const displayText = needsTruncation ? fullText.substring(0, maxInitialLength).trim() : fullText;
               
@@ -650,7 +666,7 @@ const EditorialSlideInner = ({
             {/* Fonti as Compact Tags */}
             {item.sources && item.sources.length > 0 && (
               <div className="mb-3 pointer-events-auto flex flex-wrap gap-2">
-                {item.sources.slice(0, 5).map((source: any, idx: number) => {
+                {item.sources.slice(0, isSmallScreen ? 3 : 5).map((source: any, idx: number) => {
                   const colors = ['#0A7AFF', '#E41E52', '#FFD464', '#10B981', '#A78BFA'];
                   const barColor = colors[idx % colors.length];
                   const domainName = (source.name || new URL(source.url || 'https://link').hostname).replace('www.', '');

@@ -3244,38 +3244,36 @@ const ImmersivePostCardInner = ({
                                     </div>
                                   )}
                                 </div>
-                                {imageStep === 'full' && (
-                                  <div
-                                    ref={(node) => {
-                                      registerRef('flexible-image')(node);
-                                      (mediaRef as any).current = node;
-                                    }}
-                                    className="flex-shrink-0"
-                                    style={{ alignSelf: 'flex-start' }}
+                                <div
+                                  ref={(node) => {
+                                    registerRef('flexible-image')(node);
+                                    (mediaRef as any).current = node;
+                                  }}
+                                  className="flex-shrink-0"
+                                  style={{ alignSelf: 'flex-start' }}
+                                >
+                                  <MediaFrame
+                                    media={mediaForFrame}
+                                    variant="mini"
+                                    onTap={() => setSelectedMediaIndex(0)}
                                   >
-                                    <MediaFrame
-                                      media={mediaForFrame}
-                                      variant="mini"
-                                      onTap={() => setSelectedMediaIndex(0)}
-                                    >
-                                      <div style={{
-                                        position: 'absolute', top: 8, right: 8, pointerEvents: 'auto',
-                                        width: 26, height: 26, borderRadius: 13,
-                                        background: 'rgba(0,0,0,0.45)',
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        color: 'white', fontSize: 13
-                                      }}>⤢</div>
-                                    </MediaFrame>
-                                  </div>
-                                )}
+                                    <div style={{
+                                      position: 'absolute', top: 8, right: 8, pointerEvents: 'auto',
+                                      width: 26, height: 26, borderRadius: 13,
+                                      background: 'rgba(0,0,0,0.45)',
+                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      color: 'white', fontSize: 13
+                                    }}>⤢</div>
+                                  </MediaFrame>
+                                </div>
                               </div>
                             );
                           }
 
-                          if (imageStep !== 'full') {
-                            return null;
-                          }
-
+                          {/* 
+                            MediaFrame governa height autonomamente via aspect-ratio. 
+                            Sistema step legacy bypassato. Step 2.3 cleanup ref. 
+                          */}
                           return (
                             <div
                               ref={(node) => {

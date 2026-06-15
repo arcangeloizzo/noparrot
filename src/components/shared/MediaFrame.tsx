@@ -110,12 +110,16 @@ function getVariantStyle(
   ratio: UnifiedMedia['ratio']
 ): CSSProperties {
   switch (variant) {
-    case 'tall':
-      // Spec §5.1: portrait + testo corto → tall full-width, height min(42vh, 380px)
+    case 'tall': {
+      // Spec §M1/§5.2: il media mantiene orientamento nativo. Usa aspect-ratio derivato
+      // da ratio + max-height come safety net per immagini molto alte.
+      const ar = ratio === '9:16' ? '9 / 16' : '3 / 4'; // default 3:4 per portrait
       return {
         width: '100%',
-        height: 'min(42vh, 380px)',
+        aspectRatio: ar,
+        maxHeight: 'min(42vh, 380px)',
       };
+    }
     case 'strip':
       // Spec §5.1: landscape + testo lungo → strip full-width, flex:0 1 auto, height 16vh (min 100, max 160)
       return {
