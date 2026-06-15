@@ -97,7 +97,8 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const token = authHeader.replace('Bearer ', '');
-    if (token !== supabaseServiceKey) {
+    const isInternalCall = (token === supabaseServiceKey);
+    if (!isInternalCall) {
       // Validate user JWT
       const { data: { user }, error: authError } = await supabase.auth.getUser(token);
       if (authError || !user) {
@@ -256,7 +257,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       success: true, 
       transcript_length: fullTranscript.length,
-      transcript: fullTranscript
+      transcript: isInternalCall ? fullTranscript : undefined
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

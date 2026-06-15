@@ -1502,6 +1502,13 @@ serve(async (req) => {
           qaSourceRef: { kind: qaSourceRefKind, id: qaSourceRefId, url }
         };
         
+        // Include lyrics preview if cached Spotify content
+        if (cached.source_type === 'spotify' && cached.content_text) {
+          // Verify it looks like lyrics (and not synthetic metadata cache)
+          const isLyrics = !cached.content_text.includes('lyrics non è disponibile');
+          cacheResponse.lyricsAvailable = isLyrics;
+        }
+        
         // FIX v3: Include popularity for Spotify PULSE badge from cache
         if (typeof cached.popularity === 'number') {
           cacheResponse.popularity = cached.popularity;

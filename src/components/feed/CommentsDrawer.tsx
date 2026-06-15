@@ -405,6 +405,19 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
                       <MentionText content={post.content} />
                     </p>
                   )}
+
+                  {post.shared_url && !post.shared_url.startsWith('focus://') && !post.shared_url.startsWith('internal://') && (
+                    <div className="mt-2">
+                      <a 
+                        href={post.shared_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline text-[11px] font-medium inline-block"
+                      >
+                        Leggi articolo originale →
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

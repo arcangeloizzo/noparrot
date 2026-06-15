@@ -116,7 +116,6 @@ const resolveOriginalSourceOnDemand = async (quotedPostId: string | null): Promi
   url: string;
   title: string | null;
   image: string | null;
-  articleContent?: string;
 } | null> => {
   if (!quotedPostId) return null;
 
@@ -127,7 +126,7 @@ const resolveOriginalSourceOnDemand = async (quotedPostId: string | null): Promi
   while (currentId && depth < MAX_DEPTH) {
     const { data, error } = await supabase
       .from('posts')
-      .select('id, shared_url, shared_title, preview_img, quoted_post_id, article_content')
+      .select('id, shared_url, shared_title, preview_img, quoted_post_id')
       .eq('id', currentId)
       .single();
 
@@ -139,7 +138,6 @@ const resolveOriginalSourceOnDemand = async (quotedPostId: string | null): Promi
         url: data.shared_url,
         title: data.shared_title,
         image: data.preview_img,
-        articleContent: data.article_content || undefined,
       };
     }
 
@@ -895,7 +893,6 @@ const ImmersivePostCardInner = ({
 
     // On-demand deep lookup: garantisce di avere la fonte anche se hook non ha finito
     let resolvedSourceUrl = finalSourceUrl;
-    let resolvedArticleContent: string | undefined;
 
     if (!resolvedSourceUrl && post.quoted_post_id) {
       // Use overlay for loading source
@@ -905,7 +902,6 @@ const ImmersivePostCardInner = ({
 
       if (deepSource?.url) {
         resolvedSourceUrl = deepSource.url;
-        resolvedArticleContent = deepSource.articleContent || undefined;
       }
     }
 
@@ -921,7 +917,7 @@ const ImmersivePostCardInner = ({
       const focusId = resolvedSourceUrl.replace('focus://daily/', '');
 
       // Fetch contenuto editoriale dal DB
-      let editorialContent = resolvedArticleContent;
+      let editorialContent: string | undefined = undefined;
       let editorialTitle = 'Il Punto';
 
       if (!editorialContent || editorialContent.length < 50) {

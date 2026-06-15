@@ -98,7 +98,7 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
   }, [mode, isOpen]);
 
   const handleReadAndComment = async () => {
-    if (!post.shared_url || !post.article_content) return;
+    if (!post.shared_url) return;
 
     setIsProcessing(true);
     

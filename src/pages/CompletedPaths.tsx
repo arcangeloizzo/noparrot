@@ -32,7 +32,7 @@ type GateAttempt = {
     category: string | null;
     shared_title: string | null;
     preview_img: string | null;
-    article_content: string | null;
+    shared_url: string | null;
   };
 };
 
@@ -61,7 +61,7 @@ export default function CompletedPaths() {
             category,
             shared_title,
             preview_img,
-            article_content
+            shared_url
           )
         `)
         .eq("user_id", user.id)
@@ -310,13 +310,12 @@ export default function CompletedPaths() {
           }}
           post={{
             ...selectedItem.post,
-            shared_url: selectedItem.source_url,
+            shared_url: selectedItem.source_url || selectedItem.post.shared_url,
             author: { username: '', full_name: '', avatar_url: null },
             created_at: selectedItem.created_at,
             reactions: []
           } as any}
           onStartQuiz={() => {}}
-          articleContent={selectedItem.post.article_content || undefined}
         />
       )}
 

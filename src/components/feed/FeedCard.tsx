@@ -509,10 +509,23 @@ export const FeedCard = ({
                 <h3 className="cognitive-article-title text-sm font-medium line-clamp-2 mb-1">
                   {post.sharedTitle || articlePreview?.title || 'Articolo condiviso'}
                 </h3>
-                {articlePreview?.content && articlePreview.platform === 'twitter' ? (
-                  <p className="cognitive-text-secondary text-sm line-clamp-3">
-                    {articlePreview.content}
-                  </p>
+                {articlePreview?.platform === 'twitter' ? (
+                  <div className="space-y-1 mt-1">
+                    <p className="cognitive-text-secondary text-sm">
+                      {articlePreview.title || 'Tweet'}
+                      {articlePreview.author && ` di ${articlePreview.author}`}
+                    </p>
+                    {post.url && (
+                      <a 
+                        href={post.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline text-xs"
+                      >
+                        Vedi su Twitter →
+                      </a>
+                    )}
+                  </div>
                 ) : (
                   <p className="cognitive-text-secondary text-sm line-clamp-3">
                     {articlePreview?.summary || articlePreview?.excerpt}

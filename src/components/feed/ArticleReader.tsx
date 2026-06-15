@@ -9,10 +9,9 @@ interface ArticleReaderProps {
   isOpen: boolean;
   onClose: () => void;
   onStartQuiz: (action: string) => void;
-  articleContent?: string;
 }
 
-export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleReaderProps & { articleContent?: string }) => {
+export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleReaderProps) => {
   const [timeLeft, setTimeLeft] = useState(10);
   const [canProceed, setCanProceed] = useState(false);
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
@@ -119,9 +118,9 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleRea
           )}
 
             <div className="space-y-4 text-sm text-gray-300 leading-relaxed">
-              {/* Mostra il contenuto completo dall'articolo */}
+              {/* Mostra il commento dell'utente */}
               <p className="mt-2 font-medium whitespace-pre-wrap">
-                {post.article_content || post.content}
+                {post.content}
               </p>
               
               {post.shared_url && (
@@ -132,7 +131,7 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleRea
                     rel="noopener noreferrer"
                     className="text-primary hover:underline text-sm"
                   >
-                    Leggi articolo completo →
+                    Leggi articolo originale →
                   </a>
                 </div>
               )}

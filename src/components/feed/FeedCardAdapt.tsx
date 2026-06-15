@@ -637,7 +637,6 @@ export const FeedCard = ({
 
       // On-demand deep lookup: garantisce di avere la fonte anche se hook non ha finito
       let resolvedSourceUrl = sourceUrl; // Use the sourceUrl derived from readerSource
-      let resolvedArticleContent: string | undefined;
 
       if (!resolvedSourceUrl && post.quoted_post_id) {
         // Deep lookup to resolve original source
@@ -647,13 +646,12 @@ export const FeedCard = ({
         while (currentId && depth < 10) {
           const { data, error } = await supabase
             .from('posts')
-            .select('id, shared_url, shared_title, preview_img, quoted_post_id, article_content')
+            .select('id, shared_url, shared_title, preview_img, quoted_post_id')
             .eq('id', currentId)
             .single();
           if (error || !data) break;
           if (data.shared_url) {
             resolvedSourceUrl = data.shared_url;
-            resolvedArticleContent = data.article_content || undefined;
             break;
           }
           currentId = data.quoted_post_id;

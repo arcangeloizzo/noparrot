@@ -368,7 +368,7 @@ serve(async (req) => {
       console.log(`[Cache] ✅ HIT for video ${videoId}, source: ${cached.source}`);
       return new Response(
         JSON.stringify({ 
-          transcript: cached.transcript, 
+          transcript: isInternalCall ? cached.transcript : undefined, 
           source: cached.source 
         }),
         { 
@@ -388,7 +388,10 @@ serve(async (req) => {
       await saveToCache(supabase, videoId, freeResult.transcript, freeResult.source);
       
       return new Response(
-        JSON.stringify(freeResult),
+        JSON.stringify({
+          transcript: isInternalCall ? freeResult.transcript : undefined,
+          source: freeResult.source
+        }),
         { 
           status: 200,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -424,7 +427,7 @@ serve(async (req) => {
       
       return new Response(
         JSON.stringify({ 
-          transcript: superdataResult.transcript, 
+          transcript: isInternalCall ? superdataResult.transcript : undefined, 
           source: superdataResult.source 
         }),
         { 
@@ -439,7 +442,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: 'No captions available for this video',
-        transcript: '',
+        transcript: isInternalCall ? '' : undefined,
         source: 'none'
       }),
       { 
@@ -452,7 +455,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: error instanceof Error ? error.message : 'Unknown error',
-        transcript: '',
+        transcript: isInternalCall ? '' : undefined,
         source: 'error'
       }),
       { 

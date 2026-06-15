@@ -99,9 +99,16 @@ export const PostExpandedOverlay = ({ post, onClose }: PostExpandedOverlayProps)
               )}
               <div className="p-4">
                 <h3 className="font-medium mb-2">{post.shared_title}</h3>
-                <p className="text-sm text-muted-foreground line-clamp-3">
-                  {post.article_content}
-                </p>
+                {post.shared_url && (
+                  <a
+                    href={post.shared_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline text-sm font-medium inline-flex items-center mt-1"
+                  >
+                    Leggi articolo originale →
+                  </a>
+                )}
               </div>
             </div>
           )}
