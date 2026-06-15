@@ -33,6 +33,10 @@ export const PostHeader = ({
             <img
               src={avatarUrl}
               alt={displayName}
+              width={48}
+              height={48}
+              loading="lazy"
+              decoding="async"
               className="w-12 h-12 rounded-full object-cover"
             />
           ) : (

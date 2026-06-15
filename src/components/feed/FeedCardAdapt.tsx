@@ -237,6 +237,10 @@ export const FeedCard = ({
         <img
           src={post.author.avatar_url}
           alt={post.author.full_name || post.author.username}
+          width={96}
+          height={96}
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover"
         />
       );
@@ -1098,6 +1102,10 @@ export const FeedCard = ({
                     <img
                       src={articlePreview?.image || articlePreview?.previewImg || post.preview_img}
                       alt={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
+                      width={1200}
+                      height={630}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover opacity-80"
                     />
                   ) : (
@@ -1216,6 +1224,10 @@ export const FeedCard = ({
                   <img
                     src="/lovable-uploads/f6970c06-9fd9-4430-b863-07384bbb05ce.png"
                     alt="Condividi"
+                    width={18}
+                    height={18}
+                    loading="lazy"
+                    decoding="async"
                     className="w-[18px] h-[18px] opacity-60 group-hover:opacity-100 group-hover:icon-glow"
                   />
                 </button>

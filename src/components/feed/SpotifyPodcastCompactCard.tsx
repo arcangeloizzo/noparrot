@@ -54,6 +54,10 @@ export const SpotifyPodcastCompactCard = ({
             <img
               src={imageUrl}
               alt={podcastName}
+              width={640}
+              height={640}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover"
             />
           ) : (

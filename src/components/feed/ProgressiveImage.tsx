@@ -128,8 +128,10 @@ export const ProgressiveImage = memo(function ProgressiveImage({
         <img 
           src={optimizedSrc}
           alt={alt}
+          width={1200}
+          height={1200}
           loading={priority ? "eager" : "lazy"}
-          decoding="sync"
+          decoding="async"
           onLoad={handleLoad}
           onError={handleError}
           className={cn(

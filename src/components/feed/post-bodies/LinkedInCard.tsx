@@ -87,6 +87,10 @@ export const LinkedInCard = ({
             <img
               src={articlePreview.author_avatar}
               alt=""
+              width={64}
+              height={64}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
@@ -123,6 +127,10 @@ export const LinkedInCard = ({
           <img
             src={articlePreview?.image || post.preview_img}
             alt=""
+            width={1200}
+            height={630}
+            loading="lazy"
+            decoding="async"
             className="w-full"
             style={{
               height: 150,

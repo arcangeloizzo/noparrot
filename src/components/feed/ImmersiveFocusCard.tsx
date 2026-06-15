@@ -92,6 +92,10 @@ export const ImmersiveFocusCard = ({
           <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/90 z-0" />
           <img
             src={imageUrl}
+            width={1200}
+            height={630}
+            loading="lazy"
+            decoding="async"
             className="absolute inset-0 w-full h-full object-cover opacity-50 blur-2xl scale-110 z-[-1]"
             alt=""
           />

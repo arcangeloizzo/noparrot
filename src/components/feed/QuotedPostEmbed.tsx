@@ -68,6 +68,10 @@ const CompactHeader: React.FC<{ post: any }> = ({ post }) => {
         <img
           src={author.avatar_url}
           alt={author.full_name || author.username}
+          width={96}
+          height={96}
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover"
         />
       );
@@ -226,6 +230,10 @@ const YouTubeEmbed: React.FC<{ post: any; articlePreview: any }> = ({ post, arti
           <img
             src={thumbnailUrl}
             alt={videoTitle}
+            width={1280}
+            height={720}
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 flex items-center justify-center bg-black/10">
@@ -377,6 +385,10 @@ const SocialEmbed: React.FC<{ post: any; articlePreview: any; platform: string }
           <img
             src={imageUrl}
             alt=""
+            width={1200}
+            height={630}
+            loading="lazy"
+            decoding="async"
             className="w-full max-h-[140px] object-cover rounded-lg border border-white/5 mt-1"
           />
         )}
@@ -423,6 +435,10 @@ const ArticleEmbed: React.FC<{ post: any; articlePreview: any }> = ({ post, arti
           <img
             src={faviconUrl}
             alt=""
+            width={16}
+            height={16}
+            loading="lazy"
+            decoding="async"
             className="w-3.5 h-3.5 rounded-sm object-contain"
             onError={(e) => {
               e.currentTarget.style.display = 'none';
@@ -463,6 +479,10 @@ const ArticleEmbed: React.FC<{ post: any; articlePreview: any }> = ({ post, arti
           <img
             src={imageUrl}
             alt=""
+            width={1200}
+            height={630}
+            loading="lazy"
+            decoding="async"
             className="w-full max-h-[140px] object-cover rounded-lg border border-white/5 mt-1"
           />
         )}
@@ -493,6 +513,10 @@ const StandardEmbed: React.FC<{ post: any }> = ({ post }) => {
         <img
           src={imageUrl}
           alt=""
+          width={1200}
+          height={630}
+          loading="lazy"
+          decoding="async"
           className="w-full max-h-[200px] object-cover rounded-lg border border-white/5 mt-1"
         />
       )}

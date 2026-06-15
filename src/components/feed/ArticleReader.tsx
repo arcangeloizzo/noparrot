@@ -113,6 +113,10 @@ export const ArticleReader = ({ post, isOpen, onClose, onStartQuiz }: ArticleRea
             <img 
               src={post.preview_img} 
               alt="Anteprima articolo" 
+              width={1200}
+              height={630}
+              loading="lazy"
+              decoding="async"
               className="w-full aspect-video object-cover rounded-lg mb-4"
             />
           )}

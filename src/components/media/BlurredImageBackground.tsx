@@ -23,6 +23,9 @@ export const BlurredImageBackground = ({
       <img 
         src={imageUrl}
         alt=""
+        width={1200}
+        height={1200}
+        decoding="async"
         className="w-full h-full object-cover animate-in fade-in duration-500"
         style={{ 
           filter: 'blur(6px)',

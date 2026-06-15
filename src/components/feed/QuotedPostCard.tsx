@@ -82,6 +82,10 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
         <img
           src={safeAuthor.avatar_url}
           alt={safeAuthor.full_name || safeAuthor.username}
+          width={96}
+          height={96}
+          loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover"
         />
       );
@@ -228,6 +232,10 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
                     <img
                       src={quotedPost.media[0].url}
                       alt=""
+                      width={quotedPost.media[0].width || 1080}
+                      height={quotedPost.media[0].height || 1080}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full max-h-32 object-cover rounded-lg"
                     />
                   )
@@ -245,6 +253,10 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
                           <img
                             src={m.url}
                             alt=""
+                            width={m.width || 1080}
+                            height={m.height || 1080}
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover"
                           />
                         )}
@@ -342,6 +354,10 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
                     <img
                       src={quotedPost.preview_img}
                       alt={decodeHTMLEntities(quotedPost.shared_title || '')}
+                      width={1200}
+                      height={630}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -372,6 +388,10 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
                     <img
                       src={quotedPost.media[0].url}
                       alt=""
+                      width={quotedPost.media[0].width || 1080}
+                      height={quotedPost.media[0].height || 1080}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full max-h-32 object-cover rounded-lg"
                     />
                   )
@@ -389,6 +409,10 @@ const QuotedPostCardInner = ({ quotedPost, parentSources = [], onNavigate, class
                           <img
                             src={m.url}
                             alt=""
+                            width={m.width || 1080}
+                            height={m.height || 1080}
+                            loading="lazy"
+                            decoding="async"
                             className="w-full h-full object-cover"
                           />
                         )}
