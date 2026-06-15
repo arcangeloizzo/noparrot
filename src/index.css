@@ -2006,6 +2006,7 @@ html:not(.light) .liquid-glass-navbar {
   position: relative;
   overflow: hidden;
   box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+  flex-shrink: 0;
 }
 
 /* Variante stage verticale — ombra più pronunciata (spec §5.2) */

@@ -612,7 +612,7 @@ const EditorialSlideInner = ({
                 color: 'rgba(255,255,255,0.92)',
                 textTransform: 'uppercase'
               }}
-              className="mb-3"
+              className="mb-2"
             />
 
             {/* Abstract/Lead */}
@@ -623,7 +623,7 @@ const EditorialSlideInner = ({
               const displayText = needsTruncation ? fullText.substring(0, maxInitialLength).trim() : fullText;
               
               return (
-                <div className="mb-5">
+                <div className="mb-3">
                   <p 
                     style={{ fontSize: '14px', color: '#7A8FA6', lineHeight: 1.55 }}
                     className="inline"
@@ -649,7 +649,7 @@ const EditorialSlideInner = ({
 
             {/* Fonti as Compact Tags */}
             {item.sources && item.sources.length > 0 && (
-              <div className="mb-6 pointer-events-auto flex flex-wrap gap-2">
+              <div className="mb-3 pointer-events-auto flex flex-wrap gap-2">
                 {item.sources.slice(0, 5).map((source: any, idx: number) => {
                   const colors = ['#0A7AFF', '#E41E52', '#FFD464', '#10B981', '#A78BFA'];
                   const barColor = colors[idx % colors.length];

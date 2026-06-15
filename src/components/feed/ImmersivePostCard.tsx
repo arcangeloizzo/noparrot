@@ -3207,6 +3207,8 @@ const ImmersivePostCardInner = ({
                             kind: 'image' as const,
                           };
 
+                          const imageStep = flexiblesStatus['flexible-image']?.step ?? 'full';
+
                           if (layout === 'mini') {
                             return (
                               <div className="vstage-row">
@@ -3242,37 +3244,60 @@ const ImmersivePostCardInner = ({
                                     </div>
                                   )}
                                 </div>
-                                <MediaFrame
-                                  media={mediaForFrame}
-                                  variant="mini"
-                                  onTap={() => setSelectedMediaIndex(0)}
-                                >
-                                  <div style={{
-                                    position: 'absolute', top: 8, right: 8, pointerEvents: 'auto',
-                                    width: 26, height: 26, borderRadius: 13,
-                                    background: 'rgba(0,0,0,0.45)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    color: 'white', fontSize: 13
-                                  }}>⤢</div>
-                                </MediaFrame>
+                                {imageStep === 'full' && (
+                                  <div
+                                    ref={(node) => {
+                                      registerRef('flexible-image')(node);
+                                      (mediaRef as any).current = node;
+                                    }}
+                                    className="flex-shrink-0"
+                                    style={{ alignSelf: 'flex-start' }}
+                                  >
+                                    <MediaFrame
+                                      media={mediaForFrame}
+                                      variant="mini"
+                                      onTap={() => setSelectedMediaIndex(0)}
+                                    >
+                                      <div style={{
+                                        position: 'absolute', top: 8, right: 8, pointerEvents: 'auto',
+                                        width: 26, height: 26, borderRadius: 13,
+                                        background: 'rgba(0,0,0,0.45)',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        color: 'white', fontSize: 13
+                                      }}>⤢</div>
+                                    </MediaFrame>
+                                  </div>
+                                )}
                               </div>
                             );
                           }
 
+                          if (imageStep !== 'full') {
+                            return null;
+                          }
+
                           return (
-                            <MediaFrame
-                              media={mediaForFrame}
-                              variant={layout}
-                              onTap={() => setSelectedMediaIndex(0)}
+                            <div
+                              ref={(node) => {
+                                registerRef('flexible-image')(node);
+                                (mediaRef as any).current = node;
+                              }}
+                              className="w-full flex-shrink-0"
                             >
-                              <div style={{
-                                position: 'absolute', top: 12, right: 12, pointerEvents: 'auto',
-                                width: 30, height: 30, borderRadius: 15,
-                                background: 'rgba(0,0,0,0.45)',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                color: 'white', fontSize: 14
-                              }}>⤢</div>
-                            </MediaFrame>
+                              <MediaFrame
+                                media={mediaForFrame}
+                                variant={layout}
+                                onTap={() => setSelectedMediaIndex(0)}
+                              >
+                                <div style={{
+                                  position: 'absolute', top: 12, right: 12, pointerEvents: 'auto',
+                                  width: 30, height: 30, borderRadius: 15,
+                                  background: 'rgba(0,0,0,0.45)',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  color: 'white', fontSize: 14
+                                }}>⤢</div>
+                              </MediaFrame>
+                            </div>
                           );
                         })() : (
                           /* Caso carousel o video — mantieni legacy */
