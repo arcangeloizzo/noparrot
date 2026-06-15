@@ -678,7 +678,12 @@ export type Database = {
           expires_at: string | null
           id: string
           meta_hostname: string | null
+          meta_image_ambient_url: string | null
+          meta_image_height: number | null
+          meta_image_orientation: string | null
+          meta_image_ratio: string | null
           meta_image_url: string | null
+          meta_image_width: number | null
           popularity: number | null
           source_type: string
           source_url: string
@@ -690,7 +695,12 @@ export type Database = {
           expires_at?: string | null
           id?: string
           meta_hostname?: string | null
+          meta_image_ambient_url?: string | null
+          meta_image_height?: number | null
+          meta_image_orientation?: string | null
+          meta_image_ratio?: string | null
           meta_image_url?: string | null
+          meta_image_width?: number | null
           popularity?: number | null
           source_type: string
           source_url: string
@@ -702,7 +712,12 @@ export type Database = {
           expires_at?: string | null
           id?: string
           meta_hostname?: string | null
+          meta_image_ambient_url?: string | null
+          meta_image_height?: number | null
+          meta_image_orientation?: string | null
+          meta_image_ratio?: string | null
           meta_image_url?: string | null
+          meta_image_width?: number | null
           popularity?: number | null
           source_type?: string
           source_url?: string
@@ -1893,6 +1908,11 @@ export type Database = {
           post_type: Database["public"]["Enums"]["post_type_enum"] | null
           preview_fetched_at: string | null
           preview_img: string | null
+          preview_img_ambient_url: string | null
+          preview_img_height: number | null
+          preview_img_orientation: string | null
+          preview_img_ratio: string | null
+          preview_img_width: number | null
           quoted_post_id: string | null
           removed_at: string | null
           removed_by: string | null
@@ -1925,6 +1945,11 @@ export type Database = {
           post_type?: Database["public"]["Enums"]["post_type_enum"] | null
           preview_fetched_at?: string | null
           preview_img?: string | null
+          preview_img_ambient_url?: string | null
+          preview_img_height?: number | null
+          preview_img_orientation?: string | null
+          preview_img_ratio?: string | null
+          preview_img_width?: number | null
           quoted_post_id?: string | null
           removed_at?: string | null
           removed_by?: string | null
@@ -1957,6 +1982,11 @@ export type Database = {
           post_type?: Database["public"]["Enums"]["post_type_enum"] | null
           preview_fetched_at?: string | null
           preview_img?: string | null
+          preview_img_ambient_url?: string | null
+          preview_img_height?: number | null
+          preview_img_orientation?: string | null
+          preview_img_ratio?: string | null
+          preview_img_width?: number | null
           quoted_post_id?: string | null
           removed_at?: string | null
           removed_by?: string | null
