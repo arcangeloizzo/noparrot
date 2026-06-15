@@ -186,14 +186,17 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     if (items.length === 1) {
       const singleItem = items[0];
       return (
-        <div className="w-full h-[100dvh] snap-start shrink-0 overflow-hidden">
+        <div
+          className="w-full snap-start shrink-0 overflow-hidden"
+          style={{ height: 'calc(var(--vh, 1vh) * 100)' }}
+        >
           {typeof children === 'function' ? children(singleItem, 0) : children}
         </div>
       );
     }
 
     return (
-      <div style={{ height: `${items.length * 100}dvh`, position: 'relative' }}>
+      <div style={{ height: `calc(var(--vh, 1vh) * 100 * ${items.length})`, position: 'relative' }}>
         {/*
           CUSTOM LAZY-MOUNT WINDOW WITH ABSOLUTE POSITIONING
 
@@ -214,27 +217,16 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
           iOS Safari version, consider falling back to react-virtuoso with
           `topItemIndex` (see /docs/planning/feed-virtualization-plan.md Section B).
         */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '1px',
-            height: `${items.length * 100}dvh`,
-            pointerEvents: 'none',
-          }}
-        />
-
         {visibleItems.map(({ item, actualIndex }) => (
           <div
             key={item.id ?? actualIndex}
             ref={(el) => registerCard(el, actualIndex)}
             style={{
               position: 'absolute',
-              top: `${actualIndex * 100}dvh`,
+              top: `calc(var(--vh, 1vh) * 100 * ${actualIndex})`,
               left: 0,
               right: 0,
-              height: '100dvh',
+              height: 'calc(var(--vh, 1vh) * 100)',
             }}
             className="snap-start shrink-0 overflow-hidden"
           >
@@ -250,7 +242,8 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
       <div
         ref={containerRef}
         data-tutorial="feed"
-        className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory bg-background relative"
+        className="w-full overflow-y-scroll snap-y snap-mandatory bg-background relative"
+        style={{ height: 'calc(var(--vh, 1vh) * 100)' }}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
