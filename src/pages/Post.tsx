@@ -137,8 +137,6 @@ export const Post = () => {
         shared_title: data.shared_title,
         shared_url: data.shared_url,
         preview_img: data.preview_img,
-        full_article: data.full_article,
-        article_content: data.article_content,
         trust_level: data.trust_level as 'BASSO' | 'MEDIO' | 'ALTO' | null,
         stance: data.stance as 'Condiviso' | 'Confutato' | null,
         sources: (Array.isArray(data.sources) ? data.sources : []) as string[],

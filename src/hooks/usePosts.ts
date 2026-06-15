@@ -23,8 +23,10 @@ export interface Post {
   preview_img_ratio?: string | null;
   preview_img_orientation?: string | null;
   preview_img_ambient_url?: string | null;
-  full_article: string | null;
-  article_content: string | null;
+  /** @deprecated Compliance copyright: not accessible from client, always undefined. */
+  full_article?: string | null;
+  /** @deprecated Compliance copyright: not accessible from client, always undefined. */
+  article_content?: string | null;
   trust_level: 'BASSO' | 'MEDIO' | 'ALTO' | null;
   stance: 'Condiviso' | 'Confutato' | null;
   sources: string[];
@@ -375,8 +377,6 @@ export const usePosts = () => {
         preview_img_ratio: post.preview_img_ratio,
         preview_img_orientation: post.preview_img_orientation,
         preview_img_ambient_url: post.preview_img_ambient_url,
-        full_article: post.full_article,
-        article_content: post.article_content,
         trust_level: post.trust_level,
         stance: post.stance,
         sources: post.sources || [],
@@ -857,8 +857,6 @@ export const useSavedPosts = () => {
           preview_img_ratio: post.preview_img_ratio,
           preview_img_orientation: post.preview_img_orientation,
           preview_img_ambient_url: post.preview_img_ambient_url,
-          full_article: post.full_article,
-          article_content: post.article_content,
           trust_level: post.trust_level,
           topic_tag: post.topic_tag,
           stance: post.stance,
