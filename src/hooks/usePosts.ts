@@ -23,6 +23,10 @@ export interface Post {
   preview_img_ratio?: string | null;
   preview_img_orientation?: string | null;
   preview_img_ambient_url?: string | null;
+  /** @deprecated Compliance copyright: not accessible from client, always undefined. */
+  full_article?: string | null;
+  /** @deprecated Compliance copyright: not accessible from client, always undefined. */
+  article_content?: string | null;
   trust_level: 'BASSO' | 'MEDIO' | 'ALTO' | null;
   stance: 'Condiviso' | 'Confutato' | null;
   sources: string[];
