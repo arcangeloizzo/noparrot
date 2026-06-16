@@ -2229,7 +2229,7 @@ const ImmersivePostCardInner = ({
             <CardShell.Header ref={headerRef}>
               <div className="flex justify-between items-start w-full pb-5">
               <div
-                className="flex items-center gap-3 cursor-pointer relative z-[60] min-w-0"
+                className="flex items-center gap-3 cursor-pointer relative z-[60] min-w-0 pointer-events-auto"
                 onClick={(e) => {
                   e.stopPropagation();
                   e.preventDefault();
@@ -2255,7 +2255,7 @@ const ImmersivePostCardInner = ({
             {isOwnPost ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <button className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-black/20 dark:hover:bg-white/10 transition-colors text-slate-900 dark:text-white">
+                  <button className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-black/20 dark:hover:bg-white/10 transition-colors text-slate-900 dark:text-white pointer-events-auto">
                     <MoreHorizontal className="w-4 h-4" />
                   </button>
                 </DropdownMenuTrigger>
@@ -2295,7 +2295,7 @@ const ImmersivePostCardInner = ({
             ) : (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                  <button className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-black/20 dark:hover:bg-white/10 transition-colors text-slate-900 dark:text-white">
+                  <button className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 dark:bg-black/20 dark:hover:bg-white/10 transition-colors text-slate-900 dark:text-white pointer-events-auto">
                     <MoreHorizontal className="w-4 h-4" />
                   </button>
                 </DropdownMenuTrigger>
