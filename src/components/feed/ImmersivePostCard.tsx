@@ -1872,6 +1872,7 @@ const ImmersivePostCardInner = ({
     bottomRef,
     layoutMode,
     bodyLineClamp,
+    showApprofondisci,
     titleRef,
     bodyRef,
     mediaRef,
@@ -1910,7 +1911,6 @@ const ImmersivePostCardInner = ({
   // DOM checks for text truncation using useLayoutEffect and ResizeObserver
   const bodyTextRef = useRef<HTMLParagraphElement | HTMLDivElement | null>(null);
   const captionTextRef = useRef<HTMLParagraphElement | HTMLDivElement | null>(null);
-  const [isBodyTruncated, setIsBodyTruncated] = useState(false);
   const [isCaptionTruncated, setIsCaptionTruncated] = useState(false);
 
   useLayoutEffect(() => {
@@ -1919,14 +1919,6 @@ const ImmersivePostCardInner = ({
     const checkTruncation = () => {
       requestAnimationFrame(() => {
         if (!active) return;
-        
-        let bodyTrunc = false;
-        if (bodyTextRef.current) {
-          bodyTrunc = bodyTextRef.current.scrollHeight > bodyLineClamp * BODY_LINE_HEIGHT_PX + 4;
-          setIsBodyTruncated(bodyTrunc);
-        } else {
-          setIsBodyTruncated(false);
-        }
         
         let captionTrunc = false;
         if (captionTextRef.current) {
@@ -1969,7 +1961,7 @@ const ImmersivePostCardInner = ({
     (flexiblesStatus['flexible-reshare-link-body'] && flexiblesStatus['flexible-reshare-link-body'].step !== 'full')
   );
 
-  const shouldShowApprofondisci = isBodyTruncated || isCaptionTruncated || isReshareCompressed;
+  const shouldShowApprofondisci = showApprofondisci || isCaptionTruncated || isReshareCompressed;
 
   // Update lazy mount refs (placed here to avoid TDZ for state variables declared after the refs)
   if (showShareSheet) hasMountedShare.current = true;
