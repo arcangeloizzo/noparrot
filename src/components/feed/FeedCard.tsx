@@ -451,7 +451,7 @@ export const FeedCard = ({
                       <div
                         className={cn(
                           "inline-flex items-center gap-1.5 px-2 py-1 rounded-full",
-                          "backdrop-blur-md bg-black/40 border border-white/20",
+                          "bg-black/60 border border-white/20",
                           trustScore.band === "ALTO" && "text-emerald-400",
                           trustScore.band === "MEDIO" && "text-amber-400",
                           trustScore.band === "BASSO" && "text-red-400"

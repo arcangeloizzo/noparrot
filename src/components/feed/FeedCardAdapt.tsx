@@ -930,7 +930,7 @@ export const FeedCard = ({
                   {post.author.full_name || getDisplayUsername(post.author.username)}
                 </span>
                 {isVoicePost && (
-                  <span className="h-6 px-3 text-[11px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm backdrop-blur-md"
+                  <span className="h-6 px-3 text-[11px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm"
                     // VOICECAST styling - Azzurro e blu come da Immersive
                     style={{ color: '#0A7AFF', background: 'rgba(10,122,255,0.06)', borderColor: 'rgba(10,122,255,0.2)' }}
                   >
@@ -1134,7 +1134,7 @@ export const FeedCard = ({
                         }}
                         className={cn(
                           "inline-flex items-center gap-1.5 px-2 py-1 rounded-full",
-                          "backdrop-blur-md bg-black/40 border border-white/20 transition-all",
+                          "bg-black/60 border border-white/20 transition-all",
                           trustScore.band === "ALTO" && "text-emerald-400",
                           trustScore.band === "MEDIO" && "text-amber-400",
                           trustScore.band === "BASSO" && "text-red-400"
