@@ -148,7 +148,7 @@ export const StickyComposer = ({
         className={cn(
           "fixed bottom-0 left-0 right-0 z-40",
           "bg-gradient-to-t from-background via-background/98 to-background/95",
-          "border-t border-white/10 backdrop-blur-xl",
+          "border-t border-white/10 backdrop-blur-md",
           "transition-all duration-300 ease-out"
         )}
         style={{

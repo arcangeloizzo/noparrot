@@ -30,7 +30,7 @@ export function TrustBadgeOverlay({ band, score, reasons = [], className }: Trus
         <button 
           className={cn(
             "absolute top-3 right-3 px-2.5 py-1.5 rounded-full",
-            "backdrop-blur-md border shadow-lg",
+            "border shadow-lg",
             "flex items-center gap-1.5",
             "hover:bg-white/10 transition-colors",
             colorClass,

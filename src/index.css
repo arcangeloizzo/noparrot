@@ -413,8 +413,6 @@
     top: 0 !important;
     z-index: 50 !important;
     background: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--background) / 0.95) 100%) !important;
-    backdrop-filter: blur(20px) !important;
-    -webkit-backdrop-filter: blur(20px) !important;
     border-bottom: 1px solid hsl(var(--border) / 0.4) !important;
     will-change: transform !important;
     transform: translateZ(0) !important;
@@ -564,8 +562,8 @@
 }
 
 @keyframes glass-blur {
-  0% { backdrop-filter: blur(20px); }
-  100% { backdrop-filter: blur(30px); }
+  0% { opacity: 1; }
+  100% { opacity: 1; }
 }
 
 @keyframes focus-ring {
@@ -755,9 +753,7 @@
 
 /* Feed Card Base - subtle glow */
 .feed-card-base {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
+  background: rgba(15, 18, 25, 0.85);
   box-shadow: 
     0 0 12px rgba(135, 206, 250, 0.12),
     0 0 24px rgba(135, 206, 250, 0.08),
@@ -768,7 +764,7 @@
 }
 
 .feed-card-base:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(20, 24, 32, 0.88);
   box-shadow: 
     0 0 16px rgba(135, 206, 250, 0.16),
     0 0 32px rgba(135, 206, 250, 0.1),
@@ -779,9 +775,7 @@
 
 /* Liquid Glass Card - with glow for highlighted items */
 .liquid-glass-card {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
+  background: rgba(15, 18, 25, 0.85);
   box-shadow: 
     0 0 20px rgba(135, 206, 250, 0.3),
     0 0 40px rgba(135, 206, 250, 0.15),
@@ -792,7 +786,7 @@
 }
 
 .liquid-glass-card:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(20, 24, 32, 0.88);
   box-shadow: 
     0 0 24px rgba(135, 206, 250, 0.35),
     0 0 48px rgba(135, 206, 250, 0.18),
@@ -803,7 +797,8 @@
 
   .liquid-glass-nested {
     background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(20px);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
     box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.08);
@@ -841,7 +836,8 @@ html:not(.light) .liquid-glass-navbar {
 
 .liquid-glass-fab {
   background: rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(30px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.25);
   box-shadow: 
     0 4px 12px rgba(0, 0, 0, 0.25),
@@ -1090,8 +1086,8 @@ html:not(.light) .liquid-glass-navbar {
   inset: 0;
   border-radius: inherit;
   z-index: 1;
-  backdrop-filter: blur(20px) saturate(1.7) brightness(1.08);
-  -webkit-backdrop-filter: blur(20px) saturate(1.7) brightness(1.08);
+  backdrop-filter: blur(10px) saturate(1.7) brightness(1.08);
+  -webkit-backdrop-filter: blur(10px) saturate(1.7) brightness(1.08);
   background: linear-gradient(
     120deg,
     rgba(255, 255, 255, 0.10) 0%,

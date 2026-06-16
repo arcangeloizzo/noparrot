@@ -76,7 +76,7 @@ export function PulseBadge({
         <button
           onClick={(e) => e.stopPropagation()}
           className={cn(
-            "inline-flex flex-wrap items-center justify-center rounded-xl border transition-all duration-200 active:scale-[0.97] backdrop-blur-md max-w-[120px] sm:max-w-none text-center leading-tight",
+            "inline-flex flex-wrap items-center justify-center rounded-xl border transition-all duration-200 active:scale-[0.97] max-w-[120px] sm:max-w-none text-center leading-tight",
             lightClass,
             darkClass,
             sizeClasses,

@@ -90,7 +90,7 @@ export const CollapsiblePostHeader = ({
   if (isCollapsed) {
     return (
       <div 
-        className="sticky top-0 bg-background/95 backdrop-blur-sm z-30 border-b border-border/50 cursor-pointer hover:bg-muted/30 transition-all duration-220 collapsible-header"
+        className="sticky top-0 bg-background z-30 border-b border-border/50 cursor-pointer hover:bg-muted/30 transition-all duration-220 collapsible-header"
         onClick={onExpand}
       >
         <div className="px-4 py-2 flex items-center gap-3">

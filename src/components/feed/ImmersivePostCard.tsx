@@ -2548,7 +2548,7 @@ const ImmersivePostCardInner = ({
                                   className="w-full h-full object-contain"
                                 />
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                  <div className="bg-white/90 backdrop-blur p-3 rounded-full shadow-lg">
+                                  <div className="bg-white p-3 rounded-full shadow-lg">
                                     <Play className="w-5 h-5 text-black fill-black ml-0.5" />
                                   </div>
                                 </div>
@@ -2730,7 +2730,7 @@ const ImmersivePostCardInner = ({
                                   className="w-full h-full object-contain"
                                 />
                                 <div className="absolute inset-0 flex items-center justify-center">
-                                  <div className="bg-white/90 backdrop-blur p-3 rounded-full shadow-lg">
+                                  <div className="bg-white p-3 rounded-full shadow-lg">
                                     <Play className="w-5 h-5 text-black fill-black ml-0.5" />
                                   </div>
                                 </div>
@@ -3354,7 +3354,7 @@ const ImmersivePostCardInner = ({
                                         className="w-full h-full object-contain"
                                       />
                                       <div className="absolute inset-0 flex items-center justify-center">
-                                        <div className="bg-white/90 backdrop-blur p-3 rounded-full shadow-lg">
+                                        <div className="bg-white p-3 rounded-full shadow-lg">
                                           <Play className="w-5 h-5 text-black fill-black ml-0.5" />
                                         </div>
                                       </div>

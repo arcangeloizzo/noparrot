@@ -560,7 +560,7 @@ export const QuotedPostEmbed: React.FC<QuotedPostEmbedProps> = ({
         navigateFn?.();
       }}
       className={cn(
-        "border border-white/10 rounded-xl p-2.5 bg-white/[0.03] backdrop-blur-sm cursor-pointer hover:bg-white/[0.06] active:opacity-80 transition-all select-none",
+        "border border-white/10 rounded-xl p-2.5 bg-white/[0.04] cursor-pointer hover:bg-white/[0.07] active:opacity-80 transition-all select-none",
         className
       )}
     >

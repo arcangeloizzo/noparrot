@@ -122,7 +122,7 @@ export const ImmersiveFocusCard = ({
               <DialogTrigger asChild>
                 <button
                   onClick={(e) => e.stopPropagation()}
-                  className="h-8 inline-flex items-center gap-2 px-3 rounded-full backdrop-blur-xl border cursor-pointer hover:opacity-80 transition-opacity whitespace-nowrap bg-[#0A7AFF]/20 border-[#0A7AFF]/30 text-[#0A7AFF]"
+                  className="h-8 inline-flex items-center gap-2 px-3 rounded-full border cursor-pointer hover:opacity-80 transition-opacity whitespace-nowrap bg-[#0A7AFF]/30 border-[#0A7AFF]/30 text-[#0A7AFF]"
                   data-tutorial="il-punto"
                 >
                   <span className="text-xs font-bold tracking-wide font-mono">
@@ -161,7 +161,7 @@ export const ImmersiveFocusCard = ({
                   <button
                     onClick={(e) => e.stopPropagation()}
                     className={cn(
-                      "h-8 flex items-center gap-1.5 bg-black/30 backdrop-blur-xl border border-white/10 px-3 rounded-full cursor-pointer hover:bg-black/40 transition-colors whitespace-nowrap",
+                      "h-8 flex items-center gap-1.5 bg-black/50 border border-white/10 px-3 rounded-full cursor-pointer hover:bg-black/60 transition-colors whitespace-nowrap",
                       trustScore.toLowerCase() === 'alto' && "text-emerald-400",
                       trustScore.toLowerCase() === 'medio' && "text-amber-400",
                       trustScore.toLowerCase() === 'basso' && "text-red-400"
@@ -237,7 +237,7 @@ export const ImmersiveFocusCard = ({
               const shortestSource = sortedByLength[0];
               return (
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <button className="inline-flex items-center px-3 py-1.5 bg-white/10 backdrop-blur-md rounded-full text-xs text-white/80 font-medium border border-white/10 max-w-[180px]">
+                  <button className="inline-flex items-center px-3 py-1.5 bg-white/15 rounded-full text-xs text-white/80 font-medium border border-white/10 max-w-[180px]">
                     <span className="truncate">
                       {shortestSource?.name?.toLowerCase() || 'fonti'}
                     </span>
@@ -268,7 +268,7 @@ export const ImmersiveFocusCard = ({
           </button>
 
           {/* Reactions - Horizontal layout h-10 matching share button */}
-          <div className="flex items-center gap-1 bg-black/20 backdrop-blur-xl h-10 px-3 rounded-2xl border border-white/5">
+          <div className="flex items-center gap-1 bg-black/50 h-10 px-3 rounded-2xl border border-white/5">
 
             {/* Like */}
             <button

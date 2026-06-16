@@ -23,7 +23,7 @@ export function UnanalyzableBadge({ className }: UnanalyzableBadgeProps) {
           className={cn(
             "px-2.5 py-1.5 rounded-full flex items-center gap-1.5",
             "bg-zinc-800/80 border border-zinc-700",
-            "text-white/90 backdrop-blur-sm",
+            "text-white/90",
             "hover:bg-zinc-700/80 transition-colors",
             className
           )}

@@ -50,7 +50,7 @@ export const CognitiveBanner = ({
         "fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[9999]",
         "w-[90vw] max-w-[640px] min-h-[56px] max-h-[64px]",
         "flex items-center gap-4 px-6 py-4",
-        "rounded-2xl shadow-lg backdrop-blur-sm",
+        "rounded-2xl shadow-lg",
         "transition-all duration-300 ease-out",
         isFadingOut ? "opacity-0 scale-95" : "opacity-95 scale-100 animate-cognitive-fade-in",
         {
