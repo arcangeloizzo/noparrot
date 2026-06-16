@@ -58,6 +58,7 @@ import { SpotifyGradientBackground } from "./SpotifyGradientBackground";
 import { SpotifyPodcastCompactCard } from "./SpotifyPodcastCompactCard";
 import { SpotifyTrackEmbed } from "./embeds/SpotifyTrackEmbed";
 import { TwitterTweetEmbed } from "./embeds/TwitterTweetEmbed";
+import { LinkedInEmbedCard } from "./embeds/LinkedInEmbedCard";
 import { SourceImageWithFallback } from "./SourceImageWithFallback";
 import { FullTextModal } from "./FullTextModal";
 import { DynamicClampBody } from "./DynamicClampBody";
@@ -3407,118 +3408,27 @@ const ImmersivePostCardInner = ({
                   slotBottomRef={slotBottomRef}
                 />
               ) : hasLink && isLinkedIn ? (
-                <div 
-                  className={cn(
-                    "flex-1 min-h-0 w-full flex flex-col justify-start",
-                    emergencyScroll && "overflow-y-auto"
-                  )}
-                >
-                  {/* post.title (titolo NoParrot dato dall'utente) */}
-                  {!useStackLayout && post.title && post.title.trim().length > 0 && (
-                    <ClampedTitle
-                      as="h2"
-                      text={post.title}
-                      maxLines={3}
-                      ref={(node) => {
-                        registerRef('essential-title')(node);
-                        (titleRef as any).current = node;
-                      }}
-                      className="uppercase mb-2 flex-shrink-0"
-                      style={{
-                        fontFamily: 'Impact, sans-serif',
-                        fontSize: 'clamp(30px, 8vw, 42px)',
-                        lineHeight: 0.92,
-                        letterSpacing: '-0.02em',
-                        color: '#FFFFFF',
-                        textAlign: 'left',
-                      }}
-                    />
-                  )}
-
-                  {/* Commento utente flessibile (3 stati) */}
-                  {!useStackLayout && post.content && post.content.trim().length > 0 && (
-                    <div 
-                      ref={(el) => {
-                        (bodyRef as any).current = el;
-                        bodyTextRef.current = el;
-                      }} 
-                      className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
-                      style={{ 
-                        fontFamily: 'Inter, sans-serif', 
-                        lineHeight: 1.55,
-                        display: '-webkit-box',
-                        WebkitLineClamp: bodyLineClamp,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden'
-                      }}
-                    >
-                      <MentionText content={post.content} />
-                    </div>
-                  )}
-
-                  {/* Approfondisci */}
-                  {!useStackLayout && shouldShowApprofondisci && (
-                    <div className="flex-shrink-0 mt-2 mb-3 text-left">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
-                        className="text-sm text-primary font-semibold hover:underline block"
-                      >
-                        Approfondisci
-                      </button>
-                    </div>
-                  )}
-
-                  <div className="slot-bottom" ref={slotBottomRef}>
-                    {/* LinkedIn embed (essenziale a stati) */}
-                    {(!useStackLayout || linkedinEmbedStep === 'full') && (
-                      <div 
-                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-linkedin-embed')} 
-                        style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                        className="w-full mt-auto flex-shrink-0"
-                      >
-                        <LinkedInCard
-                          post={post}
-                          articlePreview={articlePreview}
-                          useStackLayout={useStackLayout}
-                          embedStep={useStackLayout ? 'full' : (linkedinEmbedStep as any || 'full')}
-                        />
-                      </div>
-                    )}
-
-                    {useStackLayout && (linkedinEmbedStep === 'pill' || linkedinEmbedStep === 'compact') && (
-                      <div 
-                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-linkedin-embed')} 
-                        className="flex-shrink-0 mt-auto" 
-                        style={{ height: '36px' }}
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (post.shared_url) {
-                              window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                            }
-                          }}
-                          className="inline-flex h-9 items-center gap-1.5 bg-[#0A66C2] hover:bg-[#0A66C2]/90 border border-white/10 px-4 rounded-full text-white"
-                        >
-                          <span className="text-xs font-bold">📎 Apri LinkedIn</span>
-                        </button>
-                      </div>
-                    )}
-
-                    {useStackLayout && linkedinEmbedStep === 'hidden' && (
-                      <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
-                    )}
-
-                    {!useStackLayout && post.shared_url && (
-                      <CardExternalCTA 
-                        platform="linkedin" 
-                        url={post.shared_url} 
-                        mode="flow" 
-                        ref={registerRef('essential-external-cta')}
-                      />
-                    )}
-                  </div>
-                </div>
+                <LinkedInEmbedCard
+                  articlePreview={articlePreview}
+                  isNearActive={isNearActive}
+                  postTitle={post.title || undefined}
+                  postContent={post.content || undefined}
+                  sharedUrl={post.shared_url || undefined}
+                  sharedTitle={post.shared_title || undefined}
+                  previewImg={post.preview_img || undefined}
+                  useStackLayout={useStackLayout}
+                  emergencyScroll={emergencyScroll || false}
+                  bodyLineClamp={bodyLineClamp}
+                  shouldShowApprofondisci={shouldShowApprofondisci}
+                  linkedinEmbedStep={linkedinEmbedStep || "full"}
+                  flexiblesStatus={flexiblesStatus}
+                  onOpenFullText={openFullTextDrawer}
+                  registerRef={registerRef}
+                  titleRef={titleRef}
+                  bodyRef={bodyRef}
+                  bodyTextRef={bodyTextRef}
+                  slotBottomRef={slotBottomRef}
+                />
               ) : hasLink && isYoutubeShort ? (
                 <>
                   <div
