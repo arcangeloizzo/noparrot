@@ -26,6 +26,7 @@ export interface UseDynamicCardLayoutProps {
   flexibles: FlexibleElementConfig[];
   compressionPriority: string[];
   postId?: string;
+  enabled?: boolean;
 }
 
 export interface FlexibleElementStatus {
@@ -62,7 +63,8 @@ export function useDynamicCardLayout({
   essentials,
   flexibles,
   compressionPriority,
-  postId
+  postId,
+  enabled = true
 }: UseDynamicCardLayoutProps): CardLayoutResult {
   const [status, setStatus] = useState<'pending' | 'measured'>('pending');
 
@@ -131,7 +133,7 @@ export function useDynamicCardLayout({
   const serializedFlexibles = JSON.stringify(flexibles);
   const serializedPriority = JSON.stringify(compressionPriority);
   useLayoutEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !enabled) return;
 
     const computeLayout = () => {
       let currentAvailableHeight = availableHeight;
@@ -543,7 +545,7 @@ export function useDynamicCardLayout({
       observer.disconnect();
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
-  }, [availableHeight, serializedEssentials, serializedFlexibles, serializedPriority, postId]);
+  }, [availableHeight, serializedEssentials, serializedFlexibles, serializedPriority, postId, enabled]);
 
   // Dev-only warning per ref mancanti o blocco in pending
   useEffect(() => {

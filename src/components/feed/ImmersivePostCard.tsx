@@ -321,7 +321,7 @@ const ImmersivePostCardInner = ({
   const createThread = useCreateThread();
   const sendMessage = useSendMessage();
   const isOwnPost = user?.id === post.author.id;
-  const { data: pollData } = usePollForPost(post.id);
+  const { data: pollData } = usePollForPost(post.id, { enabled: isActive });
   const canEdit = isOwnPost &&
     (post.reactions?.hearts || 0) === 0 &&
     (post.reactions?.comments || 0) === 0 &&
@@ -332,7 +332,7 @@ const ImmersivePostCardInner = ({
 
   // Article preview via React Query hook (cached, prefetched)
   const urlToPreview = post.shared_url || quotedPost?.shared_url;
-  const { data: articlePreviewData, isLoading: isPreviewLoading } = useArticlePreview(urlToPreview);
+  const { data: articlePreviewData, isLoading: isPreviewLoading } = useArticlePreview(urlToPreview, { enabled: isNearActive });
 
   // ===== HARDENING 2: Detect if we're waiting for preview data =====
   const isWaitingForPreview = isPreviewLoading && !!urlToPreview;
@@ -422,7 +422,7 @@ const ImmersivePostCardInner = ({
   const [showPeoplePicker, setShowPeoplePicker] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showAdminRemoveDialog, setShowAdminRemoveDialog] = useState(false);
-  const { data: adminRole } = useAdminRole();
+  const { data: adminRole } = useAdminRole({ enabled: isActive });
   const isStaff = adminRole?.isStaff;
   const [shareAction, setShareAction] = useState<'feed' | 'friend' | null>(null);
 
@@ -543,7 +543,8 @@ const ImmersivePostCardInner = ({
   const needsDeepSourceLookup = !!post.quoted_post_id && !effectiveSharedUrl;
 
   const { data: originalSource } = useOriginalSource(
-    needsDeepSourceLookup ? post.quoted_post_id : null
+    needsDeepSourceLookup ? post.quoted_post_id : null,
+    { enabled: isNearActive }
   );
 
   // Final effective source: prefer direct, fallback to deep chain search
@@ -572,7 +573,7 @@ const ImmersivePostCardInner = ({
 
   // For reshares: lookup cached trust score directly from DB (zero AI calls)
   // Use finalSourceUrl which includes deep chain sources
-  const { data: cachedTrustScore } = useCachedTrustScore(finalSourceUrl);
+  const { data: cachedTrustScore } = useCachedTrustScore(finalSourceUrl, { enabled: isNearActive });
 
   // Trust score via React Query hook (cached, with AI fallback)
   const isTwitterUrl = post.shared_url?.includes('x.com') || post.shared_url?.includes('twitter.com');
@@ -1455,7 +1456,7 @@ const ImmersivePostCardInner = ({
   } else if (hasLongBody || hasAudioPlayer) {
     imageHeightClass = 'img-compact';
   }
-  const { responses: challengeResponses, userVote, voteForResponse, removeVote } = useChallengeResponses(challengeIdForResponses);
+  const { responses: challengeResponses, userVote, voteForResponse, removeVote } = useChallengeResponses(challengeIdForResponses, { enabled: isActive });
   const [challengeDrawerOpen, setChallengeDrawerOpen] = useState(false);
 
   // Challenge countdown
@@ -1883,7 +1884,8 @@ const ImmersivePostCardInner = ({
     essentials: essentialsConfig,
     flexibles: flexiblesConfig,
     compressionPriority: priorityConfig,
-    postId: post.id
+    postId: post.id,
+    enabled: isNearActive
   });
 
   const tweetEmbedStep = useStackLayout 
@@ -2560,6 +2562,7 @@ const ImmersivePostCardInner = ({
                               initialIndex={carouselIndex}
                               onIndexChange={setCarouselIndex}
                               className="h-full w-full object-contain"
+                              isActive={isActive}
                             />
                           )}
                         </div>
@@ -2602,24 +2605,36 @@ const ImmersivePostCardInner = ({
                   <div className="slot-bottom" ref={slotBottomRef}>
                     {essentialStates['essential-voice-player'] === 'standard' && (
                       <div ref={registerRef('essential-voice-player')} className="w-full mt-auto flex-shrink-0">
-                        <ImmersiveVoicePlayerV2
-                          audioUrl={activeVoicePost?.audio_url || ''}
-                          durationSeconds={activeVoicePost?.duration_seconds || 0}
-                          transcriptStatus={activeVoicePost?.transcript_status as any}
-                          onShowTranscript={() => openFullTextDrawer('transcript')}
-                        />
+                        {isActive ? (
+                          <ImmersiveVoicePlayerV2
+                            audioUrl={activeVoicePost?.audio_url || ''}
+                            durationSeconds={activeVoicePost?.duration_seconds || 0}
+                            transcriptStatus={activeVoicePost?.transcript_status as any}
+                            onShowTranscript={() => openFullTextDrawer('transcript')}
+                          />
+                        ) : (
+                          <div className="w-full h-[52px] rounded-xl bg-white/5 border border-white/10 animate-pulse flex items-center justify-center text-xs text-white/40">
+                            Caricamento player vocale...
+                          </div>
+                        )}
                       </div>
                     )}
                     {essentialStates['essential-voice-player'] === 'compact' && (
                       <div ref={registerRef('essential-voice-player')} className="w-full mt-auto flex-shrink-0">
-                        <VoicePlayer 
-                          compact 
-                          audioUrl={activeVoicePost?.audio_url || ''}
-                          durationSeconds={activeVoicePost?.duration_seconds || 0}
-                          transcript={activeVoicePost?.transcript}
-                          transcriptStatus={activeVoicePost?.transcript_status as any}
-                          onShowTranscript={() => openFullTextDrawer('transcript')}
-                        />
+                        {isActive ? (
+                          <VoicePlayer 
+                            compact 
+                            audioUrl={activeVoicePost?.audio_url || ''}
+                            durationSeconds={activeVoicePost?.duration_seconds || 0}
+                            transcript={activeVoicePost?.transcript}
+                            transcriptStatus={activeVoicePost?.transcript_status as any}
+                            onShowTranscript={() => openFullTextDrawer('transcript')}
+                          />
+                        ) : (
+                          <div className="w-full h-[36px] rounded-lg bg-white/5 border border-white/10 animate-pulse flex items-center justify-center text-[10px] text-white/30">
+                            Caricamento player vocale...
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -2742,6 +2757,7 @@ const ImmersivePostCardInner = ({
                               initialIndex={carouselIndex}
                               onIndexChange={setCarouselIndex}
                               className="h-full w-full object-contain"
+                              isActive={isActive}
                             />
                           )}
                         </div>
@@ -2784,15 +2800,21 @@ const ImmersivePostCardInner = ({
                   <div className="slot-bottom" ref={slotBottomRef}>
                     {/* Player audio compact (essential-challenge-player) */}
                     <div ref={registerRef('essential-challenge-player')} className="w-full mt-auto flex-shrink-0">
-                      <VoicePlayer 
-                        compact 
-                        audioUrl={activeVoicePost?.audio_url || ''}
-                        durationSeconds={activeVoicePost?.duration_seconds || 0}
-                        transcript={activeVoicePost?.transcript}
-                        transcriptStatus={activeVoicePost?.transcript_status as any}
-                        accentColor="#E41E52"
-                        onShowTranscript={() => openFullTextDrawer('transcript')}
-                      />
+                      {isActive ? (
+                        <VoicePlayer 
+                          compact 
+                          audioUrl={activeVoicePost?.audio_url || ''}
+                          durationSeconds={activeVoicePost?.duration_seconds || 0}
+                          transcript={activeVoicePost?.transcript}
+                          transcriptStatus={activeVoicePost?.transcript_status as any}
+                          accentColor="#E41E52"
+                          onShowTranscript={() => openFullTextDrawer('transcript')}
+                        />
+                      ) : (
+                        <div className="w-full h-[36px] rounded-lg bg-white/5 border border-white/10 animate-pulse flex items-center justify-center text-[10px] text-white/30">
+                          Caricamento player vocale...
+                        </div>
+                      )}
                     </div>
 
                     {/* Polarization bar (essential-polarization) */}
@@ -3366,6 +3388,7 @@ const ImmersivePostCardInner = ({
                                     initialIndex={carouselIndex}
                                     onIndexChange={setCarouselIndex}
                                     className="h-full w-full object-contain"
+                                    isActive={isActive}
                                   />
                                 )}
                               </div>

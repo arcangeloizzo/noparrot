@@ -25,13 +25,14 @@ export interface PollData {
   allow_multiple: boolean;
 }
 
-export const usePollForPost = (postId: string | undefined) => {
+export const usePollForPost = (postId: string | undefined, options?: { enabled?: boolean }) => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const isEnabled = (options?.enabled ?? true);
 
   const query = useQuery({
     queryKey: ['poll', postId],
-    enabled: !!postId,
+    enabled: !!postId && isEnabled,
     staleTime: 30_000,
     queryFn: async (): Promise<PollData | null> => {
       if (!postId) return null;

@@ -81,7 +81,7 @@ const MAX_CHAIN_DEPTH = 10;
  * Traverses the entire quoted_post_id chain to find the FIRST post with a shared_url or media.
  * Returns the last retrieved ancestor (root) if none have shared_url or media.
  */
-export function useOriginalSource(quotedPostId: string | null) {
+export function useOriginalSource(quotedPostId: string | null, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['original-source', quotedPostId],
     queryFn: async (): Promise<OriginalSource | null> => {
@@ -217,7 +217,7 @@ export function useOriginalSource(quotedPostId: string | null) {
 
       return null;
     },
-    enabled: !!quotedPostId,
+    enabled: !!quotedPostId && (options?.enabled ?? true),
     staleTime: 5 * 60 * 1000,
   });
 }

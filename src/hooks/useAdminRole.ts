@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-export function useAdminRole() {
+export function useAdminRole(options?: { enabled?: boolean }) {
   const { user } = useAuth();
 
   return useQuery({
@@ -29,7 +29,7 @@ export function useAdminRole() {
         role
       };
     },
-    enabled: !!user,
+    enabled: !!user && (options?.enabled ?? true),
     staleTime: 1000 * 60 * 30, // 30 minutes
   });
 }

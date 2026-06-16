@@ -23,7 +23,7 @@ interface ArticlePreview {
  * Hook for fetching and caching article previews with React Query.
  * Uses aggressive caching (30 min staleTime, 1 hour gcTime) to minimize network requests.
  */
-export function useArticlePreview(url: string | null | undefined) {
+export function useArticlePreview(url: string | null | undefined, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['article-preview', url],
     queryFn: async (): Promise<ArticlePreview | null> => {
@@ -45,7 +45,7 @@ export function useArticlePreview(url: string | null | undefined) {
         return null;
       }
     },
-    enabled: !!url,
+    enabled: !!url && (options?.enabled ?? true),
     staleTime: 1000 * 60 * 5,         // 5 minutes - allow refetch if data might be stale
     gcTime: 1000 * 60 * 60,           // 1 hour in memory
     refetchOnWindowFocus: false,      // Don't refetch on tab focus

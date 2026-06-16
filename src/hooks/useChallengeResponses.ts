@@ -25,13 +25,14 @@ interface ChallengeResponse {
   };
 }
 
-export function useChallengeResponses(challengeId: string | null) {
+export function useChallengeResponses(challengeId: string | null, options?: { enabled?: boolean }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const isEnabled = (options?.enabled ?? true);
 
   const responsesQuery = useQuery({
     queryKey: ["challenge-responses", challengeId],
-    enabled: !!challengeId,
+    enabled: !!challengeId && isEnabled,
     queryFn: async (): Promise<ChallengeResponse[]> => {
       if (!challengeId) return [];
 
@@ -95,7 +96,7 @@ export function useChallengeResponses(challengeId: string | null) {
   // Fetch user's vote for this challenge
   const userVoteQuery = useQuery({
     queryKey: ["challenge-user-vote", challengeId, user?.id],
-    enabled: !!challengeId && !!user?.id,
+    enabled: !!challengeId && !!user?.id && isEnabled,
     queryFn: async () => {
       const { data } = await supabase
         .from("challenge_votes")

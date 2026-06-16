@@ -39,9 +39,10 @@ interface MediaGalleryProps {
   onIndexChange?: (index: number) => void;
   className?: string; // Allow custom styling/constraints from parent
   fillHeight?: boolean; // New prop to force height filling
+  isActive?: boolean;
 }
 
-export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, className, fillHeight }: MediaGalleryProps) => {
+export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, className, fillHeight, isActive = true }: MediaGalleryProps) => {
   if (!media || media.length === 0) return null;
 
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -116,17 +117,31 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
             />
           ) : (
             <div className={cn("relative", fillHeight ? "h-full w-full bg-black" : "aspect-video")}>
-              <video
-                src={item.url}
-                poster={item.thumbnail_url}
-                controls
-                playsInline
-                className={cn("w-full", fillHeight ? "h-full object-contain" : "aspect-video bg-black")}
-                preload="metadata"
-                onClick={(e) => e.stopPropagation()}
-              >
-                Il tuo browser non supporta il tag video.
-              </video>
+              {isActive ? (
+                <video
+                  src={item.url}
+                  poster={item.thumbnail_url}
+                  controls
+                  playsInline
+                  className={cn("w-full", fillHeight ? "h-full object-contain" : "aspect-video bg-black")}
+                  preload="metadata"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Il tuo browser non supporta il tag video.
+                </video>
+              ) : (
+                <div className="relative w-full h-full">
+                  <img
+                    src={item.thumbnail_url || item.url}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/35">
+                    <Play className="w-12 h-12 text-white/80" fill="currentColor" />
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -187,17 +202,31 @@ export const MediaGallery = ({ media, onClick, initialIndex = 0, onIndexChange, 
               )
             ) : (
               <div className={cn("relative bg-black", fillHeight ? "h-full w-full" : "aspect-video")}>
-                <video
-                  src={item.url}
-                  poster={item.thumbnail_url}
-                  controls
-                  playsInline
-                  className="w-full h-full object-contain"
-                  preload="metadata"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Il tuo browser non supporta il tag video.
-                </video>
+                {isActive ? (
+                  <video
+                    src={item.url}
+                    poster={item.thumbnail_url}
+                    controls
+                    playsInline
+                    className="w-full h-full object-contain"
+                    preload="metadata"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Il tuo browser non supporta il tag video.
+                  </video>
+                ) : (
+                  <div className="relative w-full h-full">
+                    <img
+                      src={item.thumbnail_url || item.url}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/35">
+                      <Play className="w-12 h-12 text-white/80" fill="currentColor" />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

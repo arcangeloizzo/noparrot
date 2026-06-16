@@ -12,7 +12,7 @@ interface CachedTrustScore {
  * Used for reshared posts to avoid recalculating the score.
  * Requires authenticated user.
  */
-export function useCachedTrustScore(sourceUrl: string | null | undefined) {
+export function useCachedTrustScore(sourceUrl: string | null | undefined, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['cached-trust-score', sourceUrl],
     queryFn: async (): Promise<CachedTrustScore | null> => {
@@ -41,7 +41,7 @@ export function useCachedTrustScore(sourceUrl: string | null | undefined) {
         reasons: data.data.reasons as string[]
       };
     },
-    enabled: !!sourceUrl,
+    enabled: !!sourceUrl && (options?.enabled ?? true),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
