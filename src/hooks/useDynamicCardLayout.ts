@@ -41,6 +41,7 @@ export interface CardLayoutResult {
   flexiblesStatus: Record<string, FlexibleElementStatus>;
   showDrawerCta: boolean;
   emergencyScroll: boolean;
+  isCaptionTruncated: boolean;
   registerRef: (id: string) => (node: HTMLElement | null) => void;
   headerRef: React.RefObject<HTMLDivElement>;
   badgeRef: React.RefObject<HTMLDivElement>;
@@ -98,6 +99,7 @@ export function useDynamicCardLayout({
     flexiblesStatus: Record<string, FlexibleElementStatus>;
     showDrawerCta: boolean;
     emergencyScroll: boolean;
+    isCaptionTruncated: boolean;
   }>(() => {
     // Configurazione iniziale di fallback per il primo frame ('pending')
     const initialFlexStatus: Record<string, FlexibleElementStatus> = {};
@@ -118,7 +120,8 @@ export function useDynamicCardLayout({
       essentialStates: initialEssentialStates,
       flexiblesStatus: initialFlexStatus,
       showDrawerCta: false,
-      emergencyScroll: false
+      emergencyScroll: false,
+      isCaptionTruncated: false
     };
   });
 
@@ -432,20 +435,28 @@ export function useDynamicCardLayout({
         }
       }
 
+      // Calcola se la didascalia (flexible-text) è troncata
+      const captionEl = elementRefs.current['flexible-text'];
+      const isCaptionTruncated = captionEl
+        ? captionEl.scrollHeight > captionEl.clientHeight + 4
+        : false;
+
       // Evita aggiornamenti di stato se i valori sono identici a quelli correnti
       const prevResult = layoutResultRef.current;
       const isIdentical = 
         JSON.stringify(prevResult.essentialStates) === JSON.stringify(currentEssentialStates) &&
         JSON.stringify(prevResult.flexiblesStatus) === JSON.stringify(currentFlexStatus) &&
         prevResult.showDrawerCta === showDrawerCta &&
-        prevResult.emergencyScroll === emergencyScroll;
+        prevResult.emergencyScroll === emergencyScroll &&
+        prevResult.isCaptionTruncated === isCaptionTruncated;
 
       if (!isIdentical) {
         setLayoutResult({
           essentialStates: currentEssentialStates,
           flexiblesStatus: currentFlexStatus,
           showDrawerCta,
-          emergencyScroll
+          emergencyScroll,
+          isCaptionTruncated
         });
       }
 
@@ -468,14 +479,14 @@ export function useDynamicCardLayout({
         - SAFETY;
 
       const bodyEl = bodyRef.current;
-      const lineHeight = bodyEl
-        ? parseFloat(window.getComputedStyle(bodyEl).lineHeight) || 21.7
-        : 21.7; // default standard body line-height
-      const computedLineClamp = Math.max(3, Math.floor(availableForBody / lineHeight));
+      // Costante statica del design system (fontSize 14px * lineHeight 1.55)
+      // che corrisponde a text-[14px] e lineHeight: 1.55 inline in ImmersivePostCard.tsx
+      const LINE_HEIGHT = 21.7;
+      const computedLineClamp = Math.max(3, Math.floor(availableForBody / LINE_HEIGHT));
       setBodyLineClamp(prev => prev !== computedLineClamp ? computedLineClamp : prev);
 
       const bodyFullHeight = bodyEl?.scrollHeight ?? 0;
-      const bodyClampedHeight = computedLineClamp * lineHeight;
+      const bodyClampedHeight = computedLineClamp * LINE_HEIGHT;
       const isBodyTruncated = bodyFullHeight > bodyClampedHeight + 4;
       setShowApprofondisci(prev => prev !== isBodyTruncated ? isBodyTruncated : prev);
 
@@ -568,6 +579,7 @@ export function useDynamicCardLayout({
     flexiblesStatus: layoutResult.flexiblesStatus,
     showDrawerCta: layoutResult.showDrawerCta,
     emergencyScroll: layoutResult.emergencyScroll,
+    isCaptionTruncated: layoutResult.isCaptionTruncated,
     registerRef,
     headerRef,
     badgeRef,
