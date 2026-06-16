@@ -507,31 +507,13 @@ export function useDynamicCardLayout({
       });
     };
 
-    // Debounce ResizeObserver to 100ms — collapses bursts of resize events
-    // (which are very frequent during scroll on iOS Safari) into a single
-    // RAF-batched recompute.
-    let timeoutId: number | null = null;
-    const throttledResize = () => {
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
-      timeoutId = window.setTimeout(() => {
-        timeoutId = null;
-        handleResize();
-      }, 100);
-    };
-
     const observer = new ResizeObserver((entries) => {
       let shouldUpdate = false;
       for (const entry of entries) {
-        if (midRef.current && entry.target === midRef.current) {
-          shouldUpdate = true;
-          continue;
-        }
         const targetId = Object.keys(elementRefs.current).find(
           key => elementRefs.current[key] === entry.target
         );
-        if (!targetId) continue;
+        if (targetId !== 'card-container') continue;
 
         const { height } = entry.contentRect;
         const prevHeight = prevHeightsRef.current[targetId] || 0;
@@ -542,53 +524,24 @@ export function useDynamicCardLayout({
       }
 
       if (shouldUpdate) {
-        throttledResize();
+        handleResize();
       }
     });
 
     observerRef.current = observer;
 
-    // Monitora il contenitore principale della card
+    // Monitora esclusivamente il contenitore principale della card (evita feedback loop)
     const containerNode = elementRefs.current['card-container'];
     if (containerNode) {
       observer.observe(containerNode);
     }
 
-    // Monitora la ContentRail (midRef) per i cambiamenti di dimensione
-    if (midRef.current) {
-      observer.observe(midRef.current);
-    }
-
-    // Monitora gli essenziali stabili misurati runtime
-    for (const ess of essentials) {
-      if (ess.staticHeight === undefined && (!ess.states || ess.states.length === 0)) {
-        const node = elementRefs.current[ess.id];
-        if (node) {
-          observer.observe(node);
-        }
-      }
-    }
-
-    // Esegue il primo calcolo sincrono, poi re-run dopo due frame per stabilità
+    // Esegue il calcolo iniziale
     handleResize();
-
-    let rAF1: number;
-    let rAF2: number;
-
-    rAF1 = requestAnimationFrame(() => {
-      rAF2 = requestAnimationFrame(() => {
-        handleResize();
-      });
-    });
 
     return () => {
       observer.disconnect();
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
       if (rafId !== null) cancelAnimationFrame(rafId);
-      if (rAF1) cancelAnimationFrame(rAF1);
-      if (rAF2) cancelAnimationFrame(rAF2);
     };
   }, [availableHeight, serializedEssentials, serializedFlexibles, serializedPriority, postId]);
 
