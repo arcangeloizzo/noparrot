@@ -2,7 +2,9 @@ import React, { useRef, useState, forwardRef, useImperativeHandle, useCallback, 
 import { useQueryClient } from "@tanstack/react-query";
 
 // Export OVERSCAN constant for easy tuning
-export const OVERSCAN = 3;
+// Reduced from 3 -> 1 to mount only 3 cards (1+1+1) instead of 7.
+// Lowers mount/unmount churn + GC pressure during scroll.
+export const OVERSCAN = 1;
 
 // Context to share activeIndex with child cards without prop drilling
 interface FeedContextValue {

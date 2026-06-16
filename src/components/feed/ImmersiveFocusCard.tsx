@@ -40,7 +40,7 @@ interface ImmersiveFocusCardProps {
   onShare?: () => void;
 }
 
-export const ImmersiveFocusCard = ({
+const ImmersiveFocusCardImpl = ({
   focusId,
   type = 'daily',
   category,

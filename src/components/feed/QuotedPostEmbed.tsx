@@ -524,7 +524,7 @@ const StandardEmbed: React.FC<{ post: any }> = ({ post }) => {
   );
 };
 
-export const QuotedPostEmbed: React.FC<QuotedPostEmbedProps> = ({
+const QuotedPostEmbedImpl: React.FC<QuotedPostEmbedProps> = ({
   post: directPost,
   quotedPost: compatPost,
   onPress,
