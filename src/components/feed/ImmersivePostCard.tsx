@@ -1930,17 +1930,6 @@ const ImmersivePostCardInner = ({
         if (captionTextRef.current) {
           captionTrunc = captionTextRef.current.scrollHeight > captionTextRef.current.clientHeight;
           setIsCaptionTruncated(captionTrunc);
-          
-          console.log('[ImmersivePostCard Truncation Debug]', {
-            post_id: post.id,
-            post_title: post.title,
-            scrollHeight: captionTextRef.current.scrollHeight,
-            clientHeight: captionTextRef.current.clientHeight,
-            isOverflow: captionTrunc,
-            text: captionTextRef.current.textContent?.slice(0, 30),
-            display: window.getComputedStyle(captionTextRef.current).display,
-            webkitLineClamp: window.getComputedStyle(captionTextRef.current).webkitLineClamp
-          });
         } else {
           setIsCaptionTruncated(false);
         }
