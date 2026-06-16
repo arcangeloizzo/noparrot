@@ -60,6 +60,7 @@ import { SpotifyTrackEmbed } from "./embeds/SpotifyTrackEmbed";
 import { TwitterTweetEmbed } from "./embeds/TwitterTweetEmbed";
 import { LinkedInEmbedCard } from "./embeds/LinkedInEmbedCard";
 import { YouTubeShortEmbed } from "./embeds/YouTubeShortEmbed";
+import { YouTubeVideoEmbed } from "./embeds/YouTubeVideoEmbed";
 import { SourceImageWithFallback } from "./SourceImageWithFallback";
 import { FullTextModal } from "./FullTextModal";
 import { DynamicClampBody } from "./DynamicClampBody";
@@ -419,8 +420,7 @@ const ImmersivePostCardInner = ({
   // Comments state - use initialOpenComments for auto-open from notifications
   const [showComments, setShowComments] = useState(initialOpenComments);
 
-  // YouTube embed state
-  const [youtubeEmbedActive, setYoutubeEmbedActive] = useState(false);
+  // YouTube embed state (moved inside YouTubeVideoEmbed)
 
   // Share states
   const [showShareSheet, setShowShareSheet] = useState(false);
@@ -519,13 +519,7 @@ const ImmersivePostCardInner = ({
     loadEditorialSummary();
   }, [post.shared_url, post.article_content]);
 
-  const prevPostIdRef = useRef(post.id);
-  useEffect(() => {
-    if (prevPostIdRef.current !== post.id) {
-      setYoutubeEmbedActive(false);
-      prevPostIdRef.current = post.id;
-    }
-  }, [post.id]);
+  // YouTube transition reset effect (moved inside YouTubeVideoEmbed)
 
   // Get source from quoted post if current post doesn't have one (2 levels)
   const effectiveSharedUrl = post.shared_url || quotedPost?.shared_url;
@@ -3450,248 +3444,28 @@ const ImmersivePostCardInner = ({
                   slotBottomRef={slotBottomRef}
                 />
               ) : hasLink && isYoutube ? (
-                <div
-                  className={cn(
-                    "flex-1 min-h-0 flex flex-col justify-start w-full",
-                    emergencyScroll && "overflow-y-auto"
-                  )}
-                >
-                  {/* Title */}
-                  {post.title && post.title.trim().length > 0 ? (
-                    <ClampedTitle
-                      as="h2"
-                      text={post.title}
-                      maxLines={3}
-                      ref={registerRef('essential-title')}
-                      className="uppercase mb-2 flex-shrink-0"
-                      style={{
-                        fontFamily: 'Impact, sans-serif',
-                        fontSize: 'clamp(30px, 8vw, 42px)',
-                        lineHeight: 0.92,
-                        letterSpacing: '-0.02em',
-                        color: '#FFFFFF',
-                        textAlign: 'left',
-                      }}
-                    />
-                  ) : (
-                    <ClampedTitle
-                      as="h2"
-                      text={decodeHTMLEntities(articlePreview?.title || post.shared_title)}
-                      maxLines={3}
-                      ref={registerRef('essential-title')}
-                      className="text-xl font-bold text-immersive-foreground leading-tight mt-1 mb-2 flex-shrink-0"
-                    />
-                  )}
-
-                  {/* Body text */}
-                  {!useStackLayout && post.content && post.content.trim().length > 0 && (
-                    <div 
-                      ref={(el) => {
-                        (bodyRef as any).current = el;
-                        bodyTextRef.current = el;
-                      }}
-                      className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                      style={{ 
-                        fontFamily: 'Inter, sans-serif', 
-                        lineHeight: 1.55, 
-                        textAlign: 'left',
-                        display: '-webkit-box',
-                        WebkitLineClamp: bodyLineClamp,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden'
-                      }}
-                    >
-                      <MentionText content={post.content} />
-                    </div>
-                  )}
-
-                  {/* Approfondisci */}
-                  {!useStackLayout && shouldShowApprofondisci && (
-                    <div className="flex-shrink-0 mt-2 mb-3">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
-                        className="text-sm text-primary font-semibold hover:underline block"
-                      >
-                        Approfondisci
-                      </button>
-                    </div>
-                  )}
-
-                  <div className="slot-bottom" ref={slotBottomRef}>
-                    {/* YouTube embed */}
-                    {youtubeEmbedStep === 'full' && (
-                      <div 
-                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
-                        style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                        className="w-full mt-auto flex-shrink-0"
-                      >
-                        {!hasUserMedia && (
-                          <>
-                            {!youtubeEmbedActive ? (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setYoutubeEmbedActive(true);
-                                }}
-                                className="relative w-full rounded-2xl overflow-hidden border border-white/10 active:scale-[0.98] transition-transform"
-                              >
-                                <img
-                                  src={articlePreview?.image || post.preview_img || `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url!)}/maxresdefault.jpg`}
-                                  alt=""
-                                  width={1280}
-                                  height={720}
-                                  loading="lazy"
-                                  decoding="async"
-                                  className="w-full aspect-video object-cover"
-                                />
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                                  <div className="bg-red-600 p-4 rounded-full">
-                                    <Play className="w-8 h-8 text-white fill-white" />
-                                  </div>
-                                </div>
-                                <div className="absolute bottom-3 left-3 bg-black/90 px-3 py-1.5 rounded-full flex items-center gap-2">
-                                  <svg className="w-4 h-4 text-red-600" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
-                                    <polygon fill="white" points="9.545,15.568 15.818,12 9.545,8.432" />
-                                  </svg>
-                                  <span className="text-white text-xs font-medium">YouTube</span>
-                                </div>
-                              </button>
-                            ) : (
-                              <div className="w-full rounded-2xl overflow-hidden border border-white/10">
-                                <div className="aspect-video">
-                                  <iframe
-                                    src={`https://www.youtube.com/embed/${extractYoutubeVideoId(post.shared_url!)}?autoplay=1&mute=1&cc_load_policy=1&rel=0`}
-                                    className="w-full h-full"
-                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                    allowFullScreen
-                                    sandbox="allow-scripts allow-same-origin allow-presentation allow-popups"
-                                    title="YouTube video"
-                                  />
-                                </div>
-                              </div>
-                            )}
-                            
-                            {post.title && post.title.trim().length > 0 && (
-                              <h1 className="text-xs font-semibold text-immersive-foreground line-clamp-1 mt-2 mb-1">
-                                {decodeHTMLEntities(articlePreview?.title || post.shared_title)}
-                              </h1>
-                            )}
-                          </>
-                        )}
-
-                        {useStackLayout && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                            }}
-                            className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors mt-2"
-                          >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                            <span className="text-xs uppercase tracking-wider">Apri su YouTube</span>
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {youtubeEmbedStep === 'compact' && (
-                      hasUserMedia ? (
-                        useStackLayout ? (
-                          <div 
-                            ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
-                            style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                            className="mt-auto flex-shrink-0 text-left"
-                          >
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (post.shared_url) {
-                                  window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                                }
-                              }}
-                              className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors"
-                            >
-                              <ExternalLink className="w-3.5 h-3.5" />
-                              <span className="text-xs uppercase tracking-wider">Apri su YouTube</span>
-                            </button>
-                          </div>
-                        ) : null
-                      ) : (
-                        <div 
-                          ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
-                          style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                          className={cn(
-                            "flex items-center gap-3 p-2 bg-card/40 rounded-lg mt-auto flex-shrink-0 border border-white/10",
-                            useStackLayout && "cursor-pointer active:scale-[0.98] transition-transform"
-                          )}
-                          onClick={useStackLayout ? (e) => {
-                            e.stopPropagation();
-                            if (post.shared_url) {
-                              window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                            }
-                          } : undefined}
-                        >
-                          {/* Thumbnail 80×45 (16:9) */}
-                          <div className="relative flex-shrink-0 w-20 h-[45px] rounded overflow-hidden bg-muted">
-                            <img 
-                              src={articlePreview?.image || post.preview_img || (post.shared_url ? `https://img.youtube.com/vi/${extractYoutubeVideoId(post.shared_url)}/hqdefault.jpg` : '')} 
-                              width={1280}
-                              height={720}
-                              loading="lazy"
-                              decoding="async"
-                              className="w-full h-full object-cover" 
-                              alt=""
-                            />
-                            {/* Play icon centrato, piccolo */}
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                              <Play className="w-5 h-5 text-white fill-white" />
-                            </div>
-                          </div>
-                          {/* Titolo + dominio a destra */}
-                          <div className="flex-1 min-w-0 text-left">
-                            <p className="text-sm font-medium truncate text-foreground">
-                              {decodeHTMLEntities(articlePreview?.title || post.shared_title)}
-                            </p>
-                            <p className="text-xs text-muted-foreground font-sans">YouTube</p>
-                          </div>
-                        </div>
-                      )
-                    )}
-
-                    {useStackLayout && youtubeEmbedStep === 'pill' && (
-                      <div 
-                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-youtube')} 
-                        className="flex-shrink-0 mt-auto" 
-                        style={{ height: '36px' }}
-                      >
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            window.open(post.shared_url, '_blank', 'noopener,noreferrer');
-                          }}
-                          className="inline-flex items-center gap-2 text-immersive-muted hover:text-immersive-foreground transition-colors"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                          <span className="text-xs uppercase tracking-wider">Apri su YouTube</span>
-                        </button>
-                      </div>
-                    )}
-
-                    {useStackLayout && youtubeEmbedStep === 'hidden' && (
-                      <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
-                    )}
-
-                    {!useStackLayout && post.shared_url && (
-                      <CardExternalCTA 
-                        platform="youtube" 
-                        url={post.shared_url} 
-                        mode="flow" 
-                        ref={registerRef('essential-external-cta')}
-                      />
-                    )}
-                  </div>
-                </div>
+                <YouTubeVideoEmbed
+                  postId={post.id}
+                  postTitle={post.title}
+                  postContent={post.content}
+                  sharedUrl={post.shared_url}
+                  sharedTitle={post.shared_title}
+                  postPreviewImg={post.preview_img}
+                  articlePreview={articlePreview}
+                  useStackLayout={useStackLayout}
+                  emergencyScroll={emergencyScroll}
+                  bodyLineClamp={bodyLineClamp}
+                  shouldShowApprofondisci={shouldShowApprofondisci}
+                  youtubeEmbedStep={youtubeEmbedStep}
+                  hasUserMedia={hasUserMedia}
+                  flexiblesStatus={flexiblesStatus}
+                  onOpenFullText={openFullTextDrawer}
+                  registerRef={registerRef}
+                  titleRef={registerRef('essential-title')}
+                  bodyRef={bodyRef}
+                  bodyTextRef={bodyTextRef}
+                  slotBottomRef={slotBottomRef}
+                />
               ) : hasLink && isSpotifyEpisode ? (
                 <div
                   className={cn(
