@@ -56,6 +56,7 @@ import { CardExternalCTA } from "./CardExternalCTA";
 import { ReshareContextStack } from "./ReshareContextStack";
 import { SpotifyGradientBackground } from "./SpotifyGradientBackground";
 import { SpotifyPodcastCompactCard } from "./SpotifyPodcastCompactCard";
+import { SpotifyTrackEmbed } from "./embeds/SpotifyTrackEmbed";
 import { SourceImageWithFallback } from "./SourceImageWithFallback";
 import { FullTextModal } from "./FullTextModal";
 import { DynamicClampBody } from "./DynamicClampBody";
@@ -4219,126 +4220,28 @@ const ImmersivePostCardInner = ({
                   </div>
                 </div>
               ) : hasLink && isSpotifyTrack ? (
-                <div
-                  className={cn(
-                    "flex-1 min-h-0 flex flex-col justify-start w-full",
-                    emergencyScroll && "overflow-y-auto"
-                  )}
-                >
-                  {/* Title */}
-                  {!useStackLayout && post.title && post.title.trim().length > 0 && (
-                    <ClampedTitle
-                      as="h2"
-                      text={post.title}
-                      maxLines={3}
-                      ref={(node) => {
-                        registerRef('essential-title')(node);
-                        (titleRef as any).current = node;
-                      }}
-                      className="uppercase mb-2 flex-shrink-0"
-                      style={{
-                        fontFamily: 'Impact, sans-serif',
-                        fontSize: 'clamp(30px, 8vw, 42px)',
-                        lineHeight: 0.92,
-                        letterSpacing: '-0.02em',
-                        color: '#FFFFFF',
-                        textAlign: 'left',
-                      }}
-                    />
-                  )}
-
-                  {/* Body text */}
-                  {!useStackLayout && post.content && post.content.trim().length > 0 && (
-                    <div 
-                      ref={(el) => {
-                        (bodyRef as any).current = el;
-                        bodyTextRef.current = el;
-                      }}
-                      className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                      style={{ 
-                        fontFamily: 'Inter, sans-serif', 
-                        lineHeight: 1.55, 
-                        textAlign: 'left',
-                        display: '-webkit-box',
-                        WebkitLineClamp: bodyLineClamp,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden'
-                      }}
-                    >
-                      <MentionText content={post.content} />
-                    </div>
-                  )}
-
-                  {/* Approfondisci */}
-                  {!useStackLayout && shouldShowApprofondisci && (
-                    <div className="flex-shrink-0 mt-2 mb-3">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
-                        className="text-sm text-primary font-semibold hover:underline block"
-                      >
-                        Approfondisci
-                      </button>
-                    </div>
-                  )}
-
-                  <div className="slot-bottom" ref={slotBottomRef}>
-                    {/* Spotify track embed */}
-                    {spotifyTrackStep === 'full' && (
-                      hasUserMedia ? (
-                        <div 
-                          ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify-song')} 
-                          style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                          className="flex-shrink-0 mt-auto text-left w-full"
-                        >
-                          <a
-                            href={post.shared_url || ''}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-flex h-9 items-center gap-1.5 bg-[#1DB954] px-4 rounded-full text-white"
-                          >
-                            <span className="text-white text-xs font-bold">🎵 Ascolta su Spotify</span>
-                          </a>
-                        </div>
-                      ) : (
-                        <div 
-                          ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify-song')} 
-                          style={useStackLayout && flexiblesStatus['flexible-reshare-link-body'] ? { height: `${flexiblesStatus['flexible-reshare-link-body'].height}px`, overflow: 'hidden' } : undefined}
-                          className="flex-shrink-0 mt-auto w-full"
-                        >
-                          <SpotifyPodcastCompactCard
-                            imageUrl={articlePreview?.image || post.preview_img || ''}
-                            podcastName={articlePreview?.description || 'Spotify'}
-                            episodeTitle={decodeHTMLEntities(articlePreview?.title || post.shared_title || '')}
-                            spotifyUrl={post.shared_url || ''}
-                          />
-                        </div>
-                      )
-                    )}
-
-                    {spotifyTrackStep === 'pill' && (
-                      <div 
-                        ref={useStackLayout ? registerRef('flexible-reshare-link-body') : registerRef('essential-spotify-song')} 
-                        className="flex-shrink-0 mt-auto" 
-                        style={{ height: '36px' }}
-                      >
-                        <a
-                          href={post.shared_url || ''}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex h-9 items-center gap-1.5 bg-[#1DB954] px-4 rounded-full"
-                        >
-                          <span className="text-white text-xs font-bold">🎵 Ascolta su Spotify</span>
-                        </a>
-                      </div>
-                    )}
-
-                    {useStackLayout && spotifyTrackStep === 'hidden' && (
-                      <div ref={registerRef('flexible-reshare-link-body')} style={{ height: 0, overflow: 'hidden' }} />
-                    )}
-                  </div>
-                </div>
+                <SpotifyTrackEmbed
+                  title={articlePreview?.title || post.shared_title || undefined}
+                  artist={articlePreview?.description || undefined}
+                  imageUrl={articlePreview?.image || post.preview_img || undefined}
+                  trackUrl={post.shared_url || undefined}
+                  isNearActive={isNearActive}
+                  postTitle={post.title || undefined}
+                  postContent={post.content || undefined}
+                  useStackLayout={useStackLayout}
+                  emergencyScroll={emergencyScroll || false}
+                  bodyLineClamp={bodyLineClamp}
+                  shouldShowApprofondisci={shouldShowApprofondisci}
+                  spotifyTrackStep={spotifyTrackStep as any}
+                  hasUserMedia={hasUserMedia}
+                  flexiblesStatus={flexiblesStatus}
+                  onOpenFullText={openFullTextDrawer}
+                  registerRef={registerRef}
+                  titleRef={titleRef}
+                  bodyRef={bodyRef}
+                  bodyTextRef={bodyTextRef}
+                  slotBottomRef={slotBottomRef}
+                />
               ) : isGenericArticle ? (
                 <div
                   className={cn(
