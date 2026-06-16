@@ -322,3 +322,5 @@ const ImmersiveFocusCardImpl = ({
     </div>
   );
 };
+
+export const ImmersiveFocusCard = React.memo(ImmersiveFocusCardImpl);

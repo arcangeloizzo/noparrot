@@ -577,3 +577,5 @@ const QuotedPostEmbedImpl: React.FC<QuotedPostEmbedProps> = ({
     </div>
   );
 };
+
+export const QuotedPostEmbed = React.memo(QuotedPostEmbedImpl);
