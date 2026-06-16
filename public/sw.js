@@ -1,7 +1,7 @@
 // Service Worker for Push Notifications - NoParrot
 // Version bump forces SW update and clears stale caches
-const SW_VERSION = '2.0.0';
-const CACHE_NAME = 'noparrot-v2';
+const SW_VERSION = '3.0.0-perf-fix';
+const CACHE_NAME = 'noparrot-v-2026-06-16-perf-fix';
 
 // Install event - force activation
 self.addEventListener('install', function(event) {
