@@ -25,6 +25,7 @@ import { toast as sonnerToast } from "sonner";
 import { perfStore, isEmailAllowed } from "@/lib/perfStore";
 import { PostCardSkeleton, EditorialSlideSkeleton } from "@/components/feed/skeletons";
 import { prefetchArticlePreviews } from "@/hooks/useArticlePreview";
+import { useAdminRole } from "@/hooks/useAdminRole";
 
 // Helper to get optimized Supabase image URL for prefetch
 const getOptimizedImageUrl = (src: string | undefined): string | undefined => {
@@ -38,6 +39,7 @@ const getOptimizedImageUrl = (src: string | undefined): string | undefined => {
 
 export const Feed = () => {
   const { user, signOut } = useAuth();
+  const { data: adminRole } = useAdminRole();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -607,6 +609,7 @@ export const Feed = () => {
                 index={actualIndex}
                 isActive={actualIndex === activeIndex}
                 isNearActive={Math.abs(actualIndex - activeIndex) <= 1}
+                isStaff={adminRole?.isStaff}
                 onRemove={handleRemovePost}
                 onQuoteShare={handleQuoteShare}
                 onEdit={handleEditPost}

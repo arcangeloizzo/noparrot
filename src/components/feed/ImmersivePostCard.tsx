@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, Edit2, ExternalLink, Quote, ShieldCheck, Maximize2, Play, Zap, Flag, ShieldAlert, Repeat } from "lucide-react";
 import { ReportContentDialog } from "./ReportContentDialog";
 import { AdminRemoveDialog } from "./AdminRemoveDialog";
-import { useAdminRole } from "@/hooks/useAdminRole";
 import { AnimatedHeart } from "@/components/ui/animated-heart";
 import { useDominantColors } from "@/hooks/useDominantColors";
 import { useCachedTrustScore } from "@/hooks/useCachedTrustScore";
@@ -162,6 +161,7 @@ interface ImmersivePostCardProps {
   index?: number;
   isActive?: boolean;
   isNearActive?: boolean;
+  isStaff?: boolean;
 }
 
 const getHostnameFromUrl = (url: string | undefined): string => {
@@ -302,6 +302,7 @@ const ImmersivePostCardInner = ({
   index = 0,
   isActive = false,
   isNearActive = true,
+  isStaff = false,
 }: ImmersivePostCardProps) => {
   // Track renders via ref increment (no useEffect deps issue)
   const renderCountRef = useRef(0);
@@ -422,8 +423,6 @@ const ImmersivePostCardInner = ({
   const [showPeoplePicker, setShowPeoplePicker] = useState(false);
   const [showReportDialog, setShowReportDialog] = useState(false);
   const [showAdminRemoveDialog, setShowAdminRemoveDialog] = useState(false);
-  const { data: adminRole } = useAdminRole({ enabled: isActive });
-  const isStaff = adminRole?.isStaff;
   const [shareAction, setShareAction] = useState<'feed' | 'friend' | null>(null);
 
   // Editorial summary fallback (for legacy posts without article_content)
