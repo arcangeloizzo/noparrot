@@ -62,6 +62,7 @@ import { TwitterTweetEmbed } from "./embeds/TwitterTweetEmbed";
 import { LinkedInEmbedCard } from "./embeds/LinkedInEmbedCard";
 import { YouTubeShortEmbed } from "./embeds/YouTubeShortEmbed";
 import { YouTubeVideoEmbed } from "./embeds/YouTubeVideoEmbed";
+import { InstagramReelEmbed } from "./embeds/InstagramReelEmbed";
 import { SourceImageWithFallback } from "./SourceImageWithFallback";
 import { FullTextModal } from "./FullTextModal";
 import { DynamicClampBody } from "./DynamicClampBody";
@@ -3114,7 +3115,8 @@ const ImmersivePostCardInner = ({
                 </div>
               )}
 
-              {isStandardPost && (() => {
+              {isStandardPost ? (
+                (() => {
                 const wordCount = countPostWords(post.title, post.content);
                 const userUploadMedia = normalizedMedias.find(m => m.source === 'user_upload');
                 const linkPreviewMedia = normalizedMedias.find(m => m.source === 'link_preview');
@@ -3378,9 +3380,9 @@ const ImmersivePostCardInner = ({
                     )}
                   </div>
                 );
-              })()}
+              })()
 
-              {/* Twitter/X Card - Unified glassmorphic container */}
+              // Twitter/X Card - Unified glassmorphic container
               ) : hasLink && isTwitter ? (
                 <TwitterTweetEmbed
                   articlePreview={articlePreview}
@@ -3787,97 +3789,24 @@ const ImmersivePostCardInner = ({
                   </div>
                 </div>
               ) : isInstagramReel ? (
-                <>
-                  <div
-                    className={cn(
-                      "flex-1 min-h-0 flex flex-col items-center justify-start w-full px-4 gap-3",
-                      emergencyScroll && "overflow-y-auto"
-                    )}
-                  >
-                    {/* Title */}
-                    {post.title && post.title.trim().length > 0 ? (
-                      <ClampedTitle
-                        as="h2"
-                        text={post.title}
-                        maxLines={3}
-                        ref={registerRef('essential-title')}
-                        className="uppercase mb-2 flex-shrink-0 self-start text-left"
-                        style={{
-                          fontFamily: 'Impact, sans-serif',
-                          fontSize: 'clamp(30px, 8vw, 42px)',
-                          lineHeight: 0.92,
-                          letterSpacing: '-0.02em',
-                          color: '#FFFFFF',
-                          textAlign: 'left',
-                        }}
-                      />
-                    ) : (
-                      <ClampedTitle
-                        as="h2"
-                        text={decodeHTMLEntities(articlePreview?.title || post.shared_title || 'Instagram Reel')}
-                        maxLines={3}
-                        ref={registerRef('essential-title')}
-                        className="text-xl font-bold text-immersive-foreground leading-tight mt-1 mb-2 flex-shrink-0 self-start text-left"
-                      />
-                    )}
-
-                    {/* User Comment — flessibile */}
-                    {post.content && post.content.trim().length > 0 && (
-                      <p 
-                        ref={(el) => {
-                          (bodyRef as any).current = el;
-                          bodyTextRef.current = el;
-                        }}
-                        className="self-start text-sm text-white/90 leading-relaxed mb-3 text-left flex-shrink-0 w-full"
-                        style={{
-                          display: '-webkit-box',
-                          WebkitLineClamp: bodyLineClamp,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden'
-                        }}
-                      >
-                        <MentionText content={post.content} />
-                      </p>
-                    )}
-
-                    {/* Caption — flessibile */}
-                    {flexiblesStatus['flexible-text']?.step !== 'hidden' && post.shared_title && (
-                      <p 
-                        ref={(el) => { registerRef('flexible-text')(el); captionTextRef.current = el; }}
-                        className={cn(
-                          "self-start text-sm text-white/80 leading-relaxed mb-3 text-left flex-shrink-0 w-full",
-                          flexiblesStatus['flexible-text']?.step === 'compact' ? "line-clamp-2" : "line-clamp-4"
-                        )}
-                      >
-                        <MentionText content={post.shared_title} />
-                      </p>
-                    )}
-
-                    {/* Approfondisci */}
-                    {shouldShowApprofondisci && (
-                      <div className="flex-shrink-0 mt-2 mb-3 text-left self-start">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
-                          className="text-sm font-semibold hover:underline block text-[#E1306C]"
-                        >
-                          Approfondisci
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Unified Card External CTA inside slot-bottom */}
-                  {!useStackLayout && post.shared_url && (
-                    <div className="slot-bottom w-full px-4" ref={slotBottomRef}>
-                      <CardExternalCTA 
-                        platform="instagram" 
-                        url={post.shared_url} 
-                        mode="flow"
-                        ref={registerRef('essential-external-cta')}
-                      />
-                    </div>
-                  )}
-                </>
+                <InstagramReelEmbed
+                  postTitle={post.title}
+                  postContent={post.content}
+                  sharedUrl={post.shared_url}
+                  sharedTitle={post.shared_title}
+                  articlePreview={articlePreview}
+                  useStackLayout={useStackLayout}
+                  emergencyScroll={emergencyScroll}
+                  bodyLineClamp={bodyLineClamp}
+                  shouldShowApprofondisci={shouldShowApprofondisci}
+                  flexiblesStatus={flexiblesStatus}
+                  onOpenFullText={openFullTextDrawer}
+                  registerRef={registerRef}
+                  bodyRef={bodyRef}
+                  bodyTextRef={bodyTextRef}
+                  captionTextRef={captionTextRef}
+                  slotBottomRef={slotBottomRef}
+                />
               ) : null}
 
               {/* Quoted Post - Show for ALL reshares (stack and non-stack) */}
