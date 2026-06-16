@@ -2173,7 +2173,7 @@ const ImmersivePostCardInner = ({
       <div
         ref={registerRef('card-container')}
         className="h-[100dvh] w-full snap-start relative overflow-hidden bg-immersive transition-colors duration-500"
-        style={{ isolation: 'isolate' }}
+        style={{ isolation: 'isolate', contain: 'layout style size' }}
         onClick={handleDoubleTap}
       >
         {/* Global card scrim (NoParrot Feed UI Spec v1 §2.2) */}
