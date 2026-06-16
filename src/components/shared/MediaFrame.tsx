@@ -1,4 +1,4 @@
-import { ReactNode, CSSProperties } from 'react';
+import { ReactNode, CSSProperties, memo } from 'react';
 import { cn } from '@/lib/utils';
 import type { UnifiedMedia } from '@/types/media';
 
@@ -40,7 +40,7 @@ interface MediaFrameProps {
  * Crop: object-fit:cover sempre (spec §M2). Mai aspect-ratio libero dall'immagine:
  * la variant è scelta dal consumer in coerenza con orientation, niente crop verticale 16:9.
  */
-export function MediaFrame({
+function MediaFrameImpl({
   media,
   variant,
   onTap,
@@ -96,6 +96,18 @@ export function MediaFrame({
     </div>
   );
 }
+
+export const MediaFrame = memo(MediaFrameImpl, (prev, next) => (
+  prev.variant === next.variant &&
+  prev.isStage === next.isStage &&
+  prev.className === next.className &&
+  prev.onTap === next.onTap &&
+  prev.children === next.children &&
+  prev.media.src === next.media.src &&
+  prev.media.ratio === next.media.ratio &&
+  prev.media.orientation === next.media.orientation &&
+  prev.media.kind === next.media.kind
+));
 
 /**
  * Calcola lo stile inline per la variante (dimensioni esatte da spec §5.1, §5.3, §5.5).

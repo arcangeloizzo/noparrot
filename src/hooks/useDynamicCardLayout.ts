@@ -494,20 +494,31 @@ export function useDynamicCardLayout({
       setLayoutMode(prev => prev !== mode ? mode : prev);
     };
 
+    // RAF-batched layout: all DOM reads (offsetHeight / scrollHeight /
+    // getBoundingClientRect / getComputedStyle) happen inside a single
+    // requestAnimationFrame, avoiding sync layout thrash during scroll.
+    let rafId: number | null = null;
     const handleResize = () => {
-      computeLayout();
-      setStatus('measured');
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        computeLayout();
+        setStatus('measured');
+      });
     };
 
-    // Throttle utility
+    // Debounce ResizeObserver to 100ms — collapses bursts of resize events
+    // (which are very frequent during scroll on iOS Safari) into a single
+    // RAF-batched recompute.
     let timeoutId: number | null = null;
     const throttledResize = () => {
-      if (timeoutId === null) {
-        timeoutId = window.setTimeout(() => {
-          handleResize();
-          timeoutId = null;
-        }, 16);
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
       }
+      timeoutId = window.setTimeout(() => {
+        timeoutId = null;
+        handleResize();
+      }, 100);
     };
 
     const observer = new ResizeObserver((entries) => {
@@ -575,6 +586,7 @@ export function useDynamicCardLayout({
       if (timeoutId !== null) {
         window.clearTimeout(timeoutId);
       }
+      if (rafId !== null) cancelAnimationFrame(rafId);
       if (rAF1) cancelAnimationFrame(rAF1);
       if (rAF2) cancelAnimationFrame(rAF2);
     };
