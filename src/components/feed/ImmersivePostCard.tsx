@@ -1865,6 +1865,7 @@ const ImmersivePostCardInner = ({
     flexiblesStatus,
     showDrawerCta,
     emergencyScroll,
+    isCaptionTruncated,
     registerRef,
     headerRef,
     badgeRef,
@@ -1908,52 +1909,9 @@ const ImmersivePostCardInner = ({
     ? (flexiblesStatus['flexible-reshare-link-body']?.step === 'compact' ? 'compact' : (flexiblesStatus['flexible-reshare-link-body']?.step === 'hidden' ? 'hidden' : 'full'))
     : essentialStates['essential-article'];
 
-  // DOM checks for text truncation using useLayoutEffect and ResizeObserver
+  // DOM checks for text truncation delegate to useDynamicCardLayout
   const bodyTextRef = useRef<HTMLParagraphElement | HTMLDivElement | null>(null);
   const captionTextRef = useRef<HTMLParagraphElement | HTMLDivElement | null>(null);
-  const [isCaptionTruncated, setIsCaptionTruncated] = useState(false);
-
-  useLayoutEffect(() => {
-    let active = true;
-    
-    const checkTruncation = () => {
-      requestAnimationFrame(() => {
-        if (!active) return;
-        
-        let captionTrunc = false;
-        if (captionTextRef.current) {
-          captionTrunc = captionTextRef.current.scrollHeight > captionTextRef.current.clientHeight;
-          setIsCaptionTruncated(captionTrunc);
-        } else {
-          setIsCaptionTruncated(false);
-        }
-      });
-    };
-    
-    checkTruncation();
-    
-    // Re-check on resize, content updates, layout steps, etc.
-    const observer = new ResizeObserver(() => {
-      checkTruncation();
-    });
-    
-    if (bodyTextRef.current) observer.observe(bodyTextRef.current);
-    if (captionTextRef.current) observer.observe(captionTextRef.current);
-    
-    return () => {
-      active = false;
-      observer.disconnect();
-    };
-  }, [
-    post.content, 
-    post.shared_title, 
-    articlePreview?.title,
-    voiceContent, 
-    challengeContent, 
-    flexiblesStatus, 
-    availableHeight,
-    bodyLineClamp
-  ]);
 
   const isReshareCompressed = useStackLayout && (
     (flexiblesStatus['flexible-reshare-comment'] && flexiblesStatus['flexible-reshare-comment'].step !== 'full') ||
