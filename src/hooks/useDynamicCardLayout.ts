@@ -100,7 +100,7 @@ export function useDynamicCardLayout({
   const subBarRef = useRef<HTMLDivElement>(null);
 
   const [layoutMode, setLayoutMode] = useState<'filled' | 'hero' | 'poster'>(cached ? cached.layoutMode : 'filled');
-  const [bodyLineClamp, setBodyLineClamp] = useState<number>(cached ? cached.bodyLineClamp : 6);
+  const [bodyLineClamp, setBodyLineClamp] = useState<number>(cached ? cached.bodyLineClamp : 3);
   const [showApprofondisci, setShowApprofondisci] = useState<boolean>(cached ? cached.showApprofondisci : false);
 
   const elementRefs = useRef<Record<string, HTMLElement | null>>({});
@@ -554,25 +554,9 @@ export function useDynamicCardLayout({
       }
     };
 
-    // RAF-batched layout: all DOM reads (offsetHeight / scrollHeight /
-    // getBoundingClientRect / getComputedStyle) happen inside a single
-    // requestAnimationFrame, avoiding sync layout thrash during scroll.
-    let rafId: number | null = null;
-    const handleResize = () => {
-      if (rafId !== null) return;
-      rafId = requestAnimationFrame(() => {
-        rafId = null;
-        computeLayout();
-        setStatus('measured');
-      });
-    };
-
-    // Esegue il calcolo iniziale
-    handleResize();
-
-    return () => {
-      if (rafId !== null) cancelAnimationFrame(rafId);
-    };
+    // Esegue il calcolo iniziale in modo sincrono per evitare il flash del layout 'pending'
+    computeLayout();
+    setStatus('measured');
   }, [availableHeight, serializedEssentials, serializedFlexibles, serializedPriority, postId, enabled, cacheKey]);
 
   // Dev-only warning per ref mancanti o blocco in pending
