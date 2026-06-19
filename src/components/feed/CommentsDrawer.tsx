@@ -27,7 +27,7 @@ import { extractFirstUrl } from '@/lib/shouldRequireGate';
 import { runGateBeforeAction } from '@/lib/runGateBeforeAction';
 import { QuizModal } from '@/components/ui/quiz-modal';
 import { toast as sonnerToast } from 'sonner';
-import { LOGO_BASE } from '@/config/brand';
+import { LogoVertical } from '@/components/ui/LogoVertical';
 import { getWordCount, getPostFullText, getTestModeWithSource } from '@/lib/gate-utils';
 import { generateQA, fetchArticlePreview } from '@/lib/ai-helpers';
 import { addBreadcrumb } from '@/lib/crashBreadcrumbs';
@@ -428,9 +428,8 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
             <div className="mx-4 my-2 px-4 py-2.5 bg-muted/30 rounded-xl border border-border/50 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 {selectedCommentType === 'informed' ? (
-                  <img 
-                    src={LOGO_BASE}
-                    alt="Consapevole"
+                  <LogoVertical 
+                    hideText={true}
                     className="w-5 h-5"
                   />
                 ) : (
@@ -869,9 +868,8 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
             >
               <div className="flex items-center gap-4">
                 <div className="p-2 rounded-xl bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                  <img 
-                    src={LOGO_BASE} 
-                    alt="Consapevole" 
+                  <LogoVertical 
+                    hideText={true}
                     className="w-7 h-7"
                   />
                 </div>

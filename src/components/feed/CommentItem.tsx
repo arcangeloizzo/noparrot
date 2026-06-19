@@ -19,7 +19,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { LOGO_BASE, EDITORIAL } from '@/config/brand';
+import { EDITORIAL } from '@/config/brand';
+import { LogoVertical } from '@/components/ui/LogoVertical';
 import { ReactionPicker, type ReactionType, reactionToEmoji } from '@/components/ui/reaction-picker';
 import { useLongPress } from '@/hooks/useLongPress';
 import { ReactionSummary, getReactionCounts } from '@/components/feed/ReactionSummary';
@@ -261,18 +262,16 @@ export const CommentItem = ({
               {(postHasSource || postHasLongText) && comment.passed_gate && (
                 isTouchDevice() ? (
                   // On touch devices: just show icon, no tooltip (avoids iOS Safari crash)
-                  <img
-                    src={LOGO_BASE}
-                    alt="Lettore consapevole"
+                  <LogoVertical
+                    hideText={true}
                     className="w-4 h-4"
                   />
                 ) : (
                   <TooltipProvider delayDuration={200}>
                     <Tooltip>
                       <TooltipTrigger>
-                        <img
-                          src={LOGO_BASE}
-                          alt="Lettore consapevole"
+                        <LogoVertical
+                          hideText={true}
                           className="w-4 h-4"
                         />
                       </TooltipTrigger>

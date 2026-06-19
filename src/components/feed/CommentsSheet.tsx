@@ -26,7 +26,7 @@ import { QuizModal } from '@/components/ui/quiz-modal';
 import { toast as sonnerToast } from 'sonner';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { LOGO_BASE } from '@/config/brand';
+import { LogoVertical } from '@/components/ui/LogoVertical';
 import { useLongPress } from '@/hooks/useLongPress';
 import { ReactionPicker, type ReactionType, reactionToEmoji } from '@/components/ui/reaction-picker';
 import { ReactionSummary, getReactionCounts } from '@/components/feed/ReactionSummary';
@@ -378,9 +378,8 @@ export const CommentsSheet = ({ post, isOpen, onClose, mode, isFocus = false, fo
                   htmlFor="r-read"
                   className="flex items-center gap-2 cursor-pointer text-sm"
                 >
-                  <img
-                    src={LOGO_BASE}
-                    alt=""
+                  <LogoVertical
+                    hideText={true}
                     className="w-5 h-5"
                     aria-hidden="true"
                   />
