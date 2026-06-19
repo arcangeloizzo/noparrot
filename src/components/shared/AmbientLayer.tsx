@@ -50,17 +50,30 @@ export function AmbientLayer({
     if (!media?.src || !isActive) return;
     let active = true;
     const img = new Image();
+    
+    // Set onload and onerror handlers BEFORE setting src to avoid any race conditions
+    img.onload = () => {
+      if (active) setImageLoaded(true);
+    };
+    img.onerror = () => {
+      // Keep state as false or fallback silently
+    };
     img.src = media.src;
-    img.decode()
-      .then(() => {
-        if (active) setImageLoaded(true);
-      })
-      .catch(() => {
-        // Fallback for browsers or situations where decode fails
-        img.onload = () => {
+    
+    // Check if the image is already cached/complete
+    if (img.complete) {
+      if (active) setImageLoaded(true);
+    } else {
+      // Decode asynchronously off-thread for better scrolling performance, catch errors silently
+      img.decode()
+        .then(() => {
           if (active) setImageLoaded(true);
-        };
-      });
+        })
+        .catch(() => {
+          // Silent catch: onload will trigger when the browser finishes loading/decoding
+        });
+    }
+    
     return () => {
       active = false;
     };
