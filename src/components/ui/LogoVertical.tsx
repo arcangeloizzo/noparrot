@@ -3,10 +3,14 @@ import { cn } from "@/lib/utils";
 interface LogoVerticalProps {
   className?: string;
   hideText?: boolean;
+  id?: string;
+  onClick?: () => void;
 }
 
-export const LogoVertical = ({ className, hideText = false }: LogoVerticalProps) => (
+export const LogoVertical = ({ className, hideText = false, id, onClick }: LogoVerticalProps) => (
   <svg 
+    id={id}
+    onClick={onClick}
     className={cn(className)} 
     viewBox="0 0 1024 1024" 
     xmlns="http://www.w3.org/2000/svg"

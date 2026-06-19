@@ -2,10 +2,14 @@ import { cn } from "@/lib/utils";
 
 interface LogoHorizontalProps {
   className?: string;
+  id?: string;
+  onClick?: () => void;
 }
 
-export const LogoHorizontal = ({ className }: LogoHorizontalProps) => (
+export const LogoHorizontal = ({ className, id, onClick }: LogoHorizontalProps) => (
   <svg 
+    id={id}
+    onClick={onClick}
     className={cn(className)} 
     viewBox="0 0 1024 221.39" 
     xmlns="http://www.w3.org/2000/svg"
