@@ -149,11 +149,52 @@ const UserUploadEmbedInner = ({
         <>
           {/* Caso singolo upload immagine utente con matrice §5.1 */}
           {normalizedMedias.length === 1 &&
-          normalizedMedias[0].source === "user_upload" &&
           normalizedMedias[0].kind === "image" ? (
             (() => {
               const mediaForFrame = normalizedMedias[0];
               const layout = calculateMediaLayout(mediaForFrame, wordCount);
+              const imageStep = flexiblesStatus?.["flexible-image"]?.step || "full";
+
+              if (imageStep === "pill") {
+                return (
+                  <div
+                    ref={(node) => {
+                      registerRef("flexible-image")(node);
+                      if (mediaRef) {
+                        if (typeof mediaRef === "function") mediaRef(node);
+                        else (mediaRef as any).current = node;
+                      }
+                    }}
+                    className="flex-shrink-0 mb-3"
+                    style={{ height: "36px" }}
+                  >
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMediaTap?.(0);
+                      }}
+                      className="inline-flex h-9 items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 px-4 rounded-full text-white text-xs font-bold"
+                    >
+                      <span>📎 Vedi immagine</span>
+                    </button>
+                  </div>
+                );
+              }
+
+              if (imageStep === "hidden") {
+                return (
+                  <div
+                    ref={(node) => {
+                      registerRef("flexible-image")(node);
+                      if (mediaRef) {
+                        if (typeof mediaRef === "function") mediaRef(node);
+                        else (mediaRef as any).current = node;
+                      }
+                    }}
+                    style={{ height: 0, overflow: "hidden" }}
+                  />
+                );
+              }
 
               if (layout === "mini") {
                 return (
