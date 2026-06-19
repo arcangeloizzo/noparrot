@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { LOGO_BASE, LOGO_EXTENDED, LOGO_WHITE, LOGO_WHITE_EXTENDED } from "@/config/brand";
+import { LogoVertical } from "./LogoVertical";
 
 interface LogoProps {
   className?: string;
@@ -10,7 +10,7 @@ interface LogoProps {
   onClick?: () => void;
 }
 
-export const Logo = ({ className, size = "md", variant = "icon", dark = false, id, onClick }: LogoProps) => {
+export const Logo = ({ className, size = "md", variant = "icon", id, onClick }: LogoProps) => {
   const sizeClasses = {
     sm: "w-6 h-6",
     md: "w-8 h-8", 
@@ -34,12 +34,11 @@ export const Logo = ({ className, size = "md", variant = "icon", dark = false, i
     xl: "40px"
   };
 
-  if (variant === "icon") {
+  if (variant === "icon" || variant === "white") {
     return (
-      <img 
+      <LogoVertical 
         id={id}
-        src={LOGO_BASE} 
-        alt="NOPARROT" 
+        hideText={true}
         className={cn(sizeClasses[size], clickableClasses, className)}
         onClick={onClick}
       />
@@ -77,9 +76,8 @@ export const Logo = ({ className, size = "md", variant = "icon", dark = false, i
         }}
         onClick={onClick}
       >
-        <img 
-          src={LOGO_BASE} 
-          alt="" 
+        <LogoVertical 
+          hideText={true}
           className={cn(heightClasses[size], "w-auto")}
         />
         <div>
@@ -87,18 +85,6 @@ export const Logo = ({ className, size = "md", variant = "icon", dark = false, i
           <span className="text-foreground dark:text-white">PARROT</span>
         </div>
       </div>
-    );
-  }
-
-  if (variant === "white") {
-    return (
-      <img 
-        id={id}
-        src={LOGO_WHITE} 
-        alt="NOPARROT" 
-        className={cn(sizeClasses[size], clickableClasses, className)}
-        onClick={onClick}
-      />
     );
   }
 
@@ -115,9 +101,8 @@ export const Logo = ({ className, size = "md", variant = "icon", dark = false, i
         }}
         onClick={onClick}
       >
-        <img 
-          src={LOGO_WHITE} 
-          alt="" 
+        <LogoVertical 
+          hideText={true}
           className={cn(heightClasses[size], "w-auto")}
         />
         <div>
@@ -139,9 +124,8 @@ export const Logo = ({ className, size = "md", variant = "icon", dark = false, i
       }}
       onClick={onClick}
     >
-      <img 
-        src={LOGO_BASE} 
-        alt="NOPARROT" 
+      <LogoVertical 
+        hideText={true}
         className={sizeClasses[size]}
       />
       <div>
