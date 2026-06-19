@@ -25,6 +25,8 @@ export interface AmbientLayerProps {
   spotifyTrackInfo?: { albumArtUrl: string; audioFeatures?: any };
   /** Override del posizionamento (default: absolute inset:0). */
   className?: string;
+  /** Solo la card attiva renderizza lo sfondo sfumato con immagine. */
+  isActive?: boolean;
 }
 
 export function AmbientLayer({
@@ -33,7 +35,8 @@ export function AmbientLayer({
   preset = 'auto',
   spotifyPalette,
   spotifyTrackInfo,
-  className
+  className,
+  isActive = true
 }: AmbientLayerProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
 
@@ -42,15 +45,43 @@ export function AmbientLayer({
     setImageLoaded(false);
   }, [media?.src]);
 
-  // Pre-load image helper for S2
+  // Pre-load image helper for S2 - only if card is active
   useEffect(() => {
-    if (!media?.src) return;
+    if (!media?.src || !isActive) return;
+    let active = true;
     const img = new Image();
     img.src = media.src;
-    img.onload = () => {
-      setImageLoaded(true);
+    img.decode()
+      .then(() => {
+        if (active) setImageLoaded(true);
+      })
+      .catch(() => {
+        // Fallback for browsers or situations where decode fails
+        img.onload = () => {
+          if (active) setImageLoaded(true);
+        };
+      });
+    return () => {
+      active = false;
     };
-  }, [media?.src]);
+  }, [media?.src, isActive]);
+
+  // Se la card non è attiva, bypassiamo il caricamento/composizione dell'immagine per alleggerire il GPU thread
+  if (!isActive) {
+    const resolvedColor = category && category.startsWith('#') ? category : null;
+    const gradient = resolvedColor
+      ? `radial-gradient(ellipse 90% 55% at 70% 25%, ${resolvedColor}22 0%, transparent 65%), radial-gradient(ellipse 70% 45% at 20% 80%, ${resolvedColor}11 0%, transparent 60%)`
+      : `radial-gradient(ellipse 90% 55% at 70% 25%, rgba(255,255,255,0.04) 0%, transparent 65%), radial-gradient(ellipse 70% 45% at 20% 80%, rgba(255,255,255,0.02) 0%, transparent 60%)`;
+
+    return (
+      <div
+        className={cn("absolute inset-0 pointer-events-none z-0 bg-immersive", className)}
+        style={{
+          background: gradient
+        }}
+      />
+    );
+  }
 
   // 1. Editorial Preset
   if (preset === 'editorial') {
@@ -105,7 +136,6 @@ export function AmbientLayer({
             filter,
             opacity,
             transform: 'scale(1.12)',
-            willChange: 'transform',
           }}
         />
         {/* Scrim overlay for contrast */}

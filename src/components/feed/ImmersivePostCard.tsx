@@ -2121,7 +2121,7 @@ const ImmersivePostCardInner = ({
       >
         {/* Global card scrim (NoParrot Feed UI Spec v1 §2.2) */}
         <div className="card-scrim" aria-hidden="true" />
-        <AmbientLayer {...getAmbientProps()} />
+        <AmbientLayer {...getAmbientProps()} isActive={isActive} />
         
         {/* Urban texture overlay - applied to all backgrounds (GPU-friendly static PNG) */}
         <div className="absolute inset-0 z-[1] opacity-[0.015] pointer-events-none urban-noise-overlay" />
