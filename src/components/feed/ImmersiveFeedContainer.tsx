@@ -15,6 +15,32 @@ const FeedContext = createContext<FeedContextValue>({ activeIndex: 0 });
 
 export const useFeedContext = () => useContext(FeedContext);
 
+interface FeedWrapperProps {
+  itemId: string;
+  isVisible: boolean;
+  registerRef: (el: HTMLDivElement | null) => void;
+  children: React.ReactNode;
+}
+
+const FeedWrapper = React.memo(({ isVisible, registerRef, children }: FeedWrapperProps) => {
+  return (
+    <div
+      ref={registerRef}
+      style={{
+        height: 'calc(var(--vh, 1vh) * 100)',
+      }}
+      className="w-full snap-start shrink-0 overflow-hidden relative"
+    >
+      {isVisible ? children : null}
+    </div>
+  );
+}, (prev, next) => {
+  return prev.isVisible === next.isVisible && 
+         prev.itemId === next.itemId && 
+         prev.registerRef === next.registerRef;
+});
+FeedWrapper.displayName = 'FeedWrapper';
+
 interface ImmersiveFeedContainerProps {
   items?: any[];
   activeIndex?: number;
@@ -67,8 +93,35 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
 
   // IntersectionObserver refs and logic
   const observerRef = useRef<IntersectionObserver | null>(null);
-  const cardElementsRef = useRef<Map<number, HTMLDivElement>>(new Map());
-  const entryRatioMap = useRef<Map<number, number>>(new Map());
+  const cardElementsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const entryRatioMap = useRef<Map<string, number>>(new Map());
+  const cardRefsMap = useRef<Map<string, (el: HTMLDivElement | null) => void>>(new Map());
+
+  const registerCard = useCallback((el: HTMLDivElement | null, itemId: string) => {
+    if (el) {
+      (el as any).__itemId = itemId;
+      cardElementsRef.current.set(itemId, el);
+      observerRef.current?.observe(el);
+    } else {
+      const existing = cardElementsRef.current.get(itemId);
+      if (existing) {
+        observerRef.current?.unobserve(existing);
+        cardElementsRef.current.delete(itemId);
+        entryRatioMap.current.delete(itemId);
+      }
+    }
+  }, []);
+
+  const getCardRefCallback = (itemId: string) => {
+    let cb = cardRefsMap.current.get(itemId);
+    if (!cb) {
+      cb = (el: HTMLDivElement | null) => {
+        registerCard(el, itemId);
+      };
+      cardRefsMap.current.set(itemId, cb);
+    }
+    return cb;
+  };
 
   // Setup observer whenever length changes
   useEffect(() => {
@@ -76,28 +129,29 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
 
     const callback = (entries: IntersectionObserverEntry[]) => {
       entries.forEach(entry => {
-        const targetIndex = (entry.target as any).__index;
-        if (typeof targetIndex === 'number') {
-          entryRatioMap.current.set(targetIndex, entry.intersectionRatio);
+        const targetId = (entry.target as any).__itemId;
+        if (typeof targetId === 'string') {
+          entryRatioMap.current.set(targetId, entry.intersectionRatio);
         }
       });
 
-      // Find the index with the maximum ratio currently active
+      // Find the item ID with the maximum ratio currently active
       let maxRatio = -1;
-      let activeIdx = -1;
+      let activeItemId: string | null = null;
 
-      entryRatioMap.current.forEach((ratio, index) => {
-        if (index >= 0 && index < items.length) {
-          if (ratio > maxRatio) {
-            maxRatio = ratio;
-            activeIdx = index;
-          }
+      entryRatioMap.current.forEach((ratio, id) => {
+        if (ratio > maxRatio) {
+          maxRatio = ratio;
+          activeItemId = id;
         }
       });
 
-      if (activeIdx !== -1 && activeIdx !== lastReportedIndex.current) {
-        lastReportedIndex.current = activeIdx;
-        onActiveIndexChange?.(activeIdx);
+      if (activeItemId) {
+        const activeIdx = items.findIndex(item => item.id === activeItemId);
+        if (activeIdx !== -1 && activeIdx !== lastReportedIndex.current) {
+          lastReportedIndex.current = activeIdx;
+          onActiveIndexChange?.(activeIdx);
+        }
       }
     };
 
@@ -116,33 +170,24 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     return () => {
       observer.disconnect();
       observerRef.current = null;
+      cardElementsRef.current.clear();
+      entryRatioMap.current.clear();
+      cardRefsMap.current.clear();
     };
   }, [items.length, onActiveIndexChange]);
 
-  // Clean-up elements map when items length decreases (e.g. posts removed)
+  // Clean-up elements map when items are removed
   useEffect(() => {
-    cardElementsRef.current.forEach((el, index) => {
-      if (index >= items.length) {
-        cardElementsRef.current.delete(index);
-        entryRatioMap.current.delete(index);
+    const itemIds = new Set(items.map(item => item.id));
+
+    cardElementsRef.current.forEach((el, id) => {
+      if (!itemIds.has(id)) {
+        cardElementsRef.current.delete(id);
+        entryRatioMap.current.delete(id);
+        cardRefsMap.current.delete(id);
       }
     });
-  }, [items.length]);
-
-  const registerCard = useCallback((el: HTMLDivElement | null, actualIndex: number) => {
-    if (el) {
-      (el as any).__index = actualIndex;
-      cardElementsRef.current.set(actualIndex, el);
-      observerRef.current?.observe(el);
-    } else {
-      const existing = cardElementsRef.current.get(actualIndex);
-      if (existing) {
-        observerRef.current?.unobserve(existing);
-        cardElementsRef.current.delete(actualIndex);
-        entryRatioMap.current.delete(actualIndex);
-      }
-    }
-  }, []);
+  }, [items]);
 
   // Pull-to-refresh handlers
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -175,11 +220,6 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
   const visibleStart = Math.max(0, activeIndex - OVERSCAN);
   const visibleEnd = Math.min(items.length - 1, activeIndex + OVERSCAN);
 
-  const visibleItems = items.slice(visibleStart, visibleEnd + 1).map((item, i) => ({
-    item,
-    actualIndex: visibleStart + i,
-  }));
-
   const renderContent = () => {
     if (items.length === 0) {
       return typeof children === 'function' ? null : children;
@@ -202,16 +242,14 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
         {items.map((item, actualIndex) => {
           const isVisible = actualIndex >= visibleStart && actualIndex <= visibleEnd;
           return (
-            <div
+            <FeedWrapper
               key={item.id ?? actualIndex}
-              ref={(el) => registerCard(el, actualIndex)}
-              style={{
-                height: 'calc(var(--vh, 1vh) * 100)',
-              }}
-              className="w-full snap-start shrink-0 overflow-hidden relative"
+              itemId={item.id}
+              isVisible={isVisible}
+              registerRef={getCardRefCallback(item.id)}
             >
-              {isVisible && typeof children === 'function' ? children(item, actualIndex) : null}
-            </div>
+              {typeof children === 'function' ? children(item, actualIndex) : null}
+            </FeedWrapper>
           );
         })}
       </div>
