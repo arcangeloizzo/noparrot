@@ -1435,17 +1435,6 @@ const ImmersivePostCardInner = ({
   const challengeTitle = hasChallengeTitle ? post.challenge?.title : '';
   const challengeContent = hasChallengeTitle ? post.challenge?.body_text : post.content;
 
-  console.log('[ImmersivePostCard DEBUG]', {
-    post_id: post.id,
-    post_type: post.post_type,
-    post_title: post.title,
-    post_content: post.content,
-    voice_title: activeVoicePost?.title,
-    voice_body: activeVoicePost?.body_text,
-    challenge_title: post.challenge?.title,
-    challenge_body: post.challenge?.body_text
-  });
-
   // B. Adaptive Image Height
   const hasAudioPlayer = !!(activeVoicePost);
   const cardHasTitle = !!(post.title || activeVoicePost?.title);
@@ -1888,7 +1877,8 @@ const ImmersivePostCardInner = ({
     flexibles: flexiblesConfig,
     compressionPriority: priorityConfig,
     postId: post.id,
-    enabled: isNearActive
+    enabled: isNearActive,
+    cacheKeyExtra: `${post.title || ''}_${post.content || ''}_${post.media?.length || 0}_${articlePreview?.image || ''}`
   });
 
   const tweetEmbedStep = useStackLayout 
@@ -2125,7 +2115,7 @@ const ImmersivePostCardInner = ({
     <>
       <div
         ref={registerRef('card-container')}
-        className="h-[100dvh] w-full snap-start relative overflow-hidden bg-immersive transition-colors duration-500"
+        className="h-[100dvh] w-full relative overflow-hidden bg-immersive transition-colors duration-500"
         style={{ isolation: 'isolate', contain: 'layout style size' }}
         onClick={handleDoubleTap}
       >
