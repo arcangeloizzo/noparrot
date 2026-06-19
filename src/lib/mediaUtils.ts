@@ -54,19 +54,23 @@ export function classifyOrientation(
  * - Per YouTube/Spotify/altre fonti: handled separatamente.
  */
 export function generateAmbientUrl(
-  src: string,
-  kind: 'image' | 'video' | 'audio-cover'
+  src: string | null | undefined,
+  kind?: 'image' | 'video' | 'audio-cover'
 ): string {
-  if (!src) return src;
+  if (!src) return '';
 
-  // Supabase Storage public bucket — usa Image Transform
-  if (src.includes('/storage/v1/object/public/')) {
-    const url = new URL(src);
-    if (kind === 'image' || kind === 'audio-cover') {
-      url.searchParams.set('width', '200');
-      url.searchParams.set('quality', '40');
-      return url.toString();
+  // 1. Rewrite Supabase Storage public URLs to use the Image Transformation service
+  const match = src.match(/^(https?:\/\/[^\/]+)\/storage\/v1\/object\/public\/(.+?)(\?.*)?$/);
+  if (match) {
+    const [, base, path] = match;
+    if (!kind || kind === 'image' || kind === 'audio-cover') {
+      return `${base}/storage/v1/render/image/public/${path}?width=100&quality=30&resize=contain`;
     }
+  }
+
+  // 2. Downscale YouTube thumbnails to mqdefault (320x180) to reduce composition complexity
+  if (src.includes('img.youtube.com/vi/') || src.includes('i.ytimg.com/vi/')) {
+    return src.replace(/(maxresdefault|hqdefault|sddefault)\.jpg/, 'mqdefault.jpg');
   }
 
   return src;

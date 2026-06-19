@@ -106,7 +106,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCreateThread } from "@/hooks/useMessageThreads";
 import { useSendMessage } from "@/hooks/useMessages";
 import { getWordCount, getPostFullText, getTestModeWithSource, getQuestionCountWithoutSource, getQuestionCountForIntentReshare } from "@/lib/gate-utils";
-import { getMediaLayout, countPostWords, normalizeMedia, calculateMediaLayout } from "@/lib/mediaUtils";
+import { getMediaLayout, countPostWords, normalizeMedia, calculateMediaLayout, generateAmbientUrl } from "@/lib/mediaUtils";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
 import { useReshareContextStack } from "@/hooks/useReshareContextStack";
 import { useOriginalSource } from "@/hooks/useOriginalSource";
@@ -1975,13 +1975,13 @@ const ImmersivePostCardInner = ({
       
       if (srcMediaUrl) {
         if (srcPostType === 'instagram_reel') {
-          return { media: { src: srcMediaUrl, kind: 'reel-short' } };
+          return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'reel-short' } };
         }
         
         // YouTube short?
         const isSrcYoutubeShort = srcSharedUrl && srcSharedUrl.includes('/shorts/') && (srcSharedUrl.includes('youtube.com') || srcSharedUrl.includes('youtu.be'));
         if (isSrcYoutubeShort) {
-          return { media: { src: srcMediaUrl, kind: 'reel-short' } };
+          return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'reel-short' } };
         }
         
         // Vertical video upload?
@@ -1989,31 +1989,31 @@ const ImmersivePostCardInner = ({
         if (srcPostType === 'voice' || srcPostType === 'challenge' || isSrcVideo) {
           const isVoiceOrVertical = srcPostType === 'voice' || isSrcVideo;
           if (isVoiceOrVertical) {
-            return { media: { src: srcMediaUrl, kind: 'reel-short' } };
+            return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'reel-short' } };
           }
         }
         
         // Is it user uploaded photo/carousel?
         const hasSrcUserMedia = src.media && src.media.length > 0;
         if (hasSrcUserMedia && !srcSharedUrl) {
-          return { media: { src: srcMediaUrl, kind: 'photo-user' } };
+          return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'photo-user' } };
         }
         
         // YouTube std?
         const isSrcYoutube = srcSharedUrl && (srcSharedUrl.includes('youtube.com') || srcSharedUrl.includes('youtu.be'));
         if (isSrcYoutube) {
-          return { media: { src: srcMediaUrl, kind: 'thumbnail' } };
+          return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'thumbnail' } };
         }
 
         // Twitter / LinkedIn / standard article with preview image:
         const isSrcTwitter = srcSharedUrl?.includes('x.com') || srcSharedUrl?.includes('twitter.com');
         const isSrcLinkedIn = srcSharedUrl?.includes('linkedin.com');
         if (isSrcTwitter || isSrcLinkedIn) {
-          return { media: { src: srcMediaUrl, kind: 'og-image' } };
+          return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'og-image' } };
         }
 
         // Standard OG image:
-        return { media: { src: srcMediaUrl, kind: 'og-image' } };
+        return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'og-image' } };
       }
 
       // 4. No media in original -> use its category
@@ -2033,7 +2033,7 @@ const ImmersivePostCardInner = ({
       return {
         preset: 'spotify',
         spotifyTrackInfo: {
-          albumArtUrl: articlePreview?.image || post.preview_img || '',
+          albumArtUrl: generateAmbientUrl(articlePreview?.image || post.preview_img || ''),
           audioFeatures: articlePreview?.audioFeatures
         }
       };
@@ -2045,7 +2045,7 @@ const ImmersivePostCardInner = ({
       if (artUrl) {
         return {
           preset: 'spotify',
-          spotifyTrackInfo: { albumArtUrl: artUrl }
+          spotifyTrackInfo: { albumArtUrl: generateAmbientUrl(artUrl) }
         };
       } else {
         return { category: getCategoryColor(post.category) };
@@ -2056,7 +2056,7 @@ const ImmersivePostCardInner = ({
     if (shouldUseBlurredBg && backgroundImageUrl) {
       return {
         media: {
-          src: backgroundImageUrl,
+          src: generateAmbientUrl(backgroundImageUrl),
           kind: 'reel-short'
         }
       };
@@ -2066,7 +2066,7 @@ const ImmersivePostCardInner = ({
     if (isMediaOnlyPost && mediaUrl && !isAudioPost) {
       return {
         media: {
-          src: mediaUrl,
+          src: generateAmbientUrl(mediaUrl),
           kind: 'photo-user'
         }
       };
@@ -2078,7 +2078,7 @@ const ImmersivePostCardInner = ({
       if (artworkSrc) {
         return {
           media: {
-            src: artworkSrc,
+            src: generateAmbientUrl(artworkSrc),
             kind: 'photo-user'
           }
         };
@@ -2093,7 +2093,7 @@ const ImmersivePostCardInner = ({
       if (isYoutube) {
         return {
           media: {
-            src: stdImageUrl,
+            src: generateAmbientUrl(stdImageUrl),
             kind: 'thumbnail'
           }
         };
@@ -2101,7 +2101,7 @@ const ImmersivePostCardInner = ({
       
       return {
         media: {
-          src: stdImageUrl,
+          src: generateAmbientUrl(stdImageUrl),
           kind: 'og-image'
         }
       };
