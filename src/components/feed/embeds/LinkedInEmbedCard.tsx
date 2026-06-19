@@ -206,8 +206,14 @@ export const LinkedInEmbedCard = memo(LinkedInEmbedCardInner, (prevProps, nextPr
     prevProps.bodyLineClamp === nextProps.bodyLineClamp &&
     prevProps.shouldShowApprofondisci === nextProps.shouldShowApprofondisci &&
     prevProps.linkedinEmbedStep === nextProps.linkedinEmbedStep &&
-    JSON.stringify(prevProps.articlePreview) === JSON.stringify(nextProps.articlePreview) &&
-    JSON.stringify(prevProps.flexiblesStatus) === JSON.stringify(nextProps.flexiblesStatus)
+    prevProps.articlePreview?.title === nextProps.articlePreview?.title &&
+    prevProps.articlePreview?.description === nextProps.articlePreview?.description &&
+    prevProps.articlePreview?.image === nextProps.articlePreview?.image &&
+    prevProps.articlePreview?.platform === nextProps.articlePreview?.platform &&
+    prevProps.flexiblesStatus?.["flexible-reshare-link-body"]?.step ===
+      nextProps.flexiblesStatus?.["flexible-reshare-link-body"]?.step &&
+    prevProps.flexiblesStatus?.["flexible-reshare-link-body"]?.height ===
+      nextProps.flexiblesStatus?.["flexible-reshare-link-body"]?.height
   );
 });
 

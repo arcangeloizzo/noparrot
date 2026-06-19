@@ -435,11 +435,23 @@ export const GenericArticleEmbed = memo(GenericArticleEmbedInner, (prevProps, ne
     prevProps.isEditorialFocus === nextProps.isEditorialFocus &&
     prevProps.editorialSummary === nextProps.editorialSummary &&
     prevProps.hasUserMedia === nextProps.hasUserMedia &&
-    JSON.stringify(prevProps.articlePreview) === JSON.stringify(nextProps.articlePreview) &&
-    JSON.stringify(prevProps.displayTrustScore) ===
-      JSON.stringify(nextProps.displayTrustScore) &&
-    JSON.stringify(prevProps.flexiblesStatus) === JSON.stringify(nextProps.flexiblesStatus) &&
-    JSON.stringify(prevProps.normalizedMedias) === JSON.stringify(nextProps.normalizedMedias)
+    prevProps.articlePreview?.title === nextProps.articlePreview?.title &&
+    prevProps.articlePreview?.description === nextProps.articlePreview?.description &&
+    prevProps.articlePreview?.image === nextProps.articlePreview?.image &&
+    prevProps.articlePreview?.platform === nextProps.articlePreview?.platform &&
+    prevProps.displayTrustScore?.band === nextProps.displayTrustScore?.band &&
+    prevProps.displayTrustScore?.score === nextProps.displayTrustScore?.score &&
+    prevProps.flexiblesStatus?.["flexible-reshare-link-body"]?.height ===
+      nextProps.flexiblesStatus?.["flexible-reshare-link-body"]?.height &&
+    (prevProps.normalizedMedias === nextProps.normalizedMedias ||
+      (prevProps.normalizedMedias?.length === nextProps.normalizedMedias?.length &&
+        (prevProps.normalizedMedias || []).every(
+          (val, idx) =>
+            val.src === nextProps.normalizedMedias[idx].src &&
+            val.ratio === nextProps.normalizedMedias[idx].ratio &&
+            val.orientation === nextProps.normalizedMedias[idx].orientation &&
+            val.kind === nextProps.normalizedMedias[idx].kind
+        )))
   );
 });
 

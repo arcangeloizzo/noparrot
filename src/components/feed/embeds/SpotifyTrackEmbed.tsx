@@ -228,8 +228,15 @@ export const SpotifyTrackEmbed = memo(SpotifyTrackEmbedInner, (prevProps, nextPr
     prevProps.shouldShowApprofondisci === nextProps.shouldShowApprofondisci &&
     prevProps.spotifyTrackStep === nextProps.spotifyTrackStep &&
     prevProps.hasUserMedia === nextProps.hasUserMedia &&
-    JSON.stringify(prevProps.dominantColors) === JSON.stringify(nextProps.dominantColors) &&
-    JSON.stringify(prevProps.flexiblesStatus) === JSON.stringify(nextProps.flexiblesStatus)
+    (prevProps.dominantColors === nextProps.dominantColors ||
+      (prevProps.dominantColors?.length === nextProps.dominantColors?.length &&
+        (prevProps.dominantColors || []).every(
+          (val, idx) => val === nextProps.dominantColors[idx]
+        ))) &&
+    prevProps.flexiblesStatus?.["flexible-reshare-link-body"]?.step ===
+      nextProps.flexiblesStatus?.["flexible-reshare-link-body"]?.step &&
+    prevProps.flexiblesStatus?.["flexible-reshare-link-body"]?.height ===
+      nextProps.flexiblesStatus?.["flexible-reshare-link-body"]?.height
   );
 });
 
