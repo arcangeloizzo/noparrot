@@ -12,7 +12,7 @@ export const LogoVertical = ({ className, hideText = false, id, onClick }: LogoV
     id={id}
     onClick={onClick}
     className={cn(className)} 
-    viewBox="0 0 1024 1024" 
+    viewBox={hideText ? "120 60 720 720" : "0 0 1024 1024"} 
     xmlns="http://www.w3.org/2000/svg"
   >
     <defs>
