@@ -27,6 +27,7 @@ export interface UseDynamicCardLayoutProps {
   compressionPriority: string[];
   postId?: string;
   enabled?: boolean;
+  cacheKeyExtra?: string;
 }
 
 export interface FlexibleElementStatus {
@@ -59,15 +60,33 @@ export interface CardLayoutResult {
 
 const PILL_HEIGHT = 36; // Altezza fissa di sistema per le pillole
 
+interface CachedLayout {
+  status: 'measured';
+  layoutMode: 'filled' | 'hero' | 'poster';
+  bodyLineClamp: number;
+  showApprofondisci: boolean;
+  essentialStates: Record<string, string>;
+  flexiblesStatus: Record<string, FlexibleElementStatus>;
+  showDrawerCta: boolean;
+  emergencyScroll: boolean;
+  isCaptionTruncated: boolean;
+}
+
+const layoutCache = new Map<string, CachedLayout>();
+
 export function useDynamicCardLayout({
   availableHeight,
   essentials,
   flexibles,
   compressionPriority,
   postId,
-  enabled = true
+  enabled = true,
+  cacheKeyExtra = ''
 }: UseDynamicCardLayoutProps): CardLayoutResult {
-  const [status, setStatus] = useState<'pending' | 'measured'>('pending');
+  const cacheKey = postId ? `${postId}_${availableHeight}_${cacheKeyExtra}` : '';
+  const cached = cacheKey ? layoutCache.get(cacheKey) : undefined;
+
+  const [status, setStatus] = useState<'pending' | 'measured'>(cached ? 'measured' : 'pending');
 
   const headerRef = useRef<HTMLDivElement>(null);
   const badgeRef = useRef<HTMLDivElement>(null);
@@ -80,9 +99,9 @@ export function useDynamicCardLayout({
   const slotBottomRef = useRef<HTMLDivElement>(null);
   const subBarRef = useRef<HTMLDivElement>(null);
 
-  const [layoutMode, setLayoutMode] = useState<'filled' | 'hero' | 'poster'>('filled');
-  const [bodyLineClamp, setBodyLineClamp] = useState<number>(6);
-  const [showApprofondisci, setShowApprofondisci] = useState<boolean>(false);
+  const [layoutMode, setLayoutMode] = useState<'filled' | 'hero' | 'poster'>(cached ? cached.layoutMode : 'filled');
+  const [bodyLineClamp, setBodyLineClamp] = useState<number>(cached ? cached.bodyLineClamp : 6);
+  const [showApprofondisci, setShowApprofondisci] = useState<boolean>(cached ? cached.showApprofondisci : false);
 
   const elementRefs = useRef<Record<string, HTMLElement | null>>({});
   const naturalHeightsRef = useRef<Record<string, number>>({});
@@ -101,6 +120,15 @@ export function useDynamicCardLayout({
     emergencyScroll: boolean;
     isCaptionTruncated: boolean;
   }>(() => {
+    if (cached) {
+      return {
+        essentialStates: cached.essentialStates,
+        flexiblesStatus: cached.flexiblesStatus,
+        showDrawerCta: cached.showDrawerCta,
+        emergencyScroll: cached.emergencyScroll,
+        isCaptionTruncated: cached.isCaptionTruncated
+      };
+    }
     // Configurazione iniziale di fallback per il primo frame ('pending')
     const initialFlexStatus: Record<string, FlexibleElementStatus> = {};
     for (const flex of flexibles) {
@@ -137,6 +165,10 @@ export function useDynamicCardLayout({
   const serializedPriority = JSON.stringify(compressionPriority);
   useLayoutEffect(() => {
     if (typeof window === 'undefined' || !enabled) return;
+
+    if (cacheKey && layoutCache.has(cacheKey)) {
+      return;
+    }
 
     const computeLayout = () => {
       let currentAvailableHeight = availableHeight;
@@ -505,6 +537,21 @@ export function useDynamicCardLayout({
         mode = 'filled';
       }
       setLayoutMode(prev => prev !== mode ? mode : prev);
+
+      // Aggiorna la cache globale
+      if (cacheKey) {
+        layoutCache.set(cacheKey, {
+          status: 'measured',
+          layoutMode: mode,
+          bodyLineClamp: computedLineClamp,
+          showApprofondisci: isBodyTruncated,
+          essentialStates: currentEssentialStates,
+          flexiblesStatus: currentFlexStatus,
+          showDrawerCta,
+          emergencyScroll,
+          isCaptionTruncated
+        });
+      }
     };
 
     // RAF-batched layout: all DOM reads (offsetHeight / scrollHeight /
@@ -520,43 +567,13 @@ export function useDynamicCardLayout({
       });
     };
 
-    const observer = new ResizeObserver((entries) => {
-      let shouldUpdate = false;
-      for (const entry of entries) {
-        const targetId = Object.keys(elementRefs.current).find(
-          key => elementRefs.current[key] === entry.target
-        );
-        if (targetId !== 'card-container') continue;
-
-        const { height } = entry.contentRect;
-        const prevHeight = prevHeightsRef.current[targetId] || 0;
-        if (Math.abs(height - prevHeight) > 2) {
-          shouldUpdate = true;
-          prevHeightsRef.current[targetId] = height;
-        }
-      }
-
-      if (shouldUpdate) {
-        handleResize();
-      }
-    });
-
-    observerRef.current = observer;
-
-    // Monitora esclusivamente il contenitore principale della card (evita feedback loop)
-    const containerNode = elementRefs.current['card-container'];
-    if (containerNode) {
-      observer.observe(containerNode);
-    }
-
     // Esegue il calcolo iniziale
     handleResize();
 
     return () => {
-      observer.disconnect();
       if (rafId !== null) cancelAnimationFrame(rafId);
     };
-  }, [availableHeight, serializedEssentials, serializedFlexibles, serializedPriority, postId, enabled]);
+  }, [availableHeight, serializedEssentials, serializedFlexibles, serializedPriority, postId, enabled, cacheKey]);
 
   // Dev-only warning per ref mancanti o blocco in pending
   useEffect(() => {
