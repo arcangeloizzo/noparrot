@@ -56,15 +56,7 @@ import { CardExternalCTA } from "./CardExternalCTA";
 import { ReshareContextStack } from "./ReshareContextStack";
 import { SpotifyGradientBackground } from "./SpotifyGradientBackground";
 import { SpotifyPodcastCompactCard } from "./SpotifyPodcastCompactCard";
-import { SpotifyTrackEmbed } from "./embeds/SpotifyTrackEmbed";
-import { SpotifyEpisodeEmbed } from "./embeds/SpotifyEpisodeEmbed";
-import { UserUploadEmbed } from "./embeds/UserUploadEmbed";
-import { TwitterTweetEmbed } from "./embeds/TwitterTweetEmbed";
-import { LinkedInEmbedCard } from "./embeds/LinkedInEmbedCard";
-import { YouTubeShortEmbed } from "./embeds/YouTubeShortEmbed";
-import { YouTubeVideoEmbed } from "./embeds/YouTubeVideoEmbed";
-import { InstagramReelEmbed } from "./embeds/InstagramReelEmbed";
-import { GenericArticleEmbed } from "./embeds/GenericArticleEmbed";
+import { CardMediaAdapter } from "./embeds/CardMediaAdapter";
 import { SourceImageWithFallback } from "./SourceImageWithFallback";
 import { FullTextModal } from "./FullTextModal";
 import { DynamicClampBody } from "./DynamicClampBody";
@@ -3117,222 +3109,47 @@ const ImmersivePostCardInner = ({
                 </div>
               )}
 
-              {isStandardPost ? (
-                <UserUploadEmbed
-                  postTitle={post.title}
-                  postContent={post.content}
-                  postMedia={post.media}
-                  isNearActive={isNearActive}
-                  isActive={isActive}
-                  useStackLayout={useStackLayout}
-                  emergencyScroll={emergencyScroll || false}
-                  bodyLineClamp={bodyLineClamp}
-                  shouldShowApprofondisci={shouldShowApprofondisci}
-                  flexiblesStatus={flexiblesStatus}
-                  onOpenFullText={openFullTextDrawer}
-                  registerRef={registerRef}
-                  onMediaTap={(index) => setSelectedMediaIndex(index)}
-                  titleRef={(node) => {
-                    registerRef('essential-title')(node);
-                    if (titleRef) {
-                      (titleRef as any).current = node;
-                    }
-                  }}
-                  bodyRef={bodyRef}
-                  bodyTextRef={bodyTextRef}
-                  mediaRef={mediaRef}
-                />
-
-              // Twitter/X Card - Unified glassmorphic container
-              ) : hasLink && isTwitter ? (
-                <TwitterTweetEmbed
-                  articlePreview={articlePreview}
-                  isNearActive={isNearActive}
-                  postTitle={post.title || undefined}
-                  postContent={post.content || undefined}
-                  sharedUrl={post.shared_url || undefined}
-                  sharedTitle={post.shared_title || undefined}
-                  previewImg={post.preview_img || undefined}
-                  useStackLayout={useStackLayout}
-                  emergencyScroll={emergencyScroll || false}
-                  bodyLineClamp={bodyLineClamp}
-                  shouldShowApprofondisci={shouldShowApprofondisci}
-                  tweetEmbedStep={tweetEmbedStep || "full"}
-                  flexiblesStatus={flexiblesStatus}
-                  onOpenFullText={openFullTextDrawer}
-                  registerRef={registerRef}
-                  titleRef={titleRef}
-                  bodyRef={bodyRef}
-                  bodyTextRef={bodyTextRef}
-                  slotBottomRef={slotBottomRef}
-                />
-              ) : hasLink && isLinkedIn ? (
-                <LinkedInEmbedCard
-                  articlePreview={articlePreview}
-                  isNearActive={isNearActive}
-                  postTitle={post.title || undefined}
-                  postContent={post.content || undefined}
-                  sharedUrl={post.shared_url || undefined}
-                  sharedTitle={post.shared_title || undefined}
-                  previewImg={post.preview_img || undefined}
-                  useStackLayout={useStackLayout}
-                  emergencyScroll={emergencyScroll || false}
-                  bodyLineClamp={bodyLineClamp}
-                  shouldShowApprofondisci={shouldShowApprofondisci}
-                  linkedinEmbedStep={linkedinEmbedStep || "full"}
-                  flexiblesStatus={flexiblesStatus}
-                  onOpenFullText={openFullTextDrawer}
-                  registerRef={registerRef}
-                  titleRef={titleRef}
-                  bodyRef={bodyRef}
-                  bodyTextRef={bodyTextRef}
-                  slotBottomRef={slotBottomRef}
-                />
-              ) : hasLink && isYoutubeShort ? (
-                <YouTubeShortEmbed
-                  isNearActive={isNearActive}
-                  articlePreview={articlePreview}
-                  postTitle={post.title || undefined}
-                  postContent={post.content || undefined}
-                  sharedUrl={post.shared_url || undefined}
-                  sharedTitle={post.shared_title || undefined}
-                  useStackLayout={useStackLayout}
-                  emergencyScroll={emergencyScroll || false}
-                  bodyLineClamp={bodyLineClamp}
-                  shouldShowApprofondisci={shouldShowApprofondisci}
-                  flexiblesStatus={flexiblesStatus}
-                  onOpenFullText={openFullTextDrawer}
-                  registerRef={registerRef}
-                  bodyRef={bodyRef}
-                  captionTextRef={captionTextRef}
-                  slotBottomRef={slotBottomRef}
-                />
-              ) : hasLink && isYoutube ? (
-                <YouTubeVideoEmbed
-                  postId={post.id}
-                  postTitle={post.title}
-                  postContent={post.content}
-                  sharedUrl={post.shared_url}
-                  sharedTitle={post.shared_title}
-                  postPreviewImg={post.preview_img}
-                  articlePreview={articlePreview}
-                  useStackLayout={useStackLayout}
-                  emergencyScroll={emergencyScroll}
-                  bodyLineClamp={bodyLineClamp}
-                  shouldShowApprofondisci={shouldShowApprofondisci}
-                  youtubeEmbedStep={youtubeEmbedStep}
-                  hasUserMedia={hasUserMedia}
-                  flexiblesStatus={flexiblesStatus}
-                  onOpenFullText={openFullTextDrawer}
-                  registerRef={registerRef}
-                  titleRef={registerRef('essential-title')}
-                  bodyRef={bodyRef}
-                  bodyTextRef={bodyTextRef}
-                  slotBottomRef={slotBottomRef}
-                />
-              ) : hasLink && isSpotifyEpisode ? (
-                <SpotifyEpisodeEmbed
-                  postTitle={post.title}
-                  postContent={post.content}
-                  sharedUrl={post.shared_url}
-                  sharedTitle={post.shared_title}
-                  articlePreview={articlePreview}
-                  useStackLayout={useStackLayout}
-                  emergencyScroll={emergencyScroll}
-                  bodyLineClamp={bodyLineClamp}
-                  shouldShowApprofondisci={shouldShowApprofondisci}
-                  spotifyEpisodeStep={spotifyEpisodeStep}
-                  hasUserMedia={hasUserMedia}
-                  flexiblesStatus={flexiblesStatus}
-                  onOpenFullText={openFullTextDrawer}
-                  registerRef={registerRef}
-                  titleRef={(node) => {
-                    registerRef('essential-title')(node);
-                    if (titleRef) {
-                      (titleRef as any).current = node;
-                    }
-                  }}
-                  bodyRef={bodyRef}
-                  bodyTextRef={bodyTextRef}
-                  slotBottomRef={slotBottomRef}
-                />
-              ) : hasLink && isSpotifyTrack ? (
-                <SpotifyTrackEmbed
-                  title={articlePreview?.title || post.shared_title || undefined}
-                  artist={articlePreview?.description || undefined}
-                  imageUrl={articlePreview?.image || post.preview_img || undefined}
-                  trackUrl={post.shared_url || undefined}
-                  isNearActive={isNearActive}
-                  postTitle={post.title || undefined}
-                  postContent={post.content || undefined}
-                  useStackLayout={useStackLayout}
-                  emergencyScroll={emergencyScroll || false}
-                  bodyLineClamp={bodyLineClamp}
-                  shouldShowApprofondisci={shouldShowApprofondisci}
-                  spotifyTrackStep={spotifyTrackStep as any}
-                  hasUserMedia={hasUserMedia}
-                  flexiblesStatus={flexiblesStatus}
-                  onOpenFullText={openFullTextDrawer}
-                  registerRef={registerRef}
-                  titleRef={titleRef}
-                  bodyRef={bodyRef}
-                  bodyTextRef={bodyTextRef}
-                  slotBottomRef={slotBottomRef}
-                />
-              ) : isGenericArticle ? (
-                <GenericArticleEmbed
-                  postId={post.id}
-                  postTitle={post.title}
-                  postContent={post.content}
-                  sharedUrl={post.shared_url}
-                  sharedTitle={post.shared_title}
-                  articleContent={post.article_content}
-                  previewImg={post.preview_img}
-                  articlePreview={articlePreview}
-                  useStackLayout={useStackLayout}
-                  emergencyScroll={emergencyScroll || false}
-                  bodyLineClamp={bodyLineClamp}
-                  shouldShowApprofondisci={shouldShowApprofondisci}
-                  articleStep={articleStep || "full"}
-                  isEditorialFocus={isEditorialFocus || false}
-                  editorialSummary={editorialSummary}
-                  displayTrustScore={displayTrustScore}
-                  hasUserMedia={hasUserMedia}
-                  flexiblesStatus={flexiblesStatus}
-                  normalizedMedias={normalizedMedias}
-                  onOpenFullText={openFullTextDrawer}
-                  registerRef={registerRef}
-                  navigate={navigate}
-                  titleRef={(node) => {
-                    registerRef('essential-title')(node);
-                    if (titleRef) {
-                      (titleRef as any).current = node;
-                    }
-                  }}
-                  bodyRef={bodyRef}
-                  bodyTextRef={bodyTextRef}
-                  slotBottomRef={slotBottomRef}
-                />
-              ) : isInstagramReel ? (
-                <InstagramReelEmbed
-                  postTitle={post.title}
-                  postContent={post.content}
-                  sharedUrl={post.shared_url}
-                  sharedTitle={post.shared_title}
-                  articlePreview={articlePreview}
-                  useStackLayout={useStackLayout}
-                  emergencyScroll={emergencyScroll}
-                  bodyLineClamp={bodyLineClamp}
-                  shouldShowApprofondisci={shouldShowApprofondisci}
-                  flexiblesStatus={flexiblesStatus}
-                  onOpenFullText={openFullTextDrawer}
-                  registerRef={registerRef}
-                  bodyRef={bodyRef}
-                  bodyTextRef={bodyTextRef}
-                  captionTextRef={captionTextRef}
-                  slotBottomRef={slotBottomRef}
-                />
-              ) : null}
+              <CardMediaAdapter
+                isStandardPost={isStandardPost}
+                isTwitter={hasLink && isTwitter}
+                isLinkedIn={hasLink && isLinkedIn}
+                isYoutubeShort={hasLink && isYoutubeShort}
+                isYoutube={hasLink && isYoutube}
+                isSpotifyEpisode={hasLink && isSpotifyEpisode}
+                isSpotifyTrack={hasLink && isSpotifyTrack}
+                isGenericArticle={isGenericArticle}
+                isInstagramReel={isInstagramReel}
+                post={post}
+                articlePreview={articlePreview}
+                isNearActive={isNearActive}
+                isActive={isActive}
+                useStackLayout={useStackLayout}
+                emergencyScroll={emergencyScroll || false}
+                bodyLineClamp={bodyLineClamp}
+                shouldShowApprofondisci={shouldShowApprofondisci}
+                flexiblesStatus={flexiblesStatus}
+                hasUserMedia={hasUserMedia}
+                displayTrustScore={displayTrustScore}
+                normalizedMedias={normalizedMedias}
+                isEditorialFocus={isEditorialFocus || false}
+                editorialSummary={editorialSummary}
+                tweetEmbedStep={tweetEmbedStep}
+                linkedinEmbedStep={linkedinEmbedStep}
+                youtubeEmbedStep={youtubeEmbedStep}
+                spotifyEpisodeStep={spotifyEpisodeStep}
+                spotifyTrackStep={spotifyTrackStep as any}
+                articleStep={articleStep}
+                onOpenFullText={openFullTextDrawer}
+                registerRef={registerRef}
+                onMediaTap={(index) => setSelectedMediaIndex(index)}
+                navigate={navigate}
+                titleRef={titleRef}
+                bodyRef={bodyRef}
+                bodyTextRef={bodyTextRef}
+                mediaRef={mediaRef}
+                captionTextRef={captionTextRef}
+                slotBottomRef={slotBottomRef}
+              />
 
               {/* Quoted Post - Show for ALL reshares (stack and non-stack) */}
               {quotedPost && (
