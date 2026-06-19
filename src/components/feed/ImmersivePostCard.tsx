@@ -1972,16 +1972,18 @@ const ImmersivePostCardInner = ({
       // 3. Does original post have media?
       const srcMediaUrl = src.media?.[0]?.url || (src.image !== undefined ? src.image : (src as any).preview_img);
       const srcPostType = src.postType !== undefined ? src.postType : (src as any).post_type;
+      const srcCat = src.category !== undefined ? src.category : (src as any).category;
+      const fallbackCategory = getCategoryColor(srcCat);
       
       if (srcMediaUrl) {
         if (srcPostType === 'instagram_reel') {
-          return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'reel-short' } };
+          return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'reel-short' }, category: fallbackCategory };
         }
         
         // YouTube short?
         const isSrcYoutubeShort = srcSharedUrl && srcSharedUrl.includes('/shorts/') && (srcSharedUrl.includes('youtube.com') || srcSharedUrl.includes('youtu.be'));
         if (isSrcYoutubeShort) {
-          return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'reel-short' } };
+          return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'reel-short' }, category: fallbackCategory };
         }
         
         // Vertical video upload?
@@ -1989,36 +1991,35 @@ const ImmersivePostCardInner = ({
         if (srcPostType === 'voice' || srcPostType === 'challenge' || isSrcVideo) {
           const isVoiceOrVertical = srcPostType === 'voice' || isSrcVideo;
           if (isVoiceOrVertical) {
-            return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'reel-short' } };
+            return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'reel-short' }, category: fallbackCategory };
           }
         }
         
         // Is it user uploaded photo/carousel?
         const hasSrcUserMedia = src.media && src.media.length > 0;
         if (hasSrcUserMedia && !srcSharedUrl) {
-          return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'photo-user' } };
+          return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'photo-user' }, category: fallbackCategory };
         }
         
         // YouTube std?
         const isSrcYoutube = srcSharedUrl && (srcSharedUrl.includes('youtube.com') || srcSharedUrl.includes('youtu.be'));
         if (isSrcYoutube) {
-          return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'thumbnail' } };
+          return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'thumbnail' }, category: fallbackCategory };
         }
 
         // Twitter / LinkedIn / standard article with preview image:
         const isSrcTwitter = srcSharedUrl?.includes('x.com') || srcSharedUrl?.includes('twitter.com');
         const isSrcLinkedIn = srcSharedUrl?.includes('linkedin.com');
         if (isSrcTwitter || isSrcLinkedIn) {
-          return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'og-image' } };
+          return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'og-image' }, category: fallbackCategory };
         }
 
         // Standard OG image:
-        return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'og-image' } };
+        return { media: { src: generateAmbientUrl(srcMediaUrl), kind: 'og-image' }, category: fallbackCategory };
       }
 
       // 4. No media in original -> use its category
-      const srcCat = src.category !== undefined ? src.category : (src as any).category;
-      return { category: getCategoryColor(srcCat) };
+      return { category: fallbackCategory };
     }
 
     // --- Post non ricondiviso (Post standard) ---
@@ -2058,7 +2059,8 @@ const ImmersivePostCardInner = ({
         media: {
           src: generateAmbientUrl(backgroundImageUrl),
           kind: 'reel-short'
-        }
+        },
+        category: getCategoryColor(post.category)
       };
     }
 
@@ -2068,7 +2070,8 @@ const ImmersivePostCardInner = ({
         media: {
           src: generateAmbientUrl(mediaUrl),
           kind: 'photo-user'
-        }
+        },
+        category: getCategoryColor(post.category)
       };
     }
 
@@ -2080,7 +2083,8 @@ const ImmersivePostCardInner = ({
           media: {
             src: generateAmbientUrl(artworkSrc),
             kind: 'photo-user'
-          }
+          },
+          category: getCategoryColor(post.category)
         };
       } else {
         return { category: getCategoryColor(post.category) };
@@ -2095,7 +2099,8 @@ const ImmersivePostCardInner = ({
           media: {
             src: generateAmbientUrl(stdImageUrl),
             kind: 'thumbnail'
-          }
+          },
+          category: getCategoryColor(post.category)
         };
       }
       
@@ -2103,7 +2108,8 @@ const ImmersivePostCardInner = ({
         media: {
           src: generateAmbientUrl(stdImageUrl),
           kind: 'og-image'
-        }
+        },
+        category: getCategoryColor(post.category)
       };
     }
 
