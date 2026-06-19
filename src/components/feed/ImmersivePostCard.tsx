@@ -58,6 +58,7 @@ import { SpotifyGradientBackground } from "./SpotifyGradientBackground";
 import { SpotifyPodcastCompactCard } from "./SpotifyPodcastCompactCard";
 import { SpotifyTrackEmbed } from "./embeds/SpotifyTrackEmbed";
 import { SpotifyEpisodeEmbed } from "./embeds/SpotifyEpisodeEmbed";
+import { UserUploadEmbed } from "./embeds/UserUploadEmbed";
 import { TwitterTweetEmbed } from "./embeds/TwitterTweetEmbed";
 import { LinkedInEmbedCard } from "./embeds/LinkedInEmbedCard";
 import { YouTubeShortEmbed } from "./embeds/YouTubeShortEmbed";
@@ -3116,271 +3117,30 @@ const ImmersivePostCardInner = ({
               )}
 
               {isStandardPost ? (
-                (() => {
-                const wordCount = countPostWords(post.title, post.content);
-                const userUploadMedia = normalizedMedias.find(m => m.source === 'user_upload');
-                const linkPreviewMedia = normalizedMedias.find(m => m.source === 'link_preview');
-                // KILL SWITCH 16/06: branch MediaFrame articoli generici ha edge case multipli su iPhone SE (body text non rendered, landscape mostrato portrait, cover oversized). Disabilitato in attesa di diagnosi DOM Safari mobile dedicata. Il branch user_upload con UnifiedMedia adapter funziona correttamente.
-                const hasPreviewMetadata = false && !!linkPreviewMedia;
-                const isMiniLayout = (userUploadMedia && userUploadMedia.kind === 'image' && !isInstagramReel && !isYoutubeShort && calculateMediaLayout(userUploadMedia, wordCount) === 'mini') ||
-                  (linkPreviewMedia && hasPreviewMetadata && !isInstagramReel && !isYoutubeShort && calculateMediaLayout(linkPreviewMedia, wordCount) === 'mini');
-
-                return (
-                  <div 
-                    className={cn(
-                      "flex-1 min-h-0 flex flex-col justify-start w-full",
-                      emergencyScroll && "overflow-y-auto"
-                    )}
-                  >
-                    {/* Title */}
-                    {post.title && post.title.trim().length > 0 && (
-                      <ClampedTitle
-                        as="h2"
-                        text={post.title}
-                        maxLines={3}
-                        ref={(node) => {
-                          registerRef('essential-title')(node);
-                          (titleRef as any).current = node;
-                        }}
-                        className="uppercase mb-2 flex-shrink-0"
-                        style={{
-                          fontFamily: 'Impact, sans-serif',
-                          fontSize: 'clamp(30px, 8vw, 42px)',
-                          lineHeight: 0.92,
-                          letterSpacing: '-0.02em',
-                          color: '#FFFFFF',
-                          textAlign: 'left',
-                        }}
-                      />
-                    )}
-
-                    {/* Body text — unico flessibile o primo flessibile (renderizzato qui solo se NON mini layout) */}
-                    {!isMiniLayout && post.content && post.content.trim().length > 0 && (
-                      <div 
-                        ref={(el) => {
-                          (bodyRef as any).current = el;
-                          bodyTextRef.current = el;
-                        }}
-                        className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                        style={{ 
-                          fontFamily: 'Inter, sans-serif', 
-                          lineHeight: 1.55, 
-                          textAlign: 'left',
-                          display: '-webkit-box',
-                          WebkitLineClamp: bodyLineClamp,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden'
-                        }}
-                      >
-                        <MentionText content={post.content} />
-                      </div>
-                    )}
-
-                    {/* Approfondisci (subito dopo il body text - renderizzato qui solo se NON mini layout) */}
-                    {!isMiniLayout && shouldShowApprofondisci && (
-                      <div className="flex-shrink-0 mt-2 mb-3">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
-                          className="text-sm text-primary font-semibold hover:underline block"
-                        >
-                          Approfondisci
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Image/Media — secondo flessibile (se presente) */}
-                    {hasMedia && post.media && post.media.length > 0 && !shouldUseBlurredBg && (
-                      <>
-                        {/* Caso singolo upload immagine utente con matrice §5.1 */}
-                        {normalizedMedias.length === 1 && normalizedMedias[0].source === 'user_upload' && normalizedMedias[0].kind === 'image' ? (() => {
-                          const mediaForFrame = normalizedMedias[0];
-                          const layout = calculateMediaLayout(mediaForFrame, wordCount);
-
-                          const imageStep = flexiblesStatus['flexible-image']?.step ?? 'full';
-
-                          if (layout === 'mini') {
-                            return (
-                              <div className="vstage-row">
-                                <div className="v-col">
-                                  {post.content && post.content.trim().length > 0 && (
-                                    <div 
-                                      ref={(el) => {
-                                        (bodyRef as any).current = el;
-                                        bodyTextRef.current = el;
-                                      }}
-                                      className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6]"
-                                      style={{ 
-                                        fontFamily: 'Inter, sans-serif', 
-                                        lineHeight: 1.55, 
-                                        textAlign: 'left',
-                                        display: '-webkit-box',
-                                        WebkitLineClamp: bodyLineClamp,
-                                        WebkitBoxOrient: 'vertical',
-                                        overflow: 'hidden'
-                                      }}
-                                    >
-                                      <MentionText content={post.content} />
-                                    </div>
-                                  )}
-                                  {shouldShowApprofondisci && (
-                                    <div className="flex-shrink-0 mt-2 mb-3">
-                                      <button
-                                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
-                                        className="text-sm text-primary font-semibold hover:underline block"
-                                      >
-                                        Approfondisci
-                                      </button>
-                                    </div>
-                                  )}
-                                </div>
-                                <div
-                                  ref={(node) => {
-                                    registerRef('flexible-image')(node);
-                                    (mediaRef as any).current = node;
-                                  }}
-                                  className="flex-shrink-0"
-                                  style={{ alignSelf: 'flex-start' }}
-                                >
-                                  <MediaFrame
-                                    media={mediaForFrame}
-                                    variant="mini"
-                                    onTap={() => setSelectedMediaIndex(0)}
-                                  >
-                                    <div style={{
-                                      position: 'absolute', top: 8, right: 8, pointerEvents: 'auto',
-                                      width: 26, height: 26, borderRadius: 13,
-                                      background: 'rgba(0,0,0,0.45)',
-                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                      color: 'white', fontSize: 13
-                                    }}>⤢</div>
-                                  </MediaFrame>
-                                </div>
-                              </div>
-                            );
-                          }
-
-                          {/* 
-                            MediaFrame governa height autonomamente via aspect-ratio. 
-                            Sistema step legacy bypassato. Step 2.3 cleanup ref. 
-                          */}
-                          return (
-                            <div
-                              ref={(node) => {
-                                registerRef('flexible-image')(node);
-                                (mediaRef as any).current = node;
-                              }}
-                              className="w-full flex-shrink-0"
-                            >
-                              <MediaFrame
-                                media={mediaForFrame}
-                                variant={layout}
-                                onTap={() => setSelectedMediaIndex(0)}
-                              >
-                                <div style={{
-                                  position: 'absolute', top: 12, right: 12, pointerEvents: 'auto',
-                                  width: 30, height: 30, borderRadius: 15,
-                                  background: 'rgba(0,0,0,0.45)',
-                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  color: 'white', fontSize: 14
-                                }}>⤢</div>
-                              </MediaFrame>
-                            </div>
-                          );
-                        })() : (
-                          /* Caso carousel o video — mantieni legacy */
-                          <>
-                            {flexiblesStatus['flexible-image']?.step === 'full' && (
-                              <div 
-                                ref={(node) => {
-                                  registerRef('flexible-image')(node);
-                                  (mediaRef as any).current = node;
-                                }}
-                                className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3 rounded-xl border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.3)] cursor-pointer"
-                                style={{ height: `${flexiblesStatus['flexible-image'].height}px` }}
-                                onClick={post.media.length === 1 ? (e) => {
-                                  e.stopPropagation();
-                                  setSelectedMediaIndex(0);
-                                } : undefined}
-                              >
-                                {post.media.length === 1 ? (
-                                  isVideoMedia ? (
-                                    <div className="relative w-full h-full flex items-center justify-center">
-                                      <img
-                                        src={post.media?.[0]?.thumbnail_url || mediaUrl}
-                                        alt=""
-                                        width={(post.media?.[0] as any)?.width || 1080}
-                                        height={(post.media?.[0] as any)?.height || 1080}
-                                        loading="lazy"
-                                        decoding="async"
-                                        className="w-full h-full object-contain"
-                                      />
-                                      <div className="absolute inset-0 flex items-center justify-center">
-                                        <div className="bg-white p-3 rounded-full shadow-lg">
-                                          <Play className="w-5 h-5 text-black fill-black ml-0.5" />
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <img
-                                      src={mediaUrl}
-                                      alt=""
-                                      width={(post.media?.[0] as any)?.width || 1080}
-                                      height={(post.media?.[0] as any)?.height || 1080}
-                                      loading="lazy"
-                                      decoding="async"
-                                      className="w-full h-full object-contain"
-                                    />
-                                  )
-                                ) : (
-                                  <MediaGallery
-                                    media={post.media}
-                                    onClick={(_, index) => setSelectedMediaIndex(index)}
-                                    initialIndex={carouselIndex}
-                                    onIndexChange={setCarouselIndex}
-                                    className="h-full w-full object-contain"
-                                    isActive={isActive}
-                                  />
-                                )}
-                              </div>
-                            )}
-                            
-                            {flexiblesStatus['flexible-image']?.step === 'pill' && (
-                              <div 
-                                ref={(node) => {
-                                  registerRef('flexible-image')(node);
-                                  (mediaRef as any).current = node;
-                                }}
-                                className="flex-shrink-0 mb-3" 
-                                style={{ height: '36px' }}
-                              >
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedMediaIndex(0);
-                                  }}
-                                  className="inline-flex h-9 items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 px-4 rounded-full text-white text-xs font-bold"
-                                >
-                                  <span>📎 Vedi {isVideoMedia ? 'video' : 'immagine'}</span>
-                                </button>
-                              </div>
-                            )}
-
-                            {flexiblesStatus['flexible-image']?.step === 'hidden' && (
-                              <div 
-                                ref={(node) => {
-                                  registerRef('flexible-image')(node);
-                                  (mediaRef as any).current = node;
-                                }}
-                                style={{ height: 0, overflow: 'hidden' }} 
-                              />
-                            )}
-                          </>
-                        )}
-                      </>
-                    )}
-                  </div>
-                );
-              })()
+                <UserUploadEmbed
+                  postTitle={post.title}
+                  postContent={post.content}
+                  postMedia={post.media}
+                  isNearActive={isNearActive}
+                  isActive={isActive}
+                  useStackLayout={useStackLayout}
+                  emergencyScroll={emergencyScroll || false}
+                  bodyLineClamp={bodyLineClamp}
+                  shouldShowApprofondisci={shouldShowApprofondisci}
+                  flexiblesStatus={flexiblesStatus}
+                  onOpenFullText={openFullTextDrawer}
+                  registerRef={registerRef}
+                  onMediaTap={(index) => setSelectedMediaIndex(index)}
+                  titleRef={(node) => {
+                    registerRef('essential-title')(node);
+                    if (titleRef) {
+                      (titleRef as any).current = node;
+                    }
+                  }}
+                  bodyRef={bodyRef}
+                  bodyTextRef={bodyTextRef}
+                  mediaRef={mediaRef}
+                />
 
               // Twitter/X Card - Unified glassmorphic container
               ) : hasLink && isTwitter ? (
