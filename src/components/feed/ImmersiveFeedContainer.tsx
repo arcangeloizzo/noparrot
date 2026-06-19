@@ -198,43 +198,22 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
     }
 
     return (
-      <div style={{ height: `calc(var(--vh, 1vh) * 100 * ${items.length})`, position: 'relative' }}>
-        {/*
-          CUSTOM LAZY-MOUNT WINDOW WITH ABSOLUTE POSITIONING
-
-          Rationale: NoParrot's feed paradigm is one-card-per-screen with scroll-snap
-          vertical (non-negotiable). To support thousands of posts without lagging
-          WebKit's snap calculation, we mount only `OVERSCAN * 2 + 1` cards (7 by
-          default) around the active index. To preserve native scroll-snap behavior,
-          we maintain an outer spacer at `items.length * 100dvh` and position visible
-          cards absolutely at their real coordinates.
-
-          Why custom over react-virtuoso / react-window:
-          - Native scroll-snap on absolutely positioned elements is well-supported
-            on iOS Safari (validated via planning doc).
-          - Zero bundle impact.
-          - Full control over interactions (drag-to-react, double-tap, pull-to-refresh).
-
-          WARNING for future maintainers: if snap behavior degrades on a specific
-          iOS Safari version, consider falling back to react-virtuoso with
-          `topItemIndex` (see /docs/planning/feed-virtualization-plan.md Section B).
-        */}
-        {visibleItems.map(({ item, actualIndex }) => (
-          <div
-            key={item.id ?? actualIndex}
-            ref={(el) => registerCard(el, actualIndex)}
-            style={{
-              position: 'absolute',
-              top: `calc(var(--vh, 1vh) * 100 * ${actualIndex})`,
-              left: 0,
-              right: 0,
-              height: 'calc(var(--vh, 1vh) * 100)',
-            }}
-            className="snap-start shrink-0 overflow-hidden"
-          >
-            {typeof children === 'function' ? children(item, actualIndex) : null}
-          </div>
-        ))}
+      <div className="w-full flex flex-col">
+        {items.map((item, actualIndex) => {
+          const isVisible = actualIndex >= visibleStart && actualIndex <= visibleEnd;
+          return (
+            <div
+              key={item.id ?? actualIndex}
+              ref={(el) => registerCard(el, actualIndex)}
+              style={{
+                height: 'calc(var(--vh, 1vh) * 100)',
+              }}
+              className="w-full snap-start shrink-0 overflow-hidden relative"
+            >
+              {isVisible && typeof children === 'function' ? children(item, actualIndex) : null}
+            </div>
+          );
+        })}
       </div>
     );
   };
