@@ -5,12 +5,14 @@ import { MediaGallery } from "@/components/media/MediaGallery";
 import { MediaFrame } from "@/components/shared/MediaFrame";
 import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { countPostWords, normalizeMedia, calculateMediaLayout } from "@/lib/mediaUtils";
+import { countPostWords, calculateMediaLayout } from "@/lib/mediaUtils";
+import type { UnifiedMedia } from "@/types/media";
 
 interface UserUploadEmbedProps {
   postTitle?: string;
   postContent?: string;
   postMedia?: any[];
+  normalizedMedias: UnifiedMedia[];
   isNearActive: boolean;
   isActive: boolean;
   useStackLayout: boolean;
@@ -35,6 +37,7 @@ const UserUploadEmbedInner = ({
   postTitle,
   postContent,
   postMedia = [],
+  normalizedMedias = [],
   isNearActive,
   isActive,
   useStackLayout,
@@ -52,10 +55,6 @@ const UserUploadEmbedInner = ({
 }: UserUploadEmbedProps) => {
   // Localized carousel state
   const [carouselIndex, setCarouselIndex] = useState(0);
-
-  const normalizedMedias = useMemo(() => {
-    return (postMedia || []).map(normalizeMedia);
-  }, [postMedia]);
 
   const wordCount = useMemo(() => {
     return countPostWords(postTitle || "", postContent || "");
@@ -399,8 +398,26 @@ export const UserUploadEmbed = memo(UserUploadEmbedInner, (prevProps, nextProps)
     prevProps.emergencyScroll === nextProps.emergencyScroll &&
     prevProps.bodyLineClamp === nextProps.bodyLineClamp &&
     prevProps.shouldShowApprofondisci === nextProps.shouldShowApprofondisci &&
-    JSON.stringify(prevProps.postMedia) === JSON.stringify(nextProps.postMedia) &&
-    JSON.stringify(prevProps.flexiblesStatus) === JSON.stringify(nextProps.flexiblesStatus)
+    (prevProps.postMedia === nextProps.postMedia ||
+      (prevProps.postMedia?.length === nextProps.postMedia?.length &&
+        (prevProps.postMedia || []).every(
+          (val, idx) =>
+            val?.url === nextProps.postMedia?.[idx]?.url &&
+            val?.type === nextProps.postMedia?.[idx]?.type
+        ))) &&
+    (prevProps.normalizedMedias === nextProps.normalizedMedias ||
+      (prevProps.normalizedMedias?.length === nextProps.normalizedMedias?.length &&
+        (prevProps.normalizedMedias || []).every(
+          (val, idx) =>
+            val.src === nextProps.normalizedMedias[idx].src &&
+            val.ratio === nextProps.normalizedMedias[idx].ratio &&
+            val.orientation === nextProps.normalizedMedias[idx].orientation &&
+            val.kind === nextProps.normalizedMedias[idx].kind
+        ))) &&
+    prevProps.flexiblesStatus?.["flexible-image"]?.step ===
+      nextProps.flexiblesStatus?.["flexible-image"]?.step &&
+    prevProps.flexiblesStatus?.["flexible-image"]?.height ===
+      nextProps.flexiblesStatus?.["flexible-image"]?.height
   );
 });
 

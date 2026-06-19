@@ -133,6 +133,7 @@ const CardMediaAdapterInner = ({
         postTitle={post.title}
         postContent={post.content}
         postMedia={post.media}
+        normalizedMedias={normalizedMedias}
         isNearActive={isNearActive}
         isActive={isActive}
         useStackLayout={useStackLayout}
