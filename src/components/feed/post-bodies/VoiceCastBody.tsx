@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useMemo } from "react";
+import { getCardImageUrl } from "@/lib/mediaUtils";
 import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ClampedTitle } from "@/components/shared/ClampedTitle";
@@ -81,6 +82,18 @@ const VoiceCastBodyInner = ({
   mediaRef,
   slotBottomRef,
 }: VoiceCastBodyProps) => {
+  const downscaledMedia = useMemo(() => {
+    if (!media) return [];
+    return media.map(item => ({
+      ...item,
+      url: getCardImageUrl(item.url, 1200, 75),
+      thumbnail_url: item.thumbnail_url ? getCardImageUrl(item.thumbnail_url, 1200, 75) : undefined
+    }));
+  }, [media]);
+
+  const downscaledMediaUrl = useMemo(() => {
+    return getCardImageUrl(mediaUrl, 1200, 75);
+  }, [mediaUrl]);
   const handleDescriptionRef = (node: HTMLDivElement | null) => {
     if (bodyRef) {
       if (typeof bodyRef === "function") {
@@ -190,11 +203,11 @@ const VoiceCastBodyInner = ({
                   : undefined
               }
             >
-              {media.length === 1 ? (
+              {downscaledMedia.length === 1 ? (
                 isVideoMedia ? (
                   <div className="relative w-full h-full flex items-center justify-center">
                     <img
-                      src={media[0]?.thumbnail_url || mediaUrl}
+                      src={downscaledMedia[0]?.thumbnail_url || downscaledMediaUrl}
                       alt=""
                       width={media[0]?.width || 1080}
                       height={media[0]?.height || 1080}
@@ -210,7 +223,7 @@ const VoiceCastBodyInner = ({
                   </div>
                 ) : (
                   <img
-                    src={mediaUrl}
+                    src={downscaledMediaUrl}
                     alt=""
                     width={media[0]?.width || 1080}
                     height={media[0]?.height || 1080}
@@ -221,7 +234,7 @@ const VoiceCastBodyInner = ({
                 )
               ) : (
                 <MediaGallery
-                  media={media}
+                  media={downscaledMedia}
                   onClick={(_, index) => setSelectedMediaIndex(index)}
                   initialIndex={carouselIndex}
                   onIndexChange={setCarouselIndex}

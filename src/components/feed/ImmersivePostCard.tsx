@@ -106,7 +106,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCreateThread } from "@/hooks/useMessageThreads";
 import { useSendMessage } from "@/hooks/useMessages";
 import { getWordCount, getPostFullText, getTestModeWithSource, getQuestionCountWithoutSource, getQuestionCountForIntentReshare } from "@/lib/gate-utils";
-import { getMediaLayout, countPostWords, normalizeMedia, calculateMediaLayout, generateAmbientUrl, getAvatarImageUrl } from "@/lib/mediaUtils";
+import { getMediaLayout, countPostWords, normalizeMedia, calculateMediaLayout, generateAmbientUrl, getAvatarImageUrl, getCardImageUrl } from "@/lib/mediaUtils";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
 import { useReshareContextStack } from "@/hooks/useReshareContextStack";
 import { useOriginalSource } from "@/hooks/useOriginalSource";
@@ -1398,6 +1398,19 @@ const ImmersivePostCardInner = ({
   const isMediaOnlyPost = hasMedia && !hasLink;
   const mediaUrl = post.media?.[0]?.url;
   const isVideoMedia = post.media?.[0]?.type === 'video';
+
+  const downscaledPostMedia = useMemo(() => {
+    if (!post.media) return [];
+    return post.media.map(item => ({
+      ...item,
+      url: getCardImageUrl(item.url, 1200, 75),
+      thumbnail_url: item.thumbnail_url ? getCardImageUrl(item.thumbnail_url, 1200, 75) : undefined
+    }));
+  }, [post.media]);
+
+  const downscaledMediaUrl = useMemo(() => {
+    return getCardImageUrl(mediaUrl, 1200, 75);
+  }, [mediaUrl]);
   const backgroundImage = !isMediaOnlyPost ? (articlePreview?.image || post.preview_img || (post.media?.[0]?.url || quotedPost?.media?.[0]?.url || quotedPost?.preview_img)) : undefined;
   
   const isInstagramReel = post.post_type === 'instagram_reel';
@@ -2515,11 +2528,11 @@ const ImmersivePostCardInner = ({
                             setSelectedMediaIndex(0);
                           } : undefined}
                         >
-                          {post.media.length === 1 ? (
+                          {downscaledPostMedia.length === 1 ? (
                             isVideoMedia ? (
                               <div className="relative w-full h-full flex items-center justify-center">
                                 <img
-                                  src={post.media?.[0]?.thumbnail_url || mediaUrl}
+                                  src={downscaledPostMedia[0]?.thumbnail_url || downscaledMediaUrl}
                                   alt=""
                                   width={(post.media?.[0] as any)?.width || 1080}
                                   height={(post.media?.[0] as any)?.height || 1080}
@@ -2535,7 +2548,7 @@ const ImmersivePostCardInner = ({
                               </div>
                             ) : (
                               <img
-                                src={mediaUrl}
+                                src={downscaledMediaUrl}
                                 alt=""
                                 width={(post.media?.[0] as any)?.width || 1080}
                                 height={(post.media?.[0] as any)?.height || 1080}
@@ -2546,7 +2559,7 @@ const ImmersivePostCardInner = ({
                             )
                           ) : (
                             <MediaGallery
-                              media={post.media}
+                              media={downscaledPostMedia}
                               onClick={(_, index) => setSelectedMediaIndex(index)}
                               initialIndex={carouselIndex}
                               onIndexChange={setCarouselIndex}

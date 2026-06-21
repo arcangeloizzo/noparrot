@@ -10,7 +10,8 @@ import { generateQA } from "@/lib/ai-helpers";
 import { getWordCount, getQuestionCountWithoutSource } from "@/lib/gate-utils";
 import { toast } from "sonner";
 import type { Post } from "@/hooks/usePosts";
-import { getAvatarImageUrl } from "@/lib/mediaUtils";
+import { getAvatarImageUrl, getCardImageUrl } from "@/lib/mediaUtils";
+import { useMemo } from "react";
 
 interface ChallengeBodyProps {
   post: Post;
@@ -59,6 +60,14 @@ export const ChallengeBody = ({
   user,
   renderBodyText,
 }: ChallengeBodyProps) => {
+  const downscaledMedia = useMemo(() => {
+    if (!post.media) return [];
+    return post.media.map(item => ({
+      ...item,
+      url: getCardImageUrl(item.url, 1200, 75),
+      thumbnail_url: item.thumbnail_url ? getCardImageUrl(item.thumbnail_url, 1200, 75) : undefined
+    }));
+  }, [post.media]);
   return (
     <div className="w-full flex flex-col pt-2 pb-6 overflow-hidden" style={{ maxHeight: '60vh' }}>
         {/* Badge Challenge — first element in the flow */}
@@ -159,16 +168,16 @@ export const ChallengeBody = ({
         {/* 2. Media Image (Cropped flexibly taking remaining space) */}
         {post.media && post.media.length > 0 && (
           <div className="flex-1 min-h-0 w-full mb-6 rounded-2xl overflow-hidden border border-white/10  bg-black/50">
-            {post.media.length === 1 ? (
+            {downscaledMedia.length === 1 ? (
               <img
-                src={post.media[0].thumbnail_url || post.media[0].url}
+                src={downscaledMedia[0].thumbnail_url || downscaledMedia[0].url}
                 alt=""
                 className="w-full h-full object-cover"
               />
             ) : (
               <div className="w-full h-full object-cover">
                 <MediaGallery
-                  media={post.media}
+                  media={downscaledMedia}
                   onClick={(_, index) => setSelectedMediaIndex(index)}
                   initialIndex={carouselIndex}
                   onIndexChange={setCarouselIndex}

@@ -5,7 +5,7 @@ import { MediaGallery } from "@/components/media/MediaGallery";
 import { MediaFrame } from "@/components/shared/MediaFrame";
 import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { countPostWords, calculateMediaLayout } from "@/lib/mediaUtils";
+import { countPostWords, calculateMediaLayout, getCardImageUrl } from "@/lib/mediaUtils";
 import type { UnifiedMedia } from "@/types/media";
 
 interface UserUploadEmbedProps {
@@ -63,6 +63,19 @@ const UserUploadEmbedInner = ({
   const hasMedia = postMedia && postMedia.length > 0;
   const isVideoMedia = postMedia?.[0]?.type === "video";
   const mediaUrl = postMedia?.[0]?.url || "";
+
+  const downscaledPostMedia = useMemo(() => {
+    if (!postMedia) return [];
+    return postMedia.map(item => ({
+      ...item,
+      url: getCardImageUrl(item.url, 1200, 75),
+      thumbnail_url: item.thumbnail_url ? getCardImageUrl(item.thumbnail_url, 1200, 75) : undefined
+    }));
+  }, [postMedia]);
+
+  const downscaledMediaUrl = useMemo(() => {
+    return getCardImageUrl(mediaUrl, 1200, 75);
+  }, [mediaUrl]);
 
   const userUploadMedia = normalizedMedias.find((m) => m.source === "user_upload");
   const linkPreviewMedia = normalizedMedias.find((m) => m.source === "link_preview");
@@ -347,7 +360,7 @@ const UserUploadEmbedInner = ({
                     isVideoMedia ? (
                       <div className="relative w-full h-full flex items-center justify-center">
                         <img
-                          src={postMedia?.[0]?.thumbnail_url || mediaUrl}
+                          src={downscaledPostMedia?.[0]?.thumbnail_url || downscaledMediaUrl}
                           alt=""
                           width={postMedia?.[0]?.width || 1080}
                           height={postMedia?.[0]?.height || 1080}
@@ -363,7 +376,7 @@ const UserUploadEmbedInner = ({
                       </div>
                     ) : (
                       <img
-                        src={mediaUrl}
+                        src={downscaledMediaUrl}
                         alt=""
                         width={postMedia?.[0]?.width || 1080}
                         height={postMedia?.[0]?.height || 1080}
@@ -374,7 +387,7 @@ const UserUploadEmbedInner = ({
                     )
                   ) : (
                     <MediaGallery
-                      media={postMedia}
+                      media={downscaledPostMedia}
                       onClick={(_, index) => onMediaTap?.(index)}
                       initialIndex={carouselIndex}
                       onIndexChange={setCarouselIndex}
