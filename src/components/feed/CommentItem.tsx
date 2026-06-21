@@ -27,6 +27,7 @@ import { ReactionSummary, getReactionCounts } from '@/components/feed/ReactionSu
 import { ReportContentDialog } from '@/components/feed/ReportContentDialog';
 import { AdminRemoveDialog } from '@/components/feed/AdminRemoveDialog';
 import { useAdminRole } from '@/hooks/useAdminRole';
+import { getAvatarImageUrl } from "@/lib/mediaUtils";
 
 // Helper to detect touch device - tooltips are meaningless on touch (hover doesn't exist)
 const isTouchDevice = (): boolean => 
@@ -195,7 +196,7 @@ export const CommentItem = ({
     if (comment.author.avatar_url) {
       return (
         <img
-          src={comment.author.avatar_url}
+          src={getAvatarImageUrl(comment.author.avatar_url)}
           alt={name}
           className="w-8 h-8 rounded-full object-cover"
         />

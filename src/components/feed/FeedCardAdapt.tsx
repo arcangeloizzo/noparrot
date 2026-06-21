@@ -27,6 +27,7 @@ import { PostHeader } from "./PostHeader";
 import { MentionText } from "./MentionText";
 import { VoicePlayer } from "@/components/media/VoicePlayer";
 import { Mic } from "lucide-react";
+import { getAvatarImageUrl } from "@/lib/mediaUtils";
 
 // Media Components
 import { MediaGallery } from "@/components/media/MediaGallery";
@@ -235,7 +236,7 @@ export const FeedCard = ({
     if (post.author.avatar_url) {
       return (
         <img
-          src={post.author.avatar_url}
+          src={getAvatarImageUrl(post.author.avatar_url)}
           alt={post.author.full_name || post.author.username}
           width={96}
           height={96}

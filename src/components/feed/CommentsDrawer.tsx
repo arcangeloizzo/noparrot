@@ -28,6 +28,7 @@ import { runGateBeforeAction } from '@/lib/runGateBeforeAction';
 import { QuizModal } from '@/components/ui/quiz-modal';
 import { toast as sonnerToast } from 'sonner';
 import { LogoVertical } from '@/components/ui/LogoVertical';
+import { getAvatarImageUrl } from "@/lib/mediaUtils";
 import { getWordCount, getPostFullText, getTestModeWithSource } from '@/lib/gate-utils';
 import { generateQA, fetchArticlePreview } from '@/lib/ai-helpers';
 import { addBreadcrumb } from '@/lib/crashBreadcrumbs';
@@ -340,7 +341,7 @@ export const CommentsDrawer = ({ post, isOpen, onClose, mode, scrollToCommentId 
     if (avatarUrl) {
       return (
         <img
-          src={avatarUrl}
+          src={getAvatarImageUrl(avatarUrl)}
           alt={displayName}
           className="w-8 h-8 rounded-full object-cover"
         />

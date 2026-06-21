@@ -6,6 +6,7 @@ import { it } from "date-fns/locale";
 import { useArticlePreview } from "@/hooks/useArticlePreview";
 import { VoicePlayer } from "@/components/media/VoicePlayer";
 import { SpotifyPodcastCompactCard } from "./SpotifyPodcastCompactCard";
+import { getAvatarImageUrl } from "@/lib/mediaUtils";
 
 
 interface QuotedPostEmbedProps {
@@ -66,7 +67,7 @@ const CompactHeader: React.FC<{ post: any }> = ({ post }) => {
     if (author.avatar_url) {
       return (
         <img
-          src={author.avatar_url}
+          src={getAvatarImageUrl(author.avatar_url)}
           alt={author.full_name || author.username}
           width={96}
           height={96}

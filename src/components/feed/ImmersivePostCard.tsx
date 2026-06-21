@@ -106,7 +106,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useCreateThread } from "@/hooks/useMessageThreads";
 import { useSendMessage } from "@/hooks/useMessages";
 import { getWordCount, getPostFullText, getTestModeWithSource, getQuestionCountWithoutSource, getQuestionCountForIntentReshare } from "@/lib/gate-utils";
-import { getMediaLayout, countPostWords, normalizeMedia, calculateMediaLayout, generateAmbientUrl } from "@/lib/mediaUtils";
+import { getMediaLayout, countPostWords, normalizeMedia, calculateMediaLayout, generateAmbientUrl, getAvatarImageUrl } from "@/lib/mediaUtils";
 import { useDoubleTap } from "@/hooks/useDoubleTap";
 import { useReshareContextStack } from "@/hooks/useReshareContextStack";
 import { useOriginalSource } from "@/hooks/useOriginalSource";
@@ -637,7 +637,7 @@ const ImmersivePostCardInner = ({
     if (post.author.avatar_url) {
       return (
         <img
-          src={post.author.avatar_url}
+          src={getAvatarImageUrl(post.author.avatar_url)}
           alt={post.author.full_name || post.author.username}
           width={96}
           height={96}
@@ -2734,7 +2734,7 @@ const ImmersivePostCardInner = ({
                             >
                               <div className="flex items-center gap-2 mb-3">
                                 <Avatar className="w-7 h-7">
-                                  <AvatarImage src={resp.user.avatar_url || undefined} />
+                                  <AvatarImage src={getAvatarImageUrl(resp.user.avatar_url) || undefined} />
                                   <AvatarFallback className="text-[10px] bg-muted">
                                     {(resp.user.full_name || resp.user.username).charAt(0).toUpperCase()}
                                   </AvatarFallback>

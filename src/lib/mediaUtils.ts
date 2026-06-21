@@ -198,3 +198,17 @@ export function getCardImageUrl(
   const [, base, path] = match;
   return `${base}/storage/v1/render/image/public/${path}?width=${targetWidth}&quality=${quality}&resize=contain`;
 }
+
+/**
+ * Returns a downscaled Supabase render-image URL optimized for avatars.
+ * Used in feed avatar slots (32-48px rendered size).
+ * Falls back to original URL if not a Supabase storage URL.
+ */
+export function getAvatarImageUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  // Match Supabase storage URLs: https://<project>.supabase.co/storage/v1/object/public/<path>
+  const match = url.match(/^(https?:\/\/[^\/]+)\/storage\/v1\/object\/public\/(.+?)(\?.*)?$/);
+  if (!match) return url;
+  const [, base, path] = match;
+  return `${base}/storage/v1/render/image/public/${path}?width=96&quality=80&resize=contain`;
+}

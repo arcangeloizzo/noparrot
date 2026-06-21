@@ -10,6 +10,7 @@ import { generateQA } from "@/lib/ai-helpers";
 import { getWordCount, getQuestionCountWithoutSource } from "@/lib/gate-utils";
 import { toast } from "sonner";
 import type { Post } from "@/hooks/usePosts";
+import { getAvatarImageUrl } from "@/lib/mediaUtils";
 
 interface ChallengeBodyProps {
   post: Post;
@@ -241,7 +242,7 @@ export const ChallengeBody = ({
                      >
                        <div className="flex items-center gap-2 mb-3">
                          <Avatar className="w-7 h-7">
-                           <AvatarImage src={resp.user.avatar_url || undefined} />
+                           <AvatarImage src={getAvatarImageUrl(resp.user.avatar_url) || undefined} />
                            <AvatarFallback className="text-[10px] bg-muted">
                              {(resp.user.full_name || resp.user.username).charAt(0).toUpperCase()}
                            </AvatarFallback>
