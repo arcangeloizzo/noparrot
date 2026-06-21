@@ -26,15 +26,12 @@ import { perfStore, isEmailAllowed } from "@/lib/perfStore";
 import { PostCardSkeleton, EditorialSlideSkeleton } from "@/components/feed/skeletons";
 import { prefetchArticlePreviews } from "@/hooks/useArticlePreview";
 import { useAdminRole } from "@/hooks/useAdminRole";
+import { getCardImageUrl } from "@/lib/mediaUtils";
 
 // Helper to get optimized Supabase image URL for prefetch
 const getOptimizedImageUrl = (src: string | undefined): string | undefined => {
   if (!src) return undefined;
-  const isSupabaseStorage = src.includes('.supabase.co/storage/') || src.includes('supabase.co/storage/');
-  if (!isSupabaseStorage) return src;
-  if (src.includes('width=') || src.includes('resize=')) return src;
-  const separator = src.includes('?') ? '&' : '?';
-  return `${src}${separator}width=600&resize=contain&quality=75`;
+  return getCardImageUrl(src, 600, 75);
 };
 
 export const Feed = () => {

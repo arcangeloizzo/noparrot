@@ -6,7 +6,7 @@ import { SourceImageWithFallback } from "../SourceImageWithFallback";
 import { MediaFrame } from "@/components/shared/MediaFrame";
 import { ExternalLink } from "lucide-react";
 import { cn, decodeHTMLEntities } from "@/lib/utils";
-import { countPostWords, calculateMediaLayout } from "@/lib/mediaUtils";
+import { countPostWords, calculateMediaLayout, getCardImageUrl } from "@/lib/mediaUtils";
 
 interface GenericArticleEmbedProps {
   postId: string;
@@ -291,7 +291,7 @@ const GenericArticleEmbedInner = ({
                       ) : (
                         <div className="w-full h-[140px] flex items-center justify-center mb-3 overflow-hidden rounded-xl">
                           <SourceImageWithFallback
-                            src={articlePreview?.image || previewImg}
+                            src={getCardImageUrl(articlePreview?.image || previewImg, 600, 75)}
                             sharedUrl={sharedUrl}
                             isIntent={false}
                             trustScore={displayTrustScore}
