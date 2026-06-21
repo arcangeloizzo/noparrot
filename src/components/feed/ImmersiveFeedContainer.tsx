@@ -18,6 +18,7 @@ export const useFeedContext = () => useContext(FeedContext);
 interface FeedWrapperProps {
   itemId: string;
   isVisible: boolean;
+  isActive: boolean;
   registerRef: (el: HTMLDivElement | null) => void;
   children: React.ReactNode;
 }
@@ -37,7 +38,8 @@ const FeedWrapper = React.memo(({ isVisible, registerRef, children }: FeedWrappe
 }, (prev, next) => {
   return prev.isVisible === next.isVisible && 
          prev.itemId === next.itemId && 
-         prev.registerRef === next.registerRef;
+         prev.registerRef === next.registerRef &&
+         prev.isActive === next.isActive;
 });
 FeedWrapper.displayName = 'FeedWrapper';
 
@@ -246,6 +248,7 @@ export const ImmersiveFeedContainer = forwardRef<ImmersiveFeedContainerRef, Imme
               key={item.id ?? actualIndex}
               itemId={item.id}
               isVisible={isVisible}
+              isActive={actualIndex === activeIndex}
               registerRef={getCardRefCallback(item.id)}
             >
               {typeof children === 'function' ? children(item, actualIndex) : null}
