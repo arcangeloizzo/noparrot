@@ -1086,7 +1086,6 @@ html:not(.light) .liquid-glass-navbar {
   background: transparent;
   border: none;
   transition: transform 150ms ease;
-  will-change: backdrop-filter;
 }
 
 /* Strato vetro (stesso recipe §9 ma scalato per pill) */
