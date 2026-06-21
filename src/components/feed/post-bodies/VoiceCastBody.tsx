@@ -1,109 +1,339 @@
+import React from "react";
+import { Play } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ImmersiveVoicePlayerV2 } from "@/components/media/ImmersiveVoicePlayerV2";
+import { ClampedTitle } from "@/components/shared/ClampedTitle";
+import { MentionText } from "../MentionText";
 import { MediaGallery } from "@/components/media/MediaGallery";
-import type { Post } from "@/hooks/usePosts";
+import { VoicePlayer } from "@/components/media/VoicePlayer";
+import { ImmersiveVoicePlayerV2 } from "@/components/media/ImmersiveVoicePlayerV2";
 
 interface VoiceCastBodyProps {
-  post: Post;
-  activeVoicePost: any;
+  // Identification
+  postId: string;
+
+  // Layout & Scroller
+  emergencyScroll: boolean;
+
+  // Voice data
+  voiceTitle: string;
+  voiceContent: string;
+  bodyLineClamp: number;
+  shouldShowApprofondisci: boolean;
+
+  // Media
+  hasMedia: boolean;
+  media: any[] | undefined;
+  shouldUseBlurredBg: boolean;
+  flexibleImageStep: string | undefined;
+  flexibleImageHeight: number | undefined;
+  isVideoMedia: boolean;
+  mediaUrl: string | undefined;
   carouselIndex: number;
-  setCarouselIndex: (i: number) => void;
-  setSelectedMediaIndex: (i: number | null) => void;
-  setShowFullText: (v: boolean) => void;
-  setShowMediaExpandedSheet: (v: boolean) => void;
-  renderBodyText: (content: string | undefined | null, hasTitle: boolean) => JSX.Element | null;
+
+  // Active / Player
+  isActive: boolean;
+  essentialVoicePlayerState: string | undefined;
+  audioUrl: string;
+  durationSeconds: number;
+  transcriptStatus: any;
+  transcript: string | null | undefined;
+
+  // Callbacks
+  openFullTextDrawer: (mode: "description" | "transcript") => void;
+  registerRef: (id: string) => (node: HTMLElement | null) => void;
+  setSelectedMediaIndex: (index: number | null) => void;
+  setCarouselIndex: (index: number) => void;
+
+  // Refs passed as normal props (avoiding React.forwardRef complexity)
+  bodyRef: React.Ref<HTMLDivElement> | undefined;
+  bodyTextRef: React.Ref<HTMLDivElement> | undefined;
+  mediaRef: React.Ref<HTMLDivElement> | undefined;
+  slotBottomRef: React.Ref<HTMLDivElement> | undefined;
 }
 
-export const VoiceCastBody = ({
-  post,
-  activeVoicePost,
+const VoiceCastBodyInner = ({
+  postId,
+  emergencyScroll,
+  voiceTitle,
+  voiceContent,
+  bodyLineClamp,
+  shouldShowApprofondisci,
+  hasMedia,
+  media,
+  shouldUseBlurredBg,
+  flexibleImageStep,
+  flexibleImageHeight,
+  isVideoMedia,
+  mediaUrl,
   carouselIndex,
-  setCarouselIndex,
+  isActive,
+  essentialVoicePlayerState,
+  audioUrl,
+  durationSeconds,
+  transcriptStatus,
+  transcript,
+  openFullTextDrawer,
+  registerRef,
   setSelectedMediaIndex,
-  setShowFullText,
-  setShowMediaExpandedSheet,
-  renderBodyText,
+  setCarouselIndex,
+  bodyRef,
+  bodyTextRef,
+  mediaRef,
+  slotBottomRef,
 }: VoiceCastBodyProps) => {
+  const handleDescriptionRef = (node: HTMLDivElement | null) => {
+    if (bodyRef) {
+      if (typeof bodyRef === "function") {
+        bodyRef(node);
+      } else {
+        (bodyRef as any).current = node;
+      }
+    }
+    if (bodyTextRef) {
+      if (typeof bodyTextRef === "function") {
+        bodyTextRef(node);
+      } else {
+        (bodyTextRef as any).current = node;
+      }
+    }
+  };
+
+  const handleMediaRef = (node: HTMLDivElement | null) => {
+    registerRef("flexible-image")(node);
+    if (mediaRef) {
+      if (typeof mediaRef === "function") {
+        mediaRef(node);
+      } else {
+        (mediaRef as any).current = node;
+      }
+    }
+  };
+
   return (
-    <div className="w-full flex flex-col pt-2 pb-8 overflow-hidden" style={{ maxHeight: '60vh' }}>
-        {/* Badge VoiceCast — first element */}
-        <div className="w-full flex justify-center mb-5 shrink-0">
-          <span className="h-8 px-4 text-[12px] rounded-full font-bold tracking-wide inline-flex items-center uppercase border shadow-sm"
-            style={{ color: '#0A7AFF', background: 'rgba(10,122,255,0.06)', borderColor: 'rgba(10,122,255,0.2)' }}>
-            🎙 VOICECAST
-          </span>
+    <div
+      className={cn(
+        "w-full flex flex-col pt-2 pb-8 flex-1 min-h-0 justify-start",
+        emergencyScroll && "overflow-y-auto"
+      )}
+    >
+      {/* Header Essenziale: Badge + Title */}
+      <div
+        ref={registerRef("essential-title")}
+        className="w-full flex flex-col flex-shrink-0"
+      >
+        {/* Title se esiste */}
+        {voiceTitle && voiceTitle.trim().length > 0 && (
+          <ClampedTitle
+            as="h2"
+            text={voiceTitle}
+            maxLines={3}
+            className="uppercase mb-3 flex-shrink-0"
+            style={{
+              fontFamily: '"Impact", sans-serif',
+              fontSize: "clamp(30px, 8vw, 42px)",
+              lineHeight: 0.92,
+              letterSpacing: "-0.02em",
+              color: "#FFFFFF",
+              textAlign: "left",
+            }}
+          />
+        )}
+      </div>
+
+      {/* Description flessibile se esiste */}
+      {voiceContent && voiceContent.trim().length > 0 && (
+        <div
+          ref={handleDescriptionRef}
+          className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
+          style={{
+            fontFamily: '"Inter", sans-serif',
+            lineHeight: 1.55,
+            display: "-webkit-box",
+            WebkitLineClamp: bodyLineClamp,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          <MentionText content={voiceContent} />
         </div>
-        {/* VoiceCast Content Hierarchy - 4 scenarios */}
-        {(() => {
-          const hasTitle = Boolean(activeVoicePost?.title);
-          const hasBodyText = Boolean(activeVoicePost?.body_text);
+      )}
 
-          if (hasTitle) {
-            return (
-              <div className={cn(
-                "flex flex-col mb-4",
-                hasBodyText ? "items-start text-left px-2" : "items-center text-center justify-center flex-1 px-4 min-h-0"
-              )}>
-                <h2 
-                  style={{
-                    fontFamily: 'Impact, sans-serif',
-                    fontSize: 'clamp(26px, 6.5vw, 36px)',
-                    lineHeight: 0.95,
-                    letterSpacing: '-0.02em',
-                    color: '#FFFFFF',
-                    textTransform: 'uppercase'
-                  }}
-                  className={cn(
-                    " w-full",
-                    hasBodyText ? "mb-3" : "text-center mb-6"
-                  )}
-                >
-                  {activeVoicePost?.title}
-                </h2>
-                {hasBodyText && renderBodyText(activeVoicePost?.body_text, true)}
-              </div>
-            );
-          }
+      {/* Approfondisci subito dopo description (se non c'è description, dopo title) */}
+      {shouldShowApprofondisci && (
+        <div className="flex-shrink-0 mt-2 mb-3">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              openFullTextDrawer("description");
+            }}
+            className="text-sm text-primary font-semibold hover:underline block"
+          >
+            Approfondisci
+          </button>
+        </div>
+      )}
 
-          // Fallback per vecchi post che hanno solo il body text (post.content)
-          return (
-            <div className="flex-shrink-0 mb-4 px-1">
-              {renderBodyText(post.content, false)}
-            </div>
-          );
-        })()}
-        
-        {/* 2. Media Image (Cropped flexibly taking remaining space) - only if they attach images to VoiceCast */}
-        {post.media && post.media.length > 0 && (
-          <div className="flex-1 min-h-0 w-full mb-6 rounded-2xl overflow-hidden border border-white/10  bg-black/50">
-            {post.media.length === 1 ? (
-              <img
-                src={post.media[0].thumbnail_url || post.media[0].url}
-                alt=""
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full object-cover">
+      {/* Image/Media flessibile */}
+      {hasMedia && media && media.length > 0 && !shouldUseBlurredBg && (
+        <>
+          {flexibleImageStep === "full" && (
+            <div
+              ref={handleMediaRef}
+              className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3 rounded-xl border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.3)] cursor-pointer"
+              style={{ height: `${flexibleImageHeight}px` }}
+              onClick={
+                media.length === 1
+                  ? (e) => {
+                      e.stopPropagation();
+                      setSelectedMediaIndex(0);
+                    }
+                  : undefined
+              }
+            >
+              {media.length === 1 ? (
+                isVideoMedia ? (
+                  <div className="relative w-full h-full flex items-center justify-center">
+                    <img
+                      src={media[0]?.thumbnail_url || mediaUrl}
+                      alt=""
+                      width={media[0]?.width || 1080}
+                      height={media[0]?.height || 1080}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-full object-contain"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-white p-3 rounded-full shadow-lg">
+                        <Play className="w-5 h-5 text-black fill-black ml-0.5" />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <img
+                    src={mediaUrl}
+                    alt=""
+                    width={media[0]?.width || 1080}
+                    height={media[0]?.height || 1080}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-full object-contain"
+                  />
+                )
+              ) : (
                 <MediaGallery
-                  media={post.media}
+                  media={media}
                   onClick={(_, index) => setSelectedMediaIndex(index)}
                   initialIndex={carouselIndex}
                   onIndexChange={setCarouselIndex}
-                  className="w-full h-full object-cover"
-                  fillHeight={true}
+                  className="h-full w-full object-contain"
+                  isActive={isActive}
                 />
+              )}
+            </div>
+          )}
+
+          {flexibleImageStep === "pill" && (
+            <div
+              ref={handleMediaRef}
+              className="flex-shrink-0 mb-3"
+              style={{ height: "36px" }}
+            >
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedMediaIndex(0);
+                }}
+                className="inline-flex h-9 items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 px-4 rounded-full text-white text-xs font-bold"
+              >
+                <span>📎 Vedi {isVideoMedia ? "video" : "immagine"}</span>
+              </button>
+            </div>
+          )}
+
+          {flexibleImageStep === "hidden" && (
+            <div
+              ref={handleMediaRef}
+              style={{ height: 0, overflow: "hidden" }}
+            />
+          )}
+        </>
+      )}
+
+      {/* Player Vocale Essenziale */}
+      <div className="slot-bottom" ref={slotBottomRef}>
+        {essentialVoicePlayerState === "standard" && (
+          <div
+            ref={registerRef("essential-voice-player")}
+            className="w-full mt-auto flex-shrink-0"
+          >
+            {isActive ? (
+              <ImmersiveVoicePlayerV2
+                audioUrl={audioUrl || ""}
+                durationSeconds={durationSeconds || 0}
+                transcriptStatus={transcriptStatus}
+                onShowTranscript={() => openFullTextDrawer("transcript")}
+              />
+            ) : (
+              <div className="w-full h-[52px] rounded-xl bg-white/5 border border-white/10 animate-pulse flex items-center justify-center text-xs text-white/40">
+                Caricamento player vocale...
               </div>
             )}
           </div>
         )}
-
-        {/* 3. Animated Big Waveform Player */}
-        <ImmersiveVoicePlayerV2
-          audioUrl={activeVoicePost?.audio_url || ''}
-          durationSeconds={activeVoicePost?.duration_seconds || 0}
-          transcriptStatus={activeVoicePost?.transcript_status as any}
-          onShowTranscript={() => setShowFullText(true)}
-        />
+        {essentialVoicePlayerState === "compact" && (
+          <div
+            ref={registerRef("essential-voice-player")}
+            className="w-full mt-auto flex-shrink-0"
+          >
+            {isActive ? (
+              <VoicePlayer
+                compact
+                audioUrl={audioUrl || ""}
+                durationSeconds={durationSeconds || 0}
+                transcript={transcript}
+                transcriptStatus={transcriptStatus}
+                onShowTranscript={() => openFullTextDrawer("transcript")}
+              />
+            ) : (
+              <div className="w-full h-[36px] rounded-lg bg-white/5 border border-white/10 animate-pulse flex items-center justify-center text-[10px] text-white/30">
+                Caricamento player vocale...
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
+
+export const VoiceCastBody = React.memo(VoiceCastBodyInner, (prev, next) => {
+  return (
+    prev.postId === next.postId &&
+    prev.emergencyScroll === next.emergencyScroll &&
+    prev.voiceTitle === next.voiceTitle &&
+    prev.voiceContent === next.voiceContent &&
+    prev.bodyLineClamp === next.bodyLineClamp &&
+    prev.shouldShowApprofondisci === next.shouldShowApprofondisci &&
+    prev.hasMedia === next.hasMedia &&
+    prev.media === next.media &&
+    prev.shouldUseBlurredBg === next.shouldUseBlurredBg &&
+    prev.flexibleImageStep === next.flexibleImageStep &&
+    prev.flexibleImageHeight === next.flexibleImageHeight &&
+    prev.isVideoMedia === next.isVideoMedia &&
+    prev.mediaUrl === next.mediaUrl &&
+    prev.carouselIndex === next.carouselIndex &&
+    prev.isActive === next.isActive &&
+    prev.essentialVoicePlayerState === next.essentialVoicePlayerState &&
+    prev.audioUrl === next.audioUrl &&
+    prev.durationSeconds === next.durationSeconds &&
+    prev.transcriptStatus === next.transcriptStatus &&
+    prev.transcript === next.transcript &&
+    prev.bodyRef === next.bodyRef &&
+    prev.bodyTextRef === next.bodyTextRef &&
+    prev.mediaRef === next.mediaRef &&
+    prev.slotBottomRef === next.slotBottomRef
+  );
+});
+
+VoiceCastBody.displayName = "VoiceCastBody";
+export default VoiceCastBody;

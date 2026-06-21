@@ -2393,199 +2393,38 @@ const ImmersivePostCardInner = ({
                 >
 
 
-              {/* Voice Post Body (non-challenge) inline layout */}
+              {/* Voice Post Body (non-challenge) layout component */}
               {!useStackLayout && isVoicePost && activeVoicePost && (
-                <div 
-                  className={cn(
-                    "w-full flex flex-col pt-2 pb-8 flex-1 min-h-0 justify-start",
-                    emergencyScroll && "overflow-y-auto"
-                  )}
-                >
-                  {/* Header Essenziale: Badge + Title */}
-                  <div ref={registerRef('essential-title')} className="w-full flex flex-col flex-shrink-0">
-
-
-                    {/* Title se esiste */}
-                    {voiceTitle && voiceTitle.trim().length > 0 && (
-                      <ClampedTitle
-                        as="h2"
-                        text={voiceTitle}
-                        maxLines={3}
-                        className="uppercase mb-3 flex-shrink-0"
-                        style={{
-                          fontFamily: 'Impact, sans-serif',
-                          fontSize: 'clamp(30px, 8vw, 42px)',
-                          lineHeight: 0.92,
-                          letterSpacing: '-0.02em',
-                          color: '#FFFFFF',
-                          textAlign: 'left',
-                        }}
-                      />
-                    )}
-                  </div>
-
-                  {/* Description flessibile se esiste */}
-                  {voiceContent && voiceContent.trim().length > 0 && (
-                    <div 
-                      ref={(el) => {
-                        (bodyRef as any).current = el;
-                        bodyTextRef.current = el;
-                      }} 
-                      className="whitespace-pre-wrap break-words mb-3 text-[14px] text-[#7A8FA6] text-left flex-shrink-0"
-                      style={{ 
-                        fontFamily: 'Inter, sans-serif', 
-                        lineHeight: 1.55,
-                        display: '-webkit-box',
-                        WebkitLineClamp: bodyLineClamp,
-                        WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden'
-                      }}
-                    >
-                      <MentionText content={voiceContent} />
-                    </div>
-                  )}
-
-                  {/* Approfondisci subito dopo description (se non c'è description, dopo title) */}
-                  {shouldShowApprofondisci && (
-                    <div className="flex-shrink-0 mt-2 mb-3">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openFullTextDrawer('description'); }}
-                        className="text-sm text-primary font-semibold hover:underline block"
-                      >
-                        Approfondisci
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Image/Media flessibile */}
-                  {hasMedia && post.media && post.media.length > 0 && !shouldUseBlurredBg && (
-                    <>
-                      {flexiblesStatus['flexible-image']?.step === 'full' && (
-                        <div 
-                          ref={(node) => {
-                            registerRef('flexible-image')(node);
-                            (mediaRef as any).current = node;
-                          }}
-                          className="relative flex-shrink-0 w-full flex items-center justify-center overflow-hidden mb-3 rounded-xl border border-white/[0.08] shadow-[0_4px_24px_rgba(0,0,0,0.3)] cursor-pointer"
-                          style={{ height: `${flexiblesStatus['flexible-image'].height}px` }}
-                          onClick={post.media.length === 1 ? (e) => {
-                            e.stopPropagation();
-                            setSelectedMediaIndex(0);
-                          } : undefined}
-                        >
-                          {post.media.length === 1 ? (
-                            isVideoMedia ? (
-                              <div className="relative w-full h-full flex items-center justify-center">
-                                <img
-                                  src={post.media?.[0]?.thumbnail_url || mediaUrl}
-                                  alt=""
-                                  width={(post.media?.[0] as any)?.width || 1080}
-                                  height={(post.media?.[0] as any)?.height || 1080}
-                                  loading="lazy"
-                                  decoding="async"
-                                  className="w-full h-full object-contain"
-                                />
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                  <div className="bg-white p-3 rounded-full shadow-lg">
-                                    <Play className="w-5 h-5 text-black fill-black ml-0.5" />
-                                  </div>
-                                </div>
-                              </div>
-                            ) : (
-                              <img
-                                src={mediaUrl}
-                                alt=""
-                                width={(post.media?.[0] as any)?.width || 1080}
-                                height={(post.media?.[0] as any)?.height || 1080}
-                                loading="lazy"
-                                decoding="async"
-                                className="w-full h-full object-contain"
-                              />
-                            )
-                          ) : (
-                            <MediaGallery
-                              media={post.media}
-                              onClick={(_, index) => setSelectedMediaIndex(index)}
-                              initialIndex={carouselIndex}
-                              onIndexChange={setCarouselIndex}
-                              className="h-full w-full object-contain"
-                              isActive={isActive}
-                            />
-                          )}
-                        </div>
-                      )}
-                      
-                      {flexiblesStatus['flexible-image']?.step === 'pill' && (
-                        <div 
-                          ref={(node) => {
-                            registerRef('flexible-image')(node);
-                            (mediaRef as any).current = node;
-                          }}
-                          className="flex-shrink-0 mb-3" 
-                          style={{ height: '36px' }}
-                        >
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedMediaIndex(0);
-                            }}
-                            className="inline-flex h-9 items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/10 px-4 rounded-full text-white text-xs font-bold"
-                          >
-                            <span>📎 Vedi {isVideoMedia ? 'video' : 'immagine'}</span>
-                          </button>
-                        </div>
-                      )}
-
-                      {flexiblesStatus['flexible-image']?.step === 'hidden' && (
-                        <div 
-                          ref={(node) => {
-                            registerRef('flexible-image')(node);
-                            (mediaRef as any).current = node;
-                          }}
-                          style={{ height: 0, overflow: 'hidden' }} 
-                        />
-                      )}
-                    </>
-                  )}
-
-                  {/* Player Vocale Essenziale */}
-                  <div className="slot-bottom" ref={slotBottomRef}>
-                    {essentialStates['essential-voice-player'] === 'standard' && (
-                      <div ref={registerRef('essential-voice-player')} className="w-full mt-auto flex-shrink-0">
-                        {isActive ? (
-                          <ImmersiveVoicePlayerV2
-                            audioUrl={activeVoicePost?.audio_url || ''}
-                            durationSeconds={activeVoicePost?.duration_seconds || 0}
-                            transcriptStatus={activeVoicePost?.transcript_status as any}
-                            onShowTranscript={() => openFullTextDrawer('transcript')}
-                          />
-                        ) : (
-                          <div className="w-full h-[52px] rounded-xl bg-white/5 border border-white/10 animate-pulse flex items-center justify-center text-xs text-white/40">
-                            Caricamento player vocale...
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {essentialStates['essential-voice-player'] === 'compact' && (
-                      <div ref={registerRef('essential-voice-player')} className="w-full mt-auto flex-shrink-0">
-                        {isActive ? (
-                          <VoicePlayer 
-                            compact 
-                            audioUrl={activeVoicePost?.audio_url || ''}
-                            durationSeconds={activeVoicePost?.duration_seconds || 0}
-                            transcript={activeVoicePost?.transcript}
-                            transcriptStatus={activeVoicePost?.transcript_status as any}
-                            onShowTranscript={() => openFullTextDrawer('transcript')}
-                          />
-                        ) : (
-                          <div className="w-full h-[36px] rounded-lg bg-white/5 border border-white/10 animate-pulse flex items-center justify-center text-[10px] text-white/30">
-                            Caricamento player vocale...
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <VoiceCastBody
+                  postId={post.id}
+                  emergencyScroll={emergencyScroll || false}
+                  voiceTitle={voiceTitle}
+                  voiceContent={voiceContent || ''}
+                  bodyLineClamp={bodyLineClamp}
+                  shouldShowApprofondisci={shouldShowApprofondisci}
+                  hasMedia={hasMedia}
+                  media={post.media}
+                  shouldUseBlurredBg={shouldUseBlurredBg}
+                  flexibleImageStep={flexiblesStatus['flexible-image']?.step}
+                  flexibleImageHeight={flexiblesStatus['flexible-image']?.height}
+                  isVideoMedia={isVideoMedia}
+                  mediaUrl={mediaUrl}
+                  carouselIndex={carouselIndex}
+                  isActive={isActive}
+                  essentialVoicePlayerState={essentialStates['essential-voice-player']}
+                  audioUrl={activeVoicePost?.audio_url || ''}
+                  durationSeconds={activeVoicePost?.duration_seconds || 0}
+                  transcriptStatus={activeVoicePost?.transcript_status}
+                  transcript={activeVoicePost?.transcript}
+                  openFullTextDrawer={openFullTextDrawer}
+                  registerRef={registerRef}
+                  setSelectedMediaIndex={setSelectedMediaIndex}
+                  setCarouselIndex={setCarouselIndex}
+                  bodyRef={bodyRef}
+                  bodyTextRef={bodyTextRef}
+                  mediaRef={mediaRef}
+                  slotBottomRef={slotBottomRef}
+                />
               )}
 
               {/* Challenge Post Body inline layout */}
