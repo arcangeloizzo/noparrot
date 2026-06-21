@@ -1378,7 +1378,10 @@ const ImmersivePostCardInner = ({
   };
 
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: it });
-  const normalizedMedias = normalizeMedia(post, articlePreview);
+  const normalizedMedias = useMemo(
+    () => normalizeMedia(post, articlePreview),
+    [post, articlePreview]
+  );
   const hasMedia = (post.media && post.media.length > 0);
   const hasLink = !!post.shared_url;
   const isSpotifyTrack = isSpotify && !isSpotifyEpisode;

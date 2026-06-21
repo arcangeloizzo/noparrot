@@ -158,11 +158,6 @@ export function useDynamicCardLayout({
   const layoutResultRef = useRef(layoutResult);
   layoutResultRef.current = layoutResult;
 
-  // Serializziamo le configurazioni complesse passate in input per creare chiavi stabili di dependency array.
-  // In questo modo, l'effetto non si attiva ad ogni renderizzazione se l'utente passa array ricreati al volo.
-  const serializedEssentials = JSON.stringify(essentials);
-  const serializedFlexibles = JSON.stringify(flexibles);
-  const serializedPriority = JSON.stringify(compressionPriority);
   useLayoutEffect(() => {
     if (typeof window === 'undefined' || !enabled) return;
 
@@ -557,7 +552,7 @@ export function useDynamicCardLayout({
     // Esegue il calcolo iniziale in modo sincrono per evitare il flash del layout 'pending'
     computeLayout();
     setStatus('measured');
-  }, [availableHeight, serializedEssentials, serializedFlexibles, serializedPriority, postId, enabled, cacheKey]);
+  }, [availableHeight, essentials, flexibles, compressionPriority, postId, enabled, cacheKey]);
 
   // Dev-only warning per ref mancanti o blocco in pending
   useEffect(() => {
